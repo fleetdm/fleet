@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -366,72 +367,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	type ndesStatusType string
-	const (
-		ndesStatusAdded   ndesStatusType = "added"
-		ndesStatusEdited  ndesStatusType = "edited"
-		ndesStatusDeleted ndesStatusType = "deleted"
-	)
-	var ndesStatus ndesStatusType
-
-	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
-	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !license.IsPremium() {
-		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
-		appConfig.Integrations.NDESSCEPProxy.Valid = false
-	} else {
-		switch {
-		case !newAppConfig.Integrations.NDESSCEPProxy.Set:
-			// Nothing is set -- keep the old value
-			appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
-		case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
-			// User is explicitly clearing this setting
-			appConfig.Integrations.NDESSCEPProxy.Valid = false
-			if oldAppConfig.Integrations.NDESSCEPProxy.Valid {
-				ndesStatus = ndesStatusDeleted
-			}
-		default:
-			// User is updating the setting
-			appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
-			appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
-			appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
-			// do not preprocess password
-			if len(svc.config.Server.PrivateKey) == 0 {
-				invalid.Append("integrations.ndes_scep_proxy",
-					"Cannot encrypt NDES password. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
-			}
-
-			validateAdminURL, validateSCEPURL := false, false
-			newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
-			if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
-				ndesStatus = ndesStatusAdded
-				validateAdminURL, validateSCEPURL = true, true
-			} else {
-				oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
-				if newSCEPProxy.URL != oldSCEPProxy.URL {
-					ndesStatus = ndesStatusEdited
-					validateSCEPURL = true
-				}
-				if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
-					newSCEPProxy.Username != oldSCEPProxy.Username ||
-					(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
-					ndesStatus = ndesStatusEdited
-					validateAdminURL = true
-				}
-			}
-
-			if validateAdminURL {
-				if err = validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
-					invalid.Append("integrations.ndes_scep_proxy", err.Error())
-				}
-			}
-
-			if validateSCEPURL {
-				if err = validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
-					invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
-				}
-			}
-		}
-	}
+	caStatus := svc.processAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
@@ -446,7 +382,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 2. To update fields with the incoming values
 	if newAppConfig.MDM.EnableDiskEncryption.Valid {
 		if newAppConfig.MDM.EnableDiskEncryption.Value && svc.config.Server.PrivateKey == "" {
-			return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			return nil, ctxerr.New(ctx,
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 		}
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
@@ -471,7 +408,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// this "warning" is returned only in dry-run mode, and if no other errors
 		// were encountered.
 		legacyUsedWarning = &fleet.BadRequestError{
-			Message: fmt.Sprintf("warning: deprecated settings were used in the configuration: %v; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings", legacyKeys),
+			Message: fmt.Sprintf("warning: deprecated settings were used in the configuration: %v; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings",
+				legacyKeys),
 		}
 	}
 
@@ -685,16 +623,16 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	switch ndesStatus {
-	case ndesStatusAdded:
+	switch caStatus.ndes {
+	case caStatusAdded:
 		if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for added NDES SCEP proxy")
 		}
-	case ndesStatusEdited:
+	case caStatusEdited:
 		if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for edited NDES SCEP proxy")
 		}
-	case ndesStatusDeleted:
+	case caStatusDeleted:
 		// Delete stored password
 		if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
@@ -704,6 +642,40 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	default:
 		// No change, no activity.
+	}
+	for caName, status := range caStatus.digicert {
+		switch status {
+		case caStatusAdded:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for added DigiCert CA")
+			}
+		case caStatusEdited:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited DigiCert CA")
+			}
+		case caStatusDeleted:
+			// TODO(#26603): Delete API token
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert CA")
+			}
+		}
+	}
+	for caName, status := range caStatus.customSCEPProxy {
+		switch status {
+		case caStatusAdded:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for added Custom SCEP Proxy")
+			}
+		case caStatusEdited:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited Custom SCEP Proxy")
+			}
+		case caStatusDeleted:
+			// TODO(#26603): Delete challenge
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Custom SCEP Proxy")
+			}
+		}
 	}
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
@@ -942,6 +914,303 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	return obfuscatedAppConfig, nil
 }
+
+func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
+	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) appConfigCAStatus {
+
+	var invalidLicense bool
+	fleetLicense, _ := license.FromContext(ctx)
+	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !fleetLicense.IsPremium() {
+		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+		invalidLicense = true
+	}
+	if newAppConfig.Integrations.DigiCert.Set && newAppConfig.Integrations.DigiCert.Valid && !fleetLicense.IsPremium() {
+		invalid.Append("integrations.digicert", ErrMissingLicense.Error())
+		appConfig.Integrations.DigiCert.Valid = false
+		invalidLicense = true
+	}
+	if newAppConfig.Integrations.CustomSCEPProxy.Set && newAppConfig.Integrations.CustomSCEPProxy.Valid && !fleetLicense.IsPremium() {
+		invalid.Append("integrations.custom_scep_proxy", ErrMissingLicense.Error())
+		appConfig.Integrations.CustomSCEPProxy.Valid = false
+		invalidLicense = true
+	}
+	result := appConfigCAStatus{
+		digicert:        make(map[string]caStatusType),
+		customSCEPProxy: make(map[string]caStatusType),
+	}
+	if invalidLicense {
+		return result
+	}
+
+	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
+	switch {
+	case !newAppConfig.Integrations.NDESSCEPProxy.Set:
+		// Nothing is set -- keep the old value
+		appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
+	case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+		if oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+			result.ndes = caStatusDeleted
+		}
+	default:
+		// User is updating the setting
+		appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+		appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
+		appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
+		// do not preprocess password
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.ndes_scep_proxy",
+				"Cannot encrypt NDES password. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+
+		validateAdminURL, validateSCEPURL := false, false
+		newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
+		if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+			result.ndes = caStatusAdded
+			validateAdminURL, validateSCEPURL = true, true
+		} else {
+			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
+			if newSCEPProxy.URL != oldSCEPProxy.URL {
+				result.ndes = caStatusEdited
+				validateSCEPURL = true
+			}
+			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
+				newSCEPProxy.Username != oldSCEPProxy.Username ||
+				(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
+				result.ndes = caStatusEdited
+				validateAdminURL = true
+			}
+		}
+
+		if validateAdminURL {
+			if err := validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy", err.Error())
+			}
+		}
+
+		if validateSCEPURL {
+			if err := validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+			}
+		}
+	}
+
+	var (
+		allCANames                           = make(map[string]struct{})
+		additionalDigiCertValidationNeeded   bool
+		additionalCustomSCEPValidationNeeded bool
+	)
+
+	switch {
+	case !newAppConfig.Integrations.DigiCert.Set:
+		// Nothing to set -- keep the old value
+		appConfig.Integrations.DigiCert = oldAppConfig.Integrations.DigiCert
+		// Populate allCANames so we can check for uniqueness against custom SCEP proxy names
+		for _, ca := range oldAppConfig.Integrations.DigiCert.Value {
+			allCANames[ca.Name] = struct{}{}
+		}
+	case !newAppConfig.Integrations.DigiCert.Valid || len(newAppConfig.Integrations.DigiCert.Value) == 0:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.DigiCert.Valid = false
+		for _, ca := range oldAppConfig.Integrations.DigiCert.Value {
+			result.digicert[ca.Name] = caStatusDeleted
+		}
+	default:
+		// We clear DigiCert CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.DigiCert.Value = nil
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.digicert",
+				"Cannot encrypt DigiCert API token. Missing required private key. Learn how to configure the private key here: https://fleetdm."+
+					"com/learn-more-about/fleet-server-private-key")
+			break
+		}
+		additionalDigiCertValidationNeeded = true
+		for _, ca := range newAppConfig.Integrations.DigiCert.Value {
+			ca.Name = fleet.Preprocess(ca.Name)
+			if !validateCAName(ca.Name, "digicert", allCANames, invalid) {
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+			// Validate URL
+			ca.URL = fleet.Preprocess(ca.URL)
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.digicert.url", err.Error())
+				additionalDigiCertValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.digicert.url", "digicert URL must be https or http")
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+
+			if len(ca.CertificateUserPrincipalNames) > 1 {
+				invalid.Append("integrations.digicert.certificate_user_principal_names",
+					"DigiCert CA can only have one certificate user principal name")
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+			ca.ProfileID = fleet.Preprocess(ca.ProfileID)
+			appConfig.Integrations.DigiCert.Value = append(appConfig.Integrations.DigiCert.Value, ca)
+		}
+	}
+
+	switch {
+	case !newAppConfig.Integrations.CustomSCEPProxy.Set:
+		// Nothing to set -- keep the old value
+		appConfig.Integrations.CustomSCEPProxy = oldAppConfig.Integrations.CustomSCEPProxy
+		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+			if _, ok := allCANames[ca.Name]; ok {
+				// This issue is caused by the new DigiCert CA added above
+				invalid.Append("integrations.digicert.name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+					"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", ca.Name))
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+			allCANames[ca.Name] = struct{}{}
+		}
+	case !newAppConfig.Integrations.CustomSCEPProxy.Valid || len(newAppConfig.Integrations.CustomSCEPProxy.Value) == 0:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.CustomSCEPProxy.Valid = false
+		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+			result.customSCEPProxy[ca.Name] = caStatusDeleted
+		}
+	default:
+		// We clear custom SCEP CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.CustomSCEPProxy.Value = nil
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.custom_scep_proxy",
+				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: "+
+					"https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			break
+		}
+		additionalCustomSCEPValidationNeeded = true
+		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
+			ca.Name = fleet.Preprocess(ca.Name)
+			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			ca.URL = fleet.Preprocess(ca.URL)
+			// Validate URL
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
+		}
+	}
+
+	// if additional validation is needed, get all the config assets from DB
+
+	if additionalDigiCertValidationNeeded {
+		oldCAs := oldAppConfig.Integrations.DigiCert.Value
+		remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
+		for _, oldCA := range oldCAs {
+			var found bool
+			for _, newCA := range newAppConfig.Integrations.DigiCert.Value {
+				if oldCA.Name == newCA.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result.digicert[oldCA.Name] = caStatusDeleted
+			} else {
+				remainingOldCAs = append(remainingOldCAs, oldCA)
+			}
+		}
+
+		for _, newCA := range appConfig.Integrations.DigiCert.Value {
+			var found bool
+			for _, oldCA := range remainingOldCAs {
+				switch {
+				case newCA.Equals(&oldCA):
+					// same
+					found = true
+				case newCA.Name == oldCA.Name:
+					// changed
+					if newCA.URL != oldCA.URL && (len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword) {
+						invalid.Append("integrations.digicert.api_token",
+							fmt.Sprintf("DigiCert API token must be set when modifying URL of an existing CA: %s", newCA.Name))
+					} else {
+						result.digicert[newCA.Name] = caStatusEdited
+					}
+					found = true
+				}
+			}
+			if !found {
+				if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
+					invalid.Append("integrations.digicert.api_token",
+						fmt.Sprintf("DigiCert API token must be set on CA: %s", newCA.Name))
+				} else {
+					result.digicert[newCA.Name] = caStatusAdded
+				}
+			}
+			// TODO(#26603): Validate all added and modified DigiCert CAs by making an API call and confirming the profile ID exists
+		}
+		// TODO(#26603): Save/encrypt all added/edited API keys
+		/* We keep API tokens unencrypted for now for frontend testing
+		for i := range appConfig.Integrations.DigiCert.Value {
+			appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
+		}
+		*/
+	}
+
+	if additionalCustomSCEPValidationNeeded {
+		svc.logger.Log("msg", "TODO for #26603")
+	}
+	return result
+}
+
+func validateCAName(name string, caType string, allCANames map[string]struct{}, invalid *fleet.InvalidArgumentError) bool {
+	if name == "NDES" {
+		invalid.Append("integrations."+caType+".name", "CA name cannot be NDES")
+		return false
+	}
+	if len(name) == 0 {
+		invalid.Append("integrations."+caType+".name", "CA name cannot be empty")
+		return false
+	}
+	if len(name) > 255 {
+		invalid.Append("integrations."+caType+".name", "CA name cannot be longer than 255 characters")
+		return false
+	}
+	if !isAlphanumeric(name) {
+		invalid.Append("integrations."+caType+".name",
+			fmt.Sprintf("Couldn’t edit integrations.%s. Invalid characters in the \"name\" field. Only letters, "+
+				"numbers and underscores allowed. %s",
+				caType, name))
+		return false
+	}
+	if _, ok := allCANames[name]; ok {
+		invalid.Append("integrations."+caType+".name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+			"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", name))
+		return false
+	}
+	allCANames[name] = struct{}{}
+	return true
+}
+
+type appConfigCAStatus struct {
+	ndes            caStatusType
+	digicert        map[string]caStatusType
+	customSCEPProxy map[string]caStatusType
+}
+
+type caStatusType string
+
+const (
+	caStatusAdded   caStatusType = "added"
+	caStatusEdited  caStatusType = "edited"
+	caStatusDeleted caStatusType = "deleted"
+)
 
 // processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.
 func (svc *Service) processAppleOSUpdateSettings(
@@ -1686,4 +1955,10 @@ func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.
 		return nil, err
 	}
 	return &appConfig.Features, nil
+}
+
+var alphanumeric = regexp.MustCompile(`^\w+$`)
+
+func isAlphanumeric(s string) bool {
+	return alphanumeric.MatchString(s)
 }
