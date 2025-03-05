@@ -1,4 +1,8 @@
-import { IActivity, ActivityType } from "interfaces/activity";
+import {
+  IActivity,
+  ActivityType,
+  IHostPastActivity,
+} from "interfaces/activity";
 
 const DEFAULT_ACTIVITY_MOCK: IActivity = {
   created_at: "2022-11-03T17:22:14Z",
@@ -11,8 +15,22 @@ const DEFAULT_ACTIVITY_MOCK: IActivity = {
   type: ActivityType.EditedAgentOptions,
 };
 
-const createMockActivity = (overrides?: Partial<IActivity>): IActivity => {
+export const createMockActivity = (
+  overrides?: Partial<IActivity>
+): IActivity => {
   return { ...DEFAULT_ACTIVITY_MOCK, ...overrides };
+};
+
+const DEFAULT_HOST_PAST_ACTIVITY_MOCK: IHostPastActivity = {
+  ...DEFAULT_ACTIVITY_MOCK,
+  type: ActivityType.LockedHost,
+  details: {},
+};
+
+export const createMockHostPastActivity = (
+  overrides?: Partial<IHostPastActivity>
+): IHostPastActivity => {
+  return { ...DEFAULT_HOST_PAST_ACTIVITY_MOCK, ...overrides };
 };
 
 export default createMockActivity;
