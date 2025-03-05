@@ -672,7 +672,7 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 		AND (EXISTS (
 			SELECT 1
 			FROM query_labels ql
-			JOIN label_membership hl ON (hl.host_id = ? AND hl.label_id = ql.label_id);
+			JOIN label_membership hl ON (hl.host_id = ? AND hl.label_id = ql.label_id)
 			WHERE ql.query_id = q.id
 		-- Query has no tags
 		) OR NOT EXISTS (
