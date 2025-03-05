@@ -5,12 +5,17 @@
   }
 
   .table-container__search-input {
-    width: 325px; // Custom to fit placeholder text
+    width: 100%;
+    min-width: 180px; // Custom to fit placeholder text
+  }
+
+  .table-container__search {
+    width: 100%;
   }
 
   .host-software-table {
     &__software-filter {
-      min-width: 235px;
+      width: 400px;
     }
 
     &__filters {
@@ -22,17 +27,20 @@
       }
     }
 
-    .stackable-header {
-      .table-container__search {
-        width: initial;
-      }
-    }
-
     .data-table-block {
       .data-table__table {
         thead {
+          .name__header {
+            display: table-cell;
+            width: auto;
+          }
           .status__header {
             display: table-cell;
+            width: auto;
+          }
+          .Version__header {
+            display: table-cell;
+            width: auto;
           }
           .source__header {
             display: table-cell;
@@ -45,19 +53,13 @@
           .id__header {
             width: px-to-rem(90);
           }
-          @media (max-width: $break-xl) {
+          @media (max-width: ($break-xl - 1)) {
             .source__header {
               display: none;
               width: 0;
             }
           }
-          @media (max-width: $break-lg) {
-            .Vulnerabilities__header {
-              display: none;
-              width: 0;
-            }
-          }
-          @media (max-width: $break-sm) {
+          @media (max-width: ($break-lg - 1)) {
             .status__header {
               display: none;
               width: 0;
@@ -66,8 +68,17 @@
         }
         tbody {
           tr {
+            .name__cell {
+              display: table-cell;
+              width: auto;
+            }
             .status__cell {
               display: table-cell;
+              width: auto;
+            }
+            .Version__cell {
+              display: table-cell;
+              width: auto;
             }
             .source__cell {
               display: table-cell;
@@ -75,19 +86,13 @@
             .Vulnerabilities__cell {
               display: table-cell;
             }
-            @media (max-width: $break-xl) {
+            @media (max-width: ($break-xl - 1)) {
               .source__cell {
                 display: none;
                 width: 0;
               }
             }
-            @media (max-width: $break-lg) {
-              .Vulnerabilities__cell {
-                display: none;
-                width: 0;
-              }
-            }
-            @media (max-width: $break-sm) {
+            @media (max-width: ($break-lg - 1)) {
               .status__cell {
                 display: none;
                 width: 0;
