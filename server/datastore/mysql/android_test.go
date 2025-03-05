@@ -9,6 +9,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,7 @@ func TestAndroid(t *testing.T) {
 	}{
 		{"NewAndroidHost", testNewAndroidHost},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
+		{"AndroidMDMStats", testAndroidMDMStats},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -143,4 +145,136 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, host.Host.ID, resultLite.Host.ID)
 	assert.EqualValues(t, host.Device, resultLite.Device)
+}
+
+func testAndroidMDMStats(t *testing.T, ds *Datastore) {
+	const appleMDMURL = "/mdm/apple/mdm"
+	const serverURL = "http://androidmdm.example.com"
+
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = serverURL
+	err = ds.SaveAppConfig(testCtx(), appCfg)
+	require.NoError(t, err)
+
+	// create a few android hosts
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		host := createAndroidHost(uuid.NewString())
+		result, err := ds.NewAndroidHost(testCtx(), host)
+		require.NoError(t, err)
+		hosts[i] = result.Host
+	}
+
+	// create a non-android host
+	macHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "test-host1-name",
+		OsqueryHostID:  ptr.String("1337"),
+		NodeKey:        ptr.String("1337"),
+		UUID:           "test-uuid-1",
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost)
+	require.NoError(t, err)
+
+	// create a non-mdm host
+	linuxHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "test-host2-name",
+		OsqueryHostID:  ptr.String("1338"),
+		NodeKey:        ptr.String("1338"),
+		UUID:           "test-uuid-2",
+		Platform:       "linux",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, linuxHost)
+
+	// stats not computed yet
+	statusStats, _, err := ds.AggregatedMDMStatus(testCtx(), nil, "")
+	require.NoError(t, err)
+	solutionsStats, _, err := ds.AggregatedMDMSolutions(testCtx(), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{}, statusStats)
+	require.Equal(t, []fleet.AggregatedMDMSolutions(nil), solutionsStats)
+
+	// compute stats
+	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
+	require.NoError(t, err)
+
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 4}, statusStats)
+	require.Len(t, solutionsStats, 2)
+
+	// both solutions are Fleet
+	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[0].Name)
+	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[1].Name)
+
+	// one is the Android server URL, one is the Apple URL
+	for _, sol := range solutionsStats {
+		if sol.ServerURL == serverURL {
+			require.Equal(t, 3, sol.HostsCount)
+		} else if sol.ServerURL == serverURL+appleMDMURL {
+			require.Equal(t, 1, sol.HostsCount)
+		} else {
+			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
+		}
+	}
+
+	// filter on android
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledManualHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 1)
+	require.Equal(t, 3, solutionsStats[0].HostsCount)
+	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
+
+	// turn MDM off for android
+	err = ds.androidDS.DeleteAllEnterprises(testCtx())
+	require.NoError(t, err)
+	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
+	require.NoError(t, err)
+
+	// compute stats
+	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
+	require.NoError(t, err)
+
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, UnenrolledHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 2)
+
+	// both solutions are Fleet
+	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[0].Name)
+	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[1].Name)
+
+	// one is the Android server URL, one is the Apple URL
+	for _, sol := range solutionsStats {
+		if sol.ServerURL == serverURL {
+			require.Equal(t, 3, sol.HostsCount)
+		} else if sol.ServerURL == serverURL+appleMDMURL {
+			require.Equal(t, 1, sol.HostsCount)
+		} else {
+			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
+		}
+	}
+
+	// filter on android
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 1)
+	require.Equal(t, 3, solutionsStats[0].HostsCount)
+	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
 }
