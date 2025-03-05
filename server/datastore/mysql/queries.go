@@ -688,7 +688,7 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 		teamSQL = " team_id = ?"
 	}
 	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
-	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
+	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot, hostID)
 
 	results := []*fleet.Query{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {
