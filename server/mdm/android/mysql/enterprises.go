@@ -35,6 +35,19 @@ func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.E
 	return &enterprise, nil
 }
 
+func (ds *Datastore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token, user_id FROM android_enterprises WHERE signup_token = ?`
+	var enterprise android.EnterpriseDetails
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, signupToken)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, common_mysql.NotFound("Android enterprise")
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting enterprise by signup token")
+	}
+	return &enterprise, nil
+}
+
 func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
 	stmt := `SELECT id, enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`
 	var enterprise android.Enterprise

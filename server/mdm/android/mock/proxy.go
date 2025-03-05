@@ -20,7 +20,7 @@ type EnterprisesPoliciesPatchFunc func(enterpriseID string, policyName string, p
 
 type EnterprisesEnrollmentTokensCreateFunc func(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
-type EnterpriseDeleteFunc func(enterpriseID string) error
+type EnterpriseDeleteFunc func(ctx context.Context, enterpriseID string) error
 
 type Proxy struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
@@ -69,9 +69,9 @@ func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *
 	return p.EnterprisesEnrollmentTokensCreateFunc(enterpriseName, token)
 }
 
-func (p *Proxy) EnterpriseDelete(enterpriseID string) error {
+func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error {
 	p.mu.Lock()
 	p.EnterpriseDeleteFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterpriseDeleteFunc(enterpriseID)
+	return p.EnterpriseDeleteFunc(ctx, enterpriseID)
 }
