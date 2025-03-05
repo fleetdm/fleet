@@ -385,7 +385,7 @@ In Fleet, the words "OS settings" mean the computer's operating system settings.
 
 When some tools like Workspace ONE say "Windows CSP/XML" instead of "configuration profile," we've learned that "CSP/XML" is confusing even for people who work in IT and security.
 
-By saying "confguration profiles," Fleet has one, cross-platform name for a feature used to enforcing OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
+By saying "configuration profiles," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
 ## Why not mention the CEO in Slack threads?
 
