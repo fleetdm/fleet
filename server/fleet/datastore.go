@@ -1447,6 +1447,8 @@ type Datastore interface {
 
 	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
 	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
+	DeleteCAConfigAssets(ctx context.Context, names []string) error
 
 	// GetABMTokenByOrgName retrieves the Apple Business Manager token identified by
 	// its unique name (the organization name).

@@ -646,6 +646,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	default:
 		// No change, no activity.
 	}
+	var caAssetsToDelete []string
 	for caName, status := range caStatus.digicert {
 		switch status {
 		case caStatusAdded:
@@ -657,7 +658,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for edited DigiCert CA")
 			}
 		case caStatusDeleted:
-			// TODO(#26603): Delete API token, but not if name still exists
+			if _, nameStillExists := caStatus.customSCEPProxy[caName]; !nameStillExists {
+				caAssetsToDelete = append(caAssetsToDelete, caName)
+			}
 			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: caName}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert CA")
 			}
@@ -674,11 +677,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for edited Custom SCEP Proxy")
 			}
 		case caStatusDeleted:
-			// TODO(#26603): Delete challenge, but not if name still exists
+			if _, nameStillExists := caStatus.digicert[caName]; !nameStillExists {
+				caAssetsToDelete = append(caAssetsToDelete, caName)
+			}
 			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: caName}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Custom SCEP Proxy")
 			}
 		}
+	}
+	err = svc.ds.DeleteCAConfigAssets(ctx, caAssetsToDelete)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delete CA config assets")
 	}
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&

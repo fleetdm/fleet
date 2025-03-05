@@ -68,3 +68,25 @@ func (ds *Datastore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CACo
 	}
 	return nil
 }
+
+func (ds *Datastore) DeleteCAConfigAssets(ctx context.Context, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+
+	stmt := `
+		DELETE FROM ca_config_assets
+		WHERE name IN (?)
+	`
+	stmt, args, err := sqlx.In(stmt, names)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query for deleting CA config assets")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete CA config assets")
+	}
+
+	return nil
+}
