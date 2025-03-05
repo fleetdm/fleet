@@ -103,7 +103,7 @@ func (ds *Datastore) saveCAAssets(ctx context.Context, tx sqlx.ExtContext, info 
 			}
 			info.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
 		}
-		err := ds.SaveCAConfigAssets(ctx, tokensToSave)
+		err := ds.saveCAConfigAssets(ctx, tx, tokensToSave)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving DigiCert API tokens")
 		}

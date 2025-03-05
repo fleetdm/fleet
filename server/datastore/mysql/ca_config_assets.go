@@ -41,6 +41,10 @@ FROM
 }
 
 func (ds *Datastore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
+	return ds.saveCAConfigAssets(ctx, ds.writer(ctx), assets)
+}
+
+func (ds *Datastore) saveCAConfigAssets(ctx context.Context, tx sqlx.ExtContext, assets []fleet.CAConfigAsset) error {
 	if len(assets) == 0 {
 		return nil
 	}
@@ -62,7 +66,7 @@ func (ds *Datastore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CACo
 		args = append(args, asset.Name, asset.Type, encryptedVal)
 	}
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save CA config assets")
 	}
