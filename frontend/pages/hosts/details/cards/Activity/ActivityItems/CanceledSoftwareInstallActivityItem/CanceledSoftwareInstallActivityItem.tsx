@@ -14,6 +14,7 @@ const CanceledSoftwareInstallActivityItem = ({
       className={baseClass}
       activity={activity}
       hideCancel={hideCancel}
+      hideShowDetails
     >
       <>
         <b>{activity.actor_full_name}</b> canceled{" "}

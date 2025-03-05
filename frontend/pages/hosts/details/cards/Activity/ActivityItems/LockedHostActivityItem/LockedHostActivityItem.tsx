@@ -15,6 +15,7 @@ const LockedHostActivityItem = ({
       className={baseClass}
       activity={activity}
       hideCancel={hideCancel}
+      hideShowDetails
     >
       <b>{activity.actor_full_name}</b> locked this host.
     </ActivityItem>
