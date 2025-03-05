@@ -10,9 +10,14 @@ const baseClass = "canceled-script-activity-item";
 
 const CanceledScriptActivityItem = ({
   activity,
+  hideCancel,
 }: IHostActivityItemComponentProps) => {
   return (
-    <ActivityItem className={baseClass} activity={activity}>
+    <ActivityItem
+      className={baseClass}
+      activity={activity}
+      hideCancel={hideCancel}
+    >
       <>
         <b>{activity.actor_full_name}</b> canceled{" "}
         <b>{formatScriptNameForActivityItem(activity.details?.script_name)}</b>{" "}
