@@ -564,6 +564,10 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
+	if err := ds.loadLabelsForQueries(ctx, queries); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
+	}
+
 	var meta *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
@@ -625,6 +629,57 @@ func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []
 	for _, row := range rows {
 		q := name_queries[row.QueryName]
 		q.Packs = append(q.Packs, row.Pack)
+	}
+
+	return nil
+}
+
+func (ds *Datastore) loadLabelsForQueries(ctx context.Context, queries []*fleet.Query) error {
+	return loadLabelsForQueries(ctx, ds.reader(ctx), queries)
+}
+
+func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
+	if len(queries) == 0 {
+		return nil
+	}
+
+	sql := `
+		SELECT
+			q.id AS query_id,
+			l.name AS label_name
+		FROM queries q
+		INNER JOIN query_labels ql ON q.id = ql.query_id
+		INNER JOIN labels l ON l.id = ql.label_id
+		WHERE q.id IN (?)
+	`
+
+	queryIDs := []uint{}
+	for _, query := range queries {
+		queryIDs = append(queryIDs, query.ID)
+	}
+
+	stmt, args, err := sqlx.In(sql, queryIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to load labels for queries")
+	}
+
+	queryMap := make(map[uint]*fleet.Query, len(queries))
+	for _, query := range queries {
+		queryMap[query.ID] = query
+	}
+
+	rows := []struct {
+		QueryID   uint   `db:"query_id"`
+		LabelName string `db:"label_name"`
+	}{}
+
+	err = sqlx.SelectContext(ctx, db, &rows, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting labels for queries")
+	}
+
+	for _, row := range rows {
+		queryMap[row.QueryID].LabelsIncludeAny = append(queryMap[row.QueryID].LabelsIncludeAny, row.LabelName)
 	}
 
 	return nil
