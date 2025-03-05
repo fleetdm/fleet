@@ -39,7 +39,11 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
     disableSortBy: true,
     accessor: "name",
     Cell: (cellProps: ICellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} className="w150" />
+      <TooltipTruncatedTextCell
+        value={cellProps.cell.value}
+        className="w150"
+        key={cellProps.cell.value}
+      />
     ),
   },
   {
@@ -48,7 +52,11 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
     disableSortBy: true,
     accessor: "version",
     Cell: (cellProps: ICellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} className="w150" />
+      <TooltipTruncatedTextCell
+        value={cellProps.cell.value}
+        className="w150"
+        key={`${cellProps.row.original.name}-${cellProps.cell.value}`}
+      />
     ),
   },
   {
