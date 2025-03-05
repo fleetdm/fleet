@@ -657,7 +657,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for edited DigiCert CA")
 			}
 		case caStatusDeleted:
-			// TODO(#26603): Delete API token
+			// TODO(#26603): Delete API token, but not if name still exists
 			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: caName}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert CA")
 			}
@@ -674,7 +674,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for edited Custom SCEP Proxy")
 			}
 		case caStatusDeleted:
-			// TODO(#26603): Delete challenge
+			// TODO(#26603): Delete challenge, but not if name still exists
 			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: caName}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Custom SCEP Proxy")
 			}

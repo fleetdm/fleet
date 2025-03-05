@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -36,4 +38,33 @@ FROM
 	}
 
 	return assetMap, nil
+}
+
+func (ds *Datastore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
+	if len(assets) == 0 {
+		return nil
+	}
+
+	stmt := fmt.Sprintf(`
+	INSERT INTO ca_config_assets (name, type, value)
+	VALUES %s
+	ON DUPLICATE KEY UPDATE
+		value = VALUES(value),
+		type = VALUES(type)
+	`, strings.TrimSuffix(strings.Repeat("(?,?,?),", len(assets)), ","))
+
+	args := make([]interface{}, 0, len(assets)*3)
+	for _, asset := range assets {
+		encryptedVal, err := encrypt(asset.Value, ds.serverPrivateKey)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "encrypting CA config asset %s", asset.Name)
+		}
+		args = append(args, asset.Name, asset.Type, encryptedVal)
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "save CA config assets")
+	}
+	return nil
 }
