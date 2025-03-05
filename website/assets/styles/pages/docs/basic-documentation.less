@@ -360,7 +360,9 @@
       padding: 20px;
       margin-top: 8px;
       color: @core-fleet-black;
-      width: 100%;
+      width: 200px;
+      position: sticky;
+      top: 104px;
       a {
         text-decoration: none;
         color: @core-fleet-black;
@@ -983,6 +985,12 @@
         transition-duration: 500ms;
       }
 
+      [purpose='swag-cta'] {
+        transition-property: all;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 500ms;
+
+      }
       [purpose='right-sidebar'] {
         p {
           line-height: 21px;
