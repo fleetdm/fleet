@@ -320,6 +320,11 @@ $shadow-transition-width: 10px;
           min-width: 100%;
           text-align: left;
         }
+        .w150 {
+          max-width: calc(150px - 48px);
+          min-width: 100%;
+          text-align: left;
+        }
         .italic-cell {
           font-style: italic;
           .__react_component_tooltip {
