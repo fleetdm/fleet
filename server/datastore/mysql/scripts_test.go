@@ -1632,6 +1632,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 		"SELECT count(1) FROM host_script_results WHERE id = ?",
 		scriptExecution.ID,
 	)
+	require.NoError(t, err)
 	require.Equal(t, 1, count)
 }
 
