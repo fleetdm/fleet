@@ -377,7 +377,7 @@ Since Fleet is more than MDM, you can collect logs and health data on any comput
 
 That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
-## Why does Fleet us "OS settings" and "configuration profiles" instead of "Windows CSP/XML"
+## Why does Fleet use "OS settings" and "configuration profiles" instead of "Windows CSP/XML"
 
 IT and security tools should be easy to understand for everyone. This includes people who don't work in IT and security.
 
