@@ -99,9 +99,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     ...DEFAULT_USE_QUERY_OPTIONS,
     retry: false,
     enabled:
+      false && // TODO: reenable when the BE is completed
       !!isGlobalAdmin &&
       !!config?.mdm.android_enabled_and_configured &&
-      config.android_enabled, // TODO: remove android feature flag
+      config?.android_enabled, // TODO: remove android feature flag
     onSuccess: () => {
       setAndroidEnterpriseDeleted(false);
     },
