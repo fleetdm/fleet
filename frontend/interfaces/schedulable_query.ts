@@ -33,7 +33,7 @@ export interface ISchedulableQuery {
   packs: IPack[];
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
-  labels_include_any: ILabelQuery[];
+  labels_include_any?: ILabelQuery[];
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {

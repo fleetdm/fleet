@@ -78,7 +78,7 @@ interface ILabelChooserProps {
   customTargetOptions?: IDropdownOption[];
   customHelpText?: ReactNode;
   dropdownHelpText?: ReactNode;
-  onSelectCustomTarget: (val: string) => void;
+  onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
 }
 
