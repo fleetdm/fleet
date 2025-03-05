@@ -377,9 +377,15 @@ Since Fleet is more than MDM, you can collect logs and health data on any comput
 
 That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
-## Why does Fleet us "OS settings (configuration profiles)" instead of "Windows CSP/XML"
+## Why does Fleet us "OS settings" and "configuration profiles" instead of "Windows CSP/XML"
 
-This way, Fleet has one, cross-platform name for the feature used to enforcing OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
+IT and security tools should be easy to understand for everyone. This includes people who don't work in, or are new to, IT and security.
+
+In Fleet, the words "OS settings" mean the computer's operating system settings. All computers, regardless of operating system, have settings that can be changed and enforced using Fleet. A Fleet user can enforce OS settings with a script or, for some settings, a "configuration profile."
+
+When some tools like Workspace ONE say "Windows CSP/XML" instead of "configuration profile," we've learned that "CSP/XML" is confusing even for people who work in IT and security.
+
+By saying "confguration profiles," Fleet has one, cross-platform name for a feature used to enforcing OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
 ## Why not mention the CEO in Slack threads?
 
