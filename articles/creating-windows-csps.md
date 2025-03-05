@@ -178,7 +178,7 @@ How to get the CSP from Intune and format it as a configuration profile for Flee
         <Target>
           <LocURI>./Device/Vendor/MSFT/Policy/Config/CHANGEME_AREANAME/CHANGEME_POLICYNAME</LocURI>
         </Target>
-        <Data><![CDATA[CHANGEME]]</Data>
+        <Data><![CDATA[CHANGEME]]></Data>
       </Item>
     </Replace>
     ```
