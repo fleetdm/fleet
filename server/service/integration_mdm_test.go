@@ -13304,7 +13304,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
 
 	// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
-	ca1.URL = ca1.URL + "//"
+	ca1.URL += "//"
 	ca3 := getDigiCertIntegration(mockDigiCertServer.URL, "ca3")
 	ca3.APIToken = "api_token3"
 	appConfig = map[string]interface{}{
