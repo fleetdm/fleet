@@ -120,6 +120,27 @@ describe("SaveQueryModal", () => {
     expect(screen.getByText("Query name must be present")).toBeInTheDocument();
   });
 
+  it("should not show the target selector in the free tier", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveQueryModal {...defaultProps} />);
+
+    // Wait for any queries (that should not be happening) to finish.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Check that the target selector is not present.
+    expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
   describe("in premium tier", () => {
     const render = createCustomRenderer({
       withBackendMock: true,

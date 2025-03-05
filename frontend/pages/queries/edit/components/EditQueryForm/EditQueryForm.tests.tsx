@@ -275,6 +275,74 @@ describe("EditQueryForm - component", () => {
     expect(warningIcon).toBeInTheDocument();
   });
 
+  it("should not show the target selector in the free tier", async () => {
+    mockServer.use(labelSummariesHandler);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: "", // missing query name
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: mockQuery.query,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    render(
+      <EditQueryForm
+        router={mockRouter}
+        queryIdForEdit={1}
+        apiTeamIdForQuery={1}
+        teamNameForQuery="Apples"
+        showOpenSchemaActionText
+        storedQuery={createMockQuery({ name: "" })} // empty name
+        isStoredQueryLoading={false}
+        isQuerySaving={false}
+        isQueryUpdating={false}
+        onSubmitNewQuery={jest.fn()}
+        onOsqueryTableSelect={jest.fn()}
+        onUpdate={jest.fn()}
+        onOpenSchemaSidebar={jest.fn()}
+        renderLiveQueryWarning={jest.fn()}
+        backendValidators={{}}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
+      />
+    );
+
+    // Wait for any queries (that should not be happening) to finish.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Check that the target selector is not present.
+    expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
   // TODO: Consider testing save button is disabled for a sql error
   // Trickiness is in modifying react-ace using react-testing library
 
