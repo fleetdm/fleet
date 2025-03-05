@@ -1,1 +1,1 @@
-- Fleet UI: Policy automation with scripts errors fixed to surface to user instead of rendering false success message
+- Fleet UI: Fixed policy automation with scripts to surface errors to user instead of rendering false success message

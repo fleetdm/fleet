@@ -621,6 +621,7 @@ const ManagePolicyPage = ({
         renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
       }
 
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
       refetchTeamPolicies();
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
@@ -708,6 +709,7 @@ const ManagePolicyPage = ({
         renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
       }
 
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
       refetchTeamPolicies();
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
