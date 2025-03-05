@@ -472,6 +472,10 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
 	}
 
+	if err := loadLabelsForQueries(ctx, db, []*fleet.Query{query}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading labels for query")
+	}
+
 	return query, nil
 }
 
