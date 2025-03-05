@@ -56,14 +56,14 @@ policies:
   query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
   platform: darwin
   critical: false
-  calendar_event_enabled: false
+  calendar_events_enabled: false
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
   platform: darwin
   critical: false
-  calendar_event_enabled: false
+  calendar_events_enabled: false
   run_script:
     path: "./disable-guest-account.sh"
 - name: Install Firefox on macOS
@@ -90,7 +90,7 @@ policies:
   - path: ../lib/policies-name.policies.yml
 ```
 
-> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_event_enabled` can only be configured for policies on a team.
+> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_events_enabled` can only be configured for policies on a team.
 
 ## queries
 

@@ -346,6 +346,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
 	}
 
+	err = svc.fleetDS.BulkSetAndroidHostsUnenrolled(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
+	}
+
 	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}

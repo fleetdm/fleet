@@ -127,7 +127,7 @@ Now that we have the data block, we can finally put it all together to generate 
       <Format xmlns="syncml:metinf">chr</Format>
     </Meta>
     <Target>
-    <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI>
     </Target>
     <Data>
       <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
@@ -169,19 +169,19 @@ How to get the CSP from Intune and format it as a configuration profile for Flee
 
 1. Create a new `configuraion-profile.xml` file with as many of the below code blocks as CSPs that you want to migrate:
 
-    ```xml
-    <Replace>
-      <Item>
-        <Meta>
-          <Format xmlns="syncml:metinf">chr</Format>
-        </Meta>
-        <Target>
-          <LocURI>./Device/Vendor/MSFT/Policy/Config/CHANGEME_AREANAME/CHANGEME_POLICYNAME</LocURI>
-        </Target>
-        <Data><![CDATA[CHANGEME]]</Data>
-      </Item>
-    </Replace>
-    ```
+```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/CHANGEME_AREANAME/CHANGEME_POLICYNAME</LocURI>
+    </Target>
+    <Data><![CDATA[CHANGEME]]></Data>
+  </Item>
+</Replace>
+```
 
 2. Find the correct `<Data>` block, by logging into a Windows host enrolled to Intune, opening the Registry Editor, and heading to `HKLM:\SOFTWARE\Microsoft\Provisioning\NodeCache\CSP\Device\MS DM Server\Nodes`. Then, search for the `settingDefinitionId` (CSP) from your list in step 2:
  - The `NodeURI` of the Registry key will be the `LocURI` in the CSP XML

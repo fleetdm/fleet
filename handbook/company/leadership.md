@@ -312,7 +312,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 1. **Create a copy of the "Why hire?"**: Create a copy of the ["Why hire?" template](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/copy?) and complete all TODOs on the "🧑‍🚀 Candidate details" tab.
 
-2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in the "Why hire?" template.  Be respectful and keep these calls very short.
 
 3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date

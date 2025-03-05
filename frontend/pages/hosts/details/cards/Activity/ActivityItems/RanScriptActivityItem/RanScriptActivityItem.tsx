@@ -11,7 +11,6 @@ const RanScriptActivityItem = ({
   tab,
   activity,
   onShowDetails,
-  onCancel,
   isSoloActivity,
   hideCancel,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
@@ -25,7 +24,6 @@ const RanScriptActivityItem = ({
       className={baseClass}
       activity={activity}
       onShowDetails={onShowDetails}
-      onCancel={onCancel}
       isSoloActivity={isSoloActivity}
       hideCancel={hideCancel}
     >
