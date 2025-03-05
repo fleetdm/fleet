@@ -28,6 +28,7 @@ export interface IFormPolicy extends IPolicy {
   swNameToInstall?: string;
   runScriptEnabled: boolean;
   scriptIdToRun?: number;
+  scriptNameToRun?: string;
 }
 
 interface IPoliciesPaginatedListProps {
@@ -88,7 +89,7 @@ function PoliciesPaginatedList(
     if (paginatedListRef.current) {
       changedItems = paginatedListRef.current.getDirtyItems();
     }
-    console.log("changedItems", changedItems);
+
     onSubmit(changedItems);
   };
 
@@ -155,6 +156,7 @@ function PoliciesPaginatedList(
         swIdToInstall: policy.install_software?.software_title_id,
         runScriptEnabled: !!policy.run_script,
         scriptIdToRun: policy.run_script?.id,
+        scriptNameToRun: policy.run_script?.name,
       })) as IFormPolicy[];
     });
   }, []);
