@@ -2775,6 +2775,14 @@ Returns the information of the specified host.
         "shell": "/bin/zsh"
       }
     ],
+    "end_user" {
+      "idp_email": "anna@acme.com",
+      "full_name": "Anna Chao",
+      "idp_groups": [
+        "Product department",
+        "Designers"
+      ]
+    },
     "labels": [
       {
         "created_at": "2021-08-19T02:02:17Z",
