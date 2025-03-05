@@ -417,7 +417,7 @@ describe("EditQueryForm - component", () => {
       expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual(["Fun"]);
     });
 
-    it.only("should clear labels when updating a query in All hosts target mode", async () => {
+    it("should clear labels when updating a query in All hosts target mode", async () => {
       const testProps = {
         ...props,
         storedQuery: createMockQuery({
