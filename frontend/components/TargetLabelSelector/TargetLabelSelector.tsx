@@ -171,7 +171,7 @@ interface ITargetLabelSelectorProps {
   isErrorLabels?: boolean;
   className?: string;
   onSelectTargetType: (val: string) => void;
-  onSelectCustomTarget: (val: string) => void;
+  onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 
-import { noop, pull, size } from "lodash";
+import { pull, size } from "lodash";
 
 import { AppContext } from "context/app";
 
@@ -178,9 +178,10 @@ const SaveQueryModal = ({
         query: queryValue,
         // from doubly previous ManageQueriesPage
         team_id: apiTeamIdForQuery,
-        labels_include_any: Object.entries(selectedLabels).map(
-          ([labelName]) => labelName
-        ),
+        labels_include_any:
+          selectedTargetType === "Custom"
+            ? Object.entries(selectedLabels).map(([labelName]) => labelName)
+            : [],
       });
     }
   };
@@ -301,7 +302,6 @@ const SaveQueryModal = ({
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
             onSelectTargetType={setSelectedTargetType}
-            onSelectCustomTarget={noop}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
             customHelpText={

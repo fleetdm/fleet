@@ -8,6 +8,7 @@ import {
   QueryablePlatform,
   SelectedPlatform,
 } from "./platform";
+import { ILabelQuery } from "./label";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -32,6 +33,7 @@ export interface ISchedulableQuery {
   packs: IPack[];
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
+  labels_include_any: ILabelQuery[];
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
