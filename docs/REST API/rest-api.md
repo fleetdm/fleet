@@ -10601,7 +10601,7 @@ _Available in Fleet Premium_
 | host_ids                                                | array    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the team.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the team. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
-| integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations2) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
+| integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the team. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team. See [host_expiry_settings](#host-expiry-settings2) for details.   |
 
@@ -10676,10 +10676,12 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
-| destination_url                 | string  | body | The URL to deliver the webhook requests to.                                                                                                                                                               |
-| policy_ids                      | array   | body | List of policy IDs to enable failing policies webhook.                                                                                                                                                    |
-| host_batch_size                 | integer | body | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request).                                              |
+| enable_failing_policies_webhook | boolean | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
+| destination_url                 | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
+| policy_ids                      | array   | List of policy IDs to enable failing policies webhook.                                                                                                                                                    |
+| host_batch_size                 | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, `0`, means no batching (all hosts failing a policy are sent on one request).                                              |
+
+<br/>
 
 ##### webhook_settings.host_status_webhook
 
@@ -10687,11 +10689,12 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook | boolean | body | Whether or not the host status webhook is enabled. |
-| destination_url            | string | body | The URL to deliver the webhook request to. |
-| host_percentage            | integer | body | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request. |
+| enable_host_status_webhook | boolean | Whether or not the host status webhook is enabled. |
+| destination_url            | string | The URL to deliver the webhook request to. |
+| host_percentage            | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request. |
 | days_count | integer | body | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request. |
 
+<br/>
 
 ##### Example request body
 
@@ -10729,24 +10732,34 @@ _Available in Fleet Premium_
 
 `integrations.jira` is an array of objects with the following structure:
 
-| url                             | string  | body | The URL of the Jira server to use.                                                                                                                                                                        |
-| project_key                     | string  | body | The project key of the Jira integration to use. Jira tickets will be created in this project.                                                                                                             |
-| enable_failing_policies         | boolean | body | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies).    |
+| Name                                                    | Type    | Description                                                                                                                                                                                               |
+| ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url                             | string  | The URL of the Jira server to use.                                                                                                                                                                        |
+| project_key                     | string  | The project key of the Jira integration to use. Jira tickets will be created in this project.                                                                                                             |
+| enable_failing_policies         | boolean | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`enable_failing_policies_webhook` and `enable_failing_policies`).    |
 
 <br/>
 
 ##### integrations.zendesk
 
-| url                             | string  | body | The URL of the Zendesk server to use.                                                                                                                                                                     |
-| group_id                        | integer | body | The Zendesk group id to use. Zendesk tickets will be created in this group.                                                                                                                               |
-| enable_failing_policies         | boolean | body | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+`integrations.zendesk` is an array of objects with the following structure:
+
+| Name                                                    | Type    | Description                                                                                                                                                                                               |
+| ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url                             | string  | The URL of the Zendesk server to use.                                                                                                                                                                     |
+| group_id                        | integer | The Zendesk group ID to use. Zendesk tickets will be created in this group.                                                                                                                               |
+| enable_failing_policies         | boolean | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`enable_failing_policies_webhook` and `enable_failing_policies`). |
 
 <br/>
 
 ##### integrations.google_calendar
 
-| enable_calendar_events          | boolean | body | Whether or not calendar events are enabled for this team.                                                                                                                                                  |
-| webhook_url                     | string | body | The URL to send a request to during calendar events, to trigger auto-remediation.                |
+`integrations.google_calendar` is an array of objects with the following structure:
+
+| Name                                                    | Type    | Description                                                                                                                                                                                               |
+| ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_calendar_events          | boolean | Whether or not calendar events are enabled for this team.                                                                                                                                                  |
+| webhook_url                     | string | The URL to send a request to during calendar events, to trigger auto-remediation.                |
 
 ##### Example request body
 
@@ -10781,7 +10794,7 @@ _Available in Fleet Premium_
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
-| windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates2). |
+| windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup2). |
@@ -10795,8 +10808,9 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
-| deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+| minimum_version                 | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be prompted to update when their OS is below this version.                                                                           |
+| deadline                        | string  | Hosts that belong to this team and are enrolled into Fleet's MDM will be forced to update their OS after this deadline (noon local time for hosts already on macOS 14 or above, 20:00 UTC for hosts on earlier macOS versions).                                                                    |
+
 <br/>
 
 ##### mdm.ios_updates
@@ -10805,8 +10819,9 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                 | string  | body | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | body | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+| minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
+| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+
 
 <br/>
 
@@ -10816,8 +10831,9 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                 | string  | body | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
-| deadline                        | string  | body | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+| minimum_version                 | string  | Hosts that belong to this team will be prompted to update when their OS is below this version.                                                                            |
+| deadline                        | string  | Hosts that belong to this team will be forced to update their OS after this deadline (noon local time).                                                                    |
+
 
 <br/>
 
@@ -10827,8 +10843,9 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
-| grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
+| deadline_days                   | integer | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
+| grace_period_days               | integer | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
+
 
 <br/>
 
@@ -10838,8 +10855,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | body | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
-| custom_settings                 | array    | body | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
+| enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>
 
@@ -10849,7 +10866,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | body | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                             |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                             |
+
 
 <br/>
 
@@ -10860,7 +10878,10 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+| enable_end_user_authentication  | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+
+<br/>
+
 
 ##### Example request body
 
@@ -10910,8 +10931,9 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| host_expiry_enabled                         | boolean | body | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
-| host_expiry_window                          | integer | body | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
+| host_expiry_enabled                         | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
+| host_expiry_window                          | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
+
 
 <br/>
 
