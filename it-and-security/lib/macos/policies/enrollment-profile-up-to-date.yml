@@ -11,4 +11,4 @@
 
     If you encounter any issues, please reach out via #help-dogfooding. 
   platform: darwin
-  calendar_event_enabled: true
+  calendar_events_enabled: true

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -24,7 +25,12 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	}
 	ds.setTimesToNonZero(host)
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new Android host get app config")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// We use node_key as a unique identifier for the host table row. It matches: android/{enterpriseSpecificID}.
 		stmt := `
 		INSERT INTO hosts (
@@ -104,6 +110,12 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host label membership")
 		}
 
+		// create entry in host_mdm as enrolled (manually), because currently all
+		// android hosts are necessarily MDM-enrolled when created.
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
+		}
+
 		host.Device, err = ds.androidDS.CreateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
@@ -123,13 +135,18 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 }
 
-func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
 	ds.setTimesToNonZero(host)
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update Android host get app config")
+	}
+
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
 			team_id = :team_id,
@@ -165,6 +182,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
+		}
+
+		if fromEnroll {
+			// update host_mdm to set enrolled back to true
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
+			}
 		}
 
 		err = ds.androidDS.UpdateDeviceTx(ctx, tx, host.Device)
@@ -250,4 +274,53 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 		return ctxerr.Wrap(ctx, err, "set label membership")
 	}
 	return nil
+}
+
+// BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
+// Android MDM is turned off for all Fleet).
+func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_mdm
+	SET server_url = '', mdm_id = NULL, enrolled = 0
+	WHERE host_id IN (
+		SELECT id FROM hosts WHERE platform = 'android'
+	)`)
+	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
+}
+
+func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromDEP, enrolled bool, hostIDs ...uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+
+	result, err := tx.ExecContext(ctx, `
+		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
+		fleet.WellKnownMDMFleet, serverURL)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert mdm solution")
+	}
+
+	var mdmID int64
+	if insertOnDuplicateDidInsertOrUpdate(result) {
+		mdmID, _ = result.LastInsertId()
+	} else {
+		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`
+		if err := sqlx.GetContext(ctx, tx, &mdmID, stmt, fleet.WellKnownMDMFleet, serverURL); err != nil {
+			return ctxerr.Wrap(ctx, err, "query mdm solution id")
+		}
+	}
+
+	args := []interface{}{}
+	parts := []string{}
+	for _, id := range hostIDs {
+		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, id)
+		parts = append(parts, "(?, ?, ?, ?, ?, ?)")
+	}
+
+	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
+		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES %s
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id)`, strings.Join(parts, ",")), args...)
+
+	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
