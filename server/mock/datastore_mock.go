@@ -956,6 +956,10 @@ type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConf
 
 type GetAllCAConfigAssetsFunc func(ctx context.Context) (map[string]fleet.CAConfigAsset, error)
 
+type SaveCAConfigAssetsFunc func(ctx context.Context, assets []fleet.CAConfigAsset) error
+
+type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
+
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
@@ -2649,6 +2653,12 @@ type DataStore struct {
 
 	GetAllCAConfigAssetsFunc        GetAllCAConfigAssetsFunc
 	GetAllCAConfigAssetsFuncInvoked bool
+
+	SaveCAConfigAssetsFunc        SaveCAConfigAssetsFunc
+	SaveCAConfigAssetsFuncInvoked bool
+
+	DeleteCAConfigAssetsFunc        DeleteCAConfigAssetsFunc
+	DeleteCAConfigAssetsFuncInvoked bool
 
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
@@ -6358,6 +6368,20 @@ func (s *DataStore) GetAllCAConfigAssets(ctx context.Context) (map[string]fleet.
 	s.GetAllCAConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAllCAConfigAssetsFunc(ctx)
+}
+
+func (s *DataStore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
+	s.mu.Lock()
+	s.SaveCAConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveCAConfigAssetsFunc(ctx, assets)
+}
+
+func (s *DataStore) DeleteCAConfigAssets(ctx context.Context, names []string) error {
+	s.mu.Lock()
+	s.DeleteCAConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCAConfigAssetsFunc(ctx, names)
 }
 
 func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
