@@ -1470,6 +1470,12 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
 		}
 
+		// clear up the MDM-dependent upcoming activities as it won't be able
+		// to process them anymore
+		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
+		}
+
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
 
@@ -5833,5 +5839,42 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 		return err
 	}
 
+	return nil
+}
+
+// ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
+// require MDM to be processed, for when MDM is turned off for the host (or
+// when it turns on again, e.g. after removing the enrollment profile - it may
+// not necessarily report as "turned off" in that scenario).
+func (ds *Datastore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	// NOTE: must be updated if new activity types that require MDM are added to
+	// the upcoming activities.
+	const deleteUpcomingMDMActivities = `
+DELETE FROM upcoming_activities
+	USING upcoming_activities
+		JOIN hosts h ON upcoming_activities.host_id = h.id
+WHERE
+	h.uuid = ? AND
+	upcoming_activities.activity_type IN ('vpp_app_install')
+`
+	_, err := tx.ExecContext(ctx, deleteUpcomingMDMActivities, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing upcoming activities")
+	}
+
+	// get the host ID for that uuid
+	var hostID uint
+	if err := sqlx.GetContext(ctx, tx, &hostID, "SELECT id FROM hosts WHERE uuid = ?", hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "load host ID by UUID")
+	}
+
+	// ensure that if there's an activity waiting to be activated, it does get
+	// activated
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+	}
 	return nil
 }

@@ -13,8 +13,13 @@ const UnlockedHostActivityItem = ({
     desc = "viewed the six-digit unlock PIN for this host.";
   }
   return (
-    <ActivityItem className={baseClass} activity={activity}>
-      <b>{activity.actor_full_name} </b> {desc}
+    <ActivityItem
+      className={baseClass}
+      activity={activity}
+      hideCancel
+      hideShowDetails
+    >
+      <b>{activity.actor_full_name}</b> {desc}
     </ActivityItem>
   );
 };
