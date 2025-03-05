@@ -147,7 +147,6 @@ const FleetAppDetailsForm = ({
             formData={formData}
             onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
             onToggleSelfService={onToggleSelfServiceCheckbox}
-            isCustomPackage
           />
         </Card>
         <Card paddingSize="medium" borderRadiusSize="large">
