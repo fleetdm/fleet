@@ -217,11 +217,12 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 
 	// one is the Android server URL, one is the Apple URL
 	for _, sol := range solutionsStats {
-		if sol.ServerURL == serverURL {
+		switch sol.ServerURL {
+		case serverURL:
 			require.Equal(t, 3, sol.HostsCount)
-		} else if sol.ServerURL == serverURL+appleMDMURL {
+		case serverURL + appleMDMURL:
 			require.Equal(t, 1, sol.HostsCount)
-		} else {
+		default:
 			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
 		}
 	}
@@ -259,11 +260,12 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 
 	// one is the Android server URL, one is the Apple URL
 	for _, sol := range solutionsStats {
-		if sol.ServerURL == serverURL {
+		switch sol.ServerURL {
+		case serverURL:
 			require.Equal(t, 3, sol.HostsCount)
-		} else if sol.ServerURL == serverURL+appleMDMURL {
+		case serverURL + appleMDMURL:
 			require.Equal(t, 1, sol.HostsCount)
-		} else {
+		default:
 			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
 		}
 	}
