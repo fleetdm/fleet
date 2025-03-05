@@ -12,6 +12,7 @@
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Conditional access](#conditional-access)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
@@ -4227,3 +4228,53 @@ Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
 ```
+
+
+---
+
+## Conditional access
+
+### Initiate Microsoft Entra conditional access
+
+Kick off authentication with Microsoft Entra to configure conditional access.
+
+`POST /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
+
+
+
+##### Request body
+
+```json
+{
+  "tenant_id": "SOMETENANTID"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "authentication_url": "TODO"
+}
+
+```
+
+### Receive Microsoft Entra conditional access confirmation
+
+_TODO_
+
+### Delete Microsoft Entra conditional access
+
+`DELETE /api/v1/conditional-access/microsoft`
+
+##### Default response
+
+`Status: 200`
