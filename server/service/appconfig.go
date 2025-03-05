@@ -17,6 +17,7 @@ import (
 	"regexp"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1184,7 +1185,13 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 					result.digicert[newCA.Name] = caStatusAdded
 				}
 			}
-			// TODO(#26603): Validate all added and modified DigiCert CAs by making an API call and confirming the profile ID exists
+			if status, ok := result.digicert[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
+				err := digicert.VerifyProfileID(ctx, svc.logger, newCA)
+				if err != nil {
+					invalid.Append("integrations.digicert.profile_id",
+						fmt.Sprintf("Could not verify DigiCert profile ID %s for CA %s: %s", newCA.ProfileID, newCA.Name, err))
+				}
+			}
 		}
 	}
 

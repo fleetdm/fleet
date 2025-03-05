@@ -13243,12 +13243,37 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	t := s.T()
 	ctx := context.Background()
 
+	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
+	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		matches := pathRegex.FindStringSubmatch(r.URL.Path)
+		if len(matches) != 2 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		profileID := matches[1]
+
+		resp := map[string]string{
+			"id":     profileID,
+			"name":   "Test CA",
+			"status": "Active",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(resp)
+		require.NoError(t, err)
+	}))
+	defer mockDigiCertServer.Close()
+
 	// Add 3 DigiCert integrations
-	ca0 := getDigiCertIntegration("ca0")
+	ca0 := getDigiCertIntegration(mockDigiCertServer.URL, "ca0")
 	ca0.APIToken = "api_token0"
-	ca1 := getDigiCertIntegration("ca1")
+	ca1 := getDigiCertIntegration(mockDigiCertServer.URL, "ca1")
 	ca1.APIToken = "api_token1"
-	ca2 := getDigiCertIntegration("ca2")
+	ca2 := getDigiCertIntegration(mockDigiCertServer.URL, "ca2")
 	ca2.APIToken = "api_token2"
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13279,8 +13304,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
 
 	// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
-	ca1.URL = "https://ca1.new.com"
-	ca3 := getDigiCertIntegration("ca3")
+	ca1.URL = ca1.URL + "//"
+	ca3 := getDigiCertIntegration(mockDigiCertServer.URL, "ca3")
 	ca3.APIToken = "api_token3"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13329,6 +13354,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Empty(t, res.Integrations.DigiCert.Value)
 	_, err = s.ds.GetAllCAConfigAssets(ctx)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// TODO: Verify that activities were created
 }
 
 type noopCertDepot struct{ depot.Depot }
