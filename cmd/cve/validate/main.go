@@ -50,7 +50,12 @@ func checkGovalDictionaryVulnerabilities(vulnPath string) {
 			panic(fmt.Sprintf("failed to move file from %s/%s to %s/%s: %v", vulnPath, filename, vulnPath, destFilename, err))
 		}
 
-		_, err = goval_dictionary.LoadDb(platform, vulnPath)
+		db, err := goval_dictionary.LoadDb(platform, vulnPath)
+		if err != nil {
+			panic(err)
+		}
+
+		err = db.Verfiy()
 		if err != nil {
 			panic(err)
 		}
