@@ -1246,6 +1246,8 @@ type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document st
 
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
+type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3082,6 +3084,9 @@ type DataStore struct {
 
 	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
 	SetAndroidEnabledAndConfiguredFuncInvoked bool
+
+	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
+	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7368,4 +7373,11 @@ func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configur
 	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
+}
+
+func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	s.mu.Lock()
+	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
 }

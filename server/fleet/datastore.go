@@ -1988,6 +1988,7 @@ type Datastore interface {
 	// Android
 
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

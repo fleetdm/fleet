@@ -274,3 +274,15 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 	}
 	return nil
 }
+
+// BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
+// Android MDM is turned off for all Fleet).
+func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_mdm 
+	SET enrolled = 0
+	WHERE host_id IN (
+		SELECT id FROM hosts WHERE platform = 'android'
+	)`)
+	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
+}
