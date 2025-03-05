@@ -379,13 +379,13 @@ That means you can collect logs from Linux servers or Windows factory workstatio
 
 ## Why does Fleet us "OS settings" and "configuration profiles" instead of "Windows CSP/XML"
 
-IT and security tools should be easy to understand for everyone. This includes people who don't work in, or are new to, IT and security.
+IT and security tools should be easy to understand for everyone. This includes people who don't work in IT and security.
 
-In Fleet, the words "OS settings" mean the computer's operating system settings. All computers, regardless of operating system, have settings that can be changed and enforced using Fleet. A Fleet user can enforce OS settings with a script or, for some settings, a "configuration profile."
+In Fleet, the words "OS settings" mean the computer's operating system settings. All computers have settings that can be changed and enforced using Fleet. A Fleet user can enforce OS settings with a script or a "configuration profile."
 
-When some tools like Workspace ONE say "Windows CSP/XML" instead of "configuration profile," we've learned that "CSP/XML" is confusing even for people who work in IT and security.
+Some tools like Workspace ONE say "Windows CSP/XML" instead of "Windows configuration profile." We've learned that "CSP/XML" is confusing even for people who work in IT and security.
 
-By saying "configuration profiles," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
+By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
 ## Why not mention the CEO in Slack threads?
 
