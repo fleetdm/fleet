@@ -650,6 +650,7 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 	sql := `
 		SELECT
 			q.id AS query_id,
+			l.id AS label_id,
 			l.name AS label_name
 		FROM queries q
 		INNER JOIN query_labels ql ON q.id = ql.query_id
@@ -674,6 +675,7 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 
 	rows := []struct {
 		QueryID   uint   `db:"query_id"`
+		LabelID   uint   `db:"label_id"`
 		LabelName string `db:"label_name"`
 	}{}
 
@@ -683,7 +685,7 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 	}
 
 	for _, row := range rows {
-		queryMap[row.QueryID].LabelsIncludeAny = append(queryMap[row.QueryID].LabelsIncludeAny, row.LabelName)
+		queryMap[row.QueryID].LabelsIncludeAny = append(queryMap[row.QueryID].LabelsIncludeAny, fleet.LabelIdent{LabelID: row.LabelID, LabelName: row.LabelName})
 	}
 
 	return nil

@@ -317,6 +317,13 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if p.DiscardData != nil {
 		query.DiscardData = *p.DiscardData
 	}
+	if len(p.LabelsIncludeAny) > 0 {
+		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
+		}
+		query.LabelsIncludeAny = labelIdents
+	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 

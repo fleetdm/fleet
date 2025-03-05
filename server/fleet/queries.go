@@ -106,7 +106,7 @@ type Query struct {
 	DiscardData bool `json:"discard_data" db:"discard_data"`
 	// LabelsIncludeAny is a list of labels that will be used to
 	// target a query
-	LabelsIncludeAny []string `json:"labels_inclued_any"`
+	LabelsIncludeAny []LabelIdent `json:"labels_inclued_any"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -158,7 +158,7 @@ func (q *Query) Copy() *Query {
 		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
 	}
 	if q.LabelsIncludeAny != nil {
-		clone.LabelsIncludeAny = make([]string, len(q.LabelsIncludeAny))
+		clone.LabelsIncludeAny = make([]LabelIdent, len(q.LabelsIncludeAny))
 		copy(clone.LabelsIncludeAny, q.LabelsIncludeAny)
 	}
 	return &clone
