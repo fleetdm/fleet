@@ -1511,7 +1511,7 @@ func upsertHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL stri
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled)`, strings.Join(parts, ",")), args...)
+		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url), enrolled = VALUES(enrolled), mdm_id = VALUES(mdm_id)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }

@@ -280,7 +280,7 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_mdm
-	SET enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)

@@ -159,11 +159,16 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 
 	// create a few android hosts
 	hosts := make([]*fleet.Host, 3)
+	var androidHost0 *fleet.AndroidHost
 	for i := range hosts {
 		host := createAndroidHost(uuid.NewString())
 		result, err := ds.NewAndroidHost(testCtx(), host)
 		require.NoError(t, err)
 		hosts[i] = result.Host
+
+		if androidHost0 == nil {
+			androidHost0 = host
+		}
 	}
 
 	// create a non-android host
@@ -252,23 +257,9 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
 	require.NoError(t, err)
 	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, UnenrolledHostsCount: 3}, statusStats)
-	require.Len(t, solutionsStats, 2)
-
-	// both solutions are Fleet
-	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[0].Name)
-	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[1].Name)
-
-	// one is the Android server URL, one is the Apple URL
-	for _, sol := range solutionsStats {
-		switch sol.ServerURL {
-		case serverURL:
-			require.Equal(t, 3, sol.HostsCount)
-		case serverURL + appleMDMURL:
-			require.Equal(t, 1, sol.HostsCount)
-		default:
-			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
-		}
-	}
+	require.Len(t, solutionsStats, 1)
+	require.Equal(t, 1, solutionsStats[0].HostsCount)
+	require.Equal(t, serverURL+appleMDMURL, solutionsStats[0].ServerURL)
 
 	// filter on android
 	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
@@ -276,7 +267,23 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
 	require.NoError(t, err)
 	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 0)
+
+	// simulate an android host that re-enrolls
+	err = ds.UpdateAndroidHost(testCtx(), androidHost0, true)
+	require.NoError(t, err)
+
+	// compute stats
+	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
+	require.NoError(t, err)
+
+	// filter on android
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledManualHostsCount: 1}, statusStats)
 	require.Len(t, solutionsStats, 1)
-	require.Equal(t, 3, solutionsStats[0].HostsCount)
+	require.Equal(t, 1, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
 }
