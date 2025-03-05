@@ -225,8 +225,15 @@ will be disabled and/or hidden in the UI.
               return next();
             }
 
-            // Not logged in? Proceed as usual.
-            if (!req.session.userId) { return next(); }
+            // Not logged in? Set local variables for the start flow CTA.
+            if (!req.session.userId) {
+              res.locals.showStartCta = true;
+              res.locals.collapseStartCta = true;
+              if(req.session.expandCtaAt && req.session.expandCtaAt < Date.now()) {
+                res.locals.collapseStartCta = false;
+              }
+              return next();
+            }
 
             // Otherwise, look up the logged-in user.
             var loggedInUser = await User.findOne({
