@@ -110,6 +110,8 @@ const SaveQueryModal = ({
     () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
     }
   );
 
