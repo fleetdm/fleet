@@ -126,7 +126,7 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 			return ctxerr.Wrap(ctx, err, "re-enrolling deleted Android host")
 		}
 	}
-	err = svc.updateHost(ctx, &device, host)
+	err = svc.updateHost(ctx, &device, host, false)
 	if err != nil {
 		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
@@ -165,6 +165,11 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "getting existing Android host")
 	}
 
+	// TODO(mna): in the next iteration of Android work (as we're short on time
+	// to make it in the release), we should refactor this to use the MDM
+	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
+	// inserts the host_mdm, and TurnOffMDM deletes it.
+
 	if host != nil {
 		level.Debug(svc.logger).Log("msg", "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
@@ -174,7 +179,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 		}
 		host.TeamID = enrollSecret.GetTeamID()
 
-		return svc.updateHost(ctx, device, host)
+		return svc.updateHost(ctx, device, host, true)
 	}
 
 	// Device is new to Fleet
@@ -202,7 +207,7 @@ func (svc *Service) validateDevice(ctx context.Context, device *androidmanagemen
 	return nil
 }
 
-func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
+func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost, fromEnroll bool) error {
 	err := svc.validateDevice(ctx, device)
 	if err != nil {
 		return err
@@ -246,7 +251,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
 
-	err = svc.fleetDS.UpdateAndroidHost(ctx, host)
+	err = svc.fleetDS.UpdateAndroidHost(ctx, host, fromEnroll)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}

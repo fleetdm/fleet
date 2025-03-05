@@ -119,7 +119,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	assert.NotZero(t, result.Device.ID)
 
 	// Dummy update
-	err = ds.UpdateAndroidHost(testCtx(), result)
+	err = ds.UpdateAndroidHost(testCtx(), result, false)
 	require.NoError(t, err)
 
 	host = result
@@ -136,7 +136,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.HardwareModel = "hardware_model_updated"
 	host.Host.HardwareVendor = "hardware_vendor_updated"
 	host.Device.AndroidPolicyID = ptr.Uint(2)
-	err = ds.UpdateAndroidHost(testCtx(), host)
+	err = ds.UpdateAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 
 	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)

@@ -1571,7 +1571,7 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 	require.Equal(t, 0, len(pending))
 
 	// test pending host script execution for incorrect policy
-	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         1,
 		ScriptContents: "echo",
 		UserID:         &user.ID,
@@ -1592,37 +1592,47 @@ func testDeletePendingHostScriptExecutionsForPolicy(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pending))
 
-	// TODO(mna): adjust test once script execution via unified queue is implemented
-	/*
-		// test not pending host script execution for correct policy
-		scriptExecution, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
-			HostID:         1,
-			ScriptContents: "echo",
-			UserID:         &user.ID,
-			PolicyID:       &p1.ID,
-			SyncRequest:    true,
-			ScriptID:       &script1.ID,
-		})
-		require.NoError(t, err)
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err = q.ExecContext(ctx, `UPDATE host_script_results SET exit_code = 1 WHERE id = ?`, scriptExecution.ID)
-			require.NoError(t, err)
-			return nil
-		})
+	// test not pending host script execution for correct policy
+	scriptExecution, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &user.ID,
+		PolicyID:       &p1.ID,
+		SyncRequest:    true,
+		ScriptID:       &script1.ID,
+	})
+	require.NoError(t, err)
 
-		err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, &team1.ID, p1.ID)
-		require.NoError(t, err)
+	// record a result for the previous pending script
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: hsr.ExecutionID,
+		Output:      "foo",
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
 
-		var count int
-		err = sqlx.GetContext(
-			ctx,
-			ds.reader(ctx),
-			&count,
-			"SELECT count(1) FROM host_script_results WHERE id = ?",
-			scriptExecution.ID,
-		)
-		require.Equal(t, 1, count)
-	*/
+	// record a failed result for the current pending script
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: scriptExecution.ExecutionID,
+		Output:      "foo",
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	err = ds.deletePendingHostScriptExecutionsForPolicy(ctx, &team1.ID, p1.ID)
+	require.NoError(t, err)
+
+	var count int
+	err = sqlx.GetContext(
+		ctx,
+		ds.reader(ctx),
+		&count,
+		"SELECT count(1) FROM host_script_results WHERE id = ?",
+		scriptExecution.ID,
+	)
+	require.Equal(t, 1, count)
 }
 
 func testUpdateScriptContents(t *testing.T, ds *Datastore) {

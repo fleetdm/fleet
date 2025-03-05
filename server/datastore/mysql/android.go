@@ -134,7 +134,7 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 }
 
-func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
@@ -183,11 +183,11 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			return ctxerr.Wrap(ctx, err, "update Android host")
 		}
 
-		// TODO(android): can we avoid this call when update is called only to update host info
-		// (not due to a re-enroll)?
-		// update host_mdm to set enrolled back to true
-		if err := upsertHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "update Android host MDM info")
+		if fromEnroll {
+			// update host_mdm to set enrolled back to true
+			if err := upsertHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
+			}
 		}
 
 		err = ds.androidDS.UpdateDeviceTx(ctx, tx, host.Device)
@@ -279,7 +279,7 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-UPDATE host_mdm 
+UPDATE host_mdm
 	SET enrolled = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'

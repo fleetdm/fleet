@@ -330,6 +330,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
 	}
+
 	err = svc.fleetDS.BulkSetAndroidHostsUnenrolled(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
