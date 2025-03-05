@@ -7,7 +7,6 @@ const baseClass = "unlocked-host-activity-item";
 
 const UnlockedHostActivityItem = ({
   activity,
-  hideCancel,
 }: IHostActivityItemComponentProps) => {
   let desc = "unlocked this host.";
   if (activity.details?.host_platform === "darwin") {
@@ -17,10 +16,10 @@ const UnlockedHostActivityItem = ({
     <ActivityItem
       className={baseClass}
       activity={activity}
-      hideCancel={hideCancel}
+      hideCancel
       hideShowDetails
     >
-      <b>{activity.actor_full_name} </b> {desc}
+      <b>{activity.actor_full_name}</b> {desc}
     </ActivityItem>
   );
 };

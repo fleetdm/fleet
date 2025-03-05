@@ -8,13 +8,12 @@ const baseClass = "locked-host-activity-item";
 
 const LockedHostActivityItem = ({
   activity,
-  hideCancel,
 }: IHostActivityItemComponentProps) => {
   return (
     <ActivityItem
       className={baseClass}
       activity={activity}
-      hideCancel={hideCancel}
+      hideCancel
       hideShowDetails
     >
       <b>{activity.actor_full_name}</b> locked this host.
