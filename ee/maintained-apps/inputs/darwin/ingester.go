@@ -9,12 +9,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
+	"strings"
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -23,7 +26,6 @@ import (
 //go:embed *.json
 var appsJSON embed.FS
 
-// TODO(JVE): should this be a param/injectable for testing?
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
 
 type brewIngester struct {
@@ -36,7 +38,7 @@ type brewIngester struct {
 func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputApp) (*maintained_apps.OutputApp, map[string]string, error) {
 	level.Debug(i.logger).Log("msg", "ingesting app", "name", app.Name)
 
-	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.Identifier)
+	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.SourceIdentifier)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -59,7 +61,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputA
 		// success, go on
 	case http.StatusNotFound:
 		// nothing to do
-		level.Warn(i.logger).Log("msg", "maintained app missing in brew API", "identifier", app.Identifier)
+		level.Warn(i.logger).Log("msg", "maintained app missing in brew API", "identifier", app.SourceIdentifier)
 		return nil, nil, nil
 	default:
 		if len(body) > 512 {
@@ -70,26 +72,25 @@ func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputA
 
 	var cask brewCask
 	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Identifier)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.SourceIdentifier)
 	}
 
 	out := &maintained_apps.OutputApp{}
 
 	if cask.URL == "" {
-		return nil, nil, ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
+		return nil, nil, ctxerr.Errorf(ctx, "missing URL for cask %s", app.SourceIdentifier)
 	}
 	_, err = url.Parse(cask.URL)
 	if err != nil {
-		return nil, nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.SourceIdentifier)
 	}
 
 	out.Version = cask.Version
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.Sha256 = cask.SHA256
-	// should this be included in the inputs somehow? I think not because we know how to
-	// generate this so we can make the inputs as minimal as possible.
 	out.Queries = map[string]string{maintained_apps.ExistsKey: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	out.Description = cask.Desc
 
 	// Script generation
 	scriptRefs := make(map[string]string)
@@ -129,7 +130,7 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "unmarshal app input file")
 		}
 
-		if input.Identifier != "" {
+		if input.SourceIdentifier != "" {
 			outApp, scripts, err := i.ingestOne(ctx, input)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "ingesting app")
@@ -149,11 +150,47 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 
 			// Overwrite the file, since right now we're only caring about 1 version (latest). If we
 			// care about previous data, it will be in our Git history.
-			if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.Identifier), outBytes, 0o644); err != nil {
+			if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.SourceIdentifier), outBytes, 0o644); err != nil {
 				return ctxerr.Wrap(ctx, err, "writing output json file")
 			}
 
 			// TODO(JVE): update the output apps.json file
+			file, err := os.ReadFile("ee/maintained-apps/outputs/apps.json")
+
+			var outputAppsFile maintained_apps.OutputAppsFile
+			if err := json.Unmarshal(file, &outputAppsFile); err != nil {
+				return ctxerr.Wrap(ctx, err, "unmarshaling output apps file")
+			}
+
+			var found bool
+			for _, a := range outputAppsFile.Apps {
+				if a.UniqueIdentifier == outApp.UniqueIdentifier {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.OutputAppsFileApp{
+					Name:             input.Name,
+					Slug:             fmt.Sprintf("%s/%s", input.SourceIdentifier, fleet.MacOSPlatform),
+					Platform:         string(fleet.MacOSPlatform),
+					UniqueIdentifier: outApp.UniqueIdentifier,
+					Description:      outApp.Description,
+				})
+
+				// TODO(JVE): do we need this?
+				slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.OutputAppsFileApp) int { return strings.Compare(a.Slug, b.Slug) })
+
+				updatedFile, err := json.Marshal(outputAppsFile)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
+				}
+
+				if err := os.WriteFile("ee/maintained-apps/outputs/apps.json", updatedFile, 0o644); err != nil {
+					ctxerr.Wrap(ctx, err, "writing updated output apps file")
+				}
+			}
 
 		}
 
@@ -163,6 +200,7 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 }
 
 func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
+	// TODO(JVE): add a check for an env var to set the URL to something else
 	return &brewIngester{
 		baseURL:   baseBrewAPIURL,
 		logger:    logger,

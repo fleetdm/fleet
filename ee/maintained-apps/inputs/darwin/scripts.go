@@ -48,7 +48,7 @@ func installScriptForApp(app maintained_apps.InputApp, cask *brewCask) (string, 
 					return "", fmt.Errorf("building statement to install pkg with choices: %w", err)
 				}
 			default:
-				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.Identifier)
+				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.SourceIdentifier)
 			}
 
 		case len(artifact.Binary) > 0:

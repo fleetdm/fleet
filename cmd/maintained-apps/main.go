@@ -27,7 +27,5 @@ func main() {
 		if err := i.IngestApps(ctx); err != nil {
 			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
 		}
-
-		// TODO(JVE): open PR
 	}
 }
