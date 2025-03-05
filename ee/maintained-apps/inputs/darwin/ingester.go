@@ -1,189 +1,174 @@
-package maintainedapps
+package darwin
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"golang.org/x/sync/errgroup"
+	"github.com/google/uuid"
 )
 
-//go:embed apps.json
-var appsJSON []byte
+//go:embed *.json
+var appsJSON embed.FS
 
-type maintainedApp struct {
-	Identifier           string   `json:"identifier"`
-	BundleIdentifier     string   `json:"bundle_identifier"`
-	InstallerFormat      string   `json:"installer_format"`
-	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
-	PostUninstallScripts []string `json:"post_uninstall_scripts"`
-}
-
+// TODO(JVE): should this be a param/injectable for testing?
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
 
-// Refresh fetches the latest information about maintained apps from the brew
-// API and updates the Fleet database with the new information.
-func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
-	var apps []maintainedApp
-	if err := json.Unmarshal(appsJSON, &apps); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshal embedded apps.json")
-	}
-
-	// allow mocking of the brew API for tests
-	baseURL := baseBrewAPIURL
-	if v := os.Getenv("FLEET_DEV_BREW_API_URL"); v != "" {
-		baseURL = v
-	}
-
-	i := ingester{
-		baseURL: baseURL,
-		// ds:      ds,
-		logger: logger,
-	}
-	return i.ingest(ctx, apps)
+type brewIngester struct {
+	baseURL   string
+	logger    kitlog.Logger
+	client    *http.Client
+	inputData embed.FS
 }
 
-// ExtensionForBundleIdentifier returns an extension for the given FMA
-// identifier. If one can't be found it returns an empty string.
-//
-// This function is used because we can't always extract the extension based on
-// the installer URL.
-func ExtensionForBundleIdentifier(identifier string) (string, error) {
-	var apps []maintainedApp
-	if err := json.Unmarshal(appsJSON, &apps); err != nil {
-		return "", fmt.Errorf("unmarshal embedded apps.json: %w", err)
-	}
+func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputApp) (*maintained_apps.OutputApp, map[string]string, error) {
+	level.Debug(i.logger).Log("msg", "ingesting app", "name", app.Name)
 
-	for _, app := range apps {
-		if app.BundleIdentifier == identifier {
-			formats := strings.Split(app.InstallerFormat, ":")
-			if len(formats) > 0 {
-				return formats[0], nil
-			}
-		}
-	}
-
-	return "", nil
-}
-
-type ingester struct {
-	baseURL string
-	ds      fleet.Datastore
-	logger  kitlog.Logger
-}
-
-func (i ingester) ingest(ctx context.Context, apps []maintainedApp) error {
-	var g errgroup.Group
-
-	if !strings.HasSuffix(i.baseURL, "/") {
-		i.baseURL += "/"
-	}
-
-	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-
-	// run at most 3 concurrent requests to avoid overwhelming the brew API
-	g.SetLimit(3)
-	for _, app := range apps {
-		app := app // capture loop variable, not required in Go 1.23+
-		g.Go(func() error {
-			return i.ingestOne(ctx, app, client)
-		})
-	}
-	return ctxerr.Wrap(ctx, g.Wait(), "ingest apps")
-}
-
-func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http.Client) error {
 	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.Identifier)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create http request")
+		return nil, nil, ctxerr.Wrap(ctx, err, "create http request")
 	}
 
-	res, err := client.Do(req)
+	res, err := i.client.Do(req)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "execute http request")
+		return nil, nil, ctxerr.Wrap(ctx, err, "execute http request")
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "read http response body")
+		return nil, nil, ctxerr.Wrap(ctx, err, "read http response body")
 	}
 
 	switch res.StatusCode {
 	case http.StatusOK:
 		// success, go on
 	case http.StatusNotFound:
-		// nothing to do, either it currently exists in the DB and it keeps on
-		// existing, or it doesn't and keeps on being missing.
+		// nothing to do
 		level.Warn(i.logger).Log("msg", "maintained app missing in brew API", "identifier", app.Identifier)
-		return nil
+		return nil, nil, nil
 	default:
 		if len(body) > 512 {
 			body = body[:512]
 		}
-		return ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
+		return nil, nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
 	}
 
 	var cask brewCask
 	if err := json.Unmarshal(body, &cask); err != nil {
-		return ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Identifier)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.Identifier)
 	}
 
-	// validate required fields
-	if len(cask.Name) == 0 || cask.Name[0] == "" {
-		return ctxerr.Errorf(ctx, "missing name for cask %s", app.Identifier)
-	}
-	if cask.Token == "" {
-		return ctxerr.Errorf(ctx, "missing token for cask %s", app.Identifier)
-	}
-	if cask.Version == "" {
-		return ctxerr.Errorf(ctx, "missing version for cask %s", app.Identifier)
-	}
+	out := &maintained_apps.OutputApp{}
+
 	if cask.URL == "" {
-		return ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
+		return nil, nil, ctxerr.Errorf(ctx, "missing URL for cask %s", app.Identifier)
 	}
 	_, err = url.Parse(cask.URL)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.Identifier)
 	}
 
+	out.Version = cask.Version
+	out.InstallerURL = cask.URL
+	out.UniqueIdentifier = app.UniqueIdentifier
+	out.Sha256 = cask.SHA256
+	// should this be included in the inputs somehow? I think not because we know how to
+	// generate this so we can make the inputs as minimal as possible.
+	out.Queries = map[string]string{maintained_apps.ExistsKey: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+
+	// Script generation
+	scriptRefs := make(map[string]string)
+	uninstallScript := uninstallScriptForApp(&cask)
+	uninstallRef := uuid.NewString()
+	out.UninstallScriptRef = uninstallRef
 	installScript, err := installScriptForApp(app, &cask)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "create install script for cask %s", app.Identifier)
+		return nil, nil, ctxerr.Wrap(ctx, err, "generating install script for maintained app") // TODO(JVE): add data like app id and platform
+	}
+	installRef := uuid.NewString()
+	scriptRefs[installRef] = installScript
+	out.InstallScriptRef = installRef
+
+	scriptRefs[uninstallRef] = uninstallScript
+
+	return out, scriptRefs, nil
+}
+
+func (i *brewIngester) IngestApps(ctx context.Context) error {
+	// Read from our list of apps we should be ingesting
+
+	files, err := i.inputData.ReadDir(".")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading embedded data directory")
 	}
 
-	cask.PreUninstallScripts = app.PreUninstallScripts
-	cask.PostUninstallScripts = app.PostUninstallScripts
-	uninstallScript := uninstallScriptForApp(&cask)
+	// TODO(JVE): probably can introduce some concurrency here
+	for _, f := range files {
+		fileBytes, err := i.inputData.ReadFile(f.Name())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reading app input file")
+		}
 
-	_, err = i.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:    cask.Name[0],
-		Token:   cask.Token,
-		Version: cask.Version,
-		// for now, maintained apps are always macOS (darwin)
-		Platform:         fleet.MacOSPlatform,
-		InstallerURL:     cask.URL,
-		SHA256:           cask.SHA256,
-		BundleIdentifier: app.BundleIdentifier,
-		InstallScript:    installScript,
-		UninstallScript:  uninstallScript,
-	})
-	return ctxerr.Wrap(ctx, err, "upsert maintained app")
+		var input maintained_apps.InputApp
+		if err := json.Unmarshal(fileBytes, &input); err != nil {
+			return ctxerr.Wrap(ctx, err, "unmarshal app input file")
+		}
+
+		if input.Identifier != "" {
+			outApp, scripts, err := i.ingestOne(ctx, input)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "ingesting app")
+			}
+
+			outFile := maintained_apps.OutputFile{
+				Versions: []*maintained_apps.OutputApp{outApp},
+				Refs:     scripts,
+			}
+
+			outBytes, err := json.MarshalIndent(outFile, "", "  ")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
+			}
+
+			fmt.Printf("outBytes: %v\n", string(outBytes))
+
+			// Overwrite the file, since right now we're only caring about 1 version (latest). If we
+			// care about previous data, it will be in our Git history.
+			if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.Identifier), outBytes, 0o644); err != nil {
+				return ctxerr.Wrap(ctx, err, "writing output json file")
+			}
+
+			// TODO(JVE): update the output apps.json file
+
+		}
+
+	}
+
+	return nil
+}
+
+func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
+	return &brewIngester{
+		baseURL:   baseBrewAPIURL,
+		logger:    logger,
+		client:    fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		inputData: appsJSON,
+	}
 }
 
 type brewCask struct {
