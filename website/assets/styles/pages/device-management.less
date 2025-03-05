@@ -202,19 +202,29 @@
       }
     }
   }
+
   [purpose='comparison-column'] {
     text-align: center;
     display: flex;
     justify-content: center;
     align-self: center;
     min-width: 200px;
+    p {
+      font-size: 12px;
+      margin-bottom: 0px;
+    }
   }
   [purpose='fleet-column'] {
     text-align: center;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     align-self: center;
     min-width: 200px;
+    p {
+      white-space: nowrap;
+      font-size: 12px;
+      margin-bottom: 0px;
+    }
   }
   [purpose='feature-name'] {
     width: 100%;
@@ -237,6 +247,10 @@
     border: 1px solid #E2E4EA;
     margin-bottom: 32px;
     [purpose='table-row'] {
+      [purpose='red-x'] {
+        height: 12px;
+        width: 12px;
+      }
       div {
         padding: 12px 24px;
         display: flex;
@@ -328,6 +342,9 @@
         line-height: 21px;
         color: #192147;
       }
+      img {
+        height: 16px;
+      }
     }
     [purpose='feature-table-row'] {
       padding: 12px 16px;
@@ -348,6 +365,15 @@
       display: flex;
       flex-direction: row;
       justify-content: center;
+      [purpose='red-x'] {
+        height: 12px;
+        width: 12px;
+      }
+      p {
+        white-space: nowrap;
+        font-size: 12px;
+        margin-bottom: 0px;
+      }
       img {
         height: 16px;
         &:not(:first-of-type) {

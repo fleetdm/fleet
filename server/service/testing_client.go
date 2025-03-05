@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
@@ -325,18 +326,22 @@ func (ts *withServer) getCachedUserToken(email, password string) string {
 }
 
 func (ts *withServer) getTestToken(email string, password string) string {
-	params := loginRequest{
+	return GetToken(ts.s.T(), email, password, ts.server.URL)
+}
+
+func GetToken(t *testing.T, email string, password string, serverURL string) string {
+	params := endpoints.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
 	j, err := json.Marshal(&params)
-	require.NoError(ts.s.T(), err)
+	require.NoError(t, err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer(j))
-	resp, err := http.Post(ts.server.URL+"/api/latest/fleet/login", "application/json", requestBody)
-	require.NoError(ts.s.T(), err)
+	resp, err := http.Post(serverURL+"/api/latest/fleet/login", "application/json", requestBody)
+	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(ts.s.T(), http.StatusOK, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	jsn := struct {
 		User  *fleet.User         `json:"user"`
@@ -344,8 +349,8 @@ func (ts *withServer) getTestToken(email string, password string) string {
 		Err   []map[string]string `json:"errors,omitempty"`
 	}{}
 	err = json.NewDecoder(resp.Body).Decode(&jsn)
-	require.NoError(ts.s.T(), err)
-	require.Len(ts.s.T(), jsn.Err, 0)
+	require.NoError(t, err)
+	require.Len(t, jsn.Err, 0)
 
 	return jsn.Token
 }
