@@ -149,7 +149,7 @@ func (ds *Datastore) QueryByName(
 	name string,
 ) (*fleet.Query, error) {
 	stmt := `
-		SELECT 
+		SELECT
 			id,
 			team_id,
 			name,
@@ -428,7 +428,7 @@ func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
 
 func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, error) {
 	sqlQuery := `
-		SELECT 
+		SELECT
 			q.id,
 			q.team_id,
 			q.name,
@@ -446,7 +446,7 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 			q.created_at,
 			q.updated_at,
 			q.discard_data,
-			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
+			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
 			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
@@ -645,7 +645,7 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	return observerCanRun, nil
 }
 
-func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	sqlStmt := `
 		SELECT
 			q.name,
@@ -658,17 +658,28 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.logging_type,
 			q.discard_data
 		FROM queries q
-		WHERE q.saved = true 
-			AND (
-				q.schedule_interval > 0 AND
-				%s AND
-				(
-					q.automations_enabled
-					OR
-					(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
-				)
+		WHERE q.saved = true
+		AND (
+			q.schedule_interval > 0 AND
+			%s AND
+			(
+				q.automations_enabled
+				OR
+				(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
 			)
-	`
+		)
+		-- Query has a tag in common with the host
+		AND (EXISTS (
+			SELECT 1
+			FROM query_labels ql
+			JOIN label_membership hl ON (hl.host_id = ? AND hl.label_id = ql.label_id);
+			WHERE ql.query_id = q.id
+		-- Query has no tags
+		) OR NOT EXISTS (
+			SELECT 1
+			FROM query_labels ql
+			WHERE ql.query_id = q.id
+		))`
 
 	args := []interface{}{}
 	teamSQL := " team_id IS NULL"
