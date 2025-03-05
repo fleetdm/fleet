@@ -685,9 +685,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
-	err = svc.ds.DeleteCAConfigAssets(ctx, caAssetsToDelete)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "delete CA config assets")
+	if len(caAssetsToDelete) > 0 {
+		err = svc.ds.DeleteCAConfigAssets(ctx, caAssetsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete CA config assets")
+		}
 	}
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
@@ -1124,7 +1126,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 	if additionalDigiCertValidationNeeded || additionalCustomSCEPValidationNeeded {
 		var err error
 		assets, err = svc.ds.GetAllCAConfigAssets(ctx)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return result, ctxerr.Wrap(ctx, err, "get all CA config assets")
 		}
 		// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method

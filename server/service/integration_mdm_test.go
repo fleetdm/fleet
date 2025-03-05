@@ -13239,6 +13239,34 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 }
 
+func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
+	t := s.T()
+
+	// Add 2 DigiCert integrations
+	ca0 := getDigiCertIntegration("ca0")
+	ca0.APIToken = "api_token0"
+	ca1 := getDigiCertIntegration("ca1")
+	ca1.APIToken = "api_token1"
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca0, ca1},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	var req modifyAppConfigRequest
+	req.RawMessage = raw
+	var res appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 2)
+	for _, ca := range res.Integrations.DigiCert.Value {
+		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
+	}
+
+	// Add 1, modify 1, delete 1 DigiCert integration
+
+}
+
 type noopCertDepot struct{ depot.Depot }
 
 func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {

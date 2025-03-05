@@ -2048,6 +2048,19 @@ func checkExpectedCAValidationError(t *testing.T, invalid *fleet.InvalidArgument
 }
 
 func getAppConfigWithDigiCertIntegration(name string) *fleet.AppConfig {
+	newAppConfig := &fleet.AppConfig{
+		Integrations: fleet.Integrations{
+			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
+				Set:   true,
+				Valid: true,
+				Value: []fleet.DigiCertIntegration{getDigiCertIntegration(name)},
+			},
+		},
+	}
+	return newAppConfig
+}
+
+func getDigiCertIntegration(name string) fleet.DigiCertIntegration {
 	digiCertCA := fleet.DigiCertIntegration{
 		Name:                          name,
 		URL:                           "https://example.com",
@@ -2057,14 +2070,5 @@ func getAppConfigWithDigiCertIntegration(name string) *fleet.AppConfig {
 		CertificateUserPrincipalNames: []string{"user_principal_name"},
 		CertificateSeatID:             "seat_id",
 	}
-	newAppConfig := &fleet.AppConfig{
-		Integrations: fleet.Integrations{
-			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.DigiCertIntegration{digiCertCA},
-			},
-		},
-	}
-	return newAppConfig
+	return digiCertCA
 }
