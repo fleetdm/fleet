@@ -310,7 +310,7 @@ type GetAndroidDSFunc func() android.Datastore
 
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
 
-type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) error
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
@@ -1247,6 +1247,8 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
+
+type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3088,6 +3090,9 @@ type DataStore struct {
 	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
 	SetAndroidEnabledAndConfiguredFuncInvoked bool
 
+	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
+	BulkSetAndroidHostsUnenrolledFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -4099,11 +4104,11 @@ func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost)
 	return s.NewAndroidHostFunc(ctx, host)
 }
 
-func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost) error {
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
 	s.mu.Lock()
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateAndroidHostFunc(ctx, host)
+	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
 }
 
 func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
@@ -7380,4 +7385,11 @@ func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configur
 	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
+}
+
+func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	s.mu.Lock()
+	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
 }

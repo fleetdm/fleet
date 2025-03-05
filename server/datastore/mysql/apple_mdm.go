@@ -1301,6 +1301,10 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
 
+	// if the device is coming from the DEP sync, we don't consider it
+	// enrolled yet.
+	enrolled := !fromSync
+
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -1318,10 +1322,6 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 			return ctxerr.Wrap(ctx, err, "query mdm solution id")
 		}
 	}
-
-	// if the device is coming from the DEP sync, we don't consider it
-	// enrolled yet.
-	enrolled := !fromSync
 
 	args := []interface{}{}
 	parts := []string{}

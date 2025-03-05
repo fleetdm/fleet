@@ -399,7 +399,7 @@ type Datastore interface {
 
 	GetAndroidDS() android.Datastore
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1994,6 +1994,7 @@ type Datastore interface {
 	// Android
 
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
