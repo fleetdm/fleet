@@ -2,13 +2,7 @@
 
 ### Bug fixes
 
-```markdown
-* Fixed bug causing crash on startup.
-* Updated documentation to include new features.
-* Refactored code for better performance.
-* Added new functionality for user customization.
-* Resolved issue with incorrect data being displayed.
-```
+* Improve validation handling.
 
 ## Fleet 4.64.1 (Feb 20, 2025)
 
