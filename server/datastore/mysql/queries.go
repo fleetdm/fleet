@@ -201,7 +201,7 @@ func (ds *Datastore) NewQuery(
 	if err := query.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	sqlStatement := `
+	queryStatement := `
 		INSERT INTO queries (
 			name,
 			description,
@@ -219,9 +219,10 @@ func (ds *Datastore) NewQuery(
 			discard_data
 		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
+
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
-		sqlStatement,
+		queryStatement,
 		query.Name,
 		query.Description,
 		query.Query,
@@ -247,7 +248,62 @@ func (ds *Datastore) NewQuery(
 	id, _ := result.LastInsertId()
 	query.ID = uint(id) //nolint:gosec // dismiss G115
 	query.Packs = []fleet.Pack{}
+
+	if err := ds.updateQueryLabels(ctx, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving labels for query")
+	}
+
 	return query, nil
+}
+
+// updates the LabelsIncludeAny for a query, using the string value of
+// the label. Labels IDs are populated
+func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+	insertLabelSql := `
+		INSERT INTO query_labels (
+			query_id,
+			label_id
+		)
+		SELECT ?, id
+		FROM labels
+		WHERE name IN (?)
+	`
+
+	deleteLabelStmt := `
+		DELETE FROM query_labels
+		WHERE query_id = ?
+	`
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "removing old query labels")
+		}
+
+		labelNames := []string{}
+		for _, label := range query.LabelsIncludeAny {
+			labelNames = append(labelNames, label.LabelName)
+		}
+
+		labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating query label udpate statement")
+		}
+
+		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating query labels")
+		}
+
+		if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {
+			return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating query labels")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) (err error) {
@@ -315,6 +371,10 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query_results")
 		}
+	}
+
+	if err := ds.updateQueryLabels(ctx, q); err != nil {
+		return ctxerr.Wrap(ctx, err, "updaing query labels")
 	}
 
 	return nil
@@ -660,6 +720,7 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 
 	queryIDs := []uint{}
 	for _, query := range queries {
+		clear(query.LabelsIncludeAny)
 		queryIDs = append(queryIDs, query.ID)
 	}
 
