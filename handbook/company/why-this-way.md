@@ -371,7 +371,7 @@ MDM should be a capability, not a product category.
 
 In Fleet, the word "enrolled" means "the host shows up in the dashboard and API".
 
-When some tools like Workspace ONE say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
+When some tools like Omnissa say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
 
 Since Fleet is more than MDM, you can collect logs and health data on any computer.  You can also enforce OS settings on any computer.  But you don't have to enable both: for example, you can build an installer that only collects data, without enabling enforcement features like MDM protocol support and script execution.
 
@@ -383,7 +383,7 @@ IT and security tools should be easy to understand for everyone. This includes p
 
 In Fleet, the words "OS settings" mean the computer's operating system settings. All computers have settings that can be changed and enforced using Fleet. A Fleet user can enforce OS settings with a script or a "configuration profile."
 
-Some tools like Workspace ONE say "Windows CSP/XML" instead of "Windows configuration profile." We've learned that "CSP/XML" is confusing even for people who work in IT and security.
+Some tools like Omnissa say "Windows CSP/XML" instead of "Windows configuration profile." We've learned that "CSP/XML" is confusing even for people who work in IT and security.
 
 By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
