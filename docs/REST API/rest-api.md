@@ -925,6 +925,7 @@ None.
     "tier": "premium",
     "organization": "fleet",
     "device_count": 500000,
+    "managed_cloud": false,
     "expiration": "2031-10-16T00:00:00Z",
     "note": ""
   },
