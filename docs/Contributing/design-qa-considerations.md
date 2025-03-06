@@ -89,7 +89,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to remembe
 
 ## Host
 
-- Enroll to fleet from package
+- Enroll to Fleet using Fleet's agent (fleetd)
 - Enrolled via osquery (no orbit / fleetd)
 - Deleted from fleet
 - DEP enrollment
