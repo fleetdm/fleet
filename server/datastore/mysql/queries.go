@@ -280,6 +280,10 @@ func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) 
 			return ctxerr.Wrap(ctx, err, "removing old query labels")
 		}
 
+		if len(query.LabelsIncludeAny) == 0 {
+			return nil
+		}
+
 		labelNames := []string{}
 		for _, label := range query.LabelsIncludeAny {
 			labelNames = append(labelNames, label.LabelName)
@@ -767,7 +771,7 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	return observerCanRun, nil
 }
 
-func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	sqlStmt := `
 		SELECT
 			q.name,
@@ -789,7 +793,18 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 				OR
 				(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
 			)
-		)
+		)%s`
+
+	args := []interface{}{}
+	teamSQL := " team_id IS NULL"
+	if teamID != nil {
+		args = append(args, *teamID)
+		teamSQL = " team_id = ?"
+	}
+	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
+	labelSQL := ""
+	if hostID != nil {
+		labelSQL = `
 		-- Query has a tag in common with the host
 		AND (EXISTS (
 			SELECT 1
@@ -802,15 +817,9 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			FROM query_labels ql
 			WHERE ql.query_id = q.id
 		))`
-
-	args := []interface{}{}
-	teamSQL := " team_id IS NULL"
-	if teamID != nil {
-		args = append(args, *teamID)
-		teamSQL = " team_id = ?"
+		args = append(args, hostID)
 	}
-	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
-	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot, hostID)
+	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL, labelSQL)
 
 	results := []*fleet.Query{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {

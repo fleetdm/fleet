@@ -80,7 +80,7 @@ type QueryFunc func(ctx context.Context, id uint) (*fleet.Query, error)
 
 type ListQueriesFunc func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error)
 
-type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, hostID uint, queryReportsDisabled bool) ([]*fleet.Query, error)
+type ListScheduledQueriesForAgentsFunc func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error)
 
 type QueryByNameFunc func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error)
 
@@ -3289,7 +3289,7 @@ func (s *DataStore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions)
 	return s.ListQueriesFunc(ctx, opt)
 }
 
-func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+func (s *DataStore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	s.mu.Lock()
 	s.ListScheduledQueriesForAgentsFuncInvoked = true
 	s.mu.Unlock()

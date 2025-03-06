@@ -344,7 +344,7 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 		return nil, newOsqueryError("internal error: missing host from request context")
 	}
 
-	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, host.ID, appConfig.ServerSettings.QueryReportsDisabled)
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, &host.ID, appConfig.ServerSettings.QueryReportsDisabled)
 	if err != nil {
 		return nil, err
 	}

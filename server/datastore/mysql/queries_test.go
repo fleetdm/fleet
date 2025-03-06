@@ -1213,7 +1213,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		queryReportsDisabled := false
-		result, err := ds.ListScheduledQueriesForAgents(ctx, teamID, queryReportsDisabled)
+		result, err := ds.ListScheduledQueriesForAgents(ctx, teamID, nil, queryReportsDisabled)
 		require.NoError(t, err)
 		sort.Slice(result, func(i, j int) bool {
 			return result[i].ID < result[j].ID
@@ -1221,7 +1221,7 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		test.QueryElementsMatch(t, result, []*fleet.Query{q11, q14, q15, q16, q17}, i)
 
 		queryReportsDisabled = true
-		result, err = ds.ListScheduledQueriesForAgents(ctx, teamID, queryReportsDisabled)
+		result, err = ds.ListScheduledQueriesForAgents(ctx, teamID, nil, queryReportsDisabled)
 		require.NoError(t, err)
 		sort.Slice(result, func(i, j int) bool {
 			return result[i].ID < result[j].ID
@@ -1264,4 +1264,31 @@ func testIsSavedQuery(t *testing.T, ds *Datastore) {
 	// error case
 	_, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
 	require.Error(t, err)
+}
+
+func testQueryLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+	// team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	// require.NoError(t, err)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	// label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	// require.NoError(t, err)
+
+	// Create query with label
+	query1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:     "query1",
+		Query:    "SELECT 1",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    true,
+		LabelsIncludeAny: []fleet.LabelIdent{
+			{LabelName: label1.Name},
+		},
+	})
+	require.NoError(t, err)
+	_ = query1
 }
