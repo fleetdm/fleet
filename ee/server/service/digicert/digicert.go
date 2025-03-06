@@ -76,3 +76,7 @@ func VerifyProfileID(ctx context.Context, logger kitlog.Logger, config fleet.Dig
 	level.Debug(logger).Log("msg", "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
 	return nil
 }
+
+func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, opts ...Opt) error {
+	return nil
+}

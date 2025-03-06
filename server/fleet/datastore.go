@@ -1447,6 +1447,7 @@ type Datastore interface {
 
 	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
 	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
 	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
 
