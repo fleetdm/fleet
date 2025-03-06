@@ -79,6 +79,10 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
+	fleetVarDigiCertData = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%s\w+})`, FleetVarDigiCertDataPrefix,
+		FleetVarDigiCertDataPrefix))
+	fleetVarDigiCertPassword = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%s\w+})`, FleetVarDigiCertPasswordPrefix,
+		FleetVarDigiCertPasswordPrefix))
 	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial}
 	fleetVarPrefixesSupportedInConfigProfiles = []string{FleetVarDigiCertDataPrefix, FleetVarDigiCertPasswordPrefix}
@@ -3960,8 +3964,7 @@ func preprocessProfileContents(
 
 					// TODO(#26609): populate Fleet vars in the CA fields
 
-					// Do the call to DigiCert
-					err := digicert.GetCertificate(ctx, logger, *ca)
+					data, password, err := digicert.GetCertificate(ctx, logger, *ca, appConfig.OrgInfo.OrgName)
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
@@ -3976,7 +3979,8 @@ func preprocessProfileContents(
 						failed = true
 						break
 					}
-
+					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(data))
+					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, password)
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}

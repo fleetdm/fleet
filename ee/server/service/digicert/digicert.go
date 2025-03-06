@@ -7,18 +7,19 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-json-experiment/json"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 // REST client for https://one.digicert.com/mpki/docs/swagger-ui/index.html
@@ -86,32 +87,34 @@ func populateOpts(opts []Opt) integrationOpts {
 	return o
 }
 
-func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, opts ...Opt) error {
+func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, orgName string, opts ...Opt) (pfxData []byte,
+	password string, err error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(populateOpts(opts).timeout))
 
-	// Generate a CSR (Certificate Signing Request) as a string.
+	// Generate a CSR (Certificate Signing Request).
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generating RSA private key")
+		return nil, "", ctxerr.Wrap(ctx, err, "generating RSA private key")
 	}
 
 	csrTemplate := &x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName: config.CertificateCommonName,
-			// TODO: Add organization from appConfig
+			CommonName:   config.CertificateCommonName,
+			Organization: []string{orgName},
 		},
 	}
 
+	// TODO(#26609): Add support for User Principal Name
+
 	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, privateKey)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating CSR")
+		return nil, "", ctxerr.Wrap(ctx, err, "creating CSR")
 	}
 
 	csr := strings.TrimSpace(string(pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE REQUEST",
 		Bytes: csrBytes,
 	})))
-	logger.Log("msg", "CSR generated", "csr", csr)
 
 	reqBody := map[string]interface{}{
 		"profile": map[string]string{
@@ -123,7 +126,8 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 		"delivery_format": "x509",
 		"attributes": map[string]interface{}{
 			"subject": map[string]string{
-				"common_name": config.CertificateCommonName,
+				"common_name":       config.CertificateCommonName,
+				"organization_name": orgName,
 			},
 		},
 		"csr": csr,
@@ -131,13 +135,13 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshaling request body")
+		return nil, "", ctxerr.Wrap(ctx, err, "marshaling request body")
 	}
 
 	config.URL = strings.TrimRight(config.URL, "/")
 	req, err := http.NewRequest("POST", config.URL+"/mpki/api/v1/certificate", strings.NewReader(string(bodyBytes)))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating DigiCert POST request")
+		return nil, "", ctxerr.Wrap(ctx, err, "creating DigiCert POST request")
 	}
 
 	req.Header.Set("X-API-key", config.APIToken)
@@ -146,7 +150,7 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sending DigiCert POST request")
+		return nil, "", ctxerr.Wrap(ctx, err, "sending DigiCert POST request")
 	}
 	defer resp.Body.Close()
 
@@ -161,14 +165,14 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 		var errResp errorResponse
 		err = json.UnmarshalRead(resp.Body, &errResp)
 		if err != nil || len(errResp.Errors) == 0 {
-			return ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
+			return nil, "", ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
 		}
 
 		combinedErrorMessages := make([]string, len(errResp.Errors))
 		for i, e := range errResp.Errors {
 			combinedErrorMessages[i] = e.Message
 		}
-		return ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s", resp.StatusCode,
+		return nil, "", ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s", resp.StatusCode,
 			strings.Join(combinedErrorMessages, "; "))
 	}
 
@@ -181,10 +185,39 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 	var certResp certificateResponse
 	err = json.UnmarshalRead(resp.Body, &certResp)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshaling DigiCert POST response")
+		return nil, "", ctxerr.Wrap(ctx, err, "unmarshaling DigiCert POST response")
+	}
+
+	if certResp.DeliveryFormat != "x509" {
+		return nil, "", ctxerr.Errorf(ctx, "unexpected DigiCert delivery format: %s", certResp.DeliveryFormat)
+	}
+
+	if len(certResp.Certificate) == 0 {
+		return nil, "", ctxerr.Errorf(ctx, "did not receive DigiCert certificate")
 	}
 
 	level.Debug(logger).Log("msg", "DigiCert certificate created", "serial_number", certResp.SerialNumber)
-	fmt.Printf("Certificate:\n%s\n", certResp.Certificate)
-	return nil
+
+	// Decode the certificate from PEM format
+	certBlock, _ := pem.Decode([]byte(certResp.Certificate))
+	if certBlock == nil {
+		return nil, "", ctxerr.Errorf(ctx, "failed to decode certificate PEM block")
+	}
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "parsing certificate from PEM")
+	}
+
+	// Encode the private key and certificate into PKCS12
+	password, err = server.GenerateRandomText(10)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "generating password for PKCS12 bundle")
+	}
+	pkcs12Data, err := pkcs12.Legacy.Encode(privateKey, cert, nil, password)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "creating PKCS12 bundle")
+	}
+
+	return pkcs12Data, password, nil
 }
