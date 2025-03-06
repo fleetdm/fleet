@@ -91,7 +91,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to remembe
 
 - Enroll to Fleet using Fleet's agent (fleetd)
 - Enrolled via osquery (no orbit / fleetd)
-- Deleted from fleet
+- Deleted from Fleet
 - DEP enrollment
 - BYOD enrollment
 - ABM ghost host before enrolled
