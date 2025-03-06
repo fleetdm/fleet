@@ -58,7 +58,15 @@ module.exports = {
     return lighterTable;}))}
     \`\`\`
 
-    Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
+    Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.
+
+
+    If no queries can be generated from the provided instructions do not return the datashape above and instead return this JSON in this exact data shape:
+
+    {
+      "couldNotGenerateQueries": true
+    }`;
+
     let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o-mini-2024-07-18', true, 'Please only respond in valid JSON with no codefences or backticks.')
     .intercept((err)=>{
       sails.log.warn(`When trying to get a subset of tables to use to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
@@ -70,6 +78,14 @@ module.exports = {
       return 'couldNotGenerateQueries';
     });
 
+    if(filteredTables.couldNotGenerateQueries){
+      if(this.req.isSocket){
+        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateQueries'});
+        sails.sockets.leave(this.req, roomId);
+      } else {
+        throw 'couldNotGenerateQueries';
+      }
+    }
 
     // 2024-02-26: Testing using a system prompt with a single API request.
     // let systemPrompt = `You are an AI that generates osquery SQL queries for IT admin questions. Use the following osquery schema as context:
@@ -164,10 +180,10 @@ module.exports = {
       sails.log.warn(`When trying to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       return 'couldNotGenerateQueries';
     });
-    let jsonResult = JSON.parse(sqlReport);
-    if(jsonResult.couldNotGenerateQueries){
+
+    if(sqlReport.couldNotGenerateQueries){
       if(this.req.isSocket){
-        sails.sockets.broadcast(roomId, 'error', 'couldNotGenerateQueries');
+        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateQueries'});
         sails.sockets.leave(this.req, roomId);
       } else {
         throw 'couldNotGenerateQueries';
