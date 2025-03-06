@@ -4,101 +4,103 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to remembe
 
 ## User
 
-- Create User
-- Remove User
-- Update User permissions
-- API-only User
+- Create user
+- Remove user
+- Update user permissions
+- API-only user
 
 ## Team
 
-- Create Team
-- Remove Team
-- No Team
-- All Teams
-- Transfer Host into this team
-- Transfer Host out of this team
+- Create team
+- Remove team
+- No team
+- All teams
+- Transfer host into this team
+- Transfer host out of this team
 
 ## MDM
 
-- Turn MDM On
-- Turn MDM Off
-- Enable Disk Encryption
-- Disable Disk Encryption
-- Add ABM Token
-- Add Multiple ABM Tokens
-- Remove ABM Token
-- Add VPP Token
-- Add Multiple VPP Tokens
-- Remove VPP Token
-- Add minimum version OS Updates
-- Remove minimum version OS Updates
-- Add Profile
-- Remove Profile
-- Resend Profile
-- Add Bootstrap Package
-- Remove Bootstrap Package
-- Single Host Turn MDM Off
-- Setup Experience Software / scripts
+- Turn MDM on
+- Turn MDM off
+- Enable disk encryption
+- Disable disk encryption
+- Add ABM token
+- Add multiple ABM tokens
+- Remove ABM token
+- Add VPP token
+- Add multiple VPP tokens
+- Remove VPP token
+- Add minimum version OS updates
+- Remove minimum version OS updates
+- Add profile
+- Remove profile
+- Resend profile
+- Add bootstrap package
+- Remove bootstrap package
+- Single host turn MDM off
+- Setup experience software / scripts
+- SSO enabled for DEP enrollment
+- EULA added for DEP enrollment
 
 ## Software
 
-- Add Software to team
+- Add software to team
   - FMA
   - VPP
-  - Custom Package
-- Remove Software from team
-- Edit Software (Scripts / binary)
-- Add Script
-- Run Script
-- Edit Script
-- Remove Script
-- Vulnerability Scans
-- Automatic Software install
+  - custom package
+- Remove software from team
+- Edit software (scripts / binary)
+- Add script
+- Run script
+- Edit script
+- Remove script
+- Vulnerability scans
+- Automatic software install
 - Label-scoped software install
 
 ## Policy
 
-- Add Policy
-- Remove Policy
+- Add policy
+- Remove policy
 - Add install automation
 - Add Calendar automation
 
 ## Query
 
-- Add Query
-- Remove Query
-- Edit Query
-- Live Query
-- Saved Query Results
+- Add query
+- Remove query
+- Edit query
+- Live query
+- Saved query results
 
 ## Labels
 
-- Add Dynamic Label
-- Remove Dynamic Label
-- Add Manual Label
-- Remove Manual Label
+- Add dynamic label
+- Remove dynamic label
+- Add Manual label
+- Remove Manual label
 - Add host to an existing label
 - Remove a host from a label
 - Label selecion (policy / profile / software)
   - Include all
-  - Include Any
-  - Exclude All
-  - Exclude Any
+  - Include any
+  - Exclude all
+  - Exclude any
 
 ## Host
 
 - Enroll to fleet from package
 - Enrolled via osquery (no orbit / fleetd)
 - Deleted from fleet
-- DEP Enrollment
-- BYOD Enrollment
+- DEP enrollment
+- BYOD enrollment
 - ABM ghost host before enrolled
 - Wiped host
 - Locked host
 - Host that succeeds all policies
 - Host with a failing policy
-- Online Host
-- Offline Host
+- Online host
+- Offline host
 
 ## Integrations
 
