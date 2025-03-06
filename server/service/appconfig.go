@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
@@ -1044,7 +1045,8 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		additionalDigiCertValidationNeeded = true
 		for _, ca := range newAppConfig.Integrations.DigiCert.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
-			if !validateCAName(ca.Name, "digicert", allCANames, invalid) {
+			if !validateCAName(ca.Name, "digicert", allCANames, invalid) ||
+				!validateCACN(ca.CertificateCommonName, invalid) || !validateSeatID(ca.CertificateSeatID, invalid) {
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
@@ -1227,6 +1229,22 @@ func validateCAName(name string, caType string, allCANames map[string]struct{}, 
 		return false
 	}
 	allCANames[name] = struct{}{}
+	return true
+}
+
+func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
+	if len(strings.TrimSpace(cn)) == 0 {
+		invalid.Append("integrations.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
+		return false
+	}
+	return true
+}
+
+func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
+	if len(strings.TrimSpace(seatID)) == 0 {
+		invalid.Append("integrations.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
+		return false
+	}
 	return true
 }
 
