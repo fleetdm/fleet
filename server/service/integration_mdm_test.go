@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
@@ -13240,34 +13241,27 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 }
 
-func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
+func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	t := s.T()
 	ctx := context.Background()
+	mockDigiCertServer := createMockDigiCertServer(t)
 
-	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
-	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		matches := pathRegex.FindStringSubmatch(r.URL.Path)
-		if len(matches) != 2 {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		profileID := matches[1]
-
-		resp := map[string]string{
-			"id":     profileID,
-			"name":   "Test CA",
-			"status": "Active",
-		}
-		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(resp)
-		require.NoError(t, err)
-	}))
-	defer mockDigiCertServer.Close()
+	// Add DigiCert integration with bad URL
+	caBad := getDigiCertIntegration("https://httpstat.us/410", "ca")
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{caBad},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	var req modifyAppConfigRequest
+	req.RawMessage = raw
+	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(rawRes.Body)
+	require.Contains(t, errMsg, "Could not verify DigiCert profile ID")
+	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	assert.True(t, fleet.IsNotFound(err))
 
 	// Add 3 DigiCert integrations
 	ca0 := getDigiCertIntegration(mockDigiCertServer.URL, "ca0")
@@ -13276,16 +13270,16 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	ca1.APIToken = "api_token1"
 	ca2 := getDigiCertIntegration(mockDigiCertServer.URL, "ca2")
 	ca2.APIToken = "api_token2"
-	appConfig := map[string]interface{}{
+	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"digicert": []fleet.DigiCertIntegration{ca0, ca1, ca2},
 		},
 	}
-	raw, err := json.Marshal(appConfig)
+	raw, err = json.Marshal(appConfig)
 	require.NoError(t, err)
-	var req modifyAppConfigRequest
+	req = modifyAppConfigRequest{}
 	req.RawMessage = raw
-	var res appConfigResponse
+	res := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
 	assert.Empty(t, res.Integrations.DigiCert.Value)
 	_, err = s.ds.GetAllCAConfigAssets(ctx)
@@ -13427,6 +13421,159 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	slices.Sort(caNames)
 	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
+}
+
+func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
+	t := s.T()
+	ctx := context.Background()
+	mockDigiCertServer := createMockDigiCertServer(t)
+
+	// Add DigiCert config
+	ca := getDigiCertIntegration(mockDigiCertServer.URL, "my_CA")
+	ca.APIToken = "api_token0"
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	var req modifyAppConfigRequest
+	req.RawMessage = raw
+	var res appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 1)
+
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 0)
+
+	// Add a profile with a bad CA
+	profile := digiCertForTest("N1", "BadCA", "badName")
+	rawRes := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: profile},
+	}}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(rawRes.Body)
+	require.Contains(t, errMsg, "_badName is not supported")
+}
+
+func digiCertForTest(name, identifier, caName string) []byte {
+	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>Password</key>
+            <string>$FLEET_VAR_DIGICERT_PASSWORD_%s</string>
+            <key>PayloadContent</key>
+            <data>${FLEET_VAR_DIGICERT_DATA_%s}</data>
+            <key>PayloadDisplayName</key>
+            <string>CertificatePKCS12</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleetdm.pkcs12</string>
+            <key>PayloadType</key>
+            <string>com.apple.security.pkcs12</string>
+            <key>PayloadUUID</key>
+            <string>ee86cfcb-2409-42c2-9394-1f8113412e04</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, caName, caName, name, identifier, uuid.New().String()))
+}
+
+func createMockDigiCertServer(t *testing.T) *httptest.Server {
+	profileRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
+	certRegex := regexp.MustCompile(`^/mpki/api/v1/certificate`)
+	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Method {
+		case http.MethodGet:
+			matches := profileRegex.FindStringSubmatch(r.URL.Path)
+			if len(matches) != 2 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			profileID := matches[1]
+
+			resp := map[string]string{
+				"id":     profileID,
+				"name":   "Test CA",
+				"status": "Active",
+			}
+			err := json.NewEncoder(w).Encode(resp)
+			require.NoError(t, err)
+		case http.MethodPost:
+			if len(certRegex.FindStringSubmatch(r.URL.Path)) != 1 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			var req struct {
+				CSR string `json:"csr"`
+			}
+			err := json.NewDecoder(r.Body).Decode(&req)
+			require.NoError(t, err)
+
+			// Parse the CSR
+			csr, err := x509.ParseCertificateRequest([]byte(req.CSR))
+			require.NoError(t, err)
+			require.NoError(t, csr.CheckSignature())
+
+			// Generate a self-signed certificate based on the CSR
+			serialNumber := big.NewInt(time.Now().Unix())
+			certTemplate := &x509.Certificate{
+				SerialNumber: serialNumber,
+				Subject:      csr.Subject,
+				NotBefore:    time.Now(),
+				NotAfter:     time.Now().Add(365 * 24 * time.Hour), // 1 year validity
+				KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+				ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+			}
+
+			privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+			require.NoError(t, err)
+
+			certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
+			require.NoError(t, err)
+
+			// Encode the certificate to PEM
+			certPEM := new(bytes.Buffer)
+			err = pem.Encode(certPEM, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+			require.NoError(t, err)
+
+			resp := map[string]string{
+				"serial_number":   serialNumber.String(),
+				"delivery_format": "x509",
+				"certificate":     certPEM.String(),
+			}
+			err = json.NewEncoder(w).Encode(resp)
+			require.NoError(t, err)
+			w.WriteHeader(http.StatusCreated)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	t.Cleanup(mockDigiCertServer.Close)
+	return mockDigiCertServer
 }
 
 type noopCertDepot struct{ depot.Depot }

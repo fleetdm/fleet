@@ -1673,7 +1673,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	err = validateFleetVariables(ctx, appleProfiles, windowsProfiles, appleDecls)
+	err = validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
@@ -1756,13 +1756,13 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) error {
 	var err error
 
 	for _, p := range appleProfiles {
-		err = validateConfigProfileFleetVariables(string(p.Mobileconfig))
+		err = validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}

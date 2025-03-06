@@ -85,7 +85,6 @@ var (
 		FleetVarDigiCertPasswordPrefix))
 	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial}
-	fleetVarPrefixesSupportedInConfigProfiles = []string{FleetVarDigiCertDataPrefix, FleetVarDigiCertPasswordPrefix}
 )
 
 type hostProfileUUID struct {
@@ -410,7 +409,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
-	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	err = validateConfigProfileFleetVariables(appConfig, string(cp.Mobileconfig))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -474,21 +477,31 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(contents string) error {
+func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) error {
 	fleetVars := findFleetVariables(contents)
 	for k := range fleetVars {
 		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
-			// Check if this variable has a supported prefix.
-			prefixFound := false
-			for _, prefix := range fleetVarPrefixesSupportedInConfigProfiles {
-				if strings.HasPrefix(k, prefix) {
-					prefixFound = true
-					break
+			found := false
+			switch {
+			case strings.HasPrefix(k, FleetVarDigiCertDataPrefix):
+				caName := strings.TrimPrefix(k, FleetVarDigiCertDataPrefix)
+				for _, ca := range appConfig.Integrations.DigiCert.Value {
+					if ca.Name == caName {
+						found = true
+						break
+					}
+				}
+			case strings.HasPrefix(k, FleetVarDigiCertPasswordPrefix):
+				caName := strings.TrimPrefix(k, FleetVarDigiCertPasswordPrefix)
+				for _, ca := range appConfig.Integrations.DigiCert.Value {
+					if ca.Name == caName {
+						found = true
+						break
+					}
 				}
 			}
-			if !prefixFound {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles",
-					k)}
+			if !found {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles", k)}
 			}
 		}
 	}
