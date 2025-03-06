@@ -580,6 +580,7 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
+
 ### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
@@ -769,6 +770,23 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
+
+#### conditional_access
+
+The `conditional_access` section lets block third party app sign-ins on hosts failing policies. 
+
+> To use conditional access, you must first connect and authorize Microsoft Entra in the Fleet UI under **Settings** > **Integrations** > **Conditional access**. This integration cannot be configured via YAML.
+
+##### Example
+
+```yaml
+team_settings:
+  conditional_access:
+    conditional_access_enabled: true
+```
+
+Can only be configured per-team (`team_settings`).
+
 
 <meta name="title" value="YAML files">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
