@@ -4244,7 +4244,8 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
+| fleet_license_key        | string | body | **Required.** The license key for the Fleet instance. |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
 
 
 
@@ -4252,7 +4253,8 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ```json
 {
-  "microsoft_tenant_id": "SOMETENANTID"
+  "fleet_license_key": "<LICENSE KEY>",
+  "microsoft_tenant_id": "<TENANT ID>"
 }
 ```
 
@@ -4267,19 +4269,53 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ```
 
-### Receive Microsoft Entra conditional access confirmation
 
-Receive confirmation from the FleetDM proxy that the 
+### Confirm Microsoft Entra conditional access configuration
+
+`POST /api/v1/conditional-access/confirm`
+
+Receive confirmation that Microsoft Entra has been connected and conditional access configured via the fleetdm.com proxy that interfaces with the Microsoft compliance partner API.
+
+#### Parameters
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| license_key              | string | body | **Required.** The license key of the Fleet instance |
+| fleet_server_secret      | string | body | **Required.** Authorization from the fleetdm.com proxy that interfaces with the Microsoft compliance partner API. | 
 | microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
+
+
+##### Request body
+
+```json
+{
+  "fleet_server_secret": "<SECRET>",
+  "microsoft_tenant_id": "<TENANT ID>"
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 
 ### Delete Microsoft Entra conditional access
 
 `DELETE /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
+
+##### Request body
+
+```json
+{
+  "fleet_license_key": "<LICENSE KEY>",
+  "microsoft_tenant_id": "<TENANT ID>"
+}
+```
 
 ##### Default response
 
