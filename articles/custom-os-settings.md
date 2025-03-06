@@ -2,6 +2,8 @@
 
 In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
 
+Currently, Fleet only supports computer level configuration profiles.
+
 ## Enforce OS settings
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
