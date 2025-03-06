@@ -29,13 +29,12 @@ var appsJSON embed.FS
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
 
 type brewIngester struct {
-	baseURL   string
-	logger    kitlog.Logger
-	client    *http.Client
-	inputData embed.FS
+	baseURL string
+	logger  kitlog.Logger
+	client  *http.Client
 }
 
-func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputApp) (*maintained_apps.OutputApp, map[string]string, error) {
+func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputApp) (*maintained_apps.FMAManifestApp, map[string]string, error) {
 	level.Debug(i.logger).Log("msg", "ingesting app", "name", app.Name)
 
 	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.SourceIdentifier)
@@ -75,7 +74,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputA
 		return nil, nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", app.SourceIdentifier)
 	}
 
-	out := &maintained_apps.OutputApp{}
+	out := &maintained_apps.FMAManifestApp{}
 
 	if cask.URL == "" {
 		return nil, nil, ctxerr.Errorf(ctx, "missing URL for cask %s", app.SourceIdentifier)
@@ -84,6 +83,9 @@ func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputA
 	if err != nil {
 		return nil, nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.SourceIdentifier)
 	}
+
+	// TODO(JVE): we should no-op if there was no change, so we need to read in the existing file
+	// and diff it here
 
 	out.Version = cask.Version
 	out.InstallerURL = cask.URL
@@ -99,7 +101,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputA
 	out.UninstallScriptRef = uninstallRef
 	installScript, err := installScriptForApp(app, &cask)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "generating install script for maintained app") // TODO(JVE): add data like app id and platform
+		return nil, nil, ctxerr.WrapWithData(ctx, err, "generating install script for maintained app", map[string]any{"unique_identifier": app.UniqueIdentifier})
 	}
 	installRef := uuid.NewString()
 	scriptRefs[installRef] = installScript
@@ -110,17 +112,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, app maintained_apps.InputA
 	return out, scriptRefs, nil
 }
 
-func (i *brewIngester) IngestApps(ctx context.Context) error {
+func (i *darwinIngester) IngestApps(ctx context.Context) error {
 	// Read from our list of apps we should be ingesting
-
-	files, err := i.inputData.ReadDir(".")
+	files, err := appsJSON.ReadDir(".")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading embedded data directory")
 	}
 
-	// TODO(JVE): probably can introduce some concurrency here
 	for _, f := range files {
-		fileBytes, err := i.inputData.ReadFile(f.Name())
+		fileBytes, err := appsJSON.ReadFile(f.Name())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "reading app input file")
 		}
@@ -130,68 +130,50 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "unmarshal app input file")
 		}
 
-		if input.SourceIdentifier != "" {
-			outApp, scripts, err := i.ingestOne(ctx, input)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "ingesting app")
-			}
+		if input.SourceIdentifier == "" {
+			return ctxerr.New(ctx, "missing source identifier for app")
+		}
 
-			outFile := maintained_apps.OutputFile{
-				Versions: []*maintained_apps.OutputApp{outApp},
-				Refs:     scripts,
-			}
+		if input.UniqueIdentifier == "" {
+			return ctxerr.New(ctx, "missing unique identifier for app")
+		}
 
-			outBytes, err := json.MarshalIndent(outFile, "", "  ")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
-			}
+		if input.Name == "" {
+			return ctxerr.Wrap(ctx, err, "missing name for app")
+		}
 
-			fmt.Printf("outBytes: %v\n", string(outBytes))
+		if input.Source == "" {
+			return ctxerr.New(ctx, "missing source for app")
+		}
 
-			// Overwrite the file, since right now we're only caring about 1 version (latest). If we
-			// care about previous data, it will be in our Git history.
-			if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.SourceIdentifier), outBytes, 0o644); err != nil {
-				return ctxerr.Wrap(ctx, err, "writing output json file")
-			}
+		ingester, ok := i.sourceIngesters[input.Source]
+		if !ok {
+			return ctxerr.New(ctx, "invalid source for app")
+		}
 
-			// TODO(JVE): update the output apps.json file
-			file, err := os.ReadFile("ee/maintained-apps/outputs/apps.json")
+		outApp, scripts, err := ingester.IngestOne(ctx, input)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ingesting app")
+		}
 
-			var outputAppsFile maintained_apps.OutputAppsFile
-			if err := json.Unmarshal(file, &outputAppsFile); err != nil {
-				return ctxerr.Wrap(ctx, err, "unmarshaling output apps file")
-			}
+		outFile := maintained_apps.FMAManifestFile{
+			Versions: []*maintained_apps.FMAManifestApp{outApp},
+			Refs:     scripts,
+		}
 
-			var found bool
-			for _, a := range outputAppsFile.Apps {
-				if a.UniqueIdentifier == outApp.UniqueIdentifier {
-					found = true
-					break
-				}
-			}
+		outBytes, err := json.MarshalIndent(outFile, "", "  ")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
+		}
 
-			if !found {
-				outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.OutputAppsFileApp{
-					Name:             input.Name,
-					Slug:             fmt.Sprintf("%s/%s", input.SourceIdentifier, fleet.MacOSPlatform),
-					Platform:         string(fleet.MacOSPlatform),
-					UniqueIdentifier: outApp.UniqueIdentifier,
-					Description:      outApp.Description,
-				})
+		// Overwrite the file, since right now we're only caring about 1 version (latest). If we
+		// care about previous data, it will be in our Git history.
+		if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.SourceIdentifier), outBytes, 0o644); err != nil {
+			return ctxerr.Wrap(ctx, err, "writing output json file")
+		}
 
-				// TODO(JVE): do we need this?
-				slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.OutputAppsFileApp) int { return strings.Compare(a.Slug, b.Slug) })
-
-				updatedFile, err := json.Marshal(outputAppsFile)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
-				}
-
-				if err := os.WriteFile("ee/maintained-apps/outputs/apps.json", updatedFile, 0o644); err != nil {
-					ctxerr.Wrap(ctx, err, "writing updated output apps file")
-				}
-			}
-
+		if err := updateAppsListFile(ctx, input, outApp); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating apps list file")
 		}
 
 	}
@@ -199,13 +181,70 @@ func (i *brewIngester) IngestApps(ctx context.Context) error {
 	return nil
 }
 
+func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, outApp *maintained_apps.FMAManifestApp) error {
+	file, err := os.ReadFile("ee/maintained-apps/outputs/apps.json")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading output apps list file")
+	}
+
+	var outputAppsFile maintained_apps.FMAListFile
+	if err := json.Unmarshal(file, &outputAppsFile); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
+	}
+
+	var found bool
+	for _, a := range outputAppsFile.Apps {
+		if a.Slug == fmt.Sprintf("%s/%s", input.SourceIdentifier, fleet.MacOSPlatform) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		outputAppsFile.Apps = append(outputAppsFile.Apps, maintained_apps.FMAListFileApp{
+			Name:             input.Name,
+			Slug:             fmt.Sprintf("%s/%s", input.SourceIdentifier, fleet.MacOSPlatform),
+			Platform:         string(fleet.MacOSPlatform),
+			UniqueIdentifier: outApp.UniqueIdentifier,
+			Description:      outApp.Description,
+		})
+
+		// Keep existing order
+		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
+
+		updatedFile, err := json.Marshal(outputAppsFile)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
+		}
+
+		if err := os.WriteFile("ee/maintained-apps/outputs/apps.json", updatedFile, 0o644); err != nil {
+			return ctxerr.Wrap(ctx, err, "writing updated output apps file")
+		}
+	}
+
+	return nil
+}
+
+// TODO(JVE): do we need this type? or can it just be a function?
+type darwinIngester struct {
+	sourceIngesters map[string]maintained_apps.SourceIngester
+}
+
 func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
-	// TODO(JVE): add a check for an env var to set the URL to something else
-	return &brewIngester{
-		baseURL:   baseBrewAPIURL,
-		logger:    logger,
-		client:    fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-		inputData: appsJSON,
+	baseURL := baseBrewAPIURL
+	// Use FLEET_DEV_BREW_API_URL for automated or manual testing purposes
+	if v := os.Getenv("FLEET_DEV_BREW_API_URL"); v != "" {
+		baseURL = v
+	}
+
+	return &darwinIngester{
+		sourceIngesters: map[string]maintained_apps.SourceIngester{
+			maintained_apps.SourceHomebrew: &brewIngester{
+				baseURL: baseURL,
+				logger:  logger,
+				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			},
+		},
 	}
 }
 

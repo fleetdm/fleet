@@ -50,8 +50,8 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 
 	i := ingester{
 		baseURL: baseURL,
-		// ds:      ds,
-		logger: logger,
+		ds:      ds,
+		logger:  logger,
 	}
 	return i.ingest(ctx, apps)
 }
