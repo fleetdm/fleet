@@ -13239,6 +13239,98 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 }
 
+func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Add 3 DigiCert integrations
+	ca0 := getDigiCertIntegration("ca0")
+	ca0.APIToken = "api_token0"
+	ca1 := getDigiCertIntegration("ca1")
+	ca1.APIToken = "api_token1"
+	ca2 := getDigiCertIntegration("ca2")
+	ca2.APIToken = "api_token2"
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca0, ca1, ca2},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	var req modifyAppConfigRequest
+	req.RawMessage = raw
+	var res appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
+	assert.Empty(t, res.Integrations.DigiCert.Value)
+	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	assert.True(t, fleet.IsNotFound(err))
+
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 3)
+	for _, ca := range res.Integrations.DigiCert.Value {
+		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
+	}
+	assets, err := s.ds.GetAllCAConfigAssets(ctx)
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	assert.EqualValues(t, "api_token0", assets["ca0"].Value)
+	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
+	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
+
+	// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
+	ca1.URL = "https://ca1.new.com"
+	ca3 := getDigiCertIntegration("ca3")
+	ca3.APIToken = "api_token3"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca3, ca2, ca1},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	require.Len(t, res.Integrations.DigiCert.Value, 3)
+	assert.NotEqual(t, res.Integrations.DigiCert.Value[0].Name, res.Integrations.DigiCert.Value[1].Name)
+	assert.NotEqual(t, res.Integrations.DigiCert.Value[1].Name, res.Integrations.DigiCert.Value[2].Name)
+	for _, ca := range res.Integrations.DigiCert.Value {
+		switch ca.Name {
+		case "ca1":
+			assert.True(t, ca.Equals(&ca1))
+		case "ca2":
+			assert.True(t, ca.Equals(&ca2))
+		case "ca3":
+			assert.True(t, ca.Equals(&ca3))
+		default:
+			t.Fatalf("unexpected ca name: %s", ca.Name)
+		}
+		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
+	}
+	assets, err = s.ds.GetAllCAConfigAssets(ctx)
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
+	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
+	assert.EqualValues(t, "api_token3", assets["ca3"].Value)
+
+	// Clear DigiCert integrations
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": nil,
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Empty(t, res.Integrations.DigiCert.Value)
+	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
 type noopCertDepot struct{ depot.Depot }
 
 func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {

@@ -954,6 +954,12 @@ type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMA
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
+type GetAllCAConfigAssetsFunc func(ctx context.Context) (map[string]fleet.CAConfigAsset, error)
+
+type SaveCAConfigAssetsFunc func(ctx context.Context, assets []fleet.CAConfigAsset) error
+
+type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
+
 type GetABMTokenByOrgNameFunc func(ctx context.Context, orgName string) (*fleet.ABMToken, error)
 
 type SaveABMTokenFunc func(ctx context.Context, tok *fleet.ABMToken) error
@@ -2648,6 +2654,15 @@ type DataStore struct {
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
+
+	GetAllCAConfigAssetsFunc        GetAllCAConfigAssetsFunc
+	GetAllCAConfigAssetsFuncInvoked bool
+
+	SaveCAConfigAssetsFunc        SaveCAConfigAssetsFunc
+	SaveCAConfigAssetsFuncInvoked bool
+
+	DeleteCAConfigAssetsFunc        DeleteCAConfigAssetsFunc
+	DeleteCAConfigAssetsFuncInvoked bool
 
 	GetABMTokenByOrgNameFunc        GetABMTokenByOrgNameFunc
 	GetABMTokenByOrgNameFuncInvoked bool
@@ -6356,6 +6371,27 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets, tx)
+}
+
+func (s *DataStore) GetAllCAConfigAssets(ctx context.Context) (map[string]fleet.CAConfigAsset, error) {
+	s.mu.Lock()
+	s.GetAllCAConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllCAConfigAssetsFunc(ctx)
+}
+
+func (s *DataStore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {
+	s.mu.Lock()
+	s.SaveCAConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveCAConfigAssetsFunc(ctx, assets)
+}
+
+func (s *DataStore) DeleteCAConfigAssets(ctx context.Context, names []string) error {
+	s.mu.Lock()
+	s.DeleteCAConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCAConfigAssetsFunc(ctx, names)
 }
 
 func (s *DataStore) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
