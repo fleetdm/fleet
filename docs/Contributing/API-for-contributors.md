@@ -4244,7 +4244,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
 
 
 
@@ -4262,7 +4262,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ```json
 {
-  "microsoft_authentication_url": "TODO"
+  "microsoft_authentication_url": "https://login.microsoftonline.com/<TENANT ID>/adminconsent?client_id=<CLIENT ID>"
 }
 
 ```
@@ -4270,6 +4270,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 ### Receive Microsoft Entra conditional access confirmation
 
 _TODO_
+
 
 ### Delete Microsoft Entra conditional access
 
