@@ -67,4 +67,5 @@ module.exports.policies = {
   'view-meetups': true,
   'view-os-settings': true,
   'get-llm-generated-configuration-profile': true,
+  'account/update-start-cta-visibility': true,
 };
