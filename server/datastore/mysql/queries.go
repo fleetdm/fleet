@@ -773,6 +773,7 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	sqlStmt := `
 		SELECT
+			q.id,
 			q.name,
 			q.query,
 			q.team_id,

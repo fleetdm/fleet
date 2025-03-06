@@ -38,7 +38,8 @@ func TestQueries(t *testing.T) {
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
 		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
 		{"IsSavedQuery", testIsSavedQuery},
-		{"QueryLabels", testQueryLabels},
+		{"SaveQueryLabels", testSaveQueryLabels},
+		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -952,7 +953,8 @@ func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
 		expected []*fleet.Query
 	}{
 		{
-			opts:     fleet.ListQueryOptions{},
+			opts: fleet.ListQueryOptions{},
+
 			expected: []*fleet.Query{q1, q2, q3},
 		},
 		{
@@ -1267,12 +1269,10 @@ func testIsSavedQuery(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 }
 
-func testQueryLabels(t *testing.T, ds *Datastore) {
+func testSaveQueryLabels(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
-	// team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	// require.NoError(t, err)
 
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
 	require.NoError(t, err)
@@ -1318,4 +1318,132 @@ func testQueryLabels(t *testing.T, ds *Datastore) {
 	err = ds.SaveQuery(ctx, query1, true, true)
 	require.NoError(t, err)
 	require.Len(t, query1.LabelsIncludeAny, 0)
+}
+
+func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
+	requireQueries := func(t *testing.T, queries []*fleet.Query, IDs []uint) {
+		require.Len(t, queries, len(IDs))
+		for _, id := range IDs {
+			found := false
+			for _, query := range queries {
+				if id == query.ID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				foundIDs := []uint{}
+				for _, query := range queries {
+					foundIDs = append(foundIDs, query.ID)
+				}
+				require.Truef(t, found, "failed to find query %d in list %#v", id, foundIDs)
+			}
+		}
+	}
+
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
+
+	hostLabel1 := test.NewHost(t, ds, "host1", "10.0.0.1", "asdf", "host1", time.Now())
+	err = ds.AddLabelsToHost(ctx, hostLabel1.ID, []uint{label1.ID})
+	require.NoError(t, err)
+
+	hostLabel2 := test.NewHost(t, ds, "host2", "10.0.0.2", "asdg", "host2", time.Now())
+	err = ds.AddLabelsToHost(ctx, hostLabel2.ID, []uint{label2.ID})
+	require.NoError(t, err)
+
+	hostLabel1And2 := test.NewHost(t, ds, "host3", "10.0.0.3", "asdh", "host3", time.Now())
+	err = ds.AddLabelsToHost(ctx, hostLabel1And2.ID, []uint{label1.ID, label2.ID})
+	require.NoError(t, err)
+
+	hostNoLabels := test.NewHost(t, ds, "host4", "10.0.0.4", "asdj", "host4", time.Now())
+
+	queryLabel1, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "query1",
+		Query:              "SELECT 1",
+		DiscardData:        false,
+		AutomationsEnabled: true,
+		AuthorID:           &user.ID,
+		Logging:            fleet.LoggingSnapshot,
+		Interval:           10,
+		Saved:              true,
+		LabelsIncludeAny: []fleet.LabelIdent{
+			{LabelName: label1.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	queryLabel2, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "query2",
+		Query:              "SELECT 1",
+		DiscardData:        false,
+		AutomationsEnabled: true,
+		AuthorID:           &user.ID,
+		Logging:            fleet.LoggingSnapshot,
+		Interval:           10,
+		Saved:              true,
+		LabelsIncludeAny: []fleet.LabelIdent{
+			{LabelName: label2.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	queryLabel1And2, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "query3",
+		Query:              "SELECT 1",
+		DiscardData:        false,
+		AutomationsEnabled: true,
+		AuthorID:           &user.ID,
+		Logging:            fleet.LoggingSnapshot,
+		Interval:           10,
+		Saved:              true,
+		LabelsIncludeAny: []fleet.LabelIdent{
+			{LabelName: label1.Name},
+			{LabelName: label2.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	queryNoLabel, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "query4",
+		Query:              "SELECT 1",
+		DiscardData:        false,
+		AutomationsEnabled: true,
+		AuthorID:           &user.ID,
+		Logging:            fleet.LoggingSnapshot,
+		Interval:           10,
+		Saved:              true,
+	})
+	require.NoError(t, err)
+
+	// No host specified, list all queries on team, regardless of tag
+	queries, err := ds.ListScheduledQueriesForAgents(ctx, nil, nil, false)
+	require.NoError(t, err)
+	requireQueries(t, queries, []uint{queryLabel1.ID, queryLabel2.ID, queryLabel1And2.ID, queryNoLabel.ID})
+
+	// Label 1 queries
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1.ID, false)
+	require.NoError(t, err)
+	requireQueries(t, queries, []uint{queryLabel1.ID, queryLabel1And2.ID, queryNoLabel.ID})
+
+	// Label 2 queries
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel2.ID, false)
+	require.NoError(t, err)
+	requireQueries(t, queries, []uint{queryLabel2.ID, queryLabel1And2.ID, queryNoLabel.ID})
+
+	// Labels 1 and 2 queries
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1And2.ID, false)
+	require.NoError(t, err)
+	requireQueries(t, queries, []uint{queryLabel1.ID, queryLabel2.ID, queryLabel1And2.ID, queryNoLabel.ID})
+
+	// No label queries
+	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
+	require.NoError(t, err)
+	requireQueries(t, queries, []uint{queryNoLabel.ID})
 }
