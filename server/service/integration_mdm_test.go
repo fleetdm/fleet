@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -13303,6 +13304,26 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
 	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
 
+	// Check 3 added activities are present
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	activity := fleet.ActivityAddedDigiCert{}
+	caNames := make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		if act.Type == activity.ActivityName() {
+			err := json.Unmarshal(*act.Details, &activity)
+			require.NoError(t, err)
+			caNames = append(caNames, activity.Name)
+			if len(caNames) == 3 {
+				break
+			}
+		}
+	}
+	slices.Sort(caNames)
+	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
+
 	// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
 	ca1.URL += "//"
 	ca3 := getDigiCertIntegration(mockDigiCertServer.URL, "ca3")
@@ -13340,6 +13361,38 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
 	assert.EqualValues(t, "api_token3", assets["ca3"].Value)
 
+	listActivities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	activity = fleet.ActivityAddedDigiCert{}
+	editActivity := fleet.ActivityEditedDigiCert{}
+	delActivity := fleet.ActivityDeletedDigiCert{}
+	var numFound int
+	for _, act := range listActivities.Activities {
+		switch act.Type {
+		case activity.ActivityName():
+			err := json.Unmarshal(*act.Details, &activity)
+			require.NoError(t, err)
+			assert.Equal(t, activity.Name, ca3.Name)
+			numFound++
+		case editActivity.ActivityName():
+			err := json.Unmarshal(*act.Details, &editActivity)
+			require.NoError(t, err)
+			assert.Equal(t, editActivity.Name, ca1.Name)
+			numFound++
+		case delActivity.ActivityName():
+			err := json.Unmarshal(*act.Details, &delActivity)
+			require.NoError(t, err)
+			assert.Equal(t, delActivity.Name, ca0.Name)
+			numFound++
+		}
+		if numFound == 3 {
+			break
+		}
+	}
+	assert.Equal(t, 3, numFound)
+
 	// Clear DigiCert integrations
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13355,7 +13408,25 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	_, err = s.ds.GetAllCAConfigAssets(ctx)
 	assert.True(t, fleet.IsNotFound(err))
 
-	// TODO: Verify that activities were created
+	// Check that 3 deleted activities are present
+	listActivities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	delActivity = fleet.ActivityDeletedDigiCert{}
+	caNames = make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		if act.Type == delActivity.ActivityName() {
+			err := json.Unmarshal(*act.Details, &delActivity)
+			require.NoError(t, err)
+			caNames = append(caNames, delActivity.Name)
+			if len(caNames) == 3 {
+				break
+			}
+		}
+	}
+	slices.Sort(caNames)
+	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
 }
 
 type noopCertDepot struct{ depot.Depot }
