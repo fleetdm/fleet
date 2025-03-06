@@ -10604,6 +10604,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the team. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team. See [host_expiry_settings](#host-expiry-settings2) for details.   |
+| host_expiry_settings                                    | object  | body | Conditional access settings for the team. See [conditional_access_settings](#conditional-access-settings) for details.   |
 
 #### Example (transfer hosts to a team)
 
@@ -10944,6 +10945,25 @@ _Available in Fleet Premium_
   "host_expiry_settings": {
     "host_expiry_enabled": true,
     "host_expiry_window": 7
+  }
+}
+```
+
+#### conditional_access_settings
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| conditional_access_enabled                         | boolean | Whether to enable conditional access for this team. Must have Microsoft Entra connected and configured.                                               |
+
+
+<br/>
+
+##### Example request body
+
+```json
+{
+  "conditional_access_settings": {
+    "conditional_access_enabled": true
   }
 }
 ```
