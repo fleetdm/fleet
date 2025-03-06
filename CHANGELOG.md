@@ -1,3 +1,9 @@
+## Fleet 4.53.2 (Mar 06, 2025)
+
+### Bug fixes
+
+* Improve validation handling.
+
 ## Fleet 4.53.1 (Jul 01, 2024)
 
 ### Bug fixes
