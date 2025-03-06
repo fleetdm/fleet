@@ -4252,7 +4252,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ```json
 {
-  "tenant_id": "SOMETENANTID"
+  "microsoft_tenant_id": "SOMETENANTID"
 }
 ```
 
@@ -4262,7 +4262,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ```json
 {
-  "authentication_url": "TODO"
+  "microsoft_authentication_url": "TODO"
 }
 
 ```
