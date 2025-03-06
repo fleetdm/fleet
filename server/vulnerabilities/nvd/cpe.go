@@ -370,13 +370,13 @@ var (
 )
 
 func mutateSoftware(software *fleet.Software, logger log.Logger) {
-	defer func() {
-		if r := recover(); r != nil {
-			level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", software.Name, "softwareVersion", software.Version, "error", r)
-		}
-	}()
 	for _, transformer := range softwareTransformers {
 		if transformer.matches(software) {
+			defer func() {
+				if r := recover(); r != nil {
+					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", software.Name, "softwareVersion", software.Version, "error", r)
+				}
+			}()
 			transformer.mutate(software, logger)
 			break
 		}
