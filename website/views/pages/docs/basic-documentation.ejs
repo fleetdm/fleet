@@ -16,6 +16,7 @@
       </div>
 
       <div purpose="content-and-desktop-sidebars" class="d-flex flex-column flex-lg-row">
+        <div class="d-flex flex-column">
         <div purpose="left-sidebar" class="d-none d-lg-flex flex-column text-left left-sidebar">
           <div purpose="left-sidebar-links">
             <div v-for="page in findPagesByUrl()" :key="page.title">
@@ -31,18 +32,19 @@
           <a purpose="subpage-link" href="/docs/contributing" target="_blank" no-icon>Contributing</a>
           <a purpose="subpage-link" target="_blank" href="/support" no-icon>Support</a>
           <a purpose="subpage-link" href="/contact">Take a tour</a>
-          <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
-            <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
-              <div class="d-flex flex-column align-items-center">
-              <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
-                <p class="mb-0">Request Fleet swag</p>
-                <span>
-                  It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
-                </span>
-              </div>
-            </a>
-          </div>
         </div>
+        <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
+          <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
+            <div class="d-flex flex-column align-items-center">
+            <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+              <p class="mb-0">Request Fleet swag</p>
+              <span>
+                It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
+              </span>
+            </div>
+          </a>
+        </div>
+      </div>
 
         <div purpose="right-sidebar" class="order-first order-lg-last  right-sidebar" v-if="!thisPage.title.includes('FAQ') && !_.isEmpty(subtopics)">
           <div class="d-none d-lg-block">
