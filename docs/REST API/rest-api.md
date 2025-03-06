@@ -890,8 +890,11 @@ None.
     }
   },
   "license": {
-     "tier": "free",
-     "expiration": "0001-01-01T00:00:00Z"
+     "tier": "premium",
+     "organization": "fleet",
+     "device_count": 500000,
+     "expiration": "2031-10-16T00:00:00Z",
+     "note": ""
    },
   "logging": {
       "debug": false,

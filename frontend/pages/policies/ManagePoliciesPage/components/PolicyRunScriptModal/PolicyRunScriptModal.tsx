@@ -81,9 +81,18 @@ const PolicyRunScriptModal = ({
     item: IFormPolicy,
     { value }: IScriptDropdownField
   ) => {
+    // Script name needed for error message rendering
+    const findScriptNameById = () => {
+      const foundScript = availableScripts?.find(
+        (script) => script.id === value
+      );
+      return foundScript ? foundScript.name : "";
+    };
+
     return {
       ...item,
       scriptIdToRun: value,
+      scriptNameToRun: findScriptNameById(),
     };
   };
 
