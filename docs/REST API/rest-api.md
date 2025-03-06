@@ -919,32 +919,32 @@ None.
     }
   },
   "license": {
-     "tier": "premium",
-     "organization": "fleet",
-     "device_count": 500000,
-     "expiration": "2031-10-16T00:00:00Z",
-     "note": ""
-   },
+    "tier": "premium",
+    "organization": "fleet",
+    "device_count": 500000,
+    "expiration": "2031-10-16T00:00:00Z",
+    "note": ""
+  },
   "logging": {
-      "debug": false,
-      "json": false,
-      "result": {
-          "plugin": "firehose",
-          "config": {
-              "region": "us-east-1",
-              "status_stream": "",
-              "result_stream": "result-topic"
-          }
-      },
-      "status": {
-          "plugin": "filesystem",
-          "config": {
-              "status_log_file": "foo_status",
-              "result_log_file": "",
-              "enable_log_rotation": false,
-              "enable_log_compression": false
-          }
+    "debug": false,
+    "json": false,
+    "result": {
+      "plugin": "firehose",
+      "config": {
+        "region": "us-east-1",
+        "status_stream": "",
+        "result_stream": "result-topic"
       }
+    },
+    "status": {
+      "plugin": "filesystem",
+      "config": {
+        "status_log_file": "foo_status",
+        "result_log_file": "",
+        "enable_log_rotation": false,
+        "enable_log_compression": false
+      }
+    }
   },
   "vulnerability_settings": {
     "databases_path": ""
