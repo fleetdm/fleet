@@ -773,6 +773,7 @@ queries referencing the rules to the desired teams.
 #### conditional_access
 
 _Available in Fleet Premium for Managed Cloud customers._
+
 The `conditional_access` section lets block third party app sign-ins on hosts failing policies. 
 
 > To use conditional access, you must first connect and authorize Microsoft Entra in the Fleet UI under **Settings** > **Integrations** > **Conditional access**. This integration cannot be configured via YAML.
