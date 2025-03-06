@@ -3,8 +3,8 @@
 A collection of guides to help you with Fleet.
 
 <!--Deploying Fleet-->
-- [Deploy Fleet](https://fleetdm.com/docs/deploy)
 - [MDM migration](https://fleetdm.com/guides/mdm-migration)
+- [Deploy Fleet](https://fleetdm.com/docs/deploy)
 - [macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
 - [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup)
 <!--Highest level organizational unit-->

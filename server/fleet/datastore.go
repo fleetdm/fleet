@@ -399,7 +399,7 @@ type Datastore interface {
 
 	GetAndroidDS() android.Datastore
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1445,6 +1445,11 @@ type Datastore interface {
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
+	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
+	DeleteCAConfigAssets(ctx context.Context, names []string) error
+
 	// GetABMTokenByOrgName retrieves the Apple Business Manager token identified by
 	// its unique name (the organization name).
 	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
@@ -1492,6 +1497,12 @@ type Datastore interface {
 	// - the tokens used to create each of the DEP hosts in that team.
 	// - the tokens targeting that team as default for any platform.
 	GetABMTokenOrgNamesAssociatedWithTeam(ctx context.Context, teamID *uint) ([]string, error)
+
+	// ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
+	// require MDM to be processed, for when MDM is turned off for the host (or
+	// when it turns on again, e.g. after removing the enrollment profile - it may
+	// not necessarily report as "turned off" in that scenario).
+	ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -1988,6 +1999,7 @@ type Datastore interface {
 	// Android
 
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

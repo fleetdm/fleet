@@ -737,7 +737,6 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
 
-    console.log("hostId", hostId);
     return (
       <>
         <form className={`${baseClass}`} autoComplete="off">

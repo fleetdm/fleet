@@ -46,6 +46,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.EnabledActivityAutomations,
   ActivityType.EditedActivityAutomations,
   ActivityType.LiveQuery,
+  ActivityType.InstalledAppStoreApp,
 ]);
 
 const getProfileMessageSuffix = (
