@@ -65,7 +65,7 @@ const (
 	FleetVarHostEndUserEmailIDP    = "HOST_END_USER_EMAIL_IDP"
 	FleetVarHostHardwareSerial     = "HOST_HARDWARE_SERIAL"
 	FleetVarDigiCertDataPrefix     = "DIGICERT_DATA_"
-	FleetVarDigiCertPasswordPrefix = "DIGICERT_PASSWORD_"
+	FleetVarDigiCertPasswordPrefix = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 )
 
 const (
@@ -79,8 +79,6 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
-	fleetVarHostHardwareSerial = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostHardwareSerial,
-		FleetVarHostHardwareSerial))
 	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial}
 	fleetVarPrefixesSupportedInConfigProfiles = []string{FleetVarDigiCertDataPrefix, FleetVarDigiCertPasswordPrefix}
