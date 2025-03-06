@@ -440,12 +440,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.12.3",
 				},
 				{
-					// This one might be an issue with feed generation (outputting an OR
-					// incorrectly). TODO: investigate this further.
-					ID:                "CVE-2024-50602",
-					resolvedInVersion: "",
-				},
-				{
 					ID:                "CVE-2024-12254",
 					resolvedInVersion: "3.12.9",
 				},
@@ -492,6 +486,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.12.6",
 				},
 			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
