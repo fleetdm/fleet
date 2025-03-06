@@ -367,7 +367,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	caStatus := svc.processAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
+	caStatus, err := svc.processAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "processing AppConfig CAs")
+	}
 
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
@@ -643,6 +646,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	default:
 		// No change, no activity.
 	}
+	var caAssetsToDelete []string
 	for caName, status := range caStatus.digicert {
 		switch status {
 		case caStatusAdded:
@@ -654,7 +658,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for edited DigiCert CA")
 			}
 		case caStatusDeleted:
-			// TODO(#26603): Delete API token
+			if _, nameStillExists := caStatus.customSCEPProxy[caName]; !nameStillExists {
+				caAssetsToDelete = append(caAssetsToDelete, caName)
+			}
 			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: caName}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert CA")
 			}
@@ -671,10 +677,18 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 				return nil, ctxerr.Wrap(ctx, err, "create activity for edited Custom SCEP Proxy")
 			}
 		case caStatusDeleted:
-			// TODO(#26603): Delete challenge
+			if _, nameStillExists := caStatus.digicert[caName]; !nameStillExists {
+				caAssetsToDelete = append(caAssetsToDelete, caName)
+			}
 			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: caName}); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Custom SCEP Proxy")
 			}
+		}
+	}
+	if len(caAssetsToDelete) > 0 {
+		err = svc.ds.DeleteCAConfigAssets(ctx, caAssetsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete CA config assets")
 		}
 	}
 
@@ -916,7 +930,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 }
 
 func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
-	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) appConfigCAStatus {
+	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) (appConfigCAStatus, error) {
 
 	var invalidLicense bool
 	fleetLicense, _ := license.FromContext(ctx)
@@ -940,7 +954,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		customSCEPProxy: make(map[string]caStatusType),
 	}
 	if invalidLicense {
-		return result
+		return result, nil
 	}
 
 	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
@@ -1107,7 +1121,16 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		}
 	}
 
-	// if additional validation is needed, get all the config assets from DB
+	// if additional validation is needed, get all the encrypted config assets from DB
+	var assets map[string]fleet.CAConfigAsset
+	if additionalDigiCertValidationNeeded || additionalCustomSCEPValidationNeeded {
+		var err error
+		assets, err = svc.ds.GetAllCAConfigAssets(ctx)
+		if err != nil && !fleet.IsNotFound(err) {
+			return result, ctxerr.Wrap(ctx, err, "get all CA config assets")
+		}
+		// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
+	}
 
 	if additionalDigiCertValidationNeeded {
 		oldCAs := oldAppConfig.Integrations.DigiCert.Value
@@ -1127,12 +1150,20 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 			}
 		}
 
-		for _, newCA := range appConfig.Integrations.DigiCert.Value {
+		for i, ca := range remainingOldCAs {
+			asset, ok := assets[ca.Name]
+			if !ok {
+				continue
+			}
+			remainingOldCAs[i].APIToken = string(asset.Value)
+		}
+		for i, newCA := range appConfig.Integrations.DigiCert.Value {
 			var found bool
 			for _, oldCA := range remainingOldCAs {
 				switch {
 				case newCA.Equals(&oldCA):
-					// same
+					// we clear the APIToken since we don't need to encrypt/save it
+					appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
 					found = true
 				case newCA.Name == oldCA.Name:
 					// changed
@@ -1155,18 +1186,12 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 			}
 			// TODO(#26603): Validate all added and modified DigiCert CAs by making an API call and confirming the profile ID exists
 		}
-		// TODO(#26603): Save/encrypt all added/edited API keys
-		/* We keep API tokens unencrypted for now for frontend testing
-		for i := range appConfig.Integrations.DigiCert.Value {
-			appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
-		}
-		*/
 	}
 
 	if additionalCustomSCEPValidationNeeded {
 		svc.logger.Log("msg", "TODO for #26603")
 	}
-	return result
+	return result, nil
 }
 
 func validateCAName(name string, caType string, allCANames map[string]struct{}, invalid *fleet.InvalidArgumentError) bool {
