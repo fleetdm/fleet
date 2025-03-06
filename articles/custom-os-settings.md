@@ -2,7 +2,7 @@
 
 In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
 
-Currently, Fleet only supports computer level configuration profiles.
+Currently, Fleet only supports [system level](https://support.apple.com/guide/deployment/intro-to-mdm-profiles-depc0aadd3fe/1/web/1.0#:~:text=Device%20and%20user%20settings%20vary%20according%20to%20where%20they%20reside%3A%20Settings%20installed%20at%20the%20system%20level%20reside%20in%20a%20device%20channel.%20Settings%20installed%20for%20a%20user%20reside%20in%20a%20user%20channel.) configuration profiles.
 
 ## Enforce OS settings
 
