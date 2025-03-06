@@ -113,3 +113,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Host callback times other than 1hr
 - DB primary / replica
 - Async ingestion of policies
+
+
+<meta name="pageOrderInSection" value="3300">
+<meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">
