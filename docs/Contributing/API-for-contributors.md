@@ -4269,7 +4269,12 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ### Receive Microsoft Entra conditional access confirmation
 
-_TODO_
+Receive confirmation from the FleetDM proxy that the 
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| license_key              | string | body | **Required.** The license key of the Fleet instance |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
 
 
 ### Delete Microsoft Entra conditional access
