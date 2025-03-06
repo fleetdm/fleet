@@ -1321,22 +1321,22 @@ func testSaveQueryLabels(t *testing.T, ds *Datastore) {
 }
 
 func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
-	requireQueries := func(t *testing.T, queries []*fleet.Query, IDs []uint) {
-		require.Len(t, queries, len(IDs))
-		for _, id := range IDs {
+	requireQueries := func(t *testing.T, queries []*fleet.Query, names []string) {
+		require.Len(t, queries, len(names))
+		for _, name := range names {
 			found := false
 			for _, query := range queries {
-				if id == query.ID {
+				if name == query.Name {
 					found = true
 					break
 				}
 			}
 			if !found {
-				foundIDs := []uint{}
+				foundNames := []string{}
 				for _, query := range queries {
-					foundIDs = append(foundIDs, query.ID)
+					foundNames = append(foundNames, query.Name)
 				}
-				require.Truef(t, found, "failed to find query %d in list %#v", id, foundIDs)
+				require.Truef(t, found, "failed to find query %d in list %#v", name, foundNames)
 			}
 		}
 	}
@@ -1425,25 +1425,25 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	// No host specified, list all queries on team, regardless of tag
 	queries, err := ds.ListScheduledQueriesForAgents(ctx, nil, nil, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []uint{queryLabel1.ID, queryLabel2.ID, queryLabel1And2.ID, queryNoLabel.ID})
+	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
 	// Label 1 queries
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1.ID, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []uint{queryLabel1.ID, queryLabel1And2.ID, queryNoLabel.ID})
+	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
 	// Label 2 queries
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel2.ID, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []uint{queryLabel2.ID, queryLabel1And2.ID, queryNoLabel.ID})
+	requireQueries(t, queries, []string{queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
 	// Labels 1 and 2 queries
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostLabel1And2.ID, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []uint{queryLabel1.ID, queryLabel2.ID, queryLabel1And2.ID, queryNoLabel.ID})
+	requireQueries(t, queries, []string{queryLabel1.Name, queryLabel2.Name, queryLabel1And2.Name, queryNoLabel.Name})
 
 	// No label queries
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
-	requireQueries(t, queries, []uint{queryNoLabel.ID})
+	requireQueries(t, queries, []string{queryNoLabel.Name})
 }

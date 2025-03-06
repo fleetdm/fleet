@@ -723,7 +723,7 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 
 	queryIDs := []uint{}
 	for _, query := range queries {
-		query.LabelsIncludeAny = []fleet.LabelIdent{}
+		query.LabelsIncludeAny = nil
 		queryIDs = append(queryIDs, query.ID)
 	}
 
@@ -773,7 +773,6 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	sqlStmt := `
 		SELECT
-			q.id,
 			q.name,
 			q.query,
 			q.team_id,
