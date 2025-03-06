@@ -1,6 +1,6 @@
 # Design / QA considerations
 
-This is meant to be a helpful checklist of 'events' or 'transactions' to remember to think about while designing or testing new features or bugs to make sure edge cases are caught sooner rather than later. Please feel free to add more if any are missing
+This is meant to be a helpful checklist of 'events' or 'transactions' to help catch edge cases sooner rather than later while designing or testing new features or bugs.  Please feel free to add more if any are missing.
 
 ## User
 
