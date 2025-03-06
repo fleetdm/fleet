@@ -2972,6 +2972,7 @@ last_vpp_install AS (
 		byTitleID[hs.ID] = hs
 	}
 
+	vulnerableSW := make(map[uint]struct{})
 	if len(titleIDs) > 0 {
 		// get the software versions installed on that host
 		const versionStmt = `
@@ -3015,9 +3016,11 @@ last_vpp_install AS (
 			cveStmt := `
 			SELECT
 				sc.software_id,
-				sc.cve
+				sc.cve,
+				s.title_id AS title_id
 			FROM
 				software_cve sc
+				JOIN software s ON sc.software_id = s.id
 				%s
 			WHERE
 				sc.software_id IN (?)
@@ -3031,9 +3034,7 @@ last_vpp_install AS (
 
 			var cveArgs []any
 
-			for _, a := range softwareIDs {
-				cveArgs = append(cveArgs, a)
-			}
+			cveArgs = append(cveArgs, softwareIDs)
 
 			if opts.VulnerableOnly && (opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0) {
 
@@ -3057,10 +3058,11 @@ last_vpp_install AS (
 			type softwareCVE struct {
 				SoftwareID uint   `db:"software_id"`
 				CVE        string `db:"cve"`
+				TitleID    uint   `db:"title_id"`
 			}
 			var softwareCVEs []softwareCVE
 
-			stmt, args, err = sqlx.In(cveStmt, cveArgs)
+			stmt, args, err = sqlx.In(cveStmt, cveArgs...)
 
 			fmt.Printf("stmt: %v\n", stmt)
 			fmt.Printf("args: %v\n", args)
@@ -3071,11 +3073,11 @@ last_vpp_install AS (
 			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareCVEs, stmt, args...); err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "list software cves")
 			}
-
 			// store the CVEs with the proper software entry
 			for _, cve := range softwareCVEs {
 				ver := bySoftwareID[cve.SoftwareID]
 				ver.Vulnerabilities = append(ver.Vulnerabilities, cve.CVE)
+				vulnerableSW[cve.TitleID] = struct{}{}
 			}
 
 			const pathsStmt = `
@@ -3138,6 +3140,9 @@ last_vpp_install AS (
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
 		hs := hs
+		if _, ok := vulnerableSW[hs.ID]; opts.VulnerableOnly && !ok {
+			continue
+		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 	return software, metaData, nil
