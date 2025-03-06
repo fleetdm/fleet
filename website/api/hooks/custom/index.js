@@ -228,9 +228,9 @@ will be disabled and/or hidden in the UI.
             // Not logged in? Set local variables for the start flow CTA.
             if (!req.session.userId) {
               res.locals.showStartCta = true;
-              res.locals.collapseStartCta = true;
-              if(req.session.expandCtaAt && req.session.expandCtaAt < Date.now()) {
-                res.locals.collapseStartCta = false;
+              res.locals.collapseStartCta = false;
+              if(req.session.expandCtaAt && req.session.expandCtaAt > Date.now()) {
+                res.locals.collapseStartCta = true;
               }
               return next();
             }
