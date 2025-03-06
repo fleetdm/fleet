@@ -21,4 +21,6 @@ If some of the following don't apply, delete the relevant line.
    - [ ] Make sure fleetd is compatible with the latest released version of Fleet (see [Must rule](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/fleetd-development-and-release-strategy.md)).
    - [ ] Orbit runs on macOS, Linux and Windows. Check if the orbit feature/bugfix should only apply to one platform (`runtime.GOOS`).
    - [ ] Manual QA must be performed in the three main OSs, macOS, Windows and Linux.
-   - [ ] Auto-update manual QA, from released version of component to new version (see [tools/tuf/test](../tools/tuf/test/README.md)).
+   - [ ] Auto-update manual QA, from released version of component to new version (see
+     [tools/tuf/test](../tools/tuf/test/README.md)).
+- [ ] For unreleased bug fixes in a release candidate, confirmed that the fix is not expected to adversely impact load test results or otherwise alerted release DRI if additional load testing is needed.
