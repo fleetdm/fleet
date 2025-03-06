@@ -120,7 +120,6 @@ module.exports = {
 
     When generating the SQL:
     1. Please do not use the SQL "AS" operator, nor alias tables.  Always reference tables by their full name.
-    6. For each table that you use, only use columns that are documented for that table, as documented in the provided context.
     2. When generating a query that uses the "LIKE" operator, you should include wildcard characters.
     3. If this question is related to an application or program, consider using LIKE instead of something verbatim.
     4. If this question is not possible to ask given the tables and columns available in the provided context (the osquery schema) for a particular operating system, then use empty string.
