@@ -953,6 +953,7 @@ var dialect = goqu.Dialect("mysql")
 
 // listSoftwareDB returns software installed on hosts. Use opts for pagination, filtering, and controlling
 // fields populated in the returned software.
+// Used on software/versions not software/titles
 func listSoftwareDB(
 	ctx context.Context,
 	q sqlx.QueryerContext,
@@ -3011,23 +3012,59 @@ last_vpp_install AS (
 		}
 
 		if len(softwareIDs) > 0 {
-			const cveStmt = `
+			cveStmt := `
 			SELECT
 				sc.software_id,
 				sc.cve
 			FROM
 				software_cve sc
+				%s
 			WHERE
 				sc.software_id IN (?)
+				%s
 			ORDER BY
 				software_id, cve
 	`
+
+			var cveMetaFilter string
+			var vulnerabilityFiltersClause string
+
+			var cveArgs []any
+
+			for _, a := range softwareIDs {
+				cveArgs = append(cveArgs, a)
+			}
+
+			if opts.VulnerableOnly && (opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0) {
+
+				cveMetaFilter = "INNER JOIN cve_meta cm ON sc.cve = cm.cve"
+
+				if opts.KnownExploit {
+					vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
+				}
+				if opts.MinimumCVSS > 0 {
+					vulnerabilityFiltersClause += " AND cm.cvss_score >= ?"
+					cveArgs = append(cveArgs, opts.MinimumCVSS)
+				}
+				if opts.MaximumCVSS > 0 {
+					vulnerabilityFiltersClause += " AND cm.cvss_score <= ?"
+					cveArgs = append(cveArgs, opts.MaximumCVSS)
+				}
+			}
+
+			cveStmt = fmt.Sprintf(cveStmt, cveMetaFilter, vulnerabilityFiltersClause)
+
 			type softwareCVE struct {
 				SoftwareID uint   `db:"software_id"`
 				CVE        string `db:"cve"`
 			}
 			var softwareCVEs []softwareCVE
-			stmt, args, err = sqlx.In(cveStmt, softwareIDs)
+
+			stmt, args, err = sqlx.In(cveStmt, cveArgs)
+
+			fmt.Printf("stmt: %v\n", stmt)
+			fmt.Printf("args: %v\n", args)
+			fmt.Printf("err: %v\n", err)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list cves")
 			}
