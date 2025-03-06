@@ -1,3 +1,9 @@
+## Fleet 4.58.1 (Mar 05, 2025)
+
+### Bug fixes
+
+* Improve validation handling.
+
 ## Fleet 4.58.0 (Oct 17, 2024)
 
 **Endpoint Operations:**
