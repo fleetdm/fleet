@@ -827,7 +827,7 @@ None.
     "enable_jit_provisioning": false
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "SOMETENANTID"
+    "microsoft_tenant_id": "<TENANT ID>"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1127,7 +1127,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_jit_provisioning": false
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "SOMETENANTID"
+    "microsoft_tenant_id": "<TENANT ID>"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -10614,7 +10614,7 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the team. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| host_expiry_settings                                    | object  | body | Conditional access settings for the team. See [conditional_access](#conditional-access) for details.   |
+| conditional_access                                    | object  | body | Conditional access settings for the team. See [conditional_access](#conditional-access) for details.   |
 
 #### Example (transfer hosts to a team)
 
@@ -10963,7 +10963,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| conditional_access_enabled                         | boolean | Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global settings.                                               |
+| conditional_access_enabled                         | boolean | Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config.                                               |
 
 
 <br/>
