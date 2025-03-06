@@ -5,6 +5,7 @@ import Integrations from "./cards/Integrations";
 import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
 import ChangeManagement from "./cards/ChangeManagement";
+import Certificates from "./cards/Certificates";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -31,6 +32,13 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     urlSection: "change-management",
     path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
     Card: ChangeManagement,
+  },
+  // TODO: digicert update: add this back when the feature is ready
+  {
+    title: "Certificates",
+    urlSection: "certificate-authorities",
+    path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+    Card: Certificates,
   },
 ];
 
