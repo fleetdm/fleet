@@ -826,6 +826,9 @@ None.
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
   },
+  "conditional_access_settings": {
+    "microsoft_entra_tenant_id": "SOMETENANTID"
+  },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
     "host_expiry_window": 0
@@ -1118,6 +1121,9 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_sso": false,
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
+  },
+  "conditional_access_settings": {
+    "microsoft_entra_tenant_id": "SOMETENANTID"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
