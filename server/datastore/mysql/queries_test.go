@@ -38,6 +38,7 @@ func TestQueries(t *testing.T) {
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
 		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
 		{"IsSavedQuery", testIsSavedQuery},
+		{"QueryLabels", testQueryLabels},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1275,8 +1276,8 @@ func testQueryLabels(t *testing.T, ds *Datastore) {
 
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
 	require.NoError(t, err)
-	// label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
-	// require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
 
 	// Create query with label
 	query1, err := ds.NewQuery(ctx, &fleet.Query{
@@ -1290,5 +1291,31 @@ func testQueryLabels(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	_ = query1
+	require.Len(t, query1.LabelsIncludeAny, 1)
+	require.Equal(t, label1.Name, query1.LabelsIncludeAny[0].LabelName)
+	require.Equal(t, label1.ID, query1.LabelsIncludeAny[0].LabelID)
+
+	// Change the label
+	query1.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.NoError(t, err)
+	require.Len(t, query1.LabelsIncludeAny, 1)
+	require.Equal(t, label2.Name, query1.LabelsIncludeAny[0].LabelName)
+	require.Equal(t, label2.ID, query1.LabelsIncludeAny[0].LabelID)
+
+	// Two labels
+	query1.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.NoError(t, err)
+	require.Len(t, query1.LabelsIncludeAny, 2)
+	require.Equal(t, label1.Name, query1.LabelsIncludeAny[0].LabelName)
+	require.Equal(t, label1.ID, query1.LabelsIncludeAny[0].LabelID)
+	require.Equal(t, label2.Name, query1.LabelsIncludeAny[1].LabelName)
+	require.Equal(t, label2.ID, query1.LabelsIncludeAny[1].LabelID)
+
+	// Remove all labels
+	query1.LabelsIncludeAny = []fleet.LabelIdent{}
+	err = ds.SaveQuery(ctx, query1, true, true)
+	require.NoError(t, err)
+	require.Len(t, query1.LabelsIncludeAny, 0)
 }

@@ -298,13 +298,13 @@ func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) 
 			return ctxerr.Wrap(ctx, err, "creating query labels")
 		}
 
-		if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {
-			return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
-		}
-
 		return nil
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating query labels")
+	}
+
+	if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {
+		return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
 	}
 
 	return nil
@@ -713,18 +713,17 @@ func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries [
 
 	sql := `
 		SELECT
-			q.id AS query_id,
-			l.id AS label_id,
+			ql.query_id AS query_id,
+			ql.label_id AS label_id,
 			l.name AS label_name
-		FROM queries q
-		INNER JOIN query_labels ql ON q.id = ql.query_id
+		FROM query_labels ql
 		INNER JOIN labels l ON l.id = ql.label_id
-		WHERE q.id IN (?)
+		WHERE ql.query_id IN (?)
 	`
 
 	queryIDs := []uint{}
 	for _, query := range queries {
-		clear(query.LabelsIncludeAny)
+		query.LabelsIncludeAny = []fleet.LabelIdent{}
 		queryIDs = append(queryIDs, query.ID)
 	}
 
