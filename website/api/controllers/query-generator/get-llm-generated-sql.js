@@ -18,8 +18,9 @@ module.exports = {
       description: 'A SQL query was generated'
     },
 
-    errorFromOpenAi: {
-      description: 'The Open AI API reutrned an error.'
+    couldNotGenerateQueries: {
+      description: 'A set of queries could not be generated for a user using the provided question.',
+      responseType: 'badRequest'
     }
   },
 
@@ -60,12 +61,13 @@ module.exports = {
     Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
     let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o-mini-2024-07-18', true, 'Please only respond in valid JSON with no codefences or backticks.')
     .intercept((err)=>{
+      sails.log.warn(`When trying to get a subset of tables to use to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
         sails.sockets.broadcast(roomId, 'error', {error: err});
         sails.sockets.leave(this.req, roomId);
       }
-      return new Error(`When trying to get a subset of tables to use to generate a query for an Admin user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      return 'couldNotGenerateQueries';
     });
 
 
@@ -143,6 +145,13 @@ module.exports = {
       "windowsCaveats": "TODO",
       "linuxCaveats": "TODO",
       "chromeOSCaveats": "TODO",
+    }
+
+
+    If no queries can be generated from the provided instructions do not return the datashape above and instead return this JSON in this exact data shape:
+
+    {
+      "couldNotGenerateQueries": true
     }`;
 
     let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'o3-mini-2025-01-31', expectJson: true})
@@ -152,8 +161,18 @@ module.exports = {
         sails.sockets.broadcast(roomId, 'error', {error: err});
         sails.sockets.leave(this.req, roomId);
       }
-      return new Error(`When trying to generate a query for an Admin user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      sails.log.warn(`When trying to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      return 'couldNotGenerateQueries';
     });
+    let jsonResult = JSON.parse(sqlReport);
+    if(jsonResult.couldNotGenerateQueries){
+      if(this.req.isSocket){
+        sails.sockets.broadcast(roomId, 'error', 'couldNotGenerateQueries');
+        sails.sockets.leave(this.req, roomId);
+      } else {
+        throw 'couldNotGenerateQueries';
+      }
+    }
 
     // If this request was from a socket, we'll broadcast a 'queryGenerated' event with the sqlReport and unsubscribe the socket
     if(this.req.isSocket){
