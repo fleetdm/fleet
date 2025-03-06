@@ -120,11 +120,13 @@ module.exports = {
 
     When generating the SQL:
     1. Please do not use the SQL "AS" operator, nor alias tables.  Always reference tables by their full name.
-    2. If this question is related to an application or program, consider using LIKE instead of something verbatim.
-    3. If this question is not possible to ask given the tables and columns available in the provided context (the osquery schema) for a particular operating system, then use empty string.
-    4. If this question is a "yes" or "no" question, or a "how many people" question, or a "how many hosts" question, then build the query such that a "yes" returns exactly one row and a "no" returns zero rows.  In other words, if this question is about finding out which hosts match a "yes" or "no" question, then if a host does not match, do not include any rows for it.
-    5. Use only tables that are supported for each target platform, as documented in the provided context, considering the examples if they exist, and the available columns.
     6. For each table that you use, only use columns that are documented for that table, as documented in the provided context.
+    2. When generating a query that uses the "LIKE" operator, you should include wildcard characters.
+    3. If this question is related to an application or program, consider using LIKE instead of something verbatim.
+    4. If this question is not possible to ask given the tables and columns available in the provided context (the osquery schema) for a particular operating system, then use empty string.
+    5. If this question is a "yes" or "no" question, or a "how many people" question, or a "how many hosts" question, then build the query such that a "yes" returns exactly one row and a "no" returns zero rows.  In other words, if this question is about finding out which hosts match a "yes" or "no" question, then if a host does not match, do not include any rows for it.
+    6. Use only tables that are supported for each target platform, as documented in the provided context, considering the examples if they exist, and the available columns.
+    7. For each table that you use, only use columns that are documented for that table, as documented in the provided context.
 
     Provided context:
     \`\`\`
