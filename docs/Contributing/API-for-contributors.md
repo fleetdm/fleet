@@ -4019,7 +4019,7 @@ to global admins as this changes the software title's name across all teams.
 
 | Name              | Type    | In   | Description                                        |
 |-------------------|---------|------|----------------------------------------------------|
-| software_title_id | integer | path | **Required**. The ID of the software title modify. |
+| software_title_id | integer | path | **Required**. The ID of the software title to modify. |
 | name              | string  | body | **Required**. The new name of the title.           |
 
 #### Example
