@@ -157,7 +157,7 @@ queries:
 
 Labels can be specified inline in your `default.yml` file. They can also be specified in separate files in your `lib/` folder.
 
-> `labels` is an optonal key: if included, existing labels not listed will be deleted. If omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
 
 ### Options
 
