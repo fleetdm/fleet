@@ -155,9 +155,9 @@ queries:
 
 ## labels
 
-Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+Labels can be specified inline in your `default.yml` file. They can also be specified in separate files in your `lib/` folder.
 
-> Note that labels specified in `teams/team-name.yml` will still be global, and must have a globally unique name. We recommend including the team in the label name to avoid collisions, e.g. `Macs on Sonoma (Workstations)`.
+> `labels` is an optonal key: if included, existing labels not listed will be deleted. If omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
 
 ### Options
 
@@ -167,7 +167,7 @@ For possible options, see the parameters for the [Add label API endpoint](https:
 
 #### Inline
   
-`default.yml` or `teams/team-name.yml`
+`default.yml`
 
 ```yaml
 labels: 
@@ -202,7 +202,7 @@ labels:
   - H4D5WYVN0L
 ```
 
-`default.yml` or `teams/team-name.yml`
+`default.yml`
 
 ```yaml
 labels:
