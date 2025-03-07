@@ -28,7 +28,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- Insert the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
 
 ## Context
-- Product designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
+- Product Designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
   
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
