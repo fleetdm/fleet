@@ -40,11 +40,12 @@ jobs:
           cd fleet
           go mod download
           go run cmd/maintained-apps/main.go
-      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
           base: main
+          path: fleet
           branch: jve-testing-pr-from-action
           delete-branch: true
           title: "[DO NOT MERGE] this is a test of creating PRs from actions"
