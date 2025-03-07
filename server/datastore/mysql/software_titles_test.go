@@ -31,6 +31,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
+		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1699,4 +1700,47 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			assertTitles(t, titles, tt.expectedTitles)
 		})
 	}
+}
+
+func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		BundleIdentifier: "com.foo.installer1",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer1)
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "programs",
+		InstallScript:   "echo",
+		Filename:        "installer2.msi",
+		TeamID:          &tm.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer2)
+
+	// Changes name with bundle ID
+	require.NoError(t, ds.UpdateSoftwareTitleName(ctx, installer1, "A new name"))
+	title1, err := ds.SoftwareTitleByID(ctx, installer1, nil, fleet.TeamFilter{User: user1})
+	require.NoError(t, err)
+	require.Equal(t, "A new name", title1.Name)
+
+	// Doesn't change name with no bundle ID
+	require.NoError(t, ds.UpdateSoftwareTitleName(ctx, installer2, "A newer name"))
+	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
+	require.NoError(t, err)
+	require.Equal(t, "installer2", title2.Name)
 }
