@@ -1983,7 +1983,7 @@ func getAppleProfiles(
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("macos_settings: %s: %s", prof.Name, err.Error())))
+				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
 		}
 
 		if mdmProf.Name != prof.Name {
@@ -2077,7 +2077,7 @@ func getWindowsProfiles(
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("windows_settings: %s: %s", profile.Name, err.Error())))
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), err.Error()))
 		}
 
 		profs[i] = mdmProf
