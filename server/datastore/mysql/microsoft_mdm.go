@@ -1316,6 +1316,11 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	}
 	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
 
+	if len(hostUUIDs) == 0 {
+		// Make sure we run the query at least once
+		selectProfilesTotalBatches = 1
+	}
+
 	var wantedProfiles []*fleet.MDMWindowsProfilePayload
 	for i := range selectProfilesTotalBatches {
 		start := i * selectProfilesBatchSize
@@ -1324,8 +1329,8 @@ func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 		batchUUIDs := hostUUIDs[start:end]
 
 		var err error
-		var args []any
-		var stmt string
+		args := []any{fleet.MDMOperationTypeInstall}
+		stmt := toInstallQuery
 		if len(hostUUIDs) > 0 {
 			if len(onlyProfileUUIDs) > 0 {
 				stmt, args, err = sqlx.In(
@@ -1438,6 +1443,11 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 	}
 	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
 
+	if len(hostUUIDs) == 0 {
+		// Make sure we run the query at least once
+		selectProfilesTotalBatches = 1
+	}
+
 	var wantedProfiles []*fleet.MDMWindowsProfilePayload
 
 	for i := range selectProfilesTotalBatches {
@@ -1448,12 +1458,12 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 
 		var err error
 		var args []any
-		var query string
+		stmt := toRemoveQuery
 		if len(hostUUIDs) > 0 {
 			if len(onlyProfileUUIDs) > 0 {
-				query, args, err = sqlx.In(toRemoveQuery, onlyProfileUUIDs, batchUUIDs)
+				stmt, args, err = sqlx.In(toRemoveQuery, onlyProfileUUIDs, batchUUIDs)
 			} else {
-				query, args, err = sqlx.In(toRemoveQuery, batchUUIDs)
+				stmt, args, err = sqlx.In(toRemoveQuery, batchUUIDs)
 			}
 			if err != nil {
 				return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
@@ -1461,7 +1471,7 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 		}
 
 		var partialResult []*fleet.MDMWindowsProfilePayload
-		err = sqlx.SelectContext(ctx, tx, &partialResult, query, args...)
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
 		}
