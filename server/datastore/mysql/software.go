@@ -2281,16 +2281,18 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 
 		if opts.KnownExploit {
 			vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
+			cveArgs = append(cveArgs, "exploit")
 		}
 		if opts.MinimumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cm.cvss_score >= ?"
-			cveArgs = append(cveArgs, opts.MinimumCVSS)
+			vulnerabilityFiltersClause += " AND cm.cvss_score >= :min_cvss"
+			cveArgs = append(cveArgs, "min_cvss")
 		}
 		if opts.MaximumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cm.cvss_score <= ?"
-			cveArgs = append(cveArgs, opts.MaximumCVSS)
+			vulnerabilityFiltersClause += " AND cm.cvss_score <= :max_cvss"
+			cveArgs = append(cveArgs, "max_cvss")
 		}
 
+		// Only join CVE table if there are filters
 		if len(cveArgs) > 0 {
 			onlyVulnerableJoin += cveMetaJoin
 		}
@@ -2303,11 +2305,12 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					host_software hs
 				INNER JOIN
 					software s ON hs.software_id = s.id
-					%s
+					%s -- onlyVulnerableJoin (includes software_cve and potentially cve_meta)
 				WHERE
 					hs.host_id = :host_id AND
 					s.title_id = st.id
-			) OR `, onlyVulnerableJoin)
+					%s
+			) OR `, onlyVulnerableJoin, vulnerabilityFiltersClause)
 
 	status := fmt.Sprintf(`COALESCE(%s, %s)`, `
 	CASE
@@ -2646,6 +2649,7 @@ last_vpp_install AS (
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
+	// Cannot scan available software for vulnerabilities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2866,10 +2870,13 @@ last_vpp_install AS (
 		"host_label_updated_at":     host.LabelUpdatedAt,
 		"avail":                     opts.OnlyAvailableForInstall,
 		"self_service":              opts.SelfServiceOnly,
+		"min_cvss":                  opts.MinimumCVSS,
+		"max_cvss":                  opts.MaximumCVSS,
 	}
 
 	stmt := stmtInstalled
-	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+	// We currently don't scan only available software for vulnerabilities
+	if (opts.OnlyAvailableForInstall && !opts.VulnerableOnly) || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
@@ -2901,6 +2908,8 @@ last_vpp_install AS (
 	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
 	stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
+	fmt.Printf("\n\n\nstmtInstalled: %v\n", stmtInstalled)
+	fmt.Printf("\n\n\ncountStmt: %v\n", countStmt)
 	// perform a second query to grab the titleCount
 	var titleCount uint
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleCount, countStmt, args...); err != nil {

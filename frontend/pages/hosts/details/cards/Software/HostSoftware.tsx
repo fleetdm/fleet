@@ -87,10 +87,10 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   const pageSize = DEFAULT_PAGE_SIZE;
   const vulnerable = queryParams.vulnerable === "true";
   const minCvssScore = queryParams.min_cvss_score
-    ? parseInt(queryParams.min_cvss_score, 10)
+    ? parseFloat(queryParams.min_cvss_score)
     : undefined;
   const maxCvssScore = queryParams.max_cvss_score
-    ? parseInt(queryParams.max_cvss_score, 10)
+    ? parseFloat(queryParams.max_cvss_score)
     : undefined;
   const exploit = queryParams.exploit === "true";
   const availableForInstall = queryParams.available_for_install === "true";
