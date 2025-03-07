@@ -85,14 +85,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
-  const vulnerable = queryParams.vulnerable === "true";
-  const minCvssScore = queryParams.min_cvss_score
-    ? parseFloat(queryParams.min_cvss_score)
-    : undefined;
-  const maxCvssScore = queryParams.max_cvss_score
-    ? parseFloat(queryParams.max_cvss_score)
-    : undefined;
-  const exploit = queryParams.exploit === "true";
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
   const availableForInstall = queryParams.available_for_install === "true";
 
   return {
@@ -101,10 +96,10 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
-    vulnerable,
-    min_cvss_score: minCvssScore,
-    max_cvss_score: maxCvssScore,
-    exploit,
+    vulnerable: softwareVulnFilters.vulnerable,
+    min_cvss_score: softwareVulnFilters.minCvssScore,
+    max_cvss_score: softwareVulnFilters.maxCvssScore,
+    exploit: softwareVulnFilters.exploit,
     available_for_install: availableForInstall,
   };
 };
@@ -136,19 +131,6 @@ const HostSoftware = ({
   const isUnsupported =
     isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
   const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
-
-  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
-    queryParams
-  );
-
-  console.log(
-    "\n\nHOSTSOFTWARE.tsx\n softwareVulnFilters",
-    softwareVulnFilters
-  );
-  console.log(
-    "getSoftwareFilterFromQueryParams(queryParams)",
-    getSoftwareFilterFromQueryParams(queryParams)
-  );
 
   // disables install/uninstall actions after click
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
@@ -314,6 +296,14 @@ const HostSoftware = ({
     ]
   );
 
+  const getHostSoftwareFilterFromQueryParams = useCallback(() => {
+    const { available_for_install } = queryParams;
+    if (available_for_install) {
+      return "installableSoftware";
+    }
+    return "allSoftware";
+  }, [queryParams]);
+
   const tableConfig = useMemo(() => {
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
@@ -347,17 +337,6 @@ const HostSoftware = ({
 
   const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
-  const getHostSoftwareFilterFromQueryParams = () => {
-    const { vulnerable, available_for_install } = queryParams;
-    if (available_for_install) {
-      return "installableSoftware";
-    }
-    if (vulnerable) {
-      return "vulnerableSoftware";
-    }
-    return "allSoftware";
-  };
-
   const renderHostSoftware = () => {
     if (isLoading) {
       return <Spinner />;
@@ -384,7 +363,7 @@ const HostSoftware = ({
             page={queryParams.page}
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
-            vulnFilters={softwareVulnFilters}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}
             // for my device software details modal toggling
@@ -396,7 +375,7 @@ const HostSoftware = ({
           <SoftwareFiltersModal
             onExit={toggleSoftwareFiltersModal}
             onSubmit={onApplyVulnFilters}
-            vulnFilters={softwareVulnFilters}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
             isPremiumTier={isPremiumTier || false}
           />
         )}

@@ -90,7 +90,6 @@ export const buildSoftwareFilterQueryParams = (
 
 export const getSoftwareFilterFromQueryParams = (queryParams: QueryParams) => {
   const { available_for_install, self_service } = queryParams;
-  console.log("available_for_install", available_for_install);
   switch (true) {
     case available_for_install:
       return "installableSoftware";

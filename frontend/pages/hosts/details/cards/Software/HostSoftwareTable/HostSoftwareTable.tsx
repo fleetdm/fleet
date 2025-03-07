@@ -102,16 +102,12 @@ const HostSoftwareTable = ({
 }: IHostSoftwareTableProps) => {
   const handleFilterDropdownChange = useCallback(
     (selectedFilter: SingleValue<CustomOptionType>) => {
-      // TODO: FIX ME
-      // Align snake_case, camelCase with software page implementation!
       const newParams: QueryParams = {
         query: searchQuery,
         order_key: sortHeader,
         order_direction: sortDirection,
         page: 0,
-        ...convertParamsToSnakeCase(
-          buildSoftwareVulnFiltersQueryParams(vulnFilters)
-        ),
+        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
 
       if (selectedFilter?.value === "installableSoftware") {
@@ -122,6 +118,7 @@ const HostSoftwareTable = ({
         routeTemplate,
         queryParams: newParams,
       });
+
       const prevYScroll = window.scrollY;
       setTimeout(() => {
         window.scroll({
@@ -129,10 +126,17 @@ const HostSoftwareTable = ({
           behavior: "smooth",
         });
       }, 0);
-      console.log("nextPath", nextPath);
       router.replace(nextPath);
     },
-    [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
+    [
+      pathPrefix,
+      routeTemplate,
+      router,
+      searchQuery,
+      sortDirection,
+      sortHeader,
+      vulnFilters,
+    ]
   );
 
   const memoizedFilterDropdown = useCallback(() => {
