@@ -1,0 +1,1 @@
+* Fixed Python for Windows software version mutation to avoid panics on software ingestion in some cases

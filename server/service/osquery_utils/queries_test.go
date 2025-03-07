@@ -1978,6 +1978,20 @@ func TestSanitizeSoftware(t *testing.T) {
 			},
 		},
 		{
+			name: "Python for Windows shouldn't panic",
+			h:    &fleet.Host{},
+			s: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12",
+				Source:  "programs",
+			},
+		},
+		{
 			name: "Python for Windows GA dot-zero",
 			h:    &fleet.Host{},
 			s: &fleet.Software{
