@@ -107,6 +107,20 @@ func gitopsCommand() *cli.Command {
 			secrets := make(map[string]struct{})
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
+
+			// Parsed config and filename pair
+			type ConfigFile struct {
+				Config         *spec.GitOps
+				Filename       string
+				IsGlobalConfig bool
+			}
+
+			// Load all configs in before processing them
+			configs := make([]ConfigFile, 0, len(flFilenames.Value()))
+
+			// We only want to have one global config loaded
+			globalConfigLoaded := false
+
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
@@ -114,17 +128,19 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 				isGlobalConfig := config.TeamName == nil
-				if firstFileMustBeGlobal != nil {
-					switch {
-					case *firstFileMustBeGlobal && !isGlobalConfig:
-						return fmt.Errorf("first file %s must be the global config", flFilename)
-					case !*firstFileMustBeGlobal && isGlobalConfig:
-						return fmt.Errorf(
-							"the file %s cannot be the global config, only the first file can be the global config", flFilename,
-						)
+				if isGlobalConfig {
+					if globalConfigLoaded {
+						return errors.New("Only one global config file may be provided to fleetctl gitops")
 					}
-					firstFileMustBeGlobal = ptr.Bool(false)
+					globalConfigLoaded = true
 				}
+				configs = append(configs, ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig})
+			}
+
+			for _, configFile := range configs {
+				config := configFile.Config
+				flFilename := configFile.Filename
+				isGlobalConfig := configFile.IsGlobalConfig
 
 				if isGlobalConfig {
 					if noTeamControls.Set() && config.Controls.Set() {
