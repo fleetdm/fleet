@@ -56,8 +56,13 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 
 	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
 	const enterpriseToken = "enterpriseToken"
-	s.DoJSON("GET", s.ProxyCallbackURL, nil, http.StatusOK, &resp, "enterpriseToken", enterpriseToken)
+	res := s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
 	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 1)
+	body, err := io.ReadAll(res.Body)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "text/html; charset=UTF-8", res.Header.Get("Content-Type"))
+	assert.Contains(s.T(), string(body), "If this page does not close automatically, please close it manually.")
+	assert.Contains(s.T(), string(body), "window.close()")
 
 	// Now enterprise exists and we can retrieve it.
 	resp = android.GetEnterpriseResponse{}
