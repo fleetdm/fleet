@@ -73,6 +73,9 @@ func VerifyProfileID(ctx context.Context, logger kitlog.Logger, config fleet.Dig
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshaling DigiCert response")
 	}
+	if p.Status != "Active" {
+		return ctxerr.Errorf(ctx, "DigiCert profile status is not Active: %s", p.Status)
+	}
 	level.Debug(logger).Log("msg", "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
 	return nil
 }
@@ -87,7 +90,7 @@ func populateOpts(opts []Opt) integrationOpts {
 	return o
 }
 
-func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, orgName string, opts ...Opt) (pfxData []byte,
+func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, opts ...Opt) (pfxData []byte,
 	password string, err error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(populateOpts(opts).timeout))
 
@@ -99,8 +102,7 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 
 	csrTemplate := &x509.CertificateRequest{
 		Subject: pkix.Name{
-			CommonName:   config.CertificateCommonName,
-			Organization: []string{orgName},
+			CommonName: config.CertificateCommonName,
 		},
 	}
 
@@ -126,8 +128,7 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 		"delivery_format": "x509",
 		"attributes": map[string]interface{}{
 			"subject": map[string]string{
-				"common_name":       config.CertificateCommonName,
-				"organization_name": orgName,
+				"common_name": config.CertificateCommonName,
 			},
 		},
 		"csr": csr,

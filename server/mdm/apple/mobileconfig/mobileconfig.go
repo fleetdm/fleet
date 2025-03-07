@@ -112,15 +112,14 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	// Remove Fleet variables expected in <data> section.
 	mcBytes = mdm.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
-		mcBytes = mdm.ProfileVariableRegex.ReplaceAll(mcBytes, []byte(""))
-		if !bytes.Equal(mcBytes, mc) {
-			return nil, errors.New("a signed profile cannot contain Fleet variables (FLEET_VAR)")
-		}
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
 		mcBytes = profileData
+		if mdm.ProfileVariableRegex.Match(mcBytes) {
+			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
+		}
 	}
 	var p Parsed
 	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
@@ -154,15 +153,14 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	// Remove Fleet variables expected in <data> section.
 	mcBytes = mdm.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
-		mcBytes = mdm.ProfileVariableRegex.ReplaceAll(mcBytes, []byte(""))
-		if !bytes.Equal(mcBytes, mc) {
-			return nil, errors.New("a signed profile cannot contain Fleet variables (FLEET_VAR)")
-		}
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
 		mcBytes = profileData
+		if mdm.ProfileVariableRegex.Match(mcBytes) {
+			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
+		}
 	}
 
 	// unmarshal the values we need from the top-level object

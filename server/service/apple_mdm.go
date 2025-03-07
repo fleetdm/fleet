@@ -3965,7 +3965,7 @@ func preprocessProfileContents(
 					}
 					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, emails[0])
 				case fleetVar == FleetVarHostHardwareSerial:
-					// TODO(#26609): swap with host serial
+					// TODO(#26609): swap in host serial
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix):
 					// We will replace the password when we populate the certificate data
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
@@ -3977,7 +3977,7 @@ func preprocessProfileContents(
 
 					// TODO(#26609): populate Fleet vars in the CA fields
 
-					data, password, err := digicert.GetCertificate(ctx, logger, *ca, appConfig.OrgInfo.OrgName)
+					data, password, err := digicert.GetCertificate(ctx, logger, *ca)
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
