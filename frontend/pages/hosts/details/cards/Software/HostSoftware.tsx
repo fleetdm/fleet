@@ -6,7 +6,6 @@ import { AxiosError } from "axios";
 import hostAPI, {
   IGetHostSoftwareResponse,
   IHostSoftwareQueryKey,
-  IHostSoftwareQueryParams,
 } from "services/entities/hosts";
 import deviceAPI, {
   IDeviceSoftwareQueryKey,
@@ -17,6 +16,7 @@ import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -86,9 +86,13 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
   const vulnerable = queryParams.vulnerable === "true";
-  const minCvssScore = queryParams.min_cvss_score;
-  const maxCvssScore = queryParams.max_cvss_score;
-  const exploit = queryParams.exploit;
+  const minCvssScore = queryParams.min_cvss_score
+    ? parseInt(queryParams.min_cvss_score, 10)
+    : undefined;
+  const maxCvssScore = queryParams.max_cvss_score
+    ? parseInt(queryParams.max_cvss_score, 10)
+    : undefined;
+  const exploit = queryParams.exploit === "true";
   const availableForInstall = queryParams.available_for_install === "true";
 
   return {
@@ -135,6 +139,15 @@ const HostSoftware = ({
 
   const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
     queryParams
+  );
+
+  console.log(
+    "\n\nHOSTSOFTWARE.tsx\n softwareVulnFilters",
+    softwareVulnFilters
+  );
+  console.log(
+    "getSoftwareFilterFromQueryParams(queryParams)",
+    getSoftwareFilterFromQueryParams(queryParams)
   );
 
   // disables install/uninstall actions after click
@@ -258,11 +271,11 @@ const HostSoftware = ({
   }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
-    const newQueryParams: IHostSoftwareQueryParams = {
+    const newQueryParams = {
       query: queryParams.query,
-      order_direction: queryParams.order_direction,
-      order_key: queryParams.order_key,
-      per_page: queryParams.per_page,
+      orderDirection: queryParams.order_direction,
+      orderKey: queryParams.order_key,
+      perPage: queryParams.per_page,
       page: 0, // resets page index
       ...buildSoftwareFilterQueryParams(softwareFilter),
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
@@ -272,7 +285,7 @@ const HostSoftware = ({
       getNextLocationPath({
         pathPrefix: location.pathname,
         routeTemplate: "",
-        queryParams: newQueryParams,
+        queryParams: convertParamsToSnakeCase(newQueryParams),
       })
     );
     toggleSoftwareFiltersModal();

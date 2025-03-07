@@ -23,7 +23,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     available_for_install: false,
     min_cvss_score: undefined,
     max_cvss_score: undefined,
-    exploit: undefined,
+    exploit: false,
   },
   router: createMockRouter(),
 };
@@ -100,7 +100,7 @@ describe("SelfService", () => {
           available_for_install: false,
           min_cvss_score: undefined,
           max_cvss_score: undefined,
-          exploit: undefined,
+          exploit: false,
         }}
         router={createMockRouter()}
       />
