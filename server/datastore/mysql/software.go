@@ -2269,10 +2269,31 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	var onlyVulnerableJoin string
+	var cveMetaJoin string
+	var vulnerabilityFiltersClause string
+	var cveArgs []any
+
 	if opts.VulnerableOnly {
 		onlyVulnerableJoin = `
 INNER JOIN software_cve scve ON scve.software_id = s.id
 		`
+		cveMetaJoin = "INNER JOIN cve_meta cm ON scve.cve = cm.cve"
+
+		if opts.KnownExploit {
+			vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
+		}
+		if opts.MinimumCVSS > 0 {
+			vulnerabilityFiltersClause += " AND cm.cvss_score >= ?"
+			cveArgs = append(cveArgs, opts.MinimumCVSS)
+		}
+		if opts.MaximumCVSS > 0 {
+			vulnerabilityFiltersClause += " AND cm.cvss_score <= ?"
+			cveArgs = append(cveArgs, opts.MaximumCVSS)
+		}
+
+		if len(cveArgs) > 0 {
+			onlyVulnerableJoin += cveMetaJoin
+		}
 	}
 
 	softwareIsInstalledOnHostClause := fmt.Sprintf(`
@@ -2972,7 +2993,6 @@ last_vpp_install AS (
 		byTitleID[hs.ID] = hs
 	}
 
-	vulnerableSW := make(map[uint]struct{})
 	if len(titleIDs) > 0 {
 		// get the software versions installed on that host
 		const versionStmt = `
@@ -3013,71 +3033,34 @@ last_vpp_install AS (
 		}
 
 		if len(softwareIDs) > 0 {
-			cveStmt := `
+			const cveStmt = `
 			SELECT
 				sc.software_id,
-				sc.cve,
-				s.title_id AS title_id
+				sc.cve
 			FROM
 				software_cve sc
-				JOIN software s ON sc.software_id = s.id
-				%s
 			WHERE
 				sc.software_id IN (?)
-				%s
 			ORDER BY
 				software_id, cve
 	`
-
-			var cveMetaFilter string
-			var vulnerabilityFiltersClause string
-
-			var cveArgs []any
-
-			cveArgs = append(cveArgs, softwareIDs)
-
-			if opts.VulnerableOnly && (opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0) {
-
-				cveMetaFilter = "INNER JOIN cve_meta cm ON sc.cve = cm.cve"
-
-				if opts.KnownExploit {
-					vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
-				}
-				if opts.MinimumCVSS > 0 {
-					vulnerabilityFiltersClause += " AND cm.cvss_score >= ?"
-					cveArgs = append(cveArgs, opts.MinimumCVSS)
-				}
-				if opts.MaximumCVSS > 0 {
-					vulnerabilityFiltersClause += " AND cm.cvss_score <= ?"
-					cveArgs = append(cveArgs, opts.MaximumCVSS)
-				}
-			}
-
-			cveStmt = fmt.Sprintf(cveStmt, cveMetaFilter, vulnerabilityFiltersClause)
-
 			type softwareCVE struct {
 				SoftwareID uint   `db:"software_id"`
 				CVE        string `db:"cve"`
-				TitleID    uint   `db:"title_id"`
 			}
 			var softwareCVEs []softwareCVE
-
-			stmt, args, err = sqlx.In(cveStmt, cveArgs...)
-
-			fmt.Printf("stmt: %v\n", stmt)
-			fmt.Printf("args: %v\n", args)
-			fmt.Printf("err: %v\n", err)
+			stmt, args, err = sqlx.In(cveStmt, softwareIDs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list cves")
 			}
 			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareCVEs, stmt, args...); err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "list software cves")
 			}
+
 			// store the CVEs with the proper software entry
 			for _, cve := range softwareCVEs {
 				ver := bySoftwareID[cve.SoftwareID]
 				ver.Vulnerabilities = append(ver.Vulnerabilities, cve.CVE)
-				vulnerableSW[cve.TitleID] = struct{}{}
 			}
 
 			const pathsStmt = `
@@ -3140,9 +3123,6 @@ last_vpp_install AS (
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
 		hs := hs
-		if _, ok := vulnerableSW[hs.ID]; opts.VulnerableOnly && !ok {
-			continue
-		}
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 	return software, metaData, nil
