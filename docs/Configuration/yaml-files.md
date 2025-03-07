@@ -117,8 +117,9 @@ queries:
     interval: 300
     observer_can_run: false
     automations_enabled: false
-    labels_include_any_paths:
-      - ../lib/c-suite.labels.yml
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 #### Separate file
@@ -147,13 +148,16 @@ queries:
 ```yaml
 queries:
   - path: ../lib/queries-name.queries.yml
-    labels_include_any_paths:
-    - ../lib/c-suite.labels.yml
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 ## labels
 
-Currently, labels can specified in separate files in your `lib/` folder.
+Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+> Note that labels specified in `teams/team-name.yml` will still be global, and must have a globally unique name. We recommend including the team in the label name to avoid collisions, e.g. `Macs on Sonoma (Workstations)`.
 
 ### Options
 
@@ -161,33 +165,36 @@ For possible options, see the parameters for the [Add label API endpoint](https:
 
 ### Example
 
-#### Dynamic
- 
-`lib/windows-arm.labels.yml`
+#### Inline
+  
+`default.yml` or `teams/team-name.yml`
 
 ```yaml
+labels: 
+  # Dynamic label:
+  - name: Windows Arm
+    description: Windows hosts that are running on Arm64.
+    query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+    platform: windows
+  # Manual label
+  - name: Executive (C-suite) computers
+    hosts:
+    - FFHH37NTL8
+    - F2LYH0KG4Y
+    - H4D5WYVN0L
+```
+
+#### Separate file
+ 
+`lib/labels-name.labels.yml`
+
+```yaml
+# Dynamic label:
 - name: Windows Arm
   description: Windows hosts that are running on Arm64.
   query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
   platform: windows
-```
-
-`default.yml` or `teams/team-name.yml`
-
-```yaml
-controls:
-  windows_settings:
-    custom_settings:
-      - path: ../lib/windows-profile.xml
-        labels_exclude_any_paths:
-        - ../lib/windows-arm.labels.yml
-```
-
-#### Manual
- 
-`lib/c-suite.labels.yml`
-
-```yaml
+# Manual label
 - name: Executive (C-suite) computers
   hosts:
   - FFHH37NTL8
@@ -198,11 +205,8 @@ controls:
 `default.yml` or `teams/team-name.yml`
 
 ```yaml
-software:
-  packages:
-  - path: ../lib/software-name.package.yml
-    labels_include_any_paths:
-      - ../lib/c-suite.labels.yml
+labels:
+  - path: ../lib/labels-name.labels.yml
 ```
 
 ## agent_options
@@ -298,15 +302,15 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any_paths:
-          - ../lib/macos-sequoia.labels.yml
+        labels_exclude_any:
+          - Macs on Sequoia
       - path: ../lib/macos-profile2.json
-        labels_include_all_paths:
-          - ../lib/macos-sonoma.labels.yml
+        labels_include_all:
+          - Macs on Sonoma
       - path: ../lib/macos-profile3.mobileconfig
-        labels_include_any_paths:
-          - ../lib/engineering.labels.yml
-          - ../lib/marketing.labels.yml
+        labels_include_any:
+          - Engineering
+          - Product
   windows_settings:
     custom_settings:
       - path: ../lib/windows-profile.xml
@@ -358,7 +362,7 @@ Fleet supports adding [GitHub environment variables](https://docs.github.com/en/
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
 
-Use `labels_include_all_paths` to target hosts that have all labels, `labels_include_any_paths` to target hosts that have any label, or `labels_exclude_any_paths` to target hosts that don't have any of the labels. Only one of `labels_include_all_paths`, `labels_include_any_paths`, or `labels_exclude_any_paths` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 ### macos_setup
 
@@ -402,16 +406,17 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any_paths:
-        - ../lib/engineering.labels.yml
-        - ../lib/marketing.labels.yml
+      labels_include_any:
+        - Engineering
+        - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any_paths:
-        - ../lib/engineering.labels.yml
+      labels_include_any:
+        - Product
+        - Marketing
 ```
 
-Use `labels_include_any_paths` to target hosts that have any label or `labels_exclude_any_paths` to target hosts that don't have any label. Only one of `labels_include_any_paths` or `labels_exclude_any_paths` can be specified. If neither are specified, all hosts are targeted.
+Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 ### packages
 
