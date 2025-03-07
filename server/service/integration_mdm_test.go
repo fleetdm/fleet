@@ -13453,14 +13453,14 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 0)
-	// Receive enrollment profiles
+	// Receive enrollment profiles (we are not checking/testing these here)
 	for {
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		if cmd == nil {
 			break
 		}
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
@@ -13493,6 +13493,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
+	assert.Nil(t, cmd)
 	require.NotNil(t, fullCmd.Command)
 	require.NotNil(t, fullCmd.Command.InstallProfile)
 	rawProfile := fullCmd.Command.InstallProfile.Payload
@@ -13514,6 +13515,56 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	assert.Equal(t, ca.CertificateCommonName, certificate.Subject.CommonName)
 
+	// Try a DigiCert CA that will fail
+	caFail := getDigiCertIntegration(mockDigiCertServer.URL, "fail_CA")
+	caFail.CertificateCommonName = "Fail"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca, caFail},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 2)
+
+	profileFail := digiCertForTest("N3", "I3", "fail_CA")
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N2", Contents: profile}, // resend the previous profile so it doesn't get removed
+		{Name: "N3", Contents: profileFail},
+	}}, http.StatusNoContent)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 2)
+
+	s.awaitTriggerProfileSchedule(t)
+	p = s.assertConfigProfilesByIdentifier(nil, "I3", true)
+	require.Contains(t, string(p.Mobileconfig), "com.fleetdm.pkcs12")
+
+	getHostResp := getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	var foundGood, foundFailed bool
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "N2" {
+			foundGood = true
+			assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			continue
+		}
+		if prof.Name == "N3" {
+			foundFailed = true
+			assert.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Contains(t, prof.Detail, "Expected Fail")
+			continue
+		}
+	}
+	assert.True(t, foundGood)
+	assert.True(t, foundFailed)
 }
 
 func digiCertForTest(name, identifier, caName string) []byte {
@@ -13596,6 +13647,26 @@ func createMockDigiCertServer(t *testing.T) *httptest.Server {
 			csr, err := x509.ParseCertificateRequest(block.Bytes)
 			require.NoError(t, err)
 			require.NoError(t, csr.CheckSignature())
+
+			// Setting CertificateCommonName to "Fail" allows us to test a failure getting a DigiCert certificate
+			if csr.Subject.CommonName == "Fail" {
+				w.WriteHeader(http.StatusBadRequest)
+				type errorResponse struct {
+					Errors interface{} `json:"errors"`
+				}
+				err = json.NewEncoder(w).Encode(errorResponse{
+					Errors: []struct {
+						Code    string `json:"code"`
+						Message string `json:"message"`
+					}{
+						{
+							Message: "Expected Fail",
+						},
+					},
+				})
+				require.NoError(t, err)
+				return
+			}
 
 			// Generate a self-signed certificate based on the CSR
 			serialNumber := big.NewInt(time.Now().Unix())
