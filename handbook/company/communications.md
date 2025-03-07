@@ -14,39 +14,6 @@ All team members should attend the "All hands" every month.  "All hands" meeting
 You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
 
-### Competition
-
-We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
-
-
-## Customer support service level agreements (SLAs)
-
-**Fleet Free:**
-
-| Impact level | Definition | Preferred contact | Response time |
-|:---|:---|:---|:---|
-| All inquiries | Any request regardless of impact level or severity | Osquery #fleet Slack channel | No guaranteed resolution |
-
-> **Note:** If you're using Fleet Free, you can also access community support by [opening a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) in the [Fleet GitHub](https://github.com/fleetdm/fleet/) repository.
-
-**Fleet Premium:**
-
-| Impact level | Definition | Preferred contact | Response time |
-|:-----|:----|:----|:-----|
-| Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
-| High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
-| Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
-| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
-
-> **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
-
-**Emergency (P0) request communications:**
-
-![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
-
-
 ## Directly responsible individuals (DRIs)
 
 | Area of responsibility | [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) |
@@ -1732,32 +1699,11 @@ This glossary provides definitions to commonly used terms within our space.
 
 The following stubs are included only to make links backward compatible.
 
-##### Performance feedback
-Please see 📖[handbook/company/communications#feedback](https://fleetdm.com/handbook/company/communications#feedback).
+##### Competition
+Please see 📖[handbook/company/go-to-market-groups#competition](https://fleetdm.com/handbook/company/go-to-market-groups#competition).
 
-##### Website
-Please see 📖[handbook/company/communications#fleetdm-com](https://fleetdm.com/handbook/company/communications#fleetdm-com).
-
-##### Responsibilities
-Please see 📖[handbook/digital-experience#responsibilities](https://fleetdm.com/handbook/digital-experience#responsibilities).
-
-##### Website Rituals
-Please see 📖[handbook/digital-experience#rituals](https://fleetdm.com/handbook/digital-experience#rituals).
-
-##### Website roadmap
-Please see 📖[handbook/digital-experience#contact-us](https://fleetdm.com/handbook/digital-experience#contact-us).
-
-##### Requesting changes
-Please see 📖[handbook/digital-experience#contact-us](https://fleetdm.com/handbook/digital-experience#contact-us).
-
-Please see 📖[handbook/digital-experience#qa-a-change-to-fleetdm-com](https://fleetdm.com/handbook/digital-experience#qa-a-change-to-fleetdm-com) for below.
-##### Quality
-##### Manual QA
-##### Writing QA steps
-##### Actioning QA steps
-##### Additional QA
-##### Error handling
-Please see 📖[handbook/digital-experience#qa-a-change-to-fleetdm-com](https://fleetdm.com/handbook/digital-experience#qa-a-change-to-fleetdm-com) for above.
+##### Customer support service level agreements (SLAs)
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas).
 
 ##### Responding to a 5xx error on fleetdm.com
 Please see 📖[handbook/digital-experience#respond-to-a-5xx-error-on-fleetdm-com](https://fleetdm.com/handbook/digital-experience#respond-to-a-5xx-error-on-fleetdm-com).
@@ -1768,33 +1714,6 @@ Please see 📖[handbook/digital-experience#re-run-the-deploy-fleet-website-acti
 ##### Vulnerability monitoring
 Please see 📖[handbook/digital-experience#check-production-dependencies-of-fleetdm.com](https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm.com).
 
-##### Landing pages and website experiments
-Please see 📖[handbook/digital-experience#generate-a-new-landing-page](https://fleetdm.com/handbook/digital-experience#generate-a-new-landing-page).
-
-
-##### How to export images for the website
-Please see 📖[handbook/digital-experience#export-an-image-for-fleetdm-com](https://fleetdm.com/handbook/digital-experience#export-an-image-for-fleetdm-com).
-
-##### Incident post-mortems
-Please see 📖[handbook/digital-experience#export-an-image-for-fleetdm-com](https://fleetdm.com/handbook/digital-experience#export-an-image-for-fleetdm-com).
-
-Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for below.
-##### Equipment retention and replacement
-##### Returning equipment
-##### Tracking equipment
-##### Reprovisioning equipment
-##### Buying other new equipment
-Please see 📖[handbook/company/communications#purchase-company-issued-equipment](https://fleetdm.com/handbook/company/communications#equipment) for above.
-
-##### Company travel
-Please see 📖[handbook/company/communications#travel](https://fleetdm.com/handbook/company/communications#travel).
-
-##### Estimation sessions
-Please see 📖[handbook/company/product-groups#user-story-discovery](https://fleetdm.com/handbook/company/product-groups#user-story-discovery).
-
-##### Website services
-Please see 📖[handbook/digital-experience](https://fleetdm.com/handbook/digital-experience).
-
 ##### Testing changes
 Please see 📖[handbook/digital-experience#test-fleetdm-com-locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally).
 
@@ -1803,6 +1722,7 @@ Please see 📖[handbook/digital-experience#edit-a-dns-record](https://fleetdm.c
 
 ##### Incident post-mortems
 Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fleetdm.com/handbook/product-groups#perform-an-incident-postmortem).
+
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛰️ Communications">
