@@ -5,7 +5,7 @@
     <dict>
       <key>ManifestURL</key>
       <string>https://download.fleetdm.com/fleetd-base-manifest.plist</string>
-      <key>RequestType</key>
+      <key>ReuestType</key>
       <string>InstallEnterpriseApplication</string>
     </dict>
 
