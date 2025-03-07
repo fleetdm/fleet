@@ -178,7 +178,6 @@ A user story is considered ready for implementation once:
 
 > All user stories intended for the next sprint are estimated by the last estimation session before the sprint begins. This makes sure contributors have adequate time to complete the current sprint and provide accurate estimates for the next sprint.
 
-> If the issue was drafted by a different product group's designer than it is assigned to during a sprint, the product designer listed in the issue is changed to the new product group's designer. The new product designer should be ramped up on the story or bug so they are prepared to answers questions during stand up.
 
 #### Writing a good user story
 
