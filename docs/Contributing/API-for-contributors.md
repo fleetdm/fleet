@@ -4005,6 +4005,37 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
+### Update software title name
+
+`PATCH /api/v1/fleet/software/titles/:software_title_id/name`
+
+Only available for software titles that have a non-empty bundle ID, as titles without a bundle
+ID will be added back as new rows on the next software ingest with the same name. Endpoint authorization limited
+to global admins as this changes the software title's name across all teams.
+
+> **Experimental endpoint**. This endpoint is not guaranteed to continue to exist on future minor releases of Fleet.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title modify. |
+| name              | string  | body | **Required**. The new name of the title.           |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1/name`
+
+```json
+{
+  "name": "2 Chrome 2 Furious.app"
+}
+```
+
+##### Default response
+
+`Status: 205`
+
 ### Batch-apply software
 
 _Available in Fleet Premium._
