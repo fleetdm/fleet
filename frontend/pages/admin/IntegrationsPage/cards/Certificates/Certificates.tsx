@@ -16,34 +16,9 @@ import {
   getCertificateAuthority,
   ICertAuthority,
 } from "./helpers";
-import { get } from "lodash";
+import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 
 const baseClass = "certificates-integration";
-
-interface IAddCertAuthoityCardProps {
-  onAddCertAuthority: () => void;
-}
-
-const AddCertAuthorityCard = ({
-  onAddCertAuthority,
-}: IAddCertAuthoityCardProps) => {
-  return (
-    <Card paddingSize="xxlarge" className={`${baseClass}__add-cert-card`}>
-      <div className={`${baseClass}__add-cert-card-content`}>
-        <p className={`${baseClass}__add-cert-card-title`}>
-          Add your certificate authority (CA)
-        </p>
-        <p>Help your end users connect to Wi-Fi or VPNs.</p>
-      </div>
-      <Button
-        className={`${baseClass}__add-cert-card-button`}
-        onClick={onAddCertAuthority}
-      >
-        Add CA
-      </Button>
-    </Card>
-  );
-};
 
 const Certificates = () => {
   let { config } = useContext(AppContext);
@@ -99,6 +74,7 @@ const Certificates = () => {
 
   const certs = useMemo(() => {
     if (!config) return [];
+    return [];
     return generateListData(
       config?.integrations.ndes_scep_proxy,
       config?.integrations.digicert,
