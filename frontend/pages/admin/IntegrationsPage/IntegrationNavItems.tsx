@@ -34,12 +34,12 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     Card: ChangeManagement,
   },
   // TODO: digicert update: add this back when the feature is ready
-  {
-    title: "Certificates",
-    urlSection: "certificate-authorities",
-    path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
-    Card: Certificates,
-  },
+  // {
+  //   title: "Certificates",
+  //   urlSection: "certificate-authorities",
+  //   path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+  //   Card: Certificates,
+  // },
 ];
 
 export default integrationSettingsNavItems;
