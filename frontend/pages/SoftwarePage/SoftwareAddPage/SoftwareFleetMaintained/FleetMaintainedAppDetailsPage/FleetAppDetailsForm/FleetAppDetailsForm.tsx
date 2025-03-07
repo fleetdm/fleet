@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+
+import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
 
@@ -15,6 +17,7 @@ import {
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
 import { generateFormValidation } from "./helpers";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "fleet-app-details-form";
 
@@ -59,6 +62,9 @@ const FleetAppDetailsForm = ({
   onCancel,
   onSubmit,
 }: IFleetAppDetailsFormProps) => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
@@ -138,10 +144,13 @@ const FleetAppDetailsForm = ({
   };
 
   const isSubmitDisabled = !formValidation.isValid;
+  const gitOpsModeDisabledClass = gitOpsModeEnabled
+    ? "form-fields--disabled"
+    : "";
 
   return (
-    <form className={baseClass} onSubmit={onSubmitForm}>
-      <div className={`${baseClass}__form-frame`}>
+    <form className={`${baseClass}`} onSubmit={onSubmitForm}>
+      <div className={`${baseClass}__form-frame ${gitOpsModeDisabledClass}`}>
         <Card paddingSize="medium" borderRadiusSize="large">
           <SoftwareOptionsSelector
             formData={formData}
@@ -168,7 +177,9 @@ const FleetAppDetailsForm = ({
           />
         </Card>
       </div>
-      <div className={`${baseClass}__advanced-options-section`}>
+      <div
+        className={`${baseClass}__advanced-options-section ${gitOpsModeDisabledClass}`}
+      >
         <RevealButton
           className={`${baseClass}__accordion-title`}
           isShowing={showAdvancedOptions}
@@ -200,9 +211,17 @@ const FleetAppDetailsForm = ({
         )}
       </div>
       <div className={`${baseClass}__action-buttons`}>
-        <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
-          Add software
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={disableChildren || isSubmitDisabled}
+            >
+              Add software
+            </Button>
+          )}
+        />
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
