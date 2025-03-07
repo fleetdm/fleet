@@ -11,7 +11,12 @@ import Card from "components/Card";
 import Button from "components/buttons/Button";
 
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
-import { generateListData } from "./helpers";
+import {
+  generateListData,
+  getCertificateAuthority,
+  ICertAuthority,
+} from "./helpers";
+import { get } from "lodash";
 
 const baseClass = "certificates-integration";
 
@@ -48,7 +53,7 @@ const Certificates = () => {
       jira: [],
       digicert: [
         {
-          name: "DigiCert",
+          name: "DigiCert CA",
           id: 1,
           api_token: "123456",
           profile_id: "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
@@ -105,11 +110,26 @@ const Certificates = () => {
     setShowAddCertAuthorityModal(true);
   };
 
-  const onEditCertAuthority = () => {
+  const onEditCertAuthority = (cert: ICertAuthority) => {
+    // TODO: use useCallback
+    const ca = getCertificateAuthority(
+      cert.id,
+      config?.integrations.ndes_scep_proxy,
+      config?.integrations.digicert,
+      config?.integrations.custom_scep_proxy
+    );
+    console.log(ca);
     setShowEditCertAuthorityModal(true);
   };
 
-  const onDeleteCertAuthority = () => {
+  const onDeleteCertAuthority = (cert: ICertAuthority) => {
+    // TODO: use useCallback
+    getCertificateAuthority(
+      cert.id,
+      config?.integrations.ndes_scep_proxy,
+      config?.integrations.digicert,
+      config?.integrations.custom_scep_proxy
+    );
     setShowDeleteCertAuthorityModal(true);
   };
 
