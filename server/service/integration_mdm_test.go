@@ -79,6 +79,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 func TestIntegrationsMDM(t *testing.T) {
@@ -13452,6 +13453,16 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 0)
+	// Receive enrollment profiles
+	for {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 
 	// Add a profile with a bad CA
 	profile := digiCertForTest("N1", "BadCA", "badName")
@@ -13460,6 +13471,49 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(rawRes.Body)
 	require.Contains(t, errMsg, "_badName is not supported")
+
+	// Add good profile
+	profile = digiCertForTest("N2", "I2", "my_CA")
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N2", Contents: profile},
+	}}, http.StatusNoContent)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 1)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	p := s.assertConfigProfilesByIdentifier(nil, "I2", true)
+	require.Contains(t, string(p.Mobileconfig), "com.fleetdm.pkcs12")
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
+	var fullCmd micromdm.CommandPayload
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile := fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	var pkcs12Profile struct {
+		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+	}
+	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Profile))
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Profile.PayloadContent[0]["PayloadType"].(string))
+	password := pkcs12Profile.PayloadContent[0]["Password"].(string)
+	data := pkcs12Profile.PayloadContent[0]["PayloadContent"].([]byte)
+	_, certificate, err := pkcs12.Decode(data, password)
+	require.NoError(t, err)
+	assert.Equal(t, ca.CertificateCommonName, certificate.Subject.CommonName)
+
 }
 
 func digiCertForTest(name, identifier, caName string) []byte {
@@ -13533,8 +13587,13 @@ func createMockDigiCertServer(t *testing.T) *httptest.Server {
 			err := json.NewDecoder(r.Body).Decode(&req)
 			require.NoError(t, err)
 
+			// Decode the PEM format CSR into DER
+			block, _ := pem.Decode([]byte(req.CSR))
+			require.NotNil(t, block, "failed to decode PEM block containing CSR")
+			require.Equal(t, "CERTIFICATE REQUEST", block.Type, "unexpected PEM block type")
+
 			// Parse the CSR
-			csr, err := x509.ParseCertificateRequest([]byte(req.CSR))
+			csr, err := x509.ParseCertificateRequest(block.Bytes)
 			require.NoError(t, err)
 			require.NoError(t, csr.CheckSignature())
 
@@ -13560,6 +13619,7 @@ func createMockDigiCertServer(t *testing.T) *httptest.Server {
 			err = pem.Encode(certPEM, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 			require.NoError(t, err)
 
+			w.WriteHeader(http.StatusCreated)
 			resp := map[string]string{
 				"serial_number":   serialNumber.String(),
 				"delivery_format": "x509",
@@ -13567,7 +13627,6 @@ func createMockDigiCertServer(t *testing.T) *httptest.Server {
 			}
 			err = json.NewEncoder(w).Encode(resp)
 			require.NoError(t, err)
-			w.WriteHeader(http.StatusCreated)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
