@@ -15,7 +15,10 @@ import activitiesAPI, {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
-import hostAPI, { IGetHostCertificatesResponse } from "services/entities/hosts";
+import hostAPI, {
+  IGetHostCertificatesResponse,
+  IGetHostCertsRequestParams,
+} from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
@@ -27,12 +30,16 @@ import {
   IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
+import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
 import { IHostUpcomingActivity } from "interfaces/activity";
-import { IHostCertificate } from "interfaces/certificates";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
 
 import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
@@ -225,6 +232,9 @@ const HostDetailsPage = ({
   const [certificatePage, setCertificatePage] = useState(
     DEFAULT_CERTIFICATES_PAGE
   );
+  const [sortCerts, setSortCerts] = useState<IListSort>({
+    ...CERTIFICATES_DEFAULT_SORT,
+  });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -283,31 +293,33 @@ const HostDetailsPage = ({
 
   const {
     data: hostCertificates,
-    isLoading: isLoadingHostCertificates,
     isError: isErrorHostCertificates,
     refetch: refetchHostCertificates,
   } = useQuery<
     IGetHostCertificatesResponse,
     Error,
     IGetHostCertificatesResponse,
-    Array<{ scope: string; hostId: number; page: number; perPage: number }>
+    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
   >(
     [
       {
         scope: "host-certificates",
-        hostId: hostIdFromURL,
+        host_id: hostIdFromURL,
         page: certificatePage,
-        perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        order_key: sortCerts.order_key,
+        order_direction: sortCerts.order_direction,
       },
     ],
-    ({ queryKey: [{ hostId, page, perPage }] }) =>
-      hostAPI.getHostCertificates(hostId, page, perPage),
+    ({ queryKey }) => hostAPI.getHostCertificates(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
       // catch-22 where we need to know the platform to know if it's supported but we also need to
       // be able to include the cert refetch in the hosts query hook.
       enabled: !!hostIdFromURL,
+      keepPreviousData: true,
+      staleTime: 15000,
     }
   );
 
@@ -786,8 +798,7 @@ const HostDetailsPage = ({
     !host ||
     isLoadingHost ||
     pastActivitiesIsLoading ||
-    upcomingActivitiesIsLoading ||
-    isLoadingHostCertificates
+    upcomingActivitiesIsLoading
   ) {
     return <Spinner />;
   }
@@ -980,6 +991,9 @@ const HostDetailsPage = ({
                     onPreviousPage={() =>
                       setCertificatePage(certificatePage - 1)
                     }
+                    sortDirection={sortCerts.order_direction}
+                    sortHeader={sortCerts.order_key}
+                    onSortChange={setSortCerts}
                   />
                 )}
             </TabPanel>
