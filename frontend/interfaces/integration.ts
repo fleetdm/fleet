@@ -24,6 +24,23 @@ export interface IScepIntegration {
   password: string;
 }
 
+export interface IDigicertCertificate {
+  id: number;
+  name: string;
+  api_token: string;
+  profile_id: string;
+  certificate_common_name: string;
+  certificate_user_principal_names: string[];
+  certificate_seat_id: string;
+}
+
+export interface ICustomScepProxy {
+  id: number;
+  name: string;
+  server_url: string;
+  challenge: string;
+}
+
 export interface IIntegration {
   url: string;
   username?: string;
@@ -92,6 +109,8 @@ export interface IZendeskJiraIntegrations {
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
   ndes_scep_proxy?: IScepIntegration | null;
+  digicert?: IDigicertCertificate[];
+  custom_scep_proxy?: ICustomScepProxy[];
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {

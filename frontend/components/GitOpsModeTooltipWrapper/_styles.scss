@@ -1,4 +1,10 @@
 .gitops-mode-tooltip-wrapper {
+  &__tooltip-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
   .component__tooltip-wrapper {
     &__tip-text {
       cursor: default;
