@@ -1,5 +1,9 @@
 
-<%if(showStartCta){%>
+<%
+var showStartCta;
+if(showStartCta){
+
+%>
 
   <div purpose="continue-banner" id="start-cta" class="d-flex justify-content-end">
     <div purpose="banner-body" class="d-flex flex-row align-items-center invisible <%- collapseStartCta ? 'collapsed' : ''%>">
