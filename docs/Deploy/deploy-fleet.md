@@ -89,9 +89,6 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     # Change these to match your environment.
     domain_name = "fleet.example.com"
     vpc_name = "fleet-vpc"
-    osquery_carve_bucket_name   = "fleet-osquery-carve"
-    osquery_results_bucket_name = "fleet-osquery-results"
-    osquery_status_bucket_name  = "fleet-osquery-status"
     ```
 
     > Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).
