@@ -2,6 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "add-cert-authority-card";
 
@@ -20,9 +21,17 @@ const AddCertAuthorityCard = ({
         </p>
         <p>Help your end users connect to Wi-Fi or VPNs.</p>
       </div>
-      <Button className={`${baseClass}__button`} onClick={onAddCertAuthority}>
-        Add CA
-      </Button>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            className={`${baseClass}__button`}
+            onClick={onAddCertAuthority}
+          >
+            Add CA
+          </Button>
+        )}
+      />
     </Card>
   );
 };

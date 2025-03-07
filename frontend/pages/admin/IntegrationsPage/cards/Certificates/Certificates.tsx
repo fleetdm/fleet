@@ -74,7 +74,6 @@ const Certificates = () => {
 
   const certs = useMemo(() => {
     if (!config) return [];
-    return [];
     return generateListData(
       config?.integrations.ndes_scep_proxy,
       config?.integrations.digicert,

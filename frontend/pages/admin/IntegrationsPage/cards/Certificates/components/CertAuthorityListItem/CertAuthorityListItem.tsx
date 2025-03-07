@@ -18,6 +18,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
   return (
     <>
       <GitOpsModeTooltipWrapper
+        position="left"
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
@@ -30,6 +31,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
         )}
       />
       <GitOpsModeTooltipWrapper
+        position="left"
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
