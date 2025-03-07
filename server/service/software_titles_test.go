@@ -188,7 +188,7 @@ func TestSoftwareNameUpdate(t *testing.T) {
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
 		ID:         1,
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	}})
