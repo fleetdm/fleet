@@ -15,9 +15,9 @@ import {
 } from "pages/SoftwarePage/helpers";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { generateFormValidation } from "./helpers";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "fleet-app-details-form";
 
