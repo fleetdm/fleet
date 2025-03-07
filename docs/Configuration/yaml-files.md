@@ -530,6 +530,8 @@ In addition, you can configure your the SCEP server to help your end users conne
 
 #### Example
 
+`default.yml`
+
 ```yaml
 org_settings:
   integrations:
@@ -552,6 +554,17 @@ org_settings:
       username: Administrator@example.com
       password: 'myPassword'
 ```
+
+`/teams/team-name.yml`
+
+At the team level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium for managed cloud customers. Must have Microsoft Entra connected.)
+
+```yaml
+integrations:
+  conditional_access_enabled: true
+```
+
+
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
 
@@ -769,24 +782,6 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
-
-#### conditional_access
-
-_Available in Fleet Premium for Managed Cloud customers._
-
-The `conditional_access` section lets block third party app sign-ins on hosts failing policies. 
-
-> To use conditional access, you must first connect and authorize Microsoft Entra in the Fleet UI under **Settings** > **Integrations** > **Conditional access**. This integration cannot be configured via YAML.
-
-##### Example
-
-```yaml
-team_settings:
-  conditional_access:
-    conditional_access_enabled: true
-```
-
-Can only be configured per-team (`team_settings`).
 
 
 <meta name="title" value="YAML files">
