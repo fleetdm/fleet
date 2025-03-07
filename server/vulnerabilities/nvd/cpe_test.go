@@ -2134,7 +2134,7 @@ func TestMutateSoftware(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			mutateSoftware(tc.s, log.NewNopLogger())
+			require.NotPanics(t, func() { mutateSoftware(tc.s, log.NewNopLogger()) })
 			require.Equal(t, tc.sanitized, tc.s)
 		})
 	}
