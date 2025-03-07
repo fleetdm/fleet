@@ -10614,7 +10614,6 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the team. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the team. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team. See [host_expiry_settings](#host-expiry-settings2) for details.   |
-| conditional_access                                    | object  | body | Conditional access settings for the team. See [conditional_access](#conditional-access) for details.   |
 
 #### Example (transfer hosts to a team)
 
@@ -10736,6 +10735,7 @@ _Available in Fleet Premium_
 | jira            | array  | See [`integrations.jira`](#integrations-jira2).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
+| conditional_access_enabled | boolean | **Available in Fleet Premium for managed cloud customers.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
 
 <br/>
 
@@ -10958,27 +10958,6 @@ _Available in Fleet Premium_
   }
 }
 ```
-
-#### conditional_access
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| conditional_access_enabled                         | boolean | Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config.                                               |
-
-
-<br/>
-
-##### Example request body
-
-```json
-{
-  "conditional_access": {
-    "conditional_access_enabled": true
-  }
-}
-```
-
-
 
 ### Add users to a team
 
