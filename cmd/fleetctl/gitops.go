@@ -9,7 +9,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
@@ -33,7 +32,7 @@ func gitopsCommand() *cli.Command {
 				Required:    true,
 				EnvVars:     []string{"FILENAME"},
 				Destination: &flFilenames,
-				Usage:       "The file(s) with the GitOps configuration. If multiple files are provided, the first file must be the global configuration and the rest must be team configurations.",
+				Usage:       "The file(s) with the GitOps configuration.",
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-teams",
@@ -90,13 +89,9 @@ func gitopsCommand() *cli.Command {
 			var originalABMConfig []any
 			var originalVPPConfig []any
 			var teamNames []string
-			var firstFileMustBeGlobal *bool
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 			var abmTeams, vppTeams []string
 			var hasMissingABMTeam, hasMissingVPPTeam, usesLegacyABMConfig bool
-			if totalFilenames > 1 {
-				firstFileMustBeGlobal = ptr.Bool(true)
-			}
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
