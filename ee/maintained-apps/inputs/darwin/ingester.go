@@ -225,7 +225,6 @@ func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, out
 	return nil
 }
 
-// TODO(JVE): do we need this type? or can it just be a function?
 type darwinIngester struct {
 	sourceIngesters map[string]maintained_apps.SourceIngester
 }
