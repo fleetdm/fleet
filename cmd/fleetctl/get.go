@@ -321,13 +321,22 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 		minOsqueryVersion = query.MinOsqueryVersion
 	}
 
-	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
+	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
 		query.Interval,
 		platform,
 		minOsqueryVersion,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
+
+	if len(query.LabelsIncludeAny) > 0 {
+		scheduleInfo += "\nlabels_include_any:"
+
+		for _, label := range query.LabelsIncludeAny {
+			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
+		}
+	}
 
 	teamNameOut := teamName
 	if teamName == "" {
