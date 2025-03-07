@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1247,13 +1248,13 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fl
 	// be without and use the reader replica?
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil, nil)
+		result, err = ds.listMDMWindowsProfilesToInstallDB(ctx, tx, nil, nil)
 		return err
 	})
 	return result, err
 }
 
-func listMDMWindowsProfilesToInstallDB(
+func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
@@ -1282,7 +1283,7 @@ func listMDMWindowsProfilesToInstallDB(
 	// where one of the labels does not exist anymore, will not be considered for
 	// installation.
 
-	query := fmt.Sprintf(`
+	toInstallQuery := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
 		ds.host_uuid,
@@ -1306,44 +1307,68 @@ func listMDMWindowsProfilesToInstallDB(
 		}
 	}
 
-	var err error
-	args := []any{fleet.MDMOperationTypeInstall}
-	query = fmt.Sprintf(query, hostFilter, hostFilter, hostFilter, hostFilter)
-	if len(hostUUIDs) > 0 {
-		if len(onlyProfileUUIDs) > 0 {
-			query, args, err = sqlx.In(
-				query,
-				onlyProfileUUIDs, hostUUIDs,
-				onlyProfileUUIDs, hostUUIDs,
-				onlyProfileUUIDs, hostUUIDs,
-				onlyProfileUUIDs, hostUUIDs,
-				fleet.MDMOperationTypeInstall,
-			)
-		} else {
-			query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
+	toInstallQuery = fmt.Sprintf(toInstallQuery, hostFilter, hostFilter, hostFilter, hostFilter)
+
+	// use a 10k host batch size to match what we do on the macOS side.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
+
+	var wantedProfiles []*fleet.MDMWindowsProfilePayload
+	for i := range selectProfilesTotalBatches {
+		start := i * selectProfilesBatchSize
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
+
+		batchUUIDs := hostUUIDs[start:end]
+
+		var err error
+		var args []any
+		var stmt string
+		if len(hostUUIDs) > 0 {
+			if len(onlyProfileUUIDs) > 0 {
+				stmt, args, err = sqlx.In(
+					toInstallQuery,
+					onlyProfileUUIDs, batchUUIDs,
+					onlyProfileUUIDs, batchUUIDs,
+					onlyProfileUUIDs, batchUUIDs,
+					onlyProfileUUIDs, batchUUIDs,
+					fleet.MDMOperationTypeInstall,
+				)
+			} else {
+				stmt, args, err = sqlx.In(toInstallQuery, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeInstall)
+			}
+			if err != nil {
+				return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+			}
 		}
+
+		var partialResult []*fleet.MDMWindowsProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
+			return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
 		}
+
+		wantedProfiles = append(wantedProfiles, partialResult...)
+
 	}
 
-	var profiles []*fleet.MDMWindowsProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &profiles, query, args...)
-	return profiles, err
+	return wantedProfiles, nil
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil, nil)
+		result, err = ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, nil, nil)
 		return err
 	})
 
 	return result, err
 }
 
-func listMDMWindowsProfilesToRemoveDB(
+func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostUUIDs []string,
@@ -1378,7 +1403,7 @@ func listMDMWindowsProfilesToRemoveDB(
 		}
 	}
 
-	query := fmt.Sprintf(`
+	toRemoveQuery := fmt.Sprintf(`
 	SELECT
 		hmwp.profile_uuid,
 		hmwp.host_uuid,
@@ -1406,22 +1431,45 @@ func listMDMWindowsProfilesToRemoveDB(
 		(%s)
 `, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE", "TRUE", "TRUE"), hostFilter)
 
-	var err error
-	var args []any
-	if len(hostUUIDs) > 0 {
-		if len(onlyProfileUUIDs) > 0 {
-			query, args, err = sqlx.In(query, onlyProfileUUIDs, hostUUIDs)
-		} else {
-			query, args, err = sqlx.In(query, hostUUIDs)
+	// use a 10k host batch size to match what we do on the macOS side.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
+
+	var wantedProfiles []*fleet.MDMWindowsProfilePayload
+
+	for i := range selectProfilesTotalBatches {
+		start := i * selectProfilesBatchSize
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
+
+		batchUUIDs := hostUUIDs[start:end]
+
+		var err error
+		var args []any
+		var query string
+		if len(hostUUIDs) > 0 {
+			if len(onlyProfileUUIDs) > 0 {
+				query, args, err = sqlx.In(toRemoveQuery, onlyProfileUUIDs, batchUUIDs)
+			} else {
+				query, args, err = sqlx.In(toRemoveQuery, batchUUIDs)
+			}
+			if err != nil {
+				return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
+			}
 		}
+
+		var partialResult []*fleet.MDMWindowsProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, query, args...)
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
 		}
+
+		wantedProfiles = append(wantedProfiles, partialResult...)
 	}
 
-	var profiles []*fleet.MDMWindowsProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &profiles, query, args...)
-	return profiles, err
+	return wantedProfiles, nil
 }
 
 func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
@@ -1930,12 +1978,12 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		return false, nil
 	}
 
-	profilesToInstall, err := listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
+	profilesToInstall, err := ds.listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to install")
 	}
 
-	profilesToRemove, err := listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
+	profilesToRemove, err := ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to remove")
 	}

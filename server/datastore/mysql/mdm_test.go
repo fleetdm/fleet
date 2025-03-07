@@ -48,6 +48,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
+		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMHostProfilesLotsOfHosts},
 	}
 
 	for _, c := range cases {
@@ -7613,4 +7614,53 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		appleHost2: {},
 		winHost2:   {},
 	})
+}
+
+func testBulkSetPendingMDMHostProfilesLotsOfHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hostIDsFromHosts := func(hosts ...*fleet.Host) []uint {
+		ids := make([]uint, len(hosts))
+		for i, h := range hosts {
+			ids[i] = h.ID
+		}
+		return ids
+	}
+
+	// create some windows hosts, all enrolled
+	var windowsHosts []*fleet.Host // not preallocating, causes gosec false positive
+	for j := range 66000 {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", j),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", j)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", j)),
+			UUID:          fmt.Sprintf("test-uuid-%d", j),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, h)
+		windowsHosts = append(windowsHosts, h)
+		t.Logf("enrolled windows host [%d]: %s", j, h.UUID)
+	}
+
+	winGlobalProfiles := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "G1w", "L1"),
+		windowsConfigProfileForTest(t, "G2w", "L2"),
+		windowsConfigProfileForTest(t, "G3w", "L3"),
+	}
+	updates, err := ds.BatchSetMDMProfiles(
+		ctx,
+		nil,
+		nil,
+		winGlobalProfiles,
+		nil,
+	)
+	require.NoError(t, err)
+
+	require.False(t, updates.AppleConfigProfile)
+	require.False(t, updates.AppleDeclaration)
+	require.True(t, updates.WindowsConfigProfile)
+
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(windowsHosts...), nil, nil, nil)
+	require.NoError(t, err)
 }
