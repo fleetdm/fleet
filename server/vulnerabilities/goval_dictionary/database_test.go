@@ -2,12 +2,36 @@ package goval_dictionary
 
 import (
 	"database/sql"
+	"testing"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
+
+func TestVerify(t *testing.T) {
+	sqlite, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// notice how we are missing the packages.version column
+	dbSetupQueries := []string{
+		"CREATE TABLE packages (name TEXT NOT NULL, arch TEXT NOT NULL, definition_id INTEGER NOT NULL)",
+		"CREATE TABLE definitions (id INTEGER NOT NULL PRIMARY KEY)",
+		"CREATE TABLE advisories (id INTEGER NOT NULL PRIMARY KEY, definition_id INTEGER NOT NULL)",
+		"CREATE TABLE cves (cve_id TEXT NOT NULL, advisory_id INTEGER NOT NULL)",
+	}
+	for _, query := range dbSetupQueries {
+		if _, err := sqlite.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db := NewDB(sqlite, oval.NewPlatform("amzn", "Amazon Linux 2.0.0"))
+	t.Run("Verify alerts of error", func(t *testing.T) {
+		require.Error(t, db.Verfiy())
+	})
+}
 
 func TestDatabase(t *testing.T) {
 	// build minimal slice of goval-dictionary sqlite schema
@@ -89,5 +113,9 @@ func TestDatabase(t *testing.T) {
 		require.Equal(t, uint(234), vulns[1].SoftwareID)
 		require.Equal(t, uint(235), vulns[2].SoftwareID)
 		require.Equal(t, uint(235), vulns[3].SoftwareID)
+	})
+
+	t.Run("Verify returns no errors", func(t *testing.T) {
+		require.NoError(t, db.Verfiy())
 	})
 }
