@@ -61,8 +61,8 @@ allow {
 # Team admin, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  # If role is admin, gitops, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }
 
