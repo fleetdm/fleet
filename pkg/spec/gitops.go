@@ -81,6 +81,11 @@ type Query struct {
 	fleet.QuerySpec
 }
 
+type Label struct {
+	BaseItem
+	fleet.LabelSpec
+}
+
 type SoftwarePackage struct {
 	BaseItem
 	fleet.SoftwarePackageSpec
@@ -100,6 +105,7 @@ type GitOps struct {
 	Controls     GitOpsControls
 	Policies     []*GitOpsPolicySpec
 	Queries      []*fleet.QuerySpec
+	Labels       []*fleet.LabelSpec
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
@@ -135,7 +141,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	result := &GitOps{}
 	result.FleetSecrets = make(map[string]string)
 
-	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software"}
+	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software", "labels"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -174,6 +180,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	}
 
 	// Validate the required top level options
+	multiError = parseLabels(top, result, baseDir, logFn, multiError)
 	multiError = parseControls(top, result, multiError, filePath)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
 	multiError = parseQueries(top, result, baseDir, logFn, multiError)
@@ -203,6 +210,10 @@ func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error
 
 func (g *GitOps) global() bool {
 	return g.TeamName == nil || *g.TeamName == ""
+}
+
+func (g *GitOps) IsGlobal() bool {
+	return g.global()
 }
 
 func (g *GitOps) IsNoTeam() bool {
@@ -576,6 +587,81 @@ func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
 	}
 
 	return resolved, nil
+}
+
+func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
+	labelsRaw, ok := top["labels"]
+	if !ok {
+		return multiError
+	}
+	if !result.IsGlobal() {
+		logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
+		return multiError
+	}
+
+	var labels []Label
+	if err := json.Unmarshal(labelsRaw, &labels); err != nil {
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels: %v", err))
+	}
+	for _, item := range labels {
+		item := item
+		if item.Path == nil {
+			result.Labels = append(result.Labels, &item.LabelSpec)
+		} else {
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read labels file %s: %v", *item.Path, err))
+				continue
+			}
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *item.Path, err),
+				)
+			} else {
+				var pathLabels []*Label
+				if err := yaml.Unmarshal(fileBytes, &pathLabels); err != nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels file %s: %v", *item.Path, err))
+					continue
+				}
+				for _, pq := range pathLabels {
+					pq := pq
+					if pq != nil {
+						if pq.Path != nil {
+							multiError = multierror.Append(
+								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
+							)
+						} else {
+							result.Labels = append(result.Labels, &pq.LabelSpec)
+						}
+					}
+				}
+			}
+		}
+	}
+	// Make sure team name is correct and do additional validation
+	for _, l := range result.Labels {
+		if l.Name == "" {
+			multiError = multierror.Append(multiError, errors.New("label name is required for each query"))
+		}
+		if l.Query == "" && len(l.Hosts) == 0 {
+			multiError = multierror.Append(multiError, errors.New("a SQL query or hosts list is required for each label"))
+		}
+		// Don't use non-ASCII
+		if !isASCII(l.Name) {
+			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
+		}
+	}
+	duplicates := getDuplicateNames(
+		result.Labels, func(l *fleet.LabelSpec) string {
+			return l.Name
+		},
+	)
+	if len(duplicates) > 0 {
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate label names: %v", duplicates))
+	}
+	return multiError
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
