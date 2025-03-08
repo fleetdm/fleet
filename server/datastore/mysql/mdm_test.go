@@ -7620,6 +7620,7 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 	ctx := context.Background()
 
 	var hostUUIDs []string
+	// The bug this test was built to reproduce is visible down to ~16400 hosts; keeping this at 66k for scale testing
 	for range 66000 {
 		hostUUIDs = append(hostUUIDs, uuid.NewString())
 	}
