@@ -62,7 +62,14 @@ export default {
     const { QUERIES } = endpoints;
     const path = `${QUERIES}/${id}`;
 
-    return sendRequest("GET", path);
+    return sendRequest("GET", path).then((data) => {
+      return {
+        query: {
+          ...data.query,
+          labels_include_any: [{ name: "Foo", id: 19 }],
+        },
+      };
+    });
   },
   loadAll: ({
     teamId,
