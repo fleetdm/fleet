@@ -12,6 +12,7 @@
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Conditional access](#conditional-access)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
@@ -4227,3 +4228,95 @@ Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
 ```
+
+
+---
+
+## Conditional access
+
+### Initiate Microsoft Entra conditional access
+
+Kick off authentication with Microsoft Entra to configure conditional access.
+
+`POST /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| fleet_license_key        | string | body | **Required.** The license key for the Fleet instance. |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
+
+
+
+##### Request body
+
+```json
+{
+  "fleet_license_key": "<LICENSE KEY>",
+  "microsoft_tenant_id": "<TENANT ID>"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "microsoft_authentication_url": "https://login.microsoftonline.com/<TENANT ID>/adminconsent?client_id=<CLIENT ID>"
+}
+
+```
+
+
+### Confirm Microsoft Entra conditional access configuration
+
+`POST /api/v1/conditional-access/confirm`
+
+Receive confirmation that Microsoft Entra has been connected and conditional access configured via the fleetdm.com proxy that interfaces with the Microsoft compliance partner API.
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| fleet_server_secret      | string | body | **Required.** Authorization from the fleetdm.com proxy that interfaces with the Microsoft compliance partner API. | 
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
+
+
+##### Request body
+
+```json
+{
+  "fleet_server_secret": "<SECRET>",
+  "microsoft_tenant_id": "<TENANT ID>"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+
+### Delete Microsoft Entra conditional access
+
+`DELETE /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
+
+##### Request body
+
+```json
+{
+  "fleet_license_key": "<LICENSE KEY>",
+  "microsoft_tenant_id": "<TENANT ID>"
+}
+```
+
+##### Default response
+
+`Status: 200`
