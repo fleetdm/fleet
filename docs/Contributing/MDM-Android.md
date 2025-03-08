@@ -31,16 +31,20 @@ sequenceDiagram
     participant Google
     Admin->>Fleet server: Enable Android
     Fleet server->>fleetdm.com: Get signup url
-    fleetdm.com->>Google: Get signup url
-    Google->>fleetdm.com: Signup url
-    fleetdm.com->>Fleet server: Signup url
+    fleetdm.com->>+Google: Get signup url
+    Google-->>-fleetdm.com: Signup url
+    fleetdm.com-->>Fleet server: Signup url
     Fleet server->>Admin: UI redirect
     Admin->>Google: Enterprise signup
+    activate Google
     Google->>Fleet server: Signup callback
+    deactivate Google
+    activate Fleet server
     Fleet server->>fleetdm.com: Create enterprise
-    fleetdm.com->>Google: Create enterprise and pub/sub
-    Google->>fleetdm.com: Created
-    fleetdm.com->>Fleet server: Created
+    deactivate Fleet server
+    fleetdm.com->>+Google: Create enterprise and pub/sub
+    Google-->>-fleetdm.com: Created
+    fleetdm.com-->>Fleet server: Created
     Fleet server->>Admin: Android enabled
 ```
 
@@ -56,23 +60,23 @@ sequenceDiagram
     participant Fleet server
     participant fleetdm.com
     participant Google
-    Admin->>Fleet server: Get signup link
-    Fleet server->>Admin: Signup link
+    Admin->>+Fleet server: Get signup link
+    Fleet server-->>-Admin: Signup link
     Admin->>Employee: Email signup link
-    Employee->>Fleet server: Click signup link
-    Fleet server->>Enroll page: HTML page
+    Employee->>+Fleet server: Click signup link
+    Fleet server-->>-Enroll page: HTML page
     Employee->>Enroll page: Click enroll
     Enroll page->>Fleet server: Get enroll token
     Fleet server->>fleetdm.com: Get enroll token
-    fleetdm.com->>Google: Get enroll token
-    Google->>fleetdm.com: Enroll token
-    fleetdm.com->>Fleet server: Enroll token
-    Fleet server->>Enroll page: Enroll token
+    fleetdm.com->>+Google: Get enroll token
+    Google-->>-fleetdm.com: Enroll token
+    fleetdm.com-->>Fleet server: Enroll token
+    Fleet server-->>Enroll page: Enroll token
     Enroll page->>Employee: Redirect to enroll flow
-    Employee->>Google: Enroll device
-    Google->>Fleet server: Pub/Sub callback
-    Admin->>Fleet server: Get hosts
-    Fleet server->>Admin: Hosts (including Android)
+    Employee->>+Google: Enroll device
+    Google->>-Fleet server: Pub/Sub callback
+    Admin->>+Fleet server: Get hosts
+    Fleet server-->>-Admin: Hosts (including Android)
 ```
 
 ## Security and authentication
