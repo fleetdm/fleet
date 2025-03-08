@@ -958,6 +958,8 @@ type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConf
 
 type GetAllCAConfigAssetsFunc func(ctx context.Context) (map[string]fleet.CAConfigAsset, error)
 
+type GetCAConfigAssetFunc func(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error)
+
 type SaveCAConfigAssetsFunc func(ctx context.Context, assets []fleet.CAConfigAsset) error
 
 type DeleteCAConfigAssetsFunc func(ctx context.Context, names []string) error
@@ -2662,6 +2664,9 @@ type DataStore struct {
 
 	GetAllCAConfigAssetsFunc        GetAllCAConfigAssetsFunc
 	GetAllCAConfigAssetsFuncInvoked bool
+
+	GetCAConfigAssetFunc        GetCAConfigAssetFunc
+	GetCAConfigAssetFuncInvoked bool
 
 	SaveCAConfigAssetsFunc        SaveCAConfigAssetsFunc
 	SaveCAConfigAssetsFuncInvoked bool
@@ -6390,6 +6395,13 @@ func (s *DataStore) GetAllCAConfigAssets(ctx context.Context) (map[string]fleet.
 	s.GetAllCAConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAllCAConfigAssetsFunc(ctx)
+}
+
+func (s *DataStore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
+	s.mu.Lock()
+	s.GetCAConfigAssetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCAConfigAssetFunc(ctx, name, assetType)
 }
 
 func (s *DataStore) SaveCAConfigAssets(ctx context.Context, assets []fleet.CAConfigAsset) error {

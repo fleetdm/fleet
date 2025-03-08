@@ -1939,6 +1939,22 @@ func TestAppConfigCAs(t *testing.T) {
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set")
 	})
 
+	t.Run("digicert common name not set", func(t *testing.T) {
+		mt := setUp()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "\n\t"
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_common_name", "Common Name (CN) cannot be empty")
+	})
+
+	t.Run("digicert seat id not set", func(t *testing.T) {
+		mt := setUp()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "\t\n"
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_seat_id", "Seat ID cannot be empty")
+	})
+
 	t.Run("digicert happy path -- add one", func(t *testing.T) {
 		mt := setUp()
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
@@ -2011,7 +2027,7 @@ func TestAppConfigCAs(t *testing.T) {
 					URL:                           mockDigiCertServer.URL,
 					APIToken:                      "api_token",
 					ProfileID:                     "profile_id",
-					CertificateCommonName:         "",
+					CertificateCommonName:         "other_cn",
 					CertificateUserPrincipalNames: nil,
 					CertificateSeatID:             "seat_id",
 				},
@@ -2044,7 +2060,7 @@ func TestAppConfigCAs(t *testing.T) {
 					URL:                           mockDigiCertServer.URL,
 					APIToken:                      "api_token",
 					ProfileID:                     "profile_id",
-					CertificateCommonName:         "",
+					CertificateCommonName:         "other_cn",
 					CertificateUserPrincipalNames: nil,
 					CertificateSeatID:             "seat_id",
 				},
