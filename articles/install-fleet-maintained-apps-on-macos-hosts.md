@@ -14,8 +14,9 @@ Fleet maintains these [celebrity apps](https://github.com/fleetdm/fleet/blob/mai
 2. From the **Add software** page, navigate to the **Fleet-maintained** tab.
 3. You’ll see a list of popular apps, such as Chrome, Visual Studio Code, and Notion. Click on a row in the table to select the desired app and go to its details page.
 4. Select the hosts that you want to target with this software, under "Target". Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
-5. Choose whether you want the app to be self-service. [Self-service apps](https://fleetdm.com/guides/software-self-service) are available for install on demand by end users on the "My device" page, which they can access via Fleet Desktop.
-6. You can also expand the **Advanced options**, which will enable you to edit the following:
+5. Check the "Self-service" box if you want the app to be available for install on demand by end users on the "My device" page (accessible via Fleet Desktop).
+6. Check the "Automatic install" box if you want the app to be installed automatically on targeted hosts.
+7. You can also expand the **Advanced options**, which will enable you to edit the following:
 
    - Pre-install query
    - Installation script
@@ -52,11 +53,11 @@ Fleet:
 
 - verifies, installs, uninstalls & tests all Fleet-maintained apps
 - verifies the translation of all Homebrew scripts we use
-- checks Homebrew cask metadata at [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) every hour for updates to Fleet-maintained app definitions
+- checks Homebrew cask metadata at [Homebrew Casks](https://github.com/Homebrew/homebrew-cask) daily for updates to Fleet-maintained app definitions
 - DOES NOT directly pull casks from Homebrew sources to computers
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Gabriel Hernandez">
 <meta name="authorGitHubUsername" value="ghernandez345">
-<meta name="publishedOn" value="2024-10-16">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="articleTitle" value="Fleet-maintained apps">
