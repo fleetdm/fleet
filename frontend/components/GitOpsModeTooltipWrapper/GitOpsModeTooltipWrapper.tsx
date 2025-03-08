@@ -30,16 +30,16 @@ const GitOpsModeTooltipWrapper = ({
 
   const tipContent = (
     // at this point repoURL will always be defined
-    <>
+    <div className={`${baseClass}__tooltip-content`}>
       {repoURL && (
-        <>
+        <span>
           Manage in{" "}
           <CustomLink newTab text="YAML" variant="tooltip-link" url={repoURL} />
           <br />
-        </>
+        </span>
       )}
-      (GitOps mode enabled)
-    </>
+      <span>(GitOps mode enabled)</span>
+    </div>
   );
 
   return (
