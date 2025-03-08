@@ -138,7 +138,7 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="chrome"
         count={chromeCount}
-        title="Chromebooks"
+        title="ChromeOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(chromeLabelId), {
           team_id: teamId,
         })}
@@ -161,7 +161,7 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="iOS"
         count={iosCount}
-        title="iPhones"
+        title="iOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(iosLabelId), {
           team_id: teamId,
         })}
@@ -184,7 +184,7 @@ const PlatformHostCounts = ({
       <HostCountCard
         iconName="iPadOS"
         count={ipadosCount}
-        title="iPads"
+        title="iPadOS"
         path={getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(ipadosLabelId), {
           team_id: teamId,
         })}
