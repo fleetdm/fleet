@@ -827,7 +827,7 @@ None.
     "enable_jit_provisioning": false
   },
   "conditional_access": {
-    "microsoft_tenant_id": "<TENANT ID>"
+    "microsoft_entra_tenant_id": "<TENANT ID>"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1127,7 +1127,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_jit_provisioning": false
   },
   "conditional_access": {
-    "microsoft_tenant_id": "<TENANT ID>"
+    "microsoft_entra_tenant_id": "<TENANT ID>"
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -10777,6 +10777,7 @@ _Available in Fleet Premium_
 ```json
 {
   "integrations": {
+    "conditional_access_enabled": true,
     "jira": [
       {
         "enable_software_vulnerabilities": false,
