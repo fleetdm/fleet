@@ -199,8 +199,8 @@ func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []stri
 
 // LabelIdent is a simple struct to hold the ID and Name of a label
 type LabelIdent struct {
-	LabelID   uint
-	LabelName string
+	LabelID   uint   `json:"id"`
+	LabelName string `json:"name"`
 }
 
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
