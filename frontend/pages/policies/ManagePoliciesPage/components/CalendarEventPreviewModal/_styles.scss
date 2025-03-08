@@ -59,6 +59,10 @@
     align-items: flex-start;
     gap: 24px;
     align-self: stretch;
+
+    &__text__user-text {
+        white-space: pre-wrap;
+    }
   }
 
   &__preview-invitee {
