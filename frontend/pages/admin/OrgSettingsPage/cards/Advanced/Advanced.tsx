@@ -192,22 +192,27 @@ const Advanced = ({
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.
           </p>
-          <div
-            className={`form ${
-              gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-            }`}
-          >
+          <div className="form">
             {appConfig.mdm.enabled_and_configured && (
-              <InputField
-                label="Apple MDM server URL"
-                onChange={onInputChange}
-                onBlur={onInputBlur}
-                name="mdmAppleServerURL"
-                value={mdmAppleServerURL}
-                parseTarget
-                error={formErrors.mdmAppleServerURL}
-                tooltip="Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. If not configured, hosts will use the base URL of the Fleet instance."
-                helpText="If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features."
+              <GitOpsModeTooltipWrapper
+                position="left"
+                renderChildren={(disableChildren) => (
+                  <InputField
+                    disabled={disableChildren}
+                    label="Apple MDM server URL"
+                    onChange={onInputChange}
+                    onBlur={onInputBlur}
+                    name="mdmAppleServerURL"
+                    value={mdmAppleServerURL}
+                    parseTarget
+                    error={formErrors.mdmAppleServerURL}
+                    tooltip={
+                      !disableChildren &&
+                      "Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. If not configured, hosts will use the base URL of the Fleet instance."
+                    }
+                    helpText="If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features."
+                  />
+                )}
               />
             )}
             <InputField
@@ -264,157 +269,222 @@ const Advanced = ({
             >
               Enable STARTTLS
             </Checkbox>
-            <Checkbox
-              onChange={onInputChange}
-              name="enableHostExpiry"
-              value={enableHostExpiry}
-              parseTarget
-              tooltipContent={
-                <>
-                  When enabled, allows automatic cleanup of
-                  <br />
-                  hosts that have not communicated with Fleet in
-                  <br />
-                  the number of days specified in the{" "}
-                  <strong>
-                    Host expiry
-                    <br />
-                    window
-                  </strong>{" "}
-                  setting.{" "}
-                  <em>
-                    (Default: <strong>Off</strong>)
-                  </em>
-                </>
-              }
-            >
-              Host expiry
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="enableHostExpiry"
+                  value={enableHostExpiry}
+                  parseTarget
+                  tooltipContent={
+                    !disableChildren && (
+                      <>
+                        When enabled, allows automatic cleanup of
+                        <br />
+                        hosts that have not communicated with Fleet in
+                        <br />
+                        the number of days specified in the{" "}
+                        <strong>
+                          Host expiry
+                          <br />
+                          window
+                        </strong>{" "}
+                        setting.{" "}
+                        <em>
+                          (Default: <strong>Off</strong>)
+                        </em>
+                      </>
+                    )
+                  }
+                >
+                  Host expiry
+                </Checkbox>
+              )}
+            />
             {enableHostExpiry && (
-              <InputField
-                label="Host expiry window"
-                type="number"
-                onChange={onInputChange}
-                name="hostExpiryWindow"
-                value={hostExpiryWindow}
-                parseTarget
-                error={formErrors.hostExpiryWindow}
+              <GitOpsModeTooltipWrapper
+                position="left"
+                renderChildren={(disableChildren) => (
+                  <InputField
+                    disabled={disableChildren}
+                    label="Host expiry window"
+                    type="number"
+                    onChange={onInputChange}
+                    name="hostExpiryWindow"
+                    value={hostExpiryWindow}
+                    parseTarget
+                    error={formErrors.hostExpiryWindow}
+                  />
+                )}
               />
             )}
-            <Checkbox
-              onChange={onInputChange}
-              name="deleteActivities"
-              value={deleteActivities}
-              parseTarget
-              tooltipContent={
-                <>
-                  When enabled, allows automatic cleanup of audit logs older
-                  than the number of days specified in the{" "}
-                  <em>Audit log retention window</em> setting.
-                  <em>
-                    (Default: <strong>Off</strong>)
-                  </em>
-                </>
-              }
-            >
-              Delete activities
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="deleteActivities"
+                  value={deleteActivities}
+                  parseTarget
+                  tooltipContent={
+                    !disableChildren && (
+                      <>
+                        When enabled, allows automatic cleanup of audit logs
+                        older than the number of days specified in the{" "}
+                        <em>Audit log retention window</em> setting.
+                        <em>
+                          (Default: <strong>Off</strong>)
+                        </em>
+                      </>
+                    )
+                  }
+                >
+                  Delete activities
+                </Checkbox>
+              )}
+            />
             {deleteActivities && (
-              <Dropdown
-                searchable={false}
-                options={activityExpiryWindowOptions}
-                onChange={onInputChange}
-                placeholder="Select"
-                value={activityExpiryWindow}
-                label="Max activity age"
-                name="activityExpiryWindow"
-                parseTarget
+              <GitOpsModeTooltipWrapper
+                position="left"
+                renderChildren={(disableChildren) => (
+                  <Dropdown
+                    disabled={disableChildren}
+                    searchable={false}
+                    options={activityExpiryWindowOptions}
+                    onChange={onInputChange}
+                    placeholder="Select"
+                    value={activityExpiryWindow}
+                    label="Max activity age"
+                    name="activityExpiryWindow"
+                    parseTarget
+                  />
+                )}
               />
             )}
-            <Checkbox
-              onChange={onInputChange}
-              name="disableLiveQuery"
-              value={disableLiveQuery}
-              parseTarget
-              tooltipContent={
-                <>
-                  When enabled, disables the ability to run live queries <br />
-                  (ad hoc queries executed via the UI or fleetctl).{" "}
-                  <em>
-                    (Default: <strong>Off</strong>)
-                  </em>
-                </>
-              }
-            >
-              Disable live queries
-            </Checkbox>
-            <Checkbox
-              onChange={onInputChange}
-              name="disableScripts"
-              value={disableScripts}
-              parseTarget
-              tooltipContent={
-                <>
-                  Disabling script execution will block access to run scripts.
-                  <br />
-                  Scripts may still be added and removed in the UI and API.
-                  <br />
-                  <em>
-                    (Default: <b>Off</b>)
-                  </em>
-                </>
-              }
-              helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
-            >
-              Disable script execution features
-            </Checkbox>
-            <Checkbox
-              onChange={onInputChange}
-              name="disableAIFeatures"
-              value={disableAIFeatures}
-              parseTarget
-              tooltipContent={
-                <>
-                  When enabled, disables AI features such as pre-filling forms
-                  <br />
-                  with descriptions generated by a large language model
-                  <br />
-                  (LLM).{" "}
-                  <em>
-                    (Default: <strong>Off</strong>)
-                  </em>
-                </>
-              }
-              helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
-            >
-              Disable generative AI features
-            </Checkbox>
-            <Checkbox
-              onChange={onInputChange}
-              name="disableQueryReports"
-              value={disableQueryReports}
-              parseTarget
-              tooltipContent={
-                <>
-                  <>
-                    Disabling query reports will decrease database usage, <br />
-                    but will prevent you from accessing query results in
-                    <br />
-                    Fleet and will delete existing reports. This can also be{" "}
-                    <br />
-                    disabled on a per-query basis by enabling &quot;Discard{" "}
-                    <br />
-                    data&quot;.{" "}
-                    <em>
-                      (Default: <b>Off</b>)
-                    </em>
-                  </>
-                </>
-              }
-              helpText="Enabling this setting will delete all existing query reports in Fleet."
-            >
-              Disable query reports
-            </Checkbox>
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="disableLiveQuery"
+                  value={disableLiveQuery}
+                  parseTarget
+                  tooltipContent={
+                    !disableChildren && (
+                      <>
+                        When enabled, disables the ability to run live queries{" "}
+                        <br />
+                        (ad hoc queries executed via the UI or fleetctl).{" "}
+                        <em>
+                          (Default: <strong>Off</strong>)
+                        </em>
+                      </>
+                    )
+                  }
+                >
+                  Disable live queries
+                </Checkbox>
+              )}
+            />
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="disableScripts"
+                  value={disableScripts}
+                  parseTarget
+                  tooltipContent={
+                    !disableChildren && (
+                      <>
+                        Disabling script execution will block access to run
+                        scripts.
+                        <br />
+                        Scripts may still be added and removed in the UI and
+                        API.
+                        <br />
+                        <em>
+                          (Default: <b>Off</b>)
+                        </em>
+                      </>
+                    )
+                  }
+                  helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
+                >
+                  Disable script execution features
+                </Checkbox>
+              )}
+            />
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="disableAIFeatures"
+                  value={disableAIFeatures}
+                  parseTarget
+                  tooltipContent={
+                    !disableChildren && (
+                      <>
+                        When enabled, disables AI features such as pre-filling
+                        forms
+                        <br />
+                        with descriptions generated by a large language model
+                        <br />
+                        (LLM).{" "}
+                        <em>
+                          (Default: <strong>Off</strong>)
+                        </em>
+                      </>
+                    )
+                  }
+                  helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
+                >
+                  Disable generative AI features
+                </Checkbox>
+              )}
+            />
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="disableQueryReports"
+                  value={disableQueryReports}
+                  parseTarget
+                  tooltipContent={
+                    !disableChildren && (
+                      <>
+                        <>
+                          Disabling query reports will decrease database usage,{" "}
+                          <br />
+                          but will prevent you from accessing query results in
+                          <br />
+                          Fleet and will delete existing reports. This can also
+                          be <br />
+                          disabled on a per-query basis by enabling
+                          &quot;Discard <br />
+                          data&quot;.{" "}
+                          <em>
+                            (Default: <b>Off</b>)
+                          </em>
+                        </>
+                      </>
+                    )
+                  }
+                  helpText="Enabling this setting will delete all existing query reports in Fleet."
+                >
+                  Disable query reports
+                </Checkbox>
+              )}
+            />
           </div>
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
