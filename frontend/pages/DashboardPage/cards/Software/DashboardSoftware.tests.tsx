@@ -78,9 +78,11 @@ describe("Dashboard software card", () => {
     expect(screen.getByText("Hosts")).toBeInTheDocument();
 
     Object.keys(noVulnSwInfo).forEach((key) => {
-      expect(
-        screen.getByText(noVulnSwInfo[key as keyof typeof noVulnSwInfo])
-      ).toBeInTheDocument();
+      const value = noVulnSwInfo[key as keyof typeof noVulnSwInfo];
+      const elements = screen.getAllByText((content, element) => {
+        return element?.textContent === String(value);
+      });
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
   it("renders vulnerable software normally when present", () => {
@@ -133,9 +135,11 @@ describe("Dashboard software card", () => {
     expect(screen.getByText("Hosts")).toBeInTheDocument();
 
     Object.keys(vulnSwInfo).forEach((key) => {
-      expect(
-        screen.getByText(vulnSwInfo[key as keyof typeof vulnSwInfo])
-      ).toBeInTheDocument();
+      const value = vulnSwInfo[key as keyof typeof vulnSwInfo];
+      const elements = screen.getAllByText((content, element) => {
+        return element?.textContent === String(value);
+      });
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
 });
