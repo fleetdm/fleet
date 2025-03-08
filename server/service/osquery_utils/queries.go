@@ -539,8 +539,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		    -- coalesce to 'unknown' and keep that state in the list
 		    -- in order to account for hosts that might not have this
 		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                    LIMIT 1;
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3');
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -1786,14 +1785,13 @@ func deduceMDMNameWindows(data map[string]string) string {
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		// no mdm information in the registry
+		// no registered mdm information in the registry
 		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
 	}
+
 	if len(rows) > 1 {
 		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
-			fmt.Sprintf("mdm expected single result got %d", len(rows)))
-		// assume the extension is not there
-		return nil
+			fmt.Sprintf("multiple (%d) mdm profiles have been detected", len(rows)))
 	}
 
 	if host.RefetchCriticalQueriesUntil != nil {
@@ -1802,6 +1800,16 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	}
 
 	data := rows[0]
+
+	// If there is any garbage data left from a previous enrollment
+	// and multiple enrollments match our query, choose fleet. This is
+	// very unlikely
+	for _, row := range rows {
+		if row["provider_id"] == fleet.WellKnownMDMFleet {
+			data = row
+		}
+	}
+
 	var enrolled bool
 	var automatic bool
 	serverURL := data["discovery_service_url"]
