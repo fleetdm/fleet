@@ -21,9 +21,14 @@ Set the feature flag:
 export FLEET_DEV_ANDROID_ENABLED=1
 ```
 
-## Enable Android MDM sequence
+Note: The Fleet server URL must be public for pub/sub to work properly.
+
+## Architecture diagrams
 
 ```mermaid
+---
+title: Enable Android MDM sequence
+---
 sequenceDiagram
     actor Admin
     participant Fleet server
@@ -48,11 +53,10 @@ sequenceDiagram
     Fleet server->>Admin: Android enabled
 ```
 
-Note: The Fleet server URL must be public for pub/sub to work properly.
-
-## Enroll Android device sequence
-
 ```mermaid
+---
+title: Enroll Android device sequence
+---
 sequenceDiagram
     actor Admin
     actor Employee
