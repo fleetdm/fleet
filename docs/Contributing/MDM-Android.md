@@ -41,18 +41,19 @@ sequenceDiagram
     fleetdm.com->>+Google: Get signup url
     Google-->>-fleetdm.com: Signup url
     fleetdm.com-->>-Fleet server: Signup url
-    Fleet server->>-Admin: UI redirect
+    Fleet server->>-Admin: UI redirect (new page)
 
     Admin->>Google: Enterprise signup
     activate Google
-    Google->>Fleet server: Signup callback (self-closing HTML page)
+    Google->>Fleet server: Signup callback
     deactivate Google
     activate Fleet server
     Fleet server->>+fleetdm.com: Create enterprise/policy/pubsub
     fleetdm.com->>+Google: Create enterprise/policy/pubsub
     Google-->>-fleetdm.com: Created
     fleetdm.com-->>-Fleet server: Created
-    Fleet server->>Admin: Android enabled (SSE)
+    Fleet server->>Admin: Self-closing HTML page
+    Fleet server--)Admin: Android enabled (SSE)
     deactivate Fleet server
 ```
 
