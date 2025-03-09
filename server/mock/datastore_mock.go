@@ -306,14 +306,6 @@ type OSVersionFunc func(ctx context.Context, osVersionID uint, teamFilter *fleet
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
-type GetAndroidDSFunc func() android.Datastore
-
-type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
-
-type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
-
-type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
-
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
 
 type HostIDsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error)
@@ -1254,9 +1246,33 @@ type ExpandEmbeddedSecretsFunc func(ctx context.Context, document string) (strin
 
 type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document string) (string, *time.Time, error)
 
-type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
+type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
+
+type GetEnterpriseByIDFunc func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error)
+
+type GetEnterpriseBySignupTokenFunc func(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error)
+
+type GetEnterpriseFunc func(ctx context.Context) (*android.Enterprise, error)
+
+type UpdateEnterpriseFunc func(ctx context.Context, enterprise *android.EnterpriseDetails) error
+
+type DeleteAllEnterprisesFunc func(ctx context.Context) error
+
+type DeleteOtherEnterprisesFunc func(ctx context.Context, ID uint) error
+
+type CreateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error)
+
+type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error
+
+type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
+
+type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
+
+type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
+
+type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1684,18 +1700,6 @@ type DataStore struct {
 
 	UpdateOSVersionsFunc        UpdateOSVersionsFunc
 	UpdateOSVersionsFuncInvoked bool
-
-	GetAndroidDSFunc        GetAndroidDSFunc
-	GetAndroidDSFuncInvoked bool
-
-	NewAndroidHostFunc        NewAndroidHostFunc
-	NewAndroidHostFuncInvoked bool
-
-	UpdateAndroidHostFunc        UpdateAndroidHostFunc
-	UpdateAndroidHostFuncInvoked bool
-
-	AndroidHostLiteFunc        AndroidHostLiteFunc
-	AndroidHostLiteFuncInvoked bool
 
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
@@ -3107,11 +3111,47 @@ type DataStore struct {
 	ExpandEmbeddedSecretsAndUpdatedAtFunc        ExpandEmbeddedSecretsAndUpdatedAtFunc
 	ExpandEmbeddedSecretsAndUpdatedAtFuncInvoked bool
 
-	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
-	SetAndroidEnabledAndConfiguredFuncInvoked bool
+	CreateEnterpriseFunc        CreateEnterpriseFunc
+	CreateEnterpriseFuncInvoked bool
+
+	GetEnterpriseByIDFunc        GetEnterpriseByIDFunc
+	GetEnterpriseByIDFuncInvoked bool
+
+	GetEnterpriseBySignupTokenFunc        GetEnterpriseBySignupTokenFunc
+	GetEnterpriseBySignupTokenFuncInvoked bool
+
+	GetEnterpriseFunc        GetEnterpriseFunc
+	GetEnterpriseFuncInvoked bool
+
+	UpdateEnterpriseFunc        UpdateEnterpriseFunc
+	UpdateEnterpriseFuncInvoked bool
+
+	DeleteAllEnterprisesFunc        DeleteAllEnterprisesFunc
+	DeleteAllEnterprisesFuncInvoked bool
+
+	DeleteOtherEnterprisesFunc        DeleteOtherEnterprisesFunc
+	DeleteOtherEnterprisesFuncInvoked bool
+
+	CreateDeviceTxFunc        CreateDeviceTxFunc
+	CreateDeviceTxFuncInvoked bool
+
+	UpdateDeviceTxFunc        UpdateDeviceTxFunc
+	UpdateDeviceTxFuncInvoked bool
+
+	AndroidHostLiteFunc        AndroidHostLiteFunc
+	AndroidHostLiteFuncInvoked bool
 
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
+
+	NewAndroidHostFunc        NewAndroidHostFunc
+	NewAndroidHostFuncInvoked bool
+
+	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
+	SetAndroidEnabledAndConfiguredFuncInvoked bool
+
+	UpdateAndroidHostFunc        UpdateAndroidHostFunc
+	UpdateAndroidHostFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4108,34 +4148,6 @@ func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
 	s.UpdateOSVersionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateOSVersionsFunc(ctx)
-}
-
-func (s *DataStore) GetAndroidDS() android.Datastore {
-	s.mu.Lock()
-	s.GetAndroidDSFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetAndroidDSFunc()
-}
-
-func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-	s.mu.Lock()
-	s.NewAndroidHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewAndroidHostFunc(ctx, host)
-}
-
-func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
-	s.mu.Lock()
-	s.UpdateAndroidHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
-}
-
-func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
-	s.mu.Lock()
-	s.AndroidHostLiteFuncInvoked = true
-	s.mu.Unlock()
-	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
 }
 
 func (s *DataStore) CountHostsInTargets(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -7428,11 +7440,74 @@ func (s *DataStore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, docum
 	return s.ExpandEmbeddedSecretsAndUpdatedAtFunc(ctx, document)
 }
 
-func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+func (s *DataStore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
 	s.mu.Lock()
-	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.CreateEnterpriseFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
+	return s.CreateEnterpriseFunc(ctx, userID)
+}
+
+func (s *DataStore) GetEnterpriseByID(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
+	s.mu.Lock()
+	s.GetEnterpriseByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetEnterpriseByIDFunc(ctx, ID)
+}
+
+func (s *DataStore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+	s.mu.Lock()
+	s.GetEnterpriseBySignupTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetEnterpriseBySignupTokenFunc(ctx, signupToken)
+}
+
+func (s *DataStore) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
+	s.mu.Lock()
+	s.GetEnterpriseFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetEnterpriseFunc(ctx)
+}
+
+func (s *DataStore) UpdateEnterprise(ctx context.Context, enterprise *android.EnterpriseDetails) error {
+	s.mu.Lock()
+	s.UpdateEnterpriseFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateEnterpriseFunc(ctx, enterprise)
+}
+
+func (s *DataStore) DeleteAllEnterprises(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteAllEnterprisesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteAllEnterprisesFunc(ctx)
+}
+
+func (s *DataStore) DeleteOtherEnterprises(ctx context.Context, ID uint) error {
+	s.mu.Lock()
+	s.DeleteOtherEnterprisesFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOtherEnterprisesFunc(ctx, ID)
+}
+
+func (s *DataStore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
+	s.mu.Lock()
+	s.CreateDeviceTxFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateDeviceTxFunc(ctx, tx, device)
+}
+
+func (s *DataStore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error {
+	s.mu.Lock()
+	s.UpdateDeviceTxFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateDeviceTxFunc(ctx, tx, device)
+}
+
+func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.AndroidHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
 }
 
 func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
@@ -7440,4 +7515,25 @@ func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
 	s.mu.Unlock()
 	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
+}
+
+func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.NewAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidHostFunc(ctx, host)
+}
+
+func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	s.mu.Lock()
+	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
+}
+
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+	s.mu.Lock()
+	s.UpdateAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
 }
