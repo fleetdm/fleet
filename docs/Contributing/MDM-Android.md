@@ -48,8 +48,8 @@ sequenceDiagram
     Google->>Fleet server: Signup callback (self-closing HTML page)
     deactivate Google
     activate Fleet server
-    Fleet server->>+fleetdm.com: Create enterprise
-    fleetdm.com->>+Google: Create enterprise and pub/sub
+    Fleet server->>+fleetdm.com: Create enterprise/policy/pubsub
+    fleetdm.com->>+Google: Create enterprise/policy/pubsub
     Google-->>-fleetdm.com: Created
     fleetdm.com-->>-Fleet server: Created
     Fleet server->>Admin: Android enabled (SSE)
