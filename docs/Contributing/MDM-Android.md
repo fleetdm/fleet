@@ -27,19 +27,22 @@ Note: The Fleet server URL must be public for pub/sub to work properly.
 
 ```mermaid
 ---
-title: Enable Android MDM sequence
+title: Enable Android MDM
 ---
 sequenceDiagram
+    autonumber
     actor Admin
     participant Fleet server
     participant fleetdm.com
     participant Google
+
     Admin->>Fleet server: Enable Android
     Fleet server->>fleetdm.com: Get signup url
     fleetdm.com->>+Google: Get signup url
     Google-->>-fleetdm.com: Signup url
     fleetdm.com-->>Fleet server: Signup url
     Fleet server->>Admin: UI redirect
+
     Admin->>Google: Enterprise signup
     activate Google
     Google->>Fleet server: Signup callback
@@ -55,17 +58,20 @@ sequenceDiagram
 
 ```mermaid
 ---
-title: Enroll Android device sequence
+title: Enroll BYOD Android device
 ---
 sequenceDiagram
+    autonumber
     actor Admin
     actor Employee
     participant Enroll page
     participant Fleet server
     participant fleetdm.com
     participant Google
+
     Admin->>+Fleet server: Get signup link
     Fleet server-->>-Admin: Signup link
+
     Admin->>Employee: Email signup link
     Employee->>+Fleet server: Click signup link
     Fleet server-->>-Enroll page: HTML page
@@ -77,8 +83,11 @@ sequenceDiagram
     fleetdm.com-->>Fleet server: Enroll token
     Fleet server-->>Enroll page: Enroll token
     Enroll page->>Employee: Redirect to enroll flow
+
     Employee->>+Google: Enroll device
-    Google->>-Fleet server: Pub/Sub callback
+    Google--)Fleet server: Pub/Sub push: ENROLLMENT
+    Google--)-Fleet server: Pub/Sub push: STATUS_REPORT
+
     Admin->>+Fleet server: Get hosts
     Fleet server-->>-Admin: Hosts (including Android)
 ```
