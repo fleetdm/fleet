@@ -141,6 +141,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         return router.push(redirectLocation || DASHBOARD);
       } catch (response) {
         if ((response as { status: number }).status === 202) {
+          local.setItem("auth_pending_mfa", "true");
           setPendingEmail(true);
         }
 
