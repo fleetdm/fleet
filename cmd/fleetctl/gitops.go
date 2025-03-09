@@ -17,6 +17,11 @@ import (
 
 const filenameMaxLength = 255
 
+type LabelUsage struct {
+	Name string
+	Type string
+}
+
 func gitopsCommand() *cli.Command {
 	var (
 		flFilenames        cli.StringSlice
@@ -144,28 +149,35 @@ func gitopsCommand() *cli.Command {
 					continue
 				}
 
-				// List of label names available to be referenced by queries, installers, etc.
-				var existingLabelNames []string
+				// List of labels currently persisted for the customer.
+				persistedLabels, err := fleetClient.GetLabels()
+
+				// Names of the labels we'd have after this gitops run.
+				var proposedLabelNames []string
 
 				// If we're in a team config, or a global config without `labels:` declared,
 				// get the set of existing label names from the db.
 				if !isGlobalConfig || (config.Labels != nil && len(config.Labels) == 0) {
-					persistedLabels, err := fleetClient.GetLabels()
 					if err != nil {
 						return err
 					}
-					existingLabelNames = make([]string, len(persistedLabels))
+					proposedLabelNames = make([]string, len(persistedLabels))
 					for i, l := range persistedLabels {
-						existingLabelNames[i] = l.Name
+						proposedLabelNames[i] = l.Name
 					}
 				} else {
-					existingLabelNames = make([]string, len(config.Labels))
+					proposedLabelNames = make([]string, len(config.Labels))
 					for i, l := range config.Labels {
-						existingLabelNames[i] = l.Name
+						proposedLabelNames[i] = l.Name
 					}
 				}
 
-				fmt.Println(existingLabelNames)
+				// Gather stats on where labels are used in the this gitops config,
+				// so we can bail if any of the referenced labels wouldn't exist
+				// after this run (either because they'd be deleted, never existed
+				// in the first place).
+				labelsUsed := getLabelUsage(config)
+				fmt.Println(labelsUsed)
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
@@ -294,6 +306,49 @@ func gitopsCommand() *cli.Command {
 			return nil
 		},
 	}
+}
+
+func concatLabels(labelArrays ...[]string) []string {
+	var result []string
+	for _, arr := range labelArrays {
+		result = append(result, arr...)
+	}
+	return result
+}
+
+func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
+	result := make(map[string][]LabelUsage)
+
+	// Get query label usage
+
+	// Get profile label usage
+	if macOsCustomSettings, ok := getCustomSettings(config.Controls.MacOSSettings); ok {
+		for _, setting := range macOsCustomSettings {
+			labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsIncludeAll, setting.LabelsExcludeAny)
+			for _, label := range labels {
+				var usage []LabelUsage
+				if usage, ok = result[label]; !ok {
+					result[label] = make([]LabelUsage, 0)
+					usage = result[label]
+				}
+				usage = append(usage, LabelUsage{
+					Name: setting.Path,
+					Type: "MacOS Profile",
+				})
+				result[label] = usage
+			}
+		}
+	}
+
+	// Get software installer label usage
+	return result
+}
+
+func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
+	if settingsMap, ok := osSettings.(fleet.MacOSSettings); ok {
+		return settingsMap.CustomSettings, true
+	}
+	return nil, false
 }
 
 func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig) (spec.GitOpsControls, bool, error) {
