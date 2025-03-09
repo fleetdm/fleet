@@ -144,6 +144,29 @@ func gitopsCommand() *cli.Command {
 					continue
 				}
 
+				// List of label names available to be referenced by queries, installers, etc.
+				var existingLabelNames []string
+
+				// If we're in a team config, or a global config without `labels:` declared,
+				// get the set of existing label names from the db.
+				if !isGlobalConfig || (config.Labels != nil && len(config.Labels) == 0) {
+					persistedLabels, err := fleetClient.GetLabels()
+					if err != nil {
+						return err
+					}
+					existingLabelNames = make([]string, len(persistedLabels))
+					for i, l := range persistedLabels {
+						existingLabelNames[i] = l.Name
+					}
+				} else {
+					existingLabelNames = make([]string, len(config.Labels))
+					for i, l := range config.Labels {
+						existingLabelNames[i] = l.Name
+					}
+				}
+
+				fmt.Println(existingLabelNames)
+
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and

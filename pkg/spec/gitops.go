@@ -179,8 +179,19 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
-	// Validate the required top level options
-	multiError = parseLabels(top, result, baseDir, logFn, multiError)
+	// Get the labels. If `labels:` is specified but no labels are listed, this will
+	// set Labels as nil.  If `labels:` isn't present at all, it will be set as an
+	// empty array.
+	_, ok := top["labels"]
+	if !ok || !result.IsGlobal() {
+		if !result.IsGlobal() {
+			logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
+		}
+		result.Labels = make([]*fleet.LabelSpec, 0)
+	} else {
+		multiError = parseLabels(top, result, baseDir, multiError)
+	}
+	// Get other top-level entities.
 	multiError = parseControls(top, result, multiError, filePath)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
 	multiError = parseQueries(top, result, baseDir, logFn, multiError)
@@ -589,13 +600,12 @@ func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
 	return resolved, nil
 }
 
-func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, multiError *multierror.Error) *multierror.Error {
+func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	labelsRaw, ok := top["labels"]
+
+	// This shouldn't happen as we check for the property earlier,
+	// but better safe than sorry.
 	if !ok {
-		return multiError
-	}
-	if !result.IsGlobal() {
-		logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
 		return multiError
 	}
 
