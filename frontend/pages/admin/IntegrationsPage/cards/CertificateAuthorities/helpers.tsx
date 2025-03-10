@@ -1,29 +1,28 @@
 import {
-  ICustomScepProxy,
-  IDigicertCertificate,
-  IScepIntegration,
+  ICertificatesIntegrationCustomSCEP,
+  ICertificatesIntegrationDigicert,
+  ICertificatesIntegrationNDES,
 } from "interfaces/integration";
 
 export interface ICertAuthority {
   id: string;
   name: string;
-  certificateAuthority: string;
+  description: string;
 }
 
 export const generateListData = (
-  ncspProxy?: IScepIntegration | null,
-  digicertCerts?: IDigicertCertificate[],
-  customProxies?: ICustomScepProxy[]
+  ndesProxy?: ICertificatesIntegrationNDES | null,
+  digicertCerts?: ICertificatesIntegrationDigicert[],
+  customProxies?: ICertificatesIntegrationCustomSCEP[]
 ) => {
   const certs: ICertAuthority[] = [];
 
   // these values for the certificateAuthority is meant to be a hard coded .
-  if (ncspProxy) {
+  if (ndesProxy) {
     certs.push({
       id: "ndes", // only ever one  NDES so no need to make the id dynamic
       name: "NDES",
-      certificateAuthority:
-        "Microsoft Network Device Enrollment Service (NDES)",
+      description: "Microsoft Network Device Enrollment Service (NDES)",
     });
   }
 
@@ -32,7 +31,7 @@ export const generateListData = (
       certs.push({
         id: `digicert-${cert.id}`,
         name: cert.name,
-        certificateAuthority: "DigiCert",
+        description: "DigiCert",
       });
     });
   }
@@ -42,8 +41,7 @@ export const generateListData = (
       certs.push({
         id: `custom-scep-proxy-${cert.id}`,
         name: cert.name,
-        certificateAuthority:
-          "Custom Simple Certificate Enrollment Protocol (SCEP)",
+        description: "Custom Simple Certificate Enrollment Protocol (SCEP)",
       });
     });
   }
@@ -55,12 +53,12 @@ export const generateListData = (
 
 export const getCertificateAuthority = (
   id: string,
-  ncspProxy?: IScepIntegration | null,
-  digicertCerts?: IDigicertCertificate[],
-  customProxies?: ICustomScepProxy[]
+  ncspProxy?: ICertificatesIntegrationNDES | null,
+  digicertCerts?: ICertificatesIntegrationDigicert[],
+  customProxies?: ICertificatesIntegrationCustomSCEP[]
 ) => {
   if (id === "ndes") {
-    return ncspProxy as IScepIntegration;
+    return ncspProxy as ICertificatesIntegrationNDES;
   }
 
   if (id.includes("digicert")) {

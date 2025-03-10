@@ -7,8 +7,6 @@ import createMockConfig from "__mocks__/configMock";
 
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
-import Card from "components/Card";
-import Button from "components/buttons/Button";
 
 import CertificateAuthorityList from "./components/CertificateAuthorityList";
 import {
@@ -18,9 +16,9 @@ import {
 } from "./helpers";
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 
-const baseClass = "certificates-integration";
+const baseClass = "certificate-authorities";
 
-const Certificates = () => {
+const CertificateAuthorities = () => {
   let { config } = useContext(AppContext);
   config = createMockConfig({
     integrations: {
@@ -72,7 +70,7 @@ const Certificates = () => {
     setShowDeleteCertAuthorityModal,
   ] = useState(false);
 
-  const certs = useMemo(() => {
+  const certificateAuthorities = useMemo(() => {
     if (!config) return [];
     return generateListData(
       config?.integrations.ndes_scep_proxy,
@@ -109,13 +107,13 @@ const Certificates = () => {
   };
 
   const renderContent = () => {
-    if (certs.length === 0) {
+    if (certificateAuthorities.length === 0) {
       return <AddCertAuthorityCard onAddCertAuthority={onAddCertAuthority} />;
     }
 
     return (
       <CertificateAuthorityList
-        certAuthorities={certs}
+        certAuthorities={certificateAuthorities}
         onAddCertAuthority={onAddCertAuthority}
         onClickEdit={onEditCertAuthority}
         onClickDelete={onDeleteCertAuthority}
@@ -147,4 +145,4 @@ const Certificates = () => {
   );
 };
 
-export default Certificates;
+export default CertificateAuthorities;

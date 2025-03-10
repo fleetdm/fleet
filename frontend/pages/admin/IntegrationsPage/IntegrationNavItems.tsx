@@ -5,7 +5,7 @@ import Integrations from "./cards/Integrations";
 import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
 import ChangeManagement from "./cards/ChangeManagement";
-import Certificates from "./cards/Certificates";
+import CertificateAuthorities from "./cards/CertificateAuthorities";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -38,7 +38,7 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
   //   title: "Certificates",
   //   urlSection: "certificate-authorities",
   //   path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
-  //   Card: Certificates,
+  //   Card: CertificateAuthorities,
   // },
 ];
 
