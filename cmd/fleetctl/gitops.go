@@ -169,7 +169,21 @@ func gitopsCommand() *cli.Command {
 				// after this run (either because they'd be deleted, never existed
 				// in the first place).
 				labelsUsed := getLabelUsage(config)
-				fmt.Println(labelsUsed)
+
+				// Compare the labels used, to the labels proposed, and if there
+				// are any missing then bail with errors.
+				unknownLabelsUsed := false
+				for labelUsed := range labelsUsed {
+					if slices.Index(proposedLabelNames, labelUsed) == -1 {
+						for _, labelUser := range labelsUsed[labelUsed] {
+							logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
+						}
+					}
+					unknownLabelsUsed = true
+				}
+				if unknownLabelsUsed {
+					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
+				}
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
@@ -326,8 +340,6 @@ func updateLabelUsage(labels []string, ident string, usageType string, currentUs
 func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 	result := make(map[string][]LabelUsage)
 
-	// Get query label usage
-
 	// Get profile label usage
 	for _, osSettingName := range []interface{}{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
@@ -349,6 +361,8 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
 		updateLabelUsage(labels, setting.AppStoreID, "App Store App", &result)
 	}
+
+	// TODO -- Get query label usage
 
 	return result
 }
