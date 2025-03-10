@@ -24,6 +24,7 @@ import (
 
 	"github.com/docker/go-units"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
@@ -59,9 +60,12 @@ const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
 	// Currently, we assume the variables are fully unique and not substrings of each other.
-	FleetVarNDESSCEPChallenge   = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL    = "NDES_SCEP_PROXY_URL"
-	FleetVarHostEndUserEmailIDP = "HOST_END_USER_EMAIL_IDP"
+	FleetVarNDESSCEPChallenge      = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL       = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP    = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial     = "HOST_HARDWARE_SERIAL"
+	FleetVarDigiCertDataPrefix     = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 )
 
 const (
@@ -69,14 +73,18 @@ const (
 )
 
 var (
-	profileVariableRegex            = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
 	fleetVarNDESSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPChallenge,
 		FleetVarNDESSCEPChallenge))
 	fleetVarNDESSCEPProxyURLRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPProxyURL,
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
-	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP}
+	fleetVarDigiCertData = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%s\w+})`, FleetVarDigiCertDataPrefix,
+		FleetVarDigiCertDataPrefix))
+	fleetVarDigiCertPassword = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%s\w+})`, FleetVarDigiCertPasswordPrefix,
+		FleetVarDigiCertPasswordPrefix))
+	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial}
 )
 
 type hostProfileUUID struct {
@@ -401,7 +409,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
-	err = validateConfigProfileFleetVariables(string(cp.Mobileconfig))
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	err = validateConfigProfileFleetVariables(appConfig, string(cp.Mobileconfig))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -465,12 +477,32 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(contents string) error {
+func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) error {
 	fleetVars := findFleetVariables(contents)
 	for k := range fleetVars {
 		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles",
-				k)}
+			found := false
+			switch {
+			case strings.HasPrefix(k, FleetVarDigiCertDataPrefix):
+				caName := strings.TrimPrefix(k, FleetVarDigiCertDataPrefix)
+				for _, ca := range appConfig.Integrations.DigiCert.Value {
+					if ca.Name == caName {
+						found = true
+						break
+					}
+				}
+			case strings.HasPrefix(k, FleetVarDigiCertPasswordPrefix):
+				caName := strings.TrimPrefix(k, FleetVarDigiCertPasswordPrefix)
+				for _, ca := range appConfig.Integrations.DigiCert.Value {
+					if ca.Name == caName {
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles", k)}
+			}
 		}
 	}
 	return nil
@@ -3614,7 +3646,7 @@ func ReconcileAppleProfiles(
 	}
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
-	err = preprocessProfileContents(ctx, appConfig, ds, installTargets, profileContents, hostProfilesToInstallMap)
+	err = preprocessProfileContents(ctx, appConfig, ds, logger, installTargets, profileContents, hostProfilesToInstallMap)
 	if err != nil {
 		return err
 	}
@@ -3733,6 +3765,7 @@ func preprocessProfileContents(
 	ctx context.Context,
 	appConfig *fleet.AppConfig,
 	ds fleet.Datastore,
+	logger kitlog.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
@@ -3740,45 +3773,9 @@ func preprocessProfileContents(
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
 	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
 
-	isNDESSCEPConfigured := func(profUUID string, target *cmdTarget) (bool, error) {
-		if !license.IsPremium(ctx) {
-			profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-			for _, hostUUID := range target.hostUUIDs {
-				profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-				if !ok { // Should never happen
-					continue
-				}
-				profile.Status = &fleet.MDMDeliveryFailed
-				profile.Detail = "NDES SCEP Proxy requires a Fleet Premium license."
-				profilesToUpdate = append(profilesToUpdate, profile)
-			}
-			if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-				return false, err
-			}
-			return false, nil
-		}
-		if !appConfig.Integrations.NDESSCEPProxy.Valid {
-			profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-			for _, hostUUID := range target.hostUUIDs {
-				profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-				if !ok { // Should never happen
-					continue
-				}
-				profile.Status = &fleet.MDMDeliveryFailed
-				profile.Detail = "NDES SCEP Proxy is not configured. " +
-					"Please configure in Settings > Integrations > Mobile Device Management > Simple Certificate Enrollment Protocol."
-				profilesToUpdate = append(profilesToUpdate, profile)
-			}
-			if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-				return false, err
-			}
-			return false, nil
-		}
-		return appConfig.Integrations.NDESSCEPProxy.Valid, nil
-	}
-
 	// Copy of NDES SCEP config which will contain unencrypted password, if needed
 	var ndesConfig *fleet.NDESSCEPProxyIntegration
+	digiCertCAs := make(map[string]*fleet.DigiCertIntegration)
 
 	var addedTargets map[string]*cmdTarget
 	for profUUID, target := range targets {
@@ -3797,10 +3794,11 @@ func preprocessProfileContents(
 
 		// Do common validation that applies to all hosts in the target
 		valid := true
+		var digiCertVars digiCertVarsFound
 		for fleetVar := range fleetVars {
-			switch fleetVar {
-			case FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL:
-				configured, err := isNDESSCEPConfigured(profUUID, target)
+			switch {
+			case fleetVar == FleetVarNDESSCEPChallenge || fleetVar == FleetVarNDESSCEPProxyURL:
+				configured, err := getIsNDESSCEPConfiguredFunc(ctx, appConfig, ds, hostProfilesToInstallMap)(profUUID, target)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking NDES SCEP configuration")
 				}
@@ -3808,26 +3806,43 @@ func preprocessProfileContents(
 					valid = false
 					break
 				}
-			case FleetVarHostEndUserEmailIDP:
-				// No extra validation needed for this variable
-			default:
-				// Error out if we find an unknown variable
-				profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-				for _, hostUUID := range target.hostUUIDs {
-					profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-					if !ok { // Should never happen
-						continue
-					}
-					profile.Status = &fleet.MDMDeliveryFailed
-					profile.Detail = fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
-						fleetVar)
-					profilesToUpdate = append(profilesToUpdate, profile)
+			case fleetVar == FleetVarHostEndUserEmailIDP || fleetVar == FleetVarHostHardwareSerial:
+				// No extra validation needed for these variables
+			case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
+				var caName string
+				if strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix) {
+					digiCertVars.password = true
+					caName = strings.TrimPrefix(fleetVar, FleetVarDigiCertPasswordPrefix)
+				} else {
+					digiCertVars.data = true
+					caName = strings.TrimPrefix(fleetVar, FleetVarDigiCertDataPrefix)
 				}
-				if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-					return ctxerr.Wrap(ctx, err, "updating host MDM Apple profiles for unknown variable")
+				configured, err := getIsDigiCertConfiguredFunc(ctx, appConfig, ds, hostProfilesToInstallMap, digiCertCAs)(profUUID, target, caName)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
+				}
+				if !configured {
+					valid = false
+					break
+				}
+			default:
+				// Otherwise, error out since this variable is unknown
+				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
+					fleetVar)
+				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+				if err != nil {
+					return err
 				}
 				valid = false
 			}
+		}
+		if !digiCertVars.Ok() {
+			_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "For DigiCert integration, "+
+				"both $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> and $FLEET_VAR_DIGICERT_DATA_<ca_name> must be present in the profile.")
+			if err != nil {
+				return err
+			}
+			valid = false
 		}
 		if !valid {
 			// We marked the profile as failed, so we will not do any additional processing on it
@@ -3860,8 +3875,8 @@ func preprocessProfileContents(
 
 			failed := false
 			for fleetVar := range fleetVars {
-				switch fleetVar {
-				case FleetVarNDESSCEPChallenge:
+				switch {
+				case fleetVar == FleetVarNDESSCEPChallenge:
 					if ndesConfig == nil {
 						// Retrieve the NDES admin password. This is done once per run.
 						configAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword}, nil)
@@ -3918,12 +3933,12 @@ func preprocessProfileContents(
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
-				case FleetVarNDESSCEPProxyURL:
+				case fleetVar == FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
-				case FleetVarHostEndUserEmailIDP:
+				case fleetVar == FleetVarHostEndUserEmailIDP:
 					// Insert the end user email IDP into the profile contents
 					emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
 					if err != nil {
@@ -3949,6 +3964,37 @@ func preprocessProfileContents(
 						break
 					}
 					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, emails[0])
+				case fleetVar == FleetVarHostHardwareSerial:
+					// TODO(#26609): swap in host serial
+				case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix):
+					// We will replace the password when we populate the certificate data
+				case strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
+					caName := strings.TrimPrefix(fleetVar, FleetVarDigiCertDataPrefix)
+					ca, ok := digiCertCAs[caName]
+					if !ok {
+						continue // Should never happen since we validated/populated DigiCert CAs earlier
+					}
+
+					// TODO(#26609): populate Fleet vars in the CA fields
+
+					data, password, err := digicert.GetCertificate(ctx, logger, *ca)
+					if err != nil {
+						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
+						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:   target.cmdUUID,
+							HostUUID:      hostUUID,
+							Status:        &fleet.MDMDeliveryFailed,
+							Detail:        detail,
+							OperationType: fleet.MDMOperationTypeInstall,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for DigiCert")
+						}
+						failed = true
+						break
+					}
+					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(data))
+					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, password)
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}
@@ -3983,6 +4029,96 @@ func preprocessProfileContents(
 	return nil
 }
 
+type digiCertVarsFound struct {
+	data     bool
+	password bool
+}
+
+// Ok makes sure that both DATA and PASSWORD variables are present in a DigiCert profile.
+func (d digiCertVarsFound) Ok() bool {
+	return d.data && d.password || !d.data && !d.password
+}
+
+func getIsDigiCertConfiguredFunc(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	digiCertCAs map[string]*fleet.DigiCertIntegration) func(profUUID string, target *cmdTarget, caName string) (bool, error) {
+	return func(profUUID string, target *cmdTarget, caName string) (bool, error) {
+		if !license.IsPremium(ctx) {
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
+		}
+		if _, ok := digiCertCAs[caName]; ok {
+			return true, nil
+		}
+		configured := false
+		var digiCertCA *fleet.DigiCertIntegration
+		if appConfig.Integrations.DigiCert.Valid {
+			for _, ca := range appConfig.Integrations.DigiCert.Value {
+				if ca.Name == caName {
+					digiCertCA = &ca
+					configured = true
+					break
+				}
+			}
+		}
+		if !configured || digiCertCA == nil {
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+				fmt.Sprintf("DigiCert CA '%s' is not configured. Please configure in Settings > Integrations > Certificates.", caName))
+		}
+
+		// Get the API token
+		asset, err := ds.GetCAConfigAsset(ctx, digiCertCA.Name, fleet.CAConfigDigiCert)
+		switch {
+		case fleet.IsNotFound(err):
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+				fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName))
+		case err != nil:
+			return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
+		}
+		digiCertCA.APIToken = string(asset.Value)
+		digiCertCAs[caName] = digiCertCA
+
+		return true, nil
+	}
+}
+
+func getIsNDESSCEPConfiguredFunc(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload) func(profUUID string, target *cmdTarget) (bool, error) {
+	return func(profUUID string, target *cmdTarget) (bool, error) {
+		if !license.IsPremium(ctx) {
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.")
+		}
+		if !appConfig.Integrations.NDESSCEPProxy.Valid {
+			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+				"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.")
+		}
+		return appConfig.Integrations.NDESSCEPProxy.Valid, nil
+	}
+}
+
+func markProfilesFailed(
+	ctx context.Context,
+	ds fleet.Datastore,
+	target *cmdTarget,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	profUUID string,
+	detail string,
+) (bool, error) {
+	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
+	for _, hostUUID := range target.hostUUIDs {
+		profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+		if !ok { // Should never happen
+			continue
+		}
+		profile.Status = &fleet.MDMDeliveryFailed
+		profile.Detail = detail
+		profilesToUpdate = append(profilesToUpdate, profile)
+	}
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "marking host profiles failed")
+	}
+	return false, nil
+}
+
 func replaceFleetVariable(regExp *regexp.Regexp, contents string, replacement string) string {
 	// Escape XML characters
 	b := make([]byte, 0, len(replacement))
@@ -3994,12 +4130,12 @@ func replaceFleetVariable(regExp *regexp.Regexp, contents string, replacement st
 
 func findFleetVariables(contents string) map[string]interface{} {
 	var result map[string]interface{}
-	matches := profileVariableRegex.FindAllStringSubmatch(contents, -1)
+	matches := mdm_types.ProfileVariableRegex.FindAllStringSubmatch(contents, -1)
 	if len(matches) == 0 {
 		return nil
 	}
 	nameToIndex := make(map[string]int, 2)
-	for i, name := range profileVariableRegex.SubexpNames() {
+	for i, name := range mdm_types.ProfileVariableRegex.SubexpNames() {
 		if name == "" {
 			continue
 		}

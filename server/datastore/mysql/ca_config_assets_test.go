@@ -19,6 +19,7 @@ func TestCAConfigAssets(t *testing.T) {
 		{"GetAllCAConfigAssets", testGetAllCAConfigAssets},
 		{"SaveCAConfigAssets", testSaveCAConfigAssets},
 		{"DeleteCAConfigAssets", testDeleteCAConfigAssets},
+		{"GetCAConfigAsset", testGetCAConfigAsset},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -153,4 +154,44 @@ func testDeleteCAConfigAssets(t *testing.T, ds *Datastore) {
 	// Delete non-existent asset - should not error
 	err = ds.DeleteCAConfigAssets(ctx, []string{"non-existent-asset"})
 	assert.NoError(t, err)
+}
+
+func testGetCAConfigAsset(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Test with non-existent asset - should return not found error
+	asset, err := ds.GetCAConfigAsset(ctx, "non-existent-asset", fleet.CAConfigDigiCert)
+	assert.Error(t, err)
+	assert.Nil(t, asset)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Insert some test assets
+	testAssets := []fleet.CAConfigAsset{
+		{Name: "asset1", Type: fleet.CAConfigDigiCert, Value: []byte("value1")},
+		{Name: "asset2", Type: fleet.CAConfigCustomSCEPProxy, Value: []byte("value2")},
+	}
+	err = ds.SaveCAConfigAssets(ctx, testAssets)
+	require.NoError(t, err)
+
+	// Test retrieving an existing asset by name and type
+	asset, err = ds.GetCAConfigAsset(ctx, "asset1", fleet.CAConfigDigiCert)
+	require.NoError(t, err)
+	require.NotNil(t, asset)
+	assert.Equal(t, "asset1", asset.Name)
+	assert.Equal(t, fleet.CAConfigDigiCert, asset.Type)
+	assert.Equal(t, []byte("value1"), asset.Value)
+
+	// Test retrieving another existing asset
+	asset, err = ds.GetCAConfigAsset(ctx, "asset2", fleet.CAConfigCustomSCEPProxy)
+	require.NoError(t, err)
+	require.NotNil(t, asset)
+	assert.Equal(t, "asset2", asset.Name)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, asset.Type)
+	assert.Equal(t, []byte("value2"), asset.Value)
+
+	// Test retrieving an asset with a matching name but different type
+	asset, err = ds.GetCAConfigAsset(ctx, "asset1", fleet.CAConfigCustomSCEPProxy)
+	assert.Error(t, err)
+	assert.Nil(t, asset)
+	assert.True(t, fleet.IsNotFound(err))
 }
