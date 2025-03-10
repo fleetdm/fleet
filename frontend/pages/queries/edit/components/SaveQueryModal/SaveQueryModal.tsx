@@ -182,7 +182,9 @@ const SaveQueryModal = ({
         team_id: apiTeamIdForQuery,
         labels_include_any:
           selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels).map(([labelName]) => labelName)
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
             : [],
       });
     }
