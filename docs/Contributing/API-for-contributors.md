@@ -4296,8 +4296,9 @@ Confirm whether admin consent has been granted in Microsoft Entra.
 `Status: 200`
 
 ```json
-"admin_consented": false
-```
+{
+  "admin_consented": false
+}
 
 
 ### Delete Microsoft Entra conditional access
