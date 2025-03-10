@@ -13427,6 +13427,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
 	digiCertServer := createMockDigiCertServer(t)
 
 	// Add DigiCert config
