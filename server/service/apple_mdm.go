@@ -3876,6 +3876,7 @@ func preprocessProfileContents(
 			hostContents := contentsStr
 
 			failed := false
+		fleetVarLoop:
 			for fleetVar := range fleetVars {
 				switch {
 				case fleetVar == FleetVarNDESSCEPChallenge:
@@ -3925,7 +3926,7 @@ func preprocessProfileContents(
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for NDES SCEP challenge")
 						}
 						failed = true
-						break
+						break fleetVarLoop
 					}
 					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:             hostUUID,
@@ -3946,7 +3947,8 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "getting IDP email")
 					}
 					if !ok {
-						break
+						failed = true
+						break fleetVarLoop
 					}
 					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
 				case fleetVar == FleetVarHostHardwareSerial:
@@ -3955,7 +3957,8 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "getting host hardware serial")
 					}
 					if !ok {
-						break
+						failed = true
+						break fleetVarLoop
 					}
 					hostContents = replaceFleetVariable(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix):
@@ -3968,15 +3971,33 @@ func preprocessProfileContents(
 					}
 
 					// Populate Fleet vars in the CA fields
-					caFleetVars := findFleetVariables(ca.CertificateCommonName)
-					for caVar := range caFleetVars {
-						switch caVar {
-						case FleetVarHostEndUserEmailIDP:
-							// TODO: Victor
-						case FleetVarHostHardwareSerial:
-							// TODO: Victor
-						default:
-							// We should not reach this since we validated the variables during config save
+					caVarsCache := make(map[string]string)
+					ok, err := replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &ca.CertificateCommonName)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					ok, err = replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &ca.CertificateSeatID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					if len(ca.CertificateUserPrincipalNames) > 0 {
+						for i := range ca.CertificateUserPrincipalNames {
+							ok, err = replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &ca.CertificateUserPrincipalNames[i])
+							if err != nil {
+								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+							}
+							if !ok {
+								failed = true
+								break fleetVarLoop
+							}
 						}
 					}
 
@@ -3994,7 +4015,7 @@ func preprocessProfileContents(
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for DigiCert")
 						}
 						failed = true
-						break
+						break fleetVarLoop
 					}
 					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(data))
 					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, password)
@@ -4030,6 +4051,48 @@ func preprocessProfileContents(
 		}
 	}
 	return nil
+}
+
+func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
+) (bool, error) {
+	caFleetVars := findFleetVariables(*item)
+	for caVar := range caFleetVars {
+		switch caVar {
+		case FleetVarHostEndUserEmailIDP:
+			email, ok := caVarsCache[FleetVarHostEndUserEmailIDP]
+			if !ok {
+				var err error
+				email, ok, err = getIDPEmail(ctx, ds, target, hostUUID)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
+				}
+				if !ok {
+					return false, nil
+				}
+				caVarsCache[FleetVarHostEndUserEmailIDP] = email
+			}
+			replacement := replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, *item, email)
+			item = &replacement
+		case FleetVarHostHardwareSerial:
+			hardwareSerial, ok := caVarsCache[FleetVarHostHardwareSerial]
+			if !ok {
+				var err error
+				hardwareSerial, ok, err = getHostHardwareSerial(ctx, ds, target, hostUUID)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
+				}
+				if !ok {
+					return false, nil
+				}
+				caVarsCache[FleetVarHostHardwareSerial] = hardwareSerial
+			}
+			replacement := replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, *item, hardwareSerial)
+			item = &replacement
+		default:
+			// We should not reach this since we validated the variables when saving app config
+		}
+	}
+	return true, nil
 }
 
 func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {

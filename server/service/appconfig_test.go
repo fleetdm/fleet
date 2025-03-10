@@ -1934,12 +1934,12 @@ func TestAppConfigCAs(t *testing.T) {
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUp()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
 
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_BOZO"
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
 			"FLEET_VAR_BOZO is not allowed")
@@ -1948,12 +1948,12 @@ func TestAppConfigCAs(t *testing.T) {
 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
 		mt := setUp()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
 
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "$FLEET_VAR_BOZO"
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_common_name",
 			"FLEET_VAR_BOZO is not allowed")
@@ -1962,12 +1962,12 @@ func TestAppConfigCAs(t *testing.T) {
 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
 		mt := setUp()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + FleetVarHostHardwareSerial
-		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
 
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_BOZO"
-		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_seat_id",
 			"FLEET_VAR_BOZO is not allowed")
