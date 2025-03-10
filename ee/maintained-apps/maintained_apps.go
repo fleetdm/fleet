@@ -31,8 +31,8 @@ type InputApp struct {
 	Source string `json:"source"`
 }
 
-// ExistsKey is the key used for an osquery query that checks if the app exists on a host.
-const ExistsKey = "exists"
+// QueryKeyExists is the key used for an osquery query that checks if the app exists on a host.
+const QueryKeyExists = "exists"
 
 type FMAManifestApp struct {
 	Version            string            `json:"version"`
@@ -44,6 +44,7 @@ type FMAManifestApp struct {
 	SHA256             string            `json:"sha256"`
 	// Description is an optional description of the app and what it does.
 	Description string `json:"-"`
+	Slug        string `json:"-"`
 }
 
 type FMAManifestFile struct {

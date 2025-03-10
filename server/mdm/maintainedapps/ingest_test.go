@@ -122,8 +122,8 @@ func TestIngestValidations(t *testing.T) {
 		t.Run(c.appToken, func(t *testing.T) {
 			i := ingester{
 				baseURL: srv.URL,
-				// ds: ds,
-				logger: log.NewNopLogger(),
+				ds:      ds,
+				logger:  log.NewNopLogger(),
 			}
 
 			var apps []maintainedApp

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -25,6 +26,46 @@ import (
 
 //go:embed *.json
 var appsJSON embed.FS
+
+const outputPath = "ee/maintained-apps/outputs"
+
+type darwinIngester struct {
+	sourceIngesters map[string]maintained_apps.SourceIngester
+	logger          kitlog.Logger
+}
+
+func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
+	baseURL := baseBrewAPIURL
+	// Use FLEET_DEV_BREW_API_URL for automated or manual testing purposes
+	if v := os.Getenv("FLEET_DEV_BREW_API_URL"); v != "" {
+		baseURL = v
+	}
+
+	return &darwinIngester{
+		logger: logger,
+		sourceIngesters: map[string]maintained_apps.SourceIngester{
+			maintained_apps.SourceHomebrew: &brewIngester{
+				baseURL: baseURL,
+				logger:  logger,
+				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			},
+		},
+	}
+}
+
+type brewCask struct {
+	Token                string          `json:"token"`
+	FullToken            string          `json:"full_token"`
+	Tap                  string          `json:"tap"`
+	Name                 []string        `json:"name"`
+	Desc                 string          `json:"desc"`
+	URL                  string          `json:"url"`
+	Version              string          `json:"version"`
+	SHA256               string          `json:"sha256"`
+	Artifacts            []*brewArtifact `json:"artifacts"`
+	PreUninstallScripts  []string        `json:"-"`
+	PostUninstallScripts []string        `json:"-"`
+}
 
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
 
@@ -76,6 +117,16 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 
 	out := &maintained_apps.FMAManifestApp{}
 
+	// validate required fields
+	if len(cask.Name) == 0 || cask.Name[0] == "" {
+		return nil, nil, ctxerr.Errorf(ctx, "missing name for cask %s", app.SourceIdentifier)
+	}
+	if cask.Token == "" {
+		return nil, nil, ctxerr.Errorf(ctx, "missing token for cask %s", app.SourceIdentifier)
+	}
+	if cask.Version == "" {
+		return nil, nil, ctxerr.Errorf(ctx, "missing version for cask %s", app.SourceIdentifier)
+	}
 	if cask.URL == "" {
 		return nil, nil, ctxerr.Errorf(ctx, "missing URL for cask %s", app.SourceIdentifier)
 	}
@@ -84,22 +135,13 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 		return nil, nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.SourceIdentifier)
 	}
 
-	slug := fmt.Sprintf("%s/%s", cask.Token, fleet.MacOSPlatform)
-
-	// TODO(JVE): we should no-op if there was no change, so we need to read in the existing file
-	// and diff it here
-
-	shouldUpdate, err := shouldUpdateApp(ctx, cask, slug)
-	if !shouldUpdate {
-		return nil, nil, nil
-	}
-
 	out.Version = cask.Version
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.SHA256 = cask.SHA256
-	out.Queries = map[string]string{maintained_apps.ExistsKey: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	out.Queries = map[string]string{maintained_apps.QueryKeyExists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
 	out.Description = cask.Desc
+	out.Slug = fmt.Sprintf("%s/%s", cask.Token, fleet.MacOSPlatform)
 
 	// Script generation
 	scriptRefs := make(map[string]string)
@@ -119,8 +161,8 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 	return out, scriptRefs, nil
 }
 
-func shouldUpdateApp(ctx context.Context, cask brewCask, slug string) (bool, error) {
-	existingFileBytes, err := os.ReadFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", cask.Token))
+func shouldUpdateApp(ctx context.Context, sourceID, caskSHA256, slug string) (bool, error) {
+	existingFileBytes, err := os.ReadFile(path.Join(outputPath, string(fleet.MacOSPlatform), fmt.Sprintf("%s.json", sourceID)))
 	if err != nil {
 		if err == os.ErrNotExist {
 			return true, nil
@@ -138,7 +180,7 @@ func shouldUpdateApp(ctx context.Context, cask brewCask, slug string) (bool, err
 		return false, ctxerr.Wrap(ctx, err, "invalid existing app manifest", "slug", slug)
 	}
 
-	if existingManifest.Versions[0].SHA256 == cask.SHA256 {
+	if existingManifest.Versions[0].SHA256 == caskSHA256 {
 		return false, nil
 	}
 
@@ -189,8 +231,12 @@ func (i *darwinIngester) IngestApps(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "ingesting app")
 		}
 
-		if outApp == nil && scripts == nil {
-			level.Info(i.logger).Log("msg", "no change to app since last ingest, skipping", "unique_identifier", input.UniqueIdentifier)
+		shouldUpdate, err := shouldUpdateApp(ctx, input.SourceIdentifier, outApp.SHA256, outApp.Slug)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if app should be updated")
+		}
+		if !shouldUpdate {
+			level.Info(i.logger).Log("msg", "no change to app since last ingest, skipping", "slug", outApp.Slug)
 			continue
 		}
 
@@ -206,7 +252,7 @@ func (i *darwinIngester) IngestApps(ctx context.Context) error {
 
 		// Overwrite the file, since right now we're only caring about 1 version (latest). If we
 		// care about previous data, it will be in our Git history.
-		if err := os.WriteFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", input.SourceIdentifier), outBytes, 0o644); err != nil {
+		if err := os.WriteFile(path.Join(outputPath, string(fleet.MacOSPlatform), fmt.Sprintf("%s.json", input.SourceIdentifier)), outBytes, 0o644); err != nil {
 			return ctxerr.Wrap(ctx, err, "writing output json file")
 		}
 
@@ -220,7 +266,8 @@ func (i *darwinIngester) IngestApps(ctx context.Context) error {
 }
 
 func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, outApp *maintained_apps.FMAManifestApp) error {
-	file, err := os.ReadFile("ee/maintained-apps/outputs/apps.json")
+	appListFilePath := path.Join(outputPath, "apps.json")
+	file, err := os.ReadFile(appListFilePath)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading output apps list file")
 	}
@@ -250,55 +297,17 @@ func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, out
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
 
-		updatedFile, err := json.Marshal(outputAppsFile)
+		updatedFile, err := json.MarshalIndent(outputAppsFile, "", "  ")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshaling updated output apps file")
 		}
 
-		if err := os.WriteFile("ee/maintained-apps/outputs/apps.json", updatedFile, 0o644); err != nil {
+		if err := os.WriteFile(appListFilePath, updatedFile, 0o644); err != nil {
 			return ctxerr.Wrap(ctx, err, "writing updated output apps file")
 		}
 	}
 
 	return nil
-}
-
-type darwinIngester struct {
-	sourceIngesters map[string]maintained_apps.SourceIngester
-	logger          kitlog.Logger
-}
-
-func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
-	baseURL := baseBrewAPIURL
-	// Use FLEET_DEV_BREW_API_URL for automated or manual testing purposes
-	if v := os.Getenv("FLEET_DEV_BREW_API_URL"); v != "" {
-		baseURL = v
-	}
-
-	return &darwinIngester{
-		logger: logger,
-		sourceIngesters: map[string]maintained_apps.SourceIngester{
-			maintained_apps.SourceHomebrew: &brewIngester{
-				baseURL: baseURL,
-				logger:  logger,
-				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-			},
-		},
-	}
-}
-
-type brewCask struct {
-	Token                string          `json:"token"`
-	FullToken            string          `json:"full_token"`
-	Tap                  string          `json:"tap"`
-	Name                 []string        `json:"name"`
-	Desc                 string          `json:"desc"`
-	URL                  string          `json:"url"`
-	Version              string          `json:"version"`
-	SHA256               string          `json:"sha256"`
-	Artifacts            []*brewArtifact `json:"artifacts"`
-	PreUninstallScripts  []string        `json:"-"`
-	PostUninstallScripts []string        `json:"-"`
 }
 
 // brew artifacts are objects that have one and only one of their fields set.
