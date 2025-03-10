@@ -5,11 +5,18 @@
 - [Google Cloud Pub/Sub API](https://cloud.google.com/pubsub/docs/reference/rest)
 - [Google Cloud console pub/sub topics](https://console.cloud.google.com/cloudpubsub/topic/list)
 
-## Configure dev environment
+## Setup an Android MDM environment
 
 Create a Google service account with the following Roles
 - Android Management User
 - Pub/Sub Admin
+
+To do so:
+* Follow instructions at https://developers.google.com/android/management/service-account to create the project and service account
+* Follow instructions at https://developers.google.com/android/management/notifications to create pub/sub notifications
+* Troubleshooting: watch the video of Gabe and Victor discussion post-standup: https://us-65885.app.gong.io/call?id=4731209913082368849 (starting at the 12:50 timestamp)
+
+## Configure dev environment
 
 Using the `credentials.json` of the above account:
 ```bash
@@ -20,6 +27,8 @@ Set the feature flag:
 ```bash
 export FLEET_DEV_ANDROID_ENABLED=1
 ```
+
+To turn on Android MDM, use a Chrome private window (so that you are not logged in with your "fleetdm.com" address). This is only required to enable Android MDM, you can use a normal window for the rest. In "Settings -> Integrations -> MDM -> Turn On Android -> Connect", use a personal email address (not a "fleetdm.com" one). Select "Sign-up for Android only". Domain name is not important ("test.com" for example). No need to fill anything in the "Data protection officer" and "EU representative" sections, just check the checkbox.
 
 ## Known issues and limitations
 - The Fleet server URL must be public for pub/sub to work properly.
