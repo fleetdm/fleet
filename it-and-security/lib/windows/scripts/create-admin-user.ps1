@@ -1,3 +1,6 @@
+# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/-enforce-disk-encryption
+
+
 $Username = "IT admin"
 $Password = ConvertTo-SecureString "StrongPassword123!" -AsPlainText -Force
 
