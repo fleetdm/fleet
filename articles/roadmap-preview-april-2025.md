@@ -12,7 +12,7 @@ In the next 3 months, Fleet will ship...
 - 📊 Filter hosts with custom host vitals (ala Sal)
 - ⬇️ Downloadable agents (fleetd)
 - 📅 Patch apps when end users are free
-- 📄 Deploy certificates for Wi-Fi and VPN on Linux computers
+- 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
 - 🍏 Account-based user enrollment for personal devices (BYOD)
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - 🔍 See upcoming and past MDM command history
