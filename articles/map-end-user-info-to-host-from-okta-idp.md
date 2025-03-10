@@ -2,9 +2,11 @@
 
 _Available in Fleet Premium._
 
-Learn how to connect your identity provider (IdP) to retrieve end-user information and map it to a host. This simplifies the process of identifying which employee is assigned to each host. Fleet uses System for Cross-domain Identity Management (SCIM) protocol to retreive users from IdP. This feature is available in Fleet [v4.67.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.67.0).
+Learn how to connect your identity provider (IdP) to retrieve end-user information and map it to a
+host. This simplifies the process of identifying which employee is assigned to each host.
+Fleet uses System for Cross-domain Identity Management (SCIM) protocol to retreive users from IdP. This feature is available in Fleet [v4.67.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.67.0).
 
-Currently, Fleet supports only Okta IdP.
+Currently, Fleet supports only Okta.
 
 ## Connect Okta
 
@@ -12,7 +14,7 @@ To connect Okta to Fleet, follow these steps:
 
 1. Head to Okta admin dashboard
 2. Select **Applications > Applications** in the main menu, then select **Create App Integration**.
-3. Select **SAML 2.0** from offered options and select **Next**
+3. Select **SAML 2.0** option and select **Next**.
 4. On **General Settings** page, add friendly **App name** (e.g Fleet SCIM), and select **Next**.
 5. On **SAML Settings** page, add any URL to **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
 >Okta requires to setup SAML settings in order to setup SCIM integration. Since we don't need SSO, URL can be anything.
@@ -30,6 +32,7 @@ To connect Okta to Fleet, follow these steps:
 17. Back in Okta, select **Save**
 18. Under **Provisioning** tab, select **To App**, then select **Edit** in **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, and **Deactivate Users**, then select **Save**.
 19. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet will use `userName`, `givenName`, and `familyName`.
+![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping.png)
 
 
 ### Assign users and groups to Fleet
