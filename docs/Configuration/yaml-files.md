@@ -226,13 +226,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: '2024-12-31
+    deadline: 2024-12-31
     minimum_version: 15.1
   ios_updates: # Available in Fleet Premium
-    deadline: '2024-12-31'
+    deadline: 2024-12-31
     minimum_version: 18.1
   ipados_updates: # Available in Fleet Premium
-    deadline: '2024-12-31'
+    deadline: 2024-12-31
     minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
@@ -288,7 +288,7 @@ controls:
 
 ### macos_settings and windows_settings
 
-- `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
