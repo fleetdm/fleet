@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/bzip2"
 	cryptorand "crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -294,6 +297,13 @@ type agent struct {
 	// increase indefinitely (we sacrifice accuracy of logs but that's
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
+
+	// cache of certificates returned by this agent. Note that this requires
+	// a mutex even though only used in a.processQuery, that's because both
+	// the runLoop and the live query goroutines may call DistributedWrite
+	// (which calls processQuery).
+	certificatesMutex sync.RWMutex
+	certificatesCache []map[string]string
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -1881,6 +1891,70 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
+func (a *agent) certificates() []map[string]string {
+	a.certificatesMutex.RLock()
+	cache := a.certificatesCache
+	a.certificatesMutex.RUnlock()
+
+	// 90% of the time certificates do not change
+	if rand.Intn(100) < 90 && len(cache) > 0 {
+		return cache
+	}
+
+	// between 2 and 10 certificates (probably impossible to have 0, quick check
+	// on dogfood gives between 4-7)
+	count := rand.Intn(9) + 2
+
+	const certTpl = `
+	ca:                %d
+	common_name:       %s
+	issuer:            /C=US/O=Issuer %d Inc./CN=Issuer %d Common Name
+	subject:           /C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name
+	key_algorithm:     rsaEncryption
+	key_strength:      2048
+	key_usage:         Data Encipherment, Key Encipherment, Digital Signature
+	serial:            %s
+	signing_algorithm: sha256WithRSAEncryption
+	not_valid_after:   %d
+	not_valid_before:  %d
+	sha1:              %s
+`
+	results := make([]map[string]string, count)
+	day := 24 * time.Hour
+	for i := range count {
+		ca := rand.Intn(2)
+		name := uuid.NewString()
+		serial := uuid.NewString()
+		// generate so that it may be expired
+		notAfter := time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day)
+		// notBefore is always in the past
+		notBefore := notAfter.Add(-time.Duration(rand.Intn(10)+1) * day)
+		rawHash := sha1.Sum([]byte(serial))
+		hash := hex.EncodeToString(rawHash[:])
+		cert := fmt.Sprintf(certTpl, ca, name, i, i, i, i, i, serial, notAfter.Unix(), notBefore.Unix(), hash)
+
+		results[i] = make(map[string]string, 12)
+		scanner := bufio.NewScanner(strings.NewReader(cert))
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue
+			}
+
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			results[i][strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+
+	a.certificatesMutex.Lock()
+	a.certificatesCache = results
+	a.certificatesMutex.Unlock()
+	return results
+}
+
 func (a *agent) orbitInfo() []map[string]string {
 	version := "1.22.0"
 	desktopVersion := version
@@ -2199,6 +2273,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			return true, nil, &statusNotOK, nil, nil
 		}
 		return true, a.orbitInfo(), &statusOK, nil, nil
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"certificates_darwin"):
+		// NOTE: feels exaggerated to fail osquery 50% of the time but this is how
+		// most other osquery queries are handled.
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.certificates()
+		}
+		return true, results, &ss, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
