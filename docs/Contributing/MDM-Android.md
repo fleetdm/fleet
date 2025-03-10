@@ -21,7 +21,9 @@ Set the feature flag:
 export FLEET_DEV_ANDROID_ENABLED=1
 ```
 
-Note: The Fleet server URL must be public for pub/sub to work properly.
+## Known issues and limitations
+- The Fleet server URL must be public for pub/sub to work properly.
+- The Fleet server URL cannot change -- pub/sub is set up with one URL.
 
 ## Architecture diagrams
 
