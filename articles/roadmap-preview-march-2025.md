@@ -1,4 +1,4 @@
-# Roadmap preview, March 2025
+# Roadmap preview, April 2025
 
 <div purpose="embedded-content">
    <iframe src="TODO" allowfullscreen></iframe>
@@ -26,6 +26,6 @@ Any feedback or a questions?  Contributions welcome! You can find us [where we h
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2025-03-31">
-<meta name="articleTitle" value="Roadmap preview, March 2025">
+<meta name="publishedOn" value="2025-04-01">
+<meta name="articleTitle" value="Roadmap preview, April 2025">
 <meta name="description" value="The product improvements Fleet is currently working on and the 3 biggest open opportunities in the product in the near future.">
