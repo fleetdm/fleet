@@ -82,6 +82,7 @@ controls:
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/windows/scripts/remove-fleetd.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
+    - path: ../lib/windows/scripts/create-admin-user.ps1
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
