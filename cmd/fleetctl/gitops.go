@@ -308,6 +308,21 @@ func concatLabels(labelArrays ...[]string) []string {
 	return result
 }
 
+func updateLabelUsage(labels []string, ident string, usageType string, currentUsage *map[string][]LabelUsage) {
+	for _, label := range labels {
+		var usage []LabelUsage
+		if _, ok := (*currentUsage)[label]; !ok {
+			(*currentUsage)[label] = make([]LabelUsage, 0)
+		}
+		usage = (*currentUsage)[label]
+		usage = append(usage, LabelUsage{
+			Name: ident,
+			Type: usageType,
+		})
+		(*currentUsage)[label] = usage
+	}
+}
+
 func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 	result := make(map[string][]LabelUsage)
 
@@ -318,23 +333,23 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsIncludeAll, setting.LabelsExcludeAny)
-				for _, label := range labels {
-					var usage []LabelUsage
-					if usage, ok = result[label]; !ok {
-						result[label] = make([]LabelUsage, 0)
-						usage = result[label]
-					}
-					usage = append(usage, LabelUsage{
-						Name: setting.Path,
-						Type: "MacOS Profile",
-					})
-					result[label] = usage
-				}
+				updateLabelUsage(labels, setting.Path, "MDM Profile", &result)
 			}
 		}
 	}
 
-	// Get software installer label usage
+	// Get software package installer label usage
+	for _, setting := range config.Software.Packages {
+		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
+		updateLabelUsage(labels, setting.URL, "Software Package", &result)
+	}
+
+	// Get app store app installer label usage
+	for _, setting := range config.Software.AppStoreApps {
+		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
+		updateLabelUsage(labels, setting.AppStoreID, "App Store App", &result)
+	}
+
 	return result
 }
 
