@@ -1,8 +1,10 @@
 # Roadmap preview, April 2025
 
+<!--
 <div purpose="embedded-content">
    <iframe src="TODO" allowfullscreen></iframe>
 </div>
+-->
 
 The Fleet roadmap is set spring 2025. Watch the video above for a walkthrough, or continue reading for the highlights.
 
