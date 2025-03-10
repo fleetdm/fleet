@@ -373,24 +373,27 @@ const EditQueryForm = ({
 
     if (valid) {
       setIsSaveAsNewLoading(true);
+      const apiProps = {
+        description: lastEditedQueryDescription,
+        query: lastEditedQueryBody,
+        team_id: apiTeamIdForQuery,
+        observer_can_run: lastEditedQueryObserverCanRun,
+        interval: lastEditedQueryFrequency,
+        automations_enabled: lastEditedQueryAutomationsEnabled,
+        platform: lastEditedQueryPlatforms,
+        min_osquery_version: lastEditedQueryMinOsqueryVersion,
+        logging: lastEditedQueryLoggingType,
+        labels_include_any:
+          selectedTargetType === "Custom"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
+      };
       queryAPI
         .create({
           name: lastEditedQueryName,
-          description: lastEditedQueryDescription,
-          query: lastEditedQueryBody,
-          team_id: apiTeamIdForQuery,
-          observer_can_run: lastEditedQueryObserverCanRun,
-          interval: lastEditedQueryFrequency,
-          automations_enabled: lastEditedQueryAutomationsEnabled,
-          platform: lastEditedQueryPlatforms,
-          min_osquery_version: lastEditedQueryMinOsqueryVersion,
-          logging: lastEditedQueryLoggingType,
-          labels_include_any:
-            selectedTargetType === "Custom"
-              ? Object.entries(selectedLabels)
-                  .filter(([, selected]) => selected)
-                  .map(([labelName]) => labelName)
-              : [],
+          ...apiProps,
         })
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
@@ -407,15 +410,7 @@ const EditQueryForm = ({
             queryAPI
               .create({
                 name: `Copy of ${lastEditedQueryName}`,
-                description: lastEditedQueryDescription,
-                query: lastEditedQueryBody,
-                team_id: apiTeamIdForQuery,
-                observer_can_run: lastEditedQueryObserverCanRun,
-                interval: lastEditedQueryFrequency,
-                automations_enabled: lastEditedQueryAutomationsEnabled,
-                platform: lastEditedQueryPlatforms,
-                min_osquery_version: lastEditedQueryMinOsqueryVersion,
-                logging: lastEditedQueryLoggingType,
+                ...apiProps,
               })
               .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
