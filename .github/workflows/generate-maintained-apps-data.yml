@@ -2,9 +2,9 @@ name: Ingest maintained apps
 
 # TODO(JVE): add schedule/other triggers
 on:
-  push:
-    branches:
-      - main
+  pull_request:
+    paths:
+      - "ee/maintained-apps/inputs/**.json"
   workflow_dispatch:
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
         with:
           repository: fleetdm/fleet
           fetch-depth: 1
-          ref: 26083-fma-ingest-action # TODO(JVE): update this hardcoded value
+          ref: ${{ github.head_ref }}
           path: fleet
 
       - name: Setup Go
@@ -39,19 +39,11 @@ jobs:
           go mod download
           go run cmd/maintained-apps/main.go
 
-      # TODO(JVE): need to finalize the contents/title of this PR
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          base: main
-          path: fleet
-          branch: jve-testing-pr-from-action
-          delete-branch: true
-          title: "[DO NOT MERGE] this is a test of creating PRs from actions"
-          commit-message: |
-            Ingest Fleet-maintained apps.
+      - name: Commit generated manifest data
+        run: |
+          git commit -am "Generated manifest data"
+          git push
 
-            Generated automatically with cmd/maintained-apps
-          body: Automated change from GitHub action (still in development)
+
 
 
