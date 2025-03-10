@@ -199,7 +199,9 @@ const EditQueryForm = ({
 
   useEffect(() => {
     setSelectedTargetType(
-      storedQuery?.labels_include_any?.length ? "Custom" : "All hosts"
+      storedQuery?.labels_include_any?.length && isPremiumTier
+        ? "Custom"
+        : "All hosts"
     );
     setSelectedLabels(
       storedQuery?.labels_include_any?.reduce((acc, label) => {
