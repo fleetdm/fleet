@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"compress/bzip2"
 	cryptorand "crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // nolint:gosec
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
@@ -1944,7 +1944,7 @@ func (a *agent) certificates() []map[string]string {
 		notAfter := time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day)
 		// notBefore is always in the past
 		notBefore := notAfter.Add(-time.Duration(rand.Intn(10)+1) * day)
-		rawHash := sha1.Sum([]byte(serial))
+		rawHash := sha1.Sum([]byte(serial)) //nolint: gosec
 		hash := hex.EncodeToString(rawHash[:])
 		cert := fmt.Sprintf(certTpl, ca, name, i, i, i, i, i, serial, notAfter.Unix(), notBefore.Unix(), hash)
 
