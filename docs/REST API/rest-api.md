@@ -827,7 +827,8 @@ None.
     "enable_jit_provisioning": false
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>"
+    "microsoft_entra_tenant_id": "<TENANT ID>",
+    "microsoft_entra_connection_configured": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1127,7 +1128,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_jit_provisioning": false
   },
   "conditional_access": {
-    "microsoft_entra_tenant_id": "<TENANT ID>"
+    "microsoft_entra_tenant_id": "<TENANT ID>",
+    "microsoft_entra_connection_configured": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
