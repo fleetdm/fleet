@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import paths from "router/paths";
 import { AppContext } from "context/app";
+import { ICertificateIntegration } from "interfaces/integration";
 import createMockConfig from "__mocks__/configMock";
 
 import SectionHeader from "components/SectionHeader";
@@ -12,9 +13,10 @@ import CertificateAuthorityList from "./components/CertificateAuthorityList";
 import {
   generateListData,
   getCertificateAuthority,
-  ICertAuthority,
+  ICertAuthorityListData,
 } from "./helpers";
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
+import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 
 const baseClass = "certificate-authorities";
 
@@ -70,6 +72,11 @@ const CertificateAuthorities = () => {
     setShowDeleteCertAuthorityModal,
   ] = useState(false);
 
+  const [
+    selectedCertAuthority,
+    setSelectedCertAuthority,
+  ] = useState<ICertificateIntegration | null>(null);
+
   const certificateAuthorities = useMemo(() => {
     if (!config) return [];
     return generateListData(
@@ -83,26 +90,27 @@ const CertificateAuthorities = () => {
     setShowAddCertAuthorityModal(true);
   };
 
-  const onEditCertAuthority = (cert: ICertAuthority) => {
+  const onEditCertAuthority = (cert: ICertAuthorityListData) => {
     // TODO: use useCallback
-    const ca = getCertificateAuthority(
+    const certAuthority = getCertificateAuthority(
       cert.id,
       config?.integrations.ndes_scep_proxy,
       config?.integrations.digicert,
       config?.integrations.custom_scep_proxy
     );
-    console.log(ca);
+    setSelectedCertAuthority(certAuthority);
     setShowEditCertAuthorityModal(true);
   };
 
-  const onDeleteCertAuthority = (cert: ICertAuthority) => {
+  const onDeleteCertAuthority = (cert: ICertAuthorityListData) => {
     // TODO: use useCallback
-    getCertificateAuthority(
+    const certAuthority = getCertificateAuthority(
       cert.id,
       config?.integrations.ndes_scep_proxy,
       config?.integrations.digicert,
       config?.integrations.custom_scep_proxy
     );
+    setSelectedCertAuthority(certAuthority);
     setShowDeleteCertAuthorityModal(true);
   };
 
@@ -140,7 +148,12 @@ const CertificateAuthorities = () => {
       {renderContent()}
       {showAddCertAuthorityModal && <div>Modal showing</div>}
       {showEditCertAuthorityModal && <div>Modal showing</div>}
-      {showDeleteCertAuthoirtyModal && <div>Modal showing</div>}
+      {showDeleteCertAuthoirtyModal && selectedCertAuthority && (
+        <DeleteCertificateAuthorityModal
+          certAuthority={selectedCertAuthority}
+          onExit={() => setShowDeleteCertAuthorityModal(false)}
+        />
+      )}
     </div>
   );
 };

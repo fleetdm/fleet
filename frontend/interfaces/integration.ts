@@ -41,6 +41,12 @@ export interface ICertificatesIntegrationCustomSCEP {
   challenge: string;
 }
 
+/** all the types of certificate integrations */
+export type ICertificateIntegration =
+  | ICertificatesIntegrationNDES
+  | ICertificatesIntegrationDigicert
+  | ICertificatesIntegrationCustomSCEP;
+
 export interface IIntegration {
   url: string;
   username?: string;

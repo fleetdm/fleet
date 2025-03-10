@@ -4,7 +4,7 @@ import {
   ICertificatesIntegrationNDES,
 } from "interfaces/integration";
 
-export interface ICertAuthority {
+export interface ICertAuthorityListData {
   id: string;
   name: string;
   description: string;
@@ -15,7 +15,7 @@ export const generateListData = (
   digicertCerts?: ICertificatesIntegrationDigicert[],
   customProxies?: ICertificatesIntegrationCustomSCEP[]
 ) => {
-  const listData: ICertAuthority[] = [];
+  const listData: ICertAuthorityListData[] = [];
 
   // these values for the certificateAuthority is meant to be a hard coded .
   if (ndesProxy) {
@@ -68,13 +68,13 @@ export const getCertificateAuthority = (
   if (id.includes("digicert")) {
     return digicertCerts?.find(
       (cert) => id.split("digicert-")[1] === cert.id.toString()
-    );
+    ) as ICertificatesIntegrationDigicert;
   }
 
   if (id.includes("custom-scep-proxy")) {
     return customProxies?.find(
       (cert) => id.split("custom-scep-proxy-")[1] === cert.id.toString()
-    );
+    ) as ICertificatesIntegrationCustomSCEP;
   }
 
   return null;
