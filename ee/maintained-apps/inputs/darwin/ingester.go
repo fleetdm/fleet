@@ -35,7 +35,7 @@ type brewIngester struct {
 }
 
 func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputApp) (*maintained_apps.FMAManifestApp, map[string]string, error) {
-	level.Debug(i.logger).Log("msg", "ingesting app", "name", app.Name)
+	level.Info(i.logger).Log("msg", "ingesting app", "name", app.Name)
 
 	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.SourceIdentifier)
 
@@ -84,13 +84,20 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 		return nil, nil, ctxerr.Wrapf(ctx, err, "parse URL for cask %s", app.SourceIdentifier)
 	}
 
+	slug := fmt.Sprintf("%s/%s", cask.Token, fleet.MacOSPlatform)
+
 	// TODO(JVE): we should no-op if there was no change, so we need to read in the existing file
 	// and diff it here
+
+	shouldUpdate, err := shouldUpdateApp(ctx, cask, slug)
+	if !shouldUpdate {
+		return nil, nil, nil
+	}
 
 	out.Version = cask.Version
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = app.UniqueIdentifier
-	out.Sha256 = cask.SHA256
+	out.SHA256 = cask.SHA256
 	out.Queries = map[string]string{maintained_apps.ExistsKey: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
 	out.Description = cask.Desc
 
@@ -110,6 +117,32 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 	scriptRefs[uninstallRef] = uninstallScript
 
 	return out, scriptRefs, nil
+}
+
+func shouldUpdateApp(ctx context.Context, cask brewCask, slug string) (bool, error) {
+	existingFileBytes, err := os.ReadFile(fmt.Sprintf("ee/maintained-apps/outputs/darwin/%s.json", cask.Token))
+	if err != nil {
+		if err == os.ErrNotExist {
+			return true, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "reading existing app manifest")
+	}
+
+	var existingManifest maintained_apps.FMAManifestFile
+	if err := json.Unmarshal(existingFileBytes, &existingManifest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "unmarshaling existing app manifest", "slug", slug)
+	}
+
+	if len(existingManifest.Versions) < 1 {
+		return false, ctxerr.Wrap(ctx, err, "invalid existing app manifest", "slug", slug)
+	}
+
+	if existingManifest.Versions[0].SHA256 == cask.SHA256 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func (i *darwinIngester) IngestApps(ctx context.Context) error {
@@ -154,6 +187,11 @@ func (i *darwinIngester) IngestApps(ctx context.Context) error {
 		outApp, scripts, err := ingester.IngestOne(ctx, input)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "ingesting app")
+		}
+
+		if outApp == nil && scripts == nil {
+			level.Info(i.logger).Log("msg", "no change to app since last ingest, skipping", "unique_identifier", input.UniqueIdentifier)
+			continue
 		}
 
 		outFile := maintained_apps.FMAManifestFile{
@@ -227,6 +265,7 @@ func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, out
 
 type darwinIngester struct {
 	sourceIngesters map[string]maintained_apps.SourceIngester
+	logger          kitlog.Logger
 }
 
 func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
@@ -237,6 +276,7 @@ func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
 	}
 
 	return &darwinIngester{
+		logger: logger,
 		sourceIngesters: map[string]maintained_apps.SourceIngester{
 			maintained_apps.SourceHomebrew: &brewIngester{
 				baseURL: baseURL,

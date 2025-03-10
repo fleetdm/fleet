@@ -41,7 +41,7 @@ type FMAManifestApp struct {
 	UniqueIdentifier   string            `json:"unique_identifier"`
 	InstallScriptRef   string            `json:"install_script_ref"`
 	UninstallScriptRef string            `json:"uninstall_script_ref"`
-	Sha256             string            `json:"sha256"`
+	SHA256             string            `json:"sha256"`
 	// Description is an optional description of the app and what it does.
 	Description string `json:"-"`
 }

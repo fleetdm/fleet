@@ -1,21 +1,19 @@
 name: Ingest maintained apps
 
+# TODO(JVE): add schedule/other triggers
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      clean:
-        description: 'Ingest maintained apps'
-        required: true
-        default: 'false'
+
 jobs:
   build:  
     runs-on: ubuntu-latest
     timeout-minutes: 180
 
     steps:
+      # TODO(JVE): uncomment this
       # - name: Harden Runner
       #   uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
       #   with:
@@ -41,6 +39,7 @@ jobs:
           go mod download
           go run cmd/maintained-apps/main.go
 
+      # TODO(JVE): need to finalize the contents/title of this PR
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7
         with:
