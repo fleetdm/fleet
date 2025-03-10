@@ -123,7 +123,7 @@ Another reason you might want to use multiple enroll secrets is to use a certain
 
 ### Rotating enroll secrets
 
-1. In Fleet, head to **Hosts > Manage enroll** secret and add a new secret.
+1. In Fleet, head to **Hosts > Manage enroll secret** and add a new secret.
 2. Create a fleetd agent with the new enroll secret and install it on hosts.
 3. Delete the old enroll secret.
 
