@@ -289,7 +289,11 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 
-	scheduledQueryData *sync.Map
+	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
+	// because we read and write the field itself (not data in the map) from
+	// different goroutines (the write is in a.config).
+	scheduledQueryMapMutex sync.RWMutex
+	scheduledQueryData     *sync.Map
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -572,7 +576,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		// would be that the query lastRun does not get
 		// updated and cause the query to run more times than
 		// expected.
+		a.scheduledQueryMapMutex.RLock()
 		queryData := a.scheduledQueryData
+		a.scheduledQueryMapMutex.RUnlock()
 		queryData.Range(func(key, value any) bool {
 			queryName := key.(string)
 			query := value.(scheduledQuery)
@@ -1327,7 +1333,10 @@ func (a *agent) config() error {
 
 	existingLastRunData := make(map[string]int64)
 
-	a.scheduledQueryData.Range(func(key, value any) bool {
+	a.scheduledQueryMapMutex.RLock()
+	queryData := a.scheduledQueryData
+	a.scheduledQueryMapMutex.RUnlock()
+	queryData.Range(func(key, value any) bool {
 		existingLastRunData[key.(string)] = value.(scheduledQuery).lastRun
 
 		return true
@@ -1369,7 +1378,9 @@ func (a *agent) config() error {
 		}
 	}
 
+	a.scheduledQueryMapMutex.Lock()
 	a.scheduledQueryData = newScheduledQueryData
+	a.scheduledQueryMapMutex.Unlock()
 
 	return nil
 }
@@ -1701,7 +1712,11 @@ func (a *agent) runPolicy(query string) []map[string]string {
 
 func (a *agent) randomQueryStats() []map[string]string {
 	var stats []map[string]string
-	a.scheduledQueryData.Range(func(key, value any) bool {
+	a.scheduledQueryMapMutex.RLock()
+	queryData := a.scheduledQueryData
+	a.scheduledQueryMapMutex.RUnlock()
+
+	queryData.Range(func(key, value any) bool {
 		queryName := key.(string)
 
 		stats = append(stats, map[string]string{
