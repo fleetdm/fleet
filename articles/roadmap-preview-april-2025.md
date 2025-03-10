@@ -22,7 +22,7 @@ In the next 3 months, Fleet will ship...
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - 📅 Patch apps when end users are free
 - 🤖 AI-generated osquery queries
-- 👻 Puppet for device management
+- 👻 Fleet for configuration management (ala Puppet)
 
 Any feedback or a questions?  Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
