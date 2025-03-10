@@ -41,6 +41,7 @@ jobs:
 
       - name: Commit generated manifest data
         run: |
+          cd fleet
           git commit -am "Generated manifest data"
           git push
 
