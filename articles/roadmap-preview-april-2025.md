@@ -18,6 +18,7 @@ In the next 3 months, Fleet will ship...
 - 🔍 See upcoming and past MDM command history
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
+- 📅 Patch apps when end users are free
 - 🤖 AI-generated osquery queries
 - 👻 Puppet for device management
 
