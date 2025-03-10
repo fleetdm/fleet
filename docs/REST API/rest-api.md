@@ -826,6 +826,10 @@ None.
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
   },
+  "conditional_access": {
+    "microsoft_entra_tenant_id": "<TENANT ID>",
+    "microsoft_entra_connection_configured": true
+  },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
     "host_expiry_window": 0
@@ -922,6 +926,7 @@ None.
     "tier": "premium",
     "organization": "fleet",
     "device_count": 500000,
+    "managed_cloud": false,
     "expiration": "2031-10-16T00:00:00Z",
     "note": ""
   },
@@ -1121,6 +1126,10 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_sso": false,
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
+  },
+  "conditional_access": {
+    "microsoft_entra_tenant_id": "<TENANT ID>",
+    "microsoft_entra_connection_configured": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -10728,6 +10737,7 @@ _Available in Fleet Premium_
 | jira            | array  | See [`integrations.jira`](#integrations-jira2).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
+| conditional_access_enabled | boolean | **Available in Fleet Premium for managed cloud customers.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
 
 <br/>
 
@@ -10769,6 +10779,7 @@ _Available in Fleet Premium_
 ```json
 {
   "integrations": {
+    "conditional_access_enabled": true,
     "jira": [
       {
         "enable_software_vulnerabilities": false,
@@ -10950,8 +10961,6 @@ _Available in Fleet Premium_
   }
 }
 ```
-
-
 
 ### Add users to a team
 

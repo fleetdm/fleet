@@ -530,6 +530,8 @@ In addition, you can configure your the SCEP server to help your end users conne
 
 #### Example
 
+`default.yml`
+
 ```yaml
 org_settings:
   integrations:
@@ -552,6 +554,17 @@ org_settings:
       username: Administrator@example.com
       password: 'myPassword'
 ```
+
+`/teams/team-name.yml`
+
+At the team level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium for managed cloud customers. Must have Microsoft Entra connected.)
+
+```yaml
+integrations:
+  conditional_access_enabled: true
+```
+
+
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
 
