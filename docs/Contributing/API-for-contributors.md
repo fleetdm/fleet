@@ -4274,21 +4274,19 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 `POST /api/v1/conditional-access/confirm`
 
-Receive confirmation that Microsoft Entra has been connected and conditional access configured via the fleetdm.com proxy that interfaces with the Microsoft compliance partner API.
+Confirm whether admin consent has been granted in Microsoft Entra.
 
 #### Parameters
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| fleet_server_secret      | string | body | **Required.** Authorization from the fleetdm.com proxy that interfaces with the Microsoft compliance partner API. | 
-| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID |
+| microsoft_tenant_id | string | body | **Required.** The Microsoft Entra tenant ID. |
 
 
 ##### Request body
 
 ```json
 {
-  "fleet_server_secret": "<SECRET>",
   "microsoft_tenant_id": "<TENANT ID>"
 }
 ```
