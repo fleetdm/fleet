@@ -15,7 +15,7 @@ In the next 3 months, Fleet will ship...
 - ⬇️ Downloadable agents (fleetd)
 - ⛔️ Block unrecognized software
 - 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
-- 🍏 Account-based user enrollment for personal devices (BYOD)
+- 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - 🔍 See upcoming and past MDM command history
 
