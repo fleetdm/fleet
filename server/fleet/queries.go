@@ -106,7 +106,7 @@ type Query struct {
 	DiscardData bool `json:"discard_data" db:"discard_data"`
 	// LabelsIncludeAny is a list of labels that will be used to
 	// target a query
-	LabelsIncludeAny []LabelIdent `json:"labels_inclued_any"`
+	LabelsIncludeAny []LabelIdent `json:"labels_include_any"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
