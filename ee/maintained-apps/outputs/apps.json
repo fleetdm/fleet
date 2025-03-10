@@ -107,6 +107,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Slack",
+      "slug": "slack/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinyspeck.slackmacgap",
+      "description": "Team communication and collaboration software"
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
