@@ -562,7 +562,7 @@ publish() {
 
             if [ "$(node -e "console.log(require('compare-versions').compareVersions('${latest_local}', '${latest_npm}'))")" = "-1" ]; then
                 # We're publishing a patch to an older version
-                cd tools/fleetctl-npm && npm publish "--tag=v${target_version}"
+                cd tools/fleetctl-npm && npm publish "--tag=last-patched-version"
             else
                 # We're publishing the latest version
                 cd tools/fleetctl-npm && npm publish
