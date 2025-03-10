@@ -2,6 +2,6 @@
   "name": "Slack",
   "unique_identifier": "com.tinyspeck.slackmacgap",
   "source_identifier": "slack",
-  "installer_format": "dmg:app",
+  "installer_format": "dmg",
   "source": "homebrew"
 }

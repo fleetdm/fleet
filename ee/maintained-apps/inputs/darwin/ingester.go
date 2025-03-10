@@ -161,7 +161,7 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 	return out, scriptRefs, nil
 }
 
-func shouldUpdateApp(ctx context.Context, sourceID, caskSHA256, slug string) (bool, error) {
+func shouldUpdateApp(ctx context.Context, sourceID string, outApp *maintained_apps.FMAManifestApp) (bool, error) {
 	existingFileBytes, err := os.ReadFile(path.Join(outputPath, string(fleet.MacOSPlatform), fmt.Sprintf("%s.json", sourceID)))
 	if err != nil {
 		if err == os.ErrNotExist {
@@ -173,14 +173,14 @@ func shouldUpdateApp(ctx context.Context, sourceID, caskSHA256, slug string) (bo
 
 	var existingManifest maintained_apps.FMAManifestFile
 	if err := json.Unmarshal(existingFileBytes, &existingManifest); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "unmarshaling existing app manifest", "slug", slug)
+		return false, ctxerr.Wrap(ctx, err, "unmarshaling existing app manifest", "slug", outApp.Slug)
 	}
 
 	if len(existingManifest.Versions) < 1 {
-		return false, ctxerr.Wrap(ctx, err, "invalid existing app manifest", "slug", slug)
+		return false, ctxerr.Wrap(ctx, err, "invalid existing app manifest", "slug", outApp.Slug)
 	}
 
-	if existingManifest.Versions[0].SHA256 == caskSHA256 {
+	if existingManifest.Versions[0].SHA256 == outApp.SHA256 {
 		return false, nil
 	}
 
@@ -231,7 +231,7 @@ func (i *darwinIngester) IngestApps(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "ingesting app")
 		}
 
-		shouldUpdate, err := shouldUpdateApp(ctx, input.SourceIdentifier, outApp.SHA256, outApp.Slug)
+		shouldUpdate, err := shouldUpdateApp(ctx, input.SourceIdentifier, outApp)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "checking if app should be updated")
 		}

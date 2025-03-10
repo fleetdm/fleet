@@ -2,6 +2,6 @@
   "name": "Adobe Acrobat Reader",
   "unique_identifier": "com.adobe.Reader",
   "source_identifier": "adobe-acrobat-reader",
-  "installer_format": "dmg:pkg",
+  "installer_format": "dmg",
   "source": "homebrew"
 }
