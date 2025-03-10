@@ -149,27 +149,19 @@ func gitopsCommand() *cli.Command {
 					continue
 				}
 
-				// List of labels currently persisted for the customer.
-				persistedLabels, err := fleetClient.GetLabels()
-
-				// Names of the labels we'd have after this gitops run.
-				var proposedLabelNames []string
-
 				// If we're in a team config, or a global config without `labels:` declared,
 				// get the set of existing label names from the db.
 				if !isGlobalConfig || (config.Labels != nil && len(config.Labels) == 0) {
+					config.Labels, err = fleetClient.GetLabels()
 					if err != nil {
 						return err
 					}
-					proposedLabelNames = make([]string, len(persistedLabels))
-					for i, l := range persistedLabels {
-						proposedLabelNames[i] = l.Name
-					}
-				} else {
-					proposedLabelNames = make([]string, len(config.Labels))
-					for i, l := range config.Labels {
-						proposedLabelNames[i] = l.Name
-					}
+				}
+
+				// Names of the labels we'd have after this gitops run.
+				proposedLabelNames := make([]string, len(config.Labels))
+				for i, l := range config.Labels {
+					proposedLabelNames[i] = l.Name
 				}
 
 				// Gather stats on where labels are used in the this gitops config,
@@ -347,8 +339,8 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 }
 
 func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
-	if settingsMap, ok := osSettings.(fleet.MacOSSettings); ok {
-		return settingsMap.CustomSettings, true
+	if settingsMap, ok := osSettings.(fleet.WithMDMProfileSpecs); ok {
+		return settingsMap.GetMDMProfileSpecs(), true
 	}
 	return nil, false
 }
