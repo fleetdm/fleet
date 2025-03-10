@@ -35,17 +35,11 @@ type darwinIngester struct {
 }
 
 func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
-	baseURL := baseBrewAPIURL
-	// Use FLEET_DEV_BREW_API_URL for automated or manual testing purposes
-	if v := os.Getenv("FLEET_DEV_BREW_API_URL"); v != "" {
-		baseURL = v
-	}
-
 	return &darwinIngester{
 		logger: logger,
 		sourceIngesters: map[string]maintained_apps.SourceIngester{
 			maintained_apps.SourceHomebrew: &brewIngester{
-				baseURL: baseURL,
+				baseURL: baseBrewAPIURL,
 				logger:  logger,
 				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 			},
@@ -53,18 +47,84 @@ func NewDarwinIngester(logger kitlog.Logger) maintained_apps.Ingester {
 	}
 }
 
-type brewCask struct {
-	Token                string          `json:"token"`
-	FullToken            string          `json:"full_token"`
-	Tap                  string          `json:"tap"`
-	Name                 []string        `json:"name"`
-	Desc                 string          `json:"desc"`
-	URL                  string          `json:"url"`
-	Version              string          `json:"version"`
-	SHA256               string          `json:"sha256"`
-	Artifacts            []*brewArtifact `json:"artifacts"`
-	PreUninstallScripts  []string        `json:"-"`
-	PostUninstallScripts []string        `json:"-"`
+func (i *darwinIngester) IngestApps(ctx context.Context) error {
+	// Read from our list of apps we should be ingesting
+	files, err := appsJSON.ReadDir(".")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading embedded data directory")
+	}
+
+	for _, f := range files {
+		fileBytes, err := appsJSON.ReadFile(f.Name())
+		if err != nil {
+			return ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"fileName": f.Name()})
+		}
+
+		var input maintained_apps.InputApp
+		if err := json.Unmarshal(fileBytes, &input); err != nil {
+			return ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"fileName": f.Name()})
+		}
+
+		if input.SourceIdentifier == "" {
+			return ctxerr.NewWithData(ctx, "missing source identifier for app", map[string]any{"fileName": f.Name()})
+		}
+
+		if input.UniqueIdentifier == "" {
+			return ctxerr.NewWithData(ctx, "missing unique identifier for app", map[string]any{"fileName": f.Name()})
+		}
+
+		if input.Name == "" {
+			return ctxerr.NewWithData(ctx, "missing name for app", map[string]any{"fileName": f.Name()})
+		}
+
+		if input.Source == "" {
+			return ctxerr.NewWithData(ctx, "missing source for app", map[string]any{"fileName": f.Name()})
+		}
+
+		ingester, ok := i.sourceIngesters[input.Source]
+		if !ok {
+			return ctxerr.NewWithData(ctx, "invalid source for app", map[string]any{"fileName": f.Name()})
+		}
+
+		level.Info(i.logger).Log("msg", "ingesting app", "name", input.Name)
+
+		outApp, scripts, err := ingester.IngestOne(ctx, input)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "ingesting app")
+		}
+
+		shouldUpdate, err := shouldUpdateApp(ctx, input.SourceIdentifier, outApp)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if app should be updated")
+		}
+		if !shouldUpdate {
+			level.Info(i.logger).Log("msg", "no change to app since last ingest, skipping", "slug", outApp.Slug)
+			continue
+		}
+
+		outFile := maintained_apps.FMAManifestFile{
+			Versions: []*maintained_apps.FMAManifestApp{outApp},
+			Refs:     scripts,
+		}
+
+		outBytes, err := json.MarshalIndent(outFile, "", "  ")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
+		}
+
+		// Overwrite the file, since right now we're only caring about 1 version (latest). If we
+		// care about previous data, it will be in our Git history.
+		if err := os.WriteFile(path.Join(outputPath, string(fleet.MacOSPlatform), fmt.Sprintf("%s.json", input.SourceIdentifier)), outBytes, 0o644); err != nil {
+			return ctxerr.Wrap(ctx, err, "writing output json file")
+		}
+
+		if err := updateAppsListFile(ctx, input, outApp); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating apps list file")
+		}
+
+	}
+
+	return nil
 }
 
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
@@ -76,8 +136,6 @@ type brewIngester struct {
 }
 
 func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputApp) (*maintained_apps.FMAManifestApp, map[string]string, error) {
-	level.Info(i.logger).Log("msg", "ingesting app", "name", app.Name)
-
 	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, app.SourceIdentifier)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
@@ -187,84 +245,6 @@ func shouldUpdateApp(ctx context.Context, sourceID string, outApp *maintained_ap
 	return true, nil
 }
 
-func (i *darwinIngester) IngestApps(ctx context.Context) error {
-	// Read from our list of apps we should be ingesting
-	files, err := appsJSON.ReadDir(".")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading embedded data directory")
-	}
-
-	for _, f := range files {
-		fileBytes, err := appsJSON.ReadFile(f.Name())
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "reading app input file")
-		}
-
-		var input maintained_apps.InputApp
-		if err := json.Unmarshal(fileBytes, &input); err != nil {
-			return ctxerr.Wrap(ctx, err, "unmarshal app input file")
-		}
-
-		if input.SourceIdentifier == "" {
-			return ctxerr.New(ctx, "missing source identifier for app")
-		}
-
-		if input.UniqueIdentifier == "" {
-			return ctxerr.New(ctx, "missing unique identifier for app")
-		}
-
-		if input.Name == "" {
-			return ctxerr.Wrap(ctx, err, "missing name for app")
-		}
-
-		if input.Source == "" {
-			return ctxerr.New(ctx, "missing source for app")
-		}
-
-		ingester, ok := i.sourceIngesters[input.Source]
-		if !ok {
-			return ctxerr.New(ctx, "invalid source for app")
-		}
-
-		outApp, scripts, err := ingester.IngestOne(ctx, input)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "ingesting app")
-		}
-
-		shouldUpdate, err := shouldUpdateApp(ctx, input.SourceIdentifier, outApp)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if app should be updated")
-		}
-		if !shouldUpdate {
-			level.Info(i.logger).Log("msg", "no change to app since last ingest, skipping", "slug", outApp.Slug)
-			continue
-		}
-
-		outFile := maintained_apps.FMAManifestFile{
-			Versions: []*maintained_apps.FMAManifestApp{outApp},
-			Refs:     scripts,
-		}
-
-		outBytes, err := json.MarshalIndent(outFile, "", "  ")
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
-		}
-
-		// Overwrite the file, since right now we're only caring about 1 version (latest). If we
-		// care about previous data, it will be in our Git history.
-		if err := os.WriteFile(path.Join(outputPath, string(fleet.MacOSPlatform), fmt.Sprintf("%s.json", input.SourceIdentifier)), outBytes, 0o644); err != nil {
-			return ctxerr.Wrap(ctx, err, "writing output json file")
-		}
-
-		if err := updateAppsListFile(ctx, input, outApp); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating apps list file")
-		}
-
-	}
-
-	return nil
-}
-
 func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, outApp *maintained_apps.FMAManifestApp) error {
 	appListFilePath := path.Join(outputPath, "apps.json")
 	file, err := os.ReadFile(appListFilePath)
@@ -308,6 +288,20 @@ func updateAppsListFile(ctx context.Context, input maintained_apps.InputApp, out
 	}
 
 	return nil
+}
+
+type brewCask struct {
+	Token                string          `json:"token"`
+	FullToken            string          `json:"full_token"`
+	Tap                  string          `json:"tap"`
+	Name                 []string        `json:"name"`
+	Desc                 string          `json:"desc"`
+	URL                  string          `json:"url"`
+	Version              string          `json:"version"`
+	SHA256               string          `json:"sha256"`
+	Artifacts            []*brewArtifact `json:"artifacts"`
+	PreUninstallScripts  []string        `json:"-"`
+	PostUninstallScripts []string        `json:"-"`
 }
 
 // brew artifacts are objects that have one and only one of their fields set.
