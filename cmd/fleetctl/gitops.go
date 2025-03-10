@@ -322,20 +322,22 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 	// Get query label usage
 
 	// Get profile label usage
-	if macOsCustomSettings, ok := getCustomSettings(config.Controls.MacOSSettings); ok {
-		for _, setting := range macOsCustomSettings {
-			labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsIncludeAll, setting.LabelsExcludeAny)
-			for _, label := range labels {
-				var usage []LabelUsage
-				if usage, ok = result[label]; !ok {
-					result[label] = make([]LabelUsage, 0)
-					usage = result[label]
+	for _, osSettingName := range []interface{}{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
+		if osSettings, ok := getCustomSettings(osSettingName); ok {
+			for _, setting := range osSettings {
+				labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsIncludeAll, setting.LabelsExcludeAny)
+				for _, label := range labels {
+					var usage []LabelUsage
+					if usage, ok = result[label]; !ok {
+						result[label] = make([]LabelUsage, 0)
+						usage = result[label]
+					}
+					usage = append(usage, LabelUsage{
+						Name: setting.Path,
+						Type: "MacOS Profile",
+					})
+					result[label] = usage
 				}
-				usage = append(usage, LabelUsage{
-					Name: setting.Path,
-					Type: "MacOS Profile",
-				})
-				result[label] = usage
 			}
 		}
 	}
