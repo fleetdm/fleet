@@ -130,7 +130,7 @@ func TestAppConfigAuth(t *testing.T) {
 			"team gitops",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
-			true,
+			false,
 		},
 		{
 			"user without roles",
@@ -607,7 +607,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		{
 			"team gitops",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			true,
+			false,
 		},
 		{
 			"user without roles",
