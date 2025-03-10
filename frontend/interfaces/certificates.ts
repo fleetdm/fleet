@@ -1,3 +1,5 @@
+import { IListSort } from "./list_options";
+
 export interface IHostCertificate {
   id: number;
   not_valid_after: string;
@@ -22,3 +24,8 @@ export interface IHostCertificate {
     common_name: string;
   };
 }
+
+export const CERTIFICATES_DEFAULT_SORT: IListSort = {
+  order_key: "common_name",
+  order_direction: "asc",
+} as const;
