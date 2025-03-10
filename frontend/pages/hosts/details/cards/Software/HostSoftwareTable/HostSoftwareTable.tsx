@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { getNextLocationPath } from "utilities/helpers";
-import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
+import { QueryParams } from "utilities/url";
 
 import {
   buildSoftwareVulnFiltersQueryParams,
@@ -304,7 +304,7 @@ const HostSoftwareTable = ({
         defaultPageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name or vulnerability (CVE)"
+        inputPlaceHolder="Search by name" // TODO: "Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
         customControl={

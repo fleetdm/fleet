@@ -4,9 +4,15 @@
     margin: 0 0 $pad-large 0;
   }
 
+  .table-container {
+    .stackable-header {
+      min-width: initial; // Fix card overflow on low widths
+    }
+  }
+
   .table-container__search-input {
     width: 100%;
-    min-width: 180px; // Custom to fit placeholder text
+    min-width: 305px; // Custom to fit placeholder text
   }
 
   .table-container__search {
@@ -15,7 +21,8 @@
 
   .host-software-table {
     &__software-filter {
-      width: 400px;
+      min-width: 215px;
+      width: 215px; // Override .form-field 100%
     }
 
     &__filters {

@@ -2908,8 +2908,6 @@ last_vpp_install AS (
 	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
 	stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
-	fmt.Printf("\n\n\nstmtInstalled: %v\n", stmtInstalled)
-	fmt.Printf("\n\n\ncountStmt: %v\n", countStmt)
 	// perform a second query to grab the titleCount
 	var titleCount uint
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleCount, countStmt, args...); err != nil {
