@@ -447,6 +447,16 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		}
 		query.DiscardData = *p.DiscardData
 	}
+	if p.LabelsIncludeAny != nil {
+		// Users submitting an empty array of labels will still
+		// initiate LabelsIncludeAny. It will only be nil if it was
+		// not included in the request (not modified)
+		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
+		}
+		query.LabelsIncludeAny = labelIdents
+	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
