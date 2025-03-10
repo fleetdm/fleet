@@ -291,7 +291,7 @@ func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) 
 
 		labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query label udpate statement")
+			return ctxerr.Wrap(ctx, err, "creating query label update statement")
 		}
 
 		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
