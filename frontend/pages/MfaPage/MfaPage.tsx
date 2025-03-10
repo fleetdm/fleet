@@ -99,7 +99,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
       <AuthenticationFormWrapper>
         <div className={baseClass}>
           <Button variant="brand" onClick={onClickFinishLoginButton}>
-            Finish logging in
+            Log in
           </Button>
         </div>
       </AuthenticationFormWrapper>
