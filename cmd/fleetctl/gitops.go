@@ -125,7 +125,7 @@ func gitopsCommand() *cli.Command {
 				isGlobalConfig := config.TeamName == nil
 				if isGlobalConfig {
 					if globalConfigLoaded {
-						return errors.New("Only one global config file may be provided to fleetctl gitops")
+						return errors.New("only one global config file may be provided to fleetctl gitops")
 					}
 					globalConfigLoaded = true
 				}

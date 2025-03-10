@@ -1370,7 +1370,7 @@ software:
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
 	fmt.Printf("err.Error(): %v\n", err.Error())
-	assert.Contains(t, err.Error(), "Only one global config file may be provided")
+	assert.Contains(t, err.Error(), "only one global config file may be provided")
 
 	// Duplicate secret
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
