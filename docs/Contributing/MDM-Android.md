@@ -94,6 +94,31 @@ sequenceDiagram
     Fleet server-->>-Admin: Hosts (including Android)
 ```
 
+```mermaid
+---
+title: Partial class diagram
+---
+classDiagram
+    direction LR
+    class `android.Service`
+    <<interface>> `android.Service`
+    class `android/service.Service`
+    `android/service.Service` ..|> `android.Service`: implements
+
+    class `fleet.AndroidDatastore`
+    <<interface>> `fleet.AndroidDatastore`
+    class `fleet.Datastore`
+    <<interface>> `fleet.Datastore`
+    class `android.Datastore`
+    <<interface>> `android.Datastore`
+    `android/service.Service` *-- `fleet.AndroidDatastore`: uses
+    `fleet.Datastore` *-- `fleet.AndroidDatastore`: contains
+    `mysql.Datastore` ..|> `fleet.Datastore`: implements
+    `fleet.AndroidDatastore` *-- `android.Datastore`: contains
+    `mysql.Datastore` *-- `android.Datastore`: contains
+    `android/mysql.Datastore` ..|> `android.Datastore`: implements
+```
+
 ## Security and authentication
 
 Android enterprise signup callback is authenticated by a token in the callback URL. The token is created by Fleet server.
