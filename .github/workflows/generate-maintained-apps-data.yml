@@ -1,5 +1,8 @@
 name: Ingest maintained apps
 
+permissions:
+  contents: write
+
 # TODO(JVE): add schedule/other triggers
 on:
   pull_request:
