@@ -585,11 +585,12 @@ const DataTable = ({
                     // if the first cell is not a checkbox
                     const isFirstCell = index === 0;
                     const cellProps = cell.getCellProps();
+                    const multiRowSelectEnabled = !disableMultiRowSelect;
 
                     const multiRowSelectCell =
-                      isFirstCell && !disableMultiRowSelect;
+                      isFirstCell && multiRowSelectEnabled;
 
-                    if (!multiRowSelectCell) {
+                    if (multiRowSelectCell) {
                       cellProps.onClick = () => {
                         onClickRow && onClickRow(row);
                       };
