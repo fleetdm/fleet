@@ -1369,7 +1369,8 @@ software:
 	// Global file specified multiple times
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+	fmt.Printf("err.Error(): %v\n", err.Error())
+	assert.Contains(t, err.Error(), "Only one global config file may be provided")
 
 	// Duplicate secret
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
