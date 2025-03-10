@@ -15,11 +15,11 @@ export const generateListData = (
   digicertCerts?: ICertificatesIntegrationDigicert[],
   customProxies?: ICertificatesIntegrationCustomSCEP[]
 ) => {
-  const certs: ICertAuthority[] = [];
+  const listData: ICertAuthority[] = [];
 
   // these values for the certificateAuthority is meant to be a hard coded .
   if (ndesProxy) {
-    certs.push({
+    listData.push({
       id: "ndes", // only ever one  NDES so no need to make the id dynamic
       name: "NDES",
       description: "Microsoft Network Device Enrollment Service (NDES)",
@@ -28,7 +28,7 @@ export const generateListData = (
 
   if (digicertCerts?.length) {
     digicertCerts.forEach((cert) => {
-      certs.push({
+      listData.push({
         id: `digicert-${cert.id}`,
         name: cert.name,
         description: "DigiCert",
@@ -38,7 +38,7 @@ export const generateListData = (
 
   if (customProxies?.length) {
     customProxies.forEach((cert) => {
-      certs.push({
+      listData.push({
         id: `custom-scep-proxy-${cert.id}`,
         name: cert.name,
         description: "Custom Simple Certificate Enrollment Protocol (SCEP)",
@@ -46,11 +46,15 @@ export const generateListData = (
     });
   }
 
-  return certs.sort((a, b) =>
+  return listData.sort((a, b) =>
     a.name.toLowerCase().localeCompare(b.name.toLocaleLowerCase())
   );
 };
 
+/**
+ * Gets the original certificate aithority integration object from the id
+ * of the data representing a certificate authority list item.
+ */
 export const getCertificateAuthority = (
   id: string,
   ncspProxy?: ICertificatesIntegrationNDES | null,
