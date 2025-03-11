@@ -65,22 +65,22 @@ policies:
   critical: false
   calendar_events_enabled: false
   run_script:
-    path: "./disable-guest-account.sh"
+    path: ./disable-guest-account.sh
 - name: Install Firefox on macOS
   platform: darwin
-  description: "This policy checks that Firefox is installed."
-  resolution: "Install Firefox app if not installed."
+  description: This policy checks that Firefox is installed.
+  resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "./firefox.package.yml"
+    package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
   platform: darwin
-  description: "This policy checks that Logic Pro is installed"
-  resolution: "Install Logic Pro App Store app if not installed"
+  description: This policy checks that Logic Pro is installed
+  resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
   install_software:
     package_path: ./linux-firefox.deb.package.yml
-    # app_store_id: "1487937127" (for App Store apps)
+    # app_store_id: '1487937127' (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -226,13 +226,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 15.1
   ios_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 18.1
   ipados_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
@@ -285,7 +285,7 @@ controls:
 
 ### macos_settings and windows_settings
 
-- `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
@@ -416,7 +416,7 @@ Can only be configured for all teams (`org_settings`).
 ```yaml
 org_settings:
   fleet_desktop:
-    transparency_url: "https://example.org/transparency"
+    transparency_url: https://example.org/transparency
 ```
 
 ### host_expiry_settings
@@ -678,9 +678,9 @@ org_settings:
   mdm:
     apple_business_manager: # Available in Fleet Premium
     - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned iPhones"
-      ipados_team: "🔳🏢 Company-owned iPads"
+      macos_team: 💻 Workstations
+      ios_team: 📱🏢 Company-owned iPhones
+      ipados_team: 🔳🏢 Company-owned iPads
 ```
 
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
@@ -700,10 +700,10 @@ org_settings:
     volume_purchasing_program: # Available in Fleet Premium
     - location: Fleet Device Management Inc.
       teams: 
-      - "💻 Workstations" 
-      - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned iPhones"
-      - "🔳🏢 Company-owned iPads"
+      - 💻 Workstations
+      - 💻🐣 Workstations (canary)
+      - 📱🏢 Company-owned iPhones
+      - 🔳🏢 Company-owned iPads
 ```
 
 Can only be configured for all teams (`org_settings`).
