@@ -170,8 +170,8 @@ func gitopsCommand() *cli.Command {
 				// in the first place).
 				labelsUsed := getLabelUsage(config)
 
-				// Compare the labels used, to the labels proposed, and if there
-				// are any missing then bail with errors.
+				// Check if any used labels are not in the proposed labels list.
+				// If there are, we'll bail out with helpful error messages.
 				unknownLabelsUsed := false
 				for labelUsed := range labelsUsed {
 					if slices.Index(proposedLabelNames, labelUsed) == -1 {
