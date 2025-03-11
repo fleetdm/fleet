@@ -1675,7 +1675,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url   | string | URL to DigiCert instance. It's used as base URL for DigiCert API requests. |
+| url   | string | DigiCert instance URL, used as base URL for DigiCert API requests. |
 | api_token        | string | API token used to authenticate requests to DigiCert. |
 | profile_id       | string  | The ID of certificate profile in DigiCert. |
 | certificate_common_name      | string  | The certificate's common name. |
