@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,7 +81,7 @@ func TestSync(t *testing.T) {
 			LocalList: []io.MetadataFileName{newMetadataFile(t, "Windows_10-2022_09_10.json")},
 		}
 
-		err := sync(ctx, os, fsMock{TestData: &testData}, ghMock{TestData: &testData})
+		err := sync(ctx, os, fsMock{TestData: &testData}, ghMock{TestData: &testData}, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		require.ElementsMatch(t, testData.RemoteDownloaded, []string{"http://somebulletin.com"})
 
