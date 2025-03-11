@@ -8827,10 +8827,12 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
+- [Patch software](#patch-software)
+- [Install software](#install-software)
+- [Modify self-service](#modify-self-service)
 - [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
@@ -9402,12 +9404,6 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
-| self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Automatically create policy that triggers install if software isn't installed on the host. |
-
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9469,11 +9465,6 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
-| self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
@@ -9606,11 +9597,6 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9630,81 +9616,6 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ##### Default response
 
 `Status: 200`
-
-
-### Modify App Store app
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-_Available in Fleet Premium._
-
-Modify App Store (VPP) app's options.
-
-`PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
-
-#### Example
-
-`PATCH /api/v1/fleet/software/titles/3467/app_store_app`
-
-##### Request body
-
-```json
-{
-  "team_id": 2,
-  "self_service": true,
-  "labels_include_any": [
-    "Product",
-    "Marketing"
-  ]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "app_store_app": {
-    "name": "Logic Pro",
-    "app_store_id": 1091189122,
-    "latest_version": "2.04",
-    "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-    "self_service": true,
-    "labels_include_any": [
-      {
-        "name": "Product",
-        "id": 12
-      },
-      {
-        "name": "Marketing",
-        "id": 17
-      }
-    ],
-    "automatic_install_policies": [
-      {
-        "id": 345,
-        "name": "[Install software] Logic Pro",
-      } 
-    ],
-    "status": {
-      "installed": 3,
-      "pending": 1,
-      "failed": 2,
-    }
-  }
-}
-```
 
 
 ### List Fleet-maintained apps
@@ -9815,11 +9726,6 @@ Add Fleet-maintained app so it's available for install.
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 #### Example
 
@@ -9842,6 +9748,129 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 {
   "software_title_id": 234
 }
+```
+
+### Patch software
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:id/patch`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| software_title_id              | integer | path | **Required**. The ID of the software title. |
+| team_id | integer | query | **Required**. The team ID. |
+| enable_patch   | boolean | body | Whether or not patching is enabled or not for the specific software title. |
+| minimum_version   | string | body | Required if `enable_patch` is set to `true`. Software is installed on hosts below the minimum version. |
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/patch?team_id=2`
+
+##### Request body
+
+```json
+{
+  "enable_patch": true,
+  "minimum_version": "6.3.11.50104"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Install software
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:id/install`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| software_title_id              | integer | path | **Required**. The ID of the software title. |
+| team_id | integer | query | **Required**. The team ID. |
+| enable_install   | boolean | body | Whether or not install is enabled or not for the specific software title. |
+| labels_include_any        | array     | body | Target hosts that have any label in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label in the array. |
+
+If neither `labels_include_any` nor `labels_exclude_any` are specified, the software is installed on all hosts. Targets are used for both [install software](#install-software) and [self-service](#modify-self-service).
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/install?team_id=2`
+
+##### Request body
+
+```json
+{
+  "enable_install": true,
+  "labels_include_any": [
+    "Product",
+    "Marketing"
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Modify self-service
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+_Available in Fleet Premium._
+
+`POST /api/v1/fleet/software/titles/:id/self_service`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| software_title_id              | integer | path | **Required**. The ID of the software title. |
+| team_id | integer | query | **Required**. The team ID. |
+| enable_self_service   | boolean | body | Whether or not the software is available for end users in **Fleet Desktop > Self-service**. |
+| labels_include_any        | array     | body | Target hosts that have any label in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label in the array. |
+
+If neither `labels_include_any` nor `labels_exclude_any` are specified, the software is installed on all hosts. Targets are used for both [install software](#install-software) and [self-service](#modify-self-service).
+
+#### Example
+
+`POST /api/v1/fleet/software/titles/123/self_service?team_id=2`
+
+##### Request body
+
+```json
+{
+  "enable_self_service": true,
+  "labels_include_any": [
+    "Product",
+    "Marketing"
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
 ```
 
 ### Download package
