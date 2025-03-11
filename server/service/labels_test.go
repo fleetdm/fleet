@@ -162,6 +162,7 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 	labelVerify, _, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, label.ID, labelVerify.ID)
+	assert.Nil(t, label.AuthorID)
 }
 
 func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
@@ -263,7 +264,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 123, GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	// create a couple hosts
 	h1, err := ds.NewHost(ctx, &fleet.Host{
@@ -291,6 +292,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
 	require.Equal(t, 2, lbl.HostCount)
+	require.Equal(t, uint(123), *lbl.AuthorID)
 
 	// make the newly-created label available to the reader
 	opts.RunReplication("labels", "label_membership")
@@ -299,12 +301,14 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lbl.HostCount)
+	require.Equal(t, uint(123), *lbl.AuthorID)
 
 	// reading this label without replication returns the old data as it only uses the reader
 	lbl, hostIDs, err = svc.GetLabel(ctx, lbl.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
 	require.Equal(t, 2, lbl.HostCount)
+	require.Equal(t, uint(123), *lbl.AuthorID)
 
 	// running the replication makes the updated data available
 	opts.RunReplication("labels", "label_membership")
@@ -313,6 +317,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lbl.HostCount)
+	require.Equal(t, uint(123), *lbl.AuthorID)
 }
 
 func TestBatchValidateLabels(t *testing.T) {

@@ -854,6 +854,18 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	}
 	label, err = db.NewLabel(context.Background(), label)
 	require.NoError(t, err)
+	require.Nil(t, label.AuthorID)
+
+	label2 := &fleet.Label{
+		Name:        "another label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+		AuthorID:    ptr.Uint(123),
+	}
+	label2, err = db.NewLabel(context.Background(), label2)
+	require.NoError(t, err)
+	require.Equal(t, uint(123), *label2.AuthorID)
 
 	// Create an Apple config profile
 	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0))
