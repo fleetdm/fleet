@@ -1539,9 +1539,11 @@ func (c *Client) DoGitOps(
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
 
 		// Labels
-		err = c.doGitOpsLabels(config, logFn, dryRun)
-		if err != nil {
-			return nil, err
+		if config.Labels == nil || len(config.Labels) > 0 {
+			err = c.doGitOpsLabels(config, logFn, dryRun)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Integrations
