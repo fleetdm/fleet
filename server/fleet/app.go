@@ -42,6 +42,9 @@ type SSOProviderSettings struct {
 	// EntityID is a uri that identifies this service provider
 	EntityID string `json:"entity_id"`
 	// IssuerURI is the uri that identifies the identity provider
+	//
+	// Deprecated: Not used, only left here to not break the API
+	// ("unsupported key provided" error)
 	IssuerURI string `json:"issuer_uri"`
 	// Metadata contains IDP metadata XML
 	Metadata string `json:"metadata"`

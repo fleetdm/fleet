@@ -3,7 +3,6 @@ package sso
 import (
 	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"time"
@@ -34,7 +33,7 @@ type SessionStore interface {
 	create(requestID, originalURL, metadata string, lifetimeSecs uint) error
 	get(requestID string) (*Session, error)
 	expire(requestID string) error
-	Fullfill(requestID string) (*Session, *Metadata, error)
+	Fullfill(requestID string) (*Session, error)
 }
 
 // NewSessionStore creates a SessionStore
@@ -92,22 +91,17 @@ func (s *store) expire(requestID string) error {
 	return err
 }
 
-func (s *store) Fullfill(requestID string) (*Session, *Metadata, error) {
+func (s *store) Fullfill(requestID string) (*Session, error) {
 	session, err := s.get(requestID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("sso request invalid: %w", err)
+		return nil, fmt.Errorf("sso request invalid: %w", err)
 	}
 
 	// Remove session so that it can't be reused before it expires.
 	err = s.expire(requestID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("remove sso request: %w", err)
+		return nil, fmt.Errorf("remove sso request: %w", err)
 	}
 
-	var metadata *Metadata
-	if err := xml.Unmarshal([]byte(session.Metadata), &metadata); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal sso request metadata: %w", err)
-	}
-
-	return session, metadata, nil
+	return session, nil
 }
