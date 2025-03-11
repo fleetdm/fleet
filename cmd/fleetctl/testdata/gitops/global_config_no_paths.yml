@@ -1,4 +1,15 @@
 # Test config
+labels:
+  - name: Label One
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
+  - name: Label Two
+    description: A fresh global label
+    label_membership_type: manual
+    hosts:
+      - host1
+      - host2        
 controls: # Controls added to "No team"
   macos_settings:
     custom_settings:
@@ -141,10 +152,7 @@ org_settings:
     zendesk: []
     google_calendar:
       - domain: example.com
-        api_key_json: {
-                        "client_email": "service@example.com",
-                        "private_key": "google_calendar_private_key",
-      }
+        api_key_json: { "client_email": "service@example.com", "private_key": "google_calendar_private_key" }
   mdm:
     end_user_authentication:
       entity_id: ""

@@ -83,6 +83,10 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -169,6 +173,7 @@ org_settings:
 queries:
 policies:
 agent_options:
+labels:
 org_settings:
   server_settings:
     server_url: https://example.com
@@ -246,6 +251,10 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -299,6 +308,7 @@ controls:
     minimum_version: "18.0"
 queries:
 policies:
+labels:
 agent_options:
 org_settings:
   integrations:
@@ -381,6 +391,10 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	team := &fleet.Team{
 		ID:        1,
 		CreatedAt: time.Now(),
@@ -475,6 +489,7 @@ controls:
 queries:
 policies:
 agent_options:
+labels:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: ${TEST_SECRET}
@@ -641,6 +656,34 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return nil
 	}
 
+	var appliedLabelSpecs []*fleet.LabelSpec
+	var deletedLabels []string
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{
+				Name:                "Label Two",
+				Description:         "A global label",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts:               []string{"host2", "host3"},
+			},
+			{
+				Name:                "Label Three",
+				Description:         "A label that should be deleted",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Query:               "SELECT 1 from osquery_info",
+			},
+		}, nil
+	}
+	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		appliedLabelSpecs = specs
+		return nil
+	}
+
+	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -684,7 +727,8 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	file := "./testdata/gitops/global_config_no_paths.yml"
 
 	// Dry run
-	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
+	logs := runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
+	fmt.Printf("%s", logs)
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.Len(t, enrolledSecrets, 0)
 	assert.Len(t, appliedPolicySpecs, 0)
@@ -692,9 +736,12 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedScripts, 0)
 	assert.Len(t, appliedMacProfiles, 0)
 	assert.Len(t, appliedWinProfiles, 0)
+	assert.Len(t, appliedLabelSpecs, 0)
+	assert.Len(t, deletedLabels, 0)
 
 	// Real run
-	_ = runAppForTest(t, []string{"gitops", "-f", file})
+	logs = runAppForTest(t, []string{"gitops", "-f", file})
+	fmt.Printf("%s", logs)
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Contains(t, string(*savedAppConfig.AgentOptions), "distributed_denylist_duration")
@@ -714,6 +761,8 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
 	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
+	assert.Len(t, appliedLabelSpecs, 2)
+	assert.Len(t, deletedLabels, 1)
 }
 
 func TestGitOpsFullTeam(t *testing.T) {

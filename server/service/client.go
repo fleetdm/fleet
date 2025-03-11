@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -1537,6 +1538,9 @@ func (c *Client) DoGitOps(
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
 
+		// Labels
+		c.doGitOpsLabels(config, logFn, dryRun)
+
 		// Integrations
 		var integrations interface{}
 		var ok bool
@@ -1976,6 +1980,50 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+func pluralize(count int, ifSingle string, ifPlural string) string {
+	if count == 1 {
+		return ifSingle
+	}
+	return ifPlural
+}
+
+func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	persistedLabels, err := c.GetLabels()
+	if err != nil {
+		return err
+	}
+	var numUpdates int
+	var labelsToDelete []string
+	proposedLabels := make(map[string]bool, len(config.Labels))
+	for _, proposedLabel := range config.Labels {
+		proposedLabels[proposedLabel.Name] = false
+	}
+	for _, persistedLabel := range persistedLabels {
+		if slices.IndexFunc(config.Labels, func(configLabel *fleet.LabelSpec) bool { return configLabel.Name == persistedLabel.Name }) == -1 {
+			labelsToDelete = append(labelsToDelete, persistedLabel.Name)
+		} else {
+			proposedLabels[persistedLabel.Name] = true
+			numUpdates++
+		}
+	}
+	numNew := len(config.Labels) - numUpdates
+	if dryRun {
+		for _, labelToDelete := range labelsToDelete {
+			logFn("[-] would've deleted label '%s'\n", labelToDelete)
+		}
+		logFn("[+] would've created %d label%s\n", numNew, pluralize(numNew, "", "s"))
+		logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
+	} else {
+		logFn("[+] syncing %d %s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "policy", "policies"), len(config.Labels)-numUpdates, numUpdates)
+		c.ApplyLabels(config.Labels)
+		for _, labelToDelete := range labelsToDelete {
+			logFn("[-] deleting label '%s'\n", labelToDelete)
+			c.DeleteLabel(labelToDelete)
+		}
+	}
+	return nil
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
