@@ -25,7 +25,7 @@
       </div>
       <div v-show="showGeneratedQuery">
         <h3>Here you go!</h3>
-        <p class="mb-2">Paste this into osqueryi or Fleet to try it out.</p>
+        <p class="mb-2">Paste this into osquery or Fleet to try it out.</p>
         <div purpose="codeblock">
           <div purpose="codeblock-tabs" >
             <a purpose="codeblock-tab" :class="[ selectedTab === 'macos' ? 'selected' : '']" @click="selectedTab = 'macos'" v-if="generatedQueries.macOSQuery">Apple</a>
