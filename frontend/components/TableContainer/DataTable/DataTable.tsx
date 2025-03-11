@@ -588,7 +588,7 @@ const DataTable = ({
                     const multiRowSelectEnabled = !disableMultiRowSelect;
 
                     const multiRowSelectCell =
-                      isFirstCell && multiRowSelectEnabled;
+                      !isFirstCell && multiRowSelectEnabled;
 
                     if (multiRowSelectCell) {
                       cellProps.onClick = () => {
