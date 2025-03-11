@@ -1,4 +1,4 @@
-# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
+# Please don't delete. This script is used for tests and is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
 
 #!/bin/sh
 
