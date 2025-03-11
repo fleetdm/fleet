@@ -329,10 +329,10 @@ allow {
 # Labels
 ##
 
-# Global admins, maintainers, observer_plus and observers can read labels.
+# Global admins, maintainers, observer_plus, observers and gitops can read labels.
 allow {
   object.type == "label"
-	subject.global_role == [admin, maintainer, observer_plus, observer][_]
+	subject.global_role == [admin, maintainer, observer_plus, observer, gitops][_]
   action == read
 }
 
