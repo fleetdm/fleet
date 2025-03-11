@@ -27,6 +27,8 @@ type Auth interface {
 	RequestID() string
 	// AssertionAttributes returns the attributes of the SAML response.
 	AssertionAttributes() []SAMLAttribute
+	// RawResponse returns the raw XML SAMLResponse.
+	RawResponse() []byte
 }
 
 // SAMLAttribute holds the name and values of a custom attribute.

@@ -3834,6 +3834,9 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "https://localhost:8080"
+		},
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
@@ -3918,6 +3921,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "admin",
 		}},
 	})
@@ -3967,6 +3971,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "maintainer",
 		}},
 	})
@@ -3980,6 +3985,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "admin",
 		}},
 	})
@@ -3987,6 +3993,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "null",
 		}},
 	})
@@ -3994,6 +4001,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_TEAM_2",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "null",
 		}},
 	})
@@ -4008,6 +4016,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_GLOBAL",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "null",
 		}},
 	})
@@ -4015,6 +4024,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Contains(t, auth.AssertionAttributes(), fleet.SAMLAttribute{
 		Name: "FLEET_JIT_USER_ROLE_TEAM_1",
 		Values: []fleet.SAMLAttributeValue{{
+			Type:  "xs:string",
 			Value: "null",
 		}},
 	})
