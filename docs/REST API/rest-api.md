@@ -6331,6 +6331,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
+- [Get SCIM identity provider (IdP)](#get-scim-identity-provider-idp)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6449,7 +6450,6 @@ None.
 
 ### Get Volume Purchasing Program (VPP)
 
-
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium_
@@ -6469,6 +6469,34 @@ _Available in Fleet Premium_
   "org_name": "Acme Inc.",
   "renew_date": "2023-11-29T00:00:00Z",
   "location": "Acme Inc. Main Address"
+}
+```
+
+### Get SCIM integration with identity provider (IdP)
+
+Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
+
+`GET /api/v1/fleet/scim`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/scim`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "last_request": {
+    "requested_at": "2025-03-11T02:02:17Z",
+    "status": "success",
+    "details": "",
+  }
 }
 ```
 
