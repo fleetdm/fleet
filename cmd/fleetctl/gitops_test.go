@@ -39,6 +39,21 @@ const (
 	orgName        = "GitOps Test"
 )
 
+func addLabelMocks(ds *mock.Store) {
+	var deletedLabels []string
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		return nil
+	}
+
+	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+}
+
 func TestGitOpsFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
 	_, err := runAppNoChecks([]string{"gitops", "-f", filename})
@@ -970,6 +985,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
+
+	addLabelMocks(ds)
+
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		appliedSoftwareInstallers = installers
@@ -1245,6 +1263,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+
+	addLabelMocks(ds)
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -1578,6 +1599,8 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	addLabelMocks(ds)
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -2124,7 +2147,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
-		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
+		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "Please create the missing labels, or update your settings to not refer to these labels."},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -2329,7 +2352,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
-		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
+		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "Please create the missing labels, or update your settings to not refer to these labels."},
 		// No team tests for setup experience software/script
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -2420,8 +2443,8 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}},
 		{"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
 		{"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
-		{"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml", "some or all the labels provided don't exist", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
-		{"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml", "some or all the labels provided don't exist", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml", "Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml", "Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
 		{"testdata/gitops/team_vpp_invalid_app_labels_both.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour), map[string]uint{}},
 	}
 
@@ -2487,12 +2510,12 @@ func TestGitOpsCustomSettings(t *testing.T) {
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
 		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
+		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
 		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
+		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -2505,6 +2528,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				"B":                           3,
 				"C":                           4,
 			}
+
 			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
@@ -2772,6 +2796,8 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			EnabledAndConfigured: true,
 		},
 	}
+	addLabelMocks(ds)
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfigCopy := *savedAppConfig
 		return &appConfigCopy, nil
