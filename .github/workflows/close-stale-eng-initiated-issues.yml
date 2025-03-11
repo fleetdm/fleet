@@ -8,6 +8,8 @@ on:
     # Daily at 1pm CDT (6pm UTC)
     - cron: "0 18 * * *"
   pull_request:
+  push:
+  workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
