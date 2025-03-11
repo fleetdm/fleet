@@ -1539,7 +1539,10 @@ func (c *Client) DoGitOps(
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
 
 		// Labels
-		c.doGitOpsLabels(config, logFn, dryRun)
+		err = c.doGitOpsLabels(config, logFn, dryRun)
+		if err != nil {
+			return nil, err
+		}
 
 		// Integrations
 		var integrations interface{}
@@ -2017,10 +2020,17 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
 	} else {
 		logFn("[+] syncing %d %s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "policy", "policies"), len(config.Labels)-numUpdates, numUpdates)
-		c.ApplyLabels(config.Labels)
+		err = c.ApplyLabels(config.Labels)
+		if err != nil {
+			return err
+		}
+
 		for _, labelToDelete := range labelsToDelete {
 			logFn("[-] deleting label '%s'\n", labelToDelete)
-			c.DeleteLabel(labelToDelete)
+			err = c.DeleteLabel(labelToDelete)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
