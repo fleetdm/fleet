@@ -336,11 +336,11 @@ allow {
   action == read
 }
 
-# Team admins, maintainers, observer_plus and observers can read labels.
+# Team admins, maintainers, observer_plus, observers and gitops can read labels.
 allow {
 	object.type == "label"
   # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
 	action == read
 }
 
