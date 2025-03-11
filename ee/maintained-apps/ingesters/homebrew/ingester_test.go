@@ -103,7 +103,7 @@ func TestIngestValidations(t *testing.T) {
 		upsertCalled bool
 	}{
 		{"fail", "brew API returned status 500", false},
-		{"notfound", "", false},
+		{"notfound", "app not found in brew API", false},
 		{"noname", "missing name for cask noname", false},
 		{"emptyname", "missing name for cask emptyname", false},
 		{"notoken", "missing token for cask notoken", false},
@@ -122,7 +122,7 @@ func TestIngestValidations(t *testing.T) {
 
 			inputApp := inputApp{Token: c.appToken, UniqueIdentifier: "abc", InstallerFormat: "pkg"}
 
-			_, _, err := i.IngestOne(ctx, inputApp)
+			_, err := i.ingestOne(ctx, inputApp)
 			if c.wantErr == "" {
 				require.NoError(t, err)
 			} else {
