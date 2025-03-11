@@ -13086,10 +13086,10 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		time.Sleep(1 * time.Second)
 		w.WriteHeader(http.StatusOK)
 	}))
-	origNDESTimeout := eeservice.NDESTimeout
-	eeservice.NDESTimeout = ptr.Duration(1 * time.Microsecond)
+	origNDESTimeout := eeservice.SCEPTimeout
+	eeservice.SCEPTimeout = ptr.Duration(1 * time.Microsecond)
 	t.Cleanup(func() {
-		eeservice.NDESTimeout = origNDESTimeout
+		eeservice.SCEPTimeout = origNDESTimeout
 		ndesTimeoutServer.Close()
 	})
 	appConf.Integrations.NDESSCEPProxy.Value.URL = ndesTimeoutServer.URL
@@ -13102,7 +13102,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	// PKIOperation
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation",
 		"PKIOperation", "message", message)
-	eeservice.NDESTimeout = origNDESTimeout
+	eeservice.SCEPTimeout = origNDESTimeout
 
 	// Spin up an "external" SCEP server, which Fleet server will proxy
 	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {
@@ -13261,7 +13261,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(rawRes.Body)
 	require.Contains(t, errMsg, "Could not verify DigiCert profile ID")
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Add 3 DigiCert integrations
@@ -13283,7 +13283,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	res := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
 	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	res = appConfigResponse{}
@@ -13292,7 +13292,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	for _, ca := range res.Integrations.DigiCert.Value {
 		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 	}
-	assets, err := s.ds.GetAllCAConfigAssets(ctx)
+	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
 	assert.EqualValues(t, "api_token0", assets["ca0"].Value)
@@ -13349,7 +13349,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		}
 		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 	}
-	assets, err = s.ds.GetAllCAConfigAssets(ctx)
+	assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
 	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
@@ -13400,7 +13400,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	res = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
 	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Check that 3 deleted activities are present

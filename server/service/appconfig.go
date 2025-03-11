@@ -37,6 +37,7 @@ import (
 var (
 	validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
 	validateNDESSCEPURL      = eeservice.ValidateNDESSCEPURL
+	validateSCEPURL          = eeservice.ValidateSCEPURL
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -981,16 +982,16 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				"Cannot encrypt NDES password. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 		}
 
-		validateAdminURL, validateSCEPURL := false, false
+		validateAdminURL, validateURL := false, false
 		newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
 		if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
 			result.ndes = caStatusAdded
-			validateAdminURL, validateSCEPURL = true, true
+			validateAdminURL, validateURL = true, true
 		} else {
 			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
 			if newSCEPProxy.URL != oldSCEPProxy.URL {
 				result.ndes = caStatusEdited
-				validateSCEPURL = true
+				validateURL = true
 			}
 			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
 				newSCEPProxy.Username != oldSCEPProxy.Username ||
@@ -1006,7 +1007,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 			}
 		}
 
-		if validateSCEPURL {
+		if validateURL {
 			if err := validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
 				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
 			}
@@ -1014,9 +1015,8 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 	}
 
 	var (
-		allCANames                           = make(map[string]struct{})
-		additionalDigiCertValidationNeeded   bool
-		additionalCustomSCEPValidationNeeded bool
+		allCANames                         = make(map[string]struct{})
+		additionalDigiCertValidationNeeded bool
 	)
 
 	switch {
@@ -1098,40 +1098,35 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 					"https://fleetdm.com/learn-more-about/fleet-server-private-key")
 			break
 		}
-		additionalCustomSCEPValidationNeeded = true
 		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
 			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
-				additionalCustomSCEPValidationNeeded = false
 				continue
 			}
 			ca.URL = fleet.Preprocess(ca.URL)
 			// Validate URL
 			if u, err := url.ParseRequestURI(ca.URL); err != nil {
 				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
-				additionalCustomSCEPValidationNeeded = false
 				continue
 			} else if u.Scheme != "https" && u.Scheme != "http" {
 				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
-				additionalCustomSCEPValidationNeeded = false
 				continue
+			}
+			if err := validateSCEPURL(ctx, ca.URL, svc.logger); err != nil {
+				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
 			}
 			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
 		}
 	}
 
-	// if additional validation is needed, get all the encrypted config assets from DB
-	var assets map[string]fleet.CAConfigAsset
-	if additionalDigiCertValidationNeeded || additionalCustomSCEPValidationNeeded {
-		var err error
-		assets, err = svc.ds.GetAllCAConfigAssets(ctx)
+	// if additional DigiCert validation is needed, get the encrypted config assets from DB
+	if additionalDigiCertValidationNeeded {
+		assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 		if err != nil && !fleet.IsNotFound(err) {
 			return result, ctxerr.Wrap(ctx, err, "get all CA config assets")
 		}
 		// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
-	}
 
-	if additionalDigiCertValidationNeeded {
 		oldCAs := oldAppConfig.Integrations.DigiCert.Value
 		remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
 		for _, oldCA := range oldCAs {
@@ -1193,9 +1188,6 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		}
 	}
 
-	if additionalCustomSCEPValidationNeeded {
-		svc.logger.Log("msg", "TODO for #26603")
-	}
 	return result, nil
 }
 
@@ -1221,7 +1213,7 @@ func validateCAName(name string, caType string, allCANames map[string]struct{}, 
 	}
 	if _, ok := allCANames[name]; ok {
 		invalid.Append("integrations."+caType+".name", fmt.Sprintf("Couldn’t edit certificate authority. "+
-			"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", name))
+			"\"%s\" name is already used by another certificate authority. Please choose a different name and try again.", name))
 		return false
 	}
 	allCANames[name] = struct{}{}

@@ -1791,7 +1791,7 @@ func TestAppConfigCAs(t *testing.T) {
 		mt.svc.config.Server.PrivateKey = "exists"
 		mockDS := &mock.Store{}
 		mt.svc.ds = mockDS
-		mockDS.GetAllCAConfigAssetsFunc = func(ctx context.Context) (map[string]fleet.CAConfigAsset, error) {
+		mockDS.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
 			return map[string]fleet.CAConfigAsset{
 				"WIFI": {
 					Name:  "WIFI",
@@ -1918,7 +1918,7 @@ func TestAppConfigCAs(t *testing.T) {
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name",
-			"name is already used by another DigiCert certificate authority")
+			"name is already used by another certificate authority")
 	})
 
 	t.Run("digicert more than 1 user principal name", func(t *testing.T) {

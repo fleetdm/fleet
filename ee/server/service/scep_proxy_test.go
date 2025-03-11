@@ -24,7 +24,7 @@ import (
 )
 
 func TestValidateNDESSCEPAdminURL(t *testing.T) {
-	// t.Parallel() // This test is not parallel because it changes the global NDESTimeout
+	// t.Parallel() // This test is not parallel because it changes the global SCEPTimeout
 
 	var returnPage func() []byte
 	returnStatus := http.StatusOK
@@ -53,16 +53,16 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnStatus = http.StatusOK
 
 	// Catch timeout issue
-	origNDESTimeout := NDESTimeout
-	NDESTimeout = ptr.Duration(1 * time.Microsecond)
+	origNDESTimeout := SCEPTimeout
+	SCEPTimeout = ptr.Duration(1 * time.Microsecond)
 	t.Cleanup(func() {
-		NDESTimeout = origNDESTimeout
+		SCEPTimeout = origNDESTimeout
 	})
 	wait = true
 	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	wait = false
-	NDESTimeout = origNDESTimeout
+	SCEPTimeout = origNDESTimeout
 
 	// We need to convert the HTML page to UTF-16 encoding, which is used by Windows servers
 	returnPageFromFile := func(path string) []byte {
