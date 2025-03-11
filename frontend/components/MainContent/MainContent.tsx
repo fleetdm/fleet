@@ -1,13 +1,15 @@
 import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
+
 import { hasLicenseExpired } from "utilities/helpers";
+import { AppContext } from "context/app";
 
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
-
-import { AppContext } from "context/app";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
+import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
+
 import VppRenewalMessage from "./banners/VppRenewalMessage";
 
 interface IMainContentProps {
@@ -32,6 +34,7 @@ const MainContent = ({
   const {
     config,
     isPremiumTier,
+    isAndroidEnterpriseDeleted,
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
@@ -48,9 +51,14 @@ const MainContent = ({
 
     let banner: JSX.Element | null = null;
 
+    // the order of these checks is important. This is the priority order
+    // for showing banners and only one banner is shown at a time.
     if (isPremiumTier) {
       if (isApplePnsExpired || willApplePnsExpire) {
         banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+      } else if (false) {
+        // TODO: remove this when API is ready
+        banner = <AndroidEnterpriseDeletedMessage />;
       } else if (isAppleBmExpired || willAppleBmExpire) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {

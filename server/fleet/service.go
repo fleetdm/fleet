@@ -435,6 +435,10 @@ type Service interface {
 	// the specified host.
 	ListHostSoftware(ctx context.Context, hostID uint, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
+	// UpdateSoftwareName updates the name of a software title if the title is uniquely identified by bundle ID
+	// rather than by name
+	UpdateSoftwareName(ctx context.Context, titleID uint, name string) error
+
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
 

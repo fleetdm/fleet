@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -71,6 +73,33 @@ func (ds *Datastore) saveCAConfigAssets(ctx context.Context, tx sqlx.ExtContext,
 		return ctxerr.Wrap(ctx, err, "save CA config assets")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
+	stmt := `
+	SELECT
+		name, type, value
+	FROM
+		ca_config_assets
+	WHERE
+		name = ? AND type = ?
+	`
+
+	var asset fleet.CAConfigAsset
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, stmt, name, assetType); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("CAConfigAsset").WithName(name)
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "get CA config asset %s", name)
+	}
+
+	decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting CA config asset %s", asset.Name)
+	}
+	asset.Value = decryptedVal
+
+	return &asset, nil
 }
 
 func (ds *Datastore) DeleteCAConfigAssets(ctx context.Context, names []string) error {

@@ -123,64 +123,9 @@ Another reason you might want to use multiple enroll secrets is to use a certain
 
 ### Rotating enroll secrets
 
-Rotating enroll secrets follows this process:
-
-1. Add a new secret.
-2. Transition existing clients to the new secret. Note that existing clients may not need to be
-   updated, as the enroll secret is not used by already enrolled clients.
-3. Remove the old secret.
-
-To do this with `fleetctl` (assuming the existing secret is `oldsecret` and the new secret is `newsecret`):
-
-Begin by retrieving the existing secret configuration:
-
-```sh
-$ fleetctl get enroll_secret
----
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-  - created_at: "2021-11-17T00:39:50Z"
-    secret: oldsecret
-```
-
-Apply the new configuration with both secrets:
-
-```sh
-$ echo '
----
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-  - created_at: "2021-11-17T00:39:50Z"
-    secret: oldsecret
-  - secret: newsecret
-' > secrets.yml
-$ fleetctl apply -f secrets.yml
-```
-
-Now transition clients to using only the new secret. When the transition is completed, remove the
-old secret:
-
-```sh
-$ echo '
----
-apiVersion: v1
-kind: enroll_secret
-spec:
-  secrets:
-  - secret: newsecret
-' > secrets.yml
-$ fleetctl apply -f secrets.yml
-```
-
-At this point, the old secret will no longer be accepted for new enrollments and the rotation is
-complete.
-
-A similar process may be followed for rotating team-specific enroll secrets. For teams, the secrets
-are managed in the team yaml.
+1. In Fleet, head to **Hosts > Manage enroll secret** and add a new secret.
+2. Create a fleetd agent with the new enroll secret and install it on hosts.
+3. Delete the old enroll secret.
 
 ## Teams
 
