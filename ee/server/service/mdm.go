@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -650,28 +651,31 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
 	// Note: enable_end_user_authentication is a team-specific setting. This means some teams may not use SSO even if it is configured.
-	if settings.IsEmpty() {
+	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 	}
 
-	metadata, err := sso.GetMetadata(&settings)
+	serverURL := appConfig.MDMUrl()
+	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback"
+
+	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
+		mdmSSOSettings.EntityID,
+		acsURL,
+		&mdmSSOSettings,
+	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO getting metadata")
+		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	authSettings := sso.Settings{
-		Metadata:                    metadata,
-		AssertionConsumerServiceURL: appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
-		SessionStore:                svc.ssoSessionStore,
-		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
-	}
+	// originalURL is unused in the MDM flow.
+	originalURL := "/"
 
-	idpURL, err := sso.CreateAuthorizationRequest(&authSettings, settings.EntityID)
+	idpURL, err := sso.CreateAuthorizationRequest(ctx, svc.ssoSessionStore, originalURL, samlProvider)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
 	}
@@ -705,33 +709,45 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
-	eulaToken string, err error) {
+	eulaToken string, err error,
+) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
 	}
 
-	_, metadata, err := svc.ssoSessionStore.Fullfill(auth.RequestID())
+	serverURL := appConfig.MDMUrl()
+	acsURL, err := url.Parse(serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback")
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
+		return "", "", "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 
-	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	if settings.IsEmpty() {
+	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
-	err = sso.ValidateAudiences(
-		*metadata,
-		auth,
-		settings.EntityID,
-		appConfig.MDMUrl(),
-		appConfig.MDMUrl()+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
-	)
+	samlProvider, err := svc.samlProviderFromMetadata(ctx, auth.RequestID(), serverURL, acsURL, mdmSSOSettings)
 	if err != nil {
-		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
+		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+	}
+
+	if _, err := samlProvider.ParseXMLResponse(
+		auth.RawResponse(),
+		[]string{auth.RequestID()},
+		*acsURL,
+	); err != nil {
+		// Set SAML error as the internal error for troubleshooting purposes.
+		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
+			err = samlErr.PrivateErr
+		}
+		return "", "", "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse and validate response",
+			InternalErr: err,
+		})
 	}
 
 	// Store information for automatic account population/creation
@@ -787,6 +803,45 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 	// using the idp token as a reference just because that's the
 	// only thing we're referencing later on during enrollment.
 	return depProf.Token, idpAcc.UUID, eulaToken, nil
+}
+
+func (svc *Service) samlProviderFromMetadata(
+	ctx context.Context,
+	samlRequestID string,
+	serverURL string,
+	acsURL *url.URL,
+	mdmSSOSettings fleet.SSOProviderSettings,
+) (*saml.ServiceProvider, error) {
+	session, err := svc.ssoSessionStore.Fullfill(samlRequestID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
+	}
+	entityDescriptor, err := sso.ParseMetadata([]byte(session.Metadata))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to parse metadata")
+	}
+
+	return &saml.ServiceProvider{
+		EntityID:                    serverURL,
+		AcsURL:                      *acsURL,
+		IDPMetadata:                 entityDescriptor,
+		ValidateAudienceRestriction: svc.audienceValidation(ctx, mdmSSOSettings),
+	}, nil
+}
+
+func (svc *Service) audienceValidation(ctx context.Context, mdmSSOSettings fleet.SSOProviderSettings) func(assertion *saml.Assertion) error {
+	return func(assertion *saml.Assertion) error {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to load appconfig")
+		}
+		expectedAudiences := []string{
+			mdmSSOSettings.EntityID,
+			appConfig.MDMUrl(),
+			appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+		}
+		return sso.ValidateAudiences(assertion, expectedAudiences)
+	}
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {

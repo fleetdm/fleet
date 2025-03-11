@@ -5265,23 +5265,15 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.runWorker()
 	require.Equal(t, lastSubmittedProfile.ConfigurationWebURL, lastSubmittedProfile.URL)
 
-	// test basic authentication for each supported config flow.
-	//
-	// IT admins can set up SSO as part of the same entity or as a completely
-	// separate entity.
-	//
-	// Configs supporting each flow are defined in `tools/saml/config.php`
-	configFlows := []string{
-		"mdm.test.com",           // independent, mdm-sso only app
-		"https://localhost:8080", // app that supports both MDM and Fleet UI SSO
-	}
-	for _, entityID := range configFlows {
-		acResp = appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"server_settings": {"server_url": "https://localhost:8080"},
+	// "mdm.test.com" entity ID is defined in `tools/saml/config.php`.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "https://localhost:8080"
+		},
 		"mdm": {
 			"end_user_authentication": {
-				"entity_id": "%s",
+				"entity_id": "mdm.test.com",
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
@@ -5290,37 +5282,11 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"enable_end_user_authentication": true
 			}
 		}
-	}`, entityID)), http.StatusOK, &acResp)
+	}`), http.StatusOK, &acResp)
 
-		s.runWorker()
-		require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
-		require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
-
-		res := s.LoginMDMSSOUser("sso_user", "user123#")
-		require.NotEmpty(t, res.Header.Get("Location"))
-		require.Equal(t, http.StatusSeeOther, res.StatusCode)
-
-		u, err := url.Parse(res.Header.Get("Location"))
-		require.NoError(t, err)
-		q := u.Query()
-		user1EnrollRef := q.Get("enrollment_reference")
-		// without an EULA uploaded
-		require.False(t, q.Has("eula_token"))
-		require.True(t, q.Has("profile_token"))
-		require.True(t, q.Has("enrollment_reference"))
-		require.False(t, q.Has("error"))
-		// the url retrieves a valid profile
-		s.downloadAndVerifyEnrollmentProfile(
-			fmt.Sprintf(
-				"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
-				q.Get("profile_token"),
-				user1EnrollRef,
-			),
-		)
-
-		// IdP info stored is accurate for the account
-		s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
-	}
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
+	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
@@ -5330,6 +5296,31 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 	q := u.Query()
 	user1EnrollRef := q.Get("enrollment_reference")
+	// without an EULA uploaded
+	require.False(t, q.Has("eula_token"))
+	require.True(t, q.Has("profile_token"))
+	require.True(t, q.Has("enrollment_reference"))
+	require.False(t, q.Has("error"))
+	// the url retrieves a valid profile
+	s.downloadAndVerifyEnrollmentProfile(
+		fmt.Sprintf(
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			q.Get("profile_token"),
+			user1EnrollRef,
+		),
+	)
+
+	// IdP info stored is accurate for the account
+	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
+
+	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	require.NotEmpty(t, res.Header.Get("Location"))
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
+
+	u, err = url.Parse(res.Header.Get("Location"))
+	require.NoError(t, err)
+	q = u.Query()
+	user1EnrollRef = q.Get("enrollment_reference")
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
@@ -5603,8 +5594,11 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	// hitting the callback with an invalid session id redirects the user to the UI
-	rawSSOResp := base64.StdEncoding.EncodeToString([]byte(`<samlp:Response ID="_7822b394622740aa92878ca6c7d1a28c53e80ec5ef"></samlp:Response>`))
-	res = s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(rawSSOResp), nil, http.StatusSeeOther)
+	rawSSOResp := `<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/kolide/sso/callback" ID="_7822b394622740aa92878ca6c7d1a28c53e80ec5ef" InResponseTo="4982b430-73e1-4ad2-885a-4a775a91f820" IssueInstant="2017-04-27T15:03:16.747Z" Version="2.0">
+</samlp:Response>`
+	samlResponse := base64.URLEncoding.EncodeToString([]byte(rawSSOResp))
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+samlResponse, nil, http.StatusSeeOther)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
@@ -5881,9 +5875,12 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 	// set the SSO fields
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"server_url": "https://localhost:8080"
+		},
 		"mdm": {
 			"end_user_authentication": {
-				"entity_id": "https://localhost:8080",
+				"entity_id": "mdm.test.com",
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
@@ -5894,7 +5891,7 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 		}
 	}`), http.StatusOK, &acResp)
 	wantSettings := fleet.SSOProviderSettings{
-		EntityID:    "https://localhost:8080",
+		EntityID:    "mdm.test.com",
 		IssuerURI:   "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 		IDPName:     "SimpleSAML",
 		MetadataURL: "http://localhost:9080/simplesaml/saml2/idp/metadata.php",

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha1" // nolint: gosec
 	"database/sql"
+	"encoding/base64"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -8856,12 +8857,19 @@ func (s *integrationTestSuite) TestSSODisabled() {
 	s.DoJSON("POST", "/api/v1/fleet/sso", struct{}{}, http.StatusBadRequest, &initiateResp)
 
 	var callbackResp callbackSSOResponse
+
 	// callback without SAML response
 	s.DoJSON("POST", "/api/v1/fleet/sso/callback", nil, http.StatusBadRequest, &callbackResp)
+
 	// callback with invalid SAML response
 	s.DoJSON("POST", "/api/v1/fleet/sso/callback?SAMLResponse=zz", nil, http.StatusBadRequest, &callbackResp)
-	// callback with valid SAML response (<samlp:AuthnRequest></samlp:AuthnRequest>)
-	res := s.DoRaw("POST", "/api/v1/fleet/sso/callback?SAMLResponse=PHNhbWxwOkF1dGhuUmVxdWVzdD48L3NhbWxwOkF1dGhuUmVxdWVzdD4%3D", nil, http.StatusOK)
+
+	// callback with valid SAML response
+	validResponse := `<?xml version="1.0" encoding="UTF-8"?>
+<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/kolide/sso/callback" ID="_52f2515c5319f2adf3f072d9d9f2b6881493305396746" InResponseTo="4982b430-73e1-4ad2-885a-4a775a91f820" IssueInstant="2017-04-27T15:03:16.747Z" Version="2.0">
+</samlp:Response>`
+	samlResponse := base64.URLEncoding.EncodeToString([]byte(validResponse))
+	res := s.DoRaw("POST", fmt.Sprintf("/api/v1/fleet/sso/callback?SAMLResponse=%s", samlResponse), nil, http.StatusOK)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -11337,7 +11345,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host2Team1.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11376,7 +11385,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Global.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11415,7 +11425,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Team2.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11888,7 +11899,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.False(t, gqrr.ReportClipped)
 
-	slreq.Data = []json.RawMessage{json.RawMessage(`{
+	slreq.Data = []json.RawMessage{
+		json.RawMessage(`{
   "snapshot": [` + results(1002, host1Global.UUID) + `
   ],
   "action": "snapshot",
