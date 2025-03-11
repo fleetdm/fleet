@@ -16,6 +16,7 @@ import (
 )
 
 var automationActivityAuthor = "Fleet"
+var deleteUnsavedQueriesBatchSize = 1000
 
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(
@@ -574,10 +575,11 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	// `activities` and `queries` are not tied because the activity itself holds
 	// the query SQL so they don't need to be executed on the same transaction.
 	//
-	// All expired live queries are deleted in batch sizes of `maxCount` to ensure
-	// the table size is kept in check with high volumes of live queries (zero-trust workflows).
-	// This differs from the `activities` cleanup which uses maxCount as a limit to
-	// the number of activities to delete.
+	// All expired live queries are deleted in batch sizes of
+	// `deleteUnsavedQueriesBatchSize` to ensure the table size is kept in check
+	// with high volumes of live queries (zero-trust workflows). This differs
+	// from the `activities` cleanup which uses maxCount as a limit to the
+	// number of activities to delete.
 	//
 	for {
 		if ctx.Err() != nil {
@@ -587,13 +589,13 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		var rowsAffected int64
 
 		// Start a new transaction for each batch of deletions.
-		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			// Delete expired live queries (aka "not saved")
 			result, err := tx.ExecContext(ctx,
 				`DELETE FROM queries
 			WHERE NOT saved AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
 			LIMIT ?`,
-				expiredWindowDays, maxCount,
+				expiredWindowDays, deleteUnsavedQueriesBatchSize,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "delete expired non-saved queries")
