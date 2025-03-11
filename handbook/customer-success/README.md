@@ -32,7 +32,7 @@ Occasionally, we will need to track public issues for customers and prospects wh
 
 1. The team member creating the issue will choose an appropriate minor planet name from this [minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
 2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
-3. Navigate to the account in Salesforce and edit the "GitHub label" field to include the customer or prospect label and save. This enables the fleetdm/fleet and fleetdm/confidential GitHub issue searches to work. 
+3. Navigate to the account in Salesforce. Edit the "GitHub label" field to include the customer or prospect label and save the record. This enables the "fleetdm/fleet" and "fleetdm/confidential" GitHub issue searches. 
 
 
 ### Prepare for routine customer meeting
