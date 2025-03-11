@@ -961,6 +961,7 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
     %s
 GROUP BY
     status`,
@@ -1093,6 +1094,7 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
     %s
 GROUP BY
     status`,
