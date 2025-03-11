@@ -79,6 +79,14 @@ GROUP BY
 	return &title, nil
 }
 
+func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, name string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE software_titles SET name = ? WHERE id = ? AND bundle_identifier != ''", name, titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update software title name")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,

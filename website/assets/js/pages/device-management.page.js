@@ -9,6 +9,7 @@ parasails.registerPage('device-management-page', {
       jamf: 'Jamf Pro',
       omnissa: 'Omnissa (WS1)',
       intune: 'Intune',
+      tanium: 'Tanium',
       ansible: 'Ansible',
       puppet: 'Puppet',
       chef: 'Chef'
