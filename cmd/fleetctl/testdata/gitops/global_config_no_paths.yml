@@ -1,10 +1,10 @@
 # Test config
 labels:
-  - name: Label One
+  - name: a
     description: A cool global label
     query: SELECT 1 FROM osquery_info
     label_membership_type: dynamic
-  - name: Label Two
+  - name: b
     description: A fresh global label
     label_membership_type: manual
     hosts:
