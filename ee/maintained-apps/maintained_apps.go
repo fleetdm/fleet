@@ -31,17 +31,18 @@ type InputApp struct {
 	Source string `json:"source"`
 }
 
-// QueryKeyExists is the key used for an osquery query that checks if the app exists on a host.
-const QueryKeyExists = "exists"
+type FMAQueries struct {
+	Exists string `json:"exists"`
+}
 
 type FMAManifestApp struct {
-	Version            string            `json:"version"`
-	Queries            map[string]string `json:"queries"`
-	InstallerURL       string            `json:"installer_url"`
-	UniqueIdentifier   string            `json:"unique_identifier"`
-	InstallScriptRef   string            `json:"install_script_ref"`
-	UninstallScriptRef string            `json:"uninstall_script_ref"`
-	SHA256             string            `json:"sha256"`
+	Version            string     `json:"version"`
+	Queries            FMAQueries `json:"queries"`
+	InstallerURL       string     `json:"installer_url"`
+	UniqueIdentifier   string     `json:"unique_identifier"`
+	InstallScriptRef   string     `json:"install_script_ref"`
+	UninstallScriptRef string     `json:"uninstall_script_ref"`
+	SHA256             string     `json:"sha256"`
 	// Description is an optional description of the app and what it does.
 	Description string `json:"-"`
 	Slug        string `json:"-"`

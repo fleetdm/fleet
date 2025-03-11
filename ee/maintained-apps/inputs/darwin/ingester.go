@@ -2,7 +2,9 @@ package darwin
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/google/uuid"
 )
 
 //go:embed *.json
@@ -197,24 +198,30 @@ func (i *brewIngester) IngestOne(ctx context.Context, app maintained_apps.InputA
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.SHA256 = cask.SHA256
-	out.Queries = map[string]string{maintained_apps.QueryKeyExists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
 	out.Description = cask.Desc
 	out.Slug = fmt.Sprintf("%s/%s", cask.Token, fleet.MacOSPlatform)
 
 	// Script generation
 	scriptRefs := make(map[string]string)
+
 	uninstallScript := uninstallScriptForApp(&cask)
-	uninstallRef := uuid.NewString()
-	out.UninstallScriptRef = uninstallRef
+	h := sha256.New()
+	_, _ = io.Copy(h, strings.NewReader(uninstallScript)) // writes to a Hash can never fail
+	uninstallHash := hex.EncodeToString(h.Sum(nil))
+	out.UninstallScriptRef = uninstallHash[:8]
+
 	installScript, err := installScriptForApp(app, &cask)
 	if err != nil {
 		return nil, nil, ctxerr.WrapWithData(ctx, err, "generating install script for maintained app", map[string]any{"unique_identifier": app.UniqueIdentifier})
 	}
-	installRef := uuid.NewString()
-	scriptRefs[installRef] = installScript
-	out.InstallScriptRef = installRef
+	h = sha256.New()
+	_, _ = io.Copy(h, strings.NewReader(installScript)) // writes to a Hash can never fail
+	installHash := hex.EncodeToString(h.Sum(nil))
+	out.InstallScriptRef = installHash[:8]
 
-	scriptRefs[uninstallRef] = uninstallScript
+	scriptRefs[out.InstallScriptRef] = installScript
+	scriptRefs[out.UninstallScriptRef] = uninstallScript
 
 	return out, scriptRefs, nil
 }

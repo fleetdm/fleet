@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"os"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
