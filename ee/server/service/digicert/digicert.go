@@ -106,8 +106,6 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 		},
 	}
 
-	// TODO(#26609): Add support for User Principal Name
-
 	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, privateKey)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "creating CSR")
@@ -132,6 +130,19 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 			},
 		},
 		"csr": csr,
+	}
+	// UPN (User Principal Names) is only supported by User seat type (2025/03/10)
+	// https://docs.digicert.com/fr/trust-lifecycle-manager/inventory/certificate-attributes-and-extensions/subject-alternative-name--san--attributes.html
+	if len(config.CertificateUserPrincipalNames) > 0 {
+		attributes, ok := reqBody["attributes"].(map[string]interface{})
+		if !ok {
+			return nil, "", ctxerr.Errorf(ctx, "unexpected DigiCert attributes type: %T", reqBody["attributes"])
+		}
+		attributes["extensions"] = map[string]interface{}{
+			"san": map[string]interface{}{
+				"user_principal_names": config.CertificateUserPrincipalNames,
+			},
+		}
 	}
 
 	bodyBytes, err := json.Marshal(reqBody)

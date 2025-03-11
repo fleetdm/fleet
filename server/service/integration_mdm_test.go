@@ -13245,7 +13245,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	t := s.T()
 	ctx := context.Background()
-	mockDigiCertServer := createMockDigiCertServer(t)
+	digiCertServer := createMockDigiCertServer(t)
 
 	// Add DigiCert integration with bad URL
 	caBad := getDigiCertIntegration("https://httpstat.us/410", "ca")
@@ -13265,11 +13265,11 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Add 3 DigiCert integrations
-	ca0 := getDigiCertIntegration(mockDigiCertServer.URL, "ca0")
+	ca0 := getDigiCertIntegration(digiCertServer.server.URL, "ca0")
 	ca0.APIToken = "api_token0"
-	ca1 := getDigiCertIntegration(mockDigiCertServer.URL, "ca1")
+	ca1 := getDigiCertIntegration(digiCertServer.server.URL, "ca1")
 	ca1.APIToken = "api_token1"
-	ca2 := getDigiCertIntegration(mockDigiCertServer.URL, "ca2")
+	ca2 := getDigiCertIntegration(digiCertServer.server.URL, "ca2")
 	ca2.APIToken = "api_token2"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13321,7 +13321,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 
 	// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
 	ca1.URL += "//"
-	ca3 := getDigiCertIntegration(mockDigiCertServer.URL, "ca3")
+	ca3 := getDigiCertIntegration(digiCertServer.server.URL, "ca3")
 	ca3.APIToken = "api_token3"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13427,10 +13427,10 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	t := s.T()
 	ctx := context.Background()
-	mockDigiCertServer := createMockDigiCertServer(t)
+	digiCertServer := createMockDigiCertServer(t)
 
 	// Add DigiCert config
-	ca := getDigiCertIntegration(mockDigiCertServer.URL, "my_CA")
+	ca := getDigiCertIntegration(digiCertServer.server.URL, "my_CA")
 	ca.APIToken = "api_token0"
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13515,8 +13515,26 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	assert.Equal(t, ca.CertificateCommonName, certificate.Subject.CommonName)
 
+	// Check request to DigiCert
+	digiCertServer.certReqMu.Lock()
+	assert.Equal(t, ca.ProfileID, digiCertServer.certReq.Profile["id"])
+	assert.Equal(t, ca.CertificateSeatID, digiCertServer.certReq.Seat["seat_id"])
+	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
+	assert.Equal(t, ca.CertificateCommonName, digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+
+	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
+	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	var stringSlice []string
+	for _, item := range upnsReceived {
+		if str, ok := item.(string); ok {
+			stringSlice = append(stringSlice, str)
+		}
+	}
+	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
+	digiCertServer.certReqMu.Unlock()
+
 	// Try a DigiCert CA that will fail
-	caFail := getDigiCertIntegration(mockDigiCertServer.URL, "fail_CA")
+	caFail := getDigiCertIntegration(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
@@ -13606,10 +13624,27 @@ func digiCertForTest(name, identifier, caName string) []byte {
 `, caName, caName, name, identifier, uuid.New().String()))
 }
 
-func createMockDigiCertServer(t *testing.T) *httptest.Server {
+type mockDigiCertServer struct {
+	server    *httptest.Server
+	certReq   certificateReq
+	certReqMu *sync.Mutex
+}
+
+type certificateReq struct {
+	CSR            string                 `json:"csr"`
+	Profile        map[string]string      `json:"profile"`
+	Seat           map[string]string      `json:"seat"`
+	DeliveryFormat string                 `json:"delivery_format"`
+	Attributes     map[string]interface{} `json:"attributes"`
+}
+
+func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 	profileRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
 	certRegex := regexp.MustCompile(`^/mpki/api/v1/certificate`)
-	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := &mockDigiCertServer{
+		certReqMu: &sync.Mutex{},
+	}
+	mockServer.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.Method {
 		case http.MethodGet:
@@ -13632,11 +13667,12 @@ func createMockDigiCertServer(t *testing.T) *httptest.Server {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			var req struct {
-				CSR string `json:"csr"`
-			}
+			mockServer.certReqMu.Lock()
+			defer mockServer.certReqMu.Unlock()
+			var req certificateReq
 			err := json.NewDecoder(r.Body).Decode(&req)
 			require.NoError(t, err)
+			mockServer.certReq = req
 
 			// Decode the PEM format CSR into DER
 			block, _ := pem.Decode([]byte(req.CSR))
@@ -13702,8 +13738,8 @@ func createMockDigiCertServer(t *testing.T) *httptest.Server {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))
-	t.Cleanup(mockDigiCertServer.Close)
-	return mockDigiCertServer
+	t.Cleanup(mockServer.server.Close)
+	return mockServer
 }
 
 type noopCertDepot struct{ depot.Depot }
