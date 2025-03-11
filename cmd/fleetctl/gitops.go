@@ -152,9 +152,14 @@ func gitopsCommand() *cli.Command {
 				// If we're in a team config, or a global config without `labels:` declared,
 				// get the set of existing label names from the db.
 				if !isGlobalConfig || (config.Labels != nil && len(config.Labels) == 0) {
-					config.Labels, err = fleetClient.GetLabels()
+					persistedLabels, err := fleetClient.GetLabels()
 					if err != nil {
 						return err
+					}
+					for _, persistedLabel := range persistedLabels {
+						if persistedLabel.LabelType == fleet.LabelTypeRegular {
+							config.Labels = append(config.Labels, persistedLabel)
+						}
 					}
 				}
 

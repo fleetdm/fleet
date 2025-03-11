@@ -2004,6 +2004,9 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		proposedLabels[proposedLabel.Name] = false
 	}
 	for _, persistedLabel := range persistedLabels {
+		if persistedLabel.LabelType == fleet.LabelTypeBuiltIn {
+			continue
+		}
 		if slices.IndexFunc(config.Labels, func(configLabel *fleet.LabelSpec) bool { return configLabel.Name == persistedLabel.Name }) == -1 {
 			labelsToDelete = append(labelsToDelete, persistedLabel.Name)
 		} else {
@@ -2016,8 +2019,12 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		for _, labelToDelete := range labelsToDelete {
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
-		logFn("[+] would've created %d label%s\n", numNew, pluralize(numNew, "", "s"))
-		logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
+		if numNew > 0 {
+			logFn("[+] would've created %d label%s\n", numNew, pluralize(numNew, "", "s"))
+		}
+		if numUpdates > 0 {
+			logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
+		}
 	} else {
 		logFn("[+] syncing %d %s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "policy", "policies"), len(config.Labels)-numUpdates, numUpdates)
 		err = c.ApplyLabels(config.Labels)
