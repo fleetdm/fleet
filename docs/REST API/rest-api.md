@@ -993,6 +993,7 @@ None.
       {
         "id": 0,
         "name": "DIGICERT_WIFI",
+        "url": "https://one.digicert.com",
         "api_token": "********",
         "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
         "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
@@ -1012,13 +1013,13 @@ None.
       {
         "id": 0,
         "name": "SCEP_WIFI",
-        "server_url": "https://example.com/scep",
+        "url": "https://example.com/scep",
         "challenge": "********",
       },
       {
         "id": 1,
         "name": "SCEP_VPN",
-        "server_url": "https://example.com/scep",
+        "url": "https://example.com/scep",
         "challenge": "********",
       }
     ],
@@ -1674,6 +1675,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url   | string | URL to DigiCert instance. It's used as base URL for DigiCert API requests. |
 | api_token        | string | API token used to authenticate requests to DigiCert. |
 | profile_id       | string  | The ID of certificate profile in DigiCert. |
 | certificate_common_name      | string  | The certificate's common name. |
@@ -1706,7 +1708,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| server_url        | boolean | URL of the Simple Certificate Enrollment Protocol (SCEP) server |
+| url        | boolean | URL of the Simple Certificate Enrollment Protocol (SCEP) server |
 | challenge         | string  | Static challenge password used to authenticate requests to SCEP server. |
 
 <br/>
@@ -1739,6 +1741,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
     "digicert": [
       {
         "name": "DIGICERT_WIFI",
+        "url": "https://one.digicert.com",
         "api_token": "********",
         "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
         "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
@@ -1755,12 +1758,12 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
     "custom_scep_proxy": [
       {
         "name": "SCEP_WIFI",
-        "server_url": "https://example.com/scep",
+        "url": "https://example.com/scep",
         "challenge": "********"
       },
       {
         "name": "SCEP_VPN",
-        "server_url": "https://example.com/scep",
+        "url": "https://example.com/scep",
         "challenge": "********"
       }
     ]
