@@ -4,7 +4,7 @@ This guide walks you through the steps to remove fleetd from your device. After 
 
 ## macOS
 
-1. Add this [macos-uninstall-fleetd.sh Shell script](TODO) to Fleet.
+1. Add this [uninstall-fleetd.sh Shell script](TODO) to Fleet.
 
 2. Head to the macOS host's **Host details** page and select **Actions > Run script** to run the script.
 
@@ -12,7 +12,7 @@ This guide walks you through the steps to remove fleetd from your device. After 
 
 ## Windows
 
-1. Add the [windows-uninstall-fleetd.ps1 PowerShell script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/windows-uninstall-fleetd.ps1) to Fleet.
+1. Add the [uninstall-fleetd.ps1 PowerShell script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd.ps1) to Fleet.
 
 2. Head to the Windows host's **Host details** page and select **Actions > Run script** to run the script.
 
@@ -20,7 +20,7 @@ This guide walks you through the steps to remove fleetd from your device. After 
 
 ## Linux
 
-1. For Ubuntu and Debian hosts, add this [linux-deb-uninstall-fleetd.sh](TODO) to Fleet. For Fedora and CentOS hosts, add this [linux-rpm-uninstall-fleetd.sh Shell script](TODO) to Fleet.
+1. For Ubuntu and Debian hosts, add this [deb-uninstall-fleetd.sh](TODO) to Fleet. For Fedora and CentOS hosts, add this [rpm-uninstall-fleetd.sh Shell script](TODO) to Fleet.
 
 2. Head to the macOS host's **Host details** page and select **Actions > Run script** to run the script.
 
