@@ -2776,11 +2776,11 @@ Returns the information of the specified host.
       }
     ],
     "end_user" {
+      "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
       "idp_email": "anna@acme.com",
-      "full_name": "Anna Chao",
-      "id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+      "idp_full_name": "Anna Chao",
       "idp_groups": [
-        "Product department",
+        "Product",
         "Designers"
       ],
       "other_emails": [
