@@ -6331,7 +6331,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
-- [Get SCIM identity provider (IdP)](#get-scim-identity-provider-idp)
+- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6472,7 +6472,7 @@ _Available in Fleet Premium_
 }
 ```
 
-### Get SCIM integration with identity provider (IdP)
+### Get identity provider (IdP) details
 
 Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
 
