@@ -2180,6 +2180,24 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 					Teams:     nil,
 				}, nil
 			}
+
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "a",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "b",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+				}, nil
+			}
+
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
 				"a":                           2,
@@ -2385,6 +2403,22 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					Teams:     nil,
 				}, nil
 			}
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "a",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "b",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+				}, nil
+			}
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
 				"a":                           2,
@@ -2475,6 +2509,23 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				}, nil
 			}
 
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "label 1",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "label 2",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+				}, nil
+			}
+
 			found := make(map[string]uint)
 			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 				for _, l := range labels {
@@ -2522,6 +2573,28 @@ func TestGitOpsCustomSettings(t *testing.T) {
 			ds, appCfgPtr, _ := setupFullGitOpsPremiumServer(t)
 			(*appCfgPtr).MDM.EnabledAndConfigured = true
 			(*appCfgPtr).MDM.WindowsEnabledAndConfigured = true
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "A",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "B",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+					{
+						Name:                "C",
+						Description:         "Another nother label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+				}, nil
+			}
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
 				"A":                           2,

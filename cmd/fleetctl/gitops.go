@@ -178,8 +178,8 @@ func gitopsCommand() *cli.Command {
 						for _, labelUser := range labelsUsed[labelUsed] {
 							logf("[!] Unknown label '%s' is referenced by %s '%s'\n", labelUsed, labelUser.Type, labelUser.Name)
 						}
+						unknownLabelsUsed = true
 					}
-					unknownLabelsUsed = true
 				}
 				if unknownLabelsUsed {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
