@@ -48,6 +48,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
+		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts},
 	}
 
 	for _, c := range cases {
@@ -7613,4 +7614,17 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		appleHost2: {},
 		winHost2:   {},
 	})
+}
+
+func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var hostUUIDs []string
+	// The bug this test was built to reproduce is visible down to ~16400 hosts; keeping this at 66k for scale testing
+	for range 66000 {
+		hostUUIDs = append(hostUUIDs, uuid.NewString())
+	}
+
+	_, err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, ds.writer(ctx), hostUUIDs, nil)
+	require.NoError(t, err)
 }

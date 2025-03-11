@@ -1,0 +1,9 @@
+- name: macOS - Disk encryption enabled
+  query: SELECT 1 FROM filevault_status WHERE status LIKE '%on%';
+  critical: false
+  description: This policy checks if disk encryption is enabled.
+  resolution: |-
+    Disk encryption should be automatically enforced by Fleet. If you are failing this policy, you might need to logout or restart your Mac. After logging back in or restarting, open Fleet Desktop and click Refetch to clear this policy failure. 
+
+    If the issue persists, please reach out in #help-dogfooding. 
+  platform: darwin
