@@ -4107,7 +4107,7 @@ func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hos
 		return "", false, ctxerr.Wrap(ctx, err, "getting host emails")
 	}
 	if len(emails) == 0 {
-		// Error if we can't retrieve the end user email IDP
+		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 			CommandUUID: target.cmdUUID,
 			HostUUID:    hostUUID,
@@ -4133,6 +4133,7 @@ func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdT
 	}
 	if len(hosts) != 1 {
 		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
+		// Mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 			CommandUUID:   target.cmdUUID,
 			HostUUID:      hostUUID,
