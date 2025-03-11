@@ -2,6 +2,9 @@ package maintained_apps
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"strings"
 
 	kitlog "github.com/go-kit/log"
@@ -68,4 +71,10 @@ type FMAListFileApp struct {
 type FMAListFile struct {
 	Version int              `json:"version"`
 	Apps    []FMAListFileApp `json:"apps"`
+}
+
+func GetScriptRef(script string) string {
+	h := sha256.New()
+	_, _ = io.Copy(h, strings.NewReader(script)) // writes to a Hash can never fail
+	return hex.EncodeToString(h.Sum(nil))[:8]
 }

@@ -66,15 +66,6 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.Wrap(ctx, err, "ingesting app")
 		}
 
-		shouldUpdate, err := shouldUpdateApp(ctx, input.Token, outApp)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if app should be updated")
-		}
-		if !shouldUpdate {
-			level.Info(i.logger).Log("msg", "no change to app since last ingest, skipping", "slug", outApp.Slug)
-			continue
-		}
-
 		manifestApps = append(manifestApps, outApp)
 
 	}
@@ -161,43 +152,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	}
 	out.InstallScript = installScript
 
+	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
+	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
+
 	return out, nil
-}
-
-func shouldUpdateApp(ctx context.Context, sourceID string, outApp *maintained_apps.FMAManifestApp) bool {
-	existingFileBytes, err := os.ReadFile(path.Join(maintained_apps.OutputPath, outApp.Slug))
-	if err != nil {
-		return true
-	}
-
-	var existingManifest maintained_apps.FMAManifestFile
-	if err := json.Unmarshal(existingFileBytes, &existingManifest); err != nil {
-		return true
-	}
-
-	if len(existingManifest.Versions) < 1 {
-		return true
-	}
-
-	currentVersion := existingManifest.Versions[0]
-
-	if currentVersion.SHA256 != outApp.SHA256 {
-		return true
-	}
-
-	if currentVersion.InstallerURL != outApp.InstallerURL {
-		return true
-	}
-
-	if currentVersion.UniqueIdentifier != outApp.UniqueIdentifier {
-		return true
-	}
-
-	if currentVersion.Version != outApp.Version {
-		return true
-	}
-
-	return false
 }
 
 type inputApp struct {

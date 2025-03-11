@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"slices"
@@ -48,9 +45,6 @@ func main() {
 }
 
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
-	app.UninstallScriptRef = getScriptRef(app.UninstallScript)
-	app.InstallScriptRef = getScriptRef(app.InstallScript)
-
 	outFile := maintained_apps.FMAManifestFile{
 		Versions: []*maintained_apps.FMAManifestApp{app},
 		Refs:     map[string]string{app.UninstallScriptRef: app.UninstallScript, app.InstallScriptRef: app.InstallScript},
@@ -77,12 +71,6 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 	}
 
 	return nil
-}
-
-func getScriptRef(script string) string {
-	h := sha256.New()
-	_, _ = io.Copy(h, strings.NewReader(script)) // writes to a Hash can never fail
-	return hex.EncodeToString(h.Sum(nil))[:8]
 }
 
 func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifestApp) error {

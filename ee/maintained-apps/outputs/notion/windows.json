@@ -7,12 +7,12 @@
       },
       "installer_url": "",
       "unique_identifier": "",
-      "install_script_ref": "e3b0c442",
-      "uninstall_script_ref": "e3b0c442",
+      "install_script_ref": "",
+      "uninstall_script_ref": "",
       "sha256": ""
     }
   ],
   "refs": {
-    "e3b0c442": ""
+    "": ""
   }
 }
