@@ -41,6 +41,8 @@ export interface ICertificatesIntegrationCustomSCEP {
   challenge: string;
 }
 
+export type ICertificateAuthorityType = "ndes" | "digicert" | "custom";
+
 /** all the types of certificate integrations */
 export type ICertificateIntegration =
   | ICertificatesIntegrationNDES

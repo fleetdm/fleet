@@ -51,6 +51,21 @@ export const generateListData = (
   );
 };
 
+export interface ICertIntegrationNDESWithListId
+  extends ICertificatesIntegrationNDES {
+  listId: string;
+}
+
+export interface ICertIntegrationDigicertWithListId
+  extends ICertificatesIntegrationDigicert {
+  listId: string;
+}
+
+export interface ICertIntegrationCustomSCEPWithListId
+  extends ICertificatesIntegrationCustomSCEP {
+  listId: string;
+}
+
 /**
  * Gets the original certificate aithority integration object from the id
  * of the data representing a certificate authority list item.

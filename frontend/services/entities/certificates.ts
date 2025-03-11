@@ -1,5 +1,7 @@
+import configAPI from "./config";
+
 export default {
-  deleteCertificateAuthority: (id: number) => {
-    console.log("Delete certificate authority", id);
+  deleteCertificateAuthority: (updateData: any): Promise<void> => {
+    return configAPI.update(updateData);
   },
 };

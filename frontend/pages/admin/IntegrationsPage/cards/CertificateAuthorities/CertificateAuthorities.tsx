@@ -72,6 +72,9 @@ const CertificateAuthorities = () => {
     setShowDeleteCertAuthorityModal,
   ] = useState(false);
 
+  const [selectedListItemId, setSelectedListItemId] = useState<string | null>(
+    null
+  );
   const [
     selectedCertAuthority,
     setSelectedCertAuthority,
@@ -98,6 +101,7 @@ const CertificateAuthorities = () => {
       config?.integrations.digicert,
       config?.integrations.custom_scep_proxy
     );
+    setSelectedListItemId(cert.id);
     setSelectedCertAuthority(certAuthority);
     setShowEditCertAuthorityModal(true);
   };
@@ -110,6 +114,7 @@ const CertificateAuthorities = () => {
       config?.integrations.digicert,
       config?.integrations.custom_scep_proxy
     );
+    setSelectedListItemId(cert.id);
     setSelectedCertAuthority(certAuthority);
     setShowDeleteCertAuthorityModal(true);
   };
@@ -148,12 +153,15 @@ const CertificateAuthorities = () => {
       {renderContent()}
       {showAddCertAuthorityModal && <div>Modal showing</div>}
       {showEditCertAuthorityModal && <div>Modal showing</div>}
-      {showDeleteCertAuthoirtyModal && selectedCertAuthority && (
-        <DeleteCertificateAuthorityModal
-          certAuthority={selectedCertAuthority}
-          onExit={() => setShowDeleteCertAuthorityModal(false)}
-        />
-      )}
+      {showDeleteCertAuthoirtyModal &&
+        selectedCertAuthority &&
+        selectedListItemId && (
+          <DeleteCertificateAuthorityModal
+            listItemId={selectedListItemId}
+            certAuthority={selectedCertAuthority}
+            onExit={() => setShowDeleteCertAuthorityModal(false)}
+          />
+        )}
     </div>
   );
 };
