@@ -36,8 +36,7 @@ jobs:
       - name: Close issues
         uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
         with:
-          only-issue-labels:
-            - "~engineering-initiated"
+          only-issue-labels: ["~engineering-initiated"]
           days-before-issue-stale: 365
           days-before-issue-close: 14
           stale-issue-label: "stale"
