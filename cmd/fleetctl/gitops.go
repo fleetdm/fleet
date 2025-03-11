@@ -314,6 +314,7 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
+// Merge sets of label names.
 func concatLabels(labelArrays ...[]string) []string {
 	var result []string
 	for _, arr := range labelArrays {
@@ -322,6 +323,7 @@ func concatLabels(labelArrays ...[]string) []string {
 	return result
 }
 
+// Given a set of referenced labels and info about who is using them, update a provided usage map.
 func updateLabelUsage(labels []string, ident string, usageType string, currentUsage *map[string][]LabelUsage) {
 	for _, label := range labels {
 		var usage []LabelUsage
@@ -337,6 +339,8 @@ func updateLabelUsage(labels []string, ident string, usageType string, currentUs
 	}
 }
 
+// Create a map of label name -> who is using that label.
+// This will be used to determine if any non-existent labels are being referenced.
 func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 	result := make(map[string][]LabelUsage)
 
