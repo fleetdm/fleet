@@ -1,7 +1,11 @@
 import configAPI from "./config";
 
 export default {
-  deleteCertificateAuthority: (updateData: any): Promise<void> => {
+  addCertificateAuthority: (updateData: any): Promise<any> => {
+    return configAPI.update(updateData);
+  },
+
+  deleteCertificateAuthority: (updateData: any): Promise<any> => {
     return configAPI.update(updateData);
   },
 };
