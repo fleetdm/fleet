@@ -129,7 +129,14 @@ func gitopsCommand() *cli.Command {
 					}
 					globalConfigLoaded = true
 				}
-				configs = append(configs, ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig})
+				configFile := ConfigFile{Config: config, Filename: flFilename, IsGlobalConfig: isGlobalConfig}
+				if isGlobalConfig {
+					// If it's a global file, put it at the beginning
+					// of the array so it gets processed first
+					configs = append([]ConfigFile{configFile}, configs...)
+				} else {
+					configs = append(configs, configFile)
+				}
 			}
 
 			for _, configFile := range configs {
