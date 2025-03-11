@@ -1919,20 +1919,6 @@ func (a *agent) certificates() []map[string]string {
 	// on dogfood gives between 4-7)
 	count := rand.Intn(9) + 2
 
-	const certTpl = `
-	ca:                %d
-	common_name:       %s
-	issuer:            /C=US/O=Issuer %d Inc./CN=Issuer %d Common Name
-	subject:           /C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name
-	key_algorithm:     rsaEncryption
-	key_strength:      2048
-	key_usage:         Data Encipherment, Key Encipherment, Digital Signature
-	serial:            %s
-	signing_algorithm: sha256WithRSAEncryption
-	not_valid_after:   %d
-	not_valid_before:  %d
-	sha1:              %s
-`
 	const day = 24 * time.Hour
 	results := make([]map[string]string, count)
 	for i := range count {
