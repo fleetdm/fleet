@@ -1682,6 +1682,48 @@ Generated when activity automations are disabled
 
 This activity does not contain any detail fields.
 
+## added_conditional_access_integration_microsoft
+
+Generated when Microsoft Entra is connected for conditonal access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_integration_microsoft
+
+Generated when Microsoft Entra is integration is disconnected.
+
+This activity does not contain any detail fields.
+
+# enabled_conditional_access_automations
+
+Generated when conditional access automations are enabled for a team.
+
+This activity contains the following field:
+- "team_id": the ID of the team
+  
+#### Example
+
+```json
+{
+	"team_id": 123
+}
+```
+
+# disabled_conditional_access_automations
+
+Generated when conditional access automations are disabled for a team.
+
+This activity contains the following field:
+- "team_id": the ID of the team
+
+#### Example
+
+```json
+{
+	"team_id": 123
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
