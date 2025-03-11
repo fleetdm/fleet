@@ -455,7 +455,7 @@ module.exports.routes = {
   'GET /app-library': {
     action: 'view-app-library',
     locals: {
-      pageTitleForMeta: 'App library',
+      pageTitleForMeta: 'Software',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
     }
   },
