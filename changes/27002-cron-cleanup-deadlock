@@ -1,0 +1,1 @@
+- Added retry on deadlock when deleting thousands of expired queries
