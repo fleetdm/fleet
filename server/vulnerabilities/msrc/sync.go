@@ -8,6 +8,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 )
 
@@ -62,13 +64,13 @@ func bulletinsDelta(
 // systems with the security bulletin published in Github.
 //
 // If 'os' is nil, then all security bulletins will be synched.
-func SyncFromGithub(ctx context.Context, dstDir string, os []fleet.OperatingSystem) error {
+func SyncFromGithub(ctx context.Context, dstDir string, os []fleet.OperatingSystem, logger kitlog.Logger) error {
 	client := fleethttp.NewGithubClient()
 	rep := github.NewClient(client).Repositories
 	gh := io.NewGitHubClient(client, rep, dstDir)
 	fs := io.NewFSClient(dstDir)
 
-	if err := sync(ctx, os, fs, gh); err != nil {
+	if err := sync(ctx, os, fs, gh, logger); err != nil {
 		return fmt.Errorf("msrc sync: %w", err)
 	}
 
@@ -80,6 +82,7 @@ func sync(
 	os []fleet.OperatingSystem,
 	fsClient io.FSAPI,
 	ghClient io.GitHubAPI,
+	logger kitlog.Logger,
 ) error {
 	remoteURLs, err := ghClient.MSRCBulletins(ctx)
 	if err != nil {
@@ -104,7 +107,7 @@ func sync(
 	}
 	for _, d := range toDelete {
 		if err := fsClient.Delete(d); err != nil {
-			return err
+			level.Debug(logger).Log("msg", "failed to delete outdated msrc file", "file", d, "err", err)
 		}
 	}
 

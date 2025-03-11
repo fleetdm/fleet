@@ -303,7 +303,7 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		err = msrc.SyncFromGithub(ctx, vulnPath, os)
+		err = msrc.SyncFromGithub(ctx, vulnPath, os, logger)
 		if err != nil {
 			errHandler(ctx, logger, "updating msrc definitions", err)
 		}
