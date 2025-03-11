@@ -29,8 +29,8 @@ This is the user-facing name of the application.
 #### `unique_identifier`
 This is the platform-specific unique identifier for the app. On macOS, this is the app's bundle identifier.
 
-#### `source_identifier`
-This is the identifier used by the metadata source for this app. For homebrew on macOS, this is the `token` field in the homebrew API response.
+#### `token`
+This is the identifier used by homebrew for the app; it is the `token` field on the homebrew API response.
 
 #### `installer_format`
 This is the file format for the app's installer. Currently supported values are:

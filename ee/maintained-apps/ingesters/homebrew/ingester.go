@@ -143,7 +143,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
-	out.Description = cask.Desc
 	out.Slug = fmt.Sprintf("%s/%s", cask.Token, fleet.MacOSPlatform)
 	out.UninstallScript = uninstallScriptForApp(&cask)
 	installScript, err := installScriptForApp(app, &cask)

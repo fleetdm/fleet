@@ -104,7 +104,6 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 			Slug:             outApp.Slug,
 			Platform:         platform,
 			UniqueIdentifier: outApp.UniqueIdentifier,
-			Description:      outApp.Description,
 		})
 
 		// Keep existing order

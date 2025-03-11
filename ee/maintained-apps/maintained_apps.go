@@ -31,10 +31,8 @@ type FMAManifestApp struct {
 	InstallScript      string     `json:"-"`
 	UninstallScript    string     `json:"-"`
 	SHA256             string     `json:"sha256"`
-	// Description is an optional description of the app and what it does.
-	Description string `json:"-"`
-	Slug        string `json:"-"`
-	Name        string `json:"-"`
+	Slug               string     `json:"-"`
+	Name               string     `json:"-"`
 }
 
 func (a *FMAManifestApp) Platform() string {
