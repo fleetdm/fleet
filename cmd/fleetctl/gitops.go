@@ -112,6 +112,9 @@ func gitopsCommand() *cli.Command {
 			secrets := make(map[string]struct{})
 			// We keep track of the environment FLEET_SECRET_* variables
 			allFleetSecrets := make(map[string]string)
+			// Keep track of which labels we'd have after this gitops run.
+			var proposedLabelNames []string
+
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
@@ -144,29 +147,43 @@ func gitopsCommand() *cli.Command {
 					if !config.Controls.Set() {
 						config.Controls = noTeamControls
 					}
+
+					// If config.Labels is empty, populate it with the existing persisted labels.
+					if config.Labels != nil && len(config.Labels) == 0 {
+						persistedLabels, err := fleetClient.GetLabels()
+						if err != nil {
+							return err
+						}
+						for _, persistedLabel := range persistedLabels {
+							if persistedLabel.LabelType == fleet.LabelTypeRegular {
+								config.Labels = append(config.Labels, persistedLabel)
+							}
+						}
+					}
+
+					// Get the names of the labels we'd have after this run.
+					proposedLabelNames = make([]string, len(config.Labels))
+					for i, l := range config.Labels {
+						proposedLabelNames[i] = l.Name
+					}
+
 				} else if !appConfig.License.IsPremium() {
 					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
 					continue
 				}
 
-				// If we're in a team config, or a global config without `labels:` declared,
-				// get the set of existing label names from the db.
-				if !isGlobalConfig || (config.Labels != nil && len(config.Labels) == 0) {
+				// If we're only running team configs, get the list of available labels from the db.
+				if proposedLabelNames == nil {
+					proposedLabelNames = make([]string, 0)
 					persistedLabels, err := fleetClient.GetLabels()
 					if err != nil {
 						return err
 					}
 					for _, persistedLabel := range persistedLabels {
 						if persistedLabel.LabelType == fleet.LabelTypeRegular {
-							config.Labels = append(config.Labels, persistedLabel)
+							proposedLabelNames = append(proposedLabelNames, persistedLabel.Name)
 						}
 					}
-				}
-
-				// Names of the labels we'd have after this gitops run.
-				proposedLabelNames := make([]string, len(config.Labels))
-				for i, l := range config.Labels {
-					proposedLabelNames[i] = l.Name
 				}
 
 				// Gather stats on where labels are used in the this gitops config,

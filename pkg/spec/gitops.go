@@ -184,7 +184,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// empty array.
 	_, ok := top["labels"]
 	if !ok || !result.IsGlobal() {
-		if !result.IsGlobal() {
+		if ok && !result.IsGlobal() {
 			logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
 		}
 		result.Labels = make([]*fleet.LabelSpec, 0)
