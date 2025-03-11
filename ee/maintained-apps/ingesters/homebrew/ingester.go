@@ -3,7 +3,6 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -165,44 +164,40 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	return out, nil
 }
 
-func shouldUpdateApp(ctx context.Context, sourceID string, outApp *maintained_apps.FMAManifestApp) (bool, error) {
+func shouldUpdateApp(ctx context.Context, sourceID string, outApp *maintained_apps.FMAManifestApp) bool {
 	existingFileBytes, err := os.ReadFile(path.Join(maintained_apps.OutputPath, outApp.Slug))
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return true, nil
-		}
-
-		return false, ctxerr.Wrap(ctx, err, "reading existing app manifest")
+		return true
 	}
 
 	var existingManifest maintained_apps.FMAManifestFile
 	if err := json.Unmarshal(existingFileBytes, &existingManifest); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "unmarshaling existing app manifest", "slug", outApp.Slug)
+		return true
 	}
 
 	if len(existingManifest.Versions) < 1 {
-		return false, ctxerr.Wrap(ctx, err, "invalid existing app manifest", "slug", outApp.Slug)
+		return true
 	}
 
 	currentVersion := existingManifest.Versions[0]
 
 	if currentVersion.SHA256 != outApp.SHA256 {
-		return true, nil
+		return true
 	}
 
 	if currentVersion.InstallerURL != outApp.InstallerURL {
-		return true, nil
+		return true
 	}
 
 	if currentVersion.UniqueIdentifier != outApp.UniqueIdentifier {
-		return true, nil
+		return true
 	}
 
 	if currentVersion.Version != outApp.Version {
-		return true, nil
+		return true
 	}
 
-	return false, nil
+	return false
 }
 
 type inputApp struct {
