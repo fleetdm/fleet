@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
@@ -161,10 +162,13 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 
 //goland:noinspection GoErrorStringFormat
 var sendingMFAEmail = errors.New("sending MFA email")
-var noMFASupported = errors.New("client with no MFA email support")
-var mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
-	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
-	noMFASupported,
+
+var (
+	noMFASupported           = errors.New("client with no MFA email support")
+	mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
+		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
+		noMFASupported,
+	)
 )
 
 func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
@@ -389,34 +393,29 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
-	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
-	}
-
 	serverURL := appConfig.ServerSettings.ServerURL
-	settings := sso.Settings{
-		Metadata: metadata,
-		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
-		SessionStore:                svc.ssoSessionStore,
-		OriginalURL:                 redirectURL,
-	}
+	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
 
 	// If issuer is not explicitly set, default to host name.
-	var issuer string
 	entityID := appConfig.SSOSettings.EntityID
 	if entityID == "" {
 		u, err := url.Parse(serverURL)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "parse server url")
 		}
-		issuer = u.Hostname()
-	} else {
-		issuer = entityID
+		entityID = u.Hostname()
 	}
 
-	idpURL, err := sso.CreateAuthorizationRequest(&settings, issuer)
+	samlProvider, err := sso.SAMLProviderFromConfiguredMetadata(ctx,
+		entityID,
+		acsURL,
+		&appConfig.SSOSettings.SSOProviderSettings,
+	)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to create provider from configured metadata")
+	}
+
+	idpURL, err := sso.CreateAuthorizationRequest2(ctx, svc.ssoSessionStore, redirectURL, samlProvider)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
 	}
@@ -430,7 +429,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 type callbackSSORequest struct{}
 
-func (callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -440,10 +439,10 @@ func (callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to decode SAMLResponse",
 			InternalErr: err,
-		}, "decoding sso callback")
+		})
 	}
 	return authResponse, nil
 }
@@ -512,13 +511,13 @@ func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
 	}
 }
 
-func getSSOSession(ctx context.Context, svc fleet.Service, auth fleet.Auth) (*fleet.SSOSession, error) {
-	redirectURL, err := svc.InitSSOCallback(ctx, auth)
+func getSSOSession(ctx context.Context, svc fleet.Service, authResponse fleet.Auth) (*fleet.SSOSession, error) {
+	redirectURL, err := svc.InitSSOCallback(ctx, authResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := svc.GetSSOUser(ctx, auth)
+	user, err := svc.GetSSOUser(ctx, authResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +525,7 @@ func getSSOSession(ctx context.Context, svc fleet.Service, auth fleet.Auth) (*fl
 	return svc.LoginSSOUser(ctx, user, redirectURL)
 }
 
-func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
+func (svc *Service) InitSSOCallback(ctx context.Context, authResponse fleet.Auth) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -543,36 +542,18 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "callback sso")
 	}
 
-	// Load the request metadata if available.
-	var metadata *sso.Metadata
-	var redirectURL string
-	if appConfig.SSOSettings.EnableSSOIdPLogin && auth.RequestID() == "" {
-		// Missing request ID indicates this was IdP-initiated. Only allow if
-		// configured to do so.
-		metadata, err = sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "get sso metadata")
-		}
-		redirectURL = "/"
-	} else {
-		var session *sso.Session
-		session, metadata, err = svc.ssoSessionStore.Fullfill(auth.RequestID())
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "validate request in session")
-		}
-		redirectURL = session.OriginalURL
+	serverURL := appConfig.ServerSettings.ServerURL
+	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
+	samlProvider, redirectURL, err := svc.samlProviderFromMetadata(ctx, authResponse.RequestID(), serverURL, acsURL, appConfig.SSOSettings)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	// Validate response
-	err = sso.ValidateAudiences(
-		*metadata,
-		auth,
-		appConfig.SSOSettings.EntityID,
-		appConfig.ServerSettings.ServerURL,
-		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/sso/callback", // ACS
-	)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "validating sso response")
+	if _, err := samlProvider.ParseXMLResponse(authResponse.RawResponse(), []string{authResponse.RequestID()}); err != nil {
+		return "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to parse and validate response",
+			InternalErr: err,
+		})
 	}
 
 	return redirectURL, nil
@@ -588,6 +569,52 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 		return nil, ctxerr.Wrap(ctx, err, "find user in sso callback")
 	}
 	return user, nil
+}
+
+func (svc *Service) samlProviderFromMetadata(
+	ctx context.Context,
+	samlRequestID string,
+	serverURL string,
+	acsURL string,
+	settings *fleet.SSOSettings,
+) (*saml.ServiceProvider, string, error) {
+	acsURL_, err := url.Parse(acsURL)
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "parse ACS URL")
+	}
+
+	// Load the request metadata if available.
+	var (
+		entityDescriptor *saml.EntityDescriptor
+		redirectURL      string
+	)
+	if settings.EnableSSOIdPLogin && samlRequestID == "" {
+		// Missing request ID indicates this was IdP-initiated. Only allow if
+		// configured to do so.
+		var err error
+		entityDescriptor, err = sso.GetMetadata2(&settings.SSOProviderSettings)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "failed to parse metadata")
+		}
+		redirectURL = "/"
+	} else {
+		session, err := svc.ssoSessionStore.Fullfill(samlRequestID)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "validate request in session")
+		}
+		entityDescriptor, err = sso.ParseMetadata([]byte(session.Metadata))
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "failed to parse metadata")
+		}
+		redirectURL = session.OriginalURL
+	}
+
+	return &saml.ServiceProvider{
+		EntityID:           serverURL,
+		AcsURL:             *acsURL_,
+		DefaultRedirectURI: redirectURL,
+		IDPMetadata:        entityDescriptor,
+	}, redirectURL, nil
 }
 
 func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirectURL string) (*fleet.SSOSession, error) {

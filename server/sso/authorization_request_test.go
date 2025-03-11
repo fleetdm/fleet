@@ -3,12 +3,14 @@ package sso
 import (
 	"bytes"
 	"compress/flate"
+	"context"
 	"encoding/base64"
 	"encoding/xml"
 	"net/url"
 	"strings"
 	"testing"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,22 +27,34 @@ func TestRequestCompression(t *testing.T) {
 
 func TestCreateAuthorizationRequest(t *testing.T) {
 	store := &mockStore{}
-	settings := &Settings{
-		Metadata: &Metadata{
-			EntityID: "test",
-			IDPSSODescriptor: IDPSSODescriptor{
-				SingleSignOnService: []SingleSignOnService{
-					{Binding: RedirectBinding, Location: "http://example.com"},
+
+	metadata, err := xml.Marshal(&saml.EntityDescriptor{
+		EntityID: "test",
+		IDPSSODescriptors: []saml.IDPSSODescriptor{
+			{
+				SingleSignOnServices: []saml.Endpoint{
+					{Binding: saml.HTTPRedirectBinding, Location: "http://example.com"},
 				},
 			},
 		},
-		// Construct call back url to send to idp
-		AssertionConsumerServiceURL: "http://localhost:8001/api/v1/fleet/sso/callback",
-		SessionStore:                store,
-		OriginalURL:                 "/redir",
-	}
+	})
+	require.NoError(t, err)
 
-	idpURL, err := CreateAuthorizationRequest(settings, "issuer", RelayState("abc"))
+	samlProvider, err := SAMLProviderFromConfiguredMetadata(context.Background(),
+		"issuer",
+		"http://localhost:8001/api/v1/fleet/sso/callback",
+		&fleet.SSOProviderSettings{
+			IDPName:  "Fleet",
+			Metadata: string(metadata),
+		},
+	)
+	require.NoError(t, err)
+
+	idpURL, err := CreateAuthorizationRequest2(context.Background(),
+		store,
+		"/redir",
+		samlProvider,
+	)
 	require.NoError(t, err)
 
 	parsed, err := url.Parse(idpURL)
@@ -50,21 +64,20 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	encoded := q.Get("SAMLRequest")
 	assert.NotEmpty(t, encoded)
 	authReq := inflate(t, encoded)
-	assert.Equal(t, "issuer", authReq.Issuer.Url)
+	assert.Equal(t, "issuer", authReq.Issuer.Value)
 	assert.Equal(t, "Fleet", authReq.ProviderName)
 	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
-	assert.Equal(t, "abc", q.Get("RelayState"))
 
 	ssn := store.session
 	require.NotNil(t, ssn)
 	assert.Equal(t, "/redir", ssn.OriginalURL)
 
-	var meta Metadata
+	var meta saml.EntityDescriptor
 	require.NoError(t, xml.Unmarshal([]byte(ssn.Metadata), &meta))
 	assert.Equal(t, "test", meta.EntityID)
 }
 
-func inflate(t *testing.T, s string) *AuthnRequest {
+func inflate(t *testing.T, s string) *saml.AuthnRequest {
 	t.Helper()
 
 	decoded, err := base64.StdEncoding.DecodeString(s)
@@ -73,7 +86,7 @@ func inflate(t *testing.T, s string) *AuthnRequest {
 	r := flate.NewReader(bytes.NewReader(decoded))
 	defer r.Close()
 
-	var req AuthnRequest
+	var req saml.AuthnRequest
 	require.NoError(t, xml.NewDecoder(r).Decode(&req))
 	return &req
 }
@@ -98,6 +111,7 @@ func (s *mockStore) expire(requestID string) error {
 	s.session = nil
 	return nil
 }
-func (s *mockStore) Fullfill(requestID string) (*Session, *Metadata, error) {
-	return s.session, &Metadata{}, nil
+
+func (s *mockStore) Fullfill(requestID string) (*Session, error) {
+	return s.session, nil
 }

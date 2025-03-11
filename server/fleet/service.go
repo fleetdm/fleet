@@ -183,8 +183,7 @@ type Service interface {
 	// don't want to allow IdP initiated authentications)
 	InitiateMDMAppleSSO(ctx context.Context) (string, error)
 
-	// InitSSOCallback handles the IDP response and ensures the credentials
-	// are valid
+	// InitSSOCallback handles the IDP response and ensures the credentials are valid.
 	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
 
 	// InitiateMDMAppleSSOCallback handles the IDP response and ensures the

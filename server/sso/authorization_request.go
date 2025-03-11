@@ -3,117 +3,27 @@ package sso
 import (
 	"bytes"
 	"compress/flate"
+	"context"
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
-	"time"
+
+	"github.com/crewjam/saml"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 const (
-	samlVersion   = "2.0"
 	cacheLifetime = 300 // five minutes
 )
 
-// RelayState sets optional relay state
-func RelayState(v string) func(*opts) {
-	return func(o *opts) {
-		o.relayState = v
-	}
-}
-
-type opts struct {
-	relayState string
-}
-
-// CreateAuthorizationRequest creates a url suitable for use to satisfy the SAML
-// redirect binding. It returns the URL of the identity provider, configured to
-// initiate the authentication request.
-// See http://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf Section 3.4
-func CreateAuthorizationRequest(settings *Settings, issuer string, options ...func(o *opts)) (string, error) {
-	var optionalParams opts
-	for _, opt := range options {
-		opt(&optionalParams)
-	}
-	if settings.Metadata == nil {
-		return "", errors.New("missing settings metadata")
-	}
-	requestID, err := generateSAMLValidID()
-	if err != nil {
-		return "", fmt.Errorf("creating auth request id: %w", err)
-	}
-	destinationURL, err := getDestinationURL(settings)
-	if err != nil {
-		return "", fmt.Errorf("creating auth request: %w", err)
-	}
-	request := AuthnRequest{
-		XMLName: xml.Name{
-			Local: "samlp:AuthnRequest",
-		},
-		ID:                          requestID,
-		SAMLP:                       "urn:oasis:names:tc:SAML:2.0:protocol",
-		SAML:                        "urn:oasis:names:tc:SAML:2.0:assertion",
-		AssertionConsumerServiceURL: settings.AssertionConsumerServiceURL,
-		Destination:                 destinationURL,
-		IssueInstant:                time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		Version:                     samlVersion,
-		ProviderName:                "Fleet",
-		Issuer: Issuer{
-			XMLName: xml.Name{
-				Local: "saml:Issuer",
-			},
-			Url: issuer,
-		},
-	}
-
-	var metadataWriter bytes.Buffer
-	err = xml.NewEncoder(&metadataWriter).Encode(settings.Metadata)
-	if err != nil {
-		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
-	}
-
-	// cache metadata so we can check the signatures on the response we get from the IDP
-	err = settings.SessionStore.create(requestID,
-		settings.OriginalURL,
-		metadataWriter.String(),
-		cacheLifetime,
-	)
-	if err != nil {
-		return "", fmt.Errorf("caching metadata while creating auth request: %w", err)
-	}
-
-	u, err := url.Parse(destinationURL)
-	if err != nil {
-		return "", fmt.Errorf("parsing destination url: %w", err)
-	}
-	qry := u.Query()
-
-	var writer bytes.Buffer
-	err = xml.NewEncoder(&writer).Encode(request)
-	if err != nil {
-		return "", fmt.Errorf("encoding auth request xml: %w", err)
-	}
-
-	authQueryVal, err := deflate(&writer)
-	if err != nil {
-		return "", fmt.Errorf("unable to compress auth info: %w", err)
-	}
-
-	qry.Set("SAMLRequest", authQueryVal)
-	if optionalParams.relayState != "" {
-		qry.Set("RelayState", optionalParams.relayState)
-	}
-
-	u.RawQuery = qry.Encode()
-	return u.String(), nil
-}
-
-func getDestinationURL(settings *Settings) (string, error) {
-	for _, sso := range settings.Metadata.IDPSSODescriptor.SingleSignOnService {
-		if sso.Binding == RedirectBinding {
-			return sso.Location, nil
+func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
+	for _, ssoDescriptor := range idpMetadata.IDPSSODescriptors {
+		for _, ssos := range ssoDescriptor.SingleSignOnServices {
+			if ssos.Binding == saml.HTTPRedirectBinding {
+				return ssos.Location, nil
+			}
 		}
 	}
 	return "", errors.New("IDP does not support redirect binding")
@@ -149,4 +59,47 @@ func deflate(xmlBuffer *bytes.Buffer) (string, error) {
 	encbuff := deflated.Bytes()
 	encoded := base64.StdEncoding.EncodeToString(encbuff)
 	return encoded, nil
+}
+
+func CreateAuthorizationRequest2(ctx context.Context,
+	sessionStore SessionStore,
+	originalURL string,
+	samlProvider *saml.ServiceProvider,
+) (string, error) {
+	idpURL, err := getDestinationURL(samlProvider.IDPMetadata)
+	if err != nil {
+		return "", fmt.Errorf("get idp url: %w", err)
+	}
+	samlAuthRequest, err := samlProvider.MakeAuthenticationRequest(
+		idpURL,
+		"HTTPRedirectBinding",
+		"HTTPPostBinding",
+	)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "make auth request")
+	}
+	// We can modify the samlAuthRequest because it's not signed
+	// (not a requirement when using "HTTPRedirectBinding" binding for the request)
+	samlAuthRequest.ProviderName = "Fleet"
+
+	var metadataWriter bytes.Buffer
+	err = xml.NewEncoder(&metadataWriter).Encode(samlProvider.IDPMetadata)
+	if err != nil {
+		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
+	}
+	// cache metadata so we can check the signatures on the response we get from the IDP
+	err = sessionStore.create(samlAuthRequest.ID,
+		originalURL,
+		metadataWriter.String(),
+		cacheLifetime,
+	)
+	if err != nil {
+		return "", fmt.Errorf("caching metadata while creating auth request: %w", err)
+	}
+
+	idpRedirectURL, err := samlAuthRequest.Redirect("", samlProvider)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating redirect")
+	}
+	return idpRedirectURL.String(), nil
 }

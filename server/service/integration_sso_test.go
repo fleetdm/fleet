@@ -14,11 +14,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -84,7 +84,7 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	encoded := q.Get("SAMLRequest")
 	assert.NotEmpty(t, encoded)
 	authReq := inflate(t, encoded)
-	assert.Equal(t, "https://localhost:8080", authReq.Issuer.Url)
+	assert.Equal(t, "https://localhost:8080", authReq.Issuer.Value)
 	assert.Equal(t, "Fleet", authReq.ProviderName)
 	assert.True(t, strings.HasPrefix(authReq.ID, "id"), authReq.ID)
 }
@@ -162,6 +162,9 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
@@ -324,7 +327,7 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 	}, http.StatusForbidden, &perfPwdResetResp)
 }
 
-func inflate(t *testing.T, s string) *sso.AuthnRequest {
+func inflate(t *testing.T, s string) *saml.AuthnRequest {
 	t.Helper()
 
 	decoded, err := base64.StdEncoding.DecodeString(s)
@@ -333,7 +336,7 @@ func inflate(t *testing.T, s string) *sso.AuthnRequest {
 	r := flate.NewReader(bytes.NewReader(decoded))
 	defer r.Close()
 
-	var req sso.AuthnRequest
+	var req saml.AuthnRequest
 	require.NoError(t, xml.NewDecoder(r).Decode(&req))
 	return &req
 }
