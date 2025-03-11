@@ -2028,7 +2028,7 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 			logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
 		}
 	} else {
-		logFn("[+] syncing %d %s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "policy", "policies"), len(config.Labels)-numUpdates, numUpdates)
+		logFn("[+] syncing %d label%s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "", "s"), len(config.Labels)-numUpdates, numUpdates)
 		err = c.ApplyLabels(config.Labels)
 		if err != nil {
 			return err
