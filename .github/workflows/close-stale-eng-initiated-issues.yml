@@ -37,7 +37,7 @@ jobs:
         uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
         with:
           only-issue-labels: "~engineering-initiated" # comma separated labels that must ALL be present
-          days-before-issue-stale: 600
+          days-before-issue-stale: 1000
           days-before-issue-close: 14
           stale-issue-label: "stale"
           stale-issue-message: "This issue is stale because it has been open for 365 days with no activity. Please update the issue if it is still relevant."
@@ -45,5 +45,5 @@ jobs:
           days-before-pr-stale: -1 # Stale PRs not checked
           days-before-pr-close: -1
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          debug-only: true # TODO: remove
-          operations-per-run: 100 # This number has to be high enough to capture all the recent issues we want to process
+          debug-only: false # TODO: remove
+          operations-per-run: 200 # This number has to be high enough to capture all the recent issues we want to process
