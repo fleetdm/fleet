@@ -89,7 +89,7 @@ func TestOvalPlatform(t *testing.T) {
 		}
 	})
 
-	t.Run("ToDownloadedFilename", func(t *testing.T) {
+	t.Run("ToGovalDatabaseFilename", func(t *testing.T) {
 		cases := []struct {
 			version  string
 			expected string
@@ -101,7 +101,7 @@ func TestOvalPlatform(t *testing.T) {
 		}
 		for _, c := range cases {
 			plat := NewPlatform("amzn", c.version)
-			require.Equal(t, c.expected, plat.ToDownloadedFilename())
+			require.Equal(t, c.expected, plat.ToGovalDatabaseFilename())
 		}
 	})
 }

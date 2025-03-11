@@ -43,8 +43,13 @@ func checkGovalDictionaryVulnerabilities(vulnPath string) {
 		platform := platformFromString(p)
 
 		destFilename := platform.ToGovalDictionaryFilename()
-		filename := platform.ToDownloadedFilename()
+		filename := platform.ToGovalDatabaseFilename()
 
+		// Renaming these files from amzn_%d.sqlite3 to fleet_goval_dictionary_amzn_%d.sqlite3
+		// In the vulnerabilities repository the `goval-dictionary fetch` downloads these files with the shorter name
+		// However, the goval_dictionary/sync.go#Refresh method download these files, extracts them, and uses the longer name
+		// See in specific the `downloadDatabase` function where it sets the `dstPath` to use `platform.ToGovalDictionaryFilename`
+		// LoadDb then expect the path to include the `ToGovalDictionaryFilename`
 		err := os.Rename(fmt.Sprintf("%s/%s", vulnPath, filename), fmt.Sprintf("%s/%s", vulnPath, destFilename))
 		if err != nil {
 			panic(fmt.Sprintf("failed to move file from %s/%s to %s/%s: %v", vulnPath, filename, vulnPath, destFilename, err))

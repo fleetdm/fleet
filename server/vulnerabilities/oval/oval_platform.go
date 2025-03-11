@@ -83,9 +83,9 @@ func (op Platform) ToGovalDictionaryFilename() string {
 	return fmt.Sprintf("%s_%s.sqlite3", GovalDictionaryFilePrefix, op)
 }
 
-// ToDownloadedFilename returns the filename of the sqlite3 files downloaded using
+// ToGovalDatabaseFilename returns the filename of the sqlite3 files downloaded using
 // the goval-dictionary fetch method in the vulnerabilities generate-cve.yml workflow
-func (op Platform) ToDownloadedFilename() string {
+func (op Platform) ToGovalDatabaseFilename() string {
 	return fmt.Sprintf("%s.sqlite3", op)
 }
 
