@@ -13473,7 +13473,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	errMsg := extractServerErrorText(rawRes.Body)
 	require.Contains(t, errMsg, "_badName is not supported")
 
-	// Add good profile
+	// ////////////////////////////////
+	// Test a good profile -- happy path
 	profile = digiCertForTest("N2", "I2", "my_CA")
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N2", Contents: profile},
@@ -13534,7 +13535,12 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
 	digiCertServer.certReqMu.Unlock()
+	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, certProf.NotValidAfter)
+	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
 
+	// ////////////////////////////////
 	// Try a DigiCert CA that will fail
 	caFail := getDigiCertIntegration(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
@@ -13586,6 +13592,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.True(t, foundGood)
 	assert.True(t, foundFailed)
 
+	// ////////////////////////////////
 	// Test DigiCert CA with Fleet variables
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
@@ -13736,6 +13743,7 @@ type mockDigiCertServer struct {
 	server    *httptest.Server
 	certReq   certificateReq
 	certReqMu *sync.Mutex
+	notAfter  time.Time
 }
 
 type certificateReq struct {
@@ -13751,6 +13759,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 	certRegex := regexp.MustCompile(`^/mpki/api/v1/certificate`)
 	mockServer := &mockDigiCertServer{
 		certReqMu: &sync.Mutex{},
+		notAfter:  time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second),
 	}
 	mockServer.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -13818,7 +13827,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 				SerialNumber: serialNumber,
 				Subject:      csr.Subject,
 				NotBefore:    time.Now(),
-				NotAfter:     time.Now().Add(365 * 24 * time.Hour), // 1 year validity
+				NotAfter:     mockServer.notAfter,
 				KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 				ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 			}

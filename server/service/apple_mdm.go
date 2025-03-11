@@ -4002,7 +4002,7 @@ func preprocessProfileContents(
 						}
 					}
 
-					data, password, err := digicert.GetCertificate(ctx, logger, caCopy)
+					cert, err := digicert.GetCertificate(ctx, logger, caCopy)
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
@@ -4018,8 +4018,13 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(data))
-					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, password)
+					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(cert.PfxData))
+					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, cert.Password)
+					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:      hostUUID,
+						ProfileUUID:   profUUID,
+						NotValidAfter: &cert.NotValidAfter,
+					})
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}
