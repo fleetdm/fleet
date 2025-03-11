@@ -1,4 +1,4 @@
-package darwin
+package homebrew
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
@@ -121,7 +120,7 @@ func TestIngestValidations(t *testing.T) {
 				baseURL: srv.URL + "/",
 			}
 
-			inputApp := maintained_apps.InputApp{SourceIdentifier: c.appToken, UniqueIdentifier: "abc", InstallerFormat: "pkg"}
+			inputApp := inputApp{Token: c.appToken, UniqueIdentifier: "abc", InstallerFormat: "pkg"}
 
 			_, _, err := i.IngestOne(ctx, inputApp)
 			if c.wantErr == "" {

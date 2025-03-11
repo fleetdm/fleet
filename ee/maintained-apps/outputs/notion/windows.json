@@ -1,0 +1,18 @@
+{
+  "versions": [
+    {
+      "version": "",
+      "queries": {
+        "exists": ""
+      },
+      "installer_url": "",
+      "unique_identifier": "",
+      "install_script_ref": "e3b0c442",
+      "uninstall_script_ref": "e3b0c442",
+      "sha256": ""
+    }
+  ],
+  "refs": {
+    "e3b0c442": ""
+  }
+}

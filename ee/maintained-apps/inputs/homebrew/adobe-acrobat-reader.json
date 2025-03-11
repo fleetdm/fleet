@@ -1,7 +1,7 @@
 {
   "name": "Adobe Acrobat Reader",
   "unique_identifier": "com.adobe.Reader",
-  "source_identifier": "adobe-acrobat-reader",
+  "token": "adobe-acrobat-reader",
   "installer_format": "dmg",
-  "source": "homebrew"
+  "slug": "adobe-acrobat-reader/darwin"
 }

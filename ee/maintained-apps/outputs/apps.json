@@ -100,11 +100,25 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
+      "name": "Notion",
+      "slug": "notion/windows",
+      "platform": "windows",
+      "unique_identifier": "",
+      "description": ""
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
       "unique_identifier": "com.postmanlabs.mac",
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
+    },
+    {
+      "name": "Slack",
+      "slug": "slack/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.tinyspeck.slackmacgap",
+      "description": "Team communication and collaboration software"
     },
     {
       "name": "TeamViewer",

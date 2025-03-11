@@ -1,4 +1,4 @@
-package darwin
+package homebrew
 
 import (
 	"fmt"
@@ -7,12 +7,11 @@ import (
 	"sort"
 	"strings"
 
-	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/groob/plist"
 )
 
-func installScriptForApp(app maintained_apps.InputApp, cask *brewCask) (string, error) {
+func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb := newScriptBuilder()
 
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
@@ -48,7 +47,7 @@ func installScriptForApp(app maintained_apps.InputApp, cask *brewCask) (string, 
 					return "", fmt.Errorf("building statement to install pkg with choices: %w", err)
 				}
 			default:
-				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.SourceIdentifier)
+				return "", fmt.Errorf("application %s has unknown directive format for pkg", app.Token)
 			}
 
 		case len(artifact.Binary) > 0:

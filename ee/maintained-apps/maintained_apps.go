@@ -1,35 +1,18 @@
 package maintained_apps
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	kitlog "github.com/go-kit/log"
+)
 
 // Ingester is responsible for ingesting the metadata for maintained apps for a given platform.
 // Each platform may have multiple sources for metadata (e.g. homebrew and autopkg for macOS). Each
-// source must have its own SourceIngester implementation.
-type Ingester interface {
-	IngestApps(ctx context.Context) error
-}
+// source must have its own Ingester implementation.
+type Ingester func(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*FMAManifestApp, error)
 
-// SourceIngester is resposible for the actual ingesting of metadata from a source and converting it
-// to our FMA manifest format.
-type SourceIngester interface {
-	IngestOne(ctx context.Context, app InputApp) (*FMAManifestApp, map[string]string, error)
-}
-
-// SourceHomebrew indicates that the app metadata comes from homebrew.
-const SourceHomebrew = "homebrew"
-
-type InputApp struct {
-	// Name is the user-friendly name of the app.
-	Name string `json:"name"`
-	// SourceIdentifier is the identifier in the source data for the app (e.g. homebrew token).
-	SourceIdentifier string `json:"source_identifier"`
-	// UniqueIdentifier is the app's unique identifier on its platform (e.g. bundle ID on macOS).
-	UniqueIdentifier string `json:"unique_identifier"`
-	// InstallerFormat is the installer format used for installing this app.
-	InstallerFormat string `json:"installer_format"`
-	// Source is the source for the FMA metadata, e.g. homebrew, autopkg, winget, etc.
-	Source string `json:"source"`
-}
+const OutputPath = "ee/maintained-apps/outputs"
 
 type FMAQueries struct {
 	Exists string `json:"exists"`
@@ -42,10 +25,31 @@ type FMAManifestApp struct {
 	UniqueIdentifier   string     `json:"unique_identifier"`
 	InstallScriptRef   string     `json:"install_script_ref"`
 	UninstallScriptRef string     `json:"uninstall_script_ref"`
+	InstallScript      string     `json:"-"`
+	UninstallScript    string     `json:"-"`
 	SHA256             string     `json:"sha256"`
 	// Description is an optional description of the app and what it does.
 	Description string `json:"-"`
 	Slug        string `json:"-"`
+	Name        string `json:"-"`
+}
+
+func (a *FMAManifestApp) Platform() string {
+	parts := strings.Split(a.Slug, "/")
+	if len(parts) != 2 {
+		return ""
+	}
+
+	return parts[1]
+}
+
+func (a *FMAManifestApp) SlugAppName() string {
+	parts := strings.Split(a.Slug, "/")
+	if len(parts) != 2 {
+		return ""
+	}
+
+	return parts[0]
 }
 
 type FMAManifestFile struct {

@@ -1,7 +1,7 @@
 {
   "name": "Slack",
   "unique_identifier": "com.tinyspeck.slackmacgap",
-  "source_identifier": "slack",
+  "token": "slack",
   "installer_format": "dmg",
-  "source": "homebrew"
+  "slug": "slack/darwin"
 }
