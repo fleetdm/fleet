@@ -20,6 +20,10 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Get current date and time
+        id: date
+        run: echo "::set-output name=date::$(date +'%y%m%d%H%M')"
+
       - name: Checkout Fleet
         uses: actions/checkout@v4
         with:
@@ -45,11 +49,11 @@ jobs:
         with:
           base: main
           path: fleet
-          branch: jve-testing-pr-from-action
+          branch: fma-${{ steps.date.outputs.date }}
           delete-branch: true
-          title: "Ingest Fleet-maintained apps"
+          title: "Update Fleet-maintained apps"
           commit-message: |
-            Ingest Fleet-maintained apps.
+            Update Fleet-maintained apps.
 
             Generated automatically with cmd/maintained-apps.
           body: Automated ingestion of latest Fleet-maintained app data.
