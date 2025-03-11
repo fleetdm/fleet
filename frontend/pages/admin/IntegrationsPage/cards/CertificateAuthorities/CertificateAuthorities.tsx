@@ -17,6 +17,7 @@ import {
 } from "./helpers";
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
+import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 
 const baseClass = "certificate-authorities";
 
@@ -151,7 +152,11 @@ const CertificateAuthorities = () => {
         />
       </p>
       {renderContent()}
-      {showAddCertAuthorityModal && <div>Modal showing</div>}
+      {showAddCertAuthorityModal && (
+        <AddCertAuthorityModal
+          onExit={() => setShowAddCertAuthorityModal(false)}
+        />
+      )}
       {showEditCertAuthorityModal && <div>Modal showing</div>}
       {showDeleteCertAuthoirtyModal &&
         selectedCertAuthority &&

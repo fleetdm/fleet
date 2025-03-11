@@ -3,6 +3,7 @@ import React, { useContext, useState } from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
+import DigicertForm from "../DigicertForm";
 
 const baseClass = "add-cert-authority-modal";
 
@@ -21,27 +22,22 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     } catch (e) {
       renderFlash("error", "test");
     }
+    setIsUpdating(false);
   };
 
   return (
     <Modal
       className={baseClass}
       title="Add certificate authority (CA)"
+      width="large"
       onExit={onExit}
     >
       <>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onAddCertAuthority}
-            isLoading={isUpdating}
-            disabled={isUpdating}
-          >
-            Add CA
-          </Button>
-          <Button variant="text-link" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
+        <DigicertForm
+          submitBtnText="Add CA"
+          onSubmit={onAddCertAuthority}
+          onCancel={onExit}
+        />
       </>
     </Modal>
   );
