@@ -4,24 +4,23 @@
 
 1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.
 2. Find that app's metadata. For homebrew, you can visit https://formulae.brew.sh/ and find the app there.
-3. Create a new file called `your-app-name.json` in the `inputs/target-platform` directory. For
-   example, if you wanted to add Slack for the macOS (aka `darwin`) platform, you would create the
-   file `inputs/darwin/slack.json`.
-4. Fill out the file according to the [JSON schema below](#json-schema-for-input-files). For our
-   example Slack app, it would look like this:
+3. Create a new file called `$YOUR_APP_NAME.json` in the `inputs/$SOURCE` directory. For
+   example, if you wanted to add Slack and use homebrew as the source, you would create the
+   file `inputs/homebrew/slack.json`.
+4. Fill out the file according to the [breakdown below](#input-file-schema). For our example Slack app, it would look like this:
    ```json
    {
         "name": "Slack",
         "unique_identifier": "com.tinyspeck.slackmacgap",
-        "source_identifier": "slack",
+        "token": "slack",
         "installer_format": "dmg:app",
-        "source": "homebrew"
+        "slug": "slack/darwin"
    }
    ```
 5. Open a PR to the `fleet` repository with the new app file. This will trigger a CI job which will automatically update your PR with the required output files. These files contain important data such as the install and uninstall scripts for the app.
-6. A fleetie will test and review the PR. Once approved and merged, the app should appear in the Fleet-maintained apps section when adding new software to Fleet.
+6. A Fleetie will test and review the PR. Once approved and merged, the app should appear in the Fleet-maintained apps section when adding new software to Fleet.
 
-### Input file breakdown
+### Input file schema
 
 #### `name`
 This is the user-facing name of the application.
@@ -38,6 +37,18 @@ This is the file format for the app's installer. Currently supported values are:
 - `dmg`
 - `pkg`
 
-#### `source`
-This is the metadata source for the app. Currently supported values are:
-- `"homebrew"`
+To find the app's installer format, you can look at the `url` field on the homebrew API response. The installer's filetype extension should be at the end of this URL. 
+
+Sometimes the filetype is not included in the installer's URL. In this case, you can simply download the installer and take note of the filetype extension for the downloaded file.
+
+#### `slug`
+The `slug` identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app. 
+
+The slug is composed of a filesystem-friendly version of the app name, and an operating system platform identifier, separated by a `/`.
+
+For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`. You can usually use the `token` value here, but sometimes (see Zoom) we want to use a custom value here.
+
+The platform part can be any of these values:
+- `darwin`
+
+For example, a `slug` field of `slack/darwin` will result in an app manifest for Slack on macOS.
