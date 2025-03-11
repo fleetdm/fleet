@@ -1,0 +1,1 @@
+* Dropped log from error to debug when cleaning up an old MSRC file fails when downloading vulnerability information.
