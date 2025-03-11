@@ -1350,6 +1350,11 @@ func TestGetQueries(t *testing.T) {
 					Query:          "select 2;",
 					Saved:          true, // ListQueries always returns the saved ones.
 					ObserverCanRun: false,
+					DiscardData:    true,
+					LabelsIncludeAny: []fleet.LabelIdent{
+						{LabelName: "label1", LabelID: 1},
+						{LabelName: "label2", LabelID: 2},
+					},
 				},
 				{
 					ID:                 14,
@@ -1400,6 +1405,8 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           | automations_enabled: false     |
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: false            |
 +--------+-------------+-----------+-----------+--------------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                    |
 |        |             |           |           |                                |
@@ -1410,6 +1417,14 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           | automations_enabled: false     |
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: true             |
+|        |             |           |           |                                |
+|        |             |           |           | labels_include_any:            |
+|        |             |           |           |                                |
+|        |             |           |           |   - label1                     |
+|        |             |           |           |                                |
+|        |             |           |           |   - label2                     |
 +--------+-------------+-----------+-----------+--------------------------------+
 | query4 | some desc 4 | select 4; | All teams | interval: 60                   |
 |        |             |           |           |                                |
@@ -1421,6 +1436,8 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
 |        |             |           |           | differential_ignore_removals   |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: false            |
 +--------+-------------+-----------+-----------+--------------------------------+
 `
 
