@@ -1116,6 +1116,16 @@
   jamfProtectHasFeature: no
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
+- industryName: Map IdP users to devices (SCIM)
+  description: Add your end users information from identity provider (e.g Okta) to your hosts.
+  documentationUrl: https://fleetdm.com/guides/map-end-user-info-to-host-from-okta-idp
+  productCategories: [Endpoint operations,Device management]
+  pricingTableCategories: [Integrations]
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  waysToUse:
+    - description: Map end users information from IdP to your hosts
 - industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
