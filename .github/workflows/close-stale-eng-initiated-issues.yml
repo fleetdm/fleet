@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   close-stale-issues:
+    runs-on: ubuntu-latest
     permissions:
       issues: write
     steps:
