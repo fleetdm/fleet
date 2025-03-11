@@ -4004,7 +4004,7 @@ func preprocessProfileContents(
 
 					cert, err := digicert.GetCertificate(ctx, logger, caCopy)
 					if err != nil {
-						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
+						detail := fmt.Sprintf("Couldn't get certificate from %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:   target.cmdUUID,
 							HostUUID:      hostUUID,
