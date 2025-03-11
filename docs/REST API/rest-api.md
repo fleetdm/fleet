@@ -2775,25 +2775,27 @@ Returns the information of the specified host.
         "shell": "/bin/zsh"
       }
     ],
-    "end_user" {
-      "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
-      "idp_email": "anna@acme.com",
-      "idp_full_name": "Anna Chao",
-      "idp_groups": [
-        "Product",
-        "Designers"
-      ],
-      "other_emails": [
-        {
-          "email": "anna@example.com",
-          "source": "google_chrome_profiles"
-        },
-        {
-          "email": "anna@example.com",
-          "source": "custom"
-        }
-      ]
-    },
+    "end_users" [
+      {
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_email": "anna@acme.com",
+        "idp_full_name": "Anna Chao",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": [
+          {
+            "email": "anna@example.com",
+            "source": "google_chrome_profiles"
+          },
+          {
+            "email": "anna@example.com",
+            "source": "custom"
+          }
+        ]
+      }
+    ],
     "labels": [
       {
         "created_at": "2021-08-19T02:02:17Z",
