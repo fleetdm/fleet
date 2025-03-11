@@ -653,7 +653,7 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 	// Make sure team name is correct and do additional validation
 	for _, l := range result.Labels {
 		if l.Name == "" {
-			multiError = multierror.Append(multiError, errors.New("label name is required for each query"))
+			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
 		if l.Query == "" && len(l.Hosts) == 0 {
 			multiError = multierror.Append(multiError, errors.New("a SQL query or hosts list is required for each label"))
