@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"compress/bzip2"
 	cryptorand "crypto/rand"
@@ -1934,34 +1933,28 @@ func (a *agent) certificates() []map[string]string {
 	not_valid_before:  %d
 	sha1:              %s
 `
+	const day = 24 * time.Hour
 	results := make([]map[string]string, count)
-	day := 24 * time.Hour
 	for i := range count {
-		ca := rand.Intn(2)
-		name := uuid.NewString()
-		serial := uuid.NewString()
+		m := make(map[string]string, 12)
+		m["ca"] = fmt.Sprint(rand.Intn(2))
+		m["common_name"] = uuid.NewString()
+		m["issuer"] = fmt.Sprintf("/C=US/O=Issuer %d Inc./CN=Issuer %d Common Name", i, i)
+		m["subject"] = fmt.Sprintf("/C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name", i, i, i)
+		m["key_algorithm"] = "rsaEncryption"
+		m["key_strength"] = "2048"
+		m["key_usage"] = "Data Encipherment, Key Encipherment, Digital Signature"
+		m["serial"] = uuid.NewString()
+		m["signing_algorithm"] = "sha256WithRSAEncryption"
 		// generate so that it may be expired
-		notAfter := time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day)
-		// notBefore is always in the past
-		notBefore := notAfter.Add(-time.Duration(rand.Intn(10)+1) * day)
-		rawHash := sha1.Sum([]byte(serial)) //nolint: gosec
+		m["not_valid_after"] = fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix())
+		// notBefore is always in the past (1-10 days in the past)
+		m["not_valid_before"] = fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix())
+		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
 		hash := hex.EncodeToString(rawHash[:])
-		cert := fmt.Sprintf(certTpl, ca, name, i, i, i, i, i, serial, notAfter.Unix(), notBefore.Unix(), hash)
+		m["sha1"] = hash
 
-		results[i] = make(map[string]string, 12)
-		scanner := bufio.NewScanner(strings.NewReader(cert))
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				continue
-			}
-
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) != 2 {
-				continue
-			}
-			results[i][strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-		}
+		results[i] = m
 	}
 
 	a.certificatesMutex.Lock()
