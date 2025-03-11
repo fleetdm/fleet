@@ -339,7 +339,12 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 		return nil, ctxerr.Wrap(ctx, err, "load app config")
 	}
 
-	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, appConfig.ServerSettings.QueryReportsDisabled)
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, newOsqueryError("internal error: missing host from request context")
+	}
+
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, &host.ID, appConfig.ServerSettings.QueryReportsDisabled)
 	if err != nil {
 		return nil, err
 	}
@@ -2185,9 +2190,9 @@ func (svc *Service) maybeDebugHost(
 ////////////////////////////////////////////////////////////////////////////////
 
 type submitLogsRequest struct {
-	NodeKey string          `json:"node_key"`
-	LogType string          `json:"log_type"`
-	Data    json.RawMessage `json:"data"`
+	NodeKey string            `json:"node_key"`
+	LogType string            `json:"log_type"`
+	Data    []json.RawMessage `json:"data"`
 }
 
 func (r *submitLogsRequest) hostNodeKey() string {
@@ -2206,38 +2211,17 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	var err error
 	switch req.LogType {
 	case "status":
-		var statuses []json.RawMessage
-		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
-		// Maybe there's a reason for it, we need to test such a change before fixing what appears
-		// to be a bug because the `err` is lost.
-		if err := json.Unmarshal(req.Data, &statuses); err != nil {
-			err = newOsqueryError("unmarshalling status logs: " + err.Error())
-			break
-		}
-
-		err = svc.SubmitStatusLogs(ctx, statuses)
+		err = svc.SubmitStatusLogs(ctx, req.Data)
 		if err != nil {
 			break
 		}
 
 	case "result":
-		// NOTE(dantecatalfamo) We partially unmarshal the data here because osquery can send data we don't
-		// support unmarshaling, like differential query results. We also pass the raw data to logging
-		// facilities further down. Results are unmarshaled one at a time inside of SubmitResultLogs.
-		// We should re-address this once json/v2 releases and we can speed up parsing times.
-		var results []json.RawMessage
-		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
-		// Maybe there's a reason for it, we need to test such a change before fixing what appears
-		// to be a bug because the `err` is lost.
-		if err := json.Unmarshal(req.Data, &results); err != nil {
-			err = newOsqueryError("unmarshalling result logs: " + err.Error())
-			break
-		}
-		logging.WithExtras(ctx, "results", len(results))
+		logging.WithExtras(ctx, "results", len(req.Data))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
-		if err = svc.SubmitResultLogs(ctx, results); err != nil {
+		if err = svc.SubmitResultLogs(ctx, req.Data); err != nil {
 			break
 		}
 

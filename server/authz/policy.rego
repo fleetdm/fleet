@@ -635,6 +635,13 @@ allow {
   action == read
 }
 
+# Only global admins can modify software inventory (specifically software title names)
+allow {
+  object.type == "software_inventory"
+  subject.global_role == admin
+  action == write
+}
+
 # Team admins, maintainers, observers and observer_plus can read all software in their teams.
 allow {
   not is_null(object.team_id)

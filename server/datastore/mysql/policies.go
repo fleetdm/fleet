@@ -181,11 +181,6 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var (
-	errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
-	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
-)
-
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
@@ -193,11 +188,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A software installer with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Software installer with ID %d does not exist", *softwareInstallerID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying software installer")
 		} else if softwareInstallerTeamID != teamID {
-			return errMismatchedInstallerTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Software installer with ID %d does not belong to team ID %d", *softwareInstallerID, teamID),
+			})
 		}
 	}
 
@@ -207,11 +206,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A VPP app with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("VPP app with ID %d does not exist", *vppAppsTeamsID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying VPP app")
 		} else if vppAppTeamID != teamID {
-			return errMismatchedInstallerTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("VPP app with ID %d does not belong to team ID %d", *vppAppsTeamsID, teamID),
+			})
 		}
 	}
 
@@ -221,11 +224,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A script with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Script with ID %d does not exist", *scriptID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying script")
 		} else if scriptTeamID != teamID {
-			return errMismatchedScriptTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Script with ID %d does not belong to team ID %d", *scriptID, teamID),
+			})
 		}
 	}
 

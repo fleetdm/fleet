@@ -159,6 +159,9 @@ func InitCommonDSMocks() *ds_mock.Store {
 	fleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 		return nil
 	}
+	fleetDS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+		return nil
+	}
 	return &fleetDS
 }
 
