@@ -7,8 +7,7 @@ on:
   schedule:
     # Daily at 1pm CDT (6pm UTC)
     - cron: "0 18 * * *"
-  pull_request:
-  push:
+  pull_request: # TODO: remove
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -33,7 +32,7 @@ jobs:
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
           egress-policy: audit
-      - close-issues:
+      - name: Close issues
         uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
         with:
           only-issue-labels:
