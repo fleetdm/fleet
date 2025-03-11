@@ -4,6 +4,7 @@ import (
 	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery certificates table schema
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -190,6 +191,7 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 	str = strings.TrimSpace(str)
 	str = strings.Trim(str, "/")
 
+	fmt.Printf("Certificate: %s\n", str)
 	if !strings.Contains(str, "/") {
 		return nil, errors.New("invalid format, wrong separator")
 	}
