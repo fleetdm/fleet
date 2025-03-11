@@ -6,7 +6,9 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
+
 import deviceUserAPI, {
+  IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
@@ -16,10 +18,14 @@ import {
   IDeviceUserResponse,
   IHostDevice,
 } from "interfaces/host";
+import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import { IHostSoftware } from "interfaces/software";
-import { IHostCertificate } from "interfaces/certificates";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
 import { isAppleDevice } from "interfaces/platform";
 
 import DeviceUserError from "components/DeviceUserError";
@@ -137,6 +143,9 @@ const DeviceUserPage = ({
   const [certificatePage, setCertificatePage] = useState(
     DEFAULT_CERTIFICATES_PAGE
   );
+  const [sortCerts, setSortCerts] = useState<IListSort>({
+    ...CERTIFICATES_DEFAULT_SORT,
+  });
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -174,24 +183,27 @@ const DeviceUserPage = ({
     IGetDeviceCertificatesResponse,
     Error,
     IGetDeviceCertificatesResponse,
-    Array<{ scope: string; token: string; page: number; perPage: number }>
+    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
   >(
     [
       {
         scope: "device-certificates",
         token: deviceAuthToken,
         page: certificatePage,
-        perPage: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        order_key: sortCerts.order_key,
+        order_direction: sortCerts.order_direction,
       },
     ],
-    ({ queryKey: [{ token, page, perPage }] }) =>
-      deviceUserAPI.getDeviceCertificates(token, page, perPage),
+    ({ queryKey }) => deviceUserAPI.getDeviceCertificates(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
       // catch-22 where we need to know the platform to know if it's supported but we also need to
       // be able to include the cert refetch in the hosts query hook.
       enabled: !!deviceUserAPI,
+      keepPreviousData: true,
+      staleTime: 15000,
     }
   );
 
@@ -486,12 +498,15 @@ const DeviceUserPage = ({
                       isError={isErrorDeviceCertificates}
                       page={certificatePage}
                       pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                      sortHeader={sortCerts.order_key}
+                      sortDirection={sortCerts.order_direction}
                       hostPlatform={host.platform}
                       onSelectCertificate={onSelectCertificate}
                       onNextPage={() => setCertificatePage(certificatePage + 1)}
                       onPreviousPage={() =>
                         setCertificatePage(certificatePage - 1)
                       }
+                      onSortChange={setSortCerts}
                     />
                   )}
                 </TabPanel>

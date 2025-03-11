@@ -17,11 +17,28 @@ export interface IZendeskIntegration {
   enable_software_vulnerabilities?: boolean;
 }
 
-export interface IScepIntegration {
+export interface ICertificatesIntegrationNDES {
   url: string;
   admin_url: string;
   username: string;
   password: string;
+}
+
+export interface ICertificatesIntegrationDigicert {
+  id: number;
+  name: string;
+  api_token: string;
+  profile_id: string;
+  certificate_common_name: string;
+  certificate_user_principal_names: string[];
+  certificate_seat_id: string;
+}
+
+export interface ICertificatesIntegrationCustomSCEP {
+  id: number;
+  name: string;
+  server_url: string;
+  challenge: string;
 }
 
 export interface IIntegration {
@@ -91,7 +108,9 @@ export interface IZendeskJiraIntegrations {
 // Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
-  ndes_scep_proxy?: IScepIntegration | null;
+  ndes_scep_proxy?: ICertificatesIntegrationNDES | null;
+  digicert?: ICertificatesIntegrationDigicert[];
+  custom_scep_proxy?: ICertificatesIntegrationCustomSCEP[];
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {

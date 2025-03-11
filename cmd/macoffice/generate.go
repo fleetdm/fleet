@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -26,22 +25,9 @@ func main() {
 	panicif(err)
 
 	fmt.Println("Downloading and parsing Mac Office rel notes...")
-	res, err := http.Get(macoffice.RelNotesURL)
-	panicif(err)
-	defer res.Body.Close()
 
-	parsed, err := macoffice.ParseReleaseHTML(res.Body)
+	relNotes, err := macoffice.GetReleaseNotes(false)
 	panicif(err)
-
-	var relNotes macoffice.ReleaseNotes
-	for _, rn := range parsed {
-		// We only care about release notes that have a version set (because we need that for
-		// matching software entries) and also that contain some
-		// security updates (because we only intented to use the release notes for vulnerability processing).
-		if rn.Valid() {
-			relNotes = append(relNotes, rn)
-		}
-	}
 
 	err = relNotes.Serialize(time.Now(), outPath)
 	panicif(err)
