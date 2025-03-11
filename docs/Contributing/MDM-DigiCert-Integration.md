@@ -24,6 +24,7 @@ sequenceDiagram
     fleet->>fleet: Validate inputs
     fleet->>+digicert: Get profile by GUID
     digicert-->>-fleet: Profile (Active)
+    fleet->>fleet: Encrypt API token
     fleet-->>-admin: Done
 ```
 
@@ -43,6 +44,7 @@ sequenceDiagram
 
     fleet--)+fleet: Process profiles every 30 seconds
     fleet->>fleet: Validate profile
+    fleet->>fleet: Decrypt API token
     fleet->>+digicert: Get certificate
     digicert-->>-fleet: Certificate
     fleet->>fleet: Save NotValidAfter date
