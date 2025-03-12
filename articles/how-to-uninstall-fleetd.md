@@ -2,7 +2,7 @@
 
 This guide walks you through the steps to remove fleetd from your device. After performing these steps, the device will display as an offline host in the Fleet UI until you delete it.
 
-1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/macos-uninstall-fleetd.sh), [Windows](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/windows-uninstall-fleetd.sh), or [Linux](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/linux-uninstall-fleetd.sh) hosts to Fleet.
+1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/tree/main/it-and-security/lib/macos/scripts/macos-uninstall-fleet.sh), [Windows](https://github.com/fleetdm/fleet/tree/main/it-and-security/lib/windows/scripts/windows-uninstall-fleet.sh), or [Linux](https://github.com/fleetdm/fleet/tree/main/it-and-security/lib/linux/scripts/linux-uninstall-fleet.sh) hosts to Fleet.
 
 2. Head to the host's **Host details** page and select **Actions > Run script** to run the script.
 
