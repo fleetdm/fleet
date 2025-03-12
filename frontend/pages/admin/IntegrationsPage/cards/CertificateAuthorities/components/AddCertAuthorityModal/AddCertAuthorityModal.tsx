@@ -3,6 +3,7 @@ import React, { useContext, useState } from "react";
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
 import { ICertificateAuthorityType } from "interfaces/integration";
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -20,6 +21,7 @@ interface IAddCertAuthorityModalProps {
 }
 
 const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [
     certAuthorityType,
@@ -51,12 +53,15 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     const addPatchData = generateAddPatchData(formData);
     setIsAdding(true);
     try {
-      await certificatesAPI.addCertificateAuthority(addPatchData);
+      const newConfig = await certificatesAPI.addCertificateAuthority(
+        addPatchData
+      );
       renderFlash("success", "Successfully added your certificate authority.");
+      onExit();
+      setConfig(newConfig);
     } catch (e) {
       renderFlash("error", generateErrorMessage(e));
     }
-    onExit();
     setIsAdding(false);
   };
 
