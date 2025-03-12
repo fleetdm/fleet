@@ -1001,7 +1001,6 @@ None.
     "jira": [],
     "digicert": [
       {
-        "id": 0,
         "name": "DIGICERT_WIFI",
         "url": "https://one.digicert.com",
         "api_token": "********",
@@ -1021,13 +1020,11 @@ None.
     },
     "custom_scep_proxy": [
       {
-        "id": 0,
         "name": "SCEP_WIFI",
         "url": "https://example.com/scep",
         "challenge": "********",
       },
       {
-        "id": 1,
         "name": "SCEP_VPN",
         "url": "https://example.com/scep",
         "challenge": "********",
