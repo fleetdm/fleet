@@ -676,13 +676,13 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
 			{
-				Name:                "Label Two",
+				Name:                "a",
 				Description:         "A global label",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 				Hosts:               []string{"host2", "host3"},
 			},
 			{
-				Name:                "Label Three",
+				Name:                "c",
 				Description:         "A label that should be deleted",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 				Query:               "SELECT 1 from osquery_info",
