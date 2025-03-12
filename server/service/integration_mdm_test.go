@@ -13427,6 +13427,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	t := s.T()
 	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
 	digiCertServer := createMockDigiCertServer(t)
 
 	// Add DigiCert config
@@ -13472,7 +13473,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	errMsg := extractServerErrorText(rawRes.Body)
 	require.Contains(t, errMsg, "_badName is not supported")
 
-	// Add good profile
+	// ////////////////////////////////
+	// Test a good profile -- happy path
 	profile = digiCertForTest("N2", "I2", "my_CA")
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N2", Contents: profile},
@@ -13504,13 +13506,14 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		rawProfile = p7.Content
 	}
 
-	var pkcs12Profile struct {
+	type pkcs12Profile struct {
 		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
 	}
-	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Profile))
-	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Profile.PayloadContent[0]["PayloadType"].(string))
-	password := pkcs12Profile.PayloadContent[0]["Password"].(string)
-	data := pkcs12Profile.PayloadContent[0]["PayloadContent"].([]byte)
+	var pkcs12Prof pkcs12Profile
+	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[0]["PayloadType"].(string))
+	password := pkcs12Prof.PayloadContent[0]["Password"].(string)
+	data := pkcs12Prof.PayloadContent[0]["PayloadContent"].([]byte)
 	_, certificate, err := pkcs12.Decode(data, password)
 	require.NoError(t, err)
 	assert.Equal(t, ca.CertificateCommonName, certificate.Subject.CommonName)
@@ -13532,7 +13535,12 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
 	digiCertServer.certReqMu.Unlock()
+	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, certProf.NotValidAfter)
+	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
 
+	// ////////////////////////////////
 	// Try a DigiCert CA that will fail
 	caFail := getDigiCertIntegration(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
@@ -13583,6 +13591,113 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.True(t, foundGood)
 	assert.True(t, foundFailed)
+
+	// ////////////////////////////////
+	// Test DigiCert CA with Fleet variables
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+			host.ID, "idp@example.com", "mdm_idp_accounts")
+
+		return err
+	})
+	caFleetVars := fleet.DigiCertIntegration{
+		Name:                          "FleetVars",
+		URL:                           digiCertServer.server.URL,
+		APIToken:                      "api_token",
+		ProfileID:                     "profile_id",
+		CertificateCommonName:         "$FLEET_VAR_" + FleetVarHostHardwareSerial + " $FLEET_VAR_" + FleetVarHostEndUserEmailIDP,
+		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + FleetVarHostEndUserEmailIDP + "}_"},
+		CertificateSeatID:             "_${FLEET_VAR_" + FleetVarHostHardwareSerial + "}_",
+	}
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 3)
+
+	profileFleetVars := digiCertForTest("N4", "I4", "FleetVars")
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N2", Contents: profile}, // resend the previous profile so it doesn't get removed
+		{Name: "N4", Contents: profileFleetVars},
+	}}, http.StatusNoContent)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 2)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	p = s.assertConfigProfilesByIdentifier(nil, "I4", true)
+	require.Contains(t, string(p.Mobileconfig), "com.fleetdm.pkcs12")
+
+	// Check that status is pending (and not failed)
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	var found bool
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "N4" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Empty(t, prof.Detail)
+			continue
+		}
+	}
+	assert.True(t, found)
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
+	fullCmd = micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile = fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	pkcs12Prof = pkcs12Profile{}
+	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[0]["PayloadType"].(string))
+	password = pkcs12Prof.PayloadContent[0]["Password"].(string)
+	data = pkcs12Prof.PayloadContent[0]["PayloadContent"].([]byte)
+	_, certificate, err = pkcs12.Decode(data, password)
+	require.NoError(t, err)
+	assert.Equal(t, host.HardwareSerial+" idp@example.com", certificate.Subject.CommonName)
+
+	// Check request to DigiCert
+	digiCertServer.certReqMu.Lock()
+	assert.Equal(t, caFleetVars.ProfileID, digiCertServer.certReq.Profile["id"])
+	assert.Equal(t, "_"+host.HardwareSerial+"_", digiCertServer.certReq.Seat["seat_id"])
+	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
+	assert.Equal(t, host.HardwareSerial+" idp@example.com", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+
+	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
+	upnsReceived = digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	stringSlice = nil
+	for _, item := range upnsReceived {
+		if str, ok := item.(string); ok {
+			stringSlice = append(stringSlice, str)
+		}
+	}
+	assert.Equal(t, []string{"_idp@example.com_"}, stringSlice)
+	digiCertServer.certReqMu.Unlock()
 }
 
 func digiCertForTest(name, identifier, caName string) []byte {
@@ -13628,6 +13743,7 @@ type mockDigiCertServer struct {
 	server    *httptest.Server
 	certReq   certificateReq
 	certReqMu *sync.Mutex
+	notAfter  time.Time
 }
 
 type certificateReq struct {
@@ -13643,6 +13759,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 	certRegex := regexp.MustCompile(`^/mpki/api/v1/certificate`)
 	mockServer := &mockDigiCertServer{
 		certReqMu: &sync.Mutex{},
+		notAfter:  time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second),
 	}
 	mockServer.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -13710,7 +13827,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 				SerialNumber: serialNumber,
 				Subject:      csr.Subject,
 				NotBefore:    time.Now(),
-				NotAfter:     time.Now().Add(365 * 24 * time.Hour), // 1 year validity
+				NotAfter:     mockServer.notAfter,
 				KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 				ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 			}
