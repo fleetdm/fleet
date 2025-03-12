@@ -77,7 +77,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 | Quality Assurance                 | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
 | Developer                         | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://app.zenhub.com/workspaces/g-software-67685f6ff1830a000f347a73/board), and [GitHub label][(https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://app.zenhub.com/workspaces/g-software-67685f6ff1830a000f347a73/board), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
 
 ## Making changes
 
@@ -528,6 +528,8 @@ PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting
 PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
 
 All PRs from the community are routed through the on-call developer. For code changes, if the on-call developer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an developer with the appropriate domain knowledge. It is the on-call developer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
+
+> There is a small script to help show community PRs and issues in [oncall/oncall.sh](https://github.com/fleetdm/fleet/blob/main/tools/oncall/oncall.sh)
 
 - **Customer success meetings**
 The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-success Slack channel requesting invitations to upcoming meetings.

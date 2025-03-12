@@ -1,10 +1,10 @@
 import { IDeviceUserResponse } from "interfaces/host";
+import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-import { createMockGetHostCertificatesResponse } from "__mocks__/certificatesMock";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -36,6 +36,10 @@ export interface IGetDeviceCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+}
+
+export interface IGetDeviceCertsRequestParams extends IListOptions {
+  token: string;
 }
 
 export default {
@@ -86,17 +90,19 @@ export default {
     return sendRequest("POST", path);
   },
 
-  getDeviceCertificates: (
-    deviceToken: string,
-    page = 0,
-    perPage = 10
-  ): Promise<IGetDeviceCertificatesResponse> => {
+  getDeviceCertificates: ({
+    token,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetDeviceCertsRequestParams): Promise<IGetDeviceCertificatesResponse> => {
     const { DEVICE_CERTIFICATES } = endpoints;
-    const path = `${DEVICE_CERTIFICATES(
-      deviceToken
-    )}?${buildQueryStringFromParams({
+    const path = `${DEVICE_CERTIFICATES(token)}?${buildQueryStringFromParams({
       page,
-      per_page: perPage,
+      per_page,
+      order_key,
+      order_direction,
     })}`;
 
     return sendRequest("GET", path);

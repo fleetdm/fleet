@@ -24,10 +24,7 @@ import {
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 import { IHostCertificate } from "interfaces/certificates";
-import {
-  createMockGetHostCertificatesResponse,
-  createMockHostCertificate,
-} from "__mocks__/certificatesMock";
+import { IListOptions } from "interfaces/list_options";
 
 export interface ISortOption {
   key: string;
@@ -162,18 +159,40 @@ export interface IGetHostSoftwareResponse {
   };
 }
 
+export interface IHostSoftwareApiParams extends QueryParams {
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderKey?: string;
+  orderDirection?: "asc" | "desc";
+  availableForInstall?: boolean;
+  vulnerable?: boolean;
+  maxCvssScore?: string;
+  minCvssScore?: string;
+  exploit?: boolean;
+}
+
 export interface IHostSoftwareQueryParams extends QueryParams {
   page: number;
   per_page: number;
   query: string;
   order_key: string;
   order_direction: "asc" | "desc";
+  available_for_install?: boolean;
+  vulnerable?: boolean;
+  min_cvss_score?: number;
+  max_cvss_score?: number;
+  exploit?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "host_software";
   id: number;
   softwareUpdatedAt?: string;
+}
+
+export interface IGetHostCertsRequestParams extends IListOptions {
+  host_id: number;
 }
 
 export interface IGetHostCertificatesResponse {
@@ -601,15 +620,19 @@ export default {
     );
   },
 
-  getHostCertificates: (
-    hostId: number,
-    page = 0,
-    perPage = 10
-  ): Promise<IGetHostCertificatesResponse> => {
+  getHostCertificates: ({
+    host_id,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetHostCertsRequestParams): Promise<IGetHostCertificatesResponse> => {
     const { HOST_CERTIFICATES } = endpoints;
-    const path = `${HOST_CERTIFICATES(hostId)}?${buildQueryStringFromParams({
+    const path = `${HOST_CERTIFICATES(host_id)}?${buildQueryStringFromParams({
       page,
-      per_page: perPage,
+      per_page,
+      order_key,
+      order_direction,
     })}`;
 
     return sendRequest("GET", path);

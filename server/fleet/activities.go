@@ -157,6 +157,12 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
 	ActivityEditedNDESSCEPProxy{},
+	ActivityAddedCustomSCEPProxy{},
+	ActivityDeletedCustomSCEPProxy{},
+	ActivityEditedCustomSCEPProxy{},
+	ActivityAddedDigiCert{},
+	ActivityDeletedDigiCert{},
+	ActivityEditedDigiCert{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -2191,6 +2197,90 @@ func (a ActivityEditedNDESSCEPProxy) ActivityName() string {
 
 func (a ActivityEditedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when NDES SCEP proxy configuration is edited in Fleet.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityAddedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomSCEPProxy) ActivityName() string {
+	return "added_custom_scep_proxy"
+}
+func (a ActivityAddedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityDeletedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomSCEPProxy) ActivityName() string {
+	return "deleted_custom_scep_proxy"
+}
+func (a ActivityDeletedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityEditedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomSCEPProxy) ActivityName() string {
+	return "edited_custom_scep_proxy"
+}
+func (a ActivityEditedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityAddedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedDigiCert) ActivityName() string {
+	return "added_digicert"
+}
+func (a ActivityAddedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityDeletedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedDigiCert) ActivityName() string {
+	return "deleted_digicert"
+}
+func (a ActivityDeletedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityEditedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedDigiCert) ActivityName() string {
+	return "edited_digicert"
+}
+func (a ActivityEditedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
 }
 
 type ActivityTypeEnabledAndroidMDM struct{}

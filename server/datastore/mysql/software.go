@@ -953,6 +953,7 @@ var dialect = goqu.Dialect("mysql")
 
 // listSoftwareDB returns software installed on hosts. Use opts for pagination, filtering, and controlling
 // fields populated in the returned software.
+// Used on software/versions not software/titles
 func listSoftwareDB(
 	ctx context.Context,
 	q sqlx.QueryerContext,
@@ -2251,6 +2252,12 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true",
+		)
+	}
+
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
 		onlySelfServiceClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) ) `
@@ -2262,10 +2269,33 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	var onlyVulnerableJoin string
+	var cveMetaJoin string
+	var vulnerabilityFiltersClause string
+	var hasCVEFilters bool
+
 	if opts.VulnerableOnly {
 		onlyVulnerableJoin = `
 INNER JOIN software_cve scve ON scve.software_id = s.id
 		`
+		cveMetaJoin = "INNER JOIN cve_meta cm ON scve.cve = cm.cve"
+
+		if opts.KnownExploit {
+			vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
+			hasCVEFilters = true
+		}
+		if opts.MinimumCVSS > 0 {
+			vulnerabilityFiltersClause += " AND cm.cvss_score >= :min_cvss"
+			hasCVEFilters = true
+		}
+		if opts.MaximumCVSS > 0 {
+			vulnerabilityFiltersClause += " AND cm.cvss_score <= :max_cvss"
+			hasCVEFilters = true
+		}
+
+		// Only join CVE table if there are filters
+		if hasCVEFilters {
+			onlyVulnerableJoin += cveMetaJoin
+		}
 	}
 
 	softwareIsInstalledOnHostClause := fmt.Sprintf(`
@@ -2275,11 +2305,12 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					host_software hs
 				INNER JOIN
 					software s ON hs.software_id = s.id
-					%s
+					%s -- onlyVulnerableJoin (includes software_cve and potentially cve_meta)
 				WHERE
 					hs.host_id = :host_id AND
 					s.title_id = st.id
-			) OR `, onlyVulnerableJoin)
+					%s
+			) OR `, onlyVulnerableJoin, vulnerabilityFiltersClause)
 
 	status := fmt.Sprintf(`COALESCE(%s, %s)`, `
 	CASE
@@ -2618,6 +2649,7 @@ last_vpp_install AS (
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
+	// Cannot scan available software for vulnerabilities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2838,10 +2870,13 @@ last_vpp_install AS (
 		"host_label_updated_at":     host.LabelUpdatedAt,
 		"avail":                     opts.OnlyAvailableForInstall,
 		"self_service":              opts.SelfServiceOnly,
+		"min_cvss":                  opts.MinimumCVSS,
+		"max_cvss":                  opts.MaximumCVSS,
 	}
 
 	stmt := stmtInstalled
-	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+	// We currently don't scan only available software for vulnerabilities
+	if (opts.OnlyAvailableForInstall && !opts.VulnerableOnly) || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
