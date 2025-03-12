@@ -47,12 +47,12 @@ Whenever we add a new way to enqueue an activity or save an activity result (eve
 
 Note that:
 
-* To be exra clear, this is for _upcoming_, not _past_, activities.
+* To be extra clear, those rules are for _upcoming_, not _past_, activities.
 * Queries that need to return _pending_ state must look into the `upcoming_activities` table, and depending on the query and activity type, may need to also UNION with the table that holds the in-progress state, e.g. `host_script_results` for scripts.
     - For example, `Datastore.GetHostScriptDetails` returns details of the latest execution request for a script, regardless of if it is pending, in progress or done. To do so, the query does a UNION in `upcoming_activities` and `host_script_results`, using the latest in `host_script_results` only if none exist in `upcoming_activities` (if there is a request in `upcoming_activities`, it is necessarily more recent than the ones that already have a result).
-	- Many examples already exist that look into both tables, make sure to search for existing examples to help keep a consistent pattern (and fix any bugs in all places is one is found).
-* The `execution_id` corresponds to the `command_uuid` of the VPP apps, and the `install_uuid` of the software installs
-* For VPP app installs, the call to `activateNextUpcomingActivity` is done when the `ActivityInstalledAppStoreApp` past activity gets created, not in a transaction when the MDM command result gets saved. This is due to our use of the third-party `nanomdm` package where saving MDM results is done by this package while our handling of the result is done separately in the `server/service/apple_mdm.go` file. Pretty much all of the state that Fleet saves in relation with MDM command results is not transactional with saving the MDM result itself in the `nano_*` tables.
+	- Many examples already exist that look into both tables, make sure to search for existing examples to help keep a consistent pattern (and fix any bugs in all places if one is found).
+* For VPP app installs, the call to `activateNextUpcomingActivity` is done when the `ActivityInstalledAppStoreApp` past activity gets created, not in a transaction when the MDM command result gets saved. 
+    - This is due to our use of the third-party `nanomdm` package where saving MDM results is done by this package while our handling of the result is done separately in the `server/service/apple_mdm.go` file. Pretty much all of the state that Fleet saves in relation with MDM command results is not transactional with saving the MDM result itself in the `nano_*` tables.
 
 ## Testing
 
