@@ -478,14 +478,9 @@ func TestAuthorizeLabel(t *testing.T) {
 		{user: test.UserGitOps, object: label, action: read, allow: false},
 		{user: test.UserGitOps, object: label, action: write, allow: true},
 
+		// Team GitOps cannot read or write labels.
 		{user: test.UserTeamGitOpsTeam1, object: label, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: label, action: write, allow: false},
-
-		{user: test.UserTeamAdminTeam1, object: label, action: read, allow: true},
-		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: true},
-
-		{user: test.UserTeamMaintainerTeam1, object: label, action: read, allow: true},
-		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: true},
 	})
 }
 

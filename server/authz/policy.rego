@@ -344,18 +344,10 @@ allow {
 	action == read
 }
 
-# Global admins, maintainers and gitops can write labels
+# Only global admins, maintainers and gitops can write labels
 allow {
   object.type == "label"
   subject.global_role == [admin, maintainer, gitops][_]
-  action == write
-}
-
-# Team admins and maintainers can write labels
-allow {
-  object.type == "label"
-  # If role is admin or maintainer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
   action == write
 }
 
