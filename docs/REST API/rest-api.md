@@ -2881,9 +2881,9 @@ Returns the information of the specified host.
         "calendar_events_enabled": false,
         "created_at": "2025-02-05T23:34:46Z",
         "updated_at": "2025-02-05T23:34:46Z",
-        "author_id": 98,
-        "author_name": "User",
-        "author_email": "user@example.com",
+        "author_id": null,
+        "author_name": "Fleet",
+        "author_email": "",
         "team_id": 274,
         "fleet_created": true,      
       }
