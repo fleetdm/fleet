@@ -14746,7 +14746,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 		fleet.OSSettingsPending, fleet.OSSettingsFailed,
 	}
 	for _, status := range statuses {
-		// s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
 		_ = status
 	}
 

@@ -1416,10 +1416,17 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
+	// Linux has only disk encryption to report as OS setting, so only include the
+	// supported linux platforms if disk encryption is enabled.
+	includeLinuxCond := "FALSE"
+	if isDiskEncryptionEnabled {
+		includeLinuxCond = `(h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%')`
+	}
+
 	sqlFmt := ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
 		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
-		OR (h.platform = 'ubuntu' OR h.os_version LIKE 'Fedora%%') -- linux
+		OR ` + includeLinuxCond + ` 
 	)`
 
 	if opt.TeamFilter == nil {
@@ -1432,7 +1439,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 AND (
 	(h.platform = 'windows' AND (%s))
 	OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s))
-	OR ((h.os_version LIKE 'Fedora%%' OR h.platform = 'ubuntu') AND (%s))
+	OR (` + includeLinuxCond + ` AND (%s))
 )`
 
 	// construct the WHERE for macOS
