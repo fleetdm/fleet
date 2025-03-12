@@ -10,19 +10,6 @@
     margin: $pad-medium 0;
   }
 
-  &__no-labels {
-    display: flex;
-    height: 187px;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-    justify-content: center;
-
-    span {
-      color: $ui-fleet-black-75;
-    }
-  }
-
   &__checkboxes {
     display: flex;
     max-height: 187px;

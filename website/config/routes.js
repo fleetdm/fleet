@@ -263,6 +263,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Sign up',
       pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
@@ -271,6 +272,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Log in',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
@@ -453,7 +455,7 @@ module.exports.routes = {
   'GET /app-library': {
     action: 'view-app-library',
     locals: {
-      pageTitleForMeta: 'App library',
+      pageTitleForMeta: 'Software',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
     }
   },

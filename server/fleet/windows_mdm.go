@@ -122,9 +122,6 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 
 		case xml.CharData:
 			if inLocURI {
-				if err := validateUserScopedLocURI(string(t)); err != nil {
-					return err
-				}
 				if err := validateFleetProvidedLocURI(string(t)); err != nil {
 					return err
 				}
@@ -146,15 +143,6 @@ func validateFleetProvidedLocURI(locURI string) error {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
 			return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
 		}
-	}
-
-	return nil
-}
-
-func validateUserScopedLocURI(locURI string) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
-	if strings.Contains(sanitizedLocURI, syncml.FleetUserScopedTargetLocURI) {
-		return errors.New(`The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`)
 	}
 
 	return nil
