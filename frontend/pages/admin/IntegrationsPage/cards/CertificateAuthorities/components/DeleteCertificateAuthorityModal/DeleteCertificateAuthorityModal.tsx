@@ -6,6 +6,7 @@ import {
 } from "interfaces/integration";
 import certificatesAPI from "services/entities/certificates";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -36,19 +37,21 @@ const DeleteCertificateAuthorityModal = ({
     certAuthorityType,
     certAuthority
   );
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const onDeleteCertAuthority = async () => {
     setIsUpdating(true);
     try {
-      await certificatesAPI.deleteCertificateAuthority(
+      const newConfig = await certificatesAPI.deleteCertificateAuthority(
         generateDeletePatchData()
       );
       renderFlash(
         "success",
         "Successfully deleted your certificate authority."
       );
+      setConfig(newConfig);
     } catch (e) {
       renderFlash(
         "error",
