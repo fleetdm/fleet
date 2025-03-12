@@ -144,6 +144,13 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// If the user doesn't have a global role, then they must be the author of the label
+	// in order to modify it.
+	if vc.User.GlobalRole == nil && (label.AuthorID == nil || *label.AuthorID != vc.User.ID) {
+		return nil, nil, fleet.NewPermissionError("user is not permitted to modify this label")
+	}
+
 	if label.LabelType == fleet.LabelTypeBuiltIn {
 		return nil, nil, fleet.NewInvalidArgumentError("label_type", fmt.Sprintf("cannot modify built-in label '%s'", label.Name))
 	}
@@ -418,6 +425,28 @@ func (svc *Service) DeleteLabel(ctx context.Context, name string) error {
 		}
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	if vc.User.GlobalRole == nil {
+		// Find the label with the specified name.
+		labels, err := svc.ds.LabelsByName(ctx, []string{name})
+		if err != nil {
+			return err
+		}
+		label, ok := labels[name]
+		if !ok {
+			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot find label with name '%s'", name))
+		}
+		// If the user doesn't have a global role, then they must be the author of the label
+		// in order to delete it.
+		if vc.User.GlobalRole == nil && (label.AuthorID == nil || *label.AuthorID != vc.User.ID) {
+			return fleet.NewPermissionError("user is not permitted to modify this label")
+		}
+	}
+
 	return svc.ds.DeleteLabel(ctx, name)
 }
 
@@ -465,6 +494,12 @@ func (svc *Service) DeleteLabelByID(ctx context.Context, id uint) error {
 		if label.Name == name {
 			return fleet.NewInvalidArgumentError("name", fmt.Sprintf("cannot delete built-in label '%s'", label.Name))
 		}
+	}
+
+	// If the user doesn't have a global role, then they must be the author of the label
+	// in order to delete it.
+	if vc.User.GlobalRole == nil && (label.AuthorID == nil || *label.AuthorID != vc.User.ID) {
+		return fleet.NewPermissionError("user is not permitted to modify this label")
 	}
 
 	return svc.ds.DeleteLabel(ctx, label.Name)
