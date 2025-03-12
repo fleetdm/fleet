@@ -1841,6 +1841,21 @@ func TestAppConfigCAs(t *testing.T) {
 		assert.Len(t, mt.appConfig.Integrations.DigiCert.Value, 1)
 	})
 
+	t.Run("custom_scep keep old value", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		mt.oldAppConfig = mt.newAppConfig
+		mt.appConfig = mt.oldAppConfig.Copy()
+		mt.newAppConfig = &fleet.AppConfig{}
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.ndes)
+		assert.Empty(t, status.digicert)
+		assert.Empty(t, status.customSCEPProxy)
+		assert.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 1)
+	})
+
 	t.Run("missing server private key", func(t *testing.T) {
 		mt := setUpDigiCert()
 		mt.svc.config.Server.PrivateKey = ""
@@ -1855,7 +1870,7 @@ func TestAppConfigCAs(t *testing.T) {
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy", "private key")
 	})
 
-	t.Run("invalid digicert integration name", func(t *testing.T) {
+	t.Run("invalid integration name", func(t *testing.T) {
 		testCases := []struct {
 			testName      string
 			name          string
@@ -1864,31 +1879,40 @@ func TestAppConfigCAs(t *testing.T) {
 			{
 				testName:      "empty",
 				name:          "",
-				errorContains: []string{"integrations.digicert.name", "CA name cannot be empty"},
+				errorContains: []string{"CA name cannot be empty"},
 			},
 			{
 				testName:      "NDES",
 				name:          "NDES",
-				errorContains: []string{"integrations.digicert.name", "CA name cannot be NDES"},
+				errorContains: []string{"CA name cannot be NDES"},
 			},
 			{
 				testName:      "too long",
 				name:          strings.Repeat("a", 256),
-				errorContains: []string{"integrations.digicert.name", "CA name cannot be longer than"},
+				errorContains: []string{"CA name cannot be longer than"},
 			},
 			{
 				testName:      "invalid characters",
 				name:          "a/b",
-				errorContains: []string{"integrations.digicert.name", "Only letters, numbers and underscores allowed"},
+				errorContains: []string{"Only letters, numbers and underscores allowed"},
 			},
 		}
 
 		for _, tc := range testCases {
 			t.Run(tc.testName, func(t *testing.T) {
+				baseErrorContains := tc.errorContains
 				mt := setUpDigiCert()
 				mt.newAppConfig = getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, tc.name)
 				status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 				require.NoError(t, err)
+				errorContains := append(baseErrorContains, "integrations.digicert.name")
+				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
+
+				mt = setUpCustomSCEP()
+				mt.newAppConfig = getAppConfigWithSCEPIntegration("https://example.com", tc.name)
+				status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+				require.NoError(t, err)
+				errorContains = append(baseErrorContains, "integrations.custom_scep_proxy.name")
 				checkExpectedCAValidationError(t, mt.invalid, status, tc.errorContains...)
 			})
 		}
@@ -1910,6 +1934,22 @@ func TestAppConfigCAs(t *testing.T) {
 			"URL must be https or http")
 	})
 
+	t.Run("invalid custom_scep URL", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = ""
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.url",
+			"empty url")
+
+		mt = setUpCustomSCEP()
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = "nonhttp://bad.com"
+		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.url",
+			"URL must be https or http")
+	})
+
 	t.Run("duplicate digicert integration name", func(t *testing.T) {
 		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value = append(mt.newAppConfig.Integrations.DigiCert.Value,
@@ -1917,6 +1957,27 @@ func TestAppConfigCAs(t *testing.T) {
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name",
+			"name is already used by another certificate authority")
+	})
+
+	t.Run("duplicate custom_scep integration name", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value = append(mt.newAppConfig.Integrations.CustomSCEPProxy.Value,
+			mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0])
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.name",
+			"name is already used by another certificate authority")
+	})
+
+	t.Run("same digicert and custom_scep integration name", func(t *testing.T) {
+		mtSCEP := setUpCustomSCEP()
+		mt := setUpDigiCert()
+		mt.newAppConfig.Integrations.CustomSCEPProxy = mtSCEP.newAppConfig.Integrations.CustomSCEPProxy
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Name = mt.newAppConfig.Integrations.DigiCert.Value[0].Name
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.name",
 			"name is already used by another certificate authority")
 	})
 

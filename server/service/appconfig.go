@@ -1008,6 +1008,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 
 	var (
 		allCANames                         = make(map[string]struct{})
+		invalidCANames                     = make(map[string]struct{})
 		additionalDigiCertValidationNeeded bool
 	)
 
@@ -1041,6 +1042,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				!validateCACN(ca.CertificateCommonName, invalid) ||
 				!validateSeatID(ca.CertificateSeatID, invalid) ||
 				!validateUserPrincipalNames(ca.CertificateUserPrincipalNames, invalid) {
+				invalidCANames[ca.Name] = struct{}{}
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
@@ -1093,6 +1095,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
 			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
+				invalidCANames[ca.Name] = struct{}{}
 				continue
 			}
 			ca.URL = fleet.Preprocess(ca.URL)
@@ -1178,6 +1181,12 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				}
 			}
 		}
+	}
+
+	// Remove status updates from invalid CA names
+	for caName := range invalidCANames {
+		delete(result.digicert, caName)
+		delete(result.customSCEPProxy, caName)
 	}
 
 	return result, nil
