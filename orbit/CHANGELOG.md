@@ -1,8 +1,8 @@
 ## Orbit 1.40.0 (Mar 11, 2025)
 
-* Fixed LUKS key escrow in non-English system locales
+* Fixed LUKS key escrow in non-English system locales.
 
-* Ensure only one copy of fleet desktop is running at a time
+* Added logic to ensure only one instance of Fleet Desktop is running at a time.
 
 * Fixed an issue where restarting the desktop manager on Ubuntu would cause the Fleet Desktop tray icon to disappear and not return.
 
