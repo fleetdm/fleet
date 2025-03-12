@@ -326,6 +326,16 @@
       moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
     - description: See what servers someone is logged-in on
       moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+- industryName: Human-endpoint mapping (IdP groups)
+  description: Add user information (e.g Full name or group) from identity provider (e.g Okta) to your devices using SCIM protocol.
+  documentationUrl: https://fleetdm.com/guides/map-end-user-info-to-host-from-okta-idp
+  pricingTableCategories: [Devices]
+  productCategories: [Endpoint operations,Device management]
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  waysToUse:
+    - description: Add user information from IdP to your devices via SCIM protocol.
 #  
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
@@ -1116,16 +1126,6 @@
   jamfProtectHasFeature: no
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Map IdP users to devices (SCIM)
-  description: Add your end users information from identity provider (e.g Okta) to your hosts.
-  documentationUrl: https://fleetdm.com/guides/map-end-user-info-to-host-from-okta-idp
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  tier: Premium
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  waysToUse:
-    - description: Map end users information from IdP to your hosts
 - industryName: Grant Wi-Fi access
   description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
