@@ -560,11 +560,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 
 	// Get the user from the context.
 	user, ok := viewer.FromContext(ctx)
+	// If we have a user, mark them as the label's author.
 	if ok {
 		return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, user.UserID())
-	} else {
-		return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
 	}
+	return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
