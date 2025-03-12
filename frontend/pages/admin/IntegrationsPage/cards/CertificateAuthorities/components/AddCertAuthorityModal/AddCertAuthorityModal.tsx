@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
 import DigicertForm from "../DigicertForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 
 const baseClass = "add-cert-authority-modal";
 
@@ -14,6 +15,19 @@ interface IAddCertAuthorityModalProps {
 const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [formData, setFormData] = useState<IDigicertFormData>({
+    name: "",
+    url: "https://one.digicert.com",
+    apiToken: "",
+    profileId: "",
+    commonName: "",
+    userPrincipalNames: "",
+    certificateSeatId: "",
+  });
+
+  const onChange = (update: { name: string; value: string }) => {
+    setFormData({ ...formData, [update.name]: update.value });
+  };
 
   const onAddCertAuthority = async () => {
     setIsUpdating(true);
@@ -34,7 +48,9 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     >
       <>
         <DigicertForm
+          formData={formData}
           submitBtnText="Add CA"
+          onChange={onChange}
           onSubmit={onAddCertAuthority}
           onCancel={onExit}
         />
