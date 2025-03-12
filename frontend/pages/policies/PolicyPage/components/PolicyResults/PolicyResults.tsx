@@ -240,6 +240,7 @@ const PolicyResults = ({
         onClickDone={onQueryDone}
         onClickRunAgain={onRunQuery}
         onClickStop={onStopQuery}
+        isPolicy
       />
       <TabNav>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>

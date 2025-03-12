@@ -62,15 +62,18 @@ interface IQueryResultsHeadingProps {
   onClickDone: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickRunAgain: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickStop: (evt: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Whether this is a live run of a policy. If not, it is of a query. */
+  isPolicy?: boolean;
 }
 
-const QuertResultsHeading = ({
+const QueryResultsHeading = ({
   respondedHosts,
   targetsTotalCount,
   isQueryFinished,
   onClickDone,
   onClickRunAgain,
   onClickStop,
+  isPolicy = false,
 }: IQueryResultsHeadingProps) => {
   const percentResponded =
     targetsTotalCount > 0
@@ -78,8 +81,8 @@ const QuertResultsHeading = ({
       : 0;
 
   const PAGE_TITLES = {
-    RUNNING: `Querying selected ${pluralizeHost(targetsTotalCount)}`,
-    FINISHED: "Query finished",
+    RUNNING: `Running ${isPolicy ? "policy" : "query"}`,
+    FINISHED: `${isPolicy ? "Policy" : "Query"} finished`,
   };
 
   const pageTitle = isQueryFinished
@@ -98,7 +101,7 @@ const QuertResultsHeading = ({
         </div>
         <div className={`${baseClass}__percent-responded`}>
           {!isQueryFinished && (
-            <span>Fleet is talking to your hosts,&nbsp;</span>
+            <span>Fleet is talking to your hosts.&nbsp;</span>
           )}
           <span>
             ({`${percentResponded}% `}
@@ -151,4 +154,4 @@ const QuertResultsHeading = ({
   );
 };
 
-export default QuertResultsHeading;
+export default QueryResultsHeading;
