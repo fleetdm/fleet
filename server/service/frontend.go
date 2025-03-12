@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -76,15 +77,14 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
-	isMacMDMEnabled bool,
-	isAndroidMDMEnabled bool,
-	isAndroidFeatureEnabled bool, // TODO: remove android feature flag
+	ds fleet.Datastore,
 	logger log.Logger,
 ) http.Handler {
 	herr := func(w http.ResponseWriter, err string) {
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
+	androidFeatureEnabled := os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1"
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		endpoint_utils.WriteBrowserSecurityHeaders(w)
@@ -93,9 +93,14 @@ func ServeEndUserEnrollOTA(
 			herr(w, "setup required err: "+err.Error())
 			return
 		}
-
 		if setupRequired {
 			herr(w, "fleet instance not setup")
+			return
+		}
+
+		appCfg, err := ds.AppConfig(r.Context())
+		if err != nil {
+			herr(w, "load appconfig err: "+err.Error())
 			return
 		}
 
@@ -132,9 +137,9 @@ func ServeEndUserEnrollOTA(
 		}{
 			URLPrefix:             urlPrefix,
 			EnrollURL:             enrollURL,
-			AndroidMDMEnabled:     isAndroidMDMEnabled,
-			MacMDMEnabled:         isMacMDMEnabled,
-			AndroidFeatureEnabled: isAndroidFeatureEnabled,
+			AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
+			MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
+			AndroidFeatureEnabled: androidFeatureEnabled,
 		}); err != nil {
 			herr(w, "execute react template: "+err.Error())
 			return

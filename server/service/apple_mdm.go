@@ -79,6 +79,8 @@ var (
 		FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
 		FleetVarHostEndUserEmailIDP))
+	fleetVarHostHardwareSerialRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostHardwareSerial,
+		FleetVarHostHardwareSerial))
 	fleetVarDigiCertData = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%s\w+})`, FleetVarDigiCertDataPrefix,
 		FleetVarDigiCertDataPrefix))
 	fleetVarDigiCertPassword = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s\w+)|(\${FLEET_VAR_%s\w+})`, FleetVarDigiCertPasswordPrefix,
@@ -3798,7 +3800,7 @@ func preprocessProfileContents(
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == FleetVarNDESSCEPChallenge || fleetVar == FleetVarNDESSCEPProxyURL:
-				configured, err := getIsNDESSCEPConfiguredFunc(ctx, appConfig, ds, hostProfilesToInstallMap)(profUUID, target)
+				configured, err := isNDESSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, profUUID, target)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking NDES SCEP configuration")
 				}
@@ -3817,7 +3819,7 @@ func preprocessProfileContents(
 					digiCertVars.data = true
 					caName = strings.TrimPrefix(fleetVar, FleetVarDigiCertDataPrefix)
 				}
-				configured, err := getIsDigiCertConfiguredFunc(ctx, appConfig, ds, hostProfilesToInstallMap, digiCertCAs)(profUUID, target, caName)
+				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
 				}
@@ -3874,6 +3876,7 @@ func preprocessProfileContents(
 			hostContents := contentsStr
 
 			failed := false
+		fleetVarLoop:
 			for fleetVar := range fleetVars {
 				switch {
 				case fleetVar == FleetVarNDESSCEPChallenge:
@@ -3923,7 +3926,7 @@ func preprocessProfileContents(
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for NDES SCEP challenge")
 						}
 						failed = true
-						break
+						break fleetVarLoop
 					}
 					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:             hostUUID,
@@ -3939,33 +3942,25 @@ func preprocessProfileContents(
 						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
 					hostContents = replaceFleetVariable(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case fleetVar == FleetVarHostEndUserEmailIDP:
-					// Insert the end user email IDP into the profile contents
-					emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+					email, ok, err := getIDPEmail(ctx, ds, target, hostUUID)
 					if err != nil {
-						// This is a server error, so we exit.
-						return ctxerr.Wrap(ctx, err, "getting host emails")
+						return ctxerr.Wrap(ctx, err, "getting IDP email")
 					}
-					if len(emails) == 0 {
-						// Error if we can't retrieve the end user email IDP
-						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID: target.cmdUUID,
-							HostUUID:    hostUUID,
-							Status:      &fleet.MDMDeliveryFailed,
-							Detail: fmt.Sprintf("There is no IdP email for this host. "+
-								"Fleet couldn't populate $FLEET_VAR_%s. "+
-								"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
-								FleetVarHostEndUserEmailIDP),
-							OperationType: fleet.MDMOperationTypeInstall,
-						})
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user email IdP")
-						}
+					if !ok {
 						failed = true
-						break
+						break fleetVarLoop
 					}
-					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, emails[0])
+					hostContents = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
 				case fleetVar == FleetVarHostHardwareSerial:
-					// TODO(#26609): swap in host serial
+					hardwareSerial, ok, err := getHostHardwareSerial(ctx, ds, target, hostUUID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "getting host hardware serial")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					hostContents = replaceFleetVariable(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix):
 					// We will replace the password when we populate the certificate data
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
@@ -3974,12 +3969,42 @@ func preprocessProfileContents(
 					if !ok {
 						continue // Should never happen since we validated/populated DigiCert CAs earlier
 					}
+					caCopy := *ca
 
-					// TODO(#26609): populate Fleet vars in the CA fields
-
-					data, password, err := digicert.GetCertificate(ctx, logger, *ca)
+					// Populate Fleet vars in the CA fields
+					caVarsCache := make(map[string]string)
+					ok, err := replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &caCopy.CertificateCommonName)
 					if err != nil {
-						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
+						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					ok, err = replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &caCopy.CertificateSeatID)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+					if len(caCopy.CertificateUserPrincipalNames) > 0 {
+						for i := range caCopy.CertificateUserPrincipalNames {
+							ok, err = replaceFleetVarInItem(ctx, ds, target, hostUUID, caVarsCache, &caCopy.CertificateUserPrincipalNames[i])
+							if err != nil {
+								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
+							}
+							if !ok {
+								failed = true
+								break fleetVarLoop
+							}
+						}
+					}
+
+					cert, err := digicert.GetCertificate(ctx, logger, caCopy)
+					if err != nil {
+						detail := fmt.Sprintf("Couldn't get certificate from %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:   target.cmdUUID,
 							HostUUID:      hostUUID,
@@ -3991,10 +4016,15 @@ func preprocessProfileContents(
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for DigiCert")
 						}
 						failed = true
-						break
+						break fleetVarLoop
 					}
-					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(data))
-					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, password)
+					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(cert.PfxData))
+					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, cert.Password)
+					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:      hostUUID,
+						ProfileUUID:   profUUID,
+						NotValidAfter: &cert.NotValidAfter,
+					})
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}
@@ -4029,6 +4059,97 @@ func preprocessProfileContents(
 	return nil
 }
 
+func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, caVarsCache map[string]string, item *string,
+) (bool, error) {
+	caFleetVars := findFleetVariables(*item)
+	for caVar := range caFleetVars {
+		switch caVar {
+		case FleetVarHostEndUserEmailIDP:
+			email, ok := caVarsCache[FleetVarHostEndUserEmailIDP]
+			if !ok {
+				var err error
+				email, ok, err = getIDPEmail(ctx, ds, target, hostUUID)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
+				}
+				if !ok {
+					return false, nil
+				}
+				caVarsCache[FleetVarHostEndUserEmailIDP] = email
+			}
+			*item = replaceFleetVariable(fleetVarHostEndUserEmailIDPRegexp, *item, email)
+		case FleetVarHostHardwareSerial:
+			hardwareSerial, ok := caVarsCache[FleetVarHostHardwareSerial]
+			if !ok {
+				var err error
+				hardwareSerial, ok, err = getHostHardwareSerial(ctx, ds, target, hostUUID)
+				if err != nil {
+					return false, ctxerr.Wrap(ctx, err, "getting host hardware serial")
+				}
+				if !ok {
+					return false, nil
+				}
+				caVarsCache[FleetVarHostHardwareSerial] = hardwareSerial
+			}
+			*item = replaceFleetVariable(fleetVarHostHardwareSerialRegexp, *item, hardwareSerial)
+		default:
+			// We should not reach this since we validated the variables when saving app config
+		}
+	}
+	return true, nil
+}
+
+func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
+	// Insert the end user email IDP into the profile contents
+	emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
+	if err != nil {
+		// This is a server error, so we exit.
+		return "", false, ctxerr.Wrap(ctx, err, "getting host emails")
+	}
+	if len(emails) == 0 {
+		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
+		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			CommandUUID: target.cmdUUID,
+			HostUUID:    hostUUID,
+			Status:      &fleet.MDMDeliveryFailed,
+			Detail: fmt.Sprintf("There is no IdP email for this host. "+
+				"Fleet couldn't populate $FLEET_VAR_%s. "+
+				"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
+				FleetVarHostEndUserEmailIDP),
+			OperationType: fleet.MDMOperationTypeInstall,
+		})
+		if err != nil {
+			return "", false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user email IdP")
+		}
+		return "", false, nil
+	}
+	return emails[0], true, nil
+}
+
+func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
+	hosts, err := ds.ListHostsLiteByUUIDs(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}, []string{hostUUID})
+	if err != nil {
+		return "", false, ctxerr.Wrap(ctx, err, "listing hosts")
+	}
+	if len(hosts) != 1 {
+		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
+		// Mark the profile as failed with additional detail.
+		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			CommandUUID:   target.cmdUUID,
+			HostUUID:      hostUUID,
+			Status:        &fleet.MDMDeliveryFailed,
+			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(hosts), hostUUID),
+			OperationType: fleet.MDMOperationTypeInstall,
+		})
+		if err != nil {
+			return "", false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for hardware serial")
+		}
+		return "", false, nil
+	}
+	hardwareSerial := hosts[0].HardwareSerial
+	return hardwareSerial, true, nil
+}
+
 type digiCertVarsFound struct {
 	data     bool
 	password bool
@@ -4039,60 +4160,56 @@ func (d digiCertVarsFound) Ok() bool {
 	return d.data && d.password || !d.data && !d.password
 }
 
-func getIsDigiCertConfiguredFunc(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
-	digiCertCAs map[string]*fleet.DigiCertIntegration) func(profUUID string, target *cmdTarget, caName string) (bool, error) {
-	return func(profUUID string, target *cmdTarget, caName string) (bool, error) {
-		if !license.IsPremium(ctx) {
-			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
-		}
-		if _, ok := digiCertCAs[caName]; ok {
-			return true, nil
-		}
-		configured := false
-		var digiCertCA *fleet.DigiCertIntegration
-		if appConfig.Integrations.DigiCert.Valid {
-			for _, ca := range appConfig.Integrations.DigiCert.Value {
-				if ca.Name == caName {
-					digiCertCA = &ca
-					configured = true
-					break
-				}
-			}
-		}
-		if !configured || digiCertCA == nil {
-			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-				fmt.Sprintf("DigiCert CA '%s' is not configured. Please configure in Settings > Integrations > Certificates.", caName))
-		}
-
-		// Get the API token
-		asset, err := ds.GetCAConfigAsset(ctx, digiCertCA.Name, fleet.CAConfigDigiCert)
-		switch {
-		case fleet.IsNotFound(err):
-			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-				fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName))
-		case err != nil:
-			return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
-		}
-		digiCertCA.APIToken = string(asset.Value)
-		digiCertCAs[caName] = digiCertCA
-
+	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string) (bool, error) {
+	if !license.IsPremium(ctx) {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
+	}
+	if _, ok := digiCertCAs[caName]; ok {
 		return true, nil
 	}
+	configured := false
+	var digiCertCA *fleet.DigiCertIntegration
+	if appConfig.Integrations.DigiCert.Valid {
+		for _, ca := range appConfig.Integrations.DigiCert.Value {
+			if ca.Name == caName {
+				digiCertCA = &ca
+				configured = true
+				break
+			}
+		}
+	}
+	if !configured || digiCertCA == nil {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName))
+	}
+
+	// Get the API token
+	asset, err := ds.GetCAConfigAsset(ctx, digiCertCA.Name, fleet.CAConfigDigiCert)
+	switch {
+	case fleet.IsNotFound(err):
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName))
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
+	}
+	digiCertCA.APIToken = string(asset.Value)
+	digiCertCAs[caName] = digiCertCA
+
+	return true, nil
 }
 
-func getIsNDESSCEPConfiguredFunc(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
-	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload) func(profUUID string, target *cmdTarget) (bool, error) {
-	return func(profUUID string, target *cmdTarget) (bool, error) {
-		if !license.IsPremium(ctx) {
-			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.")
-		}
-		if !appConfig.Integrations.NDESSCEPProxy.Valid {
-			return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-				"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.")
-		}
-		return appConfig.Integrations.NDESSCEPProxy.Valid, nil
+func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget) (bool, error) {
+	if !license.IsPremium(ctx) {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.")
 	}
+	if !appConfig.Integrations.NDESSCEPProxy.Valid {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.")
+	}
+	return appConfig.Integrations.NDESSCEPProxy.Valid, nil
 }
 
 func markProfilesFailed(

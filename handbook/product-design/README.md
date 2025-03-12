@@ -186,10 +186,6 @@ Please see [handbook/product-design#rituals](https://fleetdm.com/handbook/produc
 ##### New CIS benchmarks
 Please see [handbook/product#submit-a-new-cis-benchmark-set-for-certification](https://fleetdm.com/handbook/product#submit-a-new-cis-benchmark-set-for-certification)
 
-##### Usage statistics
-Please see [handbook/product#view-fleet-usage-statistics](https://fleetdm.com/handbook/product#view-fleet-usage-statistics)
-
-Please see [handbook/product#create-a-new-figma-file](https://fleetdm.com/handbook/product#create-a-new-figma-file) for **below**
 ##### Create a new file
 ##### Wireframing
 Please see [handbook/product#create-a-new-figma-file](https://fleetdm.com/handbook/product#create-a-new-figma-file) for **above**
