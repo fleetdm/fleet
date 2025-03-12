@@ -1918,7 +1918,7 @@ func TestAppConfigCAs(t *testing.T) {
 				require.NoError(t, err)
 				errorContains = baseErrorContains
 				errorContains = append(errorContains, "integrations.custom_scep_proxy.name")
-				checkExpectedCAValidationError(t, mt.invalid, status, tc.errorContains...)
+				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
 			})
 		}
 	})
