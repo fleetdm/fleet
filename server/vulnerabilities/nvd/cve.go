@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -355,6 +356,13 @@ func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]osCPEWithNVDMeta, 
 
 	for _, os := range oses {
 		for _, variant := range macosVariants {
+			versionParts := strings.Split(os.Version, ".")
+			if len(versionParts) == 2 {
+				// Vulncheck reports versions with all 3 parts, so pad with an extra 0 if we only
+				// have 2 parts (15.3 -> 15.3.0)
+				versionParts = append(versionParts, "0")
+				os.Version = strings.Join(versionParts, ".")
+			}
 			cpe := osCPEWithNVDMeta{
 				OperatingSystem: os,
 				meta: &wfn.Attributes{
