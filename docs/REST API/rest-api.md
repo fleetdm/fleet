@@ -2823,7 +2823,15 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_created": false
       },
       {
         "id": 3,
@@ -2833,17 +2841,51 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_created": false
       },
       {
-        "id": 1,
+        "id": 4,
         "name": "SomeQuery",
         "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_created": false
+      },
+      {
+        "id": 5,
+        "name": "Install zoom.us.app",
+        "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';",
+        "description": "ZoomInstallerIT.pkg version 6.3.11.50104 is installed when the host doesn't have any version of it installed.",
+        "resolution": "",
+        "platform": "darwin",
+        "response": "fail",
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_created": true,      
       }
     ],
     "software": [
@@ -3065,7 +3107,8 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "fleet_created": false
       }
     ],
     "software": [
@@ -6610,7 +6653,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_created": false
     },
     {
       "id": 2,
@@ -6628,7 +6672,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_created": false
     }
   ]
 }
@@ -6947,7 +6992,8 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
+      "fleet_created": false
     },
     {
       "id": 2,
@@ -6970,7 +7016,8 @@ Team policies work the same as policies, but at the team level.
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
         "id": 234
-      }
+      },
+      "fleet_created": false
     },
     {
       "id": 3,
@@ -6993,7 +7040,8 @@ Team policies work the same as policies, but at the team level.
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
-      }
+      },
+      "fleet_created": false
     }
   ],
   "inherited_policies": [
@@ -7013,7 +7061,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_created": false
     }
   ]
 }
@@ -7046,7 +7095,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_created": false
     },
     {
       "id": 2,
@@ -7064,7 +7114,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_created": false
     },
     {
       "id": 136,
@@ -7082,7 +7133,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_created": false
     }
   ]
 }
@@ -8888,12 +8940,20 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-        "automatic_install_policies": [
+        "custom_policies": [
           {
             "id": 343,
-            "name": "[Install software] Firefox.app",
+            "name": "Custom policy",
           }
         ],
+        "patch_policy": {
+            "id": 343,
+            "name": "Patch Firefox.app",
+        },
+        "install_policy": {
+            "id": 343,
+            "name": "Install Firefox.app",
+        }
       },
       "app_store_app": null,
       "versions_count": 3,
@@ -9174,12 +9234,14 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
-      "automatic_install_policies": [
+      "custom_policies": [
         {
           "id": 343,
-          "name": "[Install software] Crowdstrike Agent",
+          "name": "Custom policy",
         }
       ],
+      "patch_policy": null,
+      "install_policy": null,
       "status": {
         "installed": 3,
         "pending_install": 1,
@@ -9239,12 +9301,13 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
-      "automatic_install_policies": [
-        {
-          "id": 345,
-          "name": "[Install software] Logic Pro",
-        } 
+      "custom_policies": [
+          {
+            "id": 343,
+            "name": "Custom policy",
+          }
       ],
+      "install_policy": null,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9755,6 +9818,8 @@ Add Fleet-maintained app so it's available for install.
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
+Install software available for install on all hosts running an older version.
+
 `POST /api/v1/fleet/software/titles/:id/patch`
 
 #### Parameters
@@ -9764,7 +9829,6 @@ _Available in Fleet Premium._
 | software_title_id              | integer | path | **Required**. The ID of the software title. |
 | team_id | integer | query | **Required**. The team ID. |
 | enable_patch   | boolean | body | Whether or not patching is enabled or not for the specific software title. |
-| minimum_version   | string | body | Required if `enable_patch` is set to `true`. Software is installed on hosts below the minimum version. |
 
 #### Example
 
@@ -9775,7 +9839,6 @@ _Available in Fleet Premium._
 ```json
 {
   "enable_patch": true,
-  "minimum_version": "6.3.11.50104"
 }
 ```
 
@@ -9791,6 +9854,8 @@ _Available in Fleet Premium._
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
+
+Install software available for install on all hosts that don't have any version of it installed.
 
 `POST /api/v1/fleet/software/titles/:id/install`
 
@@ -9834,6 +9899,8 @@ If neither `labels_include_any` nor `labels_exclude_any` are specified, the soft
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
+
+Make the software aviable for install available for your end users in **Fleet Desktop > Self-service**.
 
 `POST /api/v1/fleet/software/titles/:id/self_service`
 
