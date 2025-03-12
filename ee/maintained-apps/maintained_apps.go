@@ -53,6 +53,16 @@ func (a *FMAManifestApp) SlugAppName() string {
 	return parts[0]
 }
 
+func (a *FMAManifestApp) IsEmpty() bool {
+	return a.Version == "" &&
+		a.InstallerURL == "" &&
+		a.UniqueIdentifier == "" &&
+		a.InstallScriptRef == "" &&
+		a.UninstallScriptRef == "" &&
+		a.SHA256 == "" &&
+		a.Queries == (FMAQueries{})
+}
+
 type FMAManifestFile struct {
 	Versions []*FMAManifestApp `json:"versions"`
 	Refs     map[string]string `json:"refs"`

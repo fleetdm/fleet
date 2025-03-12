@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -143,7 +142,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
-	out.Slug = fmt.Sprintf("%s/%s", cask.Token, fleet.MacOSPlatform)
+	out.Slug = app.Slug
 	out.UninstallScript = uninstallScriptForApp(&cask)
 	installScript, err := installScriptForApp(app, &cask)
 	if err != nil {

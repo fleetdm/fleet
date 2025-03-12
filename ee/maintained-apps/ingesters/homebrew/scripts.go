@@ -17,8 +17,7 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 	sb.AddVariable("TMPDIR", `$(dirname "$(realpath $INSTALLER_PATH)")`)
 	sb.AddVariable("APPDIR", `"/Applications/"`)
 
-	formats := strings.Split(app.InstallerFormat, ":")
-	sb.Extract(formats[0])
+	sb.Extract(app.InstallerFormat)
 
 	var includeQuitFunc bool
 	for _, artifact := range cask.Artifacts {

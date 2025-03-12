@@ -13,8 +13,8 @@
         "name": "Slack",
         "unique_identifier": "com.tinyspeck.slackmacgap",
         "token": "slack",
-        "installer_format": "dmg:app",
-        "slug": "slack/darwin
+        "installer_format": "dmg",
+        "slug": "slack/darwin"
    }
    ```
 5. Open a PR to the `fleet` repository with the new app file. This will trigger a CI job which will automatically update your PR with the required output files. These files contain important data such as the install and uninstall scripts for the app.
@@ -37,9 +37,9 @@ This is the file format for the app's installer. Currently supported values are:
 - `dmg`
 - `pkg`
 
-To find the app's installer format, you can look at the `url` field on the homebrew API response. The installer's filetype extension should be at the end of this URL. 
+To find the app's installer format, you can look at the `url` field on the homebrew API response. The installer's extension should be at the end of this URL. 
 
-Sometimes the filetype is not included in the installer's URL. In this case, you can simply download the installer and take note of the filetype extension for the downloaded file.
+Sometimes the file type is not included in the installer's URL. In this case, you can download the installer and use the extension of the downloaded file.
 
 #### `slug`
 The `slug` identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app. 

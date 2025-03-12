@@ -118,7 +118,7 @@
       "slug": "slack/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyspeck.slackmacgap",
-      "description": "Team communication and collaboration software"
+      "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
       "name": "TeamViewer",
@@ -142,11 +142,11 @@
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
-      "name": "Zoom for IT Admins",
-      "slug": "zoom-for-it-admins/darwin",
+      "name": "Zoom",
+      "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
-      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+      "description": ""
     }
   ]
 }

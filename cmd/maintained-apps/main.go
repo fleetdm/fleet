@@ -37,6 +37,11 @@ func main() {
 		}
 
 		for _, app := range apps {
+			if app.IsEmpty() {
+				level.Info(logger).Log("msg", "skipping manifest update due to empty output", "slug", app.Slug)
+				continue
+			}
+
 			if err := processOutput(ctx, app); err != nil {
 				level.Error(logger).Log("msg", "failed to process maintained app output", "err", err)
 			}
