@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import { ICertificateIntegration } from "interfaces/integration";
-import createMockConfig from "__mocks__/configMock";
 
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";

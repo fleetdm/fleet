@@ -69,7 +69,7 @@ export const useCertAuthorityDataGenerator = (
         data.integrations.digicert = config.integrations.digicert?.filter(
           (cert) => {
             return (
-              (certAuthority as ICertificatesIntegrationDigicert).name ===
+              (certAuthority as ICertificatesIntegrationDigicert).name !==
               cert.name
             );
           }

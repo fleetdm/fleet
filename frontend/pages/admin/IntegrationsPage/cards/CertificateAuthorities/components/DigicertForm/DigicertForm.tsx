@@ -22,6 +22,7 @@ export interface IDigicertFormData {
 interface IDigicertFormProps {
   formData: IDigicertFormData;
   submitBtnText: string;
+  isSubmitting: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -30,12 +31,11 @@ interface IDigicertFormProps {
 const DigicertForm = ({
   formData,
   submitBtnText,
+  isSubmitting,
   onChange,
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
-  const isUpdating = false;
-
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(
     {
       isValid: false,
@@ -149,8 +149,8 @@ const DigicertForm = ({
           showArrow
         >
           <Button
-            isLoading={isUpdating}
-            disabled={!formValidation.isValid}
+            isLoading={isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting}
             type="submit"
           >
             {submitBtnText}

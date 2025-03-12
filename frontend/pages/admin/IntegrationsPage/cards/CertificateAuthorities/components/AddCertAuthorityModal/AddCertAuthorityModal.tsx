@@ -2,12 +2,16 @@ import React, { useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
+import { ICertificateAuthorityType } from "interfaces/integration";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
+
+import { generateErrorMessage } from "./helpers";
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
-import { generateErrorMessage } from "./helpers";
 
 const baseClass = "add-cert-authority-modal";
 
@@ -16,10 +20,12 @@ interface IAddCertAuthorityModalProps {
 }
 
 const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
-  const { generateAddPatchData } = useCertAuthorityDataGenerator("digicert");
-
   const { renderFlash } = useContext(NotificationContext);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [
+    certAuthorityType,
+    setCertAuthorityType,
+  ] = useState<ICertificateAuthorityType>("digicert");
+  const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<IDigicertFormData>({
     name: "",
     url: "https://one.digicert.com",
@@ -29,23 +35,29 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     userPrincipalName: "",
     certificateSeatId: "",
   });
+  const { generateAddPatchData } = useCertAuthorityDataGenerator(
+    certAuthorityType
+  );
 
-  const onChange = (update: { name: string; value: string }) => {
+  const onChangeDropdown = (value: ICertificateAuthorityType) => {
+    setCertAuthorityType(value);
+  };
+
+  const onChangeForm = (update: { name: string; value: string }) => {
     setFormData({ ...formData, [update.name]: update.value });
   };
 
   const onAddCertAuthority = async () => {
     const addPatchData = generateAddPatchData(formData);
-    console.log(addPatchData);
-
-    setIsUpdating(true);
+    setIsAdding(true);
     try {
       await certificatesAPI.addCertificateAuthority(addPatchData);
       renderFlash("success", "Successfully added your certificate authority.");
     } catch (e) {
       renderFlash("error", generateErrorMessage(e));
     }
-    setIsUpdating(false);
+    onExit();
+    setIsAdding(false);
   };
 
   return (
@@ -55,13 +67,23 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       width="large"
       onExit={onExit}
     >
-      <DigicertForm
-        formData={formData}
-        submitBtnText="Add CA"
-        onChange={onChange}
-        onSubmit={onAddCertAuthority}
-        onCancel={onExit}
-      />
+      <>
+        <Dropdown
+          options={[{ label: "Digicert", value: "digicert" }]}
+          value={certAuthorityType}
+          className={`${baseClass}__cert-authority-dropdown`}
+          onChange={onChangeDropdown}
+          searchable={false}
+        />
+        <DigicertForm
+          formData={formData}
+          submitBtnText="Add CA"
+          isSubmitting={isAdding}
+          onChange={onChangeForm}
+          onSubmit={onAddCertAuthority}
+          onCancel={onExit}
+        />
+      </>
     </Modal>
   );
 };

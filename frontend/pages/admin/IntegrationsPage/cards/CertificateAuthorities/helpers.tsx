@@ -29,7 +29,7 @@ export const generateListData = (
   if (digicertCerts?.length) {
     digicertCerts.forEach((cert) => {
       listData.push({
-        id: `digicert-${cert.id}`,
+        id: `digicert-${cert.name}`,
         name: cert.name,
         description: "DigiCert",
       });
@@ -82,12 +82,13 @@ export const getCertificateAuthority = (
 
   if (id.includes("digicert")) {
     return digicertCerts?.find(
-      (cert) => id.split("digicert-")[1] === cert.id.toString()
+      (cert) => id.split("digicert-")[1] === cert.name
     ) as ICertificatesIntegrationDigicert;
   }
 
   if (id.includes("custom-scep-proxy")) {
     return customProxies?.find(
+      // TODO: remove custom scep id
       (cert) => id.split("custom-scep-proxy-")[1] === cert.id.toString()
     ) as ICertificatesIntegrationCustomSCEP;
   }
