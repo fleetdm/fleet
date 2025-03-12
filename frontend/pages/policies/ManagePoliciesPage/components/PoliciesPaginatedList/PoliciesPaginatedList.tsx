@@ -28,6 +28,7 @@ export interface IFormPolicy extends IPolicy {
   swNameToInstall?: string;
   runScriptEnabled: boolean;
   scriptIdToRun?: number;
+  scriptNameToRun?: string;
 }
 
 interface IPoliciesPaginatedListProps {
@@ -88,7 +89,7 @@ function PoliciesPaginatedList(
     if (paginatedListRef.current) {
       changedItems = paginatedListRef.current.getDirtyItems();
     }
-    console.log("changedItems", changedItems);
+
     onSubmit(changedItems);
   };
 
@@ -155,6 +156,7 @@ function PoliciesPaginatedList(
         swIdToInstall: policy.install_software?.software_title_id,
         runScriptEnabled: !!policy.run_script,
         scriptIdToRun: policy.run_script?.id,
+        scriptNameToRun: policy.run_script?.name,
       })) as IFormPolicy[];
     });
   }, []);
@@ -212,11 +214,11 @@ function PoliciesPaginatedList(
           {footer}
         </div>
       </div>
-      <GitOpsModeTooltipWrapper
-        position="right"
-        tipOffset={8}
-        renderChildren={(disableChildren) => (
-          <div className="modal-cta-wrap">
+      <div className="modal-cta-wrap">
+        <GitOpsModeTooltipWrapper
+          position="right"
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
             <TooltipWrapper
               showArrow
               position="top"
@@ -235,12 +237,12 @@ function PoliciesPaginatedList(
                 Save
               </Button>
             </TooltipWrapper>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        )}
-      />
+          )}
+        />
+        <Button onClick={onCancel} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }

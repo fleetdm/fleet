@@ -100,41 +100,22 @@ const LabelChooser = ({
       ?.helpText;
   };
 
-  const renderLabels = () => {
-    if (isLoading) {
-      return <Spinner centered={false} />;
-    }
+  if (isLoading) {
+    return <Spinner centered={false} />;
+  }
 
-    if (isError) {
-      return <DataError />;
-    }
+  if (isError) {
+    return <DataError />;
+  }
 
-    if (!labels.length) {
-      return (
-        <div className={`${baseClass}__no-labels`}>
-          <span>
-            <Link to={PATHS.LABEL_NEW_DYNAMIC}>Add labels</Link> to target
-            specific hosts.
-          </span>
-        </div>
-      );
-    }
-
-    return labels.map((label) => {
-      return (
-        <div className={`${baseClass}__label`} key={label.name}>
-          <Checkbox
-            className={`${baseClass}__checkbox`}
-            name={label.name}
-            value={!!selectedLabels[label.name]}
-            onChange={onSelectLabel}
-            parseTarget
-          />
-          <div className={`${baseClass}__label-name`}>{label.name}</div>
-        </div>
-      );
-    });
-  };
+  if (!labels.length) {
+    return (
+      <div className={`${baseClass}__no-labels`}>
+        <Link to={PATHS.LABEL_NEW_DYNAMIC}>Add label</Link> to target specific
+        hosts.
+      </div>
+    );
+  }
 
   return (
     <div className={`${baseClass}__custom-label-chooser`}>
@@ -151,7 +132,22 @@ const LabelChooser = ({
           ? getHelpText(selectedCustomTarget)
           : customHelpText}
       </div>
-      <div className={`${baseClass}__checkboxes`}>{renderLabels()}</div>
+      <div className={`${baseClass}__checkboxes`}>
+        {labels.map((label) => {
+          return (
+            <div className={`${baseClass}__label`} key={label.name}>
+              <Checkbox
+                className={`${baseClass}__checkbox`}
+                name={label.name}
+                value={!!selectedLabels[label.name]}
+                onChange={onSelectLabel}
+                parseTarget
+              />
+              <div className={`${baseClass}__label-name`}>{label.name}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -190,7 +186,7 @@ const TargetLabelSelector = ({
   onSelectCustomTarget,
   onSelectLabel,
 }: ITargetLabelSelectorProps) => {
-  const classNames = classnames(baseClass, className);
+  const classNames = classnames(baseClass, className, "form");
 
   return (
     <div className={classNames}>

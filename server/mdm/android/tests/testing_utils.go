@@ -101,6 +101,9 @@ func (ts *WithServer) CreateCommonDSMocks() {
 	ts.FleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 		return nil
 	}
+	ts.FleetDS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+		return nil
+	}
 }
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {

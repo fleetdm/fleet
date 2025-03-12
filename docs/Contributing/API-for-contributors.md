@@ -12,6 +12,7 @@
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Users](#users)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
@@ -4005,6 +4006,37 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
+### Update software title name
+
+`PATCH /api/v1/fleet/software/titles/:software_title_id/name`
+
+Only available for software titles that have a non-empty bundle ID, as titles without a bundle
+ID will be added back as new rows on the next software ingest with the same name. Endpoint authorization limited
+to global admins as this changes the software title's name across all teams.
+
+> **Experimental endpoint**. This endpoint is not guaranteed to continue to exist on future minor releases of Fleet.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to modify. |
+| name              | string  | body | **Required**. The new name of the title.           |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1/name`
+
+```json
+{
+  "name": "2 Chrome 2 Furious.app"
+}
+```
+
+##### Default response
+
+`Status: 205`
+
 ### Batch-apply software
 
 _Available in Fleet Premium._
@@ -4226,4 +4258,102 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+## Users
+
+### Update user-specific UI settings
+
+`PATCH /api/v1/fleet/users/:id`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| settings  | object   | body  | The updated user settings. |
+
+#### Example
+
+`PATCH /api/v1/fleet/users/1`
+```json
+{
+  "hidden_host_columns": ["hostname"]
+}
+```
+
+##### Default response
+* Note that user settings are *not* included in this response. See below `GET`s for how to get user settings.
+`Status: 200`
+```json
+{
+    "user": {
+        "created_at": "2025-01-08T01:04:23Z",
+        "updated_at": "2025-01-09T00:08:19Z",
+        "id": 1,
+        "name": "Sum Bahdee",
+        "email": "sum@org.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "mfa_enabled": false,
+        "global_role": "admin",
+        "api_only": false,
+        "teams": []
+    }
+}
+```
+
+### Include settings when getting a user
+
+`GET /api/v1/fleet/users/:id?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/users/2/?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
+```
+
+### Include settings when getting current user
+
+`GET /api/v1/fleet/me/?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/me?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
 ```

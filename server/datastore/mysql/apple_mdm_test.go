@@ -7210,13 +7210,16 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, host.UUID, profile.HostUUID)
 	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
 	assert.Nil(t, profile.ChallengeRetrievedAt)
+	assert.Nil(t, profile.NotValidAfter)
 
 	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(24 * time.Hour).UTC().Round(time.Microsecond)
 	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          initialCP.ProfileUUID,
 			ChallengeRetrievedAt: &challengeRetrievedAt,
+			NotValidAfter:        &notValidAfter,
 		},
 	})
 	require.NoError(t, err)
@@ -7229,6 +7232,7 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
 	require.NotNil(t, profile.ChallengeRetrievedAt)
 	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+	assert.Equal(t, &notValidAfter, profile.NotValidAfter)
 
 	// Cleanup should do nothing
 	err = ds.CleanUpMDMManagedCertificates(ctx)

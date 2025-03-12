@@ -97,8 +97,8 @@ type Datastore interface {
 	// be loaded.
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, *PaginationMetadata, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
-	// given teamID. If teamID is nil, then all scheduled queries for the 'global' team are returned.
-	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*Query, error)
+	// given teamID and hostID. If teamID is nil, then scheduled queries for the 'global' team are returned.
+	ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*Query, error)
 	// QueryByName looks up a query by name on a team. If teamID is nil, then the query is looked up in
 	// the 'global' team.
 	QueryByName(ctx context.Context, teamID *uint, name string) (*Query, error)
@@ -399,7 +399,7 @@ type Datastore interface {
 
 	GetAndroidDS() android.Datastore
 	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -566,6 +566,7 @@ type Datastore interface {
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter TeamFilter) (*SoftwareTitle, error)
+	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
@@ -1445,6 +1446,12 @@ type Datastore interface {
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
+	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
+	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
+	DeleteCAConfigAssets(ctx context.Context, names []string) error
+
 	// GetABMTokenByOrgName retrieves the Apple Business Manager token identified by
 	// its unique name (the organization name).
 	GetABMTokenByOrgName(ctx context.Context, orgName string) (*ABMToken, error)
@@ -1994,6 +2001,7 @@ type Datastore interface {
 	// Android
 
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

@@ -515,7 +515,8 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		hmap.host_uuid,
 		hmap.profile_uuid,
 		hmap.status,
-		hmmc.challenge_retrieved_at
+		hmmc.challenge_retrieved_at,
+		hmmc.not_valid_after
 	FROM
 		host_mdm_apple_profiles hmap
 	LEFT JOIN host_mdm_managed_certificates hmmc
@@ -1301,6 +1302,10 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
 
+	// if the device is coming from the DEP sync, we don't consider it
+	// enrolled yet.
+	enrolled := !fromSync
+
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -1318,10 +1323,6 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 			return ctxerr.Wrap(ctx, err, "query mdm solution id")
 		}
 	}
-
-	// if the device is coming from the DEP sync, we don't consider it
-	// enrolled yet.
-	enrolled := !fromSync
 
 	args := []interface{}{}
 	parts := []string{}
@@ -5811,11 +5812,13 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	    INSERT INTO host_mdm_managed_certificates (
               host_uuid,
               profile_uuid,
-              challenge_retrieved_at
+              challenge_retrieved_at,
+	          not_valid_after
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
-              challenge_retrieved_at = VALUES(challenge_retrieved_at)`,
+              challenge_retrieved_at = VALUES(challenge_retrieved_at),
+			  not_valid_after = VALUES(not_valid_after)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -5824,8 +5827,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
-		valuePart := "(?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt}
+		valuePart := "(?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter}
 		return valuePart, args
 	}
 
