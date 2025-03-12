@@ -22,3 +22,4 @@ If some of the following don't apply, delete the relevant line.
    - [ ] Orbit runs on macOS, Linux and Windows. Check if the orbit feature/bugfix should only apply to one platform (`runtime.GOOS`).
    - [ ] Manual QA must be performed in the three main OSs, macOS, Windows and Linux.
    - [ ] Auto-update manual QA, from released version of component to new version (see [tools/tuf/test](../tools/tuf/test/README.md)).
+- [ ] For unreleased bug fixes in a release candidate, confirmed that the fix is not expected to adversely impact load test results or alerted the release DRI if additional load testing is needed.

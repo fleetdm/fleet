@@ -15,8 +15,10 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strings"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1043,7 +1045,10 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		additionalDigiCertValidationNeeded = true
 		for _, ca := range newAppConfig.Integrations.DigiCert.Value {
 			ca.Name = fleet.Preprocess(ca.Name)
-			if !validateCAName(ca.Name, "digicert", allCANames, invalid) {
+			if !validateCAName(ca.Name, "digicert", allCANames, invalid) ||
+				!validateCACN(ca.CertificateCommonName, invalid) ||
+				!validateSeatID(ca.CertificateSeatID, invalid) ||
+				!validateUserPrincipalNames(ca.CertificateUserPrincipalNames, invalid) {
 				additionalDigiCertValidationNeeded = false
 				continue
 			}
@@ -1059,12 +1064,6 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				continue
 			}
 
-			if len(ca.CertificateUserPrincipalNames) > 1 {
-				invalid.Append("integrations.digicert.certificate_user_principal_names",
-					"DigiCert CA can only have one certificate user principal name")
-				additionalDigiCertValidationNeeded = false
-				continue
-			}
 			ca.ProfileID = fleet.Preprocess(ca.ProfileID)
 			appConfig.Integrations.DigiCert.Value = append(appConfig.Integrations.DigiCert.Value, ca)
 		}
@@ -1184,7 +1183,13 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 					result.digicert[newCA.Name] = caStatusAdded
 				}
 			}
-			// TODO(#26603): Validate all added and modified DigiCert CAs by making an API call and confirming the profile ID exists
+			if status, ok := result.digicert[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
+				err := digicert.VerifyProfileID(ctx, svc.logger, newCA)
+				if err != nil {
+					invalid.Append("integrations.digicert.profile_id",
+						fmt.Sprintf("Could not verify DigiCert profile ID %s for CA %s: %s", newCA.ProfileID, newCA.Name, err))
+				}
+			}
 		}
 	}
 
@@ -1220,6 +1225,65 @@ func validateCAName(name string, caType string, allCANames map[string]struct{}, 
 		return false
 	}
 	allCANames[name] = struct{}{}
+	return true
+}
+
+func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
+	if len(strings.TrimSpace(cn)) == 0 {
+		invalid.Append("integrations.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
+		return false
+	}
+	fleetVars := findFleetVariables(cn)
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+			// ok
+		default:
+			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
+			return false
+		}
+	}
+	return true
+}
+
+func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
+	if len(strings.TrimSpace(seatID)) == 0 {
+		invalid.Append("integrations.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
+		return false
+	}
+	fleetVars := findFleetVariables(seatID)
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+			// ok
+		default:
+			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
+			return false
+		}
+	}
+	return true
+}
+
+func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.InvalidArgumentError) bool {
+	if len(userPrincipalNames) == 0 {
+		return true
+	}
+	if len(userPrincipalNames) > 1 {
+		invalid.Append("integrations.digicert.certificate_user_principal_names",
+			"DigiCert CA can only have one certificate user principal name")
+		return false
+	}
+	fleetVars := findFleetVariables(userPrincipalNames[0])
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+			// ok
+		default:
+			invalid.Append("integrations.digicert.certificate_user_principal_names",
+				"FLEET_VAR_"+fleetVar+" is not allowed in CA User Principal Name")
+			return false
+		}
+	}
 	return true
 }
 

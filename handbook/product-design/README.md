@@ -107,8 +107,7 @@ Before assigning an EM, double-check that the "Product" section of the user stor
 
 If the story is tied to a customer feature request, the Head of Product Design (HPD) is responsible for adding the feature request issue to the [🏹 #g-customer-success board](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board). This way the Customer Success Manager (CSM) can review the wireframes and provide feedback on whether the proposed changes solve the customer's problem. If the changes don't, it's up to the HPD to decide whether to bring the user story back for more drafting or file a follow up user story (iteration).
 
-Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
-
+Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, it's up to the original Product Designer to update the "Product Designer" mentioned in the user story or bug and ramp up the new Product Designer so they are prepared to answers questions.
 
 ### Revise a draft currently in development
 
@@ -124,7 +123,7 @@ You'll know it's time for expedited drafting when:
 What happens during expedited drafting?
 1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
 2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
-3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+3. If the user story is already in the sprint, the EM, QA, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 

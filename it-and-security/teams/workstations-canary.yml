@@ -136,6 +136,7 @@ controls:
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
+    - path: ../lib/windows/scripts/create-admin-user.ps1
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -144,8 +145,10 @@ policies:
   - path: ../lib/macos/policies/update-1password.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
+  - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
