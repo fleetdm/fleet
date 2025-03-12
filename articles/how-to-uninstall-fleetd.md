@@ -1,28 +1,10 @@
 # How to uninstall Fleet's agent (fleetd)
 
-This guide walks you through the steps to remove fleetd from your device. After performing these steps, the device will display as an offline host in the Fleet UI until you manually remove it.
+This guide walks you through the steps to remove fleetd from your device. After performing these steps, the device will display as an offline host in the Fleet UI until you delete it.
 
-## macOS
+1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/macos-uninstall-fleetd.sh), [Windows](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/windows-uninstall-fleetd.sh), or [Linux](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/linux-uninstall-fleetd.sh) hosts to Fleet.
 
-1. Add this [uninstall-fleetd.sh Shell script](TODO) to Fleet.
-
-2. Head to the macOS host's **Host details** page and select **Actions > Run script** to run the script.
-
----
-
-## Windows
-
-1. Add the [uninstall-fleetd.ps1 PowerShell script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd.ps1) to Fleet.
-
-2. Head to the Windows host's **Host details** page and select **Actions > Run script** to run the script.
-
----
-
-## Linux
-
-1. For Ubuntu and Debian hosts, add this [deb-uninstall-fleetd.sh](TODO) to Fleet. For Fedora and CentOS hosts, add this [rpm-uninstall-fleetd.sh Shell script](TODO) to Fleet.
-
-2. Head to the macOS host's **Host details** page and select **Actions > Run script** to run the script.
+2. Head to the host's **Host details** page and select **Actions > Run script** to run the script.
 
 Are you having trouble uninstalling Fleetd on macOS, Windows, or Linux? Get help [here](https://fleetdm.com/slack).
 
