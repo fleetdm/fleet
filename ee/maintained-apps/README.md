@@ -51,4 +51,4 @@ For the app name part, use `-` to separate words if necessary, for example `adob
 The platform part can be any of these values:
 - `darwin`
 
-For example, a `slug` field of `slack/darwin` will result in an app manifest for Slack on macOS.
+For example, use a `slug` of `slack/darwin` for Slack on macOS.
