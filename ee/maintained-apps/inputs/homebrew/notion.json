@@ -1,0 +1,7 @@
+{
+  "name": "Notion",
+  "slug": "notion/darwin",
+  "unique_identifier": "notion.id",
+  "token": "notion",
+  "installer_format": "dmg"
+}

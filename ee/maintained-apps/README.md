@@ -14,7 +14,7 @@
         "unique_identifier": "com.tinyspeck.slackmacgap",
         "token": "slack",
         "installer_format": "dmg:app",
-        "slug": "slack/darwin"
+        "slug": "slack/darwin
    }
    ```
 5. Open a PR to the `fleet` repository with the new app file. This will trigger a CI job which will automatically update your PR with the required output files. These files contain important data such as the install and uninstall scripts for the app.
@@ -46,7 +46,7 @@ The `slug` identifies a specific app and platform combination. It is used to nam
 
 The slug is composed of a filesystem-friendly version of the app name, and an operating system platform identifier, separated by a `/`.
 
-For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`. You can usually use the `token` value here, but sometimes (see Zoom) we want to use a custom value here.
+For the app name part, use `-` to separate words if necessary, for example `adobe-acrobat-reader`. 
 
 The platform part can be any of these values:
 - `darwin`
