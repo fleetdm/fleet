@@ -52,23 +52,26 @@ const DigicertForm = ({
     certificateSeatId,
   } = formData;
 
-  const onInputBlur = () => {
-    setFormValidation(generateFormValidation(formData));
+  const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    onSubmit();
   };
 
   const onInputChange = (update: { name: string; value: string }) => {
+    setFormValidation(
+      generateFormValidation({ ...formData, [update.name]: update.value })
+    );
     onChange(update);
   };
 
   return (
-    <form className={baseClass} onSubmit={onSubmit}>
+    <form className={baseClass} onSubmit={onSubmitForm}>
       <div className={`${baseClass}__fields`}>
         <InputField
           name="name"
           label="Name"
           value={name}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           error={formValidation.name?.message}
           helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CERT_DATA_DIGICERT_WIFI)."
           parseTarget
@@ -79,7 +82,6 @@ const DigicertForm = ({
           label="URL"
           value={url}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           error={formValidation.url?.message}
           parseTarget
           helpText="DigiCert ONE instance URL."
@@ -90,7 +92,6 @@ const DigicertForm = ({
           label="API token"
           value={apiToken}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           parseTarget
           helpText="DigiCert One API token for service user."
         />
@@ -99,7 +100,6 @@ const DigicertForm = ({
           label="Profile GUID"
           value={profileId}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           parseTarget
           helpText={
             <>
@@ -117,7 +117,6 @@ const DigicertForm = ({
           label="Certificate common name (CN)"
           value={commonName}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           parseTarget
           helpText="Certificates delivered to your hosts will have this CN in the subject."
           placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
@@ -127,7 +126,6 @@ const DigicertForm = ({
           label="User principal name (UPN)"
           value={userPrincipalName}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           parseTarget
           helpText="Certificates delivered to your hosts will have this UPN attribute in Subject Alternative Name (SAN). (optional)"
           placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
@@ -137,7 +135,6 @@ const DigicertForm = ({
           label="Certificate seat ID"
           value={certificateSeatId}
           onChange={onInputChange}
-          onBlur={onInputBlur}
           parseTarget
           helpText="Certificates delivered to your hosts will be assigned to this seat ID in DigiCert."
           placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
@@ -148,10 +145,14 @@ const DigicertForm = ({
           tipContent="Complete all required fields to save."
           underline={false}
           position="top"
-          disableTooltip={!formValidation.isValid}
+          disableTooltip={formValidation.isValid}
           showArrow
         >
-          <Button isLoading={isUpdating} disabled={!formValidation.isValid}>
+          <Button
+            isLoading={isUpdating}
+            disabled={!formValidation.isValid}
+            type="submit"
+          >
             {submitBtnText}
           </Button>
         </TooltipWrapper>

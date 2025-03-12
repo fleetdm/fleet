@@ -25,7 +25,6 @@ export interface ICertificatesIntegrationNDES {
 }
 
 export interface ICertificatesIntegrationDigicert {
-  id: number;
   name: string;
   url: string;
   api_token: string;

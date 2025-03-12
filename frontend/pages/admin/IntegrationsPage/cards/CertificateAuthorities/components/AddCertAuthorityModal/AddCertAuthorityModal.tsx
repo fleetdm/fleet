@@ -1,9 +1,13 @@
 import React, { useContext, useState } from "react";
 
-import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
+import certificatesAPI from "services/entities/certificates";
+
+import Modal from "components/Modal";
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
+import { generateErrorMessage } from "./helpers";
 
 const baseClass = "add-cert-authority-modal";
 
@@ -12,6 +16,8 @@ interface IAddCertAuthorityModalProps {
 }
 
 const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
+  const { generateAddPatchData } = useCertAuthorityDataGenerator("digicert");
+
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState<IDigicertFormData>({
@@ -29,11 +35,15 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
   };
 
   const onAddCertAuthority = async () => {
+    const addPatchData = generateAddPatchData(formData);
+    console.log(addPatchData);
+
     setIsUpdating(true);
     try {
+      await certificatesAPI.addCertificateAuthority(addPatchData);
       renderFlash("success", "Successfully added your certificate authority.");
     } catch (e) {
-      renderFlash("error", "test");
+      renderFlash("error", generateErrorMessage(e));
     }
     setIsUpdating(false);
   };
@@ -45,15 +55,13 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       width="large"
       onExit={onExit}
     >
-      <>
-        <DigicertForm
-          formData={formData}
-          submitBtnText="Add CA"
-          onChange={onChange}
-          onSubmit={onAddCertAuthority}
-          onCancel={onExit}
-        />
-      </>
+      <DigicertForm
+        formData={formData}
+        submitBtnText="Add CA"
+        onChange={onChange}
+        onSubmit={onAddCertAuthority}
+        onCancel={onExit}
+      />
     </Modal>
   );
 };

@@ -8,12 +8,46 @@ import {
   IGlobalIntegrations,
 } from "interfaces/integration";
 import { useContext } from "react";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 
 export const useCertAuthorityDataGenerator = (
   certAuthorityType: ICertificateAuthorityType,
-  certAuthority: ICertificateIntegration
+  certAuthority?: ICertificateIntegration
 ) => {
   const { config } = useContext(AppContext);
+
+  const generateAddPatchData = (formData: IDigicertFormData) => {
+    if (!config) return null;
+
+    const data: { integrations: Partial<IGlobalIntegrations> } = {
+      integrations: {},
+    };
+
+    switch (certAuthorityType) {
+      case "ndes":
+        break;
+      case "digicert":
+        data.integrations.digicert = [
+          ...(config.integrations.digicert || []),
+          {
+            name: formData.name,
+            url: formData.url,
+            api_token: formData.apiToken,
+            profile_id: formData.profileId,
+            certificate_common_name: formData.commonName,
+            certificate_user_principal_names: [formData.userPrincipalName],
+            certificate_seat_id: formData.certificateSeatId,
+          },
+        ];
+        break;
+      case "custom":
+        break;
+      default:
+        break;
+    }
+
+    return data;
+  };
 
   /**
    * generates the data to be sent to the API to delete the certificate authority.
@@ -35,7 +69,8 @@ export const useCertAuthorityDataGenerator = (
         data.integrations.digicert = config.integrations.digicert?.filter(
           (cert) => {
             return (
-              (certAuthority as ICertificatesIntegrationDigicert).id === cert.id
+              (certAuthority as ICertificatesIntegrationDigicert).name ===
+              cert.name
             );
           }
         );
@@ -62,11 +97,12 @@ export const useCertAuthorityDataGenerator = (
    * under the hood we are updating the app config object with the new data and
    * have to generate the correct data for the PATCH request.
    */
-  const generateEditPatchData = () => {
+  const generateEditPatchData = (formData: IDigicertFormData) => {
     if (!config) return null;
   };
 
   return {
+    generateAddPatchData,
     generateDeletePatchData,
     generateEditPatchData,
   };
