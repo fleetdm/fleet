@@ -373,7 +373,7 @@ jobs:
 
       - name: Uninstall pkg
         run: |
-          sudo ./orbit/tools/cleanup/macos-uninstall-fleetd.sh
+          sudo ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 60
