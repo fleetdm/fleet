@@ -1,6 +1,6 @@
-# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
-
 #!/bin/sh
+
+# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
 
 if [ $(id -u) -ne 0 -a -z "$GITHUB_ACTIONS" ]; then
     echo "Please run as root"
