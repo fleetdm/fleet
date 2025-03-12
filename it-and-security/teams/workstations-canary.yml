@@ -151,6 +151,7 @@ policies:
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
+  - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
