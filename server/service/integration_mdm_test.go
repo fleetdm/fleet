@@ -14747,7 +14747,6 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	}
 	for _, status := range statuses {
 		s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
-		_ = status
 	}
 
 	// all disk encryption counts are expected to be 0 (not enabled)
