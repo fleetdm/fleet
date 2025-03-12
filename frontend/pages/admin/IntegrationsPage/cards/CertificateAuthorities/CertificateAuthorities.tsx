@@ -22,45 +22,7 @@ import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
 const baseClass = "certificate-authorities";
 
 const CertificateAuthorities = () => {
-  let { config } = useContext(AppContext);
-  config = createMockConfig({
-    integrations: {
-      zendesk: [],
-      jira: [],
-      digicert: [
-        {
-          name: "DigiCert CA",
-          id: 1,
-          api_token: "123456",
-          profile_id: "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
-          certificate_common_name:
-            "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-          certificate_user_principal_names: ["$FLEET_VAR_HOST_HARDWARE_SERIAL"],
-          certificate_seat_id: "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        },
-      ],
-      ndes_scep_proxy: {
-        url: "https://ndes.scep.com",
-        admin_url: "https://ndes.scep.com/admin",
-        username: "ndes",
-        password: "password",
-      },
-      custom_scep_proxy: [
-        {
-          id: 1,
-          name: "Custom SCEP Proxy",
-          server_url: "https://custom.scep.com",
-          challenge: "challenge",
-        },
-        {
-          id: 2,
-          name: "Custom SCEP Proxy 2",
-          server_url: "https://custom.scep2.com",
-          challenge: "challenge-2",
-        },
-      ],
-    },
-  });
+  const { config } = useContext(AppContext);
 
   const [showAddCertAuthorityModal, setShowAddCertAuthorityModal] = useState(
     false

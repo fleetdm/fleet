@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 
-import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
 import DigicertForm from "../DigicertForm";
@@ -21,7 +20,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     apiToken: "",
     profileId: "",
     commonName: "",
-    userPrincipalNames: "",
+    userPrincipalName: "",
     certificateSeatId: "",
   });
 

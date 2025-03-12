@@ -27,6 +27,7 @@ export interface ICertificatesIntegrationNDES {
 export interface ICertificatesIntegrationDigicert {
   id: number;
   name: string;
+  url: string;
   api_token: string;
   profile_id: string;
   certificate_common_name: string;
@@ -37,7 +38,7 @@ export interface ICertificatesIntegrationDigicert {
 export interface ICertificatesIntegrationCustomSCEP {
   id: number;
   name: string;
-  server_url: string;
+  url: string;
   challenge: string;
 }
 
