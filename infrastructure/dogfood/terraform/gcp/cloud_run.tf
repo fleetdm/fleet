@@ -94,7 +94,7 @@ resource "google_cloud_run_service" "default" {
         }
         image = var.image
         ports {
-          name           = "h2c"
+          name           = "http1"
           container_port = 8080
         }
         env {
@@ -132,6 +132,10 @@ resource "google_cloud_run_service" "default" {
         }
         env {
           name  = "FLEET_LOGGING_JSON"
+          value = "true"
+        }
+        env {
+          name = "FLEET_SERVER_FORCE_H2C"
           value = "true"
         }
         env {
