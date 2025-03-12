@@ -29,7 +29,7 @@
           </div>
         </div>
       </div>
-    <div purpose="article-rows" v-if="['guides', 'announcements', 'releases'].includes(category)">
+    <div purpose="article-rows" v-if="['guides', 'announcements', 'releases', 'articles'].includes(category)">
       <a :href="article.url" purpose="article-row" class="d-flex flex-lg-row flex-row justify-content-between" v-for="article in articles">
         <div purpose="article-name-and-description" class="d-flex flex-column">
           <div class="d-flex flex-column">
