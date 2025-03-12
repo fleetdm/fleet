@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "134.0.3124.62,cfd3ffe0-59be-4106-b68a-a2ecccad4b20",
+      "version": "134.0.3124.62",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';"
       },

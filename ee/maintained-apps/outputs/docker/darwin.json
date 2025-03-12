@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "4.39.0,184744",
+      "version": "4.39.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';"
       },

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
@@ -137,7 +138,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	}
 
 	out.Name = app.Name
-	out.Version = cask.Version
+	out.Version = strings.Split(cask.Version, ",")[0]
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = app.UniqueIdentifier
 	out.SHA256 = cask.SHA256
