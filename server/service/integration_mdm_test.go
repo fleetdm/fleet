@@ -14505,12 +14505,22 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
+	// get the All hosts label ID
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, ls, 1)
+	allHostsLblID := ls["All Hosts"]
+
 	// create a couple Windows non-MDM-enrolled hosts
 	winHost1 := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 	winHost2 := createOrbitEnrolledHost(t, "windows", "h2", s.ds)
-	err := s.ds.SetOrUpdateMDMData(ctx, winHost1.ID, false, false, "", false, "", "")
+	err = s.ds.SetOrUpdateMDMData(ctx, winHost1.ID, false, false, "", false, "", "")
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(ctx, winHost2.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, winHost1.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, winHost2.ID, []uint{allHostsLblID})
 	require.NoError(t, err)
 
 	// enable disk encryption
@@ -14518,6 +14528,37 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	pluckHostIDs := func(hosts []fleet.HostResponse) []uint {
+		if len(hosts) == 0 {
+			return nil
+		}
+
+		ids := make([]uint, len(hosts))
+		for i, h := range hosts {
+			ids[i] = h.ID
+		}
+		return ids
+	}
+
+	checkFilters := func(filter, value string, expectIDs ...uint) {
+		listHostsRes := listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, filter, value)
+		require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
+		require.Equal(t, expectIDs, pluckHostIDs(listHostsRes.Hosts), value)
+
+		countResp := countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, filter, value)
+		require.Equal(t, len(expectIDs), countResp.Count, value)
+
+		listHostsRes = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLblID), nil, http.StatusOK, &listHostsRes, filter, value)
+		require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
+		require.Equal(t, expectIDs, pluckHostIDs(listHostsRes.Hosts), value)
+
+		// The other hosts-filter-related endpoints (delete by filter, transfer by
+		// filter, hosts report) all use either ListHosts or ListsHostsInLabel.
+	}
 
 	// all profiles counts are expected to be 0 (no host is MDM-enrolled in Fleet)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
@@ -14528,16 +14569,11 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 		fleet.OSSettingsPending, fleet.OSSettingsFailed,
 	}
 	for _, status := range statuses {
-		listHostsRes := listHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "os_settings", string(status))
-		require.Len(t, listHostsRes.Hosts, 0, status)
-		countResp := countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_settings", string(status))
-		require.Zero(t, countResp.Count, status)
+		checkFilters("os_settings", string(status))
 	}
 
 	// all disk encryption counts are expected to be 0 (no host is MDM-enrolled in Fleet)
-	// s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
 
 	// filter hosts with any Disk Encryption status, should have none
 	diskStatuses := []fleet.DiskEncryptionStatus{
@@ -14546,12 +14582,8 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
 	}
 	for _, status := range diskStatuses {
-		listHostsRes := listHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "os_settings_disk_encryption", string(status))
-		// require.Len(t, listHostsRes.Hosts, 0, status)
-		countResp := countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_settings_disk_encryption", string(status))
-		// require.Zero(t, countResp.Count, status)
+		//checkFilters("os_settings_disk_encryption", string(status))
+		_ = status
 	}
 
 	// enroll a Windows host in Fleet MDM
@@ -14559,24 +14591,11 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 
 	// stats should now count this host
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
-	// s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
 
 	// filters should return this host
-	listHostsRes := listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "os_settings", string(fleet.OSSettingsPending))
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, winHost1.ID, listHostsRes.Hosts[0].ID)
-	countResp := countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_settings", string(fleet.OSSettingsPending))
-	require.Equal(t, 1, countResp.Count)
-
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing))
-	// require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, winHost1.ID, listHostsRes.Hosts[0].ID)
-	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing))
-	// require.Equal(t, 1, countResp.Count)
+	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
+	// checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
 
 	// enroll the other Windows host in a third-party MDM
 	err = s.ds.SetOrUpdateMDMData(ctx, winHost2.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "")
@@ -14584,22 +14603,9 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 
 	// stats should NOT count winHost2 (not in Fleet MDM)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
-	// s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
 
 	// filters should NOT return this host
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "os_settings", string(fleet.OSSettingsPending))
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, winHost1.ID, listHostsRes.Hosts[0].ID)
-	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_settings", string(fleet.OSSettingsPending))
-	require.Equal(t, 1, countResp.Count)
-
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing))
-	// require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, winHost1.ID, listHostsRes.Hosts[0].ID)
-	countResp = countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing))
-	// require.Equal(t, 1, countResp.Count)
+	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
+	// checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
 }

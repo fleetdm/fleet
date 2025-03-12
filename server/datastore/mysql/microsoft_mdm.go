@@ -585,11 +585,16 @@ SELECT
     0 AS removing_enforcement
 FROM
     hosts h
+    JOIN host_mdm hmdm ON h.id = hmdm.host_id
+    JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
-	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
-	LEFT JOIN host_disks hd ON h.id = hd.host_id
+    LEFT JOIN host_disks hd ON h.id = hd.host_id
 WHERE
-    h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
+    mwe.device_state = '%s' AND
+    h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
+    %s`
 
 	var args []interface{}
 	teamFilter := "h.team_id IS NULL"
@@ -605,6 +610,7 @@ WHERE
 		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
 		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
 		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
