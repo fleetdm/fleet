@@ -21,7 +21,6 @@ import {
   ISchedulableQuery,
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
-import { ILabelSummary } from "interfaces/label";
 
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -36,7 +35,10 @@ import Modal from "components/Modal";
 import RevealButton from "components/buttons/RevealButton";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 
 import DiscardDataOption from "../DiscardDataOption";
 
@@ -102,16 +104,17 @@ const SaveQueryModal = ({
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-  const { data: labels, isFetching: isFetchingLabels } = useQuery<
-    ILabelSummary[],
-    Error
-  >(
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () => labelsAPI.summary(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
       staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }
   );
 
@@ -143,14 +146,11 @@ const SaveQueryModal = ({
   }, [backendValidators]);
 
   // Disable saving if "Custom" targeting is selected, but no labels are selected.
-  const canSave = () => {
-    return (
-      selectedTargetType === "All hosts" ||
-      Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      })
-    );
-  };
+  const canSave =
+    selectedTargetType === "All hosts" ||
+    Object.entries(selectedLabels).some(([, value]) => {
+      return value;
+    });
 
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -302,14 +302,13 @@ const SaveQueryModal = ({
         {isPremiumTier && (
           <TargetLabelSelector
             selectedTargetType={selectedTargetType}
-            selectedCustomTarget=""
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
             onSelectTargetType={setSelectedTargetType}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
             customHelpText={
-              <span>
+              <span className="form-field__help-text">
                 Query will target hosts that <b>have any</b> of these labels:
               </span>
             }
@@ -370,7 +369,7 @@ const SaveQueryModal = ({
             variant="brand"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
-            disabled={!canSave()}
+            disabled={!canSave}
           >
             Save
           </Button>

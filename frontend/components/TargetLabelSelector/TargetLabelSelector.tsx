@@ -74,7 +74,7 @@ interface ILabelChooserProps {
   isLoading: boolean;
   labels: ILabelSummary[];
   selectedLabels: Record<string, boolean>;
-  selectedCustomTarget: string;
+  selectedCustomTarget?: string;
   customTargetOptions?: IDropdownOption[];
   customHelpText?: ReactNode;
   dropdownHelpText?: ReactNode;
@@ -94,7 +94,7 @@ const LabelChooser = ({
   onSelectCustomTarget,
   onSelectLabel,
 }: ILabelChooserProps) => {
-  const getHelpText = (value: string) => {
+  const getHelpText = (value?: string) => {
     if (dropdownHelpText) return dropdownHelpText;
     return customTargetOptions.find((option) => option.value === value)
       ?.helpText;
@@ -138,14 +138,14 @@ const LabelChooser = ({
 
   return (
     <div className={`${baseClass}__custom-label-chooser`}>
-      {customTargetOptions.length ? (
+      {!!customTargetOptions.length && (
         <Dropdown
           value={selectedCustomTarget}
           options={customTargetOptions}
           searchable={false}
           onChange={onSelectCustomTarget}
         />
-      ) : null}
+      )}
       <div className={`${baseClass}__description`}>
         {customTargetOptions.length
           ? getHelpText(selectedCustomTarget)
@@ -158,7 +158,7 @@ const LabelChooser = ({
 
 interface ITargetLabelSelectorProps {
   selectedTargetType: string;
-  selectedCustomTarget: string;
+  selectedCustomTarget?: string;
   customTargetOptions?: IDropdownOption[];
   selectedLabels: Record<string, boolean>;
   labels: ILabelSummary[];

@@ -48,10 +48,12 @@ import {
   QueryLoggingOption,
 } from "interfaces/schedulable_query";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
-import { ILabelSummary } from "interfaces/label";
 
 import queryAPI from "services/entities/queries";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
@@ -213,16 +215,17 @@ const EditQueryForm = ({
     );
   }, [storedQuery]);
 
-  const { data: labels, isFetching: isFetchingLabels } = useQuery<
-    ILabelSummary[],
-    Error
-  >(
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    () => labelsAPI.summary(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
       staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }
   );
 
@@ -900,14 +903,13 @@ const EditQueryForm = ({
               {isPremiumTier && (
                 <TargetLabelSelector
                   selectedTargetType={selectedTargetType}
-                  selectedCustomTarget=""
                   selectedLabels={selectedLabels}
                   className={`${baseClass}__target`}
                   onSelectTargetType={setSelectedTargetType}
                   onSelectLabel={onSelectLabel}
                   labels={labels || []}
                   customHelpText={
-                    <span>
+                    <span className="form-field__help-text">
                       Query will target hosts that <b>have any</b> of these
                       labels:
                     </span>
