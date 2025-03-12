@@ -1832,23 +1832,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		tmID = *teamID
 	}
 
-	// // https://dev.mysql.com/doc/refman/8.4/en/packet-too-large.html
-	// maxAllowedPacket := 16 * 1024 * 1024 // 16MB / 16,777,216 bytes
-	// maxPlaceholders := 65535             // mysql max placeholders
-	// var x uint
-	// sizePerPlaceholder := int(unsafe.Sizeof(x)) // 64 bits / 8 bytes for unsigned integers
-	// placeholdersPerID := 2
-
-	// // Calculate the size of the base query
-	// baseQuerySize := len(baseQuery) // 397
-
-	// // maximum number of IDs that can fit into a single query given maxAllowedPacket size
-	// maxBatchSizeQuerySize := (maxAllowedPacket - baseQuerySize) / ((sizePerPlaceholder * placeholdersPerID) + 8) // 8 for the team ID = 699034
-	// // maximum number of IDs that can fit into a single query given maxPlaceholders
-	// maxBatchSizePlaceholders := (maxPlaceholders / placeholdersPerID) - 1 // -1 for the team ID = 32766
-	// batchSize := min(maxBatchSizePlaceholders, maxBatchSizeQuerySize)     // 32766
-
-	batchSize := 32766
+	batchSize := 32000 // see https://github.com/fleetdm/fleet/issues/26753 on the math behind this number
 	var policies []fleet.AutomaticInstallPolicy
 	err := common_mysql.BatchProcessSimple(softwareTitleIDs, batchSize, func(softwareTitleIDsToProcess []uint) error {
 		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, tmID)

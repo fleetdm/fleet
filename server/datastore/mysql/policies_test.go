@@ -5698,8 +5698,8 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	// performance test for 50_000 title ids, ensure batching works
 	megaTitleIDs := make([]uint, 0, 50_000)
 	megaTitleIDs = append(megaTitleIDs, *installer3.TitleID)
-	for i := uint(10); i < (50_010 - 2); i++ {
-		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i)
+	for i := uint(0); i < (50_000 - 2); i++ {
+		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
 	}
 	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, nil)
