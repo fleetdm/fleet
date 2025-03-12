@@ -252,6 +252,31 @@ const HostSoftware = ({
     setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
   }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
 
+  /**  Compares vuln filters to current vuln query params */
+  const determineVulnFilterChange = useCallback(
+    (vulnFilters: ISoftwareVulnFiltersParams) => {
+      const changedEntry = Object.entries(vulnFilters).find(([key, val]) => {
+        switch (key) {
+          case "vulnerable":
+          case "exploit": {
+            // Normalize values: undefined → false, then compare
+            const current = queryParams[key] ?? false;
+            const incoming = val ?? false;
+            return incoming !== current;
+          }
+          case "minCvssScore":
+            return val !== queryParams.min_cvss_score;
+          case "maxCvssScore":
+            return val !== queryParams.max_cvss_score;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [queryParams]
+  );
+
   const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
     const newQueryParams = {
       query: queryParams.query,
@@ -263,13 +288,21 @@ const HostSoftware = ({
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: location.pathname,
-        routeTemplate: "",
-        queryParams: convertParamsToSnakeCase(newQueryParams),
-      })
-    );
+    // We want to determine which query param has changed in order to
+    // reset the page index to 0 if any other param has changed.
+    const changedParam = determineVulnFilterChange(vulnFilters);
+
+    // Update the route only if a change is detected
+    if (changedParam) {
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          routeTemplate: "",
+          queryParams: convertParamsToSnakeCase(newQueryParams),
+        })
+      );
+    }
+
     toggleSoftwareFiltersModal();
   };
 
@@ -298,10 +331,7 @@ const HostSoftware = ({
 
   const getHostSoftwareFilterFromQueryParams = useCallback(() => {
     const { available_for_install } = queryParams;
-    if (available_for_install) {
-      return "installableSoftware";
-    }
-    return "allSoftware";
+    return available_for_install ? "installableSoftware" : "allSoftware";
   }, [queryParams]);
 
   const tableConfig = useMemo(() => {
