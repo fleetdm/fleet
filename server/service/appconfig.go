@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strings"
 
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
@@ -31,13 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
-)
-
-// Functions that can be overwritten in tests
-var (
-	validateNDESSCEPAdminURL = eeservice.ValidateNDESSCEPAdminURL
-	validateNDESSCEPURL      = eeservice.ValidateNDESSCEPURL
-	validateSCEPURL          = eeservice.ValidateSCEPURL
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1002,13 +994,13 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		}
 
 		if validateAdminURL {
-			if err := validateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
+			if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
 				invalid.Append("integrations.ndes_scep_proxy", err.Error())
 			}
 		}
 
 		if validateURL {
-			if err := validateNDESSCEPURL(ctx, newSCEPProxy, svc.logger); err != nil {
+			if err := svc.scepConfigService.ValidateSCEPURL(ctx, newSCEPProxy.URL); err != nil {
 				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
 			}
 		}
@@ -1112,7 +1104,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
 				continue
 			}
-			if err := validateSCEPURL(ctx, ca.URL, svc.logger); err != nil {
+			if err := svc.scepConfigService.ValidateSCEPURL(ctx, ca.URL); err != nil {
 				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
 			}
 			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)

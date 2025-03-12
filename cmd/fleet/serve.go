@@ -732,6 +732,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				eeservice.NewSCEPConfigService(logger, nil),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")

@@ -382,6 +382,12 @@ type NDESSCEPProxyIntegration struct {
 	Password string `json:"password"` // not stored here -- encrypted in DB
 }
 
+type SCEPConfigService interface {
+	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyIntegration) error
+	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyIntegration) (string, error)
+	ValidateSCEPURL(ctx context.Context, url string) error
+}
+
 type CustomSCEPProxyIntegration struct {
 	Name      string `json:"name"`
 	URL       string `json:"url"`

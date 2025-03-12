@@ -25,6 +25,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
@@ -1489,6 +1490,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 }
 
 func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
+	t.Parallel()
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
 	scepURL := "https://example.com/mscep/mscep.dll"
@@ -1545,25 +1547,14 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.ErrorContains(t, err, ErrMissingLicense.Error())
 	assert.ErrorContains(t, err, "integrations.ndes_scep_proxy")
 
-	origValidateNDESSCEPURL := validateNDESSCEPURL
-	origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
-	t.Cleanup(func() {
-		validateNDESSCEPURL = origValidateNDESSCEPURL
-		validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
-	})
-	validateNDESSCEPURLCalled := false
-	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-		validateNDESSCEPURLCalled = true
-		return nil
-	}
-	validateNDESSCEPAdminURLCalled := false
-	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		validateNDESSCEPAdminURLCalled = true
-		return nil
-	}
-
 	fleetConfig := config.TestConfig()
-	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+	scepConfig := &scep_mock.SCEPConfigService{}
+	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{
+		License:           &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		SCEPConfigService: scepConfig,
+	})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
 		createdAt time.Time,
@@ -1581,8 +1572,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 		assert.Equal(t, fleet.MaskedPassword, ac.Integrations.NDESSCEPProxy.Value.Password)
 	}
 	checkSCEPProxy()
-	assert.True(t, validateNDESSCEPURLCalled)
-	assert.True(t, validateNDESSCEPAdminURLCalled)
+	assert.True(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.True(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.True(t, ds.SaveAppConfigFuncInvoked)
 	ds.SaveAppConfigFuncInvoked = false
 	assert.True(t, ds.NewActivityFuncInvoked)
@@ -1590,25 +1581,25 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 
 	// Validation not done if there is no change
 	appConfig = ac
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
+	scepConfig.ValidateSCEPURLFuncInvoked = false
+	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, " "+scepURL, adminURL+" ", " "+username+" ", fleet.MaskedPassword)
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err, jsonPayload)
 	checkSCEPProxy()
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.False(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
 
 	// Validation not done if there is no change, part 2
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
+	scepConfig.ValidateSCEPURLFuncInvoked = false
+	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
 	ac, err = svc.ModifyAppConfig(ctx, []byte(`{"integrations":{}}`), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	checkSCEPProxy()
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.False(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
 
@@ -1624,11 +1615,11 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	checkSCEPProxy()
-	assert.True(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.True(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	appConfig = ac
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
+	scepConfig.ValidateSCEPURLFuncInvoked = false
+	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
 	assert.True(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
 
@@ -1638,46 +1629,36 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 	checkSCEPProxy()
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.True(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.True(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
 
 	// Validation fails
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
-	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-		validateNDESSCEPURLCalled = true
+	scepConfig.ValidateSCEPURLFuncInvoked = false
+	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
+	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error {
 		return errors.New("**invalid** 1")
 	}
-	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		validateNDESSCEPAdminURLCalled = true
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
 		return errors.New("**invalid** 2")
 	}
 	scepURL = "https://new2.com/mscep/mscep.dll"
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	assert.ErrorContains(t, err, "**invalid**")
-	assert.True(t, validateNDESSCEPURLCalled)
-	assert.True(t, validateNDESSCEPAdminURLCalled)
+	assert.True(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.True(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.False(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
 
 	// Reset validation
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-		validateNDESSCEPURLCalled = true
-		return nil
-	}
-	validateNDESSCEPAdminURLCalled = false
-	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		validateNDESSCEPAdminURLCalled = true
-		return nil
-	}
+	scepConfig.ValidateSCEPURLFuncInvoked = false
+	scepConfig.ValidateNDESSCEPAdminURLFuncInvoked = false
+	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
 
 	// Config cleared with explicit null
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
 	payload := `
 {
 	"integrations": {
@@ -1692,8 +1673,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
 	// Also check what was saved.
 	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked, "DB write should not happen in dry run")
 	assert.False(t, ds.NewActivityFuncInvoked)
 	ds.NewActivityFuncInvoked = false
@@ -1714,8 +1695,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
 	// Also check what was saved.
 	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
 	ds.HardDeleteMDMConfigAssetFuncInvoked = false
 	assert.True(t, ds.NewActivityFuncInvoked)
@@ -1727,8 +1708,8 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
 	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
+	assert.False(t, scepConfig.ValidateSCEPURLFuncInvoked)
+	assert.False(t, scepConfig.ValidateNDESSCEPAdminURLFuncInvoked)
 	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
 	ds.HardDeleteMDMConfigAssetFuncInvoked = false
 	assert.False(t, ds.NewActivityFuncInvoked)

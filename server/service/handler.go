@@ -1121,6 +1121,7 @@ func RegisterSCEPProxy(
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
+		nil,
 	)
 	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)

@@ -42,7 +42,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -69,6 +68,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage        nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
+		scepConfigService                               = eeservice.NewSCEPConfigService(logger, nil)
 
 		mdmStorage            fleet.MDMAppleStore
 		mdmPusher             nanomdm_push.Pusher
@@ -157,6 +157,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			}
 		}
 	}
+	if len(opts) > 0 && opts[0].SCEPConfigService != nil {
+		scepConfigService = opts[0].SCEPConfigService
+	}
 
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
@@ -190,6 +193,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		cronSchedulesService,
 		wstepManager,
+		scepConfigService,
 	)
 	if err != nil {
 		panic(err)
@@ -341,6 +345,7 @@ type TestServerOpts struct {
 	EnableSCEPProxy       bool
 	WithDEPWebview        bool
 	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
+	SCEPConfigService     fleet.SCEPConfigService
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -405,18 +410,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				logger,
 			)
 			require.NoError(t, err)
-			origValidateNDESSCEPURL := validateNDESSCEPURL
-			origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
-			t.Cleanup(func() {
-				validateNDESSCEPURL = origValidateNDESSCEPURL
-				validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
-			})
-			validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-				return nil
-			}
-			validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-				return nil
-			}
 		}
 	}
 
