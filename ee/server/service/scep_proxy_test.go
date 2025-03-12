@@ -60,6 +60,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	wait = false
+	svc = NewSCEPConfigService(logger, nil)
 
 	// We need to convert the HTML page to UTF-16 encoding, which is used by Windows servers
 	returnPageFromFile := func(path string) []byte {
