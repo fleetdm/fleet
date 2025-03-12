@@ -875,6 +875,8 @@ module.exports.routes = {
   'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
   'GET /learn-more-about/certificates-query': '/tables/certificates',
   'GET /learn-more-about/gitops': 'https://github.com/fleetdm/fleet-gitops/',
+  'GET /learn-more-about/connect-idp': '/guides/add-user-info-from-idp-to-host',
+  'GET /learn-more-about/troubleshoot-idp-connection': '/guides/add-user-info-from-idp-to-host#verify-connection-in-fleet',
 
   // Sitemap
   // =============================================================================================================
