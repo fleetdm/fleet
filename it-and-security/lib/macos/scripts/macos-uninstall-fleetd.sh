@@ -1,3 +1,5 @@
+# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
+
 #!/bin/sh
 
 if [ $(id -u) -ne 0 -a -z "$GITHUB_ACTIONS" ]; then

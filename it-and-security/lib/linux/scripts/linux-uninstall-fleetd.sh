@@ -1,3 +1,5 @@
+# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
+
 #!/usr/bin/env bash
 
 sudo systemctl stop orbit.service
