@@ -2274,7 +2274,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		onlyVulnerableJoin,
 		vulnerabilityFiltersClause,
 		cveMetaJoin string
-	var cveArgs []any
+	var hasCVEFilters bool
+
 	if opts.VulnerableOnly {
 		// we don't currently do any vulnerability scanning on upcoming software/vpp installs/uninstalls
 		// so we don't need to join to software_cve for
@@ -2305,19 +2306,19 @@ INNER JOIN software_cve ON software_cve.software_id = s.id
 
 		if opts.KnownExploit {
 			vulnerabilityFiltersClause += " AND cve_meta.cisa_known_exploit = 1"
-			cveArgs = append(cveArgs, "exploit")
+			hasCVEFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
 			vulnerabilityFiltersClause += " AND cve_meta.cvss_score >= :min_cvss"
-			cveArgs = append(cveArgs, "min_cvss")
+			hasCVEFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
 			vulnerabilityFiltersClause += " AND cve_meta.cvss_score <= :max_cvss"
-			cveArgs = append(cveArgs, "max_cvss")
+			hasCVEFilters = true
 		}
 
 		// Only join CVE table if there are filters
-		if len(cveArgs) > 0 {
+		if hasCVEFilters {
 			onlyVulnerableJoin += cveMetaJoin
 			vulnerableLastSoftwareInstallJoins += cveMetaJoin
 			vulnerableLastSoftwareUninstallJoins += cveMetaJoin

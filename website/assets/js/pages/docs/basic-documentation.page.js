@@ -285,6 +285,7 @@ parasails.registerPage('basic-documentation', {
 
     handleScrollingInDocumentation: function () {
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let swagCta = document.querySelector('div[purpose="swag-cta"]');
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
       let windowHeight = window.innerHeight;
@@ -292,9 +293,15 @@ parasails.registerPage('basic-documentation', {
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden');
+          if (swagCta) {
+            swagCta.classList.add('header-hidden');
+          }
           this.lastScrollTop = scrollTop;
         } else if(scrollTop < this.lastScrollTop - 60) {
           rightNavBar.classList.remove('header-hidden');
+          if (swagCta) {
+            swagCta.classList.remove('header-hidden');
+          }
           this.lastScrollTop = scrollTop;
         }
       }

@@ -45,5 +45,5 @@ func TestUp_20250127162751(t *testing.T) {
 	  FROM information_schema.COLUMNS
 	  WHERE collation_name != "utf8mb4_unicode_ci" AND table_schema = (SELECT database())`)
 	require.NoError(t, err)
-	require.Equal(t, []string{"secret", "node_key", "orbit_node_key", "name_bin"}, columns)
+	require.ElementsMatch(t, []string{"secret", "node_key", "orbit_node_key", "name_bin"}, columns)
 }

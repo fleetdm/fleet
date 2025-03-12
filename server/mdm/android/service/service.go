@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"strings"
@@ -144,10 +145,24 @@ type enterpriseSignupCallbackRequest struct {
 	EnterpriseToken string `query:"enterpriseToken"`
 }
 
+type enterpriseSignupCallbackResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (res enterpriseSignupCallbackResponse) Error() error { return res.Err }
+
+//go:embed enterpriseCallback.html
+var enterpriseCallbackHTML []byte
+
+func (res enterpriseSignupCallbackResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	_, _ = w.Write(enterpriseCallbackHTML)
+}
+
 func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.SignupToken, req.EnterpriseToken)
-	return android.DefaultResponse{Err: err}
+	return enterpriseSignupCallbackResponse{Err: err}
 }
 
 // EnterpriseSignupCallback handles the callback from Google UI during signup flow.
@@ -329,6 +344,11 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
+	}
+
+	err = svc.fleetDS.BulkSetAndroidHostsUnenrolled(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
 	}
 
 	if err = svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {

@@ -11,18 +11,19 @@ const RanScriptActivityItem = ({
   tab,
   activity,
   onShowDetails,
-  onCancel,
   isSoloActivity,
   hideCancel,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
-  const ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
+  let ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
+  if (tab !== "past" && activity.fleet_initiated) {
+    ranScriptPrefix = "will run";
+  }
 
   return (
     <ActivityItem
       className={baseClass}
       activity={activity}
       onShowDetails={onShowDetails}
-      onCancel={onCancel}
       isSoloActivity={isSoloActivity}
       hideCancel={hideCancel}
     >

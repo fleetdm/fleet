@@ -440,12 +440,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.12.3",
 				},
 				{
-					// This one might be an issue with feed generation (outputting an OR
-					// incorrectly). TODO: investigate this further.
-					ID:                "CVE-2024-50602",
-					resolvedInVersion: "",
-				},
-				{
 					ID:                "CVE-2024-12254",
 					resolvedInVersion: "3.12.9",
 				},
@@ -492,6 +486,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					resolvedInVersion: "3.12.6",
 				},
 			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -503,7 +498,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "",
 				},
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.14.0a5",
+				},
 			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -511,10 +511,22 @@ func TestTranslateCPEToCVE(t *testing.T) {
 					ID:                "CVE-2024-12254",
 					resolvedInVersion: "3.14.0a3",
 				},
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.14.0a5",
+				},
 			},
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha3:*:*:*:macos:*:*": {
 			excludedCVEs: []string{"CVE-2024-12254"},
+			includedCVEs: []cve{
+				{
+					ID:                "CVE-2025-0938",
+					resolvedInVersion: "3.14.0a5",
+				},
+			},
+			continuesToUpdate: true,
 		},
 	}
 
@@ -523,6 +535,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		version      string
 		osID         uint
 		includedCVEs []string
+		excludedCVEs []string
 	}{
 		{
 			platform: "darwin",
@@ -588,6 +601,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				"CVE-2023-32396",
 				"CVE-2023-29497",
 			},
+		},
+		{
+			platform: "darwin",
+			version:  "15.3",
+			osID:     3,
+			// This was resolved in 15.3, so it should be excluded. See https://github.com/fleetdm/fleet/issues/26561.
+			excludedCVEs: []string{"CVE-2025-24176"},
 		},
 	}
 
@@ -687,6 +707,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		for _, tc := range cveOSTests {
 			for _, cve := range tc.includedCVEs {
 				require.Contains(t, osCVEsFound[tc.osID], cve)
+			}
+			for _, cve := range tc.excludedCVEs {
+				require.NotContains(t, osCVEsFound[tc.osID], cve)
 			}
 		}
 	})

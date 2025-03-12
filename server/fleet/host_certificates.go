@@ -189,11 +189,6 @@ type MDMAppleErrorChainItem struct {
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
 	str = strings.TrimSpace(str)
 	str = strings.Trim(str, "/")
-
-	if !strings.Contains(str, "/") {
-		return nil, errors.New("invalid format, wrong separator")
-	}
-
 	parts := strings.Split(str, "/")
 
 	var details HostCertificateNameDetails
