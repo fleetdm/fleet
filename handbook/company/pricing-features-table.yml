@@ -335,7 +335,7 @@
   jamfProHasFeature: no
   jamfProtectHasFeature: no
   waysToUse:
-    - description: Add user information from IdP to your devices via SCIM protocol.
+    - description: Add user information from your IdP to your devices via SCIM protocol.
 #  
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
