@@ -1705,7 +1705,8 @@ This activity contains the following field:
 
 ```json
 {
-	"team_id": 123
+	"team_id": 123,
+	"team_name": "Workstations"
 }
 ```
 
