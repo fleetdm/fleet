@@ -132,13 +132,13 @@ controls:
     - path: ../lib/macos/scripts/mdm-migration.sh
     - path: ../lib/macos/scripts/system-maintenance.sh
     - path: ../lib/macos/scripts/santa-block-script.sh
-    - path: ../lib/macos/scripts/macos-uninstall-fleetd.sh
-    - path: ../lib/windows/scripts/windows-uninstall-fleetd.ps1
+    - path: ../../orbit/tools/cleanup/macos-uninstall-fleetd.sh
+    - path: ../../orbit/tools/cleanup/windows-uninstall-fleetd.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
-    - path: ../lib/linux/scripts/linux-uninstall-fleetd.sh
+    - path: ../../orbit/tools/cleanup/linux-uninstall-fleetd.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml

@@ -1,5 +1,5 @@
-#Uninstall Orbit: powershell.exe -ExecutionPolicy Bypass -File cleanup_windows.ps1 -uninstallOrbit
-#Help menu with available options: powershell.exe -ExecutionPolicy Bypass -File cleanup_windows.ps1 -help
+#Uninstall Orbit: powershell.exe -ExecutionPolicy Bypass -File windows-uninstall-fleetd.ps1 -uninstallOrbit
+#Help menu with available options: powershell.exe -ExecutionPolicy Bypass -File windows-uninstall-fleetd.ps1 -help
 param(
   [switch] $uninstallOsquery = $false,
   [switch] $uninstallOrbit = $false,
