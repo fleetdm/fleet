@@ -14737,12 +14737,12 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 		fleet.OSSettingsPending, fleet.OSSettingsFailed,
 	}
 	for _, status := range statuses {
-		// FAILS: pending returns 2: s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
+		// s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
 		_ = status
 	}
 
 	// all disk encryption counts are expected to be 0 (not enabled)
-	// FAILS: returns 3: s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+	// s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
 
 	// filter hosts with any Disk Encryption status, should have none
 	diskStatuses := []fleet.DiskEncryptionStatus{
@@ -14751,7 +14751,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
 	}
 	for _, status := range diskStatuses {
-		// FAILS: action_required returns 2: s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
 		_ = status
 	}
 
