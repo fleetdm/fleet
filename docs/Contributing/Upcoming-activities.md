@@ -28,10 +28,10 @@ Something similar happens when an activity gets a (terminal state) result - rega
 
 When an activity is ready to execute (to become "active"), it is updated in `upcoming_activities` to set a NON-NULL timestamp in the `activated_at` field, and in the same transaction, it is inserted in the proper table specific to the activity type, to then be picked up by the same flow that existed pre-unified queue to process those activities, that is:
 
-* For scripts, it inserts a pending execution row in `host_script_results` with the same `execution_id` as the upcoming activity;
-* For software installs, it inserts a pending install row in `host_software_installs` with the same `execution_id` as the upcoming activity;
-* For VPP apps, since they are processed by an MDM command, it inserts a pending MDM command in `nano_commands` and `nano_enrollment_queue`, with the `command_uuid` set to the `execution_id` of the upcoming activity;
-* For software uninstalls, it is a bit more complex but it inserts in both `host_script_results` and `host_software_installs` with the proper `uninstall = TRUE` flag, and the same `execution_id` is used in both tables to link them (as was done before the unified queue).
+* For scripts, it inserts a pending execution row in `host_script_results` with the same `execution_id` as the upcoming activity, and `fleetd` (orbit) will pick it up via its notifications;
+* For software installs, it inserts a pending install row in `host_software_installs` with the same `execution_id` as the upcoming activity, and `fleetd` (orbit) will pick it up via its notifications;
+* For VPP apps, since they are processed by an MDM command, it inserts a pending MDM command in `nano_commands` and `nano_enrollment_queue`, with the `command_uuid` set to the `execution_id` of the upcoming activity, and a push notification will be sent to the host to process it via MDM;
+* For software uninstalls, it is a bit more complex but it inserts in both `host_script_results` and `host_software_installs` with the proper `uninstall = TRUE` flag, and the same `execution_id` is used in both tables to link them (as was done before the unified queue), and `fleetd` (orbit) will pick it up via its notifications.
 
 The behavior described above is **very important** to ensure the queue does not become stuck, in fact those are the **two rules that every future change needs to keep in mind** when it affects the upcoming activities:
 
@@ -48,7 +48,7 @@ Whenever we add a new way to enqueue an activity or save an activity result (eve
 Note that:
 
 * To be exra clear, this is for _upcoming_, not _past_, activities.
-* Queries that need to return _pending_ state must look into the `upcoming_activities` table, and depending on the query and activity type, may need to also UNION with the table that holds the in-progress state, e.g. `host_script_results` for scripts. 
+* Queries that need to return _pending_ state must look into the `upcoming_activities` table, and depending on the query and activity type, may need to also UNION with the table that holds the in-progress state, e.g. `host_script_results` for scripts.
     - For example, `Datastore.GetHostScriptDetails` returns details of the latest execution request for a script, regardless of if it is pending, in progress or done. To do so, the query does a UNION in `upcoming_activities` and `host_script_results`, using the latest in `host_script_results` only if none exist in `upcoming_activities` (if there is a request in `upcoming_activities`, it is necessarily more recent than the ones that already have a result).
 	- Many examples already exist that look into both tables, make sure to search for existing examples to help keep a consistent pattern (and fix any bugs in all places is one is found).
 * The `execution_id` corresponds to the `command_uuid` of the VPP apps, and the `install_uuid` of the software installs
