@@ -1795,6 +1795,9 @@ func TestAppConfigCAs(t *testing.T) {
 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
 		}
 		mt.svc.config.Server.PrivateKey = "exists"
+		scepConfig := &scep_mock.SCEPConfigService{}
+		scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
+		mt.svc.scepConfigService = scepConfig
 		return mt
 	}
 
@@ -1905,14 +1908,16 @@ func TestAppConfigCAs(t *testing.T) {
 				mt.newAppConfig = getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, tc.name)
 				status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 				require.NoError(t, err)
-				errorContains := append(baseErrorContains, "integrations.digicert.name")
+				errorContains := baseErrorContains
+				errorContains = append(errorContains, "integrations.digicert.name")
 				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
 
 				mt = setUpCustomSCEP()
 				mt.newAppConfig = getAppConfigWithSCEPIntegration("https://example.com", tc.name)
 				status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 				require.NoError(t, err)
-				errorContains = append(baseErrorContains, "integrations.custom_scep_proxy.name")
+				errorContains = baseErrorContains
+				errorContains = append(errorContains, "integrations.custom_scep_proxy.name")
 				checkExpectedCAValidationError(t, mt.invalid, status, tc.errorContains...)
 			})
 		}
