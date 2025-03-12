@@ -60,7 +60,7 @@ const CertAuthorityListItem = ({
 }: ICertAuthorityListItemProps) => {
   return (
     <ListItem
-      className={`${baseClass}__list-item`}
+      className={baseClass}
       graphic="file-certificate"
       title={cert.name}
       details={cert.name}
