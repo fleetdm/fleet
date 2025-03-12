@@ -5586,7 +5586,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
-	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
 	// Attempt to delete hosts, should fail.
 	s.DoJSON("DELETE", "/api/latest/fleet/hosts/1", nil, http.StatusForbidden, &deleteHostResponse{})
@@ -5614,10 +5614,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &modifyLabelResponse{})
 
 	// Attempt to get a label, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), getLabelRequest{}, http.StatusOK, &getLabelResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), getLabelRequest{}, http.StatusForbidden, &getLabelResponse{})
 
 	// Attempt to list all labels, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/labels", listLabelsRequest{}, http.StatusOK, &listLabelsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/labels", listLabelsRequest{}, http.StatusForbidden, &listLabelsResponse{})
 
 	// Attempt to delete a label, should allow.
 	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", deleteLabelRequest{}, http.StatusOK, &deleteLabelResponse{})
@@ -10374,7 +10374,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 			require.True(t, found)
 
 			// create and update label and just not possible for non-global users
-			if c.u != adminUserPayload && (*c.u.Teams)[0].Role != fleet.RoleMaintainer && (*c.u.Teams)[0].Role != fleet.RoleAdmin {
+			if c.u != adminUserPayload {
 				s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
 					LabelPayload: fleet.LabelPayload{
 						Name:  "will fail",
