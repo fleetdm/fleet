@@ -211,7 +211,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
 	scepTimeout := ptr.Duration(10 * time.Second)
-	scepConfig := eeservice.NewSCEPConfigService(serverLogger, scepTimeout)
+	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -308,7 +308,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		APNSTopic:         "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 		EnableSCEPProxy:   true,
 		WithDEPWebview:    true,
-		SCEPConfigService: scepConfig,
+		SCEPConfigService: s.scepConfig,
 	}
 
 	// ensure all our tests support challenges with invalid XML characters
@@ -13090,9 +13090,9 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		time.Sleep(1 * time.Second)
 		w.WriteHeader(http.StatusOK)
 	}))
-	s.scepConfig.Timeout = ptr.Duration(1 * time.Microsecond)
+	*s.scepConfig.Timeout = time.Microsecond
 	t.Cleanup(func() {
-		s.scepConfig.Timeout = ptr.Duration(10 * time.Second)
+		*s.scepConfig.Timeout = 10 * time.Second
 		ndesTimeoutServer.Close()
 	})
 	appConf.Integrations.NDESSCEPProxy.Value.URL = ndesTimeoutServer.URL
@@ -13105,7 +13105,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	// PKIOperation
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation",
 		"PKIOperation", "message", message)
-	s.scepConfig.Timeout = ptr.Duration(10 * time.Second)
+	*s.scepConfig.Timeout = 10 * time.Second
 
 	// Spin up an "external" SCEP server, which Fleet server will proxy
 	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -1760,7 +1761,7 @@ func TestAppConfigCAs(t *testing.T) {
 		invalid      *fleet.InvalidArgumentError
 	}
 
-	setUp := func() myTest {
+	setUpDigiCert := func() myTest {
 		mt := myTest{
 			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
 			invalid:      &fleet.InvalidArgumentError{},
@@ -1773,6 +1774,7 @@ func TestAppConfigCAs(t *testing.T) {
 		mockDS := &mock.Store{}
 		mt.svc.ds = mockDS
 		mockDS.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
+			assert.Equal(t, fleet.CAConfigDigiCert, assetType)
 			return map[string]fleet.CAConfigAsset{
 				"WIFI": {
 					Name:  "WIFI",
@@ -1783,9 +1785,21 @@ func TestAppConfigCAs(t *testing.T) {
 		}
 		return mt
 	}
+	setUpCustomSCEP := func() myTest {
+		mt := myTest{
+			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
+			invalid:      &fleet.InvalidArgumentError{},
+			newAppConfig: getAppConfigWithSCEPIntegration("https://example.com", "SCEP_WIFI"),
+			oldAppConfig: &fleet.AppConfig{},
+			appConfig:    &fleet.AppConfig{},
+			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
+		}
+		mt.svc.config.Server.PrivateKey = "exists"
+		return mt
+	}
 
 	t.Run("free license", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
 		mt.newAppConfig = &fleet.AppConfig{}
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
@@ -1813,7 +1827,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert keep old value", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		mt.oldAppConfig = mt.newAppConfig
 		mt.appConfig = mt.oldAppConfig.Copy()
@@ -1828,13 +1842,17 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("missing server private key", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.svc.config.Server.PrivateKey = ""
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert", "private key")
 
-		// TODO: Test custom SCEP
+		mt = setUpCustomSCEP()
+		mt.svc.config.Server.PrivateKey = ""
+		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy", "private key")
 	})
 
 	t.Run("invalid digicert integration name", func(t *testing.T) {
@@ -1867,7 +1885,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.testName, func(t *testing.T) {
-				mt := setUp()
+				mt := setUpDigiCert()
 				mt.newAppConfig = getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, tc.name)
 				status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 				require.NoError(t, err)
@@ -1877,14 +1895,14 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("invalid digicert URL", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = ""
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
 			"empty url")
 
-		mt = setUp()
+		mt = setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "nonhttp://bad.com"
 		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1893,7 +1911,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("duplicate digicert integration name", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value = append(mt.newAppConfig.Integrations.DigiCert.Value,
 			mt.newAppConfig.Integrations.DigiCert.Value[0])
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
@@ -1903,7 +1921,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert more than 1 user principal name", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = append(mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames,
 			"another")
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
@@ -1913,7 +1931,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1927,7 +1945,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1941,7 +1959,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + FleetVarHostHardwareSerial
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1955,7 +1973,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert API token not set", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = fleet.MaskedPassword
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1963,7 +1981,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert common name not set", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "\n\t"
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1971,7 +1989,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert seat id not set", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "\t\n"
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
@@ -1979,7 +1997,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert happy path -- add one", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -1990,7 +2008,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert happy path -- delete one", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.oldAppConfig = mt.newAppConfig
 		mt.appConfig = mt.oldAppConfig.Copy()
 		mt.newAppConfig = &fleet.AppConfig{
@@ -2010,7 +2028,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert API token not set on modify", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.oldAppConfig.Integrations.DigiCert.Value = append(mt.oldAppConfig.Integrations.DigiCert.Value,
 			mt.newAppConfig.Integrations.DigiCert.Value[0])
 		mt.appConfig = mt.oldAppConfig.Copy()
@@ -2022,7 +2040,7 @@ func TestAppConfigCAs(t *testing.T) {
 	})
 
 	t.Run("digicert happy path -- add one, delete one, modify one", func(t *testing.T) {
-		mt := setUp()
+		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertIntegration]{
 			Set:   true,
 			Valid: true,
@@ -2136,4 +2154,24 @@ func getDigiCertIntegration(url string, name string) fleet.DigiCertIntegration {
 		CertificateSeatID:             "seat_id",
 	}
 	return digiCertCA
+}
+
+func getAppConfigWithSCEPIntegration(url string, name string) *fleet.AppConfig {
+	challenge, _ := server.GenerateRandomText(6)
+	newAppConfig := &fleet.AppConfig{
+		Integrations: fleet.Integrations{
+			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+				Set:   true,
+				Valid: true,
+				Value: []fleet.CustomSCEPProxyIntegration{
+					{
+						Name:      name,
+						URL:       url,
+						Challenge: challenge,
+					},
+				},
+			},
+		},
+	}
+	return newAppConfig
 }

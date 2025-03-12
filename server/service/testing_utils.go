@@ -404,10 +404,19 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			require.NoError(t, err)
 		}
 		if opts[0].EnableSCEPProxy {
+			var timeout *time.Duration
+			if opts[0].SCEPConfigService != nil {
+				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				if ok {
+					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
+					timeout = scepConfig.Timeout
+				}
+			}
 			err := RegisterSCEPProxy(
 				rootMux,
 				ds,
 				logger,
+				timeout,
 			)
 			require.NoError(t, err)
 		}
