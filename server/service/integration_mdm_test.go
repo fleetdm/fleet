@@ -14582,8 +14582,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
 	}
 	for _, status := range diskStatuses {
-		//checkFilters("os_settings_disk_encryption", string(status))
-		_ = status
+		checkFilters("os_settings_disk_encryption", string(status))
 	}
 
 	// enroll a Windows host in Fleet MDM
@@ -14595,7 +14594,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 
 	// filters should return this host
 	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
-	// checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+	checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
 
 	// enroll the other Windows host in a third-party MDM
 	err = s.ds.SetOrUpdateMDMData(ctx, winHost2.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "")
@@ -14607,5 +14606,5 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 
 	// filters should NOT return this host
 	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
-	// checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+	checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
 }
