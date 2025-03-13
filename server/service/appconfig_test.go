@@ -1752,17 +1752,8 @@ func TestAppConfigCAs(t *testing.T) {
 	}))
 	defer mockDigiCertServer.Close()
 
-	type myTest struct {
-		ctx          context.Context
-		svc          *Service
-		appConfig    *fleet.AppConfig
-		newAppConfig *fleet.AppConfig
-		oldAppConfig *fleet.AppConfig
-		invalid      *fleet.InvalidArgumentError
-	}
-
-	setUpDigiCert := func() myTest {
-		mt := myTest{
+	setUpDigiCert := func() configCASuite {
+		mt := configCASuite{
 			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
 			invalid:      &fleet.InvalidArgumentError{},
 			newAppConfig: getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, "WIFI"),
@@ -1771,22 +1762,11 @@ func TestAppConfigCAs(t *testing.T) {
 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
 		}
 		mt.svc.config.Server.PrivateKey = "exists"
-		mockDS := &mock.Store{}
-		mt.svc.ds = mockDS
-		mockDS.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-			assert.Equal(t, fleet.CAConfigDigiCert, assetType)
-			return map[string]fleet.CAConfigAsset{
-				"WIFI": {
-					Name:  "WIFI",
-					Value: []byte("api_token"),
-					Type:  fleet.CAConfigDigiCert,
-				},
-			}, nil
-		}
+		addMockDatastoreForCA(t, mt)
 		return mt
 	}
-	setUpCustomSCEP := func() myTest {
-		mt := myTest{
+	setUpCustomSCEP := func() configCASuite {
+		mt := configCASuite{
 			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
 			invalid:      &fleet.InvalidArgumentError{},
 			newAppConfig: getAppConfigWithSCEPIntegration("https://example.com", "SCEP_WIFI"),
@@ -1798,6 +1778,7 @@ func TestAppConfigCAs(t *testing.T) {
 		scepConfig := &scep_mock.SCEPConfigService{}
 		scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
 		mt.svc.scepConfigService = scepConfig
+		addMockDatastoreForCA(t, mt)
 		return mt
 	}
 
@@ -2046,6 +2027,14 @@ func TestAppConfigCAs(t *testing.T) {
 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set")
 	})
 
+	t.Run("custom_scep challenge not set", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Challenge = fleet.MaskedPassword
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.challenge", "Custom SCEP challenge must be set")
+	})
+
 	t.Run("digicert common name not set", func(t *testing.T) {
 		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "\n\t"
@@ -2067,6 +2056,7 @@ func TestAppConfigCAs(t *testing.T) {
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.customSCEPProxy)
 		require.Len(t, status.digicert, 1)
 		assert.Equal(t, caStatusAdded, status.digicert[mt.newAppConfig.Integrations.DigiCert.Value[0].Name])
 		require.Len(t, mt.appConfig.Integrations.DigiCert.Value, 1)
@@ -2088,6 +2078,7 @@ func TestAppConfigCAs(t *testing.T) {
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.customSCEPProxy)
 		require.Len(t, status.digicert, 1)
 		assert.Equal(t, caStatusDeleted, status.digicert[mt.oldAppConfig.Integrations.DigiCert.Value[0].Name])
 		assert.False(t, mt.appConfig.Integrations.DigiCert.Valid)
@@ -2177,6 +2168,7 @@ func TestAppConfigCAs(t *testing.T) {
 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.customSCEPProxy)
 		require.Len(t, status.digicert, 3)
 		assert.Equal(t, caStatusAdded, status.digicert["add"])
 		assert.Equal(t, caStatusEdited, status.digicert["modify"])
@@ -2184,6 +2176,145 @@ func TestAppConfigCAs(t *testing.T) {
 		require.Len(t, mt.appConfig.Integrations.DigiCert.Value, 3)
 	})
 
+	t.Run("custom_scep happy path -- add one", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.digicert)
+		require.Len(t, status.customSCEPProxy, 1)
+		assert.Equal(t, caStatusAdded, status.customSCEPProxy[mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Name])
+		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 1)
+		assert.True(t, mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Equals(&mt.appConfig.Integrations.CustomSCEPProxy.Value[0]))
+	})
+
+	t.Run("custom_scep happy path -- delete one", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.oldAppConfig = mt.newAppConfig
+		mt.appConfig = mt.oldAppConfig.Copy()
+		mt.newAppConfig = &fleet.AppConfig{
+			Integrations: fleet.Integrations{
+				CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+					Set:   true,
+					Valid: true,
+				},
+			},
+		}
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.digicert)
+		require.Len(t, status.customSCEPProxy, 1)
+		assert.Equal(t, caStatusDeleted, status.customSCEPProxy[mt.oldAppConfig.Integrations.CustomSCEPProxy.Value[0].Name])
+		assert.False(t, mt.appConfig.Integrations.CustomSCEPProxy.Valid)
+	})
+
+	t.Run("custom_scep API token not set on modify", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.oldAppConfig.Integrations.CustomSCEPProxy.Value = append(mt.oldAppConfig.Integrations.CustomSCEPProxy.Value,
+			mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0])
+		mt.appConfig = mt.oldAppConfig.Copy()
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = "https://new.com"
+		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Challenge = ""
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.challenge",
+			"Custom SCEP challenge must be set when modifying")
+	})
+
+	t.Run("custom_scep happy path -- add one, delete one, modify one", func(t *testing.T) {
+		mt := setUpCustomSCEP()
+		mt.newAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+			Set:   true,
+			Valid: true,
+			Value: []fleet.CustomSCEPProxyIntegration{
+				{
+					Name:      "add",
+					URL:       "https://example.com",
+					Challenge: "challenge",
+				},
+				{
+					Name:      "modify",
+					URL:       "https://example.com",
+					Challenge: "challenge",
+				},
+				{
+					Name:      "SCEP_WIFI", // same
+					URL:       "https://example.com",
+					Challenge: "challenge",
+				},
+			},
+		}
+		mt.oldAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+			Set:   true,
+			Valid: true,
+			Value: []fleet.CustomSCEPProxyIntegration{
+				{
+					Name:      "delete",
+					URL:       "https://example.com",
+					Challenge: "challenge",
+				},
+				{
+					Name:      "modify",
+					URL:       "https://modify.com",
+					Challenge: "challenge",
+				},
+				{
+					Name:      "SCEP_WIFI", // same
+					URL:       "https://example.com",
+					Challenge: fleet.MaskedPassword,
+				},
+			},
+		}
+		mt.appConfig = mt.oldAppConfig.Copy()
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		assert.Empty(t, mt.invalid.Errors)
+		assert.Empty(t, status.digicert)
+		require.Len(t, status.customSCEPProxy, 3)
+		assert.Equal(t, caStatusAdded, status.customSCEPProxy["add"])
+		assert.Equal(t, caStatusEdited, status.customSCEPProxy["modify"])
+		assert.Equal(t, caStatusDeleted, status.customSCEPProxy["delete"])
+		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 3)
+	})
+
+}
+
+type configCASuite struct {
+	ctx          context.Context
+	svc          *Service
+	appConfig    *fleet.AppConfig
+	newAppConfig *fleet.AppConfig
+	oldAppConfig *fleet.AppConfig
+	invalid      *fleet.InvalidArgumentError
+}
+
+func addMockDatastoreForCA(t *testing.T, s configCASuite) {
+	mockDS := &mock.Store{}
+	s.svc.ds = mockDS
+	mockDS.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
+		switch assetType {
+		case fleet.CAConfigDigiCert:
+			return map[string]fleet.CAConfigAsset{
+				"WIFI": {
+					Name:  "WIFI",
+					Value: []byte("api_token"),
+					Type:  fleet.CAConfigDigiCert,
+				},
+			}, nil
+		case fleet.CAConfigCustomSCEPProxy:
+			return map[string]fleet.CAConfigAsset{
+				"SCEP_WIFI": {
+					Name:  "SCEP_WIFI",
+					Value: []byte("challenge"),
+					Type:  fleet.CAConfigCustomSCEPProxy,
+				},
+			}, nil
+		default:
+			t.Fatalf("unexpected asset type: %s", assetType)
+		}
+		return nil, nil
+	}
 }
 
 func checkExpectedCAValidationError(t *testing.T, invalid *fleet.InvalidArgumentError, status appConfigCAStatus, contains ...string) {

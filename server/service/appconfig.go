@@ -1063,88 +1063,13 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 		}
 	}
 
-	switch {
-	case !newAppConfig.Integrations.CustomSCEPProxy.Set:
-		// Nothing to set -- keep the old value
-		appConfig.Integrations.CustomSCEPProxy = oldAppConfig.Integrations.CustomSCEPProxy
-		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
-			if _, ok := allCANames[ca.Name]; ok {
-				// This issue is caused by the new DigiCert CA added above
-				invalid.Append("integrations.digicert.name", fmt.Sprintf("Couldn’t edit certificate authority. "+
-					"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", ca.Name))
-				additionalDigiCertValidationNeeded = false
-				continue
-			}
-			allCANames[ca.Name] = struct{}{}
-		}
-	case !newAppConfig.Integrations.CustomSCEPProxy.Valid || len(newAppConfig.Integrations.CustomSCEPProxy.Value) == 0:
-		// User is explicitly clearing this setting
-		appConfig.Integrations.CustomSCEPProxy.Valid = false
-		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
-			result.customSCEPProxy[ca.Name] = caStatusDeleted
-		}
-	default:
-		// We clear custom SCEP CAs because we will repopulate them as we diff old vs new CAs
-		appConfig.Integrations.CustomSCEPProxy.Value = nil
-		if len(svc.config.Server.PrivateKey) == 0 {
-			invalid.Append("integrations.custom_scep_proxy",
-				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: "+
-					"https://fleetdm.com/learn-more-about/fleet-server-private-key")
-			break
-		}
-		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
-			ca.Name = fleet.Preprocess(ca.Name)
-			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
-				invalidCANames[ca.Name] = struct{}{}
-				continue
-			}
-			ca.URL = fleet.Preprocess(ca.URL)
-			// Validate URL
-			if u, err := url.ParseRequestURI(ca.URL); err != nil {
-				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
-				continue
-			} else if u.Scheme != "https" && u.Scheme != "http" {
-				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
-				continue
-			}
-			if err := svc.scepConfigService.ValidateSCEPURL(ctx, ca.URL); err != nil {
-				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
-			}
-			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
-		}
-	}
-
 	// if additional DigiCert validation is needed, get the encrypted config assets from DB
 	if additionalDigiCertValidationNeeded {
-		assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-		if err != nil && !fleet.IsNotFound(err) {
-			return result, ctxerr.Wrap(ctx, err, "get all CA config assets")
-		}
-		// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
+		remainingOldCAs := findWhichDigiCertCAsWereDeleted(oldAppConfig, newAppConfig, &result)
 
-		oldCAs := oldAppConfig.Integrations.DigiCert.Value
-		remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
-		for _, oldCA := range oldCAs {
-			var found bool
-			for _, newCA := range newAppConfig.Integrations.DigiCert.Value {
-				if oldCA.Name == newCA.Name {
-					found = true
-					break
-				}
-			}
-			if !found {
-				result.digicert[oldCA.Name] = caStatusDeleted
-			} else {
-				remainingOldCAs = append(remainingOldCAs, oldCA)
-			}
-		}
-
-		for i, ca := range remainingOldCAs {
-			asset, ok := assets[ca.Name]
-			if !ok {
-				continue
-			}
-			remainingOldCAs[i].APIToken = string(asset.Value)
+		err := svc.populateDigiCertAPITokens(ctx, remainingOldCAs)
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "populate API tokens")
 		}
 		for i, newCA := range appConfig.Integrations.DigiCert.Value {
 			var found bool
@@ -1176,8 +1101,104 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 			if status, ok := result.digicert[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
 				err := digicert.VerifyProfileID(ctx, svc.logger, newCA)
 				if err != nil {
+					invalidCANames[newCA.Name] = struct{}{}
 					invalid.Append("integrations.digicert.profile_id",
 						fmt.Sprintf("Could not verify DigiCert profile ID %s for CA %s: %s", newCA.ProfileID, newCA.Name, err))
+				}
+			}
+		}
+	}
+
+	var additionalCustomSCEPValidationNeeded bool
+	switch {
+	case !newAppConfig.Integrations.CustomSCEPProxy.Set:
+		// Nothing to set -- keep the old value
+		appConfig.Integrations.CustomSCEPProxy = oldAppConfig.Integrations.CustomSCEPProxy
+		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+			if _, ok := allCANames[ca.Name]; ok {
+				// This issue is caused by the new DigiCert CA added above
+				invalid.Append("integrations.digicert.name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+					"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", ca.Name))
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+			allCANames[ca.Name] = struct{}{}
+		}
+	case !newAppConfig.Integrations.CustomSCEPProxy.Valid || len(newAppConfig.Integrations.CustomSCEPProxy.Value) == 0:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.CustomSCEPProxy.Valid = false
+		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+			result.customSCEPProxy[ca.Name] = caStatusDeleted
+		}
+	default:
+		// We clear custom SCEP CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.CustomSCEPProxy.Value = nil
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.custom_scep_proxy",
+				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: "+
+					"https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			break
+		}
+		additionalCustomSCEPValidationNeeded = true
+		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
+			ca.Name = fleet.Preprocess(ca.Name)
+			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
+				invalidCANames[ca.Name] = struct{}{}
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			ca.URL = fleet.Preprocess(ca.URL)
+			// Validate URL
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
+		}
+	}
+
+	if additionalCustomSCEPValidationNeeded {
+		remainingOldCAs := findWhichCustomSCEPCAsWereDeleted(oldAppConfig, newAppConfig, &result)
+		err := svc.populateCustomSCEPChallenges(ctx, remainingOldCAs)
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "populate challenges")
+		}
+		for i, newCA := range appConfig.Integrations.CustomSCEPProxy.Value {
+			var found bool
+			for _, oldCA := range remainingOldCAs {
+				switch {
+				case newCA.Equals(&oldCA):
+					// we clear the Challenge since we don't need to encrypt/save it
+					appConfig.Integrations.CustomSCEPProxy.Value[i].Challenge = fleet.MaskedPassword
+					found = true
+				case newCA.Name == oldCA.Name:
+					// changed
+					if newCA.URL != oldCA.URL && (len(newCA.Challenge) == 0 || newCA.Challenge == fleet.MaskedPassword) {
+						invalid.Append("integrations.custom_scep_proxy.challenge",
+							fmt.Sprintf("Custom SCEP challenge must be set when modifying URL of an existing CA: %s", newCA.Name))
+					} else {
+						result.customSCEPProxy[newCA.Name] = caStatusEdited
+					}
+					found = true
+				}
+			}
+			if !found {
+				if len(newCA.Challenge) == 0 || newCA.Challenge == fleet.MaskedPassword {
+					invalid.Append("integrations.custom_scep_proxy.challenge",
+						fmt.Sprintf("Custom SCEP challenge must be set on CA: %s", newCA.Name))
+				} else {
+					result.customSCEPProxy[newCA.Name] = caStatusAdded
+				}
+			}
+			if status, ok := result.customSCEPProxy[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
+				if err := svc.scepConfigService.ValidateSCEPURL(ctx, newCA.URL); err != nil {
+					invalidCANames[newCA.Name] = struct{}{}
+					invalid.Append("integrations.custom_scep_proxy.url", err.Error())
 				}
 			}
 		}
@@ -1190,6 +1211,78 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 	}
 
 	return result, nil
+}
+
+func (svc *Service) populateDigiCertAPITokens(ctx context.Context, remainingOldCAs []fleet.DigiCertIntegration) error {
+	assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get DigiCert CA config assets")
+	}
+	// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
+	for i, ca := range remainingOldCAs {
+		asset, ok := assets[ca.Name]
+		if !ok {
+			continue
+		}
+		remainingOldCAs[i].APIToken = string(asset.Value)
+	}
+	return nil
+}
+
+func (svc *Service) populateCustomSCEPChallenges(ctx context.Context, remainingOldCAs []fleet.CustomSCEPProxyIntegration) error {
+	assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get custom SCEP CA config assets")
+	}
+	// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
+	for i, ca := range remainingOldCAs {
+		asset, ok := assets[ca.Name]
+		if !ok {
+			continue
+		}
+		remainingOldCAs[i].Challenge = string(asset.Value)
+	}
+	return nil
+}
+
+func findWhichDigiCertCAsWereDeleted(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
+	result *appConfigCAStatus) []fleet.DigiCertIntegration {
+	remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
+	for _, oldCA := range oldAppConfig.Integrations.DigiCert.Value {
+		var found bool
+		for _, newCA := range newAppConfig.Integrations.DigiCert.Value {
+			if oldCA.Name == newCA.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.digicert[oldCA.Name] = caStatusDeleted
+		} else {
+			remainingOldCAs = append(remainingOldCAs, oldCA)
+		}
+	}
+	return remainingOldCAs
+}
+
+func findWhichCustomSCEPCAsWereDeleted(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
+	result *appConfigCAStatus) []fleet.CustomSCEPProxyIntegration {
+	remainingOldCAs := make([]fleet.CustomSCEPProxyIntegration, 0, len(oldAppConfig.Integrations.CustomSCEPProxy.Value))
+	for _, oldCA := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+		var found bool
+		for _, newCA := range newAppConfig.Integrations.CustomSCEPProxy.Value {
+			if oldCA.Name == newCA.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.customSCEPProxy[oldCA.Name] = caStatusDeleted
+		} else {
+			remainingOldCAs = append(remainingOldCAs, oldCA)
+		}
+	}
+	return remainingOldCAs
 }
 
 func validateCAName(name string, caType string, allCANames map[string]struct{}, invalid *fleet.InvalidArgumentError) bool {

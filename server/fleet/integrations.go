@@ -394,6 +394,12 @@ type CustomSCEPProxyIntegration struct {
 	Challenge string `json:"challenge"`
 }
 
+func (s *CustomSCEPProxyIntegration) Equals(other *CustomSCEPProxyIntegration) bool {
+	return s.Name == other.Name &&
+		s.URL == other.URL &&
+		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
 	Jira           []*JiraIntegration                 `json:"jira"`
