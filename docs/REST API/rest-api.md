@@ -6151,21 +6151,19 @@ List software that can or will be automatically installed during macOS setup. If
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
         {
-          "id": 12
+          "id": 12,
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
       ]
     }
   ],
-  {
-    "count": 2,
-    "counts_updated_at": "2024-10-04T10:00:00Z",
-    "meta": {
-      "has_next_results": false,
-      "has_previous_results": false
-    }
-  },
+  "count": 2,
+  "counts_updated_at": "2024-10-04T10:00:00Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -6711,23 +6709,23 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 ```json
 {
   "policy": {
-      "id": 1,
-      "name": "Gatekeeper enabled",
-      "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-      "description": "Checks if gatekeeper is enabled on macOS devices",
-      "critical": false,
-      "author_id": 42,
-      "author_name": "John",
-      "author_email": "john@example.com",
-      "team_id": null,
-      "resolution": "Resolution steps",
-      "platform": "darwin",
-      "created_at": "2021-12-15T15:23:57Z",
-      "updated_at": "2021-12-15T15:23:57Z",
-      "passing_host_count": 2000,
-      "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
-    }
+    "id": 1,
+    "name": "Gatekeeper enabled",
+    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+    "description": "Checks if gatekeeper is enabled on macOS devices",
+    "critical": false,
+    "author_id": 42,
+    "author_name": "John",
+    "author_email": "john@example.com",
+    "team_id": null,
+    "resolution": "Resolution steps",
+    "platform": "darwin",
+    "created_at": "2021-12-15T15:23:57Z",
+    "updated_at": "2021-12-15T15:23:57Z",
+    "passing_host_count": 2000,
+    "failing_host_count": 300,
+    "host_count_updated_at": "2023-12-20T15:23:57Z"
+  }
 }
 ```
 
@@ -9277,7 +9275,7 @@ Returns information about the specified software. By default, `versions` are sor
         "installed": 3,
         "pending": 1,
         "failed": 2,
-      }
+      },
       "automatic_install_policies": [
         {
           "id": 343,
@@ -10754,7 +10752,7 @@ _Available in Fleet Premium_
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
-    },
+    }
   }
 }
 ```
