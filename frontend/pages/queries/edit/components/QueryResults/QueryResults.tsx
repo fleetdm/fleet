@@ -37,6 +37,7 @@ interface IQueryResultsProps {
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  // set during target selection, persisted through each step of the flow
   targetsTotalCount: number;
 }
 
