@@ -21,8 +21,8 @@ import TableCount from "components/TableContainer/TableCount";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
-import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
@@ -264,10 +264,13 @@ const QueryResults = ({
 
   return (
     <div className={baseClass}>
-      <QueryResultsHeading
-        respondedHosts={hostsCount.total}
-        targetsTotalCount={targetsTotalCount}
-        isQueryFinished={isQueryFinished}
+      <LiveResultsHeading
+        numHostsTargeted={targetsTotalCount}
+        numHostsResponded={hostsCount.total}
+        numHostsRespondedResults={hostsCount.successful}
+        numHostsRespondedNoResults={hostsCount.failed}
+        numHostsRespondedErrors={errors?.length || 0}
+        isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}

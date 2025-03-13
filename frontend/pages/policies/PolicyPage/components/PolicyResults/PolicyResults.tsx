@@ -21,8 +21,8 @@ import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import ResultsHeading from "components/queries/queryResults/QueryResultsHeading";
-import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
 
 import PolicyResultsTable from "../PolicyResultsTable/PolicyResultsTable";
 import PolicyQueriesErrorsTable from "../PolicyErrorsTable/PolicyErrorsTable";
@@ -233,10 +233,13 @@ const PolicyResults = ({
 
   return (
     <div className={baseClass}>
-      <ResultsHeading
-        respondedHosts={hostsCount.total}
-        targetsTotalCount={targetsTotalCount}
-        isQueryFinished={isQueryFinished}
+      <LiveResultsHeading
+        numHostsTargeted={targetsTotalCount}
+        numHostsResponded={hostsCount.total}
+        numHostsRespondedResults={hostsCount.successful}
+        numHostsRespondedNoResults={hostsCount.failed}
+        numHostsRespondedErrors={errors?.length || 0}
+        isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunQuery}
         onClickStop={onStopQuery}
