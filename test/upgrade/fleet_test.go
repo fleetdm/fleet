@@ -13,7 +13,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"crypto/tls"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/cenkalti/backoff"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -70,7 +72,7 @@ func NewFleet(t *testing.T, version string) *Fleet {
 	t.Cleanup(f.cleanup)
 
 	if err := f.Start(); err != nil {
-		t.Fatalf("start fleet: %v", err)
+		t.Fatalf("start fleet version A: %v", err)
 	}
 
 	return f
@@ -119,7 +121,7 @@ func (f *Fleet) Start() error {
 
 // Client returns a fleet client that uses the fleet API.
 func (f *Fleet) Client() (*service.Client, error) {
-	port, err := f.getPublicPort("fleet", 443)
+	port, err := f.getPublicPort("fleet", 8080)
 	if err != nil {
 		return nil, fmt.Errorf("get fleet port: %v", err)
 	}
@@ -218,15 +220,17 @@ func (f *Fleet) waitFleet() error {
 	}
 	port := containers[0].Ports[0].PublicPort
 	healthURL := fmt.Sprintf("https://localhost:%d/healthz", port)
-	f.t.Logf("Fleet URL: %s", healthURL)
+	f.t.Logf("fleet URL: %s", healthURL)
 
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
 
+	//nolint:gosec // G107: Ok to trust docker here
+	client := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{InsecureSkipVerify: true}))
+
 	if err := backoff.Retry(
 		func() error {
-			//nolint:gosec // G107: Ok to trust docker here
-			resp, err := http.Get(healthURL)
+			resp, err := client.Get(healthURL)
 			if err != nil {
 				return err
 			}
@@ -239,6 +243,7 @@ func (f *Fleet) waitFleet() error {
 	); err != nil {
 		return fmt.Errorf("check health: %v", err)
 	}
+	f.t.Log("fleet is healthy")
 
 	return nil
 }
@@ -328,7 +333,7 @@ func (f *Fleet) Upgrade(from, to string) error {
 		"FLEET_VERSION": from,
 	}
 	if _, err := f.execCompose(env, "rm", "-s", "-v", "fleet"); err != nil {
-		return fmt.Errorf("start fleet: %v", err)
+		return fmt.Errorf("bring fleet down: %v", err)
 	}
 
 	// run migrations
@@ -343,15 +348,17 @@ func (f *Fleet) Upgrade(from, to string) error {
 	// start the new version
 	_, err = f.execCompose(env, "up", "-d", "fleet", "fleet")
 	if err != nil {
-		return fmt.Errorf("start fleet: %v", err)
+		return fmt.Errorf("start fleet version B: %v", err)
 	}
+
+	f.Version = to
 
 	// wait until healthy
 	if err := f.waitFleet(); err != nil {
 		return fmt.Errorf("wait for fleet to be healthy: %v", err)
 	}
 
-	f.Version = to
+	f.t.Log("upgraded successfully")
 
 	return nil
 }

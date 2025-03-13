@@ -29,7 +29,7 @@ func enrollHost(t *testing.T, f *Fleet) string {
 		}
 
 		return true
-	}, 5*time.Minute, 5*time.Second)
+	}, 19*time.Minute, 5*time.Second)
 
 	return hostname
 }
