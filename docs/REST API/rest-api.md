@@ -2838,7 +2838,7 @@ Returns the information of the specified host.
         "author_name": "User",
         "author_email": "user@example.com",
         "team_id": 274,
-        "fleet_created": false
+        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -2856,7 +2856,7 @@ Returns the information of the specified host.
         "author_name": "User",
         "author_email": "user@example.com",
         "team_id": 274,
-        "fleet_created": false
+        "fleet_maintained": false
       },
       {
         "id": 4,
@@ -2874,7 +2874,7 @@ Returns the information of the specified host.
         "author_name": "User",
         "author_email": "user@example.com",
         "team_id": 274,
-        "fleet_created": false
+        "fleet_maintained": false
       },
       {
         "id": 5,
@@ -2892,7 +2892,7 @@ Returns the information of the specified host.
         "author_name": "Fleet",
         "author_email": "",
         "team_id": 274,
-        "fleet_created": true,      
+        "fleet_maintained": true,      
       }
     ],
     "software": [
@@ -3115,7 +3115,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
         "critical": false,
-        "fleet_created": false
+        "fleet_maintained": false
       }
     ],
     "software": [
@@ -6636,7 +6636,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_created": false
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6655,7 +6655,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "passing_host_count": 2300,
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_created": false
+      "fleet_maintained": false
     }
   ]
 }
@@ -6975,7 +6975,7 @@ Team policies work the same as policies, but at the team level.
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
-      "fleet_created": false
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6999,7 +6999,7 @@ Team policies work the same as policies, but at the team level.
         "name": "Encrypt Windows disk with BitLocker",
         "id": 234
       },
-      "fleet_created": false
+      "fleet_maintained": false
     },
     {
       "id": 3,
@@ -7023,7 +7023,7 @@ Team policies work the same as policies, but at the team level.
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
       },
-      "fleet_created": false
+      "fleet_maintained": false
     }
   ],
   "inherited_policies": [
@@ -7044,7 +7044,7 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 10,
       "failing_host_count": 9,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_created": false
+      "fleet_maintained": false
     }
   ]
 }
@@ -7078,7 +7078,7 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_created": false
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -7097,7 +7097,7 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 2300,
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_created": false
+      "fleet_maintained": false
     },
     {
       "id": 136,
@@ -7116,7 +7116,7 @@ Team policies work the same as policies, but at the team level.
       "passing_host_count": 10,
       "failing_host_count": 9,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "fleet_created": false
+      "fleet_maintained": false
     }
   ]
 }
