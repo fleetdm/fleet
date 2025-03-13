@@ -5,7 +5,7 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { generateFormValidation, IDigicertFormValidation } from "./helpers";
+import { validateFormData, IDigicertFormValidation } from "./helpers";
 
 const baseClass = "digicert-form";
 
@@ -59,7 +59,7 @@ const DigicertForm = ({
 
   const onInputChange = (update: { name: string; value: string }) => {
     setFormValidation(
-      generateFormValidation({ ...formData, [update.name]: update.value })
+      validateFormData({ ...formData, [update.name]: update.value })
     );
     onChange(update);
   };

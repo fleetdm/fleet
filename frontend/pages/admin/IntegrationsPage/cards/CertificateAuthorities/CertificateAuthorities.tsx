@@ -31,7 +31,7 @@ const CertificateAuthorities = () => {
     false
   );
   const [
-    showDeleteCertAuthoirtyModal,
+    showDeleteCertAuthorityModal,
     setShowDeleteCertAuthorityModal,
   ] = useState(false);
 
@@ -57,7 +57,6 @@ const CertificateAuthorities = () => {
   };
 
   const onEditCertAuthority = (cert: ICertAuthorityListData) => {
-    // TODO: use useCallback
     const certAuthority = getCertificateAuthority(
       cert.id,
       config?.integrations.ndes_scep_proxy,
@@ -70,7 +69,6 @@ const CertificateAuthorities = () => {
   };
 
   const onDeleteCertAuthority = (cert: ICertAuthorityListData) => {
-    // TODO: use useCallback
     const certAuthority = getCertificateAuthority(
       cert.id,
       config?.integrations.ndes_scep_proxy,
@@ -125,7 +123,7 @@ const CertificateAuthorities = () => {
           onExit={() => setShowEditCertAuthorityModal(false)}
         />
       )}
-      {showDeleteCertAuthoirtyModal &&
+      {showDeleteCertAuthorityModal &&
         selectedCertAuthority &&
         selectedListItemId && (
           <DeleteCertificateAuthorityModal
