@@ -240,9 +240,9 @@ Anyone in the product group can initiate an air guitar session.
 
 4. After feedback has been added to the issue, the requester adds the `:product` label and assigns the issue to the Head of Product Design to determine an outcome:
 
-  1. Move forward with the formal drafting process leading to engineering.
-  2. Keep it open for future consideration.
-  3. Discard if it is invalidated through the process.
+  - Move forward with the formal drafting process leading to engineering.
+  - Keep it open for future consideration.
+  - Discard if it is invalidated through the process.
 
 
 ### Implementing
