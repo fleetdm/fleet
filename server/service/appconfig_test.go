@@ -2354,21 +2354,23 @@ func getDigiCertIntegration(url string, name string) fleet.DigiCertIntegration {
 }
 
 func getAppConfigWithSCEPIntegration(url string, name string) *fleet.AppConfig {
-	challenge, _ := server.GenerateRandomText(6)
 	newAppConfig := &fleet.AppConfig{
 		Integrations: fleet.Integrations{
 			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
 				Set:   true,
 				Valid: true,
-				Value: []fleet.CustomSCEPProxyIntegration{
-					{
-						Name:      name,
-						URL:       url,
-						Challenge: challenge,
-					},
-				},
+				Value: []fleet.CustomSCEPProxyIntegration{getCustomSCEPIntegration(url, name)},
 			},
 		},
 	}
 	return newAppConfig
+}
+
+func getCustomSCEPIntegration(url string, name string) fleet.CustomSCEPProxyIntegration {
+	challenge, _ := server.GenerateRandomText(6)
+	return fleet.CustomSCEPProxyIntegration{
+		Name:      name,
+		URL:       url,
+		Challenge: challenge,
+	}
 }
