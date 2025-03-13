@@ -58,7 +58,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 		Token:        "figma",
 		InstallerURL: "https://desktop.figma.com/mac-arm/Figma-999.9.9.zip",
 		Version:      "999.9.9",
-		Platform:     fleet.MacOSPlatform,
+		Platform:     "darwin",
 	})
 	require.NoError(t, err)
 
@@ -102,7 +102,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		Name:             "Maintained1",
 		Token:            "maintained1",
 		Version:          "1.0.0",
-		Platform:         fleet.MacOSPlatform,
+		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
 		BundleIdentifier: "fleet.maintained1",
@@ -115,7 +115,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		Name:             "Maintained2",
 		Token:            "maintained2",
 		Version:          "1.0.0",
-		Platform:         fleet.MacOSPlatform,
+		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
 		BundleIdentifier: "fleet.maintained2",
@@ -127,7 +127,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		Name:             "Maintained3",
 		Token:            "maintained3",
 		Version:          "1.0.0",
-		Platform:         fleet.MacOSPlatform,
+		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
 		BundleIdentifier: "fleet.maintained3",
@@ -157,22 +157,11 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	// We use this assertion for UpdatedAt because we only concerned with
-	// its presence, not its value. We will set it to nil after asserting
-	// to make the expected vs actual comparison easier.
-	assertUpdatedAt := func(apps []fleet.MaintainedApp) {
-		for i, app := range apps {
-			require.NotNil(t, app.UpdatedAt)
-			apps[i].UpdatedAt = nil
-		}
-	}
-
 	// Testing pagination
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 	require.False(t, meta.HasNextResults)
 
@@ -180,7 +169,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[:1], apps)
 	require.True(t, meta.HasNextResults)
 
@@ -188,7 +176,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:2], apps)
 	require.True(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
@@ -197,7 +184,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[2:3], apps)
 	require.False(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
@@ -222,7 +208,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on a different team
@@ -242,7 +227,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on the right team with the wrong platform
@@ -262,7 +246,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct team and platform
@@ -275,7 +258,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 	require.EqualValues(t, meta.TotalResults, 2)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:], apps)
 
 	//
@@ -301,7 +283,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 	require.EqualValues(t, meta.TotalResults, 2)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:], apps)
 
 	// right vpp app, wrong team
@@ -322,7 +303,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 2)
 	require.EqualValues(t, meta.TotalResults, 2)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[1:], apps)
 
 	// right vpp app, right team
@@ -333,7 +313,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 1)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[2:], apps)
 
 	// right app, right team, wrong platform
@@ -355,7 +334,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
 	require.EqualValues(t, meta.TotalResults, 1)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps[2:], apps)
 
 	// viewing with no team selected shouldn't exclude any results
@@ -363,7 +341,6 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.EqualValues(t, meta.TotalResults, 3)
-	assertUpdatedAt(apps)
 	require.Equal(t, expectedApps, apps)
 }
 

@@ -1944,8 +1944,9 @@ type Datastore interface {
 	// Fleet-maintained apps
 	//
 
-	// ListAvailableFleetMaintainedApps returns a list of
-	// Fleet-maintained apps available to a specific team (or the full list of apps if no team is specified)
+	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
+	// either the maintained app or a custom package for the same app is installed on the specified team, if a
+	// team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.

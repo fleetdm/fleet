@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -64,24 +63,6 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, 
 	return 0, fleet.ErrMissingLicense
 }
 
-type editFleetMaintainedAppRequest struct {
-	TeamID            *uint    `json:"team_id"`
-	AppID             uint     `json:"fleet_maintained_app_id"`
-	InstallScript     string   `json:"install_script"`
-	PreInstallQuery   string   `json:"pre_install_query"`
-	PostInstallScript string   `json:"post_install_script"`
-	SelfService       bool     `json:"self_service"`
-	UninstallScript   string   `json:"uninstall_script"`
-	LabelsIncludeAny  []string `json:"labels_include_any"`
-	LabelsExcludeAny  []string `json:"labels_exclude_any"`
-}
-
-func editFleetMaintainedAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	// TODO: implement this
-
-	return nil, errors.New("not implemented")
-}
-
 type listFleetMaintainedAppsRequest struct {
 	fleet.ListOptions
 	TeamID *uint `query:"team_id,optional"`
@@ -89,7 +70,6 @@ type listFleetMaintainedAppsRequest struct {
 
 type listFleetMaintainedAppsResponse struct {
 	Count               int                       `json:"count"`
-	AppsUpdatedAt       *time.Time                `json:"apps_updated_at"`
 	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
@@ -100,27 +80,15 @@ func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
 func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
 
-	req.IncludeMetadata = true
-
 	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return listFleetMaintainedAppsResponse{Err: err}, nil
-	}
-
-	var latest time.Time
-	for _, app := range apps {
-		if app.UpdatedAt != nil && !app.UpdatedAt.IsZero() && app.UpdatedAt.After(latest) {
-			latest = *app.UpdatedAt
-		}
 	}
 
 	listResp := listFleetMaintainedAppsResponse{
 		FleetMaintainedApps: apps,
 		Count:               int(meta.TotalResults), //nolint:gosec // dismiss G115
 		Meta:                meta,
-	}
-	if !latest.IsZero() {
-		listResp.AppsUpdatedAt = &latest
 	}
 
 	return listResp, nil

@@ -125,7 +125,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		TeamID:            teamID,
 		Version:           app.Version,
 		Filename:          filename,
-		Platform:          string(app.Platform),
+		Platform:          app.Platform,
 		Source:            "apps",
 		Extension:         extension,
 		BundleIdentifier:  app.BundleIdentifier,
