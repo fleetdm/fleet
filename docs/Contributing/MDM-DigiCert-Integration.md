@@ -17,6 +17,7 @@ _Notes:_
 title: Enable DigiCert integration
 ---
 sequenceDiagram
+    autonumber
     actor admin as Admin
     participant fleet as Fleet server
     participant digicert as DigiCert
@@ -33,6 +34,7 @@ sequenceDiagram
 title: Deploy DigiCert certificate to Apple host
 ---
 sequenceDiagram
+    autonumber
     actor admin as Admin
     participant host as Host
     participant fleet as Fleet server
@@ -55,6 +57,7 @@ sequenceDiagram
     host--)+fleet: Idle message
     fleet-->>-host: PKCS12 profile (DigiCert certificate)
     activate host
+    host->>host: Add certificate to keychain
     host-->>-fleet: Acknowledged message
     activate fleet
     fleet-->>-host: Empty
