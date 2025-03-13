@@ -337,7 +337,7 @@ software:
         - Product
         - Marketing
   fleet_maintained_apps:
-    - fleet_maintained_app_id: darwin/slack
+    - fleet_maintained_app_id: macos-slack
       labels_include_any:
         - Design
         - Sales
