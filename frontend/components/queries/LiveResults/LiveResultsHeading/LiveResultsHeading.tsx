@@ -10,7 +10,7 @@ const pluralizeHost = (count: number) => {
   return strUtils.pluralize(count, "host");
 };
 
-const baseClass = "query-results-heading";
+const baseClass = "live-results-heading";
 
 interface IFinishButtonsProps {
   onClickDone: (evt: React.MouseEvent<HTMLButtonElement>) => void;
@@ -39,11 +39,11 @@ const FinishedButtons = ({
   </div>
 );
 
-interface IStopQueryButtonProps {
+interface IStopButtonProps {
   onClickStop: (evt: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-const StopQueryButton = ({ onClickStop }: IStopQueryButtonProps) => (
+const StopButton = ({ onClickStop }: IStopButtonProps) => (
   <div className={`${baseClass}__btn-wrapper`}>
     <Button
       className={`${baseClass}__stop-btn`}
@@ -55,10 +55,13 @@ const StopQueryButton = ({ onClickStop }: IStopQueryButtonProps) => (
   </div>
 );
 
-interface IQueryResultsHeadingProps {
-  respondedHosts: number;
-  targetsTotalCount: number;
-  isQueryFinished: boolean;
+interface ILiveResultsHeadingProps {
+  numHostsTargeted: number;
+  numHostsResponded: number;
+  numHostsRespondedResults: number;
+  numHostsRespondedNoResults: number;
+  numHostsRespondedErrors: number;
+  isFinished: boolean;
   onClickDone: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickRunAgain: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickStop: (evt: React.MouseEvent<HTMLButtonElement>) => void;
@@ -66,18 +69,21 @@ interface IQueryResultsHeadingProps {
   isPolicy?: boolean;
 }
 
-const QueryResultsHeading = ({
-  respondedHosts,
-  targetsTotalCount,
-  isQueryFinished,
+const LiveResultsHeading = ({
+  numHostsTargeted,
+  numHostsResponded,
+  numHostsRespondedResults,
+  numHostsRespondedNoResults,
+  numHostsRespondedErrors,
+  isFinished,
   onClickDone,
   onClickRunAgain,
   onClickStop,
   isPolicy = false,
-}: IQueryResultsHeadingProps) => {
+}: ILiveResultsHeadingProps) => {
   const percentResponded =
-    targetsTotalCount > 0
-      ? Math.round((respondedHosts / targetsTotalCount) * 100)
+    numHostsTargeted > 0
+      ? Math.round((numHostsResponded / numHostsTargeted) * 100)
       : 0;
 
   const PAGE_TITLES = {
@@ -85,40 +91,58 @@ const QueryResultsHeading = ({
     FINISHED: `${isPolicy ? "Policy" : "Query"} finished`,
   };
 
-  const pageTitle = isQueryFinished
-    ? PAGE_TITLES.FINISHED
-    : PAGE_TITLES.RUNNING;
+  const pageTitle = isFinished ? PAGE_TITLES.FINISHED : PAGE_TITLES.RUNNING;
 
   return (
     <div className={`${baseClass}`}>
       <h1>{pageTitle}</h1>
-      <div className={`${baseClass}__query-information`}>
+      <div className={`${baseClass}__information`}>
         <div className={`${baseClass}__targeted-wrapper`}>
           <span className={`${baseClass}__targeted-count`}>
-            {targetsTotalCount.toLocaleString()}
+            {numHostsTargeted.toLocaleString()}
           </span>
-          <span>&nbsp;{pluralizeHost(targetsTotalCount)} targeted</span>
+          <span>&nbsp;{pluralizeHost(numHostsTargeted)} targeted</span>
         </div>
         <div className={`${baseClass}__percent-responded`}>
-          {!isQueryFinished && (
-            <span>Fleet is talking to your hosts.&nbsp;</span>
-          )}
+          {!isFinished && <span>Fleet is talking to your hosts.&nbsp;</span>}
           <span>
             ({`${percentResponded}% `}
             <TooltipWrapper
               tipContent={
-                <>
-                  Hosts that respond may
-                  <br /> return results, errors, or <br />
-                  no results
-                </>
+                isFinished ? (
+                  <>
+                    Results:{" "}
+                    <b>
+                      {numHostsRespondedResults}{" "}
+                      {pluralizeHost(numHostsRespondedResults)}
+                    </b>
+                    <br />
+                    No results:{" "}
+                    <b>
+                      {numHostsRespondedNoResults}{" "}
+                      {pluralizeHost(numHostsRespondedNoResults)}
+                    </b>
+                    <br />
+                    Errors:{" "}
+                    <b>
+                      {numHostsRespondedErrors}{" "}
+                      {pluralizeHost(numHostsRespondedErrors)}
+                    </b>
+                  </>
+                ) : (
+                  <>
+                    Hosts that respond may
+                    <br /> return results, errors, or <br />
+                    no results
+                  </>
+                )
               }
             >
               responded
             </TooltipWrapper>
             )
           </span>
-          {!isQueryFinished && (
+          {!isFinished && (
             <Spinner
               size="x-small"
               centered={false}
@@ -127,12 +151,12 @@ const QueryResultsHeading = ({
             />
           )}
         </div>
-        {!isQueryFinished && (
+        {!isFinished && (
           <div className={`${baseClass}__tooltip`}>
             <TooltipWrapper
               tipContent={
                 <>
-                  The hosts’ distributed interval can <br />
+                  The hosts&apos; distributed interval can <br />
                   impact live query response times.
                 </>
               }
@@ -142,16 +166,16 @@ const QueryResultsHeading = ({
           </div>
         )}
       </div>
-      {isQueryFinished ? (
+      {isFinished ? (
         <FinishedButtons
           onClickDone={onClickDone}
           onClickRunAgain={onClickRunAgain}
         />
       ) : (
-        <StopQueryButton onClickStop={onClickStop} />
+        <StopButton onClickStop={onClickStop} />
       )}
     </div>
   );
 };
 
-export default QueryResultsHeading;
+export default LiveResultsHeading;
