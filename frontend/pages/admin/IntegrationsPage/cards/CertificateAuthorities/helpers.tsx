@@ -4,7 +4,7 @@ import {
   ICertificatesIntegrationNDES,
 } from "interfaces/integration";
 
-export interface ICertAuthority {
+export interface ICertAuthorityListData {
   id: string;
   name: string;
   description: string;
@@ -15,7 +15,7 @@ export const generateListData = (
   digicertCerts?: ICertificatesIntegrationDigicert[],
   customProxies?: ICertificatesIntegrationCustomSCEP[]
 ) => {
-  const listData: ICertAuthority[] = [];
+  const listData: ICertAuthorityListData[] = [];
 
   // these values for the certificateAuthority is meant to be a hard coded .
   if (ndesProxy) {
@@ -29,7 +29,7 @@ export const generateListData = (
   if (digicertCerts?.length) {
     digicertCerts.forEach((cert) => {
       listData.push({
-        id: `digicert-${cert.id}`,
+        id: `digicert-${cert.name}`,
         name: cert.name,
         description: "DigiCert",
       });
@@ -51,6 +51,21 @@ export const generateListData = (
   );
 };
 
+export interface ICertIntegrationNDESWithListId
+  extends ICertificatesIntegrationNDES {
+  listId: string;
+}
+
+export interface ICertIntegrationDigicertWithListId
+  extends ICertificatesIntegrationDigicert {
+  listId: string;
+}
+
+export interface ICertIntegrationCustomSCEPWithListId
+  extends ICertificatesIntegrationCustomSCEP {
+  listId: string;
+}
+
 /**
  * Gets the original certificate aithority integration object from the id
  * of the data representing a certificate authority list item.
@@ -67,14 +82,15 @@ export const getCertificateAuthority = (
 
   if (id.includes("digicert")) {
     return digicertCerts?.find(
-      (cert) => id.split("digicert-")[1] === cert.id.toString()
-    );
+      (cert) => id.split("digicert-")[1] === cert.name
+    ) as ICertificatesIntegrationDigicert;
   }
 
   if (id.includes("custom-scep-proxy")) {
     return customProxies?.find(
+      // TODO: remove custom scep id
       (cert) => id.split("custom-scep-proxy-")[1] === cert.id.toString()
-    );
+    ) as ICertificatesIntegrationCustomSCEP;
   }
 
   return null;
