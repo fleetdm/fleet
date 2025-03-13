@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -303,14 +304,6 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 	return nil
 }
 
-// MySQL is really particular about using zero values or old values for
-// timestamps, so we set a default value that is plenty far in the past, but
-// hopefully accepted by most MySQL configurations.
-//
-// NOTE: #3229 proposes a better fix that uses *time.Time for
-// ScheduledQueryStats.LastExecuted.
-var pastDate = "2000-01-01T00:00:00Z"
-
 // loadhostPacksStatsDB will load all the "2017 pack" stats for the given host. The scheduled
 // queries that haven't run yet are returned with zero values.
 func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
@@ -338,7 +331,7 @@ func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, 
 		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
 		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
 		goqu.I("sq.interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", pastDate)).As("last_executed"),
+		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", common_mysql.DefaultNonZeroTime)).As("last_executed"),
 		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
 		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
 		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
@@ -475,13 +468,13 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		baseQuery + filter1 + " UNION ALL " + baseQuery + filter2 + `) qs GROUP BY ` + finalColumns
 
 	args := []interface{}{
-		pastDate,
+		common_mysql.DefaultNonZeroTime,
 		hid,
 		hid,
 		fleet.PlatformFromHost(hostPlatform),
 		fleet.LoggingSnapshot,
 		teamID_,
-		pastDate,
+		common_mysql.DefaultNonZeroTime,
 		hid,
 		hid,
 		hid,
@@ -507,6 +500,15 @@ func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) (
 	if err := sqlx.SelectContext(ctx, db, &users, sql, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "load host users")
 	}
+	return users, nil
+}
+
+func (ds *Datastore) ListHostUsers(ctx context.Context, hostID uint) ([]fleet.HostUser, error) {
+	users, err := loadHostUsersDB(ctx, ds.reader(ctx), hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading host users")
+	}
+
 	return users, nil
 }
 
@@ -539,6 +541,9 @@ var hostRefs = []string{
 	"host_activities",
 	"host_mdm_actions",
 	"host_calendar_events",
+	"upcoming_activities",
+	"host_certificates",
+	"android_devices",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1088,7 +1093,7 @@ func (ds *Datastore) applyHostFilters(
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
-			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+			_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
 			switch {
 			case fleet.IsNotFound(err):
 				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
@@ -1105,7 +1110,9 @@ func (ds *Datastore) applyHostFilters(
 			case err != nil:
 				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
 			default:
-				installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
+				// TODO(sarah): prior code was joining on installer id but based on how list options are parsed [1] it seems like this should be the title id
+				// [1] https://github.com/fleetdm/fleet/blob/8aecae4d853829cb6e7f828099a4f0953643cf18/server/datastore/mysql/hosts.go#L1088-L1089
+				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
 				}
@@ -2672,12 +2679,14 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 			WHERE
 				(hostname IN (?)
 				OR uuid IN (?)
-				OR hardware_serial IN (?))
+				OR hardware_serial IN (?)
+				OR node_key IN (?)
+				OR osquery_host_id IN (?))
 			AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
@@ -3119,11 +3128,15 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	// DELETE FROM hosts WHERE id in (SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))
 	// This means a full table scan for hosts, and for big deployments, that's not ideal
 	// so instead, we get the ids one by one and delete things one by one
-	// it might take longer, but it should lock only the row we need
+	// it might take longer, but it should lock only the row we need.
+	//
+	// host_seen_time entries are not available for ios/ipados devices, since they're updated on
+	// osquery check-in. Instead we fall back to detail_updated_at, which is updated every time a
+	// full detail refetch happens.
 	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id
-		WHERE COALESCE(hst.seen_time, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`
+		WHERE COALESCE(hst.seen_time, h.detail_updated_at, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`
 
 	var allIdsToDelete []uint
 	// Process hosts using global expiry
@@ -3816,151 +3829,10 @@ func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint,
 func (ds *Datastore) SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET encrypted = ? WHERE host_id = ?`,
+		`UPDATE host_disks SET encrypted = ?, updated_at = CURRENT_TIMESTAMP(6) WHERE host_id = ?`,
 		`INSERT INTO host_disks (encrypted, host_id) VALUES (?, ?)`,
 		encrypted, hostID,
 	)
-}
-
-func (ds *Datastore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, client_error, decryptable)
-VALUES
-  (?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE
-  /* if the key has changed, set decrypted to its initial value so it can be calculated again if necessary (if null) */
-  decryptable = IF(
-    base64_encrypted = VALUES(base64_encrypted) AND base64_encrypted != '',
-    decryptable,
-    VALUES(decryptable)
-  ),
-  base64_encrypted = VALUES(base64_encrypted),
-  client_error = VALUES(client_error)
-`, hostID, encryptedBase64Key, clientError, decryptable)
-	return err
-}
-
-func (ds *Datastore) SaveLUKSData(ctx context.Context, hostID uint, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error {
-	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
-		return errors.New("passphrase and salt must be set")
-	}
-
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, base64_encrypted_salt, key_slot, client_error, decryptable)
-VALUES
-  (?, ?, ?, ?, '', TRUE)
-ON DUPLICATE KEY UPDATE
-  decryptable = TRUE,
-  base64_encrypted = VALUES(base64_encrypted),
-  base64_encrypted_salt = VALUES(base64_encrypted_salt),
-  key_slot = VALUES(key_slot),
-  client_error = ''
-`, hostID, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
-	return err
-}
-
-func (ds *Datastore) IsHostPendingEscrow(ctx context.Context, hostID uint) bool {
-	var pendingEscrowCount uint
-	_ = sqlx.GetContext(ctx, ds.reader(ctx), &pendingEscrowCount, `
-          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND reset_requested = TRUE`, hostID)
-	return pendingEscrowCount > 0
-}
-
-func (ds *Datastore) ClearPendingEscrow(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE host_disk_encryption_keys SET reset_requested = FALSE WHERE host_id = ?`, hostID)
-	return err
-}
-
-func (ds *Datastore) ReportEscrowError(ctx context.Context, hostID uint, errorMessage string) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, client_error) VALUES (?, '', ?) ON DUPLICATE KEY UPDATE client_error = VALUES(client_error)
-`, hostID, errorMessage)
-	return err
-}
-
-func (ds *Datastore) QueueEscrow(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-INSERT INTO host_disk_encryption_keys
-  (host_id, base64_encrypted, reset_requested) VALUES (?, '', TRUE) ON DUPLICATE KEY UPDATE reset_requested = TRUE
-`, hostID)
-	return err
-}
-
-func (ds *Datastore) AssertHasNoEncryptionKeyStored(ctx context.Context, hostID uint) error {
-	var hasKeyCount uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasKeyCount, `
-          SELECT COUNT(*) FROM host_disk_encryption_keys WHERE host_id = ? AND base64_encrypted != ''`, hostID)
-	if hasKeyCount > 0 {
-		return &fleet.BadRequestError{Message: "Key has already been escrowed for this host"}
-	}
-
-	return err
-}
-
-func (ds *Datastore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {
-	// NOTE(mna): currently we only verify encryption keys for macOS,
-	// Windows/bitlocker uses a different approach where orbit sends the
-	// encryption key and we encrypt it server-side with the WSTEP certificate,
-	// so it is always decryptable once received.
-	//
-	// To avoid sending Windows-related keys to verify as part of this call, we
-	// only return rows that have a non-empty encryption key (for Windows, the
-	// key is blanked if an error occurred trying to retrieve it on the host).
-	var keys []fleet.HostDiskEncryptionKey
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
-          SELECT
-            base64_encrypted,
-            host_id,
-            updated_at
-          FROM
-            host_disk_encryption_keys
-          WHERE
-            decryptable IS NULL AND
-            base64_encrypted != ''
-	`)
-	return keys, err
-}
-
-func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
-	ctx context.Context,
-	hostIDs []uint,
-	decryptable bool,
-	threshold time.Time,
-) error {
-	if len(hostIDs) == 0 {
-		return nil
-	}
-
-	query, args, err := sqlx.In(
-		"UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id IN (?) AND updated_at <= ?",
-		decryptable, hostIDs, threshold,
-	)
-	if err != nil {
-		return err
-	}
-	_, err = ds.writer(ctx).ExecContext(ctx, query, args...)
-	return err
-}
-
-func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
-	var key fleet.HostDiskEncryptionKey
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, `
-          SELECT
-            host_id, base64_encrypted, decryptable, updated_at, client_error
-          FROM
-            host_disk_encryption_keys
-          WHERE host_id = ?`, hostID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			msg := fmt.Sprintf("for host %d", hostID)
-			return nil, ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage(msg))
-		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from host_disk_encryption_keys for host_id %d", hostID)
-	}
-	return &key, nil
 }
 
 func (ds *Datastore) SetOrUpdateHostOrbitInfo(
@@ -4284,7 +4156,7 @@ func (ds *Datastore) AggregatedMDMSolutions(ctx context.Context, teamID *uint, p
 
 func (ds *Datastore) GenerateAggregatedMunkiAndMDM(ctx context.Context) error {
 	var (
-		platforms = []string{"", "darwin", "windows", "ios", "ipados"}
+		platforms = []string{"", "darwin", "windows", "ios", "ipados", "android"}
 		teamIDs   []uint
 	)
 

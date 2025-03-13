@@ -2,7 +2,10 @@ import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import mdmAPI, {
   IGetSetupExperienceScriptResponse,
 } from "services/entities/mdm";
@@ -72,7 +75,7 @@ const SetupExperienceScript = ({
           <CustomLink
             className={`${baseClass}__learn-how-link`}
             newTab
-            url=""
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
             text="Learn how"
           />
           {!scriptUploaded || !script ? (

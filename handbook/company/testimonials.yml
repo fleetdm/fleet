@@ -10,6 +10,14 @@
 #
 # TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
 -
+  quote: With its roots in osquery and a GitOps-driven approach, Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
+  quoteAuthorName: Luis Madrigal
+  quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
+  quoteImageFilename: logo-mr-beast-130x73@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/luismadrigal/
+  quoteAuthorJobTitle: CIO @ MrBeast
+  productCategories: [Device management, Observability, Software management]
+-
   quote: Yes Sir. Great tools for the everyday open-source geeks 💯
   quoteAuthorName: Alvaro Gutierrez
   quoteAuthorProfileImageFilename: testimonial-authour-alvaro-gutierrez-100x100@2x.png
@@ -204,3 +212,4 @@
   quoteAuthorProfileImageFilename: testimonial-author-arsenio-figueroa-48x48@2x.png
   quoteAuthorJobTitle: Senior Systems Security Engineer
   productCategories: [Observability, Software management]
+  # From social media company: “absolutely, will do! this amazing support has been one of the great things that helped make this decision easier and, trust me when I say this, you guys must be doing good if you can take some die-hards away from their ______ (competing product)”

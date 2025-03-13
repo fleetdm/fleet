@@ -76,6 +76,10 @@ func (svc *Service) SetSetupExperienceScript(ctx context.Context, teamID *uint, 
 		ScriptContents: string(b),
 	}
 
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+		return fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	// setup experience is only supported for macOS currently so we need to override the file
 	// extension check in the general script validation
 	if filepath.Ext(script.Name) != ".sh" {
@@ -174,7 +178,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	case len(installersPending) > 0:
 		// enqueue installers
 		for _, installer := range installersPending {
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, false, nil)
+			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 			}
@@ -203,7 +210,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				},
 			}
 
-			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, false)
+			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing vpp app installation")
 			}
@@ -220,9 +230,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				return false, ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
 			}
 			req := &fleet.HostScriptRequestPayload{
-				HostID:                  host.ID,
-				ScriptName:              script.Name,
-				ScriptContentID:         *script.ScriptContentID,
+				HostID:          host.ID,
+				ScriptName:      script.Name,
+				ScriptContentID: *script.ScriptContentID,
+				// because the script execution request is associated with setup experience,
+				// it will be enqueued with a higher priority and will run before other
+				// items in the queue.
 				SetupExperienceScriptID: script.SetupExperienceScriptID,
 			}
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)

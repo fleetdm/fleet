@@ -60,13 +60,12 @@ export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
 
+/** website links */
 export const FLEET_WEBSITE_URL = "https://fleetdm.com";
-
 export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
-
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
-
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
+export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -84,6 +83,8 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.16.0 +", value: "5.16.0" },
+  { label: "5.15.0 +", value: "5.15.0" },
   { label: "5.14.1 +", value: "5.14.1" },
   { label: "5.13.1 +", value: "5.13.1" },
   { label: "5.12.2 +", value: "5.12.2" },
@@ -214,6 +215,7 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "chrome",
   "iOS",
   "iPadOS",
+  "Android",
 ] as const;
 
 export type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
@@ -235,6 +237,8 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, DisplayPlatform> = {
   ChromeOS: "ChromeOS",
   ios: "iOS",
   ipados: "iPadOS",
+  android: "Android",
+  Android: "Android",
 } as const;
 
 // as returned by the TARGETS API; based on display_text
@@ -252,6 +256,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   chrome: "ChromeOS",
   iOS: "iOS",
   iPadOS: "iPadOS",
+  Android: "Android",
 } as const;
 
 export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
@@ -268,6 +273,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   chrome: "platform",
   iOS: "platform",
   iPadOS: "platform",
+  Android: "platform",
 } as const;
 
 // For some builtin labels, display different strings than what API returns
@@ -280,27 +286,19 @@ export const LABEL_DISPLAY_MAP: Partial<
   "MS Windows": "Windows",
 };
 
-export const PLATFORM_TYPE_ICONS: Record<
-  Extract<
-    PlatformLabelNameFromAPI,
-    "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
-  >,
-  IconNames
-> = {
+export const PLATFORM_TYPE_ICONS = {
   "All Linux": "linux",
   macOS: "darwin",
   "MS Windows": "windows",
   chrome: "chrome",
   iOS: "iOS",
   iPadOS: "iPadOS",
+  Android: "android",
 } as const;
 
 export const hasPlatformTypeIcon = (
   s: string
-): s is Extract<
-  PlatformLabelNameFromAPI,
-  "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
-> => {
+): s is Extract<PlatformLabelNameFromAPI, keyof typeof PLATFORM_TYPE_ICONS> => {
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
@@ -308,18 +306,13 @@ export type PlatformLabelOptions = DisplayPlatform | "All";
 
 export type PlatformValueOptions = Platform | "all";
 
-/** Scheduled queries do not support ChromeOS, iOS, or iPadOS */
-interface ISchedulePlatformDropdownOptions {
-  label: Exclude<PlatformLabelOptions, "ChromeOS" | "iOS" | "iPadOS">;
-  value: Exclude<PlatformValueOptions, "chrome" | "ios" | "ipados"> | "";
-}
-
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: ISchedulePlatformDropdownOptions[] = [
+/** Scheduled queries do not support ChromeOS, iOS, iPadOS, or Android */
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
-];
+] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, hostname, UUID, serial number, or private IP address";
@@ -376,13 +369,6 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const DEFAULT_USER_FORM_ERRORS = {
-  email: null,
-  name: null,
-  password: null,
-  sso_enabled: null,
-};
-
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
@@ -435,8 +421,15 @@ export const HOST_OSQUERY_DATA = [
 ];
 
 export const DEFAULT_USE_QUERY_OPTIONS = {
-  retry: 3,
   refetchOnWindowFocus: false,
+  retry: (failureCount: number, error: unknown) => {
+    const err = error as any;
+    let isBadRequestErr = false;
+    if (err.status !== undefined) {
+      isBadRequestErr = err.status >= 400 && err.status < 500;
+    }
+    return failureCount < 4 && !isBadRequestErr;
+  },
 };
 
 export const INVALID_PLATFORMS_REASON =

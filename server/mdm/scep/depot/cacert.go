@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 )
 
 // CACert represents a new self-signed CA certificate

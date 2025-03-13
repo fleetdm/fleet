@@ -97,3 +97,17 @@ func (ms *MultiAllStorage) Disable(r *mdm.Request) error {
 	})
 	return err
 }
+
+func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	doc, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return s.ExpandEmbeddedSecrets(ctx, document)
+	})
+	return doc.(string), err
+}
+
+func (ms *MultiAllStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
+	_, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+		return nil, s.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
+	})
+	return err
+}

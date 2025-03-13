@@ -2,13 +2,15 @@
 
 In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
 
+Currently, Fleet only supports [system level](https://support.apple.com/guide/deployment/intro-to-mdm-profiles-depc0aadd3fe/1/web/1.0#:~:text=Device%20and%20user%20settings%20vary%20according%20to%20where%20they%20reside%3A%20Settings%20installed%20at%20the%20system%20level%20reside%20in%20a%20device%20channel.%20Settings%20installed%20for%20a%20user%20reside%20in%20a%20user%20channel.) configuration profiles.
+
 ## Enforce OS settings
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles.
 
-For Windows hosts, copy out this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
+For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). Learn more about Windows CSPs [here](https://fleetdm.com/guides/creating-windows-csps).
 
 Fleet UI:
 
@@ -30,13 +32,13 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
+* **Verified**: hosts that applied all OS settings. Fleet verified by running an osquery query on Windows and macOS hosts (declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport)). Currently, iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings.
 
-* Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery. If the profile wasn't installed, Fleet will redeliver the profile.
+* Verifying: hosts that acknowledged all MDM commands to apply OS settings. Fleet is verifying. If the profile wasn't delivered, Fleet will redeliver the profile.
 
-* Pending: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
+* Pending: hosts that are running MDM commands or will run MDM commands to apply OS settings when they come online.
 
-* Failed: hosts that failed to install configuration profiles. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+* Failed: hosts that failed to apply OS settings. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -26,7 +27,9 @@ func TestUsers(t *testing.T) {
 	}{
 		{"Create", testUsersCreate},
 		{"ByID", testUsersByID},
+		{"Delete", testUsersDelete},
 		{"Save", testUsersSave},
+		{"Has", testUsersHas},
 		{"List", testUsersList},
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
@@ -132,12 +135,32 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	return users
 }
 
+func testUsersDelete(t *testing.T, ds *Datastore) {
+	_, err := ds.UserOrDeletedUserByID(context.Background(), 999999)
+	var nfe fleet.NotFoundError
+	assert.ErrorAs(t, err, &nfe)
+
+	users := createTestUsers(t, ds)
+	for _, tt := range users {
+		err := ds.DeleteUser(context.Background(), tt.ID)
+		assert.Nil(t, err)
+		_, err = ds.UserByID(context.Background(), tt.ID)
+		var nfe fleet.NotFoundError
+		assert.ErrorAs(t, err, &nfe)
+		returned, err := ds.UserOrDeletedUserByID(context.Background(), tt.ID)
+		require.NoError(t, err)
+		assert.Equal(t, tt.ID, returned.ID)
+		assert.True(t, returned.Deleted)
+	}
+}
+
 func testUsersSave(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
 	testMFAAttribute(t, ds, users)
+	testSettingsAttribute(t, ds, users)
 }
 
 func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
@@ -157,6 +180,28 @@ func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 		verify, err = ds.UserByID(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.False(t, verify.MFAEnabled)
+	}
+}
+
+func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.Settings = &fleet.UserSettings{}
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		// settings should only be returned via dedicated method
+		assert.Nil(t, verify.Settings)
+
+		user.Settings.HiddenHostColumns = []string{"osquery_version"}
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		// call the settings db method here
+		settings, err := ds.UserSettings(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
 	}
 }
 
@@ -206,6 +251,37 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	var ferr *fleet.Error
 	require.True(t, errors.As(err, &ferr))
 	assert.Equal(t, "Cannot specify both Global Role and Team Roles", ferr.Message)
+}
+
+func testUsersHas(t *testing.T, ds *Datastore) {
+	has, err := ds.HasUsers(context.Background())
+	require.Nil(t, err)
+	require.False(t, has)
+
+	createTestUsers(t, ds)
+	has, err = ds.HasUsers(context.Background())
+	require.Nil(t, err)
+	require.True(t, has)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "ALTER TABLE users ADD COLUMN settings2 json NOT NULL DEFAULT (JSON_OBJECT())")
+		return err
+	})
+
+	// fails right now due to SELECT *
+	_, err = ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	assert.ErrorContains(t, err, "missing destination name settings2")
+
+	// should succeed since we are being pickier about what we select
+	has, err = ds.HasUsers(context.Background())
+	require.Nil(t, err)
+	require.True(t, has)
+
+	// cleanup
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "ALTER TABLE users DROP COLUMN settings2")
+		return err
+	})
 }
 
 func testUsersList(t *testing.T, ds *Datastore) {

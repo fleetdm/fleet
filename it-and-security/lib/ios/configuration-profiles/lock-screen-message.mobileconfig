@@ -6,9 +6,9 @@
 	<array>
 		<dict>
 			<key>AssetTagInformation</key>
-			<string>This is a Fleet owned device</string>
+			<string></string>
 			<key>IfLostReturnToMessage</key>
-			<string>Fleet Device Management Inc.</string>
+			<string>This device is property of Fleet Device Management Inc.</string>
 			<key>PayloadDescription</key>
 			<string>Configures ownership information for a shared device</string>
 			<key>PayloadDisplayName</key>
@@ -26,7 +26,7 @@
 	<key>PayloadDisplayName</key>
 	<string>Lock Screen Message</string>
 	<key>PayloadIdentifier</key>
-	<string>Lucass-MacBook-Pro.D0BED3AA-FC16-4276-A8A3-457AA8558C1E</string>
+	<string>com.fleetdm.lockscreenmessage</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
 	<key>PayloadType</key>

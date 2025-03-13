@@ -9,15 +9,16 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
-import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
+import hostAPI, {
+  IGetHostCertificatesResponse,
+  IGetHostCertsRequestParams,
+} from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
@@ -29,34 +30,32 @@ import {
   IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
+import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
-import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
+import { IHostUpcomingActivity } from "interfaces/activity";
 import {
-  IListQueriesResponse,
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
 
-import {
-  normalizeEmptyValues,
-  wrapFleetHelper,
-  TAGGED_TEMPLATES,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
@@ -69,6 +68,7 @@ import {
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -82,10 +82,12 @@ import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import CertificatesCard from "../cards/Certificates";
+
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
@@ -93,7 +95,6 @@ import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
-import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
 import {
@@ -104,6 +105,8 @@ import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
+import CancelActivityModal from "./modals/CancelActivityModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 
 const baseClass = "host-details";
 
@@ -134,9 +137,12 @@ interface IHostDetailsSubNavItem {
   name: string | JSX.Element;
   title: string;
   pathname: string;
+  count?: number;
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 const HostDetailsPage = ({
   router,
@@ -155,7 +161,6 @@ const HostDetailsPage = ({
     filteredHostsPath,
     currentTeam,
   } = useContext(AppContext);
-  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -174,6 +179,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -207,6 +213,10 @@ const HostDetailsPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedCancelActivity,
+    setSelectedCancelActivity,
+  ] = useState<IHostUpcomingActivity | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -214,18 +224,16 @@ const HostDetailsPage = ({
   >("past");
   const [activityPage, setActivityPage] = useState(0);
 
-  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IListQueriesResponse,
-    Error,
-    ISchedulableQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IListQueriesResponse) => data.queries,
+  // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
+  const [sortCerts, setSortCerts] = useState<IListSort>({
+    ...CERTIFICATES_DEFAULT_SORT,
   });
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
@@ -245,7 +253,7 @@ const HostDetailsPage = ({
     ["deviceMapping", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -274,7 +282,7 @@ const HostDetailsPage = ({
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -283,10 +291,43 @@ const HostDetailsPage = ({
     }
   );
 
+  const {
+    data: hostCertificates,
+    isError: isErrorHostCertificates,
+    refetch: refetchHostCertificates,
+  } = useQuery<
+    IGetHostCertificatesResponse,
+    Error,
+    IGetHostCertificatesResponse,
+    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+  >(
+    [
+      {
+        scope: "host-certificates",
+        host_id: hostIdFromURL,
+        page: certificatePage,
+        per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        order_key: sortCerts.order_key,
+        order_direction: sortCerts.order_direction,
+      },
+    ],
+    ({ queryKey }) => hostAPI.getHostCertificates(queryKey[0]),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!hostIdFromURL,
+      keepPreviousData: true,
+      staleTime: 15000,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
     mdm?.enrollment_status !== null && refetchMdm();
+    hostCertificates && refetchHostCertificates();
   };
 
   const {
@@ -311,7 +352,10 @@ const HostDetailsPage = ({
             returnedHost.mdm.pending_action
           )
         );
-        if (returnedHost.refetch_requested) {
+        if (
+          returnedHost.refetch_requested &&
+          !isAndroid(returnedHost.platform)
+        ) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
           // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
@@ -636,22 +680,6 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
-  const onQueryHostCustom = () => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.NEW_QUERY() +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
-  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -738,6 +766,14 @@ const HostDetailsPage = ({
     }
   };
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderActionDropdown = () => {
     if (!host) {
       return null;
@@ -785,16 +821,10 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
-      name: (
-        <>
-          {failingPoliciesCount > 0 && (
-            <span className="count">{failingPoliciesCount}</span>
-          )}
-          Policies
-        </>
-      ),
+      name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+      count: failingPoliciesCount,
     },
   ];
 
@@ -833,11 +863,14 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const isIosOrIpadosHost =
-    host.platform === "ios" || host.platform === "ipados";
+  const isDarwinHost = host.platform === "darwin";
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
+  const isAndroidHost = isAndroid(host.platform);
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
+    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
   return (
@@ -874,7 +907,7 @@ const HostDetailsPage = ({
           )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
-        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+        <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -883,7 +916,13 @@ const HostDetailsPage = ({
               {hostDetailsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
-                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+                return (
+                  <Tab key={navItem.title}>
+                    <TabText count={navItem.count} isErrorCount>
+                      {navItem.name}
+                    </TabText>
+                  </Tab>
+                );
               })}
             </TabList>
             <TabPanel className={detailsPanelClass}>
@@ -893,30 +932,33 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <ActivityCard
-                activeTab={activeActivityTab}
-                activities={
-                  activeActivityTab === "past"
-                    ? pastActivities
-                    : upcomingActivities
-                }
-                isLoading={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsFetching
-                    : upcomingActivitiesIsFetching
-                }
-                isError={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsError
-                    : upcomingActivitiesIsError
-                }
-                upcomingCount={upcomingActivities?.count || 0}
-                onChangeTab={onChangeActivityTab}
-                onNextPage={() => setActivityPage(activityPage + 1)}
-                onPreviousPage={() => setActivityPage(activityPage - 1)}
-                onShowDetails={onShowActivityDetails}
-              />
-              {!isIosOrIpadosHost && (
+              {!isAndroidHost && (
+                <ActivityCard
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching
+                      : upcomingActivitiesIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError
+                      : upcomingActivitiesIsError
+                  }
+                  upcomingCount={upcomingActivities?.count || 0}
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                  onCancel={onCancelActivity}
+                />
+              )}
+              {!isIosOrIpadosHost && !isAndroidHost && (
                 <AgentOptionsCard
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
@@ -927,7 +969,7 @@ const HostDetailsPage = ({
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              {!isIosOrIpadosHost && (
+              {!isIosOrIpadosHost && !isAndroidHost && (
                 <UsersCard
                   users={host?.users || []}
                   usersState={usersState}
@@ -936,6 +978,24 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
+              {(isIosOrIpadosHost || isDarwinHost) &&
+                !!hostCertificates?.certificates.length && (
+                  <CertificatesCard
+                    data={hostCertificates}
+                    hostPlatform={host.platform}
+                    onSelectCertificate={onSelectCertificate}
+                    isError={isErrorHostCertificates}
+                    page={certificatePage}
+                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                    onNextPage={() => setCertificatePage(certificatePage + 1)}
+                    onPreviousPage={() =>
+                      setCertificatePage(certificatePage - 1)
+                    }
+                    sortDirection={sortCerts.order_direction}
+                    sortHeader={sortCerts.order_key}
+                    onSortChange={setSortCerts}
+                  />
+                )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
@@ -952,7 +1012,7 @@ const HostDetailsPage = ({
                 hostTeamId={host.team_id || 0}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
-              {host?.platform === "darwin" && macadmins?.munki?.version && (
+              {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -985,7 +1045,7 @@ const HostDetailsPage = ({
               />
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
@@ -997,12 +1057,11 @@ const HostDetailsPage = ({
         {showSelectQueryModal && host && (
           <SelectQueryModal
             onCancel={() => setShowSelectQueryModal(false)}
-            queries={fleetQueries || []}
-            queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
-            onQueryHostCustom={onQueryHostCustom}
-            onQueryHostSaved={onQueryHostSaved}
-            hostsTeamId={host?.team_id}
+            hostId={hostIdFromURL}
+            hostTeamId={host?.team_id}
+            router={router}
+            currentTeamId={currentTeam?.id}
           />
         )}
         {showScriptModalGroup && (
@@ -1010,6 +1069,7 @@ const HostDetailsPage = ({
             host={host}
             currentUser={currentUser}
             onCloseScriptModalGroup={onCloseScriptModalGroup}
+            teamIdForApi={currentTeam?.id}
           />
         )}
         {!!host && showTransferHostModal && (
@@ -1113,6 +1173,19 @@ const HostDetailsPage = ({
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
+          />
+        )}
+        {selectedCancelActivity && (
+          <CancelActivityModal
+            hostId={host.id}
+            activity={selectedCancelActivity}
+            onCancel={() => setSelectedCancelActivity(null)}
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
           />
         )}
       </>

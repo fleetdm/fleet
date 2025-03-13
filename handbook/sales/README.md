@@ -25,6 +25,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Communicate marketing priority level
+
+All GTM stakeholders are responsible for communicating when a new or existing prospect is actively intriged. AEs, ADRs, and operations team members use multiple tools and [CRM reports](https://fleetdm.lightning.force.com/lightning/o/Report/home?queryScope=mru) to collect this data. Once you've identified an account as active, use the following steps to add an account to the "[🆘 Marketing priority list](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view?queryScope=userFolders)":
+1. Find the account in Salesforce.
+2. Click the "🕹️ GTM actions" tab.
+3. Set the account's "Marketing stage" to indicate the desired next step to move this account forward.
+4. Set the account's "Marketing priority level" to indicate how time-sensitive the next step is.
+5. Add any necessary context to the "Marketing priority context" field to help guide the ADR as they review the account (e.g. "Research for MDM expansion"). 
+
+
 ### Set up a Fleet trial
 
 You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
@@ -49,24 +59,44 @@ To track an objection you heard from a prospect, follow the relevant steps in ["
 ### Change a contact's organization in Salesforce
 
 Use the following steps to change a contact's organization in Salesforce:
-- If the contact's organization in Salesforce is incorrect but their new organization is unknown, navigate to the contact in Salesforce and change the "Account name" to "?" and save.
+- If the contact's organization in Salesforce is incorrect but their new organization is unknown, navigate to the contact in Salesforce and change the "Account name" to "[? (Unsure)](https://fleetdm.lightning.force.com/lightning/r/Account/0014x000025JC8DAAW/view)" and save.
 - If the contact's organization in Salesforce is incorrect and we know where they're moving to, navigate to the contact in Salesforce, change the "Account name" to the contact's new organization, and save.
+
+
+### Review Salesforce opportunities
+
+Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, Head of Digital Experience, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons including: 
+- If the opportunity is older than 30 days but the prospect hasn't been sent an order form yet.
+- Any closed lost new business or expansion opportunity from the previous week.
+- Any opportunity with a closed date pushed into a different quarter.
+
+If no opportunities meet these criteria, the meeting is used to discuss the oldest opportunities and close any that are stalled.
+
+
+### Send a subscription quote
+
+Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
+1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
+2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
+3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote
+4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
+5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
 
 
 ### Send an order form
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will request legal review of any unique terms required. To prepare and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 
 
-1. Navigate to the ["Template gallery"](https://docs.google.com/document/u/0/?tgif=d&ftv=1) in Google Docs and create a copy of the "TEMPLATE - Order form".
-2. Add/remove table rows as needed for multi-year deals.
-3. Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
+1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
+2. Move the order for to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.
+3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
 
-> **Important**
-> - All changes to the [subscription agreement template](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0), or [standard terms](http://fleetdm.com/terms) must be brought to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
-> - All non-standard (from another party) subscription agreements, NDAs, and similar contracts require legal review from Digital Experience before being signed. [Create an issue to request legal review](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/contract-review.md).
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
 
 4. In the internal Slack channel for the deal, at-mention the CRO and the Head of Digital Experience with a link to the docx version of the order and ask them to approve the order form.
-5. Once approved, send the order to the prospect. 
+5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
+
+> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and closed lost. The review of these opportunities and exceptions for them of one (1) week or less are the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
 
 
 ### Send an NDA to a customer
@@ -80,7 +110,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 
 ### Close a new customer deal
 
-To close a deal with a new customer (non-self-service), create and complete a GitHub issue using the ["Sale" issue template](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
+Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
 
 ### Process a security questionnaire
@@ -90,106 +120,6 @@ To close a deal with a new customer (non-self-service), create and complete a Gi
 - The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
 - The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.
 - Any questions answered by the infra team will be added to the handbook by the SC.
-
-
-<!-- 2024-11-16 We noticed some content in these sections was outdated, so we're using this opportunity to try out a different structure ± altitude level for the content for on this page
-
-
-### Review rep activity
-
-Following up with people interested in Fleet is an important part of finding out whether or not they'd like to continue the process of buying the product.  It is also very important not to be annoying.  At Fleet, team members follow up with people, but not too often.
-
-To help coach reps and avoid being annoying to Fleet users, Fleet reviews rep activity on a regular basis following these steps:
-1. In Salesforce, visit the activity report on your dashboard.
-2. For each rep, review recent activity from the last 30 days across all of that rep's accounts.
-3. If outreach is too frequent or doesn't fit the company's strategy, then set up a 30 minute coaching session to discuss with the rep.
-
-Every week, AEs will review the status of all qualified opportunities with leadership in an opportunity pipeline review meeting. For this meeting, reps will:
-1. Update the following information in Salesforce for every opp:
-  - Contacts (and Roles)
-  - Amount
-  - Close date
-  - Stage
-  - Next steps
-2. Make sure all contacts have been sent a connection request from Mike McNeil.
-3. Identify and discuss where gaps are in [MEDDPICC](https://handbook.gitlab.com/handbook/sales/meddppicc/).
-4. Relay how many meetings they had with attendees from both IT and security this week.
-
-
-### Conduct a POV
-
-We use the "tech eval test plan" as a guide when conducting a "POV" (Proof of Value) with a prospect. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. The tech eval test plan is the main document that will track success criteria for the tech eval.
-
-When we have had sufficient meetings and demos, including an overview demo and a customized demo, and we have qualified the prospect, when the prospect asks to "kick the tires/do a POC/do a technical evaluation", the AE moves the opportuity to "Stage 3 - Requested POV" phase in Salesforce. Automation will generate the tech eval test plan. This doc will exist in Google Drive> Sales> Opportunities> "Account Name". 
-
-The AE and SC will work together to scope the POV with the prospect in this stage. The AE and SC will work together to answer the following questions:
-
-1. Do we have a well-defined set of technical criteria to test and are we confident that Fleet can meet this criteria to achieve a technical win?
-2. Do we have a timeline agreed upon?
-3. What are the key business outcomes that will be verified as a result of completing the tech eval?
-
-If the above questions are answered successfully, the opportunity should progress to tech eval. If we cannot answer the questions above successfully, then the POV should not start unless approved by the CRO.
-
-During Stage 4, follow this process:
-1. SC creates a [tech eval issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=technical-evaluation.md&title=Technical+evaluation%3A+___________________).
-2. SC updates the issue labels to include: "~sc, :tech-eval" and the obfuscated "prospect-codename" label. See [Assign a customer a codename](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename). Instead of
-   "customer-codename", prospects are labeled "prospect-codename". When a prospect purchases Fleet, the SC will edit this label from "prospect-codename" to "customer-codename".
-3. SC sets the appropriate sprint duration based on the defined timelines and an estimation of effort in points.
-4. SC converts the issue to an Epic. All issues related to this prospect tech eval (ie: cloud instance deployments, etc.) should be added to the newly created epic.
-5. All check-in meetings and notes taken are documented in the tech eval test plan document. Any TODO item will be added as a comment to the tech eval issue epic.
-6. The SC presents the tech eval test plan and feature tracker used for the tech eval to the CS team upon the prospect's transition to Fleet customer.
-
-
-### Hand off a technical evaluation to a temporary DRI
-
-Tech evals will have a DRI at all times; should the DRI be unavailable (ie: vacation), a hand off process to a temporary DRI will be required. In advance of vacation time (target one week in advance), refer to the following examples and review with each individual that will act as the temporary DRI for the technical evaluation while you are away. This can be documented as a google doc or can be added to the relevant tech eval epic issue in github.
-
-Ensure that our valued customers know that you will be away and that the temporary DRI has been debriefed on their setup and can handle any technical questions that come up. 
-
-```
-Active Technical Evaluations (TechEvals), workshops that need monitoring:
-
-Account Name:
-Issue link:
-Status: Cloud instance deployed, 1st enablement session complete, MDM assets generated, need to create infrastructure request to get deployed
-AE: 
-Background: First workshop completed <date>
-Documentation: link to Tech eval plan
-Slack Channel (external): #fleet-at-
-Slack Channel (internal): #op-
-Temp Transfer to: Temp technical DRI
-
-
-Likely to convert to demo:
-
-Account name:
-Issue Link:
-Status: RFP complete, video content delivered via consensus, awaiting further requests for Demo (Live)..
-AE: 
-Background: 
-Documentation: gong links, meeting minutes links, summary 
-Slack Channel (external): n/a
-Slack Channel (internal): #op-
-Temp Transfer to: Temp technical DRI
-
-```
-
-- **Documenting a prospect call:** When we do prospect calls, add the prospect's name in both the google doc title and the heading, ex. "Alex + Natalie (Fleet + Acme Co)."  This makes it easier when searching for the document later. 
-- **Before a prospect call(48hrs):** Check the calendar invite 48hrs before the meeting to determine if the prospect has accepted the invitation.
-  - If the prospect has not accepted the invitation, reach out to confirm attendance (e.g., EAs, email, Slack).
-  - Test the Zoom Meeting link to make sure that it is working.
-  - Make sure that agenda documents are attached and accessible to meeting attendees (as appropriate to the situation).
-- **Day of the prospect call:** Join the meeting two to three minutes before the start time.
-
-- **Missed prospect call:** If the prospect does not join the call after three minutes, contact the prospect with
-  - Slack, if we have a shared channel.
-  - email, using the email address from the calendar invite.
-  - LinkedIn, send a direct message.
-  - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
-  - an alternative date and time. Suggest two to three options from which the prospect can choose.
-    - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
--->  
-
 
 
 

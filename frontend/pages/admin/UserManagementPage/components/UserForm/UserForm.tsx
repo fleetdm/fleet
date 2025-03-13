@@ -11,6 +11,7 @@ import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
+import { IFormField } from "interfaces/form_field";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -32,7 +33,7 @@ import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
-const baseClass = "add-user-form";
+const baseClass = "user-form";
 
 export enum NewUserType {
   AdminInvited = "ADMIN_INVITED",
@@ -63,7 +64,6 @@ interface IUserFormProps {
   availableTeams: ITeam[];
   onCancel: () => void;
   onSubmit: (formData: IUserFormData) => void;
-  submitText: string;
   defaultName?: string;
   defaultEmail?: string;
   currentUserId?: number;
@@ -81,16 +81,58 @@ interface IUserFormProps {
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
-  serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
-  userFormErrors: IUserFormErrors;
+  ancestorErrors: IUserFormErrors;
   isUpdatingUsers?: boolean;
 }
+
+const validate = (
+  formData: IUserFormData,
+  canUseSso: boolean,
+  isNewUser: boolean,
+  isSsoEnabled: boolean,
+  initiallyPasswordAuth: boolean
+) => {
+  const newErrors: IUserFormErrors = {};
+
+  const { name, email, newUserType, sso_enabled, password } = formData;
+
+  if (!validatePresence(name)) {
+    newErrors.name = "Name field must be completed";
+  }
+  if (!validatePresence(email)) {
+    newErrors.email = "Email field must be completed";
+  } else if (!validEmail(email)) {
+    newErrors.email = `${email} is not a valid email`;
+  }
+
+  const isNewAdminCreatedUserWithoutSSO =
+    isNewUser && newUserType === NewUserType.AdminCreated && !sso_enabled;
+
+  // force to password auth if SSO is disabled globally but was enabled on the form
+  const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
+
+  // password required when creating a user with SSO disabled and when changing a user from SSO to
+  // password authentication, though not when inviting a user
+  if (
+    isNewAdminCreatedUserWithoutSSO ||
+    isExistingUserForcedToPasswordAuth ||
+    (!initiallyPasswordAuth && !sso_enabled)
+  ) {
+    if (password !== null && !validPassword(password)) {
+      newErrors.password = "Password must meet the criteria below";
+    }
+    if (!validatePresence(password)) {
+      newErrors.password = "Password field must be completed";
+    }
+  }
+
+  return newErrors;
+};
 
 const UserForm = ({
   availableTeams,
   onCancel,
   onSubmit,
-  submitText,
   defaultName,
   defaultEmail,
   currentUserId,
@@ -108,8 +150,7 @@ const UserForm = ({
   isApiOnly,
   isNewUser = false,
   isInvitePending,
-  serverErrors,
-  userFormErrors,
+  ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
   // For scrollable modal
@@ -125,7 +166,7 @@ const UserForm = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const [errors, setErrors] = useState<IUserFormErrors>(userFormErrors);
+  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [formData, setFormData] = useState<IUserFormData>({
     email: defaultEmail || "",
     name: defaultName || "",
@@ -140,6 +181,20 @@ const UserForm = ({
 
   const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
 
+  const initiallyPasswordAuth = !isSsoEnabled;
+
+  useEffect(() => {
+    setFormErrors((curErrs) => ({ ...curErrs, ...ancestorErrors }));
+  }, [ancestorErrors]);
+
+  useEffect(() => {
+    // If SSO is globally disabled but user previously signed in via SSO,
+    // require password is automatically selected on first render
+    if (!canUseSso && !isNewUser && isSsoEnabled) {
+      setFormData({ ...formData, sso_enabled: false });
+    }
+  }, []);
+
   // For scrollable modal (re-rerun when formData changes)
   useEffect(() => {
     checkScroll();
@@ -147,28 +202,65 @@ const UserForm = ({
     return () => window.removeEventListener("resize", checkScroll);
   }, [formData]);
 
-  const onInputChange = (formField: string): ((value: string) => void) => {
+  const onInputChange = ({ name, value }: IFormField) => {
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    const newErrs = validate(
+      newFormData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur or submit
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      // @ts-ignore
+      if (newErrs[k]) {
+        // @ts-ignore
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
+  };
+
+  const onInputBlur = () => {
+    setFormErrors(
+      validate(
+        formData,
+        canUseSso,
+        isNewUser,
+        !!isSsoEnabled,
+        initiallyPasswordAuth
+      )
+    );
+  };
+
+  // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
+  // menuPortalTarget solution not used as scrolling is weird
+  const scrollToFitDropdownMenu = () => {
+    if (topDivRef?.current) {
+      setTimeout(() => {
+        if (topDivRef.current) {
+          topDivRef.current.scrollTop =
+            topDivRef.current.scrollHeight - topDivRef.current.clientHeight;
+        }
+      }, 50); // Delay needed for scrollHeight to update first
+    }
+  };
+
+  const onRadioChange = (formField: string): ((evt: string) => void) => {
+    // TODO - make these work similarly to onInputChange
     return (value: string) => {
-      setErrors({
-        ...errors,
+      setFormErrors({
+        ...formErrors,
         [formField]: null,
       });
       setFormData({
         ...formData,
         [formField]: value,
       });
-    };
-  };
-
-  const onCheckboxChange = (formField: string): ((evt: string) => void) => {
-    return (evt: string) => {
-      return onInputChange(formField)(evt);
-    };
-  };
-
-  const onRadioChange = (formField: string): ((evt: string) => void) => {
-    return (evt: string) => {
-      return onInputChange(formField)(evt);
     };
   };
 
@@ -189,10 +281,20 @@ const UserForm = ({
   };
 
   const onSsoChange = (value: boolean): void => {
-    setFormData({
-      ...formData,
-      sso_enabled: value,
-    });
+    const newFormData = { ...formData, sso_enabled: value };
+    setFormData(newFormData);
+    if (value) {
+      // clears password error when enabling sso, allowing submission even if password is invalid
+      setFormErrors(
+        validate(
+          newFormData,
+          canUseSso,
+          isNewUser,
+          !!isSsoEnabled,
+          initiallyPasswordAuth
+        )
+      );
+    }
   };
 
   const onSelectedTeamChange = (teams: ITeam[]): void => {
@@ -237,47 +339,27 @@ const UserForm = ({
       : { ...submitData, global_role: null, teams: formData.teams };
   };
 
-  const validate = (): boolean => {
-    const newErrors: IUserFormErrors = {};
-
-    if (!validatePresence(formData.name)) {
-      newErrors.name = "Name field must be completed";
-    }
-    if (!validatePresence(formData.email)) {
-      newErrors.email = "Email field must be completed";
-    } else if (!validEmail(formData.email)) {
-      newErrors.email = `${formData.email} is not a valid email`;
-    }
-    // Only test password on new created user (not invited user) or if sso not enabled
-    if (
-      isNewUser &&
-      formData.newUserType === NewUserType.AdminCreated &&
-      !formData.sso_enabled
-    ) {
-      if (formData.password !== null && !validPassword(formData.password)) {
-        newErrors.password = "Password must meet the criteria below";
-      }
-      if (!validatePresence(formData.password)) {
-        newErrors.password = "Password field must be completed";
-      }
-    }
-
-    setErrors(newErrors);
-
-    if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one team for this user.`);
-      return false;
-    }
-    return Object.keys(newErrors).length === 0;
-  };
-
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
 
-    const valid = validate();
-    if (valid) {
-      return onSubmit(addSubmitData());
+    // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
+    // `validate` function
+    if (!formData.global_role && !formData.teams.length) {
+      renderFlash("error", `Please select at least one team for this user.`);
+      return;
     }
+    const errs = validate(
+      formData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
+    onSubmit(addSubmitData());
   };
 
   const renderGlobalRoleForm = (): JSX.Element => {
@@ -308,6 +390,7 @@ const UserForm = ({
             }
           }}
           isSearchable={false}
+          onMenuOpen={scrollToFitDropdownMenu}
         />
       </>
     );
@@ -356,15 +439,17 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
                 isApiOnly={isApiOnly}
+                onMenuOpen={scrollToFitDropdownMenu}
               />
             </>
           ) : (
             <SelectRoleForm
               currentTeam={currentTeam || formData.teams[0]}
               teams={formData.teams}
-              defaultTeamRole={defaultTeamRole || "observer"}
+              defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
+              onMenuOpen={scrollToFitDropdownMenu}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -433,21 +518,25 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        error={errors.name}
+        error={formErrors.name}
         name="name"
-        onChange={onInputChange("name")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
         placeholder="Full name"
         value={formData.name || ""}
         inputOptions={{
           maxLength: "80",
         }}
         ignore1password
+        parseTarget
       />
       <InputField
         label="Email"
-        error={errors.email || serverErrors?.email}
+        error={formErrors.email}
         name="email"
-        onChange={onInputChange("email")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
+        parseTarget
         placeholder="Email"
         value={formData.email || ""}
         readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
@@ -470,50 +559,40 @@ const UserForm = ({
       <div className="form-field__label">Authentication</div>
       <Radio
         className={`${baseClass}__radio-input`}
-        label="Enable single sign-on"
-        id="enable-single-sign-on"
+        label={
+          canUseSso ? (
+            "Single sign-on"
+          ) : (
+            <TooltipWrapper
+              tipContent={
+                <>
+                  SSO is not enabled in organization settings.
+                  <br />
+                  User must sign in with a password.
+                </>
+              }
+            >
+              Single sign-on
+            </TooltipWrapper>
+          )
+        }
+        id="single-sign-on-authentication"
         checked={!!formData.sso_enabled}
         value="true"
         name="authentication-type"
         onChange={() => onSsoChange(true)}
+        disabled={!canUseSso}
       />
       <Radio
         className={`${baseClass}__radio-input`}
-        label="Require password"
-        id="require-password"
-        disabled={!(smtpConfigured || sesConfigured)}
+        label="Password"
+        id="password-authentication"
+        // allow the user to change auth back to password if they only changed the form to SSO in
+        // the current session, that is, in the db, the user is still password authenticated
         checked={!formData.sso_enabled}
         value="false"
         name="authentication-type"
         onChange={() => onSsoChange(false)}
-        /** Note: This was a checkbox that is now a radio button, waiting on
-         * product to confirm if we're adding help text to radio buttons as
-         * it's not in Figma design system, the Figma here, or in the Radio
-         * component, but the helpText already existed on the checkbox version
-         */
-        // helpText={
-        //   canUseSso ? (
-        //     <p className={`${baseClass}__sso-input sublabel`}>
-        //       Password authentication will be disabled for this user.
-        //     </p>
-        //   ) : (
-        //     <span className={`${baseClass}__sso-input sublabel-nosso`}>
-        //       This user previously signed in via SSO, which has been
-        //       globally disabled.{" "}
-        //       <button
-        //         className="button--text-link"
-        //         onClick={onSsoDisable}
-        //       >
-        //         Add password instead
-        //         <Icon
-        //           name="chevron-right"
-        //           color="core-fleet-blue"
-        //           size="small"
-        //         />
-        //       </button>
-        //     </span>
-        //   )
-        // }
       />
     </div>
   );
@@ -522,9 +601,11 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        error={errors.password}
+        error={formErrors.password}
         name="password"
-        onChange={onInputChange("password")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
+        parseTarget
         placeholder={isNewUser ? "Password" : "••••••••"}
         value={formData.password || ""}
         type="password"
@@ -555,11 +636,13 @@ const UserForm = ({
       )}
       <Checkbox
         name="mfa_enabled"
-        onChange={onCheckboxChange("mfa_enabled")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
         value={formData.mfa_enabled}
         wrapperClassName={`${baseClass}__2fa`}
         helpText="User will be asked to authenticate with a magic link that will be sent to their email."
         disabled={!smtpConfigured && !sesConfigured}
+        parseTarget
       >
         {smtpConfigured || sesConfigured ? (
           "Enable two-factor authentication (email)"
@@ -622,10 +705,9 @@ const UserForm = ({
         <form autoComplete="off">
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
-          {((!isNewUser && formData.sso_enabled) || canUseSso) &&
-            renderAuthenticationSection()}
+          {renderAuthenticationSection()}
           {((isNewUser && formData.newUserType !== NewUserType.AdminInvited) ||
-            (!isNewUser && !isInvitePending && isModifiedByGlobalAdmin)) &&
+            (!isNewUser && !isInvitePending)) &&
             !formData.sso_enabled &&
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
@@ -649,11 +731,12 @@ const UserForm = ({
             type="submit"
             variant="brand"
             onClick={onFormSubmit}
-            className={`${submitText === "Add" ? "add" : "save"}-loading
+            className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
+            disabled={Object.keys(formErrors).length > 0}
           >
-            {submitText}
+            {isNewUser ? "Add" : "Save"}
           </Button>
         </>
       }

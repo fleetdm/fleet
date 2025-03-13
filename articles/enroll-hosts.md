@@ -27,6 +27,8 @@ The `--type` flag is used to specify the fleetd installer type.
 
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
+To build an installer for ARM-based Linux, use the `--arch=arm64` flag with fleetctl.
+
 #### Example
 
 Generate fleetd on macOS (.pkg)
@@ -329,9 +331,17 @@ Fleetd will send stdout/stderr logs to the following directories:
   - Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora).
 
 If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
-  - Windows: C:\Program Files\Orbit\osquery_log
-  - macOS: /opt/orbit/osquery_log
-  - Linux: /opt/orbit/osquery_log
+  - Windows: `C:\Program Files\Orbit\osquery_log`
+  - macOS: `/opt/orbit/osquery_log`
+  - Linux: `/opt/orbit/osquery_log`
+
+The Fleet Desktop log files can be found in the following directories depending on the platform:
+
+  - Linux: `$XDG_STATE_HOME/Fleet or $HOME/.local/state/Fleet`
+  - macOS: `$HOME/Library/Logs/Fleet`
+  - Windows: `%LocalAppData%/Fleet`
+
+The log file name is `fleet-desktop.log`.
 
 ### Using system keystore for enroll secret
 

@@ -1,3 +1,7 @@
+import { getErrorReason } from "interfaces/errors";
+
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+
 import fleetAppData from "../../../../../../server/mdm/maintainedapps/apps.json";
 
 const NameToIdentifierMap: Record<string, string> = {
@@ -39,4 +43,14 @@ export const getFleetAppPolicyDescription = (appName: string) => {
 
 export const getFleetAppPolicyQuery = (name: string) => {
   return getFleetAppData(name)?.automatic_policy_query;
+};
+
+export const getErrorMessage = (err: unknown) => {
+  const reason = getErrorReason(err);
+
+  if (reason.includes("Secret variable")) {
+    return generateSecretErrMsg(err);
+  }
+
+  return reason;
 };

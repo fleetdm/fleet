@@ -1,16 +1,15 @@
 import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
-import { formatDistanceToNow } from "date-fns";
-import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
-import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
-import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
-
-import SandboxGate from "components/Sandbox/SandboxGate";
+import { hasLicenseExpired } from "utilities/helpers";
 import { AppContext } from "context/app";
+
+import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
+import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
+
 import VppRenewalMessage from "./banners/VppRenewalMessage";
 
 interface IMainContentProps {
@@ -33,10 +32,9 @@ const MainContent = ({
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
   const {
-    sandboxExpiry,
     config,
     isPremiumTier,
-    noSandboxHosts,
+    isAndroidEnterpriseDeleted,
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
@@ -46,11 +44,6 @@ const MainContent = ({
     willVppExpire,
   } = useContext(AppContext);
 
-  const sandboxExpiryTime =
-    sandboxExpiry === undefined
-      ? "..."
-      : formatDistanceToNow(new Date(sandboxExpiry));
-
   const renderAppWideBanner = () => {
     const isFleetLicenseExpired = hasLicenseExpired(
       config?.license.expiration || ""
@@ -58,9 +51,14 @@ const MainContent = ({
 
     let banner: JSX.Element | null = null;
 
+    // the order of these checks is important. This is the priority order
+    // for showing banners and only one banner is shown at a time.
     if (isPremiumTier) {
       if (isApplePnsExpired || willApplePnsExpire) {
         banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+      } else if (false) {
+        // TODO: remove this when API is ready
+        banner = <AndroidEnterpriseDeletedMessage />;
       } else if (isAppleBmExpired || willAppleBmExpire) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {
@@ -73,24 +71,18 @@ const MainContent = ({
     }
 
     if (banner) {
-      return <div className={`${baseClass}__warning-banner`}>{banner}</div>;
+      return (
+        <div className={`${baseClass}--animation-disabled`}>
+          <div className={`${baseClass}__warning-banner`}>{banner}</div>
+        </div>
+      );
     }
 
     return null;
   };
   return (
     <div className={classes}>
-      <div className={`${baseClass}--animation-disabled`}>
-        {renderAppWideBanner()}
-        <SandboxGate
-          fallbackComponent={() => (
-            <SandboxExpiryMessage
-              expiry={sandboxExpiryTime}
-              noSandboxHosts={noSandboxHosts}
-            />
-          )}
-        />
-      </div>
+      {renderAppWideBanner()}
       {children}
     </div>
   );

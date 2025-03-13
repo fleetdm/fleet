@@ -1,1 +1,0 @@
-* Fixed bug in `fleetdm/fleetctl` docker image where the `build` directory does not exist when generating deb/rpm packages.

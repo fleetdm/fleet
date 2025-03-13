@@ -362,7 +362,7 @@ Because they are the only type of Two-Factor Authentication (2FA) that protects 
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
-section](https://fleetdm.com/handbook/digital-experience/security#google-workspace-security-authentication) for more
+section](https://fleetdm.com/handbook/digital-experience/security#2-step-verification) for more
 information on the security of different types of 2FA.
 
 
@@ -1048,7 +1048,7 @@ Fleet policy requires that:
 ## Business continuity plan
 
 
-#### Line of Succession
+#### Line of succession
 
 
 The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate.

@@ -1,78 +1,67 @@
 <div id="query-detail" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content">
-      <div purpose="breadcrumbs-and-search" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
-        <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
-          <div>
-            <a purpose="breadcrumbs-category" class="text-nowrap" href="/queries">Controls and policies</a>/
-          </div>
-          <div purpose="breadcrumbs-title">
-            <span><%- query.name %></span>
-          </div>
+      <docs-nav-and-search search-filter="queries" current-section="queries" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" class="text-nowrap" href="/queries">Queries</a>/
         </div>
-        <div purpose="search" id="docsearch-query" class="d-flex">
-          <div purpose="disabled-search" class="d-flex w-100">
-            <div class="input-group">
-              <div class="input-group-prepend">
-                <span class="input-group-text border-0 bg-transparent pl-3" >
-                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-                </span>
-              </div>
-              <div class="form-control border-0 ">
-              <input class="docsearch-input pr-1"
-                placeholder="Search" aria-label="Search the handbook"
-                />
-              </div>
-            </div>
-          </div>
+        <div purpose="breadcrumbs-title">
+          <span><%- query.name %></span>
         </div>
       </div>
-      <div purpose="policy-details-and-sidebar" class="d-flex flex-lg-row flex-column">
-        <div purpose="policy-details" class="d-flex flex-column">
-          <h2 purpose="policy-name"><%- query.name %></h2>
-          <p purpose="policy-description"><%- query.description %></p>
-<!--           <div purpose="policy-control" v-if="query.control">
-            <h3>Control</h3>
-            <p v-if="query.controlType === 'profile'">Create or edit a configuration profile with the following information:</p>
-            <p v-if="query.controlType === 'script'">Create or edit the following script and configure it to run when the check fails:</p>
-            <div  purpose="codeblock">
-              <div purpose="copy-button"></div>
-              <pre><code><%= query.control %></code></pre>
-            </div>
-          </div> -->
-          <div purpose="policy-check">
-            <h3>Check</h3>
-            <p>Use the policy below to verify</p>
+      <div purpose="query-details-and-sidebar" class="d-flex flex-lg-row flex-column">
+        <div purpose="query-details" class="d-flex flex-column">
+          <h2 purpose="query-name"><%- query.name %></h2>
+          <div purpose="query-attribution">
+            <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- query.contributors[0].handle %>.png?size=200">
+            <a purpose="query-link" href="https://github.com/<%- query.contributors[0].handle %>" class="d-flex align-items-center">
+            <p purpose="contributor-profile-name" class="mb-0"><%= query.contributors[0].name %></p></a>
+          </div>
+          <p purpose="query-description"><%- query.description %></p>
+          <div purpose="query-check">
+            <p>To learn more about queries, <a href="/guides/queries">check this guide</a>.</p>
             <div purpose="codeblock">
-              <div purpose="copy-button"></div>
-              <pre><code class="hljs sql"><%- query.query %></code></pre>
+              <div purpose="codeblock-tabs" >
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="query.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="query.bash">Bash<span purpose="new-badge">NEW</span></a>
+                <div purpose="copy-button-tab">
+                  <div purpose="copy-button"></div>
+                </div>
+              </div>
+              <pre v-show="selectedTab === 'sql'"><code class="hljs sql" v-pre><%= query.query %></code></pre>
+              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks" v-pre><%= query.powershell %></code></pre>
+              <pre v-show="selectedTab === 'bash'"><code class="hljs sh" v-pre><%= query.bash %></code></pre>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'ps'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'bash'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>Bash commands for macOS are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
             </div>
           </div>
         </div>
         <div purpose="sidebar-container">
           <div purpose="right-sidebar" class="d-flex flex-column">
-            <div purpose="policy-platform">
+            <div purpose="query-platform">
               <h4>Platform</h4>
               <div class="d-flex flex-row">
-                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="query.platform.includes('darwin')"/>
-                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="query.platform.includes('windows')"/>
-                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="query.platform.includes('linux')"/>
-                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="query.platform.includes('chrome')"/>
-              </div>
-            </div>
-            <div purpose="social-share-buttons" class="d-flex flex-column order-lg-2 order-1">
-              <p><strong>Share</strong></p>
-              <div class="d-flex flex-row">
-                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com/queries/${encodeURIComponent(query.slug)}&t=${encodeURIComponent(query.name)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
-                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com/queries/'+query.slug)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
-                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com/queries/'+query.slug)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+                <h1><img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" :class="[ selectedTab === 'ps' ? 'muted' : '']" v-if="query.platform.includes('darwin')"/>Apple</h1>
+                <h1><img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" :class="[ selectedTab === 'bash' ? 'muted' : '']" v-if="query.platform.includes('windows')"/>Windows</h1>
+                <h1><img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" :class="[ selectedTab === 'ps' || selectedTab === 'bash' ? 'muted' : '']" v-if="query.platform.includes('linux')"/>Linux</h1>
+                <h1><img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" :class="[ selectedTab === 'ps' || selectedTab === 'bash' ? 'muted' : '']" v-if="query.platform.includes('chrome')"/>ChromeOS</h1>
               </div>
             </div>
             <div purpose="docs-links" class="order-3">
-              <a href="/docs">Docs</a>
-              <a href="/docs/rest-api">REST API</a>
-              <a href="/guides">Guides</a>
-              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+              <a purpose="sidebar-link" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath+'#L'+query.lineNumberInYaml"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Edit</a>
+              <a purpose="sidebar-link" href="/contact"><img alt="Talk to an engineer" src="/images/icon-contact-16x16@2x.png">Talk to us</a>
             </div>
           </div>
         </div>

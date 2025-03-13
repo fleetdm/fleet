@@ -363,8 +363,15 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
+			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
+			// are runnning inside ds.withRetryTxx.
+			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
+			for key, value := range incomingByChecksum {
+				incomingByChecksumCopy[key] = value
+			}
+
 			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
+				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware,
 			)
 			if err != nil {
 				return err
@@ -404,7 +411,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		for _, d := range deleted {
 			// We don't support installing browser plugins as of 2024/08/22
 			if d.Browser == "" {
-				deletedTitles[UniqueSoftwareTitleStr(d.Name, d.Source, d.BundleIdentifier)] = struct{}{}
+				deletedTitles[UniqueSoftwareTitleStr(BundleIdentifierOrName(d.BundleIdentifier, d.Name), d.Source)] = struct{}{}
 			}
 		}
 		for _, i := range inserted {
@@ -429,7 +436,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 			if title.BundleIdentifier != nil {
 				bundleIdentifier = *title.BundleIdentifier
 			}
-			key := UniqueSoftwareTitleStr(title.Name, title.Source, bundleIdentifier)
+			key := UniqueSoftwareTitleStr(BundleIdentifierOrName(bundleIdentifier, title.Name), title.Source)
 			if _, ok := deletedTitles[key]; ok {
 				deletedTitleIDs[title.ID] = deletedValue{vpp: title.VPPAppsCount > 0}
 			}
@@ -495,44 +502,78 @@ func (ds *Datastore) getExistingSoftware(
 			if !ok {
 				// This should never happen. If it does, we have a bug.
 				return nil, nil, nil, ctxerr.New(
-					ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
 				)
 			}
 			delete(newSoftware, s.Checksum)
 		}
 	}
 
-	// Get software titles for new software, if any
-	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
-	if len(newSoftware) > 0 {
-		totalToProcess := len(newSoftware)
-		const numberOfArgsPerSoftwareTitle = 4 // number of ? in each WHERE clause
+	if len(newSoftware) == 0 {
+		return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+	}
+
+	// There's new software, so we try to get the titles already stored in `software_titles` for them.
+	incomingChecksumToTitle, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, newSoftware, incomingChecksumToSoftware)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
+	}
+
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+}
+
+// getIncomingSoftwareChecksumsToExistingTitles loads the existing titles for the new incoming software.
+// It returns a map of software checksums to existing software titles.
+//
+// To make best use of separate indexes, it runs two queries to get the existing titles from the DB:
+//   - One query for software with bundle_identifier.
+//   - One query for software without bundle_identifier.
+func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
+	ctx context.Context,
+	newSoftwareChecksums map[string]struct{},
+	incomingChecksumToSoftware map[string]fleet.Software,
+) (map[string]fleet.SoftwareTitle, error) {
+	var (
+		incomingChecksumToTitle     = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
+		argsWithoutBundleIdentifier []interface{}
+		argsWithBundleIdentifier    []interface{}
+		uniqueTitleStrToChecksum    = make(map[string]string)
+	)
+	for checksum := range newSoftwareChecksums {
+		sw := incomingChecksumToSoftware[checksum]
+		if sw.BundleIdentifier != "" {
+			argsWithBundleIdentifier = append(argsWithBundleIdentifier, sw.BundleIdentifier)
+		} else {
+			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
+		}
+		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
+		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(
+			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.Browser,
+		)] = checksum
+	}
+
+	// Get titles for software without bundle_identifier.
+	if len(argsWithoutBundleIdentifier) > 0 {
 		whereClause := strings.TrimSuffix(
 			strings.Repeat(`
 			  (
-			    (bundle_identifier = ?) OR
-			    (name = ? AND source = ? AND browser = ? AND bundle_identifier IS NULL)
-			  ) OR`, totalToProcess), " OR",
+			    (name = ? AND source = ? AND browser = ?)
+			  ) OR`, len(argsWithoutBundleIdentifier)/3), " OR",
 		)
 		stmt := fmt.Sprintf(
-			"SELECT id, name, source, browser, COALESCE(bundle_identifier, '') as bundle_identifier FROM software_titles WHERE %s",
+			"SELECT id, name, source, browser FROM software_titles WHERE %s",
 			whereClause,
 		)
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
-		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
-		for checksum := range newSoftware {
-			sw := incomingChecksumToSoftware[checksum]
-			args = append(args, sw.BundleIdentifier, sw.Name, sw.Source, sw.Browser)
-			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		var existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx,
+			ds.reader(ctx),
+			&existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier,
+			stmt,
+			argsWithoutBundleIdentifier...,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
-		var existingSoftwareTitlesForNewSoftware []fleet.SoftwareTitle
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftware, stmt, args...); err != nil {
-			return nil, nil, nil, ctxerr.Wrap(ctx, err, "get existing titles")
-		}
-
-		// Map software titles to software checksums.
-		for _, title := range existingSoftwareTitlesForNewSoftware {
+		for _, title := range existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier {
 			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
 			if ok {
 				incomingChecksumToTitle[checksum] = title
@@ -540,7 +581,36 @@ func (ds *Datastore) getExistingSoftware(
 		}
 	}
 
-	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+	// Get titles for software with bundle_identifier
+	if len(argsWithBundleIdentifier) > 0 {
+		incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
+		stmtBundleIdentifier := `SELECT id, name, source, browser, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
+		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build query to existing titles with bundle_identifier")
+		}
+		var existingSoftwareTitlesForNewSoftwareWithBundleIdentifier []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get existing titles with bundle_identifier")
+		}
+		// Map software titles to software checksums.
+		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)]
+			if ok {
+				incomingChecksumToTitle[checksum] = title
+			}
+		}
+	}
+
+	return incomingChecksumToTitle, nil
+}
+
+// BundleIdentifierOrName returns the bundle identifier if it is not empty, otherwise name
+func BundleIdentifierOrName(bundleIdentifier, name string) string {
+	if bundleIdentifier != "" {
+		return bundleIdentifier
+	}
+	return name
 }
 
 // UniqueSoftwareTitleStr creates a unique string representation of the software title
@@ -594,9 +664,10 @@ func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// Insert host_software that is in softwareChecksums map, but not in existingSoftware.
-// Also insert any new software titles that are needed.
-// returns the inserted software on the host
+// insertNewInstalledHostSoftwareDB inserts host_software that is in softwareChecksums map,
+// but not in existingSoftware. It also inserts any new software titles that are needed.
+//
+// It returns the inserted software on the host.
 func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -613,7 +684,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
-				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
@@ -751,7 +822,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		for _, s := range updatedExistingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
-				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+				return nil, ctxerr.New(ctx, fmt.Sprintf("updated existing software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
@@ -917,7 +988,7 @@ func listSoftwareDB(
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
 				CreatedAt:   *result.CreatedAt,
 			}
-			if opts.IncludeCVEScores {
+			if opts.IncludeCVEScores && !opts.WithoutVulnerabilityDetails {
 				cve.CVSSScore = &result.CVSSScore
 				cve.EPSSProbability = &result.EPSSProbability
 				cve.CISAKnownExploit = &result.CISAKnownExploit
@@ -2209,7 +2280,17 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR `, onlyVulnerableJoin)
-	status := fmt.Sprintf(`COALESCE(%s, %s)`, "hsi.last_status", vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+
+	status := fmt.Sprintf(`COALESCE(%s, %s)`, `
+	CASE
+		WHEN lsia.created_at IS NULL AND lsua.created_at IS NULL THEN NULL
+		WHEN lsia.created_at IS NULL THEN lsua.status
+		WHEN lsua.created_at IS NULL THEN lsia.status
+		WHEN lsia.created_at > lsua.created_at THEN lsia.status
+		ELSE lsua.status
+	END
+	`, "lvia.status")
+
 	if opts.OnlyAvailableForInstall {
 		// Get software that has a package/VPP installer but was not installed with Fleet
 		softwareIsInstalledOnHostClause = fmt.Sprintf(` %s IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s`, status,
@@ -2218,7 +2299,181 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
+	// Latest row is found using a groupwise maximum with left join,
+	// more efficient than MAX/GROUP BY: https://stackoverflow.com/a/23285814
 	stmtInstalled := fmt.Sprintf(`
+-- select most recent upcoming software install
+WITH upcoming_software_install AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		siua.software_installer_id,
+		'pending_install' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2
+				ON ua2.id = siua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'software_install' AND
+		ua2.id IS NULL
+),
+upcoming_software_uninstall AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		siua.software_installer_id,
+		'pending_uninstall' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN software_install_upcoming_activities siua2
+				ON ua2.id = siua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			siua.software_installer_id = siua2.software_installer_id AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'software_uninstall' AND
+		ua2.id IS NULL
+),
+last_software_install AS (
+	SELECT
+		hsi.execution_id,
+		hsi.host_id,
+		hsi.created_at,
+		hsi.software_installer_id,
+		hsi.status
+	FROM
+		host_software_installs hsi
+		LEFT JOIN host_software_installs hsi2
+			ON hsi.host_id = hsi2.host_id AND
+				 hsi.software_installer_id = hsi2.software_installer_id AND
+				 hsi.uninstall = hsi2.uninstall AND
+				 hsi2.removed = 0 AND
+				 hsi2.host_deleted_at IS NULL AND
+				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+	WHERE
+		hsi.host_id = :host_id AND
+		hsi.removed = 0 AND
+		hsi.uninstall = 0 AND
+		hsi.host_deleted_at IS NULL AND
+		hsi2.id IS NULL AND
+		NOT EXISTS (
+			SELECT 1
+			FROM
+				upcoming_activities ua
+				INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			WHERE
+				ua.host_id = hsi.host_id AND
+				siua.software_installer_id = hsi.software_installer_id AND
+				ua.activity_type = 'software_install'
+		)
+),
+last_software_uninstall AS (
+	SELECT
+		hsi.execution_id,
+		hsi.host_id,
+		hsi.created_at,
+		hsi.software_installer_id,
+		hsi.status
+	FROM
+		host_software_installs hsi
+		LEFT JOIN host_software_installs hsi2
+			ON hsi.host_id = hsi2.host_id AND
+				 hsi.software_installer_id = hsi2.software_installer_id AND
+				 hsi.uninstall = hsi2.uninstall AND
+				 hsi2.removed = 0 AND
+				 hsi2.host_deleted_at IS NULL AND
+				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+	WHERE
+		hsi.host_id = :host_id AND
+		hsi.removed = 0 AND
+		hsi.uninstall = 1 AND
+		hsi.host_deleted_at IS NULL AND
+		hsi2.id IS NULL AND
+		NOT EXISTS (
+			SELECT 1
+			FROM
+				upcoming_activities ua
+				INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			WHERE
+				ua.host_id = hsi.host_id AND
+				siua.software_installer_id = hsi.software_installer_id AND
+				ua.activity_type = 'software_uninstall'
+		)
+),
+upcoming_vpp_install AS (
+	SELECT
+		ua.execution_id,
+		ua.host_id,
+		ua.created_at,
+		vaua.adam_id,
+		vaua.platform,
+		'pending_install' as status
+	FROM
+		upcoming_activities ua
+		INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN vpp_app_upcoming_activities vaua2
+				ON ua2.id = vaua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			vaua.adam_id = vaua2.adam_id AND
+			vaua.platform = vaua2.platform AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	WHERE
+		ua.host_id = :host_id AND
+		ua.activity_type = 'vpp_app_install' AND
+		ua2.id IS NULL
+),
+last_vpp_install AS (
+	SELECT
+		hvsi.command_uuid as execution_id,
+		hvsi.host_id,
+		hvsi.created_at,
+		hvsi.adam_id,
+		hvsi.platform,
+		%s
+	FROM
+		host_vpp_software_installs hvsi
+		LEFT JOIN nano_command_results ncr
+			ON ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN host_vpp_software_installs hvsi2
+			ON hvsi.host_id = hvsi2.host_id AND
+				 hvsi.adam_id = hvsi2.adam_id AND
+				 hvsi.platform = hvsi2.platform AND
+				 hvsi2.removed = 0 AND
+				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+	WHERE
+		hvsi.host_id = :host_id AND
+		hvsi.removed = 0 AND
+		hvsi2.id IS NULL AND
+		NOT EXISTS (
+			SELECT 1
+			FROM
+				upcoming_activities ua
+				INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			WHERE
+				ua.host_id = hvsi.host_id AND
+				vaua.adam_id = hvsi.adam_id AND
+				vaua.platform = hvsi.platform AND
+				ua.activity_type = 'vpp_app_install'
+		)
+)
 		SELECT
 			st.id,
 			st.name,
@@ -2230,92 +2485,139 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
-			COALESCE(hsi.last_installed_at, hvsi.created_at) as last_install_installed_at,
-			COALESCE(hsi.last_install_execution_id, hvsi.command_uuid) as last_install_install_uuid,
-			hsi.last_uninstalled_at as last_uninstall_uninstalled_at,
-			hsi.last_uninstall_execution_id as last_uninstall_script_execution_id,
+			COALESCE(lsia.created_at, lvia.created_at) as last_install_installed_at,
+			COALESCE(lsia.execution_id, lvia.execution_id) as last_install_install_uuid,
+			lsua.created_at as last_uninstall_uninstalled_at,
+			lsua.execution_id as last_uninstall_script_execution_id,
 			-- get either the software installer status or the vpp app status
 			%s as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN -- get the latest status and install/uninstall attempts (merge 3 host_software_installs rows into 1)
-			(
-				SELECT
-					hsi_group.host_id,
-					hsi_group.software_installer_id,
-					TIMESTAMP(GROUP_CONCAT(hsi_installed_at)) as last_installed_at,
-					GROUP_CONCAT(hsi_install_execution_id) as last_install_execution_id,
-					TIMESTAMP(GROUP_CONCAT(hsi_uninstalled_at)) as last_uninstalled_at,
-					GROUP_CONCAT(hsi_uninstall_execution_id) as last_uninstall_execution_id,
-					IF(GROUP_CONCAT(hsi_status) = '', NULL, GROUP_CONCAT(hsi_status)) as last_status
-				FROM (
-					-- get latest install/uninstall status
-					SELECT
-						host_id, software_installer_id,
-						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
-						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
-						-- get the status of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, COALESCE(status, ''))), 27) AS hsi_status
-					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0
-					GROUP BY host_id, software_installer_id
-					UNION
-					-- get latest install attempt
-					SELECT
-						host_id, software_installer_id,
-						MAX(created_at) as hsi_installed_at,
-						-- get the execution_id of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_install_execution_id,
-						NULL as hsi_uninstalled_at, NULL as hsi_uninstall_execution_id,
-						NULL as hsi_status
-					FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 0
-					GROUP BY host_id, software_installer_id
-					UNION
-					-- get latest uninstall attempt
-					SELECT
-						host_id, software_installer_id,
-						NULL as hsi_installed_at, NULL as hsi_install_execution_id,
-						MAX(created_at) as hsi_uninstalled_at,
-						-- get the execution_id of the latest attempt; 27-1 is the length of the timestamp
-					    SUBSTRING(MAX(CONCAT(created_at, execution_id)), 27) AS hsi_uninstall_execution_id,
-						NULL as hsi_status
-						FROM host_software_installs
-					WHERE host_id = :host_id AND removed = 0 AND uninstall = 1
-					GROUP BY host_id, software_installer_id
-				) as hsi_group
-				GROUP BY hsi_group.host_id, hsi_group.software_installer_id
-			) as hsi ON si.id = hsi.software_installer_id
+		LEFT OUTER JOIN -- get the latest install
+			( SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install ) AS lsia -- latest_software_install_attempt
+				ON si.id = lsia.software_installer_id
+		LEFT OUTER JOIN -- get the latest uninstall
+			( SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall ) AS lsua -- latest_software_uninstall_attempt
+				ON si.id = lsua.software_installer_id
 		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
 			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN -- get the latest vpp install
+			( SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install ) AS lvia -- latest_vpp_install_attempt
+				ON vat.adam_id = lvia.adam_id
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id AND hvsi.removed = 0
-		LEFT OUTER JOIN
-			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = lsua.execution_id
 		WHERE
-			-- use the latest VPP install attempt only
-			( hvsi.id IS NULL OR hvsi.id = (
-				SELECT hvsi2.id
-				FROM host_vpp_software_installs hvsi2
-				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform AND hvsi2.removed = 0
-				ORDER BY hvsi2.created_at DESC
-				LIMIT 1 ) ) AND
-
-			-- software is installed on host or software install has been attempted
+			-- software is installed on host or software un/install has been attempted
 			-- on host (via installer or VPP app). If only available for install is
 			-- requested, then the software installed on host clause is empty.
-			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+			( %s lsia.host_id IS NOT NULL OR lsua.host_id IS NOT NULL OR lvia.host_id IS NOT NULL )
+			AND
+		    -- label membership check
+			(
+			CASE WHEN ((si.ID IS NOT NULL AND lsua.created_at > lsia.created_at AND hsr.exit_code = 0) OR (:avail OR :self_service)) THEN (
+			 	-- do the label membership check for software installers and VPP apps
+					EXISTS (
+
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- exclude any, ignore software that depends on labels created
+						-- _after_ the label_updated_at timestamp of the host (because
+						-- we don't have results for that label yet, the host may or may
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						UNION
+
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						) t
+				)) ELSE true END
+			)
+
 			%s
-`, status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
-
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2365,6 +2667,19 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hsi.software_installer_id = si.id AND
 					hsi.removed = 0
 			) AND
+			-- sofware install/uninstall is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN
+						software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type IN ('software_install', 'software_uninstall') AND
+					siua.software_installer_id = si.id
+			) AND
+			-- VPP install has not been attempted on host
 			NOT EXISTS (
 				SELECT 1
 				FROM
@@ -2374,8 +2689,113 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					hvsi.adam_id = vat.adam_id AND
 					hvsi.removed = 0
 			) AND
+			-- VPP install is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN
+						vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type = 'vpp_app_install' AND
+					vaua.adam_id = vat.adam_id
+			) AND
 			-- either the software installer or the vpp app exists for the host's team
-			( si.id IS NOT NULL OR vat.platform = :host_platform )
+			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
+			-- label membership check
+			(
+			 	-- do the label membership check for software installers and VPP apps
+					EXISTS (
+
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- exclude any, ignore software that depends on labels created
+						-- _after_ the label_updated_at timestamp of the host (because
+						-- we don't have results for that label yet, the host may or may
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						UNION
+
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+						) t
+					)
+			)
 			%s %s
 `, onlySelfServiceClause, excludeVPPAppsClause)
 
@@ -2415,6 +2835,9 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"global_or_team_id":         globalOrTeamID,
 		"is_mdm_enrolled":           opts.IsMDMEnrolled,
+		"host_label_updated_at":     host.LabelUpdatedAt,
+		"avail":                     opts.OnlyAvailableForInstall,
+		"self_service":              opts.SelfServiceOnly,
 	}
 
 	stmt := stmtInstalled
@@ -2699,22 +3122,31 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return output
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		truncateOutput(result.PreInstallConditionOutput),
-		result.InstallScriptExitCode,
-		truncateOutput(result.InstallScriptOutput),
-		result.PostInstallScriptExitCode,
-		truncateOutput(result.PostInstallScriptOutput),
-		result.InstallUUID,
-		result.HostID,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update host software installation result")
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
-	}
-	return nil
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt,
+			truncateOutput(result.PreInstallConditionOutput),
+			result.InstallScriptExitCode,
+			truncateOutput(result.InstallScriptOutput),
+			result.PostInstallScriptExitCode,
+			truncateOutput(result.PostInstallScriptOutput),
+			result.InstallUUID,
+			result.HostID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update host software installation result")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.Wrap(ctx, notFound("HostSoftwareInstall").WithName(result.InstallUUID), "host software installation not found")
+		}
+
+		if result.Status() != fleet.SoftwareInstallPending {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.InstallUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
+		}
+		return nil
+	})
+	return err
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {

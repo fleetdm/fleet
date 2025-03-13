@@ -60,27 +60,11 @@ To setup Fleet infrastructure, use one of the available commands.
 				return
 			case fleet.SomeMigrationsCompleted:
 				if !noPrompt {
-					fmt.Printf("################################################################################\n"+
-						"# WARNING:\n"+
-						"#   This will perform Fleet database migrations. Please back up your data before\n"+
-						"#   continuing.\n"+
-						"#\n"+
-						"#   Missing migrations: tables=%v, data=%v.\n"+
-						"#\n"+
-						"#   Press Enter to continue, or Control-c to exit.\n"+
-						"################################################################################\n",
-						status.MissingTable, status.MissingData)
+					printMissingMigrationsPrompt(status.MissingTable, status.MissingData)
 					bufio.NewScanner(os.Stdin).Scan()
 				}
 			case fleet.UnknownMigrations:
-				fmt.Printf("################################################################################\n"+
-					"# WARNING:\n"+
-					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
-					"#   running an older version of Fleet on a newer migrated database.\n"+
-					"#\n"+
-					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"################################################################################\n",
-					status.UnknownTable, status.UnknownData)
+				printUnknownMigrationsMessage(status.UnknownTable, status.UnknownData)
 				if dev {
 					os.Exit(1)
 				}
@@ -103,4 +87,42 @@ To setup Fleet infrastructure, use one of the available commands.
 
 	prepareCmd.AddCommand(dbCmd)
 	return prepareCmd
+}
+
+func printUnknownMigrationsMessage(tables []int64, data []int64) {
+	fmt.Printf("################################################################################\n"+
+		"# WARNING:\n"+
+		"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
+		"#   running an older version of Fleet on a newer migrated database.\n"+
+		"#\n"+
+		"#   Unknown migrations: %s.\n"+
+		"################################################################################\n",
+		tablesAndDataToString(tables, data))
+}
+
+func printMissingMigrationsPrompt(tables []int64, data []int64) {
+	fmt.Printf("################################################################################\n"+
+		"# WARNING:\n"+
+		"#   This will perform Fleet database migrations. Please back up your data before\n"+
+		"#   continuing.\n"+
+		"#\n"+
+		"#   Missing migrations: %s.\n"+
+		"#\n"+
+		"#   Press Enter to continue, or Control-c to exit.\n"+
+		"################################################################################\n",
+		tablesAndDataToString(tables, data))
+}
+
+func tablesAndDataToString(tables, data []int64) string {
+	switch {
+	case len(tables) > 0 && len(data) == 0:
+		// Most common case
+		return fmt.Sprintf("tables=%v", tables)
+	case len(tables) == 0 && len(data) == 0:
+		return "unknown"
+	case len(tables) == 0 && len(data) > 0:
+		return fmt.Sprintf("data=%v", data)
+	default:
+		return fmt.Sprintf("tables=%v, data=%v", tables, data)
+	}
 }

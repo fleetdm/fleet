@@ -1,0 +1,11 @@
+name: No team
+controls:
+policies:
+  - name: Slack on macOS is installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app';
+    install_software:
+      app_store_id: "1"
+software:
+  app_store_apps:
+    - app_store_id: "1"

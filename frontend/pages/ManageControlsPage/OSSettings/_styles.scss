@@ -15,12 +15,16 @@
     }
   }
 
-  .side-nav__card-container > .custom-settings {
-    max-width: none;
-  }
-  @media (max-width: 1120px) {
-    .side-nav__nav-list {
-      padding-right: 0;
+  .side-nav__card-container {
+    overflow-x: hidden;
+
+    > .custom-settings {
+      max-width: none;
+    }
+    @media (max-width: 1120px) {
+      .side-nav__nav-list {
+        padding-right: 0;
+      }
     }
   }
 }

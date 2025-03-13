@@ -165,7 +165,7 @@ module.exports.custom = {
     'handbook/company/testimonials.yml': 'mike-j-thomas',
     'handbook/company/product-groups.md': 'lukeheath',
     'handbook/engineering': 'lukeheath',
-    'handbook/product-design': 'sampfluger88',
+    'handbook/product-design': 'noahtalerman',
 
 
     // 🫧 Other brandfronts
@@ -274,7 +274,7 @@ module.exports.custom = {
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
     'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
     'handbook/sales': ['sampfluger88','mikermcneil'],
-    'handbook/demand': ['sampfluger88','mikermcneil'],
+    'handbook/marketing': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
     'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
@@ -300,9 +300,6 @@ module.exports.custom = {
     // "Secret handbook"
     // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
     'README.md': ['mikermcneil'],// « about this repo
-
-    // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88', 'lukeheath'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified
 
   },
 
@@ -384,6 +381,9 @@ module.exports.custom = {
     'ymail.com',
     'qq.com',
   ],
+
+  // Zapier:
+  // zapierWebhookSecret: '…',
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',

@@ -28,6 +28,7 @@ import Search from "./Search";
 
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
 import MissingHosts from "./MissingHosts";
+import TotalHosts from "./TotalHosts";
 import Lightbulb from "./Lightbulb";
 
 import Apple from "./Apple";
@@ -66,6 +67,9 @@ import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
 import AutomaticSelfService from "./AutomaticSelfService";
 import User from "./User";
+import InfoOutline from "./InfoOutline";
+import GitOpsMode from "./GitOpsMode";
+import Android from "./Android";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
@@ -91,8 +95,10 @@ export const ICON_MAP = {
   "filter-funnel": FilterFunnel,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
+  "total-hosts": TotalHosts,
   lightbulb: Lightbulb,
   info: Info,
+  "info-outline": InfoOutline,
   more: More,
   plus: Plus,
   policy: Policy,
@@ -128,6 +134,7 @@ export const ICON_MAP = {
   iPadOS,
   ios: iOS,
   iOS,
+  android: Android,
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,
@@ -138,6 +145,7 @@ export const ICON_MAP = {
   settings: Settings,
   "automatic-self-service": AutomaticSelfService,
   user: User,
+  "gitops-mode": GitOpsMode,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

@@ -56,7 +56,7 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		return mockListHostsLite, nil
 	}
 
-	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, softwareInstallerID uint, selfService bool, policyID *uint) (string, error) {
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
 		requestedInstalls[hostID] = append(requestedInstalls[hostID], softwareInstallerID)
 		return "install-uuid", nil
 	}

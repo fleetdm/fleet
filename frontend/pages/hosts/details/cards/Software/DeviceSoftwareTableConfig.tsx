@@ -15,6 +15,7 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCe
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -49,7 +50,7 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
         const { name, source } = cellProps.row.original;
-        return <SoftwareNameCell name={name} source={source} />;
+        return <SoftwareNameCell name={name} source={source} myDevicePage />;
       },
       sortType: "caseInsensitive",
     },

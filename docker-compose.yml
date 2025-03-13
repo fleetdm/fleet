@@ -1,5 +1,4 @@
 ---
-version: "2"
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
@@ -129,7 +128,7 @@ services:
   # CAdvisor container allows monitoring other containers. Useful for
   # development.
   cadvisor:
-    image: google/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:latest
     ports:
       - "5678:8080"
     volumes:

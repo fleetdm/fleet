@@ -35,6 +35,7 @@ const TeamManagementPage = (): JSX.Element => {
     setCurrentTeam,
     setCurrentUser,
     setAvailableTeams,
+    setUserSettings,
   } = useContext(AppContext);
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
@@ -48,9 +49,10 @@ const TeamManagementPage = (): JSX.Element => {
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 
@@ -250,9 +252,6 @@ const TeamManagementPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Create, customize, and remove teams from Fleet.
-      </p>
       <SandboxGate
         fallbackComponent={() => (
           <SandboxMessage
@@ -270,16 +269,17 @@ const TeamManagementPage = (): JSX.Element => {
             columnConfigs={tableHeaders}
             data={tableData}
             isLoading={isFetchingTeams}
-            defaultSortHeader={"name"}
-            defaultSortDirection={"asc"}
+            defaultSortHeader="name"
+            defaultSortDirection="asc"
             actionButton={{
               name: "create team",
               buttonText: "Create team",
               variant: "brand",
               onActionButtonClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
+              gitOpsModeCompatible: true,
             }}
-            resultsTitle={"teams"}
+            resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}

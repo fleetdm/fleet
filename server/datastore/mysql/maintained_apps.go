@@ -100,40 +100,37 @@ WHERE
 	return &app, nil
 }
 
-func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	stmt := `
-SELECT
-	fla.id,
-	fla.name,
-	fla.version,
-	fla.platform,
-	fla.updated_at
-FROM
-	fleet_library_apps fla
-WHERE NOT EXISTS (
-	SELECT
-		1
-	FROM
-		software_titles st
-	LEFT JOIN
-		software_installers si
-		ON si.title_id = st.id
-	LEFT JOIN
-		vpp_apps va
-		ON va.title_id = st.id
-	LEFT JOIN
-		vpp_apps_teams vat
-		ON vat.adam_id = va.adam_id
-	WHERE
-		st.bundle_identifier = fla.bundle_identifier
-	AND (
-		(si.platform = fla.platform AND si.global_or_team_id = ?)
-		OR
-		(va.platform = fla.platform AND vat.global_or_team_id = ?)
-	)
-)`
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	stmt := `SELECT fla.id, fla.name, fla.version, fla.platform, fla.updated_at FROM fleet_library_apps fla `
+	var args []any
 
-	args := []any{teamID, teamID}
+	if teamID != nil {
+		stmt += `WHERE NOT EXISTS (
+			SELECT
+				1
+			FROM
+				software_titles st
+			LEFT JOIN
+				software_installers si
+				ON si.title_id = st.id
+			LEFT JOIN
+				vpp_apps va
+				ON va.title_id = st.id
+			LEFT JOIN
+				vpp_apps_teams vat
+				ON vat.adam_id = va.adam_id
+			WHERE
+				st.bundle_identifier = fla.bundle_identifier
+			AND (
+				(si.platform = fla.platform AND si.global_or_team_id = ?)
+				OR
+				(va.platform = fla.platform AND vat.global_or_team_id = ?)
+			)
+		)`
+		args = []any{teamID, teamID}
+	} else {
+		stmt += `WHERE TRUE`
+	}
 
 	if match := opt.MatchQuery; match != "" {
 		match = likePattern(match)
@@ -165,31 +162,4 @@ WHERE NOT EXISTS (
 	}
 
 	return avail, meta, nil
-}
-
-// GetSoftwareTitleIDByAppID returns the software title ID related to a given fleet library app ID.
-func (ds *Datastore) GetSoftwareTitleIDByMaintainedAppID(ctx context.Context, appID uint, teamID *uint) (uint, error) {
-	stmt := `
-	SELECT
-		st.id
-	FROM software_titles st
-	JOIN software_installers si ON si.title_id = st.id
-	JOIN fleet_library_apps fla ON fla.id = si.fleet_library_app_id
-	WHERE fla.id = ? AND si.global_or_team_id = ?`
-
-	var globalOrTeamID uint
-	if teamID != nil {
-		globalOrTeamID = *teamID
-	}
-
-	var titleID uint
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleID, stmt, appID, globalOrTeamID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, ctxerr.Wrap(ctx, notFound("SoftwareInstaller"), "no matching software installer found")
-		}
-
-		return 0, ctxerr.Wrap(ctx, err, "getting software title id by app id")
-	}
-
-	return titleID, nil
 }

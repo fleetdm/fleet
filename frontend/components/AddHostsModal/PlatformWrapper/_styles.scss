@@ -3,7 +3,7 @@
 .platform-wrapper {
   padding: 0; // different to pad sticky subnav properly
 
-  .component__tabs-wrapper {
+  .tab-nav {
     // negate problematic sticky positioning
     position: initial;
     .react-tabs {

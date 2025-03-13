@@ -6,7 +6,7 @@
 	"name": [
 		"WhatsApp"
 	],
-	"desc": "Native desktop client for WhatsApp",
+	"desc": "WhatsApp's native desktop client for seamless messaging and calling on macOS.",
 	"homepage": "https://www.whatsapp.com/",
 	"url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.24.16.80&extension=zip&configuration=Release&branch=relbranch",
 	"url_specs": {},

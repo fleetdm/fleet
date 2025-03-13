@@ -6,7 +6,11 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
-import deviceUserAPI from "services/entities/device_user";
+
+import deviceUserAPI, {
+  IGetDeviceCertsRequestParams,
+  IGetDeviceCertificatesResponse,
+} from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
@@ -14,21 +18,30 @@ import {
   IDeviceUserResponse,
   IHostDevice,
 } from "interfaces/host";
+import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
+import { IHostSoftware } from "interfaces/software";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
+import { isAppleDevice } from "interfaces/platform";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_ABOUT_DATA,
   HOST_SUMMARY_DATA,
@@ -52,21 +65,27 @@ import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
+import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import CertificatesCard from "../cards/Certificates";
 
 const baseClass = "device-user";
 
-const PREMIUM_TABS = [
+const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
-const FREE_TABS = [
+const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
+
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 interface IDeviceUserPageProps {
   location: {
@@ -95,13 +114,10 @@ const DeviceUserPage = ({
     NotificationContext
   );
 
-  const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [orgLogoURL, setOrgLogoURL] = useState("");
-  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -111,13 +127,25 @@ const DeviceUserPage = ({
     false
   );
   const [showCreateLinuxKeyModal, setShowCreateLinuxKeyModal] = useState(false);
-  const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
-    null
-  );
-  const [hasSelfService, setSelfService] = useState(false);
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
+  const [
+    selectedSoftwareDetails,
+    setSelectedSoftwareDetails,
+  ] = useState<IHostSoftware | null>(null);
+
+  // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
+  const [sortCerts, setSortCerts] = useState<IListSort>({
+    ...CERTIFICATES_DEFAULT_SORT,
+  });
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -146,8 +174,42 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+    refetch: refetchDeviceCertificates,
+  } = useQuery<
+    IGetDeviceCertificatesResponse,
+    Error,
+    IGetDeviceCertificatesResponse,
+    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
+  >(
+    [
+      {
+        scope: "device-certificates",
+        token: deviceAuthToken,
+        page: certificatePage,
+        per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        order_key: sortCerts.order_key,
+        order_direction: sortCerts.order_direction,
+      },
+    ],
+    ({ queryKey }) => deviceUserAPI.getDeviceCertificates(queryKey[0]),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!deviceUserAPI,
+      keepPreviousData: true,
+      staleTime: 15000,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
+    deviceCertificates && refetchDeviceCertificates();
   };
 
   const isRefetching = ({
@@ -166,7 +228,7 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: { host } = { host: undefined },
+    data: dupResponse,
     isLoading: isLoadingHost,
     error: loadingDeviceUserError,
     refetch: refetchHostDetails,
@@ -183,22 +245,8 @@ const DeviceUserPage = ({
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
-      // TODO: refactor to use non-refetch data directly in the component and remove
-      // unnecesary derived states for values that aren't related to the refetch status
-      onSuccess: ({
-        license,
-        org_logo_url,
-        org_contact_url,
-        global_config,
-        host: responseHost,
-        self_service,
-      }) => {
+      onSuccess: ({ host: responseHost }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
-        setIsPremiumTier(license.tier === "premium");
-        setOrgLogoURL(org_logo_url);
-        setOrgContactURL(org_contact_url);
-        setGlobalConfig(global_config);
-        setSelfService(self_service);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -246,6 +294,17 @@ const DeviceUserPage = ({
       },
     }
   );
+
+  const {
+    host,
+    license,
+    org_logo_url: orgLogoURL = "",
+    org_contact_url: orgContactURL = "",
+    global_config: globalConfig = null as IDeviceGlobalConfig | null,
+    self_service: hasSelfService = false,
+  } = dupResponse || {};
+  const isPremiumTier = license?.tier === "premium";
+  const isAppleHost = isAppleDevice(host?.platform);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -316,17 +375,6 @@ const DeviceUserPage = ({
     );
   };
 
-  const renderEnrollMdmModal = () => {
-    return host?.dep_assigned_to_fleet ? (
-      <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
-    ) : (
-      <ManualEnrollMdmModal
-        onCancel={toggleEnrollMdmModal}
-        token={deviceAuthToken}
-      />
-    );
-  };
-
   const onTriggerEscrowLinuxKey = async () => {
     setIsTriggeringCreateLinuxKey(true);
     // modal opens in loading state
@@ -343,15 +391,24 @@ const DeviceUserPage = ({
     }
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
-    const tabPaths = isPremiumTier
-      ? PREMIUM_TABS.map((t) => t(deviceAuthToken))
-      : FREE_TABS.map((t) => t(deviceAuthToken));
+    let tabPaths = (isPremiumTier
+      ? PREMIUM_TAB_PATHS
+      : FREE_TAB_PATHS
+    ).map((t) => t(deviceAuthToken));
+    if (!hasSelfService) {
+      tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
@@ -365,7 +422,7 @@ const DeviceUserPage = ({
 
     return (
       <div className="core-wrapper">
-        {!host || isLoadingHost ? (
+        {!host || isLoadingHost || isLoadingDeviceCertificates ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -401,34 +458,57 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+            <TabNav className={`${baseClass}__tab-nav`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}
               >
                 <TabList>
-                  <Tab>Details</Tab>
+                  <Tab>
+                    <TabText>Details</TabText>
+                  </Tab>
                   {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                    <Tab>Self-service</Tab>
+                    <Tab>
+                      <TabText>Self-service</TabText>
+                    </Tab>
                   )}
-                  {isSoftwareEnabled && <Tab>Software</Tab>}
+                  {isSoftwareEnabled && (
+                    <Tab>
+                      <TabText>Software</TabText>
+                    </Tab>
+                  )}
                   {isPremiumTier && (
                     <Tab>
-                      <div>
-                        {failingPoliciesCount > 0 && (
-                          <span className="count">{failingPoliciesCount}</span>
-                        )}
+                      <TabText count={failingPoliciesCount} isErrorCount>
                         Policies
-                      </div>
+                      </TabText>
                     </Tab>
                   )}
                 </TabList>
-                <TabPanel>
+                <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {isAppleHost && !!deviceCertificates?.certificates.length && (
+                    <CertificatesCard
+                      isMyDevicePage
+                      data={deviceCertificates}
+                      isError={isErrorDeviceCertificates}
+                      page={certificatePage}
+                      pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                      sortHeader={sortCerts.order_key}
+                      sortDirection={sortCerts.order_direction}
+                      hostPlatform={host.platform}
+                      onSelectCertificate={onSelectCertificate}
+                      onNextPage={() => setCertificatePage(certificatePage + 1)}
+                      onPreviousPage={() =>
+                        setCertificatePage(certificatePage - 1)
+                      }
+                      onSortChange={setSortCerts}
+                    />
+                  )}
                 </TabPanel>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
@@ -455,6 +535,7 @@ const DeviceUserPage = ({
                       platform={host.platform}
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
+                      onShowSoftwareDetails={setSelectedSoftwareDetails}
                     />
                   </TabPanel>
                 )}
@@ -471,9 +552,21 @@ const DeviceUserPage = ({
                   </TabPanel>
                 )}
               </Tabs>
-            </TabsWrapper>
+            </TabNav>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showEnrollMdmModal &&
+              (host.dep_assigned_to_fleet ? (
+                <AutoEnrollMdmModal
+                  host={host}
+                  onCancel={toggleEnrollMdmModal}
+                />
+              ) : (
+                <ManualEnrollMdmModal
+                  host={host}
+                  onCancel={toggleEnrollMdmModal}
+                  token={deviceAuthToken}
+                />
+              ))}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (
@@ -508,6 +601,20 @@ const DeviceUserPage = ({
             }}
           />
         )}
+        {selectedSoftwareDetails && !!host && (
+          <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
+            software={selectedSoftwareDetails}
+            onExit={() => setSelectedSoftwareDetails(null)}
+            hideInstallDetails
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
+          />
+        )}
       </div>
     );
   };
@@ -523,7 +630,7 @@ const DeviceUserPage = ({
       />
       <nav className="site-nav-container">
         <div className="site-nav-content">
-          <ul className="site-nav-list">
+          <ul className="site-nav-left">
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">

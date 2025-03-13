@@ -29,9 +29,7 @@ interface IActionsDropdownProps {
 }
 
 const getOptionBackgroundColor = (state: any) => {
-  return state.isSelected || state.isFocused
-    ? COLORS["ui-vibrant-blue-10"]
-    : "transparent";
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
 };
 
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
@@ -200,6 +198,7 @@ const ActionsDropdown = ({
     option: (provided, state) => ({
       ...provided,
       padding: "10px 8px",
+      borderRadius: "4px",
       fontSize: "14px",
       backgroundColor: getOptionBackgroundColor(state),
       whiteSpace: "nowrap",
@@ -211,7 +210,7 @@ const ActionsDropdown = ({
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-vibrant-blue-25"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
@@ -238,6 +237,7 @@ const ActionsDropdown = ({
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
+        value={null} // Prevent an option from being selected
         className={dropdownClassnames}
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}

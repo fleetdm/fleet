@@ -11,7 +11,7 @@ team_settings:
   integrations:
     google_calendar:
       enable_calendar_events: true
-      webhook_url: $DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL
+      webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
@@ -84,21 +84,43 @@ controls:
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
-      - path: ../lib/macos/configuration-profiles/disable-update-notifications.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
+      - path: ../lib/macos/declaration-profiles/software-update-settings.json
+      - path: ../lib/macos/configuration-profiles/automatically-update-1Password.mobileconfig
+        labels_include_any:
+          - "Macs with 1Password8 installed"
+      - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
+        labels_include_any:
+          - "Santa test device"
+      - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
+        labels_include_any:
+          - "Santa test device"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2024-12-04"
-    minimum_version: "15.1.1"
+    deadline: "2025-02-23"
+    minimum_version: "15.3"
   windows_settings:
     custom_settings:
-      - path: ../lib/windows/configuration-profiles/windows-firewall.xml
-      - path: ../lib/windows/configuration-profiles/windows-password.xml
-      - path: ../lib/windows/configuration-profiles/windows-screen-lock.xml
+      - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
+      - path: ../lib/windows/configuration-profiles/password.xml
+      - path: ../lib/windows/configuration-profiles/screen-lock.xml
+      - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
+      - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
+      - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
+      - path: ../lib/windows/configuration-profiles/disable-guest-account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -109,49 +131,38 @@ controls:
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/mdm-migration.sh
     - path: ../lib/macos/scripts/system-maintenance.sh
+    - path: ../lib/macos/scripts/santa-block-script.sh
     - path: ../lib/windows/scripts/remove-fleetd.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
+    - path: ../lib/windows/scripts/create-admin-user.ps1
 policies:
-  - path: ../lib/macos/policies/device-health.yml
-  - path: ../lib/macos/policies/upgrade-firefox.yml
-  - path: ../lib/windows/policies/device-health.yml
-  - path: ../lib/linux/policies/linux-device-health.yml
-  - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE (major = '15' AND minor = '1' AND patch = '1');
-    critical: true
-    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-    resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: false
-  - name: macOS - System maintenance complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Drew’s MacBook Pro','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
-    critical: false
-    description: Determines if the device has completed system maintenance.
-    resolution: We will perform system maintenance on your device.
-    platform: darwin
-    calendar_events_enabled: true
-  - name: macOS - Upgrade Slack
-    query: SELECT 1 FROM apps WHERE name = 'Slack.app' AND version_compare(bundle_short_version, '4.40.126') >= 0;
-    critical: false
-    description: The host may be running an outdated version of Slack, which could pose security vulnerabilities or compatibility issues.
-    resolution: The host's Slack application will likely be updated to a version that is greater than or equal to '4.40.126'.
-    platform: darwin
-    calendar_events_enabled: false
+  - path: ../lib/macos/policies/1password-emergency-kit-check.yml
+  - path: ../lib/macos/policies/update-firefox.yml
+  - path: ../lib/macos/policies/update-slack.yml
+  - path: ../lib/macos/policies/latest-macos.yml
+  - path: ../lib/macos/policies/update-1password.yml
+  - path: ../lib/macos/policies/all-software-updates-installed.yml
+  - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  - path: ../lib/macos/policies/disk-encryption-check.yml
+  - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
+  - path: ../lib/windows/policies/all-windows-updates-installed.yml
+  - path: ../lib/windows/policies/disk-encryption-check.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
 queries:
-  - path: ../lib/macos/queries/collect-failed-login-attempts.yml
-  - path: ../lib/all/queries/collect-fleetd-information.yml
-  - path: ../lib/all/queries/collect-usb-devices.yml
-  - path: ../lib/all/queries/collect-vs-code-extensions.yml
-  - path: ../lib/macos/queries/collect-software-permissions-system.yml
-  - path: ../lib/macos/queries/collect-software-permissions-user.yml
-  - path: ../lib/all/queries/collect-crowdstrike-info.yml
+  - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    - path: ../lib/macos/software/santa.yml # Santa for macOS
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
+    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
+    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
+    - path: ../lib/windows/software/slack.yml # Slack for Windows
+    - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
+    - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
+    - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop
-      - app_store_id: '1333542190' # 1Password 7 Desktop
-      - app_store_id: '1477376905' # GitHub
-      - app_store_id: '1152747299' # Figma

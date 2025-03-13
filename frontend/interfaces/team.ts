@@ -132,7 +132,7 @@ export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
-export const APP_CONTEX_NO_TEAM_SUMMARY: ITeamSummary = {
+export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
   name: "No team",
 } as const;

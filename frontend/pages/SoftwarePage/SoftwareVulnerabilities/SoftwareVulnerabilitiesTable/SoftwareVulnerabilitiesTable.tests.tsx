@@ -2,10 +2,7 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
-import {
-  createMockVulnerabilitiesResponse,
-  createMockVulnerability,
-} from "__mocks__/vulnerabilitiesMock";
+import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
 import createMockUser from "__mocks__/userMock";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
@@ -353,7 +350,7 @@ describe("Software Vulnerabilities table", () => {
     expect(
       screen.getByText("Exploited vulnerabilities").parentElement?.parentElement
         ?.parentElement
-    ).toHaveClass("is-disabled");
+    ).toHaveClass("react-select__option--is-disabled");
 
     await waitFor(() => {
       waitFor(() => {

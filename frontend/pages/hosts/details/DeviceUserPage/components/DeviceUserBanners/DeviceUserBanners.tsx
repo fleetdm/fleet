@@ -54,9 +54,8 @@ const DeviceUserBanners = ({
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
           Mobile device management (MDM) is off. MDM allows your organization to
-          enforce settings, OS updates, disk encryption, and more. This lets
-          your organization keep your device up to date so you don&apos;t have
-          to.
+          change settings and install software. This lets your organization keep
+          your device up to date so you don&apos;t have to.
         </InfoBanner>
       );
     }
@@ -89,8 +88,7 @@ const DeviceUserBanners = ({
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
                 text="Guide"
-                color="core-fleet-black"
-                iconColor="core-fleet-black"
+                variant="banner-link"
               />
             }
             color="yellow"

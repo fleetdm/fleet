@@ -7,7 +7,7 @@ import React from "react";
 import { CellProps, Column, HeaderProps } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
@@ -36,6 +36,8 @@ type IVulnCellProps = CellProps<
   ISoftwareVulnerability[]
 >;
 type IHostCountCellProps = INumberCellProps<IOperatingSystemVersion>;
+type IViewAllHostsLinkProps = CellProps<IOperatingSystemVersion>;
+
 type IHostHeaderProps = HeaderProps<IOperatingSystemVersion>;
 
 interface IOSTableConfigOptions {
@@ -65,12 +67,10 @@ const generateDefaultTableHeaders = (
 
       const { name, os_version_id } = cellProps.row.original;
 
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
-      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
-        os_version_id
-      )}?${teamQueryParam}`;
+      const softwareOsDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_OS_DETAILS(os_version_id),
+        { team_id: teamId }
+      );
 
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
@@ -125,22 +125,29 @@ const generateDefaultTableHeaders = (
     disableSortBy: false,
     accessor: "hosts_count",
     Cell: (cellProps: IHostCountCellProps) => {
-      const { hosts_count, os_version_id } = cellProps.row.original;
+      const { hosts_count } = cellProps.row.original;
       return (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={hosts_count} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                os_version_id,
-                team_id: teamId,
-              }}
-              className="os-hosts-link"
-            />
-          </span>
+        <span className="hosts-cell__count">
+          <TextCell value={hosts_count} />
         </span>
+      );
+    },
+  },
+  {
+    Header: "",
+    id: "view-all-hosts",
+    disableSortBy: true,
+    Cell: (cellProps: IViewAllHostsLinkProps) => {
+      const { os_version_id } = cellProps.row.original;
+      return (
+        <ViewAllHostsLink
+          queryParams={{
+            os_version_id,
+            team_id: teamId,
+          }}
+          className="os-hosts-link"
+          rowHover
+        />
       );
     },
   },

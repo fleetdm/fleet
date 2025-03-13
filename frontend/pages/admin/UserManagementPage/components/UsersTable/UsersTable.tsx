@@ -15,7 +15,6 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
-import { DEFAULT_USER_FORM_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -39,7 +38,6 @@ const EmptyUsersTable = () => (
 interface IUsersTableProps {
   router: InjectedRouter; // v3
 }
-
 const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const { config, currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
@@ -52,12 +50,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const [showResetSessionsModal, setShowResetSessionsModal] = useState(false);
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<any>(null);
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_USER_FORM_ERRORS
-  );
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_USER_FORM_ERRORS
-  );
+  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
   const [querySearchText, setQuerySearchText] = useState("");
 
   // API CALLS
@@ -113,7 +107,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     // clear errors on close
     if (!showAddUserModal) {
-      setAddUserErrors(DEFAULT_USER_FORM_ERRORS);
+      setAddUserErrors({});
     }
   }, [showAddUserModal, setShowAddUserModal]);
 
@@ -129,7 +123,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     (user?: IUser | IInvite) => {
       setShowEditUserModal(!showEditUserModal);
       setUserEditing(!showEditUserModal ? user : null);
-      setEditUserErrors(DEFAULT_USER_FORM_ERRORS);
+      setEditUserErrors({});
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -300,10 +294,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
     if (userData?.email !== formData.email) {
-      const senderAddressMessage = config?.smtp_settings?.sender_address
-        ? ` from ${config?.smtp_settings?.sender_address}`
-        : "";
-      userUpdatedFlashMessage += `: A confirmation email was sent${senderAddressMessage} to ${formData.email}`;
+      userUpdatedFlashMessage += `. A confirmation email was sent to ${formData.email}.`;
     }
     const userUpdatedEmailError =
       "A user with this email address already exists";
@@ -578,7 +569,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             onActionButtonClick: toggleAddUserModal,
           }}
           onQueryChange={onTableQueryChange}
-          resultsTitle={"users"}
+          resultsTitle="users"
           emptyComponent={EmptyUsersTable}
           searchable
           showMarkAllPages={false}

@@ -23,100 +23,129 @@ Make sure the repo is set to default (Needed only once)
 ```
 
 
-## Before publishing the release
+## Before you begin
 
 Make sure all tickets are tagged with the correct milestone.
 
-I recommend filtering by both the milestone you expect and also double check `no milestone` to make sure you haven't missed anything
+Filter by both the milestone you expect and also double check `no milestone` to make sure you haven't missed anything, and that all tickets are in the correct ZenHub column.
 
-For example no tickets still in Ready / In Progress should be in the milestone we are about to release.
+Make sure you are on the `main` branch, and that you have all updates pulled locally.
 
-## Minor Release (typically end of sprint)
+> Add the `-d` flag to any command to dry run and test the next step.
 
-Example:
-```
-# Build release candidate and changelogs and QA ticket
-# git pull main locally
+
+## Minor Release
+
+**1. Create release candidate**
+
+```sh
 ./tools/release/publish_release.sh -m
+```
 
-# Do QA until ready to release
+This will create the minor release candidate branch, changelog PRs (`main` and RC branch), and the release QA issue.
 
-# - QA is passed on all teams and ready for release
-# - Merge changelog and versions update PR into RC branch and main
-# - git pull RC branch locally with the changelog as the latest commit
 
-# Tag minor
+**2. Complete quality assurance**
+
+A Quality Assurance Engineer from each product group needs to [confirm that their product group is ready](https://fleetdm.com/handbook/engineering#indicate-your-product-group-is-release-ready) before proceeding to the next step.
+
+
+**3. Merge changelog and version bump**
+
+Finalize and merge the two PRs. Check out the RC branch locally and pull the latest updates so that the changelog commit is the most recent commit on the branch.
+
+**4. Tag minor release**
+
+```sh
 ./tools/release/publish_release.sh -mg
+```
 
-# - Wait for build to run
+Wait for build to run, which typically takes about fifteen minutes. 
 
-# Publish minor
+
+**5. Publish minor release**
+
+```sh
 ./tools/release/publish_release.sh -muq
+```
 
-# - Wait for publish process to complete.
-# - Merge release article and wait for website to build.
-# - When the release article is published, create a LinkedIn post on Fleet's company page. 
-# - Copy te LinkedIn post URL as the value for the linkedin_post_url variable in the general_announce_info() function.
-# - Go update osquery-slack version
+Wait for publish process to complete.
 
-# Announce release
-# Change {current_version} to the current version that was just released
-# For example, ./tools/release/publish_release.sh -mnu -v 4.50.0
+
+**6. Merge milestone pull requests**
+
+Merge any pull requests associated with this release milestone, which include reference documentation, feature guides, and a release announcement article. 
+
+Wait for the release article to appear on the [Fleet articles page](https://fleetdm.com/articles).
+
+
+**7. Post to LinkedIn company page**
+
+When the release article is published, create a LinkedIn post on Fleet's company page. Copy the previous version announcement post, update the headline features and associated emojis, and update the URL to point to the new release article. Publish the LinkedIn post, then copy a link to the post. 
+
+Open the Fleet releaser script and seearch for a variable called `linkedin_post_url`. Change the associated value to the new LinkedIn post URL. 
+
+
+**8. Announce release**
+
+```sh
 ./tools/release/publish_release.sh -mnu -v {current_version}
 ```
 
-...
-:cloud: :rocket: The latest version of Fleet is 4.50.0.
-More info: https://github.com/fleetdm/fleet/releases/tag/fleet-v4.50.0
-Release article: https://fleetdm.com/releases/fleet-4.50.0
-LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:7199509896705232898/
-...
+Change `{current_version}` to the current version that was just released. For example: `./tools/release/publish_release.sh -mnu -v 4.50.0`. 
+
+Open the Fleet channels in the osquery Slack and MacAdmins Slack and update the topic to point to the new release. 
 
 
-## Patch Release (middle of sprint / critical)
+**9. Conclude the milestone**
 
-Follow this example:
-It is recommended to do a "dry run" like this:
-```
-tools/release/publish_release.sh -d
-```
-This provides an opportunity to go over the tickets and their attached PRs.
-Specifically check cases where more than one ticket have the same PR and vice versa.
+Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engineering#conclude-current-milestone).
 
-# Build release candidate, changelogs and QA ticket
 
-```
+## Patch release
+
+**1. Create release candidate**
+
+```sh
 ./tools/release/publish_release.sh
 ```
-# Do QA until ready to release
 
-After running the script:
-- Check #help-engineering for announcements and QA ticket.
-- Merge the patch branch changes PR.
-- Let QA know about the release here: https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml
-- This is a good time to post a request in #g-sales that we may want to deploy this release to dogfood.
+This will create the patch release candidate branch, changelog PRs (`main` and RC branch), and the release QA issue.
 
-# QA is passed on all teams and ready for release
 
-Tag patch
-```
+**2. Complete quality assurance**
+
+A Quality Assurance Engineer from each product group needs to [confirm that their product group is ready](https://fleetdm.com/handbook/engineering#indicate-your-product-group-is-release-ready) before proceeding to the next step.
+
+
+**3. Merge changelog and version bump**
+
+Finalize and merge the two PRs. Check out the RC branch locally and pull the latest updates so that the changelog commit is the most recent commit on the branch.
+
+
+**4. Tag patch release**
+
+```sh
 ./tools/release/publish_release.sh -g
-
 ```
-Wait for goreleaser to finish in terminal (This will take a long time)
 
-Publish patch
-```
+Wait for build to run, which typically takes about fifteen minutes. 
+
+
+**5. Publish patch release**
+
+```sh
 ./tools/release/publish_release.sh -u
 ```
-Go update osquery-slack version
 
-# Merge the final changes PR into main:
+> During the publish process, the release script will attempt to publish `fleetctl` to NPM. If this times out or otherise fails, you need to publish to NPM manually. From the `/tools/fleetctl-npm/` directory, run `npm publish`.
 
-# Publish patch
-./tools/release/publish_release.sh -u
 
-- Make sure to wait for the CLI to open NPM to publish fleetctl. 
-- If that fails, manually publish by going to the `/tools/fleetctl-npm/` directory and running `npm publish`
-- Go update osquery-slack version
-```
+**6. Announce the release**
+
+The release script will announce the patch in the #general channel. Open the Fleet channels in the osquery Slack and MacAdmins Slack and update the topic to point to the new release. 
+
+
+**7. Conclude the milestone**
+
+Complete the [conclude the milestone ritual](https://fleetdm.com/handbook/engineering#conclude-current-milestone).

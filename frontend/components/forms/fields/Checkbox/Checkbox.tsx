@@ -118,7 +118,7 @@ const Checkbox = (props: ICheckboxProps) => {
           type="checkbox"
           ref={inputRef}
           name={name}
-          checked={value || undefined}
+          checked={!!value}
           onChange={noop} // Empty onChange to avoid React warning
           disabled={disabled || readOnly}
           style={{ display: "none" }} // Hide the input
@@ -126,6 +126,7 @@ const Checkbox = (props: ICheckboxProps) => {
         />
         <div
           role="checkbox"
+          aria-label={name}
           aria-checked={indeterminate ? "mixed" : value || undefined}
           aria-readonly={readOnly}
           aria-disabled={disabled}

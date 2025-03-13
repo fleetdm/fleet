@@ -12,7 +12,7 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -35,14 +35,14 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  platform?: HostPlatform;
+  platform: HostPlatform;
   softwareUpdatedAt?: string;
   hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
@@ -100,8 +100,8 @@ const HostSoftware = ({
   hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const vulnFilterAndNotSupported =
-    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
+  const isUnsupported =
+    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -139,8 +139,7 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled:
-        isSoftwareEnabled && !isMyDevicePage && !vulnFilterAndNotSupported,
+      enabled: isSoftwareEnabled && !isMyDevicePage && !isUnsupported,
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -250,14 +249,14 @@ const HostSoftware = ({
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
-          router,
-          softwareIdActionPending,
           userHasSWWritePermission,
           hostScriptsEnabled,
-          onSelectAction,
-          teamId: hostTeamId,
           hostCanWriteSoftware,
           hostMDMEnrolled,
+          softwareIdActionPending,
+          router,
+          teamId: hostTeamId,
+          onSelectAction,
         });
   }, [
     isMyDevicePage,
@@ -306,19 +305,7 @@ const HostSoftware = ({
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
-            // this could be cleaner, however, we are going to revert this commit anyway once vulns are
-            // supported for iPad/iPhone, by the end of next sprint
-            data={
-              vulnFilterAndNotSupported
-                ? ({
-                    count: 0,
-                    meta: {
-                      has_next_results: false,
-                      has_previous_results: false,
-                    },
-                  } as IGetHostSoftwareResponse)
-                : data
-            } // eshould be mpty for iPad/iPhone since API call is disabled, but to be sure to trigger empty state
+            data={data}
             platform={platform}
             router={router}
             tableConfig={tableConfig}
@@ -329,6 +316,9 @@ const HostSoftware = ({
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
             pathPrefix={pathname}
+            // for my device software details modal toggling
+            isMyDevicePage={isMyDevicePage}
+            onShowSoftwareDetails={onShowSoftwareDetails}
           />
         )}
       </>
@@ -340,9 +330,14 @@ const HostSoftware = ({
       borderRadiusSize="xxlarge"
       paddingSize="xxlarge"
       includeShadow
-      className={baseClass}
+      className={`${baseClass} ${isMyDevicePage ? "device-software" : ""}`}
     >
-      <p className="card__header">Software</p>
+      <div className={`card-header`}>Software</div>
+      {isMyDevicePage && (
+        <div className={`card-subheader`}>
+          Software installed on your device.
+        </div>
+      )}
       {renderHostSoftware()}
     </Card>
   );

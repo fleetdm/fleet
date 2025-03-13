@@ -2,6 +2,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
@@ -45,4 +47,9 @@ type CommandAndReportResults interface {
 type CheckinAndCommandService interface {
 	Checkin
 	CommandAndReportResults
+}
+
+// ProfileService represents the interface to call specific functions from Fleet's main services.
+type ProfileService interface {
+	SignAndEncodeInstallProfile(ctx context.Context, profile []byte, commandUUID string) (string, error)
 }

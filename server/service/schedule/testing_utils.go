@@ -30,7 +30,7 @@ func (NopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronSt
 	return 0, nil
 }
 
-func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	return nil
 }
 
@@ -179,7 +179,7 @@ func (m *MockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.Cr
 	return id, nil
 }
 
-func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
 	m.Lock()
 	defer m.Unlock()
 

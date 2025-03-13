@@ -1,3 +1,4 @@
+import { ILabelSoftwareTitle } from "./label";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -69,10 +70,13 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledGitOpsMode = "enabled_gitops_mode",
+  DisabledGitOpsMode = "disabled_gitops_mode",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   AddedScript = "added_script",
+  UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",
@@ -91,23 +95,30 @@ export enum ActivityType {
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
   AddedAppStoreApp = "added_app_store_app",
+  EditedAppStoreApp = "edited_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
   InstalledAppStoreApp = "installed_app_store_app",
   EnabledActivityAutomations = "enabled_activity_automations",
   EditedActivityAutomations = "edited_activity_automations",
   DisabledActivityAutomations = "disabled_activity_automations",
+  CanceledScript = "canceled_script",
+  CanceledSoftwareInstall = "canceled_software_install",
+  EnabledAndroidMdm = "enabled_android_mdm",
+  DisabledAndroidMdm = "disabled_android_mdm",
 }
 
-// This is a subset of ActivityType that are shown only for the host past activities
+/** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.CanceledScript
+  | ActivityType.CanceledSoftwareInstall;
 
-// This is a subset of ActivityType that are shown only for the host upcoming activities
+/** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
@@ -122,6 +133,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 
@@ -131,6 +143,7 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
 };
 
 export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+  uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
 };
@@ -184,4 +197,7 @@ export interface IActivityDetails {
   app_store_id?: number;
   location?: string; // name of location associated with VPP token
   webhook_url?: string;
+  software_title_id?: number;
+  labels_include_any?: ILabelSoftwareTitle[];
+  labels_exclude_any?: ILabelSoftwareTitle[];
 }

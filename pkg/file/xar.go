@@ -107,9 +107,11 @@ type xmlFile struct {
 
 // distributionXML represents the structure of the distributionXML.xml
 type distributionXML struct {
-	Title   string               `xml:"title"`
-	Product distributionProduct  `xml:"product"`
-	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
+	Title          string                     `xml:"title"`
+	Product        distributionProduct        `xml:"product"`
+	PkgRefs        []distributionPkgRef       `xml:"pkg-ref"`
+	Choices        []distributionChoice       `xml:"choice"`
+	ChoicesOutline distributionChoicesOutline `xml:"choices-outline"`
 }
 
 type packageInfoXML struct {
@@ -133,6 +135,20 @@ type distributionPkgRef struct {
 	MustClose         distributionMustClose       `xml:"must-close"`
 	PackageIdentifier string                      `xml:"packageIdentifier,attr"`
 	InstallKBytes     string                      `xml:"installKBytes,attr"`
+}
+
+type distributionChoice struct {
+	PkgRef distributionPkgRef `xml:"pkg-ref"`
+	Title  string             `xml:"title,attr"`
+	ID     string             `xml:"id,attr"`
+}
+
+type distributionChoicesOutline struct {
+	Lines []distributionLine `xml:"line"`
+}
+
+type distributionLine struct {
+	Choice string `xml:"choice,attr"`
 }
 
 // distributionBundleVersion represents the bundle-version element
@@ -270,7 +286,14 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 		BundleIdentifier: identifier,
 		PackageIDs:       packageIDs,
 	}, nil
+}
 
+// Set of package names we know are incorrect. If we see these in the Distribution file we should
+// try to get the name some other way.
+var knownBadNames = map[string]struct{}{
+	"DISTRIBUTION_TITLE": {},
+	"MacFULL":            {},
+	"SU_TITLE":           {},
 }
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
@@ -278,7 +301,7 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 	var appVersion string
 
 	// find the package ids that have an installation size
-	var packageIDSet = make(map[string]struct{}, 1)
+	packageIDSet := make(map[string]struct{}, 1)
 	for _, pkg := range d.PkgRefs {
 		if pkg.InstallKBytes != "" && pkg.InstallKBytes != "0" {
 			var id string
@@ -339,6 +362,36 @@ out:
 		}
 	}
 
+	// Try to get the identifier based on the choices list, if we have one. Some .pkgs have multiple
+	// sub-pkgs inside, so the choices list helps us be a bit smarter.
+	if identifier == "" && len(d.ChoicesOutline.Lines) > 0 {
+		choicesByID := make(map[string]distributionChoice, len(d.Choices))
+		for _, c := range d.Choices {
+			choicesByID[c.ID] = c
+		}
+
+		for _, l := range d.ChoicesOutline.Lines {
+			c := choicesByID[l.Choice]
+			// Note: we can't create a map of pkg-refs by ID like we do for the choices above
+			// because different pkg-refs can have the same ID attribute. See distribution-go.xml
+			// for an example of this (this case is covered in tests).
+			for _, p := range d.PkgRefs {
+				if p.ID == c.PkgRef.ID {
+					identifier = p.PackageIdentifier
+					if identifier == "" {
+						identifier = p.ID
+					}
+					break
+				}
+			}
+
+			if identifier != "" {
+				// we found it, so we can quit looping
+				break
+			}
+		}
+	}
+
 	if identifier == "" {
 		for _, pkg := range d.PkgRefs {
 			if pkg.PackageIdentifier != "" {
@@ -368,8 +421,17 @@ out:
 	if name == "" && d.Title != "" {
 		name = d.Title
 	}
-	if name == "" {
+
+	if _, ok := knownBadNames[name]; name == "" || ok {
 		name = identifier
+
+		// Try to find a <choice> tag that matches the bundle ID for this app. It might have the app
+		// name, so if we find it we can use that.
+		for _, c := range d.Choices {
+			if c.PkgRef.ID == identifier && c.Title != "" {
+				name = c.Title
+			}
+		}
 	}
 
 	// for the version, try to use the top-level product version, if not,
@@ -405,12 +467,11 @@ func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
 		BundleIdentifier: identifier,
 		PackageIDs:       packageIDs,
 	}, nil
-
 }
 
 // getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
 func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
-	var packageIDSet = make(map[string]struct{}, 1)
+	packageIDSet := make(map[string]struct{}, 1)
 	for _, bundle := range p.Bundles {
 		installPath := bundle.Path
 		if p.InstallLocation != "" {

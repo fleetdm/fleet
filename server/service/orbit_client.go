@@ -73,6 +73,12 @@ type configCache struct {
 }
 
 func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
+	return oc.requestWithExternal(verb, path, params, resp, false)
+}
+
+// requestWithExternal is used to make requests to Fleet or external URLs. If external is true, the pathOrURL
+// is used as the full URL to make the request to.
+func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params interface{}, resp interface{}, external bool) error {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -82,11 +88,6 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 		}
 	}
 
-	parsedURL, err := url.Parse(path)
-	if err != nil {
-		return fmt.Errorf("parsing URL: %w", err)
-	}
-
 	oc.closeIdleConnections()
 
 	ctx := context.Background()
@@ -94,24 +95,42 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 		ctx = httptrace.WithClientTrace(ctx, testStdoutHTTPTracer)
 	}
 
-	request, err := http.NewRequestWithContext(
-		ctx,
-		verb,
-		oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
-		bytes.NewBuffer(bodyBytes),
-	)
-	if err != nil {
-		return err
+	var request *http.Request
+	if external {
+		request, err = http.NewRequestWithContext(
+			ctx,
+			verb,
+			pathOrURL,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		parsedURL, err := url.Parse(pathOrURL)
+		if err != nil {
+			return fmt.Errorf("parsing URL: %w", err)
+		}
+
+		request, err = http.NewRequestWithContext(
+			ctx,
+			verb,
+			oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
+			bytes.NewBuffer(bodyBytes),
+		)
+		if err != nil {
+			return err
+		}
+		oc.setClientCapabilitiesHeader(request)
 	}
-	oc.setClientCapabilitiesHeader(request)
 	response, err := oc.http.Do(request)
 	if err != nil {
 		oc.setLastRecordedError(err)
-		return fmt.Errorf("%s %s: %w", verb, path, err)
+		return fmt.Errorf("%s %s: %w", verb, pathOrURL, err)
 	}
 	defer response.Body.Close()
 
-	if err := oc.parseResponse(verb, path, response, resp); err != nil {
+	if err := oc.parseResponse(verb, pathOrURL, response, resp); err != nil {
 		oc.setLastRecordedError(err)
 		return err
 	}
@@ -408,6 +427,14 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
 		InstallerID: installerID,
 	}, &resp); err != nil {
+		return "", err
+	}
+	return resp.GetFilePath(), nil
+}
+
+func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDirectory string) (string, error) {
+	resp := FileResponse{DestPath: downloadDirectory, DestFile: filename, SkipMediaType: true}
+	if err := oc.requestWithExternal("GET", url, nil, &resp, true); err != nil {
 		return "", err
 	}
 	return resp.GetFilePath(), nil

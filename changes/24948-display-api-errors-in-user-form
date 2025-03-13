@@ -1,0 +1,2 @@
+- Fix a bug where server errors returned from the API were not successfully being incorporated into
+  the user form error states.

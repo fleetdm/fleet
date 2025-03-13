@@ -4,7 +4,7 @@
   "old_tokens": [],
   "tap": "homebrew/cask",
   "name": ["Zoom for IT Admins"],
-  "desc": "Video communication and virtual meeting platform",
+  "desc": "Zoom is a leading video communication platform for meetings, webinars, and collaboration.",
   "homepage": "https://www.zoom.us/",
   "url": "https://cdn.zoom.us/prod/6.2.11.43613/ZoomInstallerIT.pkg",
   "url_specs": {},

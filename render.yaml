@@ -39,8 +39,8 @@ services:
       - key: FLEET_REDIS_ADDRESS
         fromService:
           name: fleet-redis
-          type: pserv
-          property: hostport
+          type: redis
+          property: connectionString
       - key: FLEET_SERVER_TLS
         value: 'false'
       - key: PORT
@@ -66,9 +66,7 @@ services:
         value: fleet
 
   - name: fleet-redis
-    plan: starter
-    type: pserv
-    runtime: image
-    image:
-      url: 'redis:7.2.4'
-
+    plan: starter # May use free plan for testing or short-lived deployments
+    type: redis
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []

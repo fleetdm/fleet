@@ -7,7 +7,7 @@ import PATHS from "router/paths";
 
 import { ISoftwareTitleVersion } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -89,17 +89,16 @@ const SoftwareTitleDetailsTable = ({
   countsUpdatedAt,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      software_version_id: row.original.id,
-    };
+    if (row.original.id) {
+      const softwareVersionId = row.original.id;
 
-    const path = hostsBySoftwareParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-          hostsBySoftwareParams
-        )}`
-      : PATHS.MANAGE_HOSTS;
+      const softwareVersionDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_VERSION_DETAILS(softwareVersionId.toString()),
+        { team_id: teamIdForApi }
+      );
 
-    router.push(path);
+      router.push(softwareVersionDetailsPath);
+    }
   };
 
   const softwareTableHeaders = useMemo(

@@ -1,5 +1,11 @@
 .manage-policies-page {
   .policy-run-script-modal {
+    .form-field__help-text {
+      font-size: 14px;
+      line-height: 21px;
+      margin-top: $pad-large;
+    }
+
     .form-field--dropdown {
       width: 276px;
       .Select-placeholder {
@@ -14,12 +20,11 @@
         overflow-y: auto;
       }
     }
-    .policy-row {
+    .paginated-list__row {
       height: 40px;
       padding-top: 4px;
       padding-bottom: 4px;
     }
-
     &__no-scripts {
       display: flex;
       height: 178px;
@@ -28,7 +33,7 @@
       gap: $pad-small;
       justify-content: center;
       font-size: $small;
-      
+
       div  {
         color: $ui-fleet-black-75;
         font-size: $xx-small;
@@ -42,4 +47,3 @@
     }
   }
 }
-

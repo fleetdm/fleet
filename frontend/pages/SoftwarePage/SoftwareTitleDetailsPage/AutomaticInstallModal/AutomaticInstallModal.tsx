@@ -1,30 +1,38 @@
 import React from "react";
 
-import { ISoftwarePackagePolicy } from "interfaces/software";
+import { Link } from "react-router";
+import paths from "router/paths";
+import { ISoftwareInstallPolicy } from "interfaces/software";
+import { getPathWithQueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import { Link } from "react-router";
 
 const baseClass = "automatic-install-modal";
 
 interface IPoliciesListItemProps {
   teamId: number;
-  policy: ISoftwarePackagePolicy;
+  policy: ISoftwareInstallPolicy;
 }
 
 const PoliciesListItem = ({ teamId, policy }: IPoliciesListItemProps) => {
   return (
     <li key={policy.id} className={`${baseClass}__list-item`}>
-      <Link to={`/policies/${policy.id}?team_id=${teamId}`}>{policy.name}</Link>
+      <Link
+        to={getPathWithQueryParams(paths.EDIT_POLICY(policy.id), {
+          team_id: teamId,
+        })}
+      >
+        {policy.name}
+      </Link>
     </li>
   );
 };
 
 interface IPoliciesListProps {
   teamId: number;
-  policies: ISoftwarePackagePolicy[];
+  policies: ISoftwareInstallPolicy[];
 }
 
 const PoliciesList = ({ teamId, policies }: IPoliciesListProps) => {
@@ -39,7 +47,7 @@ const PoliciesList = ({ teamId, policies }: IPoliciesListProps) => {
 
 interface IAutomaticInstallModalProps {
   teamId: number;
-  policies: ISoftwarePackagePolicy[];
+  policies: ISoftwareInstallPolicy[];
   onExit: () => void;
 }
 

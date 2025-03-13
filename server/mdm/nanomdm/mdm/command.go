@@ -43,6 +43,13 @@ func DecodeCommandResults(rawResults []byte) (results *CommandResults, err error
 	return
 }
 
+type CommandSubtype string
+
+const (
+	CommandSubtypeNone               CommandSubtype = "None"
+	CommandSubtypeProfileWithSecrets CommandSubtype = "ProfileWithSecrets"
+)
+
 // Command represents a generic MDM command without command-specific fields.
 type Command struct {
 	CommandUUID string
@@ -50,6 +57,11 @@ type Command struct {
 		RequestType string
 	}
 	Raw []byte `plist:"-"` // Original command XML plist
+}
+
+type CommandWithSubtype struct {
+	Command
+	Subtype CommandSubtype
 }
 
 // DecodeCommand unmarshals rawCommand into command

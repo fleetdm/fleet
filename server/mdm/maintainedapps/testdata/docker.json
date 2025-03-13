@@ -8,7 +8,7 @@
 		"Docker Community Edition",
 		"Docker CE"
 	],
-	"desc": "App to build and share containerised applications and microservices",
+	"desc": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices.",
 	"homepage": "https://www.docker.com/products/docker-desktop",
 	"url": "https://desktop.docker.com/mac/main/arm64/165256/Docker.dmg",
 	"url_specs": {},

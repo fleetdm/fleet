@@ -13,22 +13,29 @@ import {
   APPLE_PLATFORM_DISPLAY_NAMES,
   HostPlatform,
   isIPadOrIPhone,
+  isAndroid,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { Row } from "react-table";
+import { IHostSoftware } from "interfaces/software";
+import EmptyTable from "components/EmptyTable";
+import CustomLink from "components/CustomLink";
+import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "host-software-table";
 
-export const DROPDOWN_OPTIONS = [
+const DROPDOWN_OPTIONS = [
   {
     disabled: false,
     label: "All software",
@@ -48,8 +55,11 @@ export const DROPDOWN_OPTIONS = [
     value: "installableSoftware",
     helpText: "Software that can be installed on your hosts.",
   },
-] as const;
+];
 
+interface IHostSoftwareRowProps extends Row {
+  original: IHostSoftware;
+}
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
@@ -64,6 +74,8 @@ interface IHostSoftwareTableProps {
   routeTemplate?: string;
   pathPrefix: string;
   hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
+  isMyDevicePage?: boolean;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
 }
 
 const HostSoftwareTable = ({
@@ -80,9 +92,11 @@ const HostSoftwareTable = ({
   routeTemplate,
   pathPrefix,
   hostSoftwareFilter,
+  isMyDevicePage,
+  onShowSoftwareDetails,
 }: IHostSoftwareTableProps) => {
   const handleFilterDropdownChange = useCallback(
-    (val: IHostSoftwareDropdownFilterVal) => {
+    (selectedFilter: SingleValue<CustomOptionType>) => {
       const newParams: QueryParams = {
         query: searchQuery,
         order_key: sortHeader,
@@ -91,9 +105,9 @@ const HostSoftwareTable = ({
       };
 
       // mutually exclusive
-      if (val === "installableSoftware") {
+      if (selectedFilter?.value === "installableSoftware") {
         newParams.available_for_install = true.toString();
-      } else if (val === "vulnerableSoftware") {
+      } else if (selectedFilter?.value === "vulnerableSoftware") {
         newParams.vulnerable = true.toString();
       }
 
@@ -116,12 +130,13 @@ const HostSoftwareTable = ({
 
   const memoizedFilterDropdown = useCallback(() => {
     return (
-      <Dropdown
+      <DropdownWrapper
+        name="host-software-filter"
         value={hostSoftwareFilter}
+        className={`${baseClass}__software-filter`}
         options={DROPDOWN_OPTIONS}
-        searchable={false}
         onChange={handleFilterDropdownChange}
-        iconName="filter"
+        variant="table-filter"
       />
     );
   }, [handleFilterDropdownChange, hostSoftwareFilter]);
@@ -221,6 +236,27 @@ const HostSoftwareTable = ({
 
   const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
 
+  const onClickMyDeviceRow = useCallback(
+    (row: IHostSoftwareRowProps) => {
+      onShowSoftwareDetails(row.original);
+    },
+    [onShowSoftwareDetails]
+  );
+
+  if (isAndroid(platform)) {
+    return (
+      <EmptyTable
+        header="Software is not supported for this host"
+        info={
+          <>
+            Interested in viewing software for Android hosts?{" "}
+            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -237,11 +273,19 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
-        customControl={showFilterHeaders ? memoizedFilterDropdown : undefined}
+        customControl={
+          !isMyDevicePage && showFilterHeaders
+            ? memoizedFilterDropdown
+            : undefined
+        }
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
+        keyboardSelectableRows
+        // my device page row clickability
+        disableMultiRowSelect={isMyDevicePage}
+        onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}
       />
     </div>
   );

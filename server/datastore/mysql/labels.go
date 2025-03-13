@@ -123,6 +123,67 @@ func batchHostnames(hostnames []string) [][]string {
 	return batches
 }
 
+func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// delete all label membership
+		sql := `
+	DELETE FROM label_membership WHERE label_id = ?
+	`
+		_, err := tx.ExecContext(ctx, sql, labelID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear membership for ID")
+		}
+
+		if len(hostIds) == 0 {
+			return nil
+		}
+
+		// Split hostIds into batches to avoid parameter limit in MySQL.
+		for _, hostIds := range batchHostIds(hostIds) {
+			// Use ignore because duplicate hostIds could appear in
+			// different batches and would result in duplicate key errors.
+			values := []interface{}{}
+			placeholders := []string{}
+
+			for _, hostID := range hostIds {
+				values = append(values, labelID, hostID)
+				placeholders = append(placeholders, "(?, ?)")
+			}
+
+			// Build the final SQL query with the dynamically generated placeholders
+			sql := `
+INSERT IGNORE INTO label_membership (label_id, host_id)
+VALUES ` + strings.Join(placeholders, ", ")
+			sql, args, err := sqlx.In(sql, values...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build membership IN statement")
+			}
+			_, err = tx.ExecContext(ctx, sql, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "execute membership INSERT")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
+	}
+
+	return ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
+}
+
+func batchHostIds(hostIds []uint) [][]uint {
+	// same functionality as `batchHostnames`, but for host IDs
+	const batchSize = 50000 // Large, but well under the undocumented limit
+	batches := make([][]uint, 0, (len(hostIds)+batchSize-1)/batchSize)
+
+	for batchSize < len(hostIds) {
+		hostIds, batches = hostIds[batchSize:], append(batches, hostIds[0:batchSize:batchSize])
+	}
+	batches = append(batches, hostIds)
+	return batches
+}
+
 func (ds *Datastore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
 	var specs []*fleet.LabelSpec
 	// Get basic specs
@@ -252,6 +313,9 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
+			if isMySQLForeignKey(err) {
+				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
+			}
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
 
@@ -612,17 +676,32 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// 	// TODO: Do we currently support filtering by software version ID and label?
 	// }
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
-		// get the installer id
-		meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-		if err != nil {
+		// check for software installer metadata
+		_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+		switch {
+		case fleet.IsNotFound(err):
+			vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+			}
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+			}
+			softwareStatusJoin = vppAppJoin
+			joinParams = append(joinParams, vppAppParams...)
+
+		case err != nil:
 			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+
+		default:
+			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+			}
+			softwareStatusJoin = installerJoin
+			joinParams = append(joinParams, installerParams...)
 		}
-		installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
-		if err != nil {
-			return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-		}
-		softwareStatusJoin = installerJoin
-		joinParams = append(joinParams, installerParams...)
 	}
 	if softwareStatusJoin != "" {
 		query += softwareStatusJoin

@@ -60,7 +60,7 @@ const EditUserModal = ({
       className={`${baseClass}__edit-user-modal`}
     >
       <UserForm
-        userFormErrors={editUserErrors}
+        ancestorErrors={editUserErrors}
         defaultName={defaultName}
         defaultEmail={defaultEmail}
         defaultGlobalRole={defaultGlobalRole}
@@ -69,7 +69,6 @@ const EditUserModal = ({
         onCancel={onCancel}
         onSubmit={onSubmit}
         availableTeams={availableTeams}
-        submitText="Save"
         isPremiumTier={isPremiumTier}
         smtpConfigured={smtpConfigured}
         sesConfigured={sesConfigured}

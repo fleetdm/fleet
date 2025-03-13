@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
+import { IUserSettings } from "./config";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -110,6 +111,7 @@ export interface IUpdateUserFormData {
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
   teams?: ITeam[];
+  settings?: IUserSettings;
 }
 
 export interface ICreateUserWithInvitationFormData {

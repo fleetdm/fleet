@@ -16,7 +16,7 @@ Fleet allows its users to monitor and ensure compliance through policies. Polici
 
 ## AI-assisted policy descriptions and resolutions
 
-At Fleet, we understand that transparency isn’t just a buzzword—it's a crucial part of your daily operations. That's why we're excited to introduce a new level of support for IT and security admins: AI-assisted policy descriptions and resolutions. Imagine you’re setting up a new policy. Instead of starting from scratch, our AI steps in to draft a clear, concise usr-facing policy description and a straightforward resolution path by analyzing even the most complex SQL. It’s like having an expert by your side, ensuring you communicate effectively with every user about what needs to be done and why. And if something doesn’t sound quite right? You have full control to tweak the policy language, ensuring every word aligns with your specific needs and context.
+At Fleet, we understand that transparency isn’t just a buzzword—it's a crucial part of your daily operations. That's why we're excited to introduce a new level of support for IT and security admins: AI-assisted policy descriptions and resolutions. Imagine you’re setting up a new policy. Instead of starting from scratch, our AI steps in to draft a clear, concise user-facing policy description and a straightforward resolution path by analyzing even the most complex SQL. It’s like having an expert by your side, ensuring you communicate effectively with every user about what needs to be done and why. And if something doesn’t sound quite right? You have full control to tweak the policy language, ensuring every word aligns with your specific needs and context.
 
 
 

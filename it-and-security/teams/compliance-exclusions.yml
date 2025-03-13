@@ -28,6 +28,13 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  enable_disk_encryption: true
 policies:
+    - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
 queries:
 software:
+  packages:
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
+    - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL

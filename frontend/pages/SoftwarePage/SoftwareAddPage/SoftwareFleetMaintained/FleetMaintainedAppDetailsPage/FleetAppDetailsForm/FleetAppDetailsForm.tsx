@@ -1,10 +1,16 @@
 import React, { useState } from "react";
 
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipWrapper from "components/TooltipWrapper";
+import { ILabelSummary } from "interfaces/label";
+
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
-import Radio from "components/forms/fields/Radio";
+import Card from "components/Card";
+import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+} from "pages/SoftwarePage/helpers";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 
@@ -14,19 +20,25 @@ const baseClass = "fleet-app-details-form";
 
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
+  automaticInstall: boolean;
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
   uninstallScript?: string;
-  installType: string;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
 }
 
 export interface IFormValidation {
   isValid: boolean;
   preInstallQuery?: { isValid: boolean; message?: string };
+  customTarget?: { isValid: boolean };
 }
 
 interface IFleetAppDetailsFormProps {
+  labels: ILabelSummary[] | null;
+  name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
   defaultUninstallScript: string;
@@ -37,6 +49,8 @@ interface IFleetAppDetailsFormProps {
 }
 
 const FleetAppDetailsForm = ({
+  labels,
+  name: appName,
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,
@@ -49,11 +63,14 @@ const FleetAppDetailsForm = ({
 
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
     selfService: false,
+    automaticInstall: false,
     preInstallQuery: undefined,
     installScript: defaultInstallScript,
     postInstallScript: defaultPostInstallScript,
     uninstallScript: defaultUninstallScript,
-    installType: "manual",
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: {},
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
@@ -90,9 +107,29 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onChangeInstallType = (value: string) => {
-    const newData = { ...formData, installType: value };
+  const onToggleAutomaticInstallCheckbox = (value: boolean) => {
+    const newData = { ...formData, automaticInstall: value };
     setFormData(newData);
+  };
+
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
@@ -104,53 +141,32 @@ const FleetAppDetailsForm = ({
 
   return (
     <form className={baseClass} onSubmit={onSubmitForm}>
-      <fieldset>
-        <legend>Install</legend>
-        <div className={`${baseClass}__radio-inputs`}>
-          <Radio
-            checked={formData.installType === "manual"}
-            id="manual"
-            value="manual"
-            name="install-type"
-            label="Manual"
-            onChange={onChangeInstallType}
-            helpText="Manually install on Host details page for each host."
+      <div className={`${baseClass}__form-frame`}>
+        <Card paddingSize="medium" borderRadiusSize="large">
+          <SoftwareOptionsSelector
+            formData={formData}
+            onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
+            onToggleSelfService={onToggleSelfServiceCheckbox}
           />
-          <Radio
-            checked={formData.installType === "automatic"}
-            id="automatic"
-            value="automatic"
-            name="install-type"
-            label="Automatic"
-            onChange={onChangeInstallType}
-            helpText={
-              <>
-                Automatically install on each host that&apos;s{" "}
-                <TooltipWrapper tipContent="If the host already has any version of this software, it won't be installed.">
-                  missing this software.
-                </TooltipWrapper>{" "}
-                Policy that triggers install can be customized after software is
-                added.
-              </>
+        </Card>
+        <Card paddingSize="medium" borderRadiusSize="large">
+          <TargetLabelSelector
+            selectedTargetType={formData.targetType}
+            selectedCustomTarget={formData.customTarget}
+            selectedLabels={formData.labelTargets}
+            customTargetOptions={CUSTOM_TARGET_OPTIONS}
+            className={`${baseClass}__target`}
+            dropdownHelpText={
+              formData.targetType === "Custom" &&
+              generateHelpText(formData.automaticInstall, formData.customTarget)
             }
+            onSelectTargetType={onSelectTargetType}
+            onSelectCustomTarget={onSelectCustomTargetOption}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
           />
-        </div>
-      </fieldset>
-      <Checkbox
-        value={formData.selfService}
-        onChange={onToggleSelfServiceCheckbox}
-      >
-        <TooltipWrapper
-          tipContent={
-            <>
-              End users can install from <b>Fleet Desktop {">"} Self-service</b>
-              .
-            </>
-          }
-        >
-          Self-service
-        </TooltipWrapper>
-      </Checkbox>
+        </Card>
+      </div>
       <div className={`${baseClass}__advanced-options-section`}>
         <RevealButton
           className={`${baseClass}__accordion-title`}
@@ -182,7 +198,7 @@ const FleetAppDetailsForm = ({
           />
         )}
       </div>
-      <div className={`${baseClass}__form-buttons`}>
+      <div className={`${baseClass}__action-buttons`}>
         <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
           Add software
         </Button>

@@ -1,38 +1,51 @@
 import React, { useContext, useState, useEffect } from "react";
-import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 import classnames from "classnames";
-import { isAxiosError } from "axios";
 
-import { getErrorReason } from "interfaces/errors";
+import { ILabelSummary } from "interfaces/label";
+import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { NotificationContext } from "context/notification";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "services/entities/software";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
-import CustomLink from "components/CustomLink";
 import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 
 import PackageForm from "pages/SoftwarePage/components/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import SoftwareVppForm from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
+import {
+  generateSelectedLabels,
+  getCustomTarget,
+  getInstallType,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
+
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
 const baseClass = "edit-software-modal";
 
+// Install type used on add but not edit
+export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
+
 interface IEditSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  router: InjectedRouter;
-  software?: any; // TODO
+  software: ISoftwarePackage | IAppStoreApp;
   refetchSoftwareTitle: () => void;
   onExit: () => void;
+  installerType: "package" | "vpp";
 }
 
 const EditSoftwareModal = ({
@@ -41,6 +54,7 @@ const EditSoftwareModal = ({
   software,
   onExit,
   refetchSoftwareTitle,
+  installerType,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -52,12 +66,37 @@ const EditSoftwareModal = ({
     showConfirmSaveChangesModal,
     setShowConfirmSaveChangesModal,
   ] = useState(false);
-  const [pendingUpdates, setPendingUpdates] = useState<IPackageFormData>({
+  const [
+    pendingPackageUpdates,
+    setPendingPackageUpdates,
+  ] = useState<IEditPackageFormData>({
     software: null,
     installScript: "",
     selfService: false,
+    automaticInstall: false,
+    targetType: "",
+    customTarget: "",
+    labelTargets: {},
+  });
+  const [
+    pendingVppUpdates,
+    setPendingVppUpdates,
+  ] = useState<ISoftwareVppFormData>({
+    selfService: false,
+    automaticInstall: false,
+    targetType: "",
+    customTarget: "",
+    labelTargets: {},
   });
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  const { data: labels } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
   // Work around to not lose Edit Software modal data when Save changes modal opens
   // by using CSS to hide Edit Software modal when Save changes modal is open
@@ -66,12 +105,12 @@ const EditSoftwareModal = ({
       classnames(baseClass, {
         [`${baseClass}--hidden`]:
           showConfirmSaveChangesModal ||
-          (!!pendingUpdates.software && isUpdatingSoftware),
+          (!!pendingPackageUpdates.software && isUpdatingSoftware),
       })
     );
   }, [
     showConfirmSaveChangesModal,
-    pendingUpdates.software,
+    pendingPackageUpdates.software,
     isUpdatingSoftware,
   ]);
 
@@ -97,11 +136,11 @@ const EditSoftwareModal = ({
   }, [isUpdatingSoftware]);
 
   const toggleConfirmSaveChangesModal = () => {
-    // open and closes save changes modal
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
-  const onSaveSoftwareChanges = async (formData: IPackageFormData) => {
+  // Edit package API call
+  const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -113,11 +152,10 @@ const EditSoftwareModal = ({
       return;
     }
 
-    // Note: This TODO is copied over from onAddPackage on AddPackage.tsx
-    // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
       await softwareAPI.editSoftwarePackage({
         data: formData,
+        orignalPackage: software as ISoftwarePackage,
         softwareId,
         teamId,
         onUploadProgress: (progressEvent) => {
@@ -140,68 +178,124 @@ const EditSoftwareModal = ({
       onExit();
       refetchSoftwareTitle();
     } catch (e) {
-      const isTimeout =
-        isAxiosError(e) &&
-        (e.response?.status === 504 || e.response?.status === 408);
-      const reason = getErrorReason(e);
-      if (isTimeout) {
-        renderFlash(
-          "error",
-          `Couldn’t upload. Request timeout. Please make sure your server and load balancer timeout is long enough.`
-        );
-      } else if (reason.includes("Fleet couldn't read the version from")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}.
-            <CustomLink
-              newTab
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-              text="Learn more"
-            />
-          </>
-        );
-      } else if (reason.includes("selected package is")) {
-        renderFlash(
-          "error",
-          <>
-            Couldn&apos;t edit <b>{software.name}</b>. {reason}
-          </>
-        );
-      } else {
-        renderFlash("error", getErrorMessage(e));
-      }
+      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
     }
     setIsUpdatingSoftware(false);
   };
 
-  const onEditSoftware = (formData: IPackageFormData) => {
-    // Check for changes to conditionally confirm save changes modal
-    const updates = deepDifference(formData, {
-      software,
-      installScript: software.install_script || "",
-      preInstallQuery: software.pre_install_query || "",
-      postInstallScript: software.post_install_script || "",
-      uninstallScript: software.uninstall_script || "",
-      selfService: software.self_service || false,
-    });
+  const isOnlySelfServiceUpdated = (updates: Record<string, any>) => {
+    return Object.keys(updates).length === 1 && "selfService" in updates;
+  };
 
-    setPendingUpdates(formData);
+  const onClickSavePackage = (formData: IPackageFormData) => {
+    const softwarePackage = software as ISoftwarePackage;
 
-    const onlySelfServiceUpdated =
-      Object.keys(updates).length === 1 && "selfService" in updates;
-    if (!onlySelfServiceUpdated) {
-      // Open the confirm save changes modal
-      setShowConfirmSaveChangesModal(true);
+    const currentData = {
+      software: null,
+      installScript: softwarePackage.install_script || "",
+      preInstallQuery: softwarePackage.pre_install_query || "",
+      postInstallScript: softwarePackage.post_install_script || "",
+      uninstallScript: softwarePackage.uninstall_script || "",
+      selfService: softwarePackage.self_service || false,
+      installType: getInstallType(softwarePackage),
+      targetType: getTargetType(softwarePackage),
+      customTarget: getCustomTarget(softwarePackage),
+      labelTargets: generateSelectedLabels(softwarePackage),
+    };
+
+    setPendingPackageUpdates(formData);
+
+    const updates = deepDifference(formData, currentData);
+
+    if (isOnlySelfServiceUpdated(updates)) {
+      onEditPackage(formData);
     } else {
-      // Proceed with saving changes (API expects only changes)
-      onSaveSoftwareChanges(formData);
+      setShowConfirmSaveChangesModal(true);
     }
   };
 
-  const onConfirmSoftwareChanges = () => {
-    setShowConfirmSaveChangesModal(false);
-    onSaveSoftwareChanges(pendingUpdates);
+  // Edit VPP API call
+  const onEditVpp = async (formData: ISoftwareVppFormData) => {
+    setIsUpdatingSoftware(true);
+
+    try {
+      await mdmAppleAPI.editVppApp(softwareId, teamId, formData);
+
+      renderFlash(
+        "success",
+        <>
+          Successfully edited <b>{software.name}</b>.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
+      );
+      onExit();
+      refetchSoftwareTitle();
+    } catch (e) {
+      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+    }
+    setIsUpdatingSoftware(false);
+  };
+
+  const onClickSaveVpp = async (formData: ISoftwareVppFormData) => {
+    const currentData = {
+      selfService: software.self_service || false,
+      automaticInstall: software.automatic_install || false,
+      targetType: getTargetType(software),
+      customTarget: getCustomTarget(software),
+      labelTargets: generateSelectedLabels(software),
+    };
+
+    setPendingVppUpdates(formData);
+
+    const updates = deepDifference(formData, currentData);
+
+    if (isOnlySelfServiceUpdated(updates)) {
+      onEditVpp(formData);
+    } else {
+      setShowConfirmSaveChangesModal(true);
+    }
+  };
+
+  const onClickConfirmChanges = () => {
+    if (installerType === "package") {
+      onEditPackage(pendingPackageUpdates);
+    } else {
+      onEditVpp(pendingVppUpdates);
+    }
+  };
+
+  const renderForm = () => {
+    if (installerType === "package") {
+      const softwarePackage = software as ISoftwarePackage;
+      return (
+        <PackageForm
+          labels={labels || []}
+          className={`${baseClass}__package-form`}
+          isEditingSoftware
+          onCancel={onExit}
+          onSubmit={onClickSavePackage}
+          defaultSoftware={software}
+          defaultInstallScript={softwarePackage.install_script}
+          defaultPreInstallQuery={softwarePackage.pre_install_query}
+          defaultPostInstallScript={softwarePackage.post_install_script}
+          defaultUninstallScript={softwarePackage.uninstall_script}
+          defaultSelfService={softwarePackage.self_service}
+          gitopsCompatible
+        />
+      );
+    }
+
+    return (
+      <SoftwareVppForm
+        labels={labels || []}
+        softwareVppForEdit={software as IAppStoreApp}
+        onSubmit={onClickSaveVpp}
+        onCancel={onExit}
+        isLoading={isUpdatingSoftware}
+      />
+    );
   };
 
   return (
@@ -212,29 +306,19 @@ const EditSoftwareModal = ({
         onExit={onExit}
         width="large"
       >
-        <PackageForm
-          className={`${baseClass}__package-form`}
-          isEditingSoftware
-          onCancel={onExit}
-          onSubmit={onEditSoftware}
-          defaultSoftware={software}
-          defaultInstallScript={software.install_script}
-          defaultPreInstallQuery={software.pre_install_query}
-          defaultPostInstallScript={software.post_install_script}
-          defaultUninstallScript={software.uninstall_script}
-          defaultSelfService={software.self_service}
-        />
+        {renderForm()}
       </Modal>
       {showConfirmSaveChangesModal && (
         <ConfirmSaveChangesModal
           onClose={toggleConfirmSaveChangesModal}
-          softwarePackageName={software?.name}
-          onSaveChanges={onConfirmSoftwareChanges}
+          softwareInstallerName={software?.name}
+          installerType={installerType}
+          onSaveChanges={onClickConfirmChanges}
         />
       )}
-      {!!pendingUpdates.software && isUpdatingSoftware && (
+      {!!pendingPackageUpdates.software && isUpdatingSoftware && (
         <FileProgressModal
-          fileDetails={getFileDetails(pendingUpdates.software)}
+          fileDetails={getFileDetails(pendingPackageUpdates.software)}
           fileProgress={uploadProgress}
         />
       )}

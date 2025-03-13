@@ -1,11 +1,11 @@
 import React, { createContext, useReducer, useMemo, ReactNode } from "react";
 
-import { IConfig } from "interfaces/config";
+import { IConfig, IUserSettings } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 import {
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
   ITeamSummary,
-  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -15,10 +15,12 @@ import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
+  SET_USER_SETTINGS = "SET_USER_SETTINGS",
   SET_CURRENT_USER = "SET_CURRENT_USER",
   SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
+  SET_ANDROID_ENTERPRISE_DELETED = "SET_ANDROID_ENTERPRISE_DELETED",
   SET_ABM_EXPIRY = "SET_ABM_EXPIRY",
   SET_APNS_EXPIRY = "SET_APNS_EXPIRY",
   SET_VPP_EXPIRY = "SET_VPP_EXPIRY",
@@ -34,6 +36,11 @@ interface ISetAvailableTeamsAction {
   type: ACTIONS.SET_AVAILABLE_TEAMS;
   user: IUser | null;
   availableTeams: ITeamSummary[];
+}
+
+interface ISetUserSettingsAction {
+  type: ACTIONS.SET_USER_SETTINGS;
+  userSettings: IUserSettings;
 }
 
 interface ISetConfigAction {
@@ -52,6 +59,11 @@ interface ISetCurrentUserAction {
 interface ISetEnrollSecretAction {
   type: ACTIONS.SET_ENROLL_SECRET;
   enrollSecret: IEnrollSecret[];
+}
+
+interface ISetAndroidEnterpriseDeletedAction {
+  type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED;
+  isDeleted: boolean;
 }
 
 interface IAbmExpiry {
@@ -103,12 +115,15 @@ interface ISetFilteredPoliciesPathAction {
   type: ACTIONS.SET_FILTERED_POLICIES_PATH;
   filteredPoliciesPath: string;
 }
+
 type IAction =
   | ISetAvailableTeamsAction
+  | ISetUserSettingsAction
   | ISetConfigAction
   | ISetCurrentTeamAction
   | ISetCurrentUserAction
   | ISetEnrollSecretAction
+  | ISetAndroidEnterpriseDeletedAction
   | ISetABMExpiryAction
   | ISetAPNsExpiryAction
   | ISetVppExpiryAction
@@ -125,6 +140,7 @@ type Props = {
 
 type InitialStateType = {
   availableTeams?: ITeamSummary[];
+  userSettings?: IUserSettings;
   config: IConfig | null;
   currentUser: IUser | null;
   currentTeam?: ITeamSummary;
@@ -135,6 +151,7 @@ type InitialStateType = {
   isPremiumTier?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   isWindowsMdmEnabledAndConfigured?: boolean;
+  isAndroidMdmEnabledAndConfigured?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -150,6 +167,7 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
+  isAndroidEnterpriseDeleted: boolean;
   isAppleBmExpired: boolean;
   isApplePnsExpired: boolean;
   isVppExpired: boolean;
@@ -171,10 +189,12 @@ type InitialStateType = {
     user: IUser | null,
     availableTeams: ITeamSummary[]
   ) => void;
+  setUserSettings: (userSettings: IUserSettings) => void;
   setCurrentUser: (user: IUser) => void;
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
+  setAndroidEnterpriseDeleted: (isDeleted: boolean) => void;
   setAPNsExpiry: (apnsExpiry: string) => void;
   setABMExpiry: (abmExpiry: IAbmExpiry) => void;
   setVppExpiry: (vppExpiry: string) => void;
@@ -190,6 +210,7 @@ export type IAppContext = InitialStateType;
 
 export const initialState = {
   availableTeams: undefined,
+  userSettings: undefined,
   config: null,
   currentUser: null,
   currentTeam: undefined,
@@ -200,6 +221,7 @@ export const initialState = {
   isPremiumTier: undefined,
   isMacMdmEnabledAndConfigured: undefined,
   isWindowsMdmEnabledAndConfigured: undefined,
+  isAndroidMdmEnabledAndConfigured: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -219,6 +241,7 @@ export const initialState = {
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
   filteredPoliciesPath: undefined,
+  isAndroidEnterpriseDeleted: false,
   isAppleBmExpired: false,
   isApplePnsExpired: false,
   isVppExpired: false,
@@ -227,10 +250,12 @@ export const initialState = {
   willApplePnsExpire: false,
   willVppExpire: false,
   setAvailableTeams: () => null,
+  setUserSettings: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
   setConfig: () => null,
   setEnrollSecret: () => null,
+  setAndroidEnterpriseDeleted: () => null,
   setAPNsExpiry: () => null,
   setABMExpiry: () => null,
   setVppExpiry: () => null,
@@ -271,6 +296,9 @@ const setPermissions = (
     isWindowsMdmEnabledAndConfigured: permissions.isWindowsMdmEnabledAndConfigured(
       config
     ),
+    isAndroidMdmEnabledAndConfigured: permissions.isAndroidMdmEnabledAndConfigured(
+      config
+    ),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
@@ -296,6 +324,13 @@ const setPermissions = (
 
 const reducer = (state: InitialStateType, action: IAction) => {
   switch (action.type) {
+    case ACTIONS.SET_USER_SETTINGS: {
+      const { userSettings } = action;
+      return {
+        ...state,
+        userSettings,
+      };
+    }
     case ACTIONS.SET_AVAILABLE_TEAMS: {
       const { user, availableTeams } = action;
 
@@ -306,12 +341,12 @@ const reducer = (state: InitialStateType, action: IAction) => {
       sortedTeams = sortedTeams.filter(
         (t) =>
           t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
-          t.name !== APP_CONTEX_NO_TEAM_SUMMARY.name
+          t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
       );
       if (user && permissions.isOnGlobalTeam(user)) {
         sortedTeams.unshift(
           APP_CONTEXT_ALL_TEAMS_SUMMARY,
-          APP_CONTEX_NO_TEAM_SUMMARY
+          APP_CONTEXT_NO_TEAM_SUMMARY
         );
       }
 
@@ -350,6 +385,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         enrollSecret,
+      };
+    }
+    case ACTIONS.SET_ANDROID_ENTERPRISE_DELETED: {
+      const { isDeleted } = action;
+      return {
+        ...state,
+        isAndroidEnterpriseDeleted: isDeleted,
       };
     }
     case ACTIONS.SET_ABM_EXPIRY: {
@@ -436,6 +478,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
   const value = useMemo(
     () => ({
       availableTeams: state.availableTeams,
+      userSettings: state.userSettings,
       config: state.config,
       currentUser: state.currentUser,
       currentTeam: state.currentTeam,
@@ -444,6 +487,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       abmExpiry: state.abmExpiry,
       apnsExpiry: state.apnsExpiry,
       vppExpiry: state.vppExpiry,
+      isAndroidEnterpriseDeleted: state.isAndroidEnterpriseDeleted,
       isAppleBmExpired: state.isAppleBmExpired,
       isApplePnsExpired: state.isApplePnsExpired,
       isVppExpired: state.isVppExpired,
@@ -462,6 +506,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isPremiumTier: state.isPremiumTier,
       isMacMdmEnabledAndConfigured: state.isMacMdmEnabledAndConfigured,
       isWindowsMdmEnabledAndConfigured: state.isWindowsMdmEnabledAndConfigured,
+      isAndroidMdmEnabledAndConfigured: state.isAndroidMdmEnabledAndConfigured,
       isGlobalAdmin: state.isGlobalAdmin,
       isGlobalMaintainer: state.isGlobalMaintainer,
       isGlobalObserver: state.isGlobalObserver,
@@ -487,6 +532,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
           availableTeams,
         });
       },
+      setUserSettings: (userSettings: IUserSettings) => {
+        dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
+      },
       setCurrentUser: (currentUser: IUser) => {
         dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
       },
@@ -498,6 +546,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       },
       setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
         dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+      },
+      setAndroidEnterpriseDeleted: (isDeleted: boolean) => {
+        dispatch({
+          type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED,
+          isDeleted,
+        });
       },
       setABMExpiry: (abmExpiry: IAbmExpiry) => {
         dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
@@ -546,6 +600,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.abmExpiry,
       state.apnsExpiry,
       state.availableTeams,
+      state.userSettings,
       state.config,
       state.currentTeam,
       state.currentUser,
@@ -558,6 +613,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isAnyTeamMaintainer,
       state.isAnyTeamMaintainerOrTeamAdmin,
       state.isAnyTeamObserverPlus,
+      state.isAndroidEnterpriseDeleted,
       state.isAppleBmExpired,
       state.isApplePnsExpired,
       state.isFreeTier,
@@ -577,6 +633,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isTeamObserver,
       state.isVppExpired,
       state.isWindowsMdmEnabledAndConfigured,
+      state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
       state.noSandboxHosts,
       state.sandboxExpiry,

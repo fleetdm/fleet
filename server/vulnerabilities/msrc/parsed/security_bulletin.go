@@ -3,9 +3,10 @@ package parsed
 import (
 	"encoding/json"
 	"errors"
+	"os"
+
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/exp/slices"
-	"os"
 )
 
 type SecurityBulletin struct {
@@ -44,6 +45,9 @@ func UnmarshalBulletin(fPath string) (*SecurityBulletin, error) {
 	err = json.Unmarshal(payload, &bulletin)
 	if err != nil {
 		return nil, err
+	}
+	for pID, name := range bulletin.Products {
+		bulletin.Products[pID] = NewProductFromFullName(string(name))
 	}
 	return &bulletin, nil
 }

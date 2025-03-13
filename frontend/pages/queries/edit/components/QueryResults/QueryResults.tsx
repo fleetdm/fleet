@@ -10,7 +10,6 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { getTableColumnsFromSql } from "utilities/helpers";
 import { SUPPORT_LINK } from "utilities/constants";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
@@ -19,7 +18,8 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
@@ -96,11 +96,8 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
-
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults,
-        tableColumns
+        queryResults
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {
@@ -287,25 +284,20 @@ const QueryResults = ({
           </div>
         </InfoBanner>
       )}
-      <TabsWrapper>
+      <TabNav>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              <span>
-                {errors?.length > 0 && (
-                  <span className="count">
-                    {errors.length.toLocaleString()}
-                  </span>
-                )}
+              <TabText count={errors?.length} isErrorCount>
                 {NAV_TITLES.ERRORS}
-              </span>
+              </TabText>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTab()}</TabPanel>
           <TabPanel>{renderErrorsTab()}</TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       {showQueryModal && (
         <ShowQueryModal
           query={lastEditedQueryBody}

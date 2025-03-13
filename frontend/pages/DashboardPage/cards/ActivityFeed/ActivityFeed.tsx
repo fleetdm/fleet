@@ -19,10 +19,13 @@ import FleetIcon from "components/icons/FleetIcon";
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
-import ActivityItem from "./ActivityItem";
+import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
+import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import VppDetailsModal from "./components/VPPDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -57,6 +60,12 @@ const ActivityFeed = ({
     activityAutomationDetails,
     setActivityAutomationDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    softwareDetails,
+    setSoftwareDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
+
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -102,20 +111,17 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => {
-    switch (activityType) {
+  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
+    switch (type) {
       case ActivityType.LiveQuery:
-        queryShown.current = details.query_sql ?? "";
-        queryImpact.current = details.stats
+        queryShown.current = details?.query_sql ?? "";
+        queryImpact.current = details?.stats
           ? getPerformanceImpactDescription(details.stats)
           : undefined;
         setShowShowQueryModal(true);
         break;
       case ActivityType.RanScript:
-        scriptExecutionId.current = details.script_execution_id ?? "";
+        scriptExecutionId.current = details?.script_execution_id ?? "";
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
@@ -130,6 +136,16 @@ const ActivityFeed = ({
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
         setActivityAutomationDetails({ ...details });
+        break;
+      case ActivityType.AddedSoftware:
+      case ActivityType.EditedSoftware:
+      case ActivityType.DeletedSoftware:
+        setSoftwareDetails({ ...details });
+        break;
+      case ActivityType.AddedAppStoreApp:
+      case ActivityType.EditedAppStoreApp:
+      case ActivityType.DeletedAppStoreApp:
+        setVppDetails({ ...details });
         break;
       default:
         break;
@@ -173,7 +189,7 @@ const ActivityFeed = ({
           )}
           <div style={opacity}>
             {activities?.map((activity) => (
-              <ActivityItem
+              <GlobalActivityItem
                 activity={activity}
                 isPremiumTier={isPremiumTier}
                 onDetailsClick={handleDetailsClick}
@@ -243,6 +259,18 @@ const ActivityFeed = ({
         <ActivityAutomationDetailsModal
           details={activityAutomationDetails}
           onCancel={() => setActivityAutomationDetails(null)}
+        />
+      )}
+      {softwareDetails && (
+        <SoftwareDetailsModal
+          details={softwareDetails}
+          onCancel={() => setSoftwareDetails(null)}
+        />
+      )}
+      {vppDetails && (
+        <VppDetailsModal
+          details={vppDetails}
+          onCancel={() => setVppDetails(null)}
         />
       )}
     </div>

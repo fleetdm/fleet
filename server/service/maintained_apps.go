@@ -10,13 +10,16 @@ import (
 )
 
 type addFleetMaintainedAppRequest struct {
-	TeamID            *uint  `json:"team_id"`
-	AppID             uint   `json:"fleet_maintained_app_id"`
-	InstallScript     string `json:"install_script"`
-	PreInstallQuery   string `json:"pre_install_query"`
-	PostInstallScript string `json:"post_install_script"`
-	SelfService       bool   `json:"self_service"`
-	UninstallScript   string `json:"uninstall_script"`
+	TeamID            *uint    `json:"team_id"`
+	AppID             uint     `json:"fleet_maintained_app_id"`
+	InstallScript     string   `json:"install_script"`
+	PreInstallQuery   string   `json:"pre_install_query"`
+	PostInstallScript string   `json:"post_install_script"`
+	SelfService       bool     `json:"self_service"`
+	UninstallScript   string   `json:"uninstall_script"`
+	LabelsIncludeAny  []string `json:"labels_include_any"`
+	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+	AutomaticInstall  bool     `json:"automatic_install"`
 }
 
 type addFleetMaintainedAppResponse struct {
@@ -24,9 +27,9 @@ type addFleetMaintainedAppResponse struct {
 	Err             error `json:"error,omitempty"`
 }
 
-func (r addFleetMaintainedAppResponse) error() error { return r.Err }
+func (r addFleetMaintainedAppResponse) Error() error { return r.Err }
 
-func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
 	ctx, cancel := context.WithTimeout(ctx, maintainedapps.InstallerTimeout)
 	defer cancel()
@@ -39,6 +42,9 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.PostInstallScript,
 		req.UninstallScript,
 		req.SelfService,
+		req.AutomaticInstall,
+		req.LabelsIncludeAny,
+		req.LabelsExcludeAny,
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -50,7 +56,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
 }
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool) (uint, error) {
+func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _ []string) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -58,9 +64,27 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, teamID *uint, app
 	return 0, fleet.ErrMissingLicense
 }
 
+type editFleetMaintainedAppRequest struct {
+	TeamID            *uint    `json:"team_id"`
+	AppID             uint     `json:"fleet_maintained_app_id"`
+	InstallScript     string   `json:"install_script"`
+	PreInstallQuery   string   `json:"pre_install_query"`
+	PostInstallScript string   `json:"post_install_script"`
+	SelfService       bool     `json:"self_service"`
+	UninstallScript   string   `json:"uninstall_script"`
+	LabelsIncludeAny  []string `json:"labels_include_any"`
+	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+}
+
+func editFleetMaintainedAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	// TODO: implement this
+
+	return nil, errors.New("not implemented")
+}
+
 type listFleetMaintainedAppsRequest struct {
 	fleet.ListOptions
-	TeamID uint `query:"team_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type listFleetMaintainedAppsResponse struct {
@@ -71,9 +95,9 @@ type listFleetMaintainedAppsResponse struct {
 	Err                 error                     `json:"error,omitempty"`
 }
 
-func (r listFleetMaintainedAppsResponse) error() error { return r.Err }
+func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
 
-func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
 
 	req.IncludeMetadata = true
@@ -102,7 +126,7 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 	return listResp, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -119,9 +143,9 @@ type getFleetMaintainedAppResponse struct {
 	Err                error                `json:"error,omitempty"`
 }
 
-func (r getFleetMaintainedAppResponse) error() error { return r.Err }
+func (r getFleetMaintainedAppResponse) Error() error { return r.Err }
 
-func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getFleetMaintainedAppRequest)
 
 	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID)

@@ -12582,6 +12582,7 @@
     "platforms": [
       "darwin"
     ],
+    "examples": "Find HID Device Protocol data:\n\n```\nWITH protocols as (\n  SELECT \n   MAX (case WHEN key = \"USB Address\" THEN value END) as usb_address,\n   MAX (case WHEN key = \"bDeviceProtocol\" THEN value END) as protocol\n  from ioreg where r=true and c=\"IOUSBDevice\" group by parent\n) \nSELECT * FROM usb_devices join protocols using (usb_address)\n```",
     "columns": [
       {
         "name": "c",
@@ -17203,6 +17204,49 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nfs_shares.yml"
   },
   {
+    "name": "nftables",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "description": "Show configuration for Linux `nftables` network filters in JSON flattened format. (Added in fleetd 1.37.0.)",
+    "platforms": [
+      "linux"
+    ],
+    "evented": false,
+    "columns": [
+      {
+        "name": "fullkey",
+        "description": "Flattened full key with '/' as separator, e.g. `nftables/0/metainfo/json_schema_version`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "query",
+        "description": "Specifies a query to flatten with. This is used both for re-writing arrays into maps, and for filtering.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/nftables",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/nftables.yml"
+  },
+  {
     "name": "npm_packages",
     "description": "Node.js packages globally installed on a system.",
     "url": "https://fleetdm.com/tables/npm_packages",
@@ -17827,6 +17871,12 @@
         "type": "integer",
         "required": false,
         "description": "1 if running scripts is enabled, 0 if disabled."
+      },
+      {
+        "name": "update_url",
+        "type": "text",
+        "required": false,
+        "description": "The Update Framework server URL."
       }
     ],
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
@@ -25853,7 +25903,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": "Identify system extensions that are not managed via MDM and see their\nsignature status.\n\n```\nSELECT se.identifier, se.bundle_path, se.category, se.state, s.signed FROM system_extensions se JOIN signature s on s.path = se.bundle_path WHERE se.mdm_managed='0';\n```",
+    "examples": "Identify the signature status of system extensions not managed via MDM:\n\n```\nSELECT se.identifier, se.bundle_path, se.category, se.state, s.signed FROM system_extensions se JOIN signature s on s.path = se.bundle_path WHERE se.mdm_managed='0';\n```\n\nPerform a health check on a Jamf Protect installation:\n\n```\nSELECT 1 \nWHERE \n  (EXISTS (SELECT 1 FROM processes WHERE name = 'JamfProtectAgent') OR ( SELECT total_seconds FROM uptime ) <= 300 )\n  AND EXISTS (SELECT 1 FROM system_extensions WHERE identifier = 'com.jamf.protect.security-extension')\n  AND EXISTS (SELECT 1 FROM apps WHERE path = '/Applications/JamfProtect.app');\n```",
     "columns": [
       {
         "name": "path",
@@ -28747,7 +28797,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "* This is not an evented table - instead, it pulls directly from the local system's existing eventlogs. \n\n* The information returned in the `data` column will be JSON formatted, which will require additional parsing.  ",
-    "examples": "Tracking user account changes is a key part of both detection & incident response. This query lists all Windows Eventlogs from the Security channel with an EventID of 4720 - A user account was created. There are many other relevant EventIDs that should be monitored as well: \n\n- [4722: Account enabled](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4722)\n\n- [4724: Password reset](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4724)\n\n- [4728: Added to a security-enabled global group](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4728)\n\n\n```\nSELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'\"\n```",
+    "examples": "Tracking user account changes is a key part of both detection & incident response. This query lists all Windows Eventlogs from the Security channel with an EventID of 4720 - A user account was created. There are many other relevant EventIDs that should be monitored as well: \n\n- [4722: Account enabled](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4722)\n\n- [4724: Password reset](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4724)\n\n- [4728: Added to a security-enabled global group](https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventid=4728)\n\n\n```\nSELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'\n```",
     "columns": [
       {
         "name": "channel",

@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { ISoftwareFleetMaintainedAppsResponse } from "services/entities/software";
 import { getNextLocationPath } from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { IFleetMaintainedApp } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
@@ -21,7 +21,7 @@ const baseClass = "fleet-maintained-apps-table";
 const EmptyFleetAppsTable = () => (
   <EmptyTable
     graphicName="empty-search-question"
-    header={"No items match the current search criteria"}
+    header="No items match the current search criteria"
     info={
       <>
         Can&apos;t find app?{" "}
@@ -45,6 +45,10 @@ interface IFleetMaintainedAppsTableProps {
   currentPage: number;
   router: InjectedRouter;
   data?: ISoftwareFleetMaintainedAppsResponse;
+}
+
+interface IRowProps {
+  original: IFleetMaintainedApp;
 }
 
 const FleetMaintainedAppsTable = ({
@@ -118,12 +122,11 @@ const FleetMaintainedAppsTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const handleRowClick = (row: IFleetMaintainedApp) => {
-    const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
-      row.id
-    )}?${buildQueryStringFromParams({
-      team_id: teamId,
-    })}`;
+  const handleRowClick = (row: IRowProps) => {
+    const path = getPathWithQueryParams(
+      PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(row.original.id),
+      { team_id: teamId }
+    );
 
     router.push(path);
   };
@@ -156,7 +159,7 @@ const FleetMaintainedAppsTable = ({
   };
 
   return (
-    <TableContainer<IFleetMaintainedApp>
+    <TableContainer<IRowProps>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
       data={data?.fleet_maintained_apps ?? []}

@@ -65,9 +65,9 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw @noahtalerman
-/docs/REST\ API/rest-api.md                     @rachaelshaw @noahtalerman # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw @noahtalerman # « Advanced / contributors-only API reference documentation
+/docs                                           @rachaelshaw
+/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                    @edwardsb
 
@@ -93,7 +93,7 @@ go.mod @fleetdm/go
 /handbook/digital-experience/security.md                        @sampfluger88
 /handbook/digital-experience                             	      @sampfluger88
 /handbook/customer-success                                		  @sampfluger88
-/handbook/demand                                          	  	@sampfluger88
+/handbook/marketing                                          	  	@sampfluger88
 #/handbook/engineering                                     	  	🤡 Covered in custom.js
 /handbook/sales                                           	  	@sampfluger88
 #/handbook/product-design                                    	  🤡 Covered in custom.js

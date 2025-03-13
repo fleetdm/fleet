@@ -18,24 +18,23 @@ In addition to the customization above, Fleet automatically installs the fleetd 
 
 macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
-## End user authentication and EULA
+## End user authentication and end user license agreement (EULA)
 
 Using Fleet, you can require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
 ### End user authentication
 
-To require end user authentication, first configure your MDM IdP integration by heading to
-**Settings > Mobile device management (MDM) > End user authentication**. Then, enable end user
-authentication by heading to to **Controls > Setup experience > End user authentication**.
-Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your MDM IdP integration and enable end user authentication.
+1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
 
-If you've already configured your MDM IdP integration in Fleet, create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+2. In your new SAML app, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
 
-In your IdP, make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
+3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
-In your IdP, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
+4. In Fleet, configure your IdP by heading to **Settings > Integrations > Mobile device management (MDM) > End user authentication**. Then, enable end user authentication by heading to **Controls > Setup experience > End user authentication**. Alternatively, you can use [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops) to configure your IdP integration and enable end user authentication.
 
-### EULA
+> If you've already configured [single sign-on (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a new SAML app for end user authentication. This way, only Fleet users can log in to Fleet.
+
+### End user license agreement (EULA)
 
 To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrollment > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
@@ -60,7 +59,7 @@ To add a bootstrap package to Fleet, we will do the following steps:
 3. Upload the package to Fleet
 4. Confirm package is uploaded
 
-### Step 1: download or generate a package
+### Step 1: Download or generate a package
 
 Whether you have to download or generate a package depends on what you want to deploy using your bootstrap package:
 
@@ -87,7 +86,7 @@ Apple requires that your package is a distribution package. Verify that the pack
 
   Make sure your package is a `.pkg` file.
 
-### Step 2: sign the package
+### Step 2: Sign the package
 
 To sign the package we need a valid Developer ID Installer certificate:
 
@@ -114,7 +113,7 @@ To sign the package we need a valid Developer ID Installer certificate:
 
   In the output you should see that your package has a "signed" status.
 
-### Step 3: upload the package to Fleet
+### Step 3: Upload the package to Fleet
 
 1. Head to the **Controls > Setup experience > Bootstrap package** page.
 
@@ -134,7 +133,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 2. Upload the profile to Fleet
 3. Test the custom macOS Setup Assistant
 
-### Step 1: create an automatic enrollment profile
+### Step 1: Create an automatic enrollment profile
 
 1. Download Fleet's example automatic enrollment profile by navigating to the example [here](https://fleetdm.com/example-dep-profile) and clicking the download icon.
 
@@ -146,7 +145,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
   > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
 
-### Step 2: upload the profile to Fleet
+### Step 2: Upload the profile to Fleet
 
 1. Head to the **Controls > Setup experience > Setup assistant** page.
 
@@ -154,7 +153,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 3. Select **Add profile** and choose your profile package.
 
-### Step 3: test the custom macOS Setup Assistant
+### Step 3: Test the custom macOS Setup Assistant
 
 Testing requires a test Mac that is present in your Apple Business Manager (ABM) account. We will wipe this Mac and use it to test the custom macOS Setup Assistant.
 
@@ -177,6 +176,8 @@ If you configure software and/or a script for setup experience, users will see a
 ![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
+
+> The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after setup the experience software/script. They aren't installed/run in any particular order.
 
 ### Install software
 

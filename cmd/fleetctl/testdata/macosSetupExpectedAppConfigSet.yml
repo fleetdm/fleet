@@ -14,11 +14,14 @@ spec:
     activity_expiry_enabled: false
     activity_expiry_window: 0
   integrations:
+    custom_scep_proxy: null
+    digicert: null
     google_calendar: null
     jira: null
     ndes_scep_proxy: null
     zendesk: null
   mdm:
+    android_enabled_and_configured: false
     apple_business_manager:
     apple_server_url: ""
     volume_purchasing_program:
@@ -122,3 +125,6 @@ spec:
       destination_url: ""
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
+  gitops:
+    gitops_mode_enabled: false
+    repository_url: ""

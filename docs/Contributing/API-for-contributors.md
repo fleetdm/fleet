@@ -1,5 +1,6 @@
 # API for contributors
 
+- [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
@@ -11,12 +12,29 @@
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Users](#users)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
+
+## Authentication
+
+### Create session
+
+`POST /api/v1/fleet/sessions`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| token | string | body | **Required**. The token retrieved from the magic link email. |
+
+#### Response
+
+See [the Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in) for the current
+successful response format.
 
 ## Packs
 
@@ -1279,6 +1297,7 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
+- [Store secret variables](#store-secret-variables)
 
 ### Get queries
 
@@ -1777,19 +1796,31 @@ If the `name` is not already associated with an existing team, this API route cr
 | name                                      | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
 | agent_options                             | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
 | features                                  | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
-| secrets                                   | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
+| secrets                                   | array   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | mdm                                       | object | body  | The team's MDM configuration options.                                                                                                                                                                                               |
 | mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names. |
+| mdm.macos_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names. |
-| scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
+| mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| scripts                                   | array   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
-| software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
-| software.app_store_apps                   | list   | body  | An array of objects. Each object consists of `app_store_id` - ID of the App Store app and `self_service` boolean. |
+| software.app_store_apps                   | array   | body  | An array of objects with values below. |
+| software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
+| software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.packages                          | array   | body  | An array of objects with values below. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
+| software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
+| software.packages.post_install_script      | string   | body  | Script that runs after software install. |
+| software.packages.uninstall_script       | string   | body  | Command that Fleet runs to uninstall software. |
+| software.packages.self_service           | boolean   | body  | If `true` lists software in the self-service. |
+| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -2120,6 +2151,41 @@ This replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
+### Store secret variables
+
+Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+#### Parameters
+
+| Name    | Type | In   | Description                                                                                                      |
+| ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| secrets | list | body | **Required.** List of objects consisting of fields: `name` and `value`
+| dry_run | boolean | body | **Optional.** If true, validates the provided secrets and returns any validation errors, but does not apply the changes.
+
+#### Example
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "name": "FLEET_SECRET_SOME_API_TOKEN",
+      "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
 ---
 
 ## Live query
@@ -2396,7 +2462,7 @@ Runs the specified saved query as a live query on the specified targets. Returns
 
 After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 #### Parameters
 
@@ -2404,13 +2470,13 @@ After the query has been initiated, [get results via WebSocket](#retrieve-live-q
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
+| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
 
 One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2449,7 +2515,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2485,6 +2551,39 @@ One of `query` and `query_id` must be specified.
   }
 }
 ```
+
+#### Example with invalid label
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["Windows", "Banana", "Apple"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 400`
+
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invalid label name(s): Banana, Apple."
+    }
+  ],
+  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
+}
+```
+
 
 ### Retrieve live query results (standard WebSocket API)
 
@@ -3679,6 +3778,8 @@ Body: <blob>
 
 `POST /api/fleet/orbit/software_install/details`
 
+> Note: The `installer_url` in the response will only be populated if AWS S3 and CloudFront URL signing are configured.
+
 ##### Parameters
 
 | Name           | Type   | In   | Description                                    |
@@ -3712,6 +3813,10 @@ Body: <blob>
   "uninstall_script": "sudo run-uninstaller",
   "post_install_script": "echo done",
   "self_service": true,
+  "installer_url": {
+    "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
+    "filename": "my-installer.pkg"
+  }
 }
 ```
 
@@ -3746,73 +3851,6 @@ Body: <blob>
 `Status: 204`
 
 ---
-
-## Downloadable installers
-
-These API routes are used by the UI in Fleet Sandbox.
-
-- [Download an installer](#download-an-installer)
-- [Check if an installer exists](#check-if-an-installer-exists)
-
-### Download an installer
-
-Downloads a pre-built fleet-osquery installer with the given parameters.
-
-`POST /api/v1/fleet/download_installer/{kind}`
-
-#### Parameters
-
-| Name          | Type    | In                    | Description                                                        |
-| ------------- | ------- | --------------------- | ------------------------------------------------------------------ |
-| kind          | string  | path                  | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | x-www-form-urlencoded | The global enroll secret.                                          |
-| token         | string  | x-www-form-urlencoded | The authentication token.                                          |
-| desktop       | boolean | x-www-form-urlencoded | Set to `true` to ask for an installer that includes Fleet Desktop. |
-
-##### Default response
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
-```
-
-If an installer with the provided parameters is found, the installer is returned as a binary blob in the body of the response.
-
-##### Installer doesn't exist
-
-`Status: 400`
-
-This error occurs if an installer with the provided parameters doesn't exist.
-
-
-### Check if an installer exists
-
-Checks if a pre-built fleet-osquery installer with the given parameters exists.
-
-`HEAD /api/v1/fleet/download_installer/{kind}`
-
-#### Parameters
-
-| Name          | Type    | In    | Description                                                        |
-| ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | query | The global enroll secret.                                          |
-| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
-
-##### Default response
-
-`Status: 200`
-
-If an installer with the provided parameters is found.
-
-##### Installer doesn't exist
-
-`Status: 400`
-
-If an installer with the provided parameters doesn't exist.
 
 ## Setup
 
@@ -3896,7 +3934,10 @@ _Available in Fleet Premium_
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error.
+If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+Script contents are uploaded verbatim, without CRLF -> LF conversion.
 
 > Note that this endpoint replaces all the active scripts for the specified team (or no team). Any existing script that is not included in the list will be removed, and existing scripts with the same name as a new script will be edited. Providing an empty list of scripts will remove existing scripts.
 
@@ -3965,6 +4006,37 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
+### Update software title name
+
+`PATCH /api/v1/fleet/software/titles/:software_title_id/name`
+
+Only available for software titles that have a non-empty bundle ID, as titles without a bundle
+ID will be added back as new rows on the next software ingest with the same name. Endpoint authorization limited
+to global admins as this changes the software title's name across all teams.
+
+> **Experimental endpoint**. This endpoint is not guaranteed to continue to exist on future minor releases of Fleet.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to modify. |
+| name              | string  | body | **Required**. The new name of the title.           |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1/name`
+
+```json
+{
+  "name": "2 Chrome 2 Furious.app"
+}
+```
+
+##### Default response
+
+`Status: 205`
+
 ### Batch-apply software
 
 _Available in Fleet Premium._
@@ -3980,7 +4052,15 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | team_name | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
+| software.packages   | array   | body  | An array of objects with values below. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
+| software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
+| software.packages.post_install_script      | string   | body  | Script that runs after software install. |
+| software.packages.uninstall_script      | string   | body  | Command that Fleet runs to uninstall software. |
+| software.packages.self_service           | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 
 #### Example
 
@@ -4063,8 +4143,11 @@ _Available in Fleet Premium._
 | team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
+| app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+| app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -4072,22 +4155,51 @@ _Available in Fleet Premium._
 ```json
 {
   "team_name": "Foobar",
-  "app_store_apps": {
+  "app_store_apps": [
     {
       "app_store_id": "597799333",
       "self_service": false,
+      "labels_include_any": [
+        "Engineering",
+        "Customer Support"
+      ]
     },
     {
       "app_store_id": "497799835",
-      "self_service": true,
+      "self_service": true
     }
-  }
+  ]
 }
 ```
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "app_store_apps": [
+    {
+      "team_id": 1,
+      "title_id": 123,
+      "app_store_id": "597799333",
+      "platform": "darwin"
+    },
+    {
+      "team_id": 1,
+      "title_id": 124,
+      "app_store_id": "597799333",
+      "platform": "ios"
+    },
+    {
+      "team_id": 1,
+      "title_id": 125,
+      "app_store_id": "597799333",
+      "platform": "ipados"
+    }
+  ]
+}
+```
 
 ### Get token to download package
 
@@ -4146,4 +4258,102 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+## Users
+
+### Update user-specific UI settings
+
+`PATCH /api/v1/fleet/users/:id`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| settings  | object   | body  | The updated user settings. |
+
+#### Example
+
+`PATCH /api/v1/fleet/users/1`
+```json
+{
+  "hidden_host_columns": ["hostname"]
+}
+```
+
+##### Default response
+* Note that user settings are *not* included in this response. See below `GET`s for how to get user settings.
+`Status: 200`
+```json
+{
+    "user": {
+        "created_at": "2025-01-08T01:04:23Z",
+        "updated_at": "2025-01-09T00:08:19Z",
+        "id": 1,
+        "name": "Sum Bahdee",
+        "email": "sum@org.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "mfa_enabled": false,
+        "global_role": "admin",
+        "api_only": false,
+        "teams": []
+    }
+}
+```
+
+### Include settings when getting a user
+
+`GET /api/v1/fleet/users/:id?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/users/2/?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
+```
+
+### Include settings when getting current user
+
+`GET /api/v1/fleet/me/?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/me?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
 ```

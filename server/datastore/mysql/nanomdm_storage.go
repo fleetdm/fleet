@@ -10,6 +10,7 @@ import (
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -125,7 +126,7 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	cmd *mdm.Command,
 	pin string,
 ) error {
-	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
@@ -154,7 +155,7 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 
 // EnqueueDeviceWipeCommand enqueues a EraseDevice command for the given host.
 func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
-	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
@@ -184,6 +185,29 @@ func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetN
 
 func (s *NanoMDMStorage) GetABMTokenByOrgName(ctx context.Context, orgName string) (*fleet.ABMToken, error) {
 	return s.ds.GetABMTokenByOrgName(ctx, orgName)
+}
+
+// ExpandEmbeddedSecrets in NanoMDMStorage overrides the implementation in nanomdm_mysql.MySQLStorage.
+func (s *NanoMDMStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	return s.ds.ExpandEmbeddedSecrets(ctx, document)
+}
+
+// ClearQueue in NanoMDMStorage overrides the implementation in
+// nanomdm_mysql.MySQLStorage. It does call
+// nanomdm_mysql.MySQLStorage.ClearQueue, but expands on its behavior.
+func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
+	err := common_mysql.WithRetryTxx(r.Context, s.db, func(tx sqlx.ExtContext) error {
+		if err := s.ds.ClearMDMUpcomingActivitiesDB(r.Context, tx, r.ID); err != nil {
+			return err
+		}
+		return nil
+	}, s.logger)
+
+	if err != nil {
+		return err
+	}
+
+	return s.MySQLStorage.ClearQueue(r)
 }
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore

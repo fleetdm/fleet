@@ -16,9 +16,17 @@ A dashboard to easily manage profiles and scripts across multiple teams on a Fle
 This app has two required custom configuration values:
 
 - `sails.config.custom.fleetBaseUrl`: The full URL of your Fleet instance. (e.g., https://fleet.example.com)
-
 - `sails.config.custom.fleetApiToken`: An API token for an API-only user on your Fleet instance.
 
+### Required configuration for software features
+
+If you are using this app to manage software across multiple teams on a Fleet instance, five additional configuration values are required:
+
+- `sails.config.uploads.bucket` The name of an AWS s3 bucket where unassigned software installers will be stored.
+- `sails.config.uploads.secret` The secret for the S3 bucket where unassigned software installers will be stored.
+- `sails.config.uploads.region` The region the AWS S3 bucket is located.
+- `sails.config.uploads.bucketWithPostfix`:  The name of the s3 bucket with the directory that the software installers are stored in on appended to it. If the files will be stored in the root directory of the bucket, this value should be identical to the `sails.config.uploads.bucket` value
+- `sails.config.uploads.prefixForFileDeletion`: The directory path in the S3 bucket where the software installers will be stored. If the installers will be stored in the root directory, then this value can be set to ' '.
 
 
 ## Running the bulk operations dashboard with Docker.

@@ -10,6 +10,8 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
@@ -30,6 +32,10 @@ interface IRowProps extends Row {
   };
 }
 
+interface ITableContainerActionButtonProps extends IActionButtonProps {
+  gitOpsModeCompatible?: boolean;
+}
+
 interface ITableContainerProps<T = any> {
   columnConfigs: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
@@ -41,7 +47,7 @@ interface ITableContainerProps<T = any> {
   defaultPageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
-  actionButton?: IActionButtonProps;
+  actionButton?: ITableContainerActionButtonProps;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -83,7 +89,7 @@ interface ITableContainerProps<T = any> {
   onQueryChange?:
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
-  customControl?: () => JSX.Element;
+  customControl?: () => JSX.Element | null;
   /** Filter button right of the search rendering alternative responsive design where search bar moves to new line but filter button remains inline with other table headers */
   customFiltersButton?: () => JSX.Element;
   stackControls?: boolean;
@@ -93,6 +99,8 @@ interface ITableContainerProps<T = any> {
    * if we want to keep this
    */
   onClickRow?: (row: T) => void;
+  /** Used if users can click the row and another child element does not have the same onClick functionality */
+  keyboardSelectableRows?: boolean;
   /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
    * key */
   filters?: Record<string, string | number | boolean>;
@@ -160,6 +168,7 @@ const TableContainer = <T,>({
   stackControls,
   onSelectSingleRow,
   onClickRow,
+  keyboardSelectableRows,
   renderCount,
   renderTableHelpText,
   setExportRows,
@@ -281,15 +290,56 @@ const TableContainer = <T,>({
     onPaginationChange,
   ]);
 
+  const renderFilterActionButton = () => {
+    // always !!actionButton here, this is for type checker
+    if (actionButton) {
+      if (actionButton.gitOpsModeCompatible) {
+        return (
+          <GitOpsModeTooltipWrapper
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableActionButton || disableChildren}
+                onClick={actionButton.onActionButtonClick}
+                variant={actionButton.variant || "brand"}
+                className={`${baseClass}__table-action-button`}
+              >
+                <>
+                  {actionButton.buttonText}
+                  {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+                </>
+              </Button>
+            )}
+          />
+        );
+      }
+      return (
+        <Button
+          disabled={disableActionButton}
+          onClick={actionButton.onActionButtonClick}
+          variant={actionButton.variant || "brand"}
+          className={`${baseClass}__table-action-button`}
+        >
+          <>
+            {actionButton.buttonText}
+            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+          </>
+        </Button>
+      );
+    }
+    // should never reach here
+    return null;
+  };
+
   const renderFilters = useCallback(() => {
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
     // New preferred pattern uses grid container/box to allow for more dynamic responsiveness
-    // At low widths, search bar (3rd div of 4) moves above other 3 divs
-    if (customFiltersButton) {
+    // At low widths, right header stacks on top of left header
+    if (stackControls) {
       return (
         <div className="container">
-          <div className="box">
+          <div className="stackable-header">
             {renderCount && !disableCount && (
               <div
                 className={`${baseClass}__results-count ${
@@ -301,23 +351,12 @@ const TableContainer = <T,>({
               </div>
             )}
           </div>
-          <div className="box">
-            {actionButton && !actionButton.hideButton && (
-              <Button
-                disabled={disableActionButton}
-                onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "brand"}
-                className={`${baseClass}__table-action-button`}
-              >
-                <>
-                  {actionButton.buttonText}
-                  {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
-                </>
-              </Button>
-            )}
+
+          {actionButton && !actionButton.hideButton && (
+            <div className="stackable-header">{renderFilterActionButton()}</div>
+          )}
+          <div className="stackable-header top-shift-header">
             {customControl && customControl()}
-          </div>
-          <div className="box search">
             {searchable && !wideSearch && (
               <div className={`${baseClass}__search`}>
                 <div
@@ -344,8 +383,8 @@ const TableContainer = <T,>({
                 </ReactTooltip>
               </div>
             )}
+            {customFiltersButton && customFiltersButton()}
           </div>
-          <div className="box"> {customFiltersButton()} </div>
         </div>
       );
     }
@@ -382,21 +421,9 @@ const TableContainer = <T,>({
                 </div>
               )}
               <span className="controls">
-                {actionButton && !actionButton.hideButton && (
-                  <Button
-                    disabled={disableActionButton}
-                    onClick={actionButton.onActionButtonClick}
-                    variant={actionButton.variant || "brand"}
-                    className={`${baseClass}__table-action-button`}
-                  >
-                    <>
-                      {actionButton.buttonText}
-                      {actionButton.iconSvg && (
-                        <Icon name={actionButton.iconSvg} />
-                      )}
-                    </>
-                  </Button>
-                )}
+                {actionButton &&
+                  !actionButton.hideButton &&
+                  renderFilterActionButton()}
                 {customControl && customControl()}
               </span>
             </div>
@@ -511,6 +538,7 @@ const TableContainer = <T,>({
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
                 onClickRow={onClickRow}
+                keyboardSelectableRows={keyboardSelectableRows}
                 onResultsCountChange={setClientFilterCount}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}

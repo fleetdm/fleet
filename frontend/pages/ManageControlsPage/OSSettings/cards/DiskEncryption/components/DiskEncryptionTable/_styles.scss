@@ -5,18 +5,21 @@
     min-width: auto;
   }
 
-  .data-table-block th:nth-last-child(2) {
-    border-right: none;
-  }
-
   .linkToFilteredHosts__header {
     width: auto;
     max-width: 120px;
+    padding-left: 0 !important; // Removes 24px of unnecessary table scroll
   }
 
+  .linkToFilteredHosts__cell {
+    width: auto;
+    max-width: 120px;
+    padding-left: 0 !important; // Removes 24px of unnecessary table scroll
+  }
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1250px) {
+  // Prevents unnecessary status new line wrap
   .view-hosts-link {
     span {
       display: none;
@@ -32,6 +35,5 @@
     &__cell {
       width: min-content;
     }
-
   }
 }

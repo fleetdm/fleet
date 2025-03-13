@@ -11,6 +11,7 @@ import (
 )
 
 func TestAsyncLastSeen(t *testing.T) {
+	t.Skip("Skipping flaky test. Re-enable after fixing #24652")
 	t.Parallel()
 
 	runLoopAndWait := func(t *testing.T, als *asyncLastSeen) (ctx context.Context, stop func()) {

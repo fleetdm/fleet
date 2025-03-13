@@ -1,0 +1,27 @@
+name: 📱🔐 Personally-owned iPhones
+team_settings:
+  features:
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_PERSONALLY_OWNED_IPHONES_ENROLL_SECRET
+  integrations:
+    google_calendar:
+      enable_calendar_events: false
+agent_options:
+controls:
+  ios_updates:
+    deadline: "2025-01-06"
+    minimum_version: "18.2"
+  macos_settings:
+    custom_settings:
+      - path: ../lib/ios/declaration-profiles/passcode-settings.json
+      - path: ../lib/ios/declaration-profiles/software-update-settings.json
+  scripts:
+policies:
+queries:
+software:
+  app_store_apps:
+    - app_store_id: '618783545' # Slack
+    - app_store_id: '546505307' # Zoom

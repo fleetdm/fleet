@@ -62,7 +62,7 @@ If you need to run TUF commands that are not available using the `fleetctl` bina
 
 Fleet hosts our TUF repo in Cloudflare R2 buckets for production and staging, updates.fleetdm.com and updates-staging.fleetdm.com. Read and write operations are performed used the [AWS CLI](https://developers.cloudflare.com/r2/examples/aws/aws-cli/) tool configured to communicate with R2.
 
-Once configured, use the [Fleet TUF repo release script](https://github.com/fleetdm/fleet/tree/main/tools/tuf) to add new file targets.  You can use the `aws s3 cp` command to push and pull objects:  `aws s3 cp . s3://<bucket-name> --recursive --endpoint-url https://<accountid>.r2.cloudflarestorage.com`
+Once configured, use the [Fleet TUF repo release script](https://github.com/fleetdm/fleet/tree/main/tools/tuf) to add new file targets.  You can use the `aws s3 sync` command to push and pull objects:  `aws s3 sync s3://<bucket-name> . --endpoint-url https://<accountId>.r2.cloudflarestorage.com`
 
 ## Add new TUF keys for authorized team members
 

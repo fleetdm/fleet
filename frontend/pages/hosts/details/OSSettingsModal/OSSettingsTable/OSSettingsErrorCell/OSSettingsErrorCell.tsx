@@ -61,11 +61,11 @@ const generateFormattedTooltip = (detail: string) => {
   }
 
   keyValuePairs.forEach((pair, i) => {
-    const [key, value] = pair.split(/: */);
+    const [key, value] = pair.split(/:(.*)/).map((str) => str.trim());
     if (key && value) {
       formattedElements.push(
         <span key={key}>
-          <b>{key.trim()}:</b> {value.trim()}
+          <b>{key}:</b> {value}
           {/* dont add the trailing comma for the last element */}
           {i !== keyValuePairs.length - 1 && (
             <>
@@ -104,7 +104,7 @@ const generateErrorTooltip = (
           text="Learn more"
           url="https://fleetdm.com/learn-more-about/idp-email"
           newTab
-          iconColor="core-fleet-white"
+          variant="tooltip-link"
         />
       </>
     );

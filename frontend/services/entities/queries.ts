@@ -6,8 +6,37 @@ import { ISelectedTargetsForApi } from "interfaces/target";
 import {
   ICreateQueryRequestBody,
   IModifyQueryRequestBody,
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import { SelectedPlatform } from "interfaces/platform";
+
+export interface ILoadQueriesParams {
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderDirection?: "asc" | "desc";
+  orderKey?: string;
+  mergeInherited?: boolean;
+  targetedPlatform?: SelectedPlatform;
+}
+export interface IQueryKeyLoadQueries extends ILoadQueriesParams {
+  scope: "queries";
+}
+
+export interface IQueriesResponse {
+  queries: ISchedulableQuery[];
+  count: number;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
 
 export default {
   create: (createQueryRequestBody: ICreateQueryRequestBody) => {
@@ -35,17 +64,41 @@ export default {
 
     return sendRequest("GET", path);
   },
-  loadAll: (teamId?: number, mergeInherited = false) => {
+  loadAll: ({
+    teamId,
+    page,
+    perPage,
+    query,
+    orderDirection,
+    orderKey,
+    mergeInherited,
+    // FE logic uses less ambiguous `targetedPlatform`, while API expects `platform` for alignment
+    // with other API conventions and database `queries.platform` column
+    targetedPlatform: platform,
+  }: IQueryKeyQueriesLoadAll): Promise<IQueriesResponse> => {
     const { QUERIES } = endpoints;
-    const queryString = buildQueryStringFromParams({
-      team_id: teamId,
-      merge_inherited: mergeInherited || null,
+
+    const snakeCaseParams = convertParamsToSnakeCase({
+      teamId,
+      page,
+      perPage,
+      query,
+      orderDirection,
+      orderKey,
+      mergeInherited,
+      platform,
     });
-    const path = `${QUERIES}`;
+
+    // API expects "macos" instead of "darwin"
+    if (snakeCaseParams.platform === "darwin") {
+      snakeCaseParams.platform = "macos";
+    }
+
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
 
     return sendRequest(
       "GET",
-      queryString ? path.concat(`?${queryString}`) : path
+      queryString ? QUERIES.concat(`?${queryString}`) : QUERIES
     );
   },
   run: async ({

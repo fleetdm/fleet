@@ -18,24 +18,24 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.queries)) {
       throw {badConfig: 'builtStaticContent.queries'};
     }
-    let policies = _.where(sails.config.builtStaticContent.queries, {kind: 'policy'});
-    let macOsPolicies = _.filter(policies, (policy)=>{
+    let policies = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
+    let macOsQueries = _.filter(policies, (policy)=>{
       let platformsForThisPolicy = policy.platform.split(',');
       return _.includes(platformsForThisPolicy, 'darwin');
     });
-    let windowsPolicies = _.filter(policies, (policy)=>{
+    let windowsQueries = _.filter(policies, (policy)=>{
       let platformsForThisPolicy = policy.platform.split(',');
       return _.includes(platformsForThisPolicy, 'windows');
     });
-    let linuxPolicies = _.filter(policies, (policy)=>{
+    let linuxQueries = _.filter(policies, (policy)=>{
       let platformsForThisPolicy = policy.platform.split(',');
       return _.includes(platformsForThisPolicy, 'linux');
     });
     // Respond with view.
     return {
-      macOsPolicies,
-      windowsPolicies,
-      linuxPolicies,
+      macOsQueries,
+      windowsQueries,
+      linuxQueries,
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
 

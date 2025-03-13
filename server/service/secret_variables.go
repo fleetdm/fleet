@@ -19,6 +19,7 @@ const (
 // //////////////////////////////////////////////////////////////////////////////
 
 type secretVariablesRequest struct {
+	DryRun          bool                   `json:"dry_run"`
 	SecretVariables []fleet.SecretVariable `json:"secrets"`
 }
 
@@ -26,15 +27,15 @@ type secretVariablesResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r secretVariablesResponse) error() error { return r.Err }
+func (r secretVariablesResponse) Error() error { return r.Err }
 
-func secretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func secretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*secretVariablesRequest)
-	err := svc.CreateSecretVariables(ctx, req.SecretVariables)
+	err := svc.CreateSecretVariables(ctx, req.SecretVariables, req.DryRun)
 	return secretVariablesResponse{Err: err}, nil
 }
 
-func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
+func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable, dryRun bool) error {
 	// Do authorization check first so that we don't have to worry about it later in the flow.
 	if err := svc.authz.Authorize(ctx, &fleet.SecretVariable{}, fleet.ActionWrite); err != nil {
 		return err
@@ -65,6 +66,10 @@ func (svc *Service) CreateSecretVariables(ctx context.Context, secretVariables [
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError("name", fmt.Sprintf("secret variable name is too long: %s", secretVariable.Name)))
 		}
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.UpsertSecretVariables(ctx, secretVariables); err != nil {

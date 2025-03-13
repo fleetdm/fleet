@@ -21,7 +21,7 @@ module.exports = {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.testimonials'};
     }
-    // Get testimonials for the <scrolalble-tweets> component.
+    // Get testimonials for the page contents
     let testimonials = _.clone(sails.config.builtStaticContent.testimonials);
 
     // Filter the testimonials by product category
@@ -74,6 +74,7 @@ module.exports = {
       'Scott MacVicar',
       'Chandra Majumdar',
       'Kenny Botelho',
+      'Luis Madrigal',
       'Brendan Shaklovitz',
       'Erik Gomez',
       'Charles Zaffery',
@@ -97,11 +98,27 @@ module.exports = {
       return testimonial.youtubeVideoUrl;
     });
 
+    // Get articles with a showOnTestimonialsPageWithEmoji meta tag to display on this page.
+    let articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
+      if(_.startsWith(page.htmlId, 'articles')) {
+        return page;
+      }
+    });
+    let articlesForThisPage = _.filter(articles, (article)=>{
+      return article.meta.showOnTestimonialsPageWithEmoji;
+    });
+    // Sort the articles by their publish date.
+    articlesForThisPage = _.sortBy(articlesForThisPage, 'meta.publishedOn');
+
+
+
+
     return {
       testimonialsForMdm,
       testimonialsForSoftwareManagement,
       testimonialsForObservability,
       testimonialsWithVideoLinks,
+      articlesForThisPage,
     };
 
   }

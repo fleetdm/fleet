@@ -1,11 +1,13 @@
 import React from "react";
 
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
+
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ActionsDropdown from "components/ActionsDropdown";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -91,12 +93,20 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder={"Actions"}
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
+              <ActionsDropdown
+                options={cellProps.cell.value}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder="Actions"
+                disabled={disableChildren}
+              />
+            </div>
+          )}
         />
       ),
     },

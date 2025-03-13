@@ -468,9 +468,11 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].Detail = items[0].Detail
 	fieldsInEqualMethod++
-	items[1].Checksum = items[0].Checksum
+	items[1].Token = items[0].Token
 	fieldsInEqualMethod++
 	items[1].Status = &status1
+	fieldsInEqualMethod++
+	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
 	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
@@ -478,85 +480,6 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	// Set pointers to nil
 	items[0].Status = nil
 	items[1].Status = nil
-	assert.True(t, items[0].Equal(items[1]))
-}
-
-func TestMDMAppleProfilePayloadEqual(t *testing.T) {
-	t.Parallel()
-
-	// This test is intended to ensure that the Equal method on MDMAppleProfilePayload is updated when new fields are added.
-	// The Equal method is used to identify whether database update is needed.
-
-	items := [...]MDMAppleProfilePayload{{}, {}}
-
-	numberOfFields := 0
-	for i := 0; i < len(items); i++ {
-		rValue := reflect.ValueOf(&items[i]).Elem()
-		numberOfFields = rValue.NumField()
-		for j := 0; j < numberOfFields; j++ {
-			field := rValue.Field(j)
-			switch field.Kind() {
-			case reflect.String:
-				valueToSet := fmt.Sprintf("test %d", i)
-				field.SetString(valueToSet)
-			case reflect.Int:
-				field.SetInt(int64(i))
-			case reflect.Bool:
-				field.SetBool(i%2 == 0)
-			case reflect.Pointer:
-				field.Set(reflect.New(field.Type().Elem()))
-			case reflect.Slice:
-				switch field.Type().Elem().Kind() {
-				case reflect.Uint8:
-					valueToSet := []byte("test")
-					field.Set(reflect.ValueOf(valueToSet))
-				default:
-					t.Fatalf("unhandled slice type %s", field.Type().Elem().Kind())
-				}
-			default:
-				t.Fatalf("unhandled field type %s", field.Kind())
-			}
-		}
-	}
-
-	status0 := MDMDeliveryStatus("status")
-	status1 := MDMDeliveryStatus("status")
-	items[0].Status = &status0
-	checksum0 := []byte("checksum")
-	checksum1 := []byte("checksum")
-	items[0].Checksum = checksum0
-	assert.False(t, items[0].Equal(items[1]))
-
-	// Set known fields to be equal
-	fieldsInEqualMethod := 0
-	items[1].ProfileUUID = items[0].ProfileUUID
-	fieldsInEqualMethod++
-	items[1].ProfileIdentifier = items[0].ProfileIdentifier
-	fieldsInEqualMethod++
-	items[1].ProfileName = items[0].ProfileName
-	fieldsInEqualMethod++
-	items[1].HostUUID = items[0].HostUUID
-	fieldsInEqualMethod++
-	items[1].HostPlatform = items[0].HostPlatform
-	fieldsInEqualMethod++
-	items[1].Checksum = checksum1
-	fieldsInEqualMethod++
-	items[1].Status = &status1
-	fieldsInEqualMethod++
-	items[1].OperationType = items[0].OperationType
-	fieldsInEqualMethod++
-	items[1].Detail = items[0].Detail
-	fieldsInEqualMethod++
-	items[1].CommandUUID = items[0].CommandUUID
-	fieldsInEqualMethod++
-	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleProfilePayload.Equal needs to be updated for new/updated field(s)")
-	assert.True(t, items[0].Equal(items[1]))
-
-	// Set pointers and slices to nil
-	items[0].Status = nil
-	items[1].Status = nil
-	items[0].Checksum = nil
-	items[1].Checksum = nil
 	assert.True(t, items[0].Equal(items[1]))
 }
 
