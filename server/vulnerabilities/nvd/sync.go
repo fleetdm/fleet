@@ -185,20 +185,12 @@ func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 	return nil
 }
 
-// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
-// them to the database.
-func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
-	if !license.IsPremium(ctx) {
-		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
-		return nil
-	}
+func CVEMetaFromNVDFeedFiles(metaMap map[string]fleet.CVEMeta, vulnPath string, logger log.Logger) error {
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return fmt.Errorf("get nvd cve feeds: %w", err)
 	}
-
-	metaMap := make(map[string]fleet.CVEMeta)
 
 	for _, file := range files {
 
@@ -236,6 +228,10 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		}
 	}
 
+	return nil
+}
+
+func CVEMetaFromEPSSFeedFiles(metaMap map[string]fleet.CVEMeta, vulnPath string, logger log.Logger) error {
 	// load epss scores
 	path := filepath.Join(vulnPath, strings.TrimSuffix(epssFilename, ".gz"))
 
@@ -254,8 +250,12 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		metaMap[epssScore.CVE] = score
 	}
 
+	return nil
+}
+
+func CVEMetaFromCISAFeedFiles(metaMap map[string]fleet.CVEMeta, vulnPath string, logger log.Logger) error {
 	// load known exploits
-	path = filepath.Join(vulnPath, cisaKnownExploitsFilename)
+	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -281,6 +281,43 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			meta.CISAKnownExploit = ptr.Bool(false)
 		}
 		metaMap[cve] = meta
+	}
+
+	return nil
+}
+
+func CVEMetaFromFiles(vulnPath string, logger log.Logger) (map[string]fleet.CVEMeta, error) {
+	metaMap := make(map[string]fleet.CVEMeta)
+
+	err := CVEMetaFromNVDFeedFiles(metaMap, vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("nvd meta: %w", err)
+	}
+
+	err = CVEMetaFromEPSSFeedFiles(metaMap, vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("epss meta: %w", err)
+	}
+
+	err = CVEMetaFromCISAFeedFiles(metaMap, vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("cisa meta: %w", err)
+	}
+
+	return metaMap, nil
+}
+
+// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
+// them to the database.
+func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
+	if !license.IsPremium(ctx) {
+		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
+		return nil
+	}
+
+	metaMap, err := CVEMetaFromFiles(vulnPath, logger)
+	if err != nil {
+		return err
 	}
 
 	if len(metaMap) == 0 {

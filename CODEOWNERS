@@ -123,7 +123,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm @mostlikelee
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
