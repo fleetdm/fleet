@@ -2425,15 +2425,18 @@ func directIngestHostCertificates(
 	for _, row := range rows {
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "directIngestHostCertificates: decoding sha1")
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			continue
 		}
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "directIngestHostCertificates: extracting subject details")
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			continue
 		}
 		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "directIngestHostCertificates: extracting issuer details")
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			continue
 		}
 
 		certs = append(certs, &fleet.HostCertificateRecord{
@@ -2457,6 +2460,11 @@ func directIngestHostCertificates(
 			IssuerOrganization:        issuer.Organization,
 			IssuerCommonName:          issuer.CommonName,
 		})
+	}
+
+	if len(certs) == 0 {
+		// don't overwrite existing certs if we were unable to parse any new ones
+		return nil
 	}
 
 	return ds.UpdateHostCertificates(ctx, host.ID, certs)
