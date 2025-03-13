@@ -120,7 +120,11 @@ func TestIngestValidations(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.appToken, func(t *testing.T) {
-			i := ingester{baseURL: srv.URL, ds: ds, logger: log.NewNopLogger()}
+			i := ingester{
+				baseURL: srv.URL,
+				ds:      ds,
+				logger:  log.NewNopLogger(),
+			}
 
 			var apps []maintainedApp
 			var ignoreDSCheck bool
