@@ -377,7 +377,7 @@ self_service: true
 
 ### fleet_maintained_apps
 
-- `fleet_maintained_app_id` is the ID of the app. Fleet-maintained app IDs can be copied from the [App library page](https://fleetdm.com/app-library) on [Fleetdm.com](https://fleetdm.com).
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `fleet_maintained_app_id`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**.
 
 ## org_settings and team_settings
 
