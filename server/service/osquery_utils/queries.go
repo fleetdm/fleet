@@ -1104,7 +1104,11 @@ var softwarePythonPackages = DetailQuery{
 		FROM python_packages
 	`,
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
-	Discovery: `SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') < 0`,
+	Discovery: `SELECT 1 FROM (
+    SELECT
+    CAST(SUBSTR(version, 1, INSTR(version, '.') - 1) AS INTEGER) major,
+    CAST(SUBSTR(version, INSTR(version, '.') + 1, INSTR(SUBSTR(version, INSTR(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major < 5 OR (major = 5 AND minor < 16)`,
 }
 
 // In osquery versions >= 5.16.0 the python_packages table was modified to allow for a
@@ -1123,7 +1127,11 @@ var softwarePythonPackagesWithUsersDir = DetailQuery{
 		FROM cached_users CROSS JOIN python_packages USING (uid)
 	`),
 	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
-	Discovery: `SELECT 1 FROM osquery_info WHERE version_compare(version, '5.16.0') >= 0`,
+	Discovery: `SELECT 1 FROM (
+    SELECT
+    CAST(substr(version, 1, instr(version, '.') - 1) AS INTEGER) major,
+    CAST(substr(version, instr(version, '.') + 1, instr(substr(version, instr(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major > 5 OR (major = 5 AND minor >= 16)`,
 }
 
 var softwareChrome = DetailQuery{
