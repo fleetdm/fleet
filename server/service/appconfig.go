@@ -1072,24 +1072,22 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 			return result, ctxerr.Wrap(ctx, err, "populate API tokens")
 		}
 		for i, newCA := range appConfig.Integrations.DigiCert.Value {
-			var found, needToVerify bool
+			var found bool
 			for _, oldCA := range remainingOldCAs {
 				switch {
 				case newCA.Equals(&oldCA):
 					// we clear the APIToken since we don't need to encrypt/save it
 					appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
 					found = true
-					needToVerify = false
 				case newCA.Name == oldCA.Name:
 					// changed
 					found = true
-					if newCA.URL != oldCA.URL && (len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword) {
+					if newCA.NeedToVerify(&oldCA) && (len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword) {
 						invalid.Append("integrations.digicert.api_token",
-							fmt.Sprintf("DigiCert API token must be set when modifying URL of an existing CA: %s", newCA.Name))
+							fmt.Sprintf("DigiCert API token must be set when modifying name, URL, or GUID of an existing CA: %s", newCA.Name))
 						break
 					}
 					result.digicert[newCA.Name] = caStatusEdited
-					needToVerify = newCA.NeedToVerify(&oldCA)
 				}
 			}
 			if !found {
@@ -1099,9 +1097,8 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 					break
 				}
 				result.digicert[newCA.Name] = caStatusAdded
-				needToVerify = true
 			}
-			if _, ok := result.digicert[newCA.Name]; ok && needToVerify {
+			if status, ok := result.digicert[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
 				err := digicert.VerifyProfileID(ctx, svc.logger, newCA)
 				if err != nil {
 					invalid.Append("integrations.digicert.profile_id",
@@ -1180,9 +1177,9 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 					found = true
 				case newCA.Name == oldCA.Name:
 					// changed
-					if newCA.URL != oldCA.URL && (len(newCA.Challenge) == 0 || newCA.Challenge == fleet.MaskedPassword) {
+					if len(newCA.Challenge) == 0 || newCA.Challenge == fleet.MaskedPassword {
 						invalid.Append("integrations.custom_scep_proxy.challenge",
-							fmt.Sprintf("Custom SCEP challenge must be set when modifying URL of an existing CA: %s", newCA.Name))
+							fmt.Sprintf("Custom SCEP challenge must be set when modifying existing CA: %s", newCA.Name))
 					} else {
 						result.customSCEPProxy[newCA.Name] = caStatusEdited
 					}
@@ -1197,6 +1194,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 					result.customSCEPProxy[newCA.Name] = caStatusAdded
 				}
 			}
+			// Unlike DigiCert, we always validate the connection on add/edit of custom SCEP
 			if status, ok := result.customSCEPProxy[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
 				if err := svc.scepConfigService.ValidateSCEPURL(ctx, newCA.URL); err != nil {
 					invalidCANames[newCA.Name] = struct{}{}
