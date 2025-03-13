@@ -1,13 +1,12 @@
 import React, { useContext, useRef, useState } from "react";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 import {
-  ICertificateAuthorityType,
   ICertificateIntegration,
-  isCustomSCEPCertIntegration,
   isDigicertCertIntegration,
-  isNDESCertIntegration,
 } from "interfaces/integration";
+import certificatesAPI from "services/entities/certificates";
 
 import Modal from "components/Modal";
 
@@ -18,27 +17,29 @@ import {
   getCertificateAuthorityType,
 } from "./helpers";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-import { get } from "lodash";
+import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 
 const baseClass = "edit-cert-authority-modal";
 
 interface IEditCertAuthorityModalProps {
-  listItemId: string;
   certAuthority: ICertificateIntegration;
   onExit: () => void;
 }
 
 const EditCertAuthorityModal = ({
-  listItemId,
   certAuthority,
   onExit,
 }: IEditCertAuthorityModalProps) => {
   const certType = useRef(getCertificateAuthorityType(certAuthority));
-
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<ICertFormData | null>(() =>
+  const [formData, setFormData] = useState<ICertFormData>(() =>
     generateDefaultFormData(certAuthority)
+  );
+  const { generateEditPatchData } = useCertAuthorityDataGenerator(
+    certType.current,
+    certAuthority
   );
 
   const onChangeForm = (update: { name: string; value: string }) => {
@@ -52,15 +53,16 @@ const EditCertAuthorityModal = ({
     });
   };
 
-  const onAddCertAuthority = async () => {
+  const onEditCertAuthority = async () => {
+    const editPatchData = generateEditPatchData(formData);
     setIsUpdating(true);
     try {
-      // const newConfig = await certificatesAPI.addCertificateAuthority(
-      //   addPatchData
-      // );
-      renderFlash("success", "Successfully added your certificate authority.");
+      const newConfig = await certificatesAPI.editCertAuthorityModal(
+        editPatchData
+      );
+      renderFlash("success", "Successfully edited your certificate authority.");
       onExit();
-      // setConfig(newConfig);
+      setConfig(newConfig);
     } catch (e) {
       renderFlash("error", generateErrorMessage(e));
     }
@@ -84,7 +86,7 @@ const EditCertAuthorityModal = ({
         submitBtnText="Save"
         isSubmitting={isUpdating}
         onChange={onChangeForm}
-        onSubmit={onAddCertAuthority}
+        onSubmit={onEditCertAuthority}
         onCancel={onExit}
       />
     );

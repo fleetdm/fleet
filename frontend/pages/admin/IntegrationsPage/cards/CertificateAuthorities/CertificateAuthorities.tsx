@@ -119,15 +119,12 @@ const CertificateAuthorities = () => {
           onExit={() => setShowAddCertAuthorityModal(false)}
         />
       )}
-      {showEditCertAuthorityModal &&
-        selectedCertAuthority &&
-        selectedListItemId && (
-          <EditCertAuthorityModal
-            listItemId={selectedListItemId}
-            certAuthority={selectedCertAuthority}
-            onExit={() => setShowEditCertAuthorityModal(false)}
-          />
-        )}
+      {showEditCertAuthorityModal && selectedCertAuthority && (
+        <EditCertAuthorityModal
+          certAuthority={selectedCertAuthority}
+          onExit={() => setShowEditCertAuthorityModal(false)}
+        />
+      )}
       {showDeleteCertAuthoirtyModal &&
         selectedCertAuthority &&
         selectedListItemId && (

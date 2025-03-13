@@ -1,13 +1,12 @@
 import {
   ICertificateAuthorityType,
   ICertificateIntegration,
+  ICertificatesIntegrationDigicert,
   isCustomSCEPCertIntegration,
-  isDigicertCertIntegration,
   isNDESCertIntegration,
 } from "interfaces/integration";
 
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import { get } from "lodash";
+import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 
 const DEFAULT_ERROR_MESSAGE =
   "Couldn't edit certificate authority. Please try again.";
@@ -19,20 +18,17 @@ export const generateErrorMessage = (e: unknown) => {
 
 export const generateDefaultFormData = (
   certAuthority: ICertificateIntegration
-): IDigicertFormData | null => {
-  if (isDigicertCertIntegration(certAuthority)) {
-    return {
-      name: certAuthority.name,
-      url: certAuthority.url,
-      apiToken: certAuthority.api_token,
-      profileId: certAuthority.profile_id,
-      commonName: certAuthority.certificate_common_name,
-      userPrincipalName: certAuthority.certificate_user_principal_names[0],
-      certificateSeatId: certAuthority.certificate_seat_id,
-    };
-  }
-
-  return null;
+): ICertFormData => {
+  const cert = certAuthority as ICertificatesIntegrationDigicert;
+  return {
+    name: cert.name,
+    url: cert.url,
+    apiToken: cert.api_token,
+    profileId: cert.profile_id,
+    commonName: cert.certificate_common_name,
+    userPrincipalName: cert.certificate_user_principal_names[0],
+    certificateSeatId: cert.certificate_seat_id,
+  };
 };
 
 export const getCertificateAuthorityType = (

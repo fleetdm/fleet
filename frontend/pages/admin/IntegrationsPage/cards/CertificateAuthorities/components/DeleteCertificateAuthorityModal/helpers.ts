@@ -99,6 +99,43 @@ export const useCertAuthorityDataGenerator = (
    */
   const generateEditPatchData = (formData: IDigicertFormData) => {
     if (!config) return null;
+
+    const data: { integrations: Partial<IGlobalIntegrations> } = {
+      integrations: {},
+    };
+
+    switch (certAuthorityType) {
+      case "ndes":
+        break;
+      case "digicert":
+        data.integrations.digicert = config.integrations.digicert?.map(
+          (cert) => {
+            // only update the certificate authority that we are editing
+            if (
+              (certAuthority as ICertificatesIntegrationDigicert).name ===
+              cert.name
+            ) {
+              return {
+                name: formData.name,
+                url: formData.url,
+                api_token: formData.apiToken,
+                profile_id: formData.profileId,
+                certificate_common_name: formData.commonName,
+                certificate_user_principal_names: [formData.userPrincipalName],
+                certificate_seat_id: formData.certificateSeatId,
+              };
+            }
+            return cert;
+          }
+        );
+        break;
+      case "custom":
+        break;
+      default:
+        break;
+    }
+
+    return data;
   };
 
   return {
