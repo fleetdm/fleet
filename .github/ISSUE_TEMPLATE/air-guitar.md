@@ -43,4 +43,4 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] GitOps mode changes: TODO <!-- Specify UI changes for read-only GitOps mode. Put "No changes" if there are no changes necessary. -->
 - [ ] Activity changes: TODO <!-- Specify changes to the Audit log page in the contributor docs. Put "No changes" if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
-- [ ] Once wireframes are approved, requester has been notified
+- [ ] Once wireframes are approved, notify the requestor.
