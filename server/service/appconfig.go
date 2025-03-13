@@ -1121,7 +1121,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				// This issue is caused by the new DigiCert CA added above
 				invalid.Append("integrations.digicert.name", fmt.Sprintf("Couldn’t edit certificate authority. "+
 					"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", ca.Name))
-				additionalDigiCertValidationNeeded = false
+				additionalCustomSCEPValidationNeeded = false
 				continue
 			}
 			allCANames[ca.Name] = struct{}{}
