@@ -88,4 +88,20 @@ func TestOvalPlatform(t *testing.T) {
 			require.Equal(t, c.expected, plat.ToGovalDictionaryFilename())
 		}
 	})
+
+	t.Run("ToGovalDatabaseFilename", func(t *testing.T) {
+		cases := []struct {
+			version  string
+			expected string
+		}{
+			{"Amazon Linux 1.0.0", "amzn_01.sqlite3"},
+			{"Amazon Linux 2.0.0", "amzn_02.sqlite3"},
+			{"Amazon Linux 2022.0.0", "amzn_2022.sqlite3"},
+			{"Amazon Linux 2023.0.0", "amzn_2023.sqlite3"},
+		}
+		for _, c := range cases {
+			plat := NewPlatform("amzn", c.version)
+			require.Equal(t, c.expected, plat.ToGovalDatabaseFilename())
+		}
+	})
 }

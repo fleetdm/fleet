@@ -3819,7 +3819,7 @@ func preprocessProfileContents(
 					digiCertVars.data = true
 					caName = strings.TrimPrefix(fleetVar, FleetVarDigiCertDataPrefix)
 				}
-				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, digiCertCAs, profUUID, target, caName)
+				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
 				}
@@ -4002,9 +4002,9 @@ func preprocessProfileContents(
 						}
 					}
 
-					data, password, err := digicert.GetCertificate(ctx, logger, caCopy)
+					cert, err := digicert.GetCertificate(ctx, logger, caCopy)
 					if err != nil {
-						detail := fmt.Sprintf("Couldn't get certificate from DigiCert. %s", err)
+						detail := fmt.Sprintf("Couldn't get certificate from %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:   target.cmdUUID,
 							HostUUID:      hostUUID,
@@ -4018,8 +4018,13 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(data))
-					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, password)
+					hostContents = replaceFleetVariable(fleetVarDigiCertData, hostContents, base64.StdEncoding.EncodeToString(cert.PfxData))
+					hostContents = replaceFleetVariable(fleetVarDigiCertPassword, hostContents, cert.Password)
+					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:      hostUUID,
+						ProfileUUID:   profUUID,
+						NotValidAfter: &cert.NotValidAfter,
+					})
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}
@@ -4102,7 +4107,7 @@ func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hos
 		return "", false, ctxerr.Wrap(ctx, err, "getting host emails")
 	}
 	if len(emails) == 0 {
-		// Error if we can't retrieve the end user email IDP
+		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 			CommandUUID: target.cmdUUID,
 			HostUUID:    hostUUID,
@@ -4128,6 +4133,7 @@ func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdT
 	}
 	if len(hosts) != 1 {
 		// Something went wrong. Maybe host was deleted, or we have multiple hosts with the same UUID.
+		// Mark the profile as failed with additional detail.
 		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 			CommandUUID:   target.cmdUUID,
 			HostUUID:      hostUUID,
@@ -4156,7 +4162,7 @@ func (d digiCertVarsFound) Ok() bool {
 
 func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
-	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string) (bool, error) {
+	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
 	}
@@ -4176,7 +4182,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	}
 	if !configured || digiCertCA == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("DigiCert CA '%s' is not configured. Please configure in Settings > Integrations > Certificates.", caName))
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName))
 	}
 
 	// Get the API token

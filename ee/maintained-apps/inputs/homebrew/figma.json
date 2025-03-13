@@ -1,0 +1,7 @@
+{
+  "name": "Figma",
+  "slug": "figma/darwin",
+  "unique_identifier": "com.figma.Desktop",
+  "token": "figma",
+  "installer_format": "zip"
+}

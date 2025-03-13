@@ -1157,33 +1157,36 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 			remainingOldCAs[i].APIToken = string(asset.Value)
 		}
 		for i, newCA := range appConfig.Integrations.DigiCert.Value {
-			var found bool
+			var found, needToVerify bool
 			for _, oldCA := range remainingOldCAs {
 				switch {
 				case newCA.Equals(&oldCA):
 					// we clear the APIToken since we don't need to encrypt/save it
 					appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
 					found = true
+					needToVerify = false
 				case newCA.Name == oldCA.Name:
 					// changed
+					found = true
 					if newCA.URL != oldCA.URL && (len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword) {
 						invalid.Append("integrations.digicert.api_token",
 							fmt.Sprintf("DigiCert API token must be set when modifying URL of an existing CA: %s", newCA.Name))
-					} else {
-						result.digicert[newCA.Name] = caStatusEdited
+						break
 					}
-					found = true
+					result.digicert[newCA.Name] = caStatusEdited
+					needToVerify = newCA.NeedToVerify(&oldCA)
 				}
 			}
 			if !found {
 				if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
 					invalid.Append("integrations.digicert.api_token",
 						fmt.Sprintf("DigiCert API token must be set on CA: %s", newCA.Name))
-				} else {
-					result.digicert[newCA.Name] = caStatusAdded
+					break
 				}
+				result.digicert[newCA.Name] = caStatusAdded
+				needToVerify = true
 			}
-			if status, ok := result.digicert[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
+			if _, ok := result.digicert[newCA.Name]; ok && needToVerify {
 				err := digicert.VerifyProfileID(ctx, svc.logger, newCA)
 				if err != nil {
 					invalid.Append("integrations.digicert.profile_id",
