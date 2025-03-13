@@ -116,7 +116,7 @@ const getErrorMessage = (
 };
 
 // eslint-disable-next-line import/prefer-default-export
-export const generateFormValidation = (formData: IDigicertFormData) => {
+export const validateFormData = (formData: IDigicertFormData) => {
   const formValidation: IDigicertFormValidation = {
     isValid: true,
   };

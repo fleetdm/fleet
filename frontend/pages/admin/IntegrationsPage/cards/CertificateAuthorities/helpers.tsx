@@ -2,6 +2,7 @@ import {
   ICertificatesIntegrationCustomSCEP,
   ICertificatesIntegrationDigicert,
   ICertificatesIntegrationNDES,
+  isNDESCertIntegration,
 } from "interfaces/integration";
 
 export interface ICertAuthorityListData {
@@ -76,21 +77,24 @@ export const getCertificateAuthority = (
   digicertCerts?: ICertificatesIntegrationDigicert[],
   customProxies?: ICertificatesIntegrationCustomSCEP[]
 ) => {
-  if (id === "ndes") {
-    return ncspProxy as ICertificatesIntegrationNDES;
+  if (id === "ndes" && ncspProxy) {
+    return ncspProxy;
   }
 
-  if (id.includes("digicert")) {
-    return digicertCerts?.find(
-      (cert) => id.split("digicert-")[1] === cert.name
-    ) as ICertificatesIntegrationDigicert;
+  if (id.includes("digicert") && digicertCerts) {
+    return (
+      digicertCerts.find((cert) => id.split("digicert-")[1] === cert.name) ??
+      null
+    );
   }
 
-  if (id.includes("custom-scep-proxy")) {
-    return customProxies?.find(
-      // TODO: remove custom scep id
-      (cert) => id.split("custom-scep-proxy-")[1] === cert.id.toString()
-    ) as ICertificatesIntegrationCustomSCEP;
+  if (id.includes("custom-scep-proxy") && customProxies) {
+    return (
+      customProxies?.find(
+        // TODO: remove custom scep id
+        (cert) => id.split("custom-scep-proxy-")[1] === cert.id.toString()
+      ) ?? null
+    );
   }
 
   return null;

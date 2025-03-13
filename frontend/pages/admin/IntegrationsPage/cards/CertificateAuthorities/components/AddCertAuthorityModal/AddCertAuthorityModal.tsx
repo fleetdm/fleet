@@ -14,6 +14,10 @@ import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 
+export type ICertFormData = IDigicertFormData;
+// | IAnotherCertFormData
+// | IYetAnotherCertFormData;
+
 const baseClass = "add-cert-authority-modal";
 
 interface IAddCertAuthorityModalProps {
