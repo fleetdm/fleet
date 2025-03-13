@@ -230,7 +230,7 @@ These questions are helpful for the product team when considering what to priori
 
 Anyone in the product group can initiate an air guitar session.
 
-1. Using the [air guitar issue template](https://github.com/fleetdm/fleet/issues/new?template=air-guitar.md), create an air guitar issue. Air guitar issues are always intended to be designed right away. If they can't be, the Head of Product Design notifies the requestor (normally a CSM or AE) via at-mention in the issue.
+1. [Create a new air guitar issue](https://github.com/fleetdm/fleet/issues/new?template=air-guitar.md). Air guitar issues are always intended to be designed right away. If they can't be, the Head of Product Design notifies the requestor (normally a CSM or AE) via at-mention in the issue.
 
 > An air guitar session may be used to design features that won't be shipped.
 
