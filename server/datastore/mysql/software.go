@@ -2512,6 +2512,7 @@ last_vpp_install AS (
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
@@ -2658,6 +2659,7 @@ last_vpp_install AS (
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
@@ -2841,6 +2843,7 @@ last_vpp_install AS (
 		package_self_service,
 		package_name,
 		package_version,
+		package_platform,
 		vpp_app_self_service,
 		vpp_app_adam_id,
 		vpp_app_version,
@@ -2923,6 +2926,7 @@ last_vpp_install AS (
 		PackageSelfService             *bool      `db:"package_self_service"`
 		PackageName                    *string    `db:"package_name"`
 		PackageVersion                 *string    `db:"package_version"`
+		PackagePlatform                *string    `db:"package_platform"`
 		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
 		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
 		VPPAppVersion                  *string    `db:"vpp_app_version"`
@@ -2948,6 +2952,7 @@ last_vpp_install AS (
 			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:        *hs.PackageName,
 				Version:     version,
+				Platform:    *hs.PackagePlatform,
 				SelfService: hs.PackageSelfService,
 			}
 
@@ -2981,6 +2986,7 @@ last_vpp_install AS (
 			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:  *hs.VPPAppAdamID,
 				Version:     version,
+				Platform:    *hs.PackagePlatform,
 				SelfService: hs.VPPAppSelfService,
 				IconURL:     hs.VPPAppIconURL,
 			}
