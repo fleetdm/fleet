@@ -1,0 +1,7 @@
+{
+  "name": "Cloudflare WARP",
+  "slug": "cloudflare-warp/darwin",
+  "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
+  "token": "cloudflare-warp",
+  "installer_format": "pkg"
+}
