@@ -16,29 +16,31 @@ When communicating with future or current customers, hand offs [between departme
 
 | GTM group                            | Goal _(value for customers and/or community)_ |
 |:-------------------------------------|:------------------------------------|
-| [🦄 Unicorns](#unicorns)           | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       |
-| [🌐 Buy online](#buy-online) | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               |
+| [🦄 Unicorns](#unicorns)             | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       |
+| [🌐 Buy online](#buy-online)         | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               |
 
 
 
 ### 🦄 Unicorns
 
-The goal of the 🦄 Unicorns group is to provide the best possible customer experience for companies with 300+ hosts. [Fleet's product maturity goals](https://fleetdm.com/device-management) in the "MDM" product category.
+The goal of the 🦄 Unicorns group is to provide the best possible customer experience for companies with 300+ hosts.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
-| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
-| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
+| Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Account Executives (AE)            | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_
+
+
+| Pipeline DRI                      | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Success DRI                       | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
 
 ### 🌐 Buy online
 
-The goal of the 🌐 Buy online group is to increase and exceed [Fleet's product maturity goals in the orchestration category](https://fleetdm.com/orchestration).
+The goal of the 🌐 Buy online group is to provide the best possible customer experience for companies with less than 300 hosts that prefer a more self-service experience.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
