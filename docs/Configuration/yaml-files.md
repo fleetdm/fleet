@@ -326,10 +326,6 @@ Currently, one app for each of an App Store app's supported platforms are added.
 software:
   packages:
     - path: ../lib/software-name.package.yml
-    - path: ../lib/software-name2.package.yml
-      labels_include_any:
-        - Engineering
-        - Customer Support
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
