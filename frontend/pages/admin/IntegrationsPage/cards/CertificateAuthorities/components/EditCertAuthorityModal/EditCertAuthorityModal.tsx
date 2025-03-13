@@ -95,7 +95,7 @@ const EditCertAuthorityModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Add certificate authority (CA)"
+      title="Edit certificate authority (CA)"
       width="large"
       onExit={onExit}
     >
