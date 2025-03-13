@@ -329,9 +329,6 @@ software:
   # path is relative to default.yml, teams/team-name.yml, or teams/no-team.yml
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any:
-        - Product
-        - Marketing
   fleet_maintained_apps:
     - fleet_maintained_app_id: macos-slack
       labels_include_any:
