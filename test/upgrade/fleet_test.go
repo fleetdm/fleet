@@ -5,11 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -45,6 +45,7 @@ type Fleet struct {
 	Token string
 
 	dockerClient client.ContainerAPIClient
+	t            *testing.T
 }
 
 // NewFleet starts fleet and it's dependencies with the specified version.
@@ -63,6 +64,7 @@ func NewFleet(t *testing.T, version string) *Fleet {
 		FilePath:     "docker-compose.yaml",
 		Version:      version,
 		dockerClient: dockerClient,
+		t:            t,
 	}
 
 	t.Cleanup(f.cleanup)
@@ -76,9 +78,9 @@ func NewFleet(t *testing.T, version string) *Fleet {
 
 func (f *Fleet) Start() error {
 	env := map[string]string{
-		"FLEET_VERSION_A": f.Version,
+		"FLEET_VERSION": f.Version,
 	}
-	_, err := f.execCompose(env, "pull", "--parallel")
+	_, err := f.execCompose(env, "pull")
 	if err != nil {
 		return err
 	}
@@ -92,38 +94,19 @@ func (f *Fleet) Start() error {
 		return err
 	}
 
-	// run the migrations using the fleet-a service
-	_, err = f.execCompose(env, "run", "-T", "fleet-a", "fleet", "prepare", "db", "--no-prompt")
+	// run the migrations using the fleet starting version
+	_, err = f.execCompose(env, "run", "-T", "fleet", "fleet", "prepare", "db", "--no-prompt")
 	if err != nil {
 		return err
 	}
 
-	// start fleet-a
-	_, err = f.execCompose(env, "up", "-d", "fleet-a", "fleet")
+	// start fleet
+	_, err = f.execCompose(env, "up", "-d", "fleet", "fleet")
 	if err != nil {
 		return err
 	}
 
-	// copy the nginx conf and reload nginx without creating a new container
-	srcPath := filepath.Join("nginx", "fleet-a.conf")
-	_, err = f.execCompose(env, "cp", srcPath, "fleet:/etc/nginx/conf.d/default.conf")
-	if err != nil {
-		return err
-	}
-
-	// drop to one nginx worker process regardless of CPU count to ensure repointing to the correct
-	// Fleet container happens quickly
-	_, err = f.execCompose(env, "exec", "-T", "fleet", "sed", "-i", "s/auto/1/", "/etc/nginx/nginx.conf")
-	if err != nil {
-		return err
-	}
-
-	_, err = f.execCompose(env, "exec", "-T", "fleet", "nginx", "-s", "reload")
-	if err != nil {
-		return err
-	}
-
-	if err := f.waitFleet(slotA); err != nil {
+	if err := f.waitFleet(); err != nil {
 		return err
 	}
 
@@ -219,8 +202,10 @@ func (f *Fleet) getPublicPort(serviceName string, privatePort uint16) (uint16, e
 	return 0, errors.New("private port not found")
 }
 
-func (f *Fleet) waitFleet(slot string) error {
-	containerName := fmt.Sprintf("%s-fleet-%s-1", f.ProjectName, slot)
+func (f *Fleet) waitFleet() error {
+	f.t.Logf("waiting for fleet %s to be healthy...", f.Version)
+
+	containerName := fmt.Sprintf("%s-fleet-1", f.ProjectName)
 
 	// get the random fleet host port assigned by docker
 	argsName := filters.Arg("name", containerName)
@@ -232,7 +217,8 @@ func (f *Fleet) waitFleet(slot string) error {
 		return errors.New("no fleet container found")
 	}
 	port := containers[0].Ports[0].PublicPort
-	healthURL := fmt.Sprintf("http://localhost:%d/healthz", port)
+	healthURL := fmt.Sprintf("https://localhost:%d/healthz", port)
+	f.t.Logf("Fleet URL: %s", healthURL)
 
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxInterval = 1 * time.Second
@@ -281,9 +267,12 @@ func (f *Fleet) execCompose(env map[string]string, args ...string) (string, erro
 	var stdout, stderr bytes.Buffer
 
 	cmd := exec.Command("docker", args...)
+	f.t.Log(cmd.String())
 	cmd.Env = e
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	wout := io.MultiWriter(&stdout, os.Stdout)
+	werr := io.MultiWriter(&stderr, os.Stderr)
+	cmd.Stdout = wout
+	cmd.Stderr = werr
 	err := cmd.Run()
 	if err != nil {
 		return "", fmt.Errorf("docker: %v %s", err, stderr.String())
@@ -333,46 +322,36 @@ func (f *Fleet) StartHost() (string, error) {
 }
 
 // Upgrade upgrades fleet to a specified version.
-func (f *Fleet) Upgrade(toVersion string) error {
+func (f *Fleet) Upgrade(from, to string) error {
+	// stop fleet
 	env := map[string]string{
-		"FLEET_VERSION_B": toVersion,
+		"FLEET_VERSION": from,
+	}
+	if _, err := f.execCompose(env, "rm", "-s", "-v", "fleet"); err != nil {
+		return fmt.Errorf("start fleet: %v", err)
 	}
 
-	// run migrations using fleet-b
-	serviceName := "fleet-b"
-	_, err := f.execCompose(env, "run", "-T", serviceName, "fleet", "prepare", "db", "--no-prompt")
+	// run migrations
+	env = map[string]string{
+		"FLEET_VERSION": to,
+	}
+	_, err := f.execCompose(env, "run", "-T", "fleet", "fleet", "prepare", "db", "--no-prompt")
 	if err != nil {
 		return fmt.Errorf("run migrations: %v", err)
 	}
 
-	// start the service
-	_, err = f.execCompose(env, "up", "-d", serviceName)
+	// start the new version
+	_, err = f.execCompose(env, "up", "-d", "fleet", "fleet")
 	if err != nil {
 		return fmt.Errorf("start fleet: %v", err)
 	}
 
 	// wait until healthy
-	if err := f.waitFleet(slotB); err != nil {
+	if err := f.waitFleet(); err != nil {
 		return fmt.Errorf("wait for fleet to be healthy: %v", err)
 	}
 
-	// copy the nginx conf and reload nginx without creating a new container
-	srcPath := filepath.Join("nginx", "fleet-b.conf")
-	_, err = f.execCompose(env, "cp", srcPath, "fleet:/etc/nginx/conf.d/default.conf")
-	if err != nil {
-		return err
-	}
-
-	_, err = f.execCompose(env, "exec", "-T", "fleet", "nginx", "-s", "reload")
-	if err != nil {
-		return err
-	}
-
-	// even with only one worker process, graceful reload of nginx workers doesn't happen instantly,
-	// so we add a wait here to let workers swap so they're pointed at the upgraded Fleet server
-	time.Sleep(250 * time.Millisecond)
-
-	f.Version = toVersion
+	f.Version = to
 
 	return nil
 }

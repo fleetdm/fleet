@@ -49,7 +49,7 @@ func TestUpgradeAToB(t *testing.T) {
 
 	enrollHost(t, f)
 
-	err := f.Upgrade(versionB)
+	err := f.Upgrade(versionA, versionB)
 	require.NoError(t, err)
 
 	// enroll another host with the new version
