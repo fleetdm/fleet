@@ -39,7 +39,7 @@ jobs:
         run: |
           cd fleet
           go mod download
-          git diff --name-only --diff-filter=AM origin/${{ github.head_ref }} origin/${{ github.event.pull_request.base.ref }} | grep "ee/maintained-apps/inputs/.*\.json" | while read -r; do go run cmd/maintained-apps/main.go -file=$REPLY; done
+          git diff --name-only --diff-filter=AM origin/${{ github.head_ref }} origin/${{ github.event.pull_request.base.sha }} | grep "ee/maintained-apps/inputs/.*\.json" | while read -r; do go run cmd/maintained-apps/main.go -file=$REPLY; done
       - name: Commit generated manifest data
         run: |
           cd fleet
