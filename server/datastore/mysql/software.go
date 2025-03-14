@@ -2993,7 +2993,7 @@ last_vpp_install AS (
 			}
 			var platform string
 			if hs.VPPAppPlatform != nil {
-				version = *hs.VPPAppPlatform
+				platform = *hs.VPPAppPlatform
 			}
 			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:  *hs.VPPAppAdamID,
