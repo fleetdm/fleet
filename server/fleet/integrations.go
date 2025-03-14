@@ -374,6 +374,13 @@ func (d *DigiCertIntegration) Equals(other *DigiCertIntegration) bool {
 		d.CertificateSeatID == other.CertificateSeatID
 }
 
+func (d *DigiCertIntegration) NeedToVerify(other *DigiCertIntegration) bool {
+	return d.Name != other.Name ||
+		d.URL != other.URL ||
+		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
+		d.ProfileID != other.ProfileID
+}
+
 // NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyIntegration struct {
 	URL      string `json:"url"`
@@ -382,10 +389,22 @@ type NDESSCEPProxyIntegration struct {
 	Password string `json:"password"` // not stored here -- encrypted in DB
 }
 
+type SCEPConfigService interface {
+	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyIntegration) error
+	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyIntegration) (string, error)
+	ValidateSCEPURL(ctx context.Context, url string) error
+}
+
 type CustomSCEPProxyIntegration struct {
 	Name      string `json:"name"`
 	URL       string `json:"url"`
 	Challenge string `json:"challenge"`
+}
+
+func (s *CustomSCEPProxyIntegration) Equals(other *CustomSCEPProxyIntegration) bool {
+	return s.Name == other.Name &&
+		s.URL == other.URL &&
+		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
 }
 
 // Integrations configures the integrations with external systems.

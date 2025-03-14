@@ -94,9 +94,6 @@ type hostProfileUUID struct {
 	ProfileUUID string
 }
 
-// Functions that can be overwritten in tests
-var getNDESSCEPChallenge = eeservice.GetNDESSCEPChallenge
-
 type getMDMAppleCommandResultsRequest struct {
 	CommandUUID string `query:"command_uuid,optional"`
 }
@@ -3648,7 +3645,8 @@ func ReconcileAppleProfiles(
 	}
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
-	err = preprocessProfileContents(ctx, appConfig, ds, logger, installTargets, profileContents, hostProfilesToInstallMap)
+	err = preprocessProfileContents(ctx, appConfig, ds, eeservice.NewSCEPConfigService(logger, nil), logger, installTargets, profileContents,
+		hostProfilesToInstallMap)
 	if err != nil {
 		return err
 	}
@@ -3767,6 +3765,7 @@ func preprocessProfileContents(
 	ctx context.Context,
 	appConfig *fleet.AppConfig,
 	ds fleet.Datastore,
+	scepConfig fleet.SCEPConfigService,
 	logger kitlog.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
@@ -3893,7 +3892,7 @@ func preprocessProfileContents(
 						ndesConfig = &configWithPassword
 					}
 					// Insert the SCEP challenge into the profile contents
-					challenge, err := getNDESSCEPChallenge(ctx, *ndesConfig)
+					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
 					if err != nil {
 						detail := ""
 						switch {

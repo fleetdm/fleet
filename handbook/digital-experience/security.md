@@ -1926,7 +1926,7 @@ We publish a trust report that includes automated checking of controls, answers 
 questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 
 
-## Securtiy audits
+## Security audits
 
 This section contains explanations of the latest external security audits performed on Fleet software.
 
