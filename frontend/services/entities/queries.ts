@@ -118,6 +118,7 @@ export default {
         query_id: queryId,
         selected,
       });
+      console.log("Campaign before adding `hosts_count` field: ", campaign);
       return Promise.resolve({
         ...campaign,
         hosts_count: {

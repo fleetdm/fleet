@@ -267,9 +267,15 @@ const QueryResults = ({
     <div className={baseClass}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
+        // should be num of hosts that returned either any result rows, empty result rows, or any errors
         numHostsResponded={hostsCount.total}
+        // num hosts that returned >= 1 result rows
+        // hosts_count.successful?
         numHostsRespondedResults={hostsCount.successful}
+        // num hosts that returned 0 result rows
+        // api should be returning this clearly somehow - Lucas - new field
         numHostsRespondedNoResults={hostsCount.failed}
+        //  num hosts that returned >= 1 errors
         numHostsRespondedErrors={errors?.length || 0}
         isFinished={isQueryFinished}
         onClickDone={onQueryDone}

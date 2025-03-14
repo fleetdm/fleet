@@ -26,10 +26,13 @@ export interface ICampaign {
   created_at: string;
   errors: ICampaignError[];
   hosts: IHost[];
+  // confirm definitions, document
   hosts_count: {
     total: number;
     successful: number; // Does not include ChromeOS results that are partially successful
-    failed: number;
+    // returned_rows:
+    // returned_no_rows:
+    failed: number; // Lucas guess - hosts that returned an error? Possibly hosts that were targeted but didn't respond? - confirm, document
   };
   id: number;
   query_id: number;
