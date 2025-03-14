@@ -1,1 +1,0 @@
-* Fixed build scripts to use `ubuntu-20.04` to build orbit (to not crash on Ubuntu 20.04).
