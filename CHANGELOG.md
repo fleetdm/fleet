@@ -91,6 +91,12 @@
 - Fixed a bug where only the first of multiple software titles with the same name and source but different bundle IDs would be successfully inserted into the database.
 - Fixed issue verifying Windows CSP profiles that contain ADMX policies.
 
+## Fleet 4.63.1 (Feb 19, 2025)
+
+### Bug fixes
+
+- Fixed an issue where the abm token teams were being reset when making updates to the app config.
+
 ## Fleet 4.63.0 (Feb 03, 2025)
 
 ## Device management (MDM)
