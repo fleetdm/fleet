@@ -2930,6 +2930,7 @@ last_vpp_install AS (
 		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
 		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
 		VPPAppVersion                  *string    `db:"vpp_app_version"`
+		VPPAppPlatform                 *string    `db:"vpp_app_platform"`
 		VPPAppIconURL                  *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
@@ -2987,10 +2988,14 @@ last_vpp_install AS (
 			if hs.VPPAppVersion != nil {
 				version = *hs.VPPAppVersion
 			}
+			var platform string
+			if hs.VPPAppPlatform != nil {
+				version = *hs.VPPAppPlatform
+			}
 			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:  *hs.VPPAppAdamID,
 				Version:     version,
-				Platform:    *hs.PackagePlatform,
+				Platform:    platform,
 				SelfService: hs.VPPAppSelfService,
 				IconURL:     hs.VPPAppIconURL,
 			}

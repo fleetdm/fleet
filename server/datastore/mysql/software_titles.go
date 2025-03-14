@@ -126,6 +126,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
 		VPPAppAdamID              *string `db:"vpp_app_adam_id"`
 		VPPAppVersion             *string `db:"vpp_app_version"`
+		VPPAppPlatform            *string `db:"vpp_app_platform"`
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
 	}
@@ -183,8 +184,8 @@ func (ds *Datastore) ListSoftwareTitles(
 				version = *title.VPPAppVersion
 			}
 			var platform string
-			if title.PackagePlatform != nil {
-				platform = *title.PackagePlatform
+			if title.VPPAppPlatform != nil {
+				platform = *title.VPPAppPlatform
 			}
 			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:         *title.VPPAppAdamID,
@@ -312,6 +313,7 @@ SELECT
 	vat.adam_id as vpp_app_adam_id,
 	vat.install_during_setup as vpp_install_during_setup,
 	vap.latest_version as vpp_app_version,
+	vap.platform as vpp_app_platform,
 	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
@@ -324,7 +326,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url, vpp_install_during_setup`
+GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
