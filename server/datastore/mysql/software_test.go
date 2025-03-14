@@ -5823,10 +5823,12 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 			Name:        installer1.Filename,
 			Version:     installer1.Version,
 			SelfService: ptr.Bool(false),
+			Platform:    "darwin",
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
 			SelfService: ptr.Bool(false),
+			Platform:    "darwin",
 		},
 	}
 
