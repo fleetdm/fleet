@@ -17,7 +17,7 @@
 - Added new (as of 2025-03-07) archives page to data source for MS Mac Office vulnerability feed (applies to vulnerabilities feed rather than a specific Fleet release).
 - Fixed an issue with Fleet's processing of Python versions to ensure that the correct CPEs are checked for vulnerabilities.
 - Fixed an issue with increased resource usage during vulnerabilities processing by adding database indexes.
-* Fixed false-positives on released PowerShell versions for CVE-2025-21171 and all PowerShell versions on CVE-2023-48795.
+- Fixed false-positives on released PowerShell versions for CVE-2025-21171 and all PowerShell versions on CVE-2023-48795.
 
 ## IT engineering
 - Implemented GitOps mode that locks settings in the UI that are managed by GitOps.
