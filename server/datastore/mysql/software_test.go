@@ -4127,7 +4127,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3,Platform: "darwin",, SelfService: ptr.Bool(true)},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "darwin", SelfService: ptr.Bool(true)},
 	}
 
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
