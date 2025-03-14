@@ -1,4 +1,4 @@
-# Fleet 4.65.0 | TODO
+# Fleet 4.65.0 | GitOps mode, automatically install software, certificates in host vitals
 
 <div purpose="embedded-content">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
@@ -9,21 +9,21 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Highlights
 
-- TODO
-- TODO
-- TODO
+- GitOps mode
+- Automatically install software
+- Certificates in host vitals
 
-### TODO
+### GitOps mode
 
-TODO
+You can now put Fleet in "GitOps mode" which puts the Fleet UI in a read-only mode that prevents edits. This points users in the UI to your git repo and ensures that changes aren’t accidentally overwritten by your GitHub action or GitLab CI/CD gitops runs.
 
-### TODO
+### Automatically install software
 
-TODO
+Fleet now allows IT admins to install App Store apps on all your hosts without writing custom policies. This saves time when deploying apps across many hosts, making large-scale app deployment easier and more reliable. Learn more about installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
 
-### TODO
+### Certificates in host vitals
 
-TODO
+The **Host details** page now displays a list of certificates for macOS, iOS, and iPadOS hosts. This helps IT teams quickly diagnose Wi-Fi or VPN connection issues by identifying missing or expired certificates that may be preventing network access. See more host vitals [here](https://fleetdm.com/vitals/battery).
 
 ## Changes
 
@@ -37,5 +37,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2025-03-14">
-<meta name="articleTitle" value="Fleet 4.65.0 | TODO">
+<meta name="articleTitle" value="Fleet 4.65.0 | GitOps mode, automatically install software, certificates in host vitals">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.65.0-1600x900@2x.png">
