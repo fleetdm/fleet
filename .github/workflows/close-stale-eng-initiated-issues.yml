@@ -1,0 +1,48 @@
+name: Close stale eng-initiated issues
+
+# This action will mark old engineering-initiated issues as stale.
+# If stale issues don't have activity after 14 days, they will be closed.
+
+on:
+  schedule:
+    # Daily at 8:10pm CDT (1:10am UTC) -- run during off-hours to prevent hitting GitHub API rate limit
+    - cron: "10 1 * * *"
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  close-stale-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+      - name: Close issues
+        uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+        with:
+          only-issue-labels: "~engineering-initiated" # comma separated labels that must ALL be present
+          days-before-issue-stale: 365
+          days-before-issue-close: 14
+          stale-issue-label: "stale"
+          stale-issue-message: "This issue is stale because it has been open for 365 days with no activity. Please update the issue if it is still relevant."
+          close-issue-message: "This issue was closed because it has been inactive for 14 days since being marked as stale."
+          days-before-pr-stale: -1 # Stale PRs not checked
+          days-before-pr-close: -1
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          debug-only: false
+          operations-per-run: 200 # This number has to be high enough to capture all the recent issues we want to process
