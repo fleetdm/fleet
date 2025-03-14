@@ -1,0 +1,1 @@
+Change desktop background to a random image from a folder on the desktop
