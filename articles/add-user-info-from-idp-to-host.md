@@ -3,8 +3,7 @@
 _Available in Fleet Premium._
 
 Learn how to connect your identity provider (IdP) to retrieve end-user information and map it to a
-host. This simplifies the process of identifying which employee is assigned to each host.
-Fleet uses System for Cross-domain Identity Management (SCIM) protocol to retreive users from IdP. This feature is available in Fleet [v4.67.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.67.0).
+host. Fleet uses the System for Cross-domain Identity Management (SCIM) protocol.
 
 Currently, Fleet supports only Okta.
 
