@@ -1740,6 +1740,8 @@ func TestGetQueriesAsObserver(t *testing.T) {
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 			expectedYaml := `---
@@ -1750,6 +1752,7 @@ spec:
   description: some desc 2
   discard_data: false
   interval: 0
+  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query2
@@ -1758,7 +1761,7 @@ spec:
   query: select 2;
   team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1798,6 +1801,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1808,6 +1813,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query3 | some desc 3 | select 3; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1818,6 +1825,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 	expectedYaml := `---
@@ -1828,6 +1837,7 @@ spec:
   description: some desc
   discard_data: false
   interval: 0
+  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query1
@@ -1843,6 +1853,7 @@ spec:
   description: some desc 2
   discard_data: false
   interval: 0
+  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query2
@@ -1858,6 +1869,7 @@ spec:
   description: some desc 3
   discard_data: false
   interval: 0
+  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query3
@@ -1866,9 +1878,9 @@ spec:
   query: select 3;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1935,6 +1947,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1945,6 +1959,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
