@@ -254,15 +254,15 @@ In an all-remote company, "face time" matters. Remember: even if someone's calen
 
 #### Schedule time with the CEO
 
-All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
+All meeting invitations are welcomed, and quickly considering them is a top priority for the CEO. 
+
+**To request time with the CEO, at mention the Apprentice in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD)**. Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
 > Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
-To request time with the CEO, at mention the Apprentice in the #help-ea channel. Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
+**Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/digital-experience#process-the-ceos-calendar). Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
 
-- **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/digital-experience#process-the-ceos-calendar).
-- **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
-- **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](https://www.fleetdm.com/handbook/company/why-this-way#why-not-mention-the-ceo-in-slack-threads).
+All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](https://www.fleetdm.com/handbook/company/why-this-way#why-not-mention-the-ceo-in-slack-threads).
 
 
 ### Modifying an event organized by someone else
