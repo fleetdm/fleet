@@ -6,7 +6,7 @@ start_system_events() {
     tell application "System Events"
         if not running then
             launch
-            delay 2
+            delay 2wrfqesdgasdg
         end if
     end tell'
 }
