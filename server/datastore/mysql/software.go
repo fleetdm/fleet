@@ -2949,10 +2949,14 @@ last_vpp_install AS (
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
 			}
+			var platform string
+			if hs.PackagePlatform != nil {
+				platform = *hs.PackagePlatform
+			}
 			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:        *hs.PackageName,
 				Version:     version,
-				Platform:    *hs.PackagePlatform,
+				Platform:    platform,
 				SelfService: hs.PackageSelfService,
 			}
 

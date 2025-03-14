@@ -161,11 +161,15 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.PackageVersion != nil {
 				version = *title.PackageVersion
 			}
+			var platform string
+			if title.PackagePlatform != nil {
+				platform = *title.PackagePlatform
+			}
 
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:               *title.PackageName,
 				Version:            version,
-				Platform:           *title.PackagePlatform,
+				Platform:           platform,
 				SelfService:        title.PackageSelfService,
 				PackageURL:         title.PackageURL,
 				InstallDuringSetup: title.PackageInstallDuringSetup,
@@ -178,10 +182,14 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.VPPAppVersion != nil {
 				version = *title.VPPAppVersion
 			}
+			var platform string
+			if title.PackagePlatform != nil {
+				platform = *title.PackagePlatform
+			}
 			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:         *title.VPPAppAdamID,
 				Version:            version,
-				Platform:           *title.PackagePlatform,
+				Platform:           platform,
 				SelfService:        title.VPPAppSelfService,
 				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
