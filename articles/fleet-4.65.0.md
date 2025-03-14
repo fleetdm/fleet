@@ -23,7 +23,7 @@ The **Host details** page now displays a list of certificates for macOS, iOS, an
 
 ## Changes
 
-## Security engineering
+### Security engineering
 - Added UI for viewing certificate details on the host details and my device pages.
 - Added new features to include certificates in host vitals for macOS, iOS, and iPadOS.
 - Added the list host certificates (and list device's certificates) endpoints.
@@ -31,7 +31,7 @@ The **Host details** page now displays a list of certificates for macOS, iOS, an
 - Permit setting SSO metadata and metadata_url in gitops and UI.
 - Fixed an issue where the Show Query modal would truncate large queries.
 
-## Vulnerability management
+### Vulnerability management
 - Fixed Python for Windows software version mutation to avoid panics on software ingestion in some cases.
 - Prevented an invalid `FLEET_VULNERABILITIES_MAX_CONCURRENCY` value from causing deadlocks during vulnerability processing.
 - Updated default for vulnerabilities max concurrency from 5 to 1.
@@ -42,7 +42,7 @@ The **Host details** page now displays a list of certificates for macOS, iOS, an
 - Fixed an issue with increased resource usage during vulnerabilities processing by adding database indexes.
 - Fixed false-positives on released PowerShell versions for CVE-2025-21171 and all PowerShell versions on CVE-2023-48795.
 
-## IT engineering
+### IT engineering
 - Implemented GitOps mode that locks settings in the UI that are managed by GitOps.
 - Allowed VPP apps to be automatically installed via a Fleet-created policy. 
 - Added ability for users to automatically install App Store Apps without writing a policy in the Fleet UI.
@@ -85,7 +85,7 @@ SET vat.created_at = COALESCE(added_at, vat.created_at), vat.updated_at = COALES
 - Fixed a bug where new `fleetd` could not install software from old fleet server.
 - Fixed issue where `fleetctl gitops` was NOT deleting macOS setup experience bootstrap package and enrollment profile. GitOps should clear all settings that are not explicitly set in YAML config files.
 
-## Bug fixes and improvements
+### Bug fixes and improvements
 - Set collation and character set explicitly on database tables that were missing explicit values.
 - Updated the copy printed on successful runs of `fleetctl package`.
 - Enabled redis cluster follow redierctions by default.
