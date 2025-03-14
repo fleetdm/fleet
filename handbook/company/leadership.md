@@ -37,7 +37,7 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 
 ## Contact the CEO
 
-**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
 
 
 ## CEO responsibilities
