@@ -78,6 +78,7 @@ module.exports = {
         TenantId: complianceTenantInformation.entraTenantId,
         DeviceManagementState: 'managed',
         DeviceId: device_id,
+        DeviceName: device_name,
         UserId: user_id,
         LastCheckInTime: new Date(last_check_in_time).toISOString(),
         LastUpdateTime: new Date(last_check_in_time).toISOString(),
