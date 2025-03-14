@@ -54,7 +54,7 @@ func NewSCEPProxyService(ds fleet.Datastore, logger log.Logger, timeout *time.Du
 
 // GetCACaps returns a list of SCEP options which are supported by the server.
 // It is a pass-through call to the SCEP server.
-func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
+func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) ([]byte, error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
@@ -76,7 +76,7 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
 
 // GetCACert returns the CA certificate(s) from SCEP server.
 // It is a pass-through call to the SCEP server.
-func (svc *scepProxyService) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
+func (svc *scepProxyService) GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "getting app config")

@@ -9,6 +9,10 @@ We will use a SCEP server from https://github.com/micromdm/scep (v2.3.0 as of th
 - Initialize and launch the server per instructions on the GitHub page
 - The SCEP URL will be like: http://localhost:2016/scep (with `/scep` suffix)
 
+## Issues and limitations
+
+- CA name should be treated as a unique identifier and never changed once set. The profiles (and potential renewals) are tied to the CA name. To cleanly change the CA name, remove any profiles using the old CA name (which will remove the associated certificates from devices), change the CA name, upload new profiles using the new CA name.
+
 ## Architecture diagrams
 
 ```mermaid
@@ -45,6 +49,7 @@ sequenceDiagram
 
     fleet--)+fleet: Process profiles every 30 seconds
     fleet->>fleet: Validate profile
+    fleet->>fleet: Decrypt challenge
     fleet->>fleet: Inject Fleet variables
     fleet->>+apple: Push notification (APNS)
     apple-->>-fleet: OK
