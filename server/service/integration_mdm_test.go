@@ -13050,11 +13050,12 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 2)
 	var profileUUID string
-	var badProfile fleet.HostMDMAppleProfile
+	var goodProfile, badProfile fleet.HostMDMAppleProfile
 	for _, profile := range profiles {
 		switch profile.Identifier {
 		case "Good1":
 			profileUUID = profile.ProfileUUID
+			goodProfile = profile
 		case "Bad1":
 			profile.Status = &fleet.MDMDeliveryFailed
 			badProfile = profile
@@ -13070,8 +13071,29 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            badProfile.Status,
 		Detail:            badProfile.Detail,
 		Checksum:          []byte("checksum"),
+	}, {
+		ProfileUUID:       goodProfile.ProfileUUID,
+		ProfileIdentifier: goodProfile.Identifier,
+		ProfileName:       goodProfile.Name,
+		HostUUID:          host.UUID,
+		CommandUUID:       goodProfile.CommandUUID,
+		OperationType:     goodProfile.OperationType,
+		Status:            goodProfile.Status,
+		Detail:            goodProfile.Detail,
+		Checksum:          []byte("checksum"),
 	}})
 	require.NoError(t, err)
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		{
+			HostUUID:    host.UUID,
+			ProfileUUID: profileUUID,
+		},
+		{
+			HostUUID:    host.UUID,
+			ProfileUUID: badProfile.ProfileUUID,
+		},
+	})
+
 	identifier := url.PathEscape(host.UUID + "," + profileUUID)
 	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID)
 
