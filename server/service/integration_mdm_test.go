@@ -13093,6 +13093,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 			ProfileUUID: badProfile.ProfileUUID,
 		},
 	})
+	require.NoError(t, err)
 
 	identifier := url.PathEscape(host.UUID + "," + profileUUID)
 	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID)
