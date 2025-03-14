@@ -8,7 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -128,24 +127,20 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
-func InitCommonDSMocks() *ds_mock.Store {
-	fleetDS := ds_mock.Store{}
-	ds := android_mock.Datastore{}
-	ds.InitCommonMocks()
+func InitCommonDSMocks() fleet.AndroidDatastore {
+	ds := AndroidMockDS{}
+	ds.Datastore.InitCommonMocks()
 
-	fleetDS.GetAndroidDSFunc = func() android.Datastore {
-		return &ds
-	}
-	fleetDS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	fleetDS.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
+	ds.Store.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
 		return nil
 	}
-	fleetDS.UserOrDeletedUserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+	ds.Store.UserOrDeletedUserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id}, nil
 	}
-	fleetDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+	ds.Store.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
 		for _, name := range assetNames {
@@ -153,16 +148,21 @@ func InitCommonDSMocks() *ds_mock.Store {
 		}
 		return result, nil
 	}
-	fleetDS.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	ds.Store.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 		return nil
 	}
-	fleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	ds.Store.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 		return nil
 	}
-	fleetDS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+	ds.Store.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
 		return nil
 	}
-	return &fleetDS
+	return &ds
+}
+
+type AndroidMockDS struct {
+	android_mock.Datastore
+	ds_mock.Store
 }
 
 type mockService struct {

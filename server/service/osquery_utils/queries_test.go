@@ -1903,6 +1903,22 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31",
 	}
 
+	// row2 will not be ingeted because of the issue field containing an extra /
+	row2 := map[string]string{
+		"ca":                "1",
+		"common_name":       "Cert 2 Common Name",
+		"issuer":            `/C=US/O=Issuer 2 Inc.\/foobar/CN=Issuer 2 Common Name`,
+		"subject":           "/C=US/O=Subject 1 Inc./OU=Subject 1 Org Unit/CN=Subject 1 Common Name",
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Data Encipherment, Key Encipherment, Digital Signature",
+		"serial":            "123abcd",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32",
+	}
+
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
 		require.Equal(t, host.ID, hostID)
 		require.Len(t, certs, 1)
@@ -1928,7 +1944,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		return nil
 	}
 
-	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row1})
+	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row2, row1})
 	require.NoError(t, err)
 	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }

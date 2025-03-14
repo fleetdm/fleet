@@ -74,10 +74,11 @@ interface ILabelChooserProps {
   isLoading: boolean;
   labels: ILabelSummary[];
   selectedLabels: Record<string, boolean>;
-  selectedCustomTarget: string;
-  customTargetOptions: IDropdownOption[];
+  selectedCustomTarget?: string;
+  customTargetOptions?: IDropdownOption[];
+  customHelpText?: ReactNode;
   dropdownHelpText?: ReactNode;
-  onSelectCustomTarget: (val: string) => void;
+  onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
 }
 
@@ -85,14 +86,15 @@ const LabelChooser = ({
   isError,
   isLoading,
   labels,
+  customHelpText,
   dropdownHelpText,
   selectedLabels,
   selectedCustomTarget,
-  customTargetOptions,
+  customTargetOptions = [],
   onSelectCustomTarget,
   onSelectLabel,
 }: ILabelChooserProps) => {
-  const getHelpText = (value: string) => {
+  const getHelpText = (value?: string) => {
     if (dropdownHelpText) return dropdownHelpText;
     return customTargetOptions.find((option) => option.value === value)
       ?.helpText;
@@ -117,14 +119,18 @@ const LabelChooser = ({
 
   return (
     <div className={`${baseClass}__custom-label-chooser`}>
-      <Dropdown
-        value={selectedCustomTarget}
-        options={customTargetOptions}
-        searchable={false}
-        onChange={onSelectCustomTarget}
-      />
+      {!!customTargetOptions.length && (
+        <Dropdown
+          value={selectedCustomTarget}
+          options={customTargetOptions}
+          searchable={false}
+          onChange={onSelectCustomTarget}
+        />
+      )}
       <div className={`${baseClass}__description`}>
-        {getHelpText(selectedCustomTarget)}
+        {customTargetOptions.length
+          ? getHelpText(selectedCustomTarget)
+          : customHelpText}
       </div>
       <div className={`${baseClass}__checkboxes`}>
         {labels.map((label) => {
@@ -148,10 +154,11 @@ const LabelChooser = ({
 
 interface ITargetLabelSelectorProps {
   selectedTargetType: string;
-  selectedCustomTarget: string;
-  customTargetOptions: IDropdownOption[];
+  selectedCustomTarget?: string;
+  customTargetOptions?: IDropdownOption[];
   selectedLabels: Record<string, boolean>;
   labels: ILabelSummary[];
+  customHelpText?: ReactNode;
   /** set this prop to show a help text. If it is included then it will override
    * the selected options defined `helpText`
    */
@@ -160,16 +167,17 @@ interface ITargetLabelSelectorProps {
   isErrorLabels?: boolean;
   className?: string;
   onSelectTargetType: (val: string) => void;
-  onSelectCustomTarget: (val: string) => void;
+  onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
 }
 
 const TargetLabelSelector = ({
   selectedTargetType,
   selectedCustomTarget,
-  customTargetOptions,
+  customTargetOptions = [],
   selectedLabels,
   dropdownHelpText,
+  customHelpText,
   className,
   labels,
   isLoadingLabels = false,
@@ -194,6 +202,7 @@ const TargetLabelSelector = ({
           isLoading={isLoadingLabels}
           labels={labels || []}
           selectedLabels={selectedLabels}
+          customHelpText={customHelpText}
           dropdownHelpText={dropdownHelpText}
           onSelectCustomTarget={onSelectCustomTarget}
           onSelectLabel={onSelectLabel}
