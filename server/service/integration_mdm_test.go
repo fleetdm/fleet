@@ -368,6 +368,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					PricingParam:   "STDQ",
 					AvailableCount: 1,
 				},
+				{
+					AdamID:         "5",
+					PricingParam:   "STDQ",
+					AvailableCount: 0,
+				},
 			},
 			SerialNumbers: []string{"123", "456"},
 			Location:      "Fleet Location One",
@@ -522,6 +527,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				"supportedDevices": ["iPadAir-iPadAir"] }`,
 
 		"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
+		"5": `{"bundleId": "a-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
 	}
 
 	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
