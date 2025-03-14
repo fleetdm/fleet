@@ -45,5 +45,6 @@ jobs:
           cd fleet
           git config --global user.email "you@example.com"
           git config --global user.name "Your Name"
-          git commit -am "Generated manifest data"
+          git add -A
+          git commit -m "Generated manifest data"
           git push
