@@ -15,11 +15,10 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      # TODO(JVE): uncomment this
-      # - name: Harden Runner
-      #   uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
-      #   with:
-      #     egress-policy: audit
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
       - name: Checkout Fleet
         uses: actions/checkout@v4
@@ -39,7 +38,7 @@ jobs:
         run: |
           cd fleet
           go mod download
-          git diff --name-only --diff-filter=AM origin/main | grep "ee/maintained-apps/inputs/.*\.json" | while read -r; do go run cmd/maintained-apps/main.go -file=$REPLY; done
+          git diff --name-only --diff-filter=AM HEAD | grep "ee/maintained-apps/inputs/.*\.json" | while read -r; do go run cmd/maintained-apps/main.go -file=$REPLY; done
       - name: Commit generated manifest data
         run: |
           cd fleet
