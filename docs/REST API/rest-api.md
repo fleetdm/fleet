@@ -6588,8 +6588,8 @@ None.
 - [Get team policy by ID](#get-team-policy-by-id)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
-- [Remove policies](#remove-policies)
-- [Remove team policies](#remove-team-policies)
+- [Delete policies](#delete-policies)
+- [Delete team policies](#delete-team-policies)
 - [Edit policy](#edit-policy)
 - [Edit team policy](#edit-team-policy)
 - [Reset automations for all hosts failing policies](#reset-automations-for-all-hosts-failing-policies)
@@ -7152,7 +7152,7 @@ Either `query` or `query_id` must be provided.
 
 ---
 
-### Remove policies
+### Delete policies
 
 `POST /api/v1/fleet/global/policies/delete`
 
@@ -7186,7 +7186,7 @@ Either `query` or `query_id` must be provided.
 
 ---
 
-### Remove team policies
+### Delete team policies
 
 _Available in Fleet Premium_
 
