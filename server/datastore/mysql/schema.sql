@@ -559,8 +559,8 @@ CREATE TABLE `host_mdm_commands` (
 CREATE TABLE `host_mdm_managed_certificates` (
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` enum('digicert','custom_scep_proxy','ndes') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ndes',
-  `ca_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES',
+  `type` enum('digicert','custom_scep_proxy','ndes') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ndes',
+  `ca_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES',
   `challenge_retrieved_at` timestamp(6) NULL DEFAULT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
