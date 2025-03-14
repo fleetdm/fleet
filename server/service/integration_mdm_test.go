@@ -112,6 +112,7 @@ type integrationMDMTestSuite struct {
 	appleITunesSrvData        map[string]string
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
+	scepConfig                *eeservice.SCEPConfigService
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -209,6 +210,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
+	scepTimeout := ptr.Duration(10 * time.Second)
+	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -302,9 +305,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				}
 			},
 		},
-		APNSTopic:       "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		EnableSCEPProxy: true,
-		WithDEPWebview:  true,
+		APNSTopic:         "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		EnableSCEPProxy:   true,
+		WithDEPWebview:    true,
+		SCEPConfigService: s.scepConfig,
 	}
 
 	// ensure all our tests support challenges with invalid XML characters
@@ -1136,8 +1140,6 @@ func setupPusher(s *integrationMDMTestSuite, t *testing.T, mdmDevice *mdmtest.Te
 }
 
 func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
-	desktopToken := uuid.New().String()
-	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(fleetServerURL, desktopToken)
 	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -1149,18 +1151,27 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 		Platform:        "darwin",
 		HardwareModel:   "MacBookPro16,1",
 
-		UUID:           mdmDevice.UUID,
-		HardwareSerial: mdmDevice.SerialNumber,
+		UUID:           strings.ToUpper(uuid.NewString()),
+		HardwareSerial: mdmtest.RandSerialNumber(),
 	})
 	require.NoError(t, err)
+	mdmDevice := enrollMacOSHostInMDM(t, fleetHost, ds, fleetServerURL)
 
-	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
+	return fleetHost, mdmDevice
+}
+
+func enrollMacOSHostInMDM(t *testing.T, host *fleet.Host, ds fleet.Datastore, fleetServerURL string) *mdmtest.TestAppleMDMClient {
+	desktopToken := uuid.New().String()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(fleetServerURL, desktopToken)
+	mdmDevice.UUID = host.UUID
+	mdmDevice.SerialNumber = host.HardwareSerial
+
+	err := ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, desktopToken)
 	require.NoError(t, err)
 
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
-
-	return fleetHost, mdmDevice
+	return mdmDevice
 }
 
 func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
@@ -1201,6 +1212,11 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 
 func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
 	host := createOrbitEnrolledHost(t, "windows", "h1", ds)
+	mdmDevice := enrollWindowsHostInMDM(t, host, ds, fleetServerURL)
+	return host, mdmDevice
+}
+
+func enrollWindowsHostInMDM(t *testing.T, host *fleet.Host, ds fleet.Datastore, fleetServerURL string) *mdmtest.TestWindowsMDMClient {
 	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(fleetServerURL, *host.OrbitNodeKey)
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
@@ -1208,7 +1224,7 @@ func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t
 	require.NoError(t, err)
 	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
-	return host, mdmDevice
+	return mdmDevice
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
@@ -13086,10 +13102,9 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		time.Sleep(1 * time.Second)
 		w.WriteHeader(http.StatusOK)
 	}))
-	origNDESTimeout := eeservice.NDESTimeout
-	eeservice.NDESTimeout = ptr.Duration(1 * time.Microsecond)
+	*s.scepConfig.Timeout = time.Microsecond
 	t.Cleanup(func() {
-		eeservice.NDESTimeout = origNDESTimeout
+		*s.scepConfig.Timeout = 10 * time.Second
 		ndesTimeoutServer.Close()
 	})
 	appConf.Integrations.NDESSCEPProxy.Value.URL = ndesTimeoutServer.URL
@@ -13102,46 +13117,9 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	// PKIOperation
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation",
 		"PKIOperation", "message", message)
-	eeservice.NDESTimeout = origNDESTimeout
+	*s.scepConfig.Timeout = 10 * time.Second
 
-	// Spin up an "external" SCEP server, which Fleet server will proxy
-	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {
-		var server *httptest.Server
-		teardown := func() {
-			if server != nil {
-				server.Close()
-			}
-			os.Remove("./testdata/externalCA/serial")
-			os.Remove("./testdata/externalCA/index.txt")
-		}
-		t.Cleanup(teardown)
-
-		var err error
-		var certDepot depot.Depot // cert storage
-		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
-		if err != nil {
-			t.Fatal(err)
-		}
-		certDepot = &noopCertDepot{certDepot}
-		crt, key, err := certDepot.CA([]byte{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var svc scepserver.Service // scep service
-		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
-		if err != nil {
-			t.Fatal(err)
-		}
-		logger := kitlog.NewNopLogger()
-		e := scepserver.MakeServerEndpoints(svc)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-		r := mux.NewRouter()
-		r.Handle("/scep", scepHandler)
-		server = httptest.NewServer(r)
-		return server
-	}
-	scepServer := newSCEPServer(t)
+	scepServer := startSCEPServer(t)
 
 	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
@@ -13242,6 +13220,48 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 }
 
+func startSCEPServer(t *testing.T) *httptest.Server {
+	// Spin up an "external" SCEP server, which Fleet server will proxy
+	newSCEPServer := func(t *testing.T) *httptest.Server {
+		var server *httptest.Server
+		teardown := func() {
+			if server != nil {
+				server.Close()
+			}
+			os.Remove("./testdata/externalCA/serial")
+			os.Remove("./testdata/externalCA/index.txt")
+		}
+		t.Cleanup(teardown)
+
+		var err error
+		var certDepot depot.Depot // cert storage
+		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
+		if err != nil {
+			t.Fatal(err)
+		}
+		certDepot = &noopCertDepot{certDepot}
+		crt, key, err := certDepot.CA([]byte{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var svc scepserver.Service // scep service
+		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
+		if err != nil {
+			t.Fatal(err)
+		}
+		logger := kitlog.NewNopLogger()
+		e := scepserver.MakeServerEndpoints(svc)
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+		r := mux.NewRouter()
+		r.Handle("/scep", scepHandler)
+		server = httptest.NewServer(r)
+		return server
+	}
+	scepServer := newSCEPServer(t)
+	return scepServer
+}
+
 func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	t := s.T()
 	ctx := context.Background()
@@ -13261,7 +13281,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(rawRes.Body)
 	require.Contains(t, errMsg, "Could not verify DigiCert profile ID")
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Add 3 DigiCert integrations
@@ -13283,7 +13303,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	res := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
 	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	res = appConfigResponse{}
@@ -13292,7 +13312,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	for _, ca := range res.Integrations.DigiCert.Value {
 		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 	}
-	assets, err := s.ds.GetAllCAConfigAssets(ctx)
+	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
 	assert.EqualValues(t, "api_token0", assets["ca0"].Value)
@@ -13349,7 +13369,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		}
 		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 	}
-	assets, err = s.ds.GetAllCAConfigAssets(ctx)
+	assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
 	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
@@ -13400,7 +13420,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	res = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
 	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Check that 3 deleted activities are present
@@ -13698,6 +13718,25 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, []string{"_idp@example.com_"}, stringSlice)
 	digiCertServer.certReqMu.Unlock()
+
+	// ////////////////////////////////
+	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
+	digiCertServer.server.Close() // so that verify fails if attempted
+	caFleetVars.CertificateCommonName = "common_name"
+	caFleetVars.CertificateUserPrincipalNames = nil
+	caFleetVars.CertificateSeatID = "seat_id"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 3)
 }
 
 func digiCertForTest(name, identifier, caName string) []byte {
@@ -13857,6 +13896,189 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 	}))
 	t.Cleanup(mockServer.server.Close)
 	return mockServer
+}
+
+func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
+	t := s.T()
+	ctx := context.Background()
+	scepServer := startSCEPServer(t)
+	scepServerURL := scepServer.URL + "/scep"
+
+	// Add custom SCEP integration with bad URL
+	caBad := getCustomSCEPIntegration("https://httpstat.us/410", "ca")
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	var req modifyAppConfigRequest
+	req.RawMessage = raw
+	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(rawRes.Body)
+	assert.Contains(t, errMsg, "invalid SCEP URL")
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Add 3 CustomSCEPProxy integrations
+	ca0 := getCustomSCEPIntegration(scepServerURL, "ca0")
+	ca0.Challenge = "challenge0"
+	ca1 := getCustomSCEPIntegration(scepServerURL, "ca1")
+	ca1.Challenge = "challenge1"
+	ca2 := getCustomSCEPIntegration(scepServerURL, "ca2")
+	ca2.Challenge = "challenge2"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1, ca2},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
+	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	assert.True(t, fleet.IsNotFound(err))
+
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 3)
+	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
+		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
+	}
+	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	assert.EqualValues(t, "challenge0", assets["ca0"].Value)
+	assert.EqualValues(t, "challenge1", assets["ca1"].Value)
+	assert.EqualValues(t, "challenge2", assets["ca2"].Value)
+
+	// Check 3 added activities are present
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	activity := fleet.ActivityAddedCustomSCEPProxy{}
+	caNames := make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		if act.Type == activity.ActivityName() {
+			err := json.Unmarshal(*act.Details, &activity)
+			require.NoError(t, err)
+			caNames = append(caNames, activity.Name)
+			if len(caNames) == 3 {
+				break
+			}
+		}
+	}
+	slices.Sort(caNames)
+	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
+
+	// Add 1, modify 1, delete 1, keep 1 the same (CustomSCEPProxy integrations)
+	ca1.Challenge = "challenge1-modified"
+	ca3 := getCustomSCEPIntegration(scepServerURL, "ca3")
+	ca3.Challenge = "challenge3"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca3, ca2, ca1},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	require.Len(t, res.Integrations.CustomSCEPProxy.Value, 3)
+	assert.NotEqual(t, res.Integrations.CustomSCEPProxy.Value[0].Name, res.Integrations.CustomSCEPProxy.Value[1].Name)
+	assert.NotEqual(t, res.Integrations.CustomSCEPProxy.Value[1].Name, res.Integrations.CustomSCEPProxy.Value[2].Name)
+	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
+		switch ca.Name {
+		case "ca1":
+			assert.True(t, ca.Equals(&ca1))
+		case "ca2":
+			assert.True(t, ca.Equals(&ca2))
+		case "ca3":
+			assert.True(t, ca.Equals(&ca3))
+		default:
+			t.Fatalf("unexpected ca name: %s", ca.Name)
+		}
+		assert.Equal(t, ca.Challenge, fleet.MaskedPassword)
+	}
+	assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	assert.EqualValues(t, "challenge1-modified", assets["ca1"].Value)
+	assert.EqualValues(t, "challenge2", assets["ca2"].Value)
+	assert.EqualValues(t, "challenge3", assets["ca3"].Value)
+
+	listActivities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	activity = fleet.ActivityAddedCustomSCEPProxy{}
+	editActivity := fleet.ActivityEditedCustomSCEPProxy{}
+	delActivity := fleet.ActivityDeletedCustomSCEPProxy{}
+	var numFound int
+	for _, act := range listActivities.Activities {
+		switch act.Type {
+		case activity.ActivityName():
+			err := json.Unmarshal(*act.Details, &activity)
+			require.NoError(t, err)
+			assert.Equal(t, activity.Name, ca3.Name)
+			numFound++
+		case editActivity.ActivityName():
+			err := json.Unmarshal(*act.Details, &editActivity)
+			require.NoError(t, err)
+			assert.Equal(t, editActivity.Name, ca1.Name)
+			numFound++
+		case delActivity.ActivityName():
+			err := json.Unmarshal(*act.Details, &delActivity)
+			require.NoError(t, err)
+			assert.Equal(t, delActivity.Name, ca0.Name)
+			numFound++
+		}
+		if numFound == 3 {
+			break
+		}
+	}
+	assert.Equal(t, 3, numFound)
+
+	// Clear CustomSCEPProxy integrations
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": nil,
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Check that 3 deleted activities are present
+	listActivities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
+	caNames = make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		if act.Type == delActivity.ActivityName() {
+			err := json.Unmarshal(*act.Details, &delActivity)
+			require.NoError(t, err)
+			caNames = append(caNames, delActivity.Name)
+			if len(caNames) == 3 {
+				break
+			}
+		}
+	}
+	slices.Sort(caNames)
+	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
 }
 
 type noopCertDepot struct{ depot.Depot }
@@ -14602,4 +14824,114 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
 	require.Len(t, hostActivitiesResp.Activities, 0)
+}
+
+// Test for #24265
+func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionStats() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	// get the All hosts label ID
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, ls, 1)
+	allHostsLblID := ls["All Hosts"]
+
+	// create a couple Windows non-MDM-enrolled hosts
+	winHost1 := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	winHost2 := createOrbitEnrolledHost(t, "windows", "h2", s.ds)
+	err = s.ds.SetOrUpdateMDMData(ctx, winHost1.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateMDMData(ctx, winHost2.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, winHost1.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, winHost2.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+
+	// enable disk encryption
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	pluckHostIDs := func(hosts []fleet.HostResponse) []uint {
+		if len(hosts) == 0 {
+			return nil
+		}
+
+		ids := make([]uint, len(hosts))
+		for i, h := range hosts {
+			ids[i] = h.ID
+		}
+		return ids
+	}
+
+	checkFilters := func(filter, value string, expectIDs ...uint) {
+		listHostsRes := listHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, filter, value)
+		require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
+		require.Equal(t, expectIDs, pluckHostIDs(listHostsRes.Hosts), value)
+
+		countResp := countHostsResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, filter, value)
+		require.Equal(t, len(expectIDs), countResp.Count, value)
+
+		listHostsRes = listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLblID), nil, http.StatusOK, &listHostsRes, filter, value)
+		require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
+		require.Equal(t, expectIDs, pluckHostIDs(listHostsRes.Hosts), value)
+
+		// The other hosts-filter-related endpoints (delete by filter, transfer by
+		// filter, hosts report) all use either ListHosts or ListsHostsInLabel.
+	}
+
+	// all profiles counts are expected to be 0 (no host is MDM-enrolled in Fleet)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+
+	// filter hosts with any OS Settings status, should have none
+	statuses := []fleet.OSSettingsStatus{
+		fleet.OSSettingsVerified, fleet.OSSettingsVerifying,
+		fleet.OSSettingsPending, fleet.OSSettingsFailed,
+	}
+	for _, status := range statuses {
+		checkFilters("os_settings", string(status))
+	}
+
+	// all disk encryption counts are expected to be 0 (no host is MDM-enrolled in Fleet)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+
+	// filter hosts with any Disk Encryption status, should have none
+	diskStatuses := []fleet.DiskEncryptionStatus{
+		fleet.DiskEncryptionVerified, fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionActionRequired, fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
+	}
+	for _, status := range diskStatuses {
+		checkFilters("os_settings_disk_encryption", string(status))
+	}
+
+	// enroll a Windows host in Fleet MDM
+	enrollWindowsHostInMDM(t, winHost1, s.ds, s.server.URL)
+
+	// stats should now count this host
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
+
+	// filters should return this host
+	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
+	checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+
+	// enroll the other Windows host in a third-party MDM
+	err = s.ds.SetOrUpdateMDMData(ctx, winHost2.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "")
+	require.NoError(t, err)
+
+	// stats should NOT count winHost2 (not in Fleet MDM)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
+
+	// filters should NOT return this host
+	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
+	checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
 }
