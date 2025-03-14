@@ -5,7 +5,6 @@ _Available in Fleet Premium._
 Learn how to connect your identity provider (IdP) to retrieve end-user information and map it to a
 host. Fleet uses the System for Cross-domain Identity Management (SCIM) protocol.
 
-Currently, Fleet supports only Okta.
 
 ## Connect Okta
 
