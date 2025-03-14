@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	_ "embed"
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
@@ -4294,4 +4295,126 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestValidateConfigProfileFleetVariables(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.AppConfig{
+		Integrations: fleet.Integrations{
+			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
+				Set:   true,
+				Valid: true,
+				Value: []fleet.DigiCertIntegration{
+					getDigiCertIntegration("https://example.com", "caName"),
+					getDigiCertIntegration("https://example.com", "caName2"),
+				},
+			},
+		},
+	}
+
+	profile := digiCertForTest("N0", "I0", "caName")
+	assert.NoError(t, validateConfigProfileFleetVariables(appConfig, string(profile)))
+
+	cases := []struct {
+		name    string
+		profile string
+		errMsg  string
+	}{
+		{
+			name: "DigiCert badCA",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_bad", "$FLEET_VAR_DIGICERT_DATA_bad", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "_bad is not supported in configuration profiles",
+		},
+		{
+			name:    "DigiCert password missing",
+			profile: digiCertForValidation("password", "$FLEET_VAR_DIGICERT_DATA_caName", "Name", "com.apple.security.pkcs12"),
+			errMsg:  "Missing $FLEET_VAR_DIGICERT_PASSWORD_caName",
+		},
+		{
+			name: "DigiCert data missing",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "data", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "Missing $FLEET_VAR_DIGICERT_DATA_caName",
+		},
+		{
+			name: "DigiCert password and data CA names don't match",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName2", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "Missing $FLEET_VAR_DIGICERT_DATA_caName in the profile",
+		},
+		{
+			name: "DigiCert password shows up an extra time",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName",
+				"$FLEET_VAR_DIGICERT_PASSWORD_caName",
+				"com.apple.security.pkcs12"),
+			errMsg: "$FLEET_VAR_DIGICERT_PASSWORD_caName is already present in configuration profile",
+		},
+		{
+			name: "DigiCert data shows up an extra time",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName",
+				"$FLEET_VAR_DIGICERT_DATA_caName",
+				"com.apple.security.pkcs12"),
+			errMsg: "$FLEET_VAR_DIGICERT_DATA_caName is already present in configuration profile",
+		},
+		{
+			name: "DigiCert profile is not pkcs12",
+			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName", "Name",
+				"com.apple.security.pkcs13"),
+			errMsg: "can only be present in 'com.apple.security.pkcs12' profiles",
+		},
+		{
+			name: "DigiCert password is not a fleet variable",
+			profile: digiCertForValidation("x$FLEET_VAR_DIGICERT_PASSWORD_caName", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "must match the Password and PayloadContent fields in the  profile exactly",
+		},
+		{
+			name: "DigiCert data is not a fleet variable",
+			profile: digiCertForValidation("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "x${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "Failed to parse PKCS12 payload with Fleet variables",
+		},
+		{
+			name: "DigiCert happy path",
+			profile: digiCertForValidation("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "",
+		},
+		{
+			name: "DigiCert 2 profiles with swapped variables",
+			profile: digiCertForValidation2("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName2}",
+				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName"),
+			errMsg: "CA name mismatch between $FLEET_VAR_DIGICERT_DATA_<ca_name> and $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> in PKCS12 profile",
+		},
+		{
+			name: "DigiCert 2 profiles happy path",
+			profile: digiCertForValidation2("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}",
+				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName2"),
+			errMsg: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateConfigProfileFleetVariables(appConfig, tc.profile)
+			if tc.errMsg != "" {
+				assert.ErrorContains(t, err, tc.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+//go:embed testdata/profiles/digicert-validation.mobileconfig
+var digiCertValidationMobileconfig string
+
+//go:embed testdata/profiles/digicert-validation2.mobileconfig
+var digiCertValidation2Mobileconfig string
+
+func digiCertForValidation(password, data, name, payloadType string) string {
+	return fmt.Sprintf(digiCertValidationMobileconfig, password, data, name, payloadType)
+}
+func digiCertForValidation2(password1, data1, password2, data2 string) string {
+	return fmt.Sprintf(digiCertValidation2Mobileconfig, password1, data1, password2, data2)
 }
