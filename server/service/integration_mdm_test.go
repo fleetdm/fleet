@@ -14165,9 +14165,6 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.NotNil(t, cmd, "Expecting SCEP profile")
 	var fullCmd micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
-	assert.Nil(t, cmd)
 	require.NotNil(t, fullCmd.Command)
 	require.NotNil(t, fullCmd.Command.InstallProfile)
 	rawProfile := fullCmd.Command.InstallProfile.Payload
@@ -14183,13 +14180,47 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	}
 	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
 	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0]["PayloadType"].(string))
-	t.Logf("SCEP profile: %+v", scepProfile.PayloadContent[0])
 	challenge := scepProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})["Challenge"].(string)
 	payloadURL := scepProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})["URL"].(string)
 	assert.Equal(t, ca0.Challenge, challenge)
 	identifier := url.PathEscape(host.UUID + "," + profileUUID)
 	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, payloadURL)
-	// Mark profile verified
+
+	// /////////////////////////////////////
+	// Test SCEP traffic being sent by host
+	// GetCACaps
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+
+	// GetCACert
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACert")
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	certs, err := x509.ParseCertificates(body)
+	require.NoError(t, err)
+	assert.Len(t, certs, 1)
+
+	// PKIOperation
+	data, err := os.ReadFile("./testdata/PKCSReq.der")
+	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(data)
+
+	// Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
+	// and this request is sufficient for testing our proxy functionality.
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	pkiMessage, err := scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+
+	// Host acknowledges the profile and we mark it as verified
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
 	hostProfs := map[string]*fleet.HostMacOSProfile{
 		"I0": {Identifier: "I0", DisplayName: "N0", InstallDate: time.Now()},
 	}
