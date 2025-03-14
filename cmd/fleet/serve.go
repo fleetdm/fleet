@@ -732,6 +732,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				eeservice.NewSCEPConfigService(logger, nil),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -1163,7 +1164,7 @@ the way that the Fleet server works.
 
 			// SCEP proxy (for NDES, etc.)
 			if license.IsPremium() {
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
 			}

@@ -24,7 +24,7 @@ import (
 )
 
 func TestValidateNDESSCEPAdminURL(t *testing.T) {
-	// t.Parallel() // This test is not parallel because it changes the global NDESTimeout
+	t.Parallel()
 
 	var returnPage func() []byte
 	returnStatus := http.StatusOK
@@ -48,21 +48,19 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	}
 
 	returnStatus = http.StatusNotFound
-	err := ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	logger := kitlog.NewNopLogger()
+	svc := NewSCEPConfigService(logger, nil)
+	err := svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "unexpected status code")
 	returnStatus = http.StatusOK
 
 	// Catch timeout issue
-	origNDESTimeout := NDESTimeout
-	NDESTimeout = ptr.Duration(1 * time.Microsecond)
-	t.Cleanup(func() {
-		NDESTimeout = origNDESTimeout
-	})
+	svc = NewSCEPConfigService(logger, ptr.Duration(1*time.Microsecond))
 	wait = true
-	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	wait = false
-	NDESTimeout = origNDESTimeout
+	svc = NewSCEPConfigService(logger, nil)
 
 	// We need to convert the HTML page to UTF-16 encoding, which is used by Windows servers
 	returnPageFromFile := func(path string) []byte {
@@ -81,28 +79,28 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	returnPage = func() []byte {
 		return returnPageFromFile("./testdata/mscep_admin_cache_full.html")
 	}
-	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "the password cache is full")
 
 	// Catch ths issue when account has insufficient permissions
 	returnPage = func() []byte {
 		return returnPageFromFile("./testdata/mscep_admin_insufficient_permissions.html")
 	}
-	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "does not have sufficient permissions")
 
 	// Nothing returned
 	returnPage = func() []byte {
 		return []byte{}
 	}
-	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.ErrorContains(t, err, "could not retrieve the enrollment challenge password")
 
 	// All good
 	returnPage = func() []byte {
 		return returnPageFromFile("./testdata/mscep_admin_password.html")
 	}
-	err = ValidateNDESSCEPAdminURL(context.Background(), proxy)
+	err = svc.ValidateNDESSCEPAdminURL(context.Background(), proxy)
 	assert.NoError(t, err)
 }
 
@@ -113,11 +111,13 @@ func TestValidateNDESSCEPURL(t *testing.T) {
 	proxy := fleet.NDESSCEPProxyIntegration{
 		URL: srv.URL + "/scep",
 	}
-	err := ValidateNDESSCEPURL(context.Background(), proxy, kitlog.NewNopLogger())
+	logger := kitlog.NewNopLogger()
+	svc := NewSCEPConfigService(logger, nil)
+	err := svc.ValidateSCEPURL(context.Background(), proxy.URL)
 	assert.NoError(t, err)
 
 	proxy.URL = srv.URL + "/bozo"
-	err = ValidateNDESSCEPURL(context.Background(), proxy, kitlog.NewNopLogger())
+	err = svc.ValidateSCEPURL(context.Background(), proxy.URL)
 	assert.ErrorContains(t, err, "could not retrieve CA certificate")
 
 }
