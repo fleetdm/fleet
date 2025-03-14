@@ -13710,6 +13710,25 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, []string{"_idp@example.com_"}, stringSlice)
 	digiCertServer.certReqMu.Unlock()
+
+	// ////////////////////////////////
+	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
+	digiCertServer.server.Close() // so that verify fails if attempted
+	caFleetVars.CertificateCommonName = "common_name"
+	caFleetVars.CertificateUserPrincipalNames = nil
+	caFleetVars.CertificateSeatID = "seat_id"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 3)
 }
 
 func digiCertForTest(name, identifier, caName string) []byte {

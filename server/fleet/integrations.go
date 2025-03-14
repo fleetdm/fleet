@@ -374,6 +374,13 @@ func (d *DigiCertIntegration) Equals(other *DigiCertIntegration) bool {
 		d.CertificateSeatID == other.CertificateSeatID
 }
 
+func (d *DigiCertIntegration) NeedToVerify(other *DigiCertIntegration) bool {
+	return d.Name != other.Name ||
+		d.URL != other.URL ||
+		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
+		d.ProfileID != other.ProfileID
+}
+
 // NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyIntegration struct {
 	URL      string `json:"url"`
