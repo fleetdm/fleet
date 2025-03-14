@@ -39,7 +39,7 @@ jobs:
         run: |
           cd fleet
           go mod download
-          git ls-files --others --exclude-standard --full-name | grep "ee/maintained-apps/inputs/.*\.json" | while read -r; do go run cmd/maintained-apps/main.go -file=$REPLY; done
+          git diff --name-only --diff-filter=AM main | grep "ee/maintained-apps/inputs/.*\.json" | while read -r; do go run cmd/maintained-apps/main.go -file=$REPLY; done
       - name: Commit generated manifest data
         run: |
           cd fleet
