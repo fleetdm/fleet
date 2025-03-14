@@ -1470,7 +1470,7 @@ This activity contains the following fields:
 
 ## installed_app_store_app
 
-Generated when an App Store app is installed on a device.
+Generated when an App Store app is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host on which the app was installed.
@@ -1482,7 +1482,6 @@ This activity contains the following fields:
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
-
 
 #### Example
 
