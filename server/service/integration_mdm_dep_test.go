@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -3197,6 +3198,33 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 
 	var getVPPTokenResp getVPPTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+
+	// Add an app with 0 licenses available
+	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, vpp.Asset{
+		AdamID:         "5",
+		PricingParam:   "STDQ",
+		AvailableCount: 0,
+	})
+
+	t.Cleanup(func() {
+		s.appleVPPConfigSrvConfig.Assets = []vpp.Asset{
+			{
+				AdamID:         "1",
+				PricingParam:   "STDQ",
+				AvailableCount: 12,
+			},
+			{
+				AdamID:         "2",
+				PricingParam:   "STDQ",
+				AvailableCount: 3,
+			},
+			{
+				AdamID:         "3",
+				PricingParam:   "STDQ",
+				AvailableCount: 1,
+			},
+		}
+	})
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
