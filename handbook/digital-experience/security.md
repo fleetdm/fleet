@@ -1020,6 +1020,17 @@ Fleet policy requires that:
 
 - All company-owned computer purchases must be tracked.
 
+### Bring-Your-Own-Device (BYOD)
+As a general rule, non-company devices are not permitted to access company assets. While there are some exceptions listed below, access to customer data is still prohibited.
+
+#### Exceptions
+
+##### Personal mobile phones and tablets
+All personal mobile computing devices used to access Fleet-managed data, including but not limited to email and FleetDM.com, must be passcode-enabled. 2FA will be enforced by the security team for all employee and contractor accounts. Mobile computing best practices dictate that these devices should be running the latest version of the operating system available, and all new patches applied. 
+
+##### Unavailability of a company issued laptop
+For new employees who have not received a company laptop or in cases where a company laptop is unavailable or unusable, an exception to this policy must be obtained directly from the CEO. These devices will be enrolled into Fleet's own MDM instance and will still need to meet the standards of company owned devices.
+
 
 ### Business continuity and disaster recovery policy
 
