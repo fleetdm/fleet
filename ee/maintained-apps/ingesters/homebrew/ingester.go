@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -185,23 +186,23 @@ type inputApp struct {
 
 func (i inputApp) validate() error {
 	if i.Token == "" {
-		return fmt.Errorf("missing token for app")
+		return errors.New("missing token for app")
 	}
 
 	if i.UniqueIdentifier == "" {
-		return fmt.Errorf("missing unique identifier for app")
+		return errors.New("missing unique identifier for app")
 	}
 
 	if i.Name == "" {
-		return fmt.Errorf("missing name for app")
+		return errors.New("missing name for app")
 	}
 
 	if i.Slug == "" {
-		return fmt.Errorf("missing slug for app")
+		return errors.New("missing slug for app")
 	}
 
 	if i.InstallerFormat == "" {
-		return fmt.Errorf("missing installer format for app")
+		return errors.New("missing installer format for app")
 	}
 
 	return nil
