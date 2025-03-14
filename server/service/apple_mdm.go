@@ -476,7 +476,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 }
 
 func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) error {
-	fleetVars := findFleetVariables(contents)
+	fleetVars := findFleetVariablesKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil
 	}
@@ -484,16 +484,17 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
 	)
-	for k := range fleetVars {
+	for _, k := range fleetVars {
 		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
 			found := false
+			ok := true
 			switch {
 			case strings.HasPrefix(k, FleetVarDigiCertDataPrefix):
 				caName := strings.TrimPrefix(k, FleetVarDigiCertDataPrefix)
 				for _, ca := range appConfig.Integrations.DigiCert.Value {
 					if ca.Name == caName {
 						found = true
-						digiCertVars = digiCertVars.SetData(caName)
+						digiCertVars, ok = digiCertVars.SetData(caName)
 						break
 					}
 				}
@@ -502,7 +503,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				for _, ca := range appConfig.Integrations.DigiCert.Value {
 					if ca.Name == caName {
 						found = true
-						digiCertVars = digiCertVars.SetPassword(caName)
+						digiCertVars, ok = digiCertVars.SetPassword(caName)
 						break
 					}
 				}
@@ -529,15 +530,75 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			if !found {
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles", k)}
 			}
+			if !ok {
+				// We limit CA variables to once per profile
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile", k)}
+			}
 		}
 	}
 	if !digiCertVars.Ok() {
 		return &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
 	}
+	if digiCertVars.Found() {
+		err := additionalDigiCertValidation(contents, digiCertVars)
+		if err != nil {
+			return err
+		}
+	}
 	if !customSCEPVars.Ok() {
 		return &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
 	}
 	return nil
+}
+
+// additionalDigiCertValidation checks that Password/ContentType fields march DigiCert Fleet variables exactly,
+// and that these variables are only present in a "com.apple.security.pkcs12" payload
+func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFound) error {
+	// Find and replace matches in base64 encoded data contents.
+	matches := mdm_types.ProfileDataVariableRegex.FindAllStringSubmatch(contents, -1)
+	for _, match := range matches {
+		if len(match) > 0 {
+			encoded := base64.StdEncoding.EncodeToString([]byte(match[0]))
+			contents = strings.Replace(contents, match[0], encoded, -1)
+		}
+	}
+	var pkcs12Prof PKCS12PayloadContent
+	err := plist.Unmarshal([]byte(contents), &pkcs12Prof)
+	if err != nil {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse PKCS12 payload with Fleet variables: %s", err.Error())}
+	}
+	var foundCAs []string
+	var passwordPrefix = "FLEET_VAR_" + FleetVarDigiCertPasswordPrefix
+	var dataPrefix = "FLEET_VAR_" + FleetVarDigiCertDataPrefix
+	for _, payload := range pkcs12Prof.PayloadContent {
+		if payload.PayloadType == "com.apple.security.pkcs12" {
+			for _, ca := range digiCertVars.CAs() {
+				// Check for exact match on password and data
+				if payload.Password == "$"+passwordPrefix+ca || payload.Password == "${"+passwordPrefix+ca+"}" {
+					if string(payload.PayloadContent) == "$"+dataPrefix+ca || string(payload.PayloadContent) == "${"+dataPrefix+ca+"}" {
+						foundCAs = append(foundCAs, ca)
+						break
+					}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $FLEET_VAR_DIGICERT_DATA_<ca_name> and $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> in PKCS12 profile"}
+				}
+			}
+		}
+	}
+	if len(foundCAs) < len(digiCertVars.CAs()) {
+		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VARS_DIGICERT_PASSWORD_<ca_name> and $FLEET_VARS_DIGICERT_DATA_<ca_name>" +
+			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the " +
+			" profile exactly"}
+	}
+	return nil
+}
+
+type PKCS12PayloadContent struct {
+	PayloadContent []PKCS12Payload `plist:"PayloadContent"`
+}
+type PKCS12Payload struct {
+	Password       string `plist:"Password"`
+	PayloadContent []byte `plist:"PayloadContent"`
+	PayloadType    string `plist:"PayloadType"`
 }
 
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
@@ -4239,8 +4300,8 @@ func getHostHardwareSerial(ctx context.Context, ds fleet.Datastore, target *cmdT
 }
 
 type digiCertVarsFound struct {
-	dataCA     string
-	passwordCA string
+	dataCA     map[string]struct{}
+	passwordCA map[string]struct{}
 }
 
 // Ok makes sure that both DATA and PASSWORD variables are present in a DigiCert profile.
@@ -4248,34 +4309,69 @@ func (d *digiCertVarsFound) Ok() bool {
 	if d == nil {
 		return true
 	}
-	return d.dataCA == d.passwordCA
+	if len(d.dataCA) != len(d.passwordCA) {
+		return false
+	}
+	for ca := range d.dataCA {
+		if _, ok := d.passwordCA[ca]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (d *digiCertVarsFound) Found() bool {
+	return d != nil
+}
+
+func (d *digiCertVarsFound) CAs() []string {
+	if d == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(d.dataCA))
+	for key := range d.dataCA {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 func (d *digiCertVarsFound) ErrorMessage() string {
-	if len(d.dataCA) == 0 {
-		return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarDigiCertDataPrefix, d.passwordCA)
+	for ca := range d.passwordCA {
+		if _, ok := d.dataCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarDigiCertDataPrefix, ca)
+		}
 	}
-	if len(d.passwordCA) == 0 {
-		return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarDigiCertPasswordPrefix, d.dataCA)
+	for ca := range d.dataCA {
+		if _, ok := d.passwordCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarDigiCertPasswordPrefix, ca)
+		}
 	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s%s and $FLEET_VAR_%s%s in the profile.",
-		FleetVarDigiCertDataPrefix, d.dataCA, FleetVarDigiCertPasswordPrefix, d.passwordCA)
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		FleetVarDigiCertDataPrefix, FleetVarDigiCertPasswordPrefix)
 }
 
-func (d *digiCertVarsFound) SetData(value string) *digiCertVarsFound {
+func (d *digiCertVarsFound) SetData(value string) (*digiCertVarsFound, bool) {
 	if d == nil {
-		return &digiCertVarsFound{dataCA: value}
+		d = &digiCertVarsFound{}
 	}
-	d.dataCA = value
-	return d
+	if d.dataCA == nil {
+		d.dataCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := d.dataCA[value]
+	d.dataCA[value] = struct{}{}
+	return d, !alreadyPresent
 }
 
-func (d *digiCertVarsFound) SetPassword(value string) *digiCertVarsFound {
+func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool) {
 	if d == nil {
-		return &digiCertVarsFound{passwordCA: value}
+		d = &digiCertVarsFound{}
 	}
-	d.passwordCA = value
-	return d
+	if d.passwordCA == nil {
+		d.passwordCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := d.passwordCA[value]
+	d.passwordCA[value] = struct{}{}
+	return d, !alreadyPresent
 }
 
 func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
@@ -4459,7 +4555,19 @@ func replaceFleetPrefixVariableInXML(prefix string, suffix string, contents stri
 }
 
 func findFleetVariables(contents string) map[string]interface{} {
-	var result map[string]interface{}
+	resultSlice := findFleetVariablesKeepDuplicates(contents)
+	if len(resultSlice) == 0 {
+		return nil
+	}
+	result := make(map[string]interface{}, len(resultSlice))
+	for _, v := range resultSlice {
+		result[v] = struct{}{}
+	}
+	return result
+}
+
+func findFleetVariablesKeepDuplicates(contents string) []string {
+	var result []string
 	matches := mdm_types.ProfileVariableRegex.FindAllStringSubmatch(contents, -1)
 	if len(matches) == 0 {
 		return nil
@@ -4474,10 +4582,7 @@ func findFleetVariables(contents string) map[string]interface{} {
 	for _, match := range matches {
 		for _, i := range nameToIndex {
 			if match[i] != "" {
-				if result == nil {
-					result = make(map[string]interface{})
-				}
-				result[match[i]] = struct{}{}
+				result = append(result, match[i])
 			}
 		}
 	}
