@@ -1470,7 +1470,7 @@ This activity contains the following fields:
 
 ## installed_app_store_app
 
-Generated when an App Store app is installed on a host.
+Generated when an App Store app is installed on a device.
 
 This activity contains the following fields:
 - "host_id": ID of the host on which the app was installed.
