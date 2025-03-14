@@ -2,7 +2,7 @@
 
 ### Bug fixes
 
-* Improve validation handling.
+- Improve validation handling.
 
 ## Fleet 4.64.1 (Feb 20, 2025)
 
@@ -94,7 +94,8 @@
 ## Fleet 4.63.1 (Feb 19, 2025)
 
 ### Bug fixes
-- Fixed an issue where the abm token teams were being reset when making updates to the app config
+
+- Fixed an issue where the abm token teams were being reset when making updates to the app config.
 
 ## Fleet 4.63.0 (Feb 03, 2025)
 
