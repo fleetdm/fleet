@@ -15,9 +15,12 @@ With EscrowBuddy, the generation and escrowing of the recovery keys happens auto
 ## How do I set up EscrowBuddy with Fleet?
 Since EscrowBuddy is now directly integrated into Fleet, the only thing you need to do is turn on disk encryption on the teams you want to enforce disk encryption on. To do this, in Fleet, select your desired team and navigate to **Controls > OS settings > Disk encryption** and check the box next to **Turn on disk encryption**.
 
+![Turn on disk encryption](../website/assets/images/articles/escrowbuddy-basics-turn-on-disk-encryption.png)
+
 Fleet will send a configuration profile to all macOS hosts on that team to enable disk encryption and automatically deliver EscrowBuddy to them.
 
 When the disk encryption profile is delivered to a host, but a key is not yet escrowed, Fleet will show the profile as Action required (pending). The next time the user logs in to their Mac, EscrowBuddy generates a new recovery key on the host and Fleet will collect it, seamlessly and transparently to the end user.
+![Acation needed](../website/assets/images/articles/escrowbuddy-basics-action-needed.png)
 
 ## What’s going on behind the scenes?
 Being the scenes, EscrowBuddy runs as a [macOS authorization plugin](https://developer.apple.com/documentation/security/authorization-plug-ins). It works in conjunction with the FileVault profile that Fleet deploys to hosts to enforce disk encryption. If a valid FileVault personal recovery key isn’t escrowed, one will be generated during the next login event.
@@ -26,3 +29,10 @@ When that happens, EscrowBuddy generates a new recovery key, which is encrypted,
 
 How can I learn more about EscrowBuddy’s technical details?
 Like Fleet, EscrowBuddy is an open source project, so the full source code can be inspected to learn more about what’s going on behind the scenes. Take a look at the [EscrowBuddy repo on GitHub](https://github.com/macadmins/escrow-buddy) to learn more.
+
+<meta name="articleTitle" value="How Fleet uses EscrowBuddy to generate and collect FileVault Personal Recovery Keys">
+<meta name="authorFullName" value="Dale Ribeiro">
+<meta name="authorGitHubUsername" value="ddribeiro">
+<meta name="category" value="articles">
+<meta name="publishedOn" value="2024-14-03">
+<meta name="description" value="Learn how Fleet's EscrowBuddy integration makes sure your FileVault Personal Recovery Keys are always escrowed">
