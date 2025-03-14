@@ -1609,6 +1609,7 @@ spec:
   description: some desc
   discard_data: false
   interval: 0
+  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: globalQuery1
@@ -1617,7 +1618,7 @@ spec:
   query: select 1;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
@@ -1632,6 +1633,7 @@ spec:
   description: some team desc
   discard_data: false
   interval: 3600
+  labels_include_any: []
   logging: differential
   min_osquery_version: 5.2.0
   name: teamQuery1
@@ -1640,7 +1642,7 @@ spec:
   query: select 2;
   team: Foobar
 `
-	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false}}
+	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false,"labels_include_any":[]}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
