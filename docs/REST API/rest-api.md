@@ -2785,6 +2785,27 @@ Returns the information of the specified host.
         "shell": "/bin/zsh"
       }
     ],
+    "end_users" [
+      {
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_email": "anna@acme.com",
+        "idp_full_name": "Anna Chao",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": [
+          {
+            "email": "anna@example.com",
+            "source": "google_chrome_profiles"
+          },
+          {
+            "email": "anna@example.com",
+            "source": "custom"
+          }
+        ]
+      }
+    ],
     "labels": [
       {
         "created_at": "2021-08-19T02:02:17Z",
@@ -3501,100 +3522,6 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Get human-device mapping
-
-Returns the end user's email(s) they use to log in to their Identity Provider (IdP) and Google Chrome profile.
-
-Also returns the custom email that's set via the `PUT /api/v1/fleet/hosts/:id/device_mapping` endpoint (docs [here](#update-custom-human-device-mapping))
-
-Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
-
-`GET /api/v1/fleet/hosts/:id/device_mapping`
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id         | integer           | path | **Required**. The host's `id`.                                                |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/1/device_mapping`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1,
-  "device_mapping": [
-    {
-      "email": "user@example.com",
-      "source": "mdm_idp_accounts"
-    },
-    {
-      "email": "user@example.com",
-      "source": "google_chrome_profiles"
-    },
-    {
-      "email": "user@example.com",
-      "source": "custom"
-    }
-  ]
-}
-```
-
----
-
-### Update custom human-device mapping
-
-`PUT /api/v1/fleet/hosts/:id/device_mapping`
-
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id         | integer           | path | **Required**. The host's `id`.                                                |
-| email      | string            | body | **Required**. The custom email.                                               |
-
-#### Example
-
-`PUT /api/v1/fleet/hosts/1/device_mapping`
-
-##### Request body
-
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1,
-  "device_mapping": [
-    {
-      "email": "user@example.com",
-      "source": "mdm_idp_accounts"
-    },
-    {
-      "email": "user@example.com",
-      "source": "google_chrome_profiles"
-    },
-    {
-      "email": "user@example.com",
-      "source": "custom"
-    }
-  ]
-}
-```
 
 ### Get host's device health report
 
@@ -6416,6 +6343,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
+- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6530,6 +6458,34 @@ None.
     ],
   }
 ]
+```
+
+### Get identity provider (IdP) details
+
+Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
+
+`GET /api/v1/fleet/scim`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/scim`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "last_request": {
+    "requested_at": "2025-03-11T02:02:17Z",
+    "status": "success",
+    "details": "",
+  }
+}
 ```
 
 ---
