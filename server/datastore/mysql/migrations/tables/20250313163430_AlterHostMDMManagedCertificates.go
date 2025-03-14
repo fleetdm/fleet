@@ -15,8 +15,8 @@ func Up_20250313163430(tx *sql.Tx) error {
 	}
 	_, err := tx.Exec(`
 	ALTER TABLE host_mdm_managed_certificates
-	ADD COLUMN type enum('digicert', 'custom_scep_proxy', 'ndes') NOT NULL DEFAULT 'ndes' AFTER profile_uuid,
-	ADD COLUMN ca_name varchar(255) NOT NULL DEFAULT 'NDES' AFTER type
+	ADD COLUMN type enum('digicert', 'custom_scep_proxy', 'ndes') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ndes' AFTER profile_uuid,
+	ADD COLUMN ca_name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES' AFTER type
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to add not_valid_after column to host_mdm_managed_certificates table: %s", err)
