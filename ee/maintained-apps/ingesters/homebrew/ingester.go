@@ -20,18 +20,20 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting homebrew app data ingestion")
+func NewHomebrewIngester(logger kitlog.Logger) maintained_apps.Ingester {
+	return &brewIngester{
+		baseURL: baseBrewAPIURL,
+		logger:  logger,
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+	}
+}
+
+func (i *brewIngester) IngestApps(ctx context.Context, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
+	level.Info(i.logger).Log("msg", "starting homebrew app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "reading homebrew input data directory")
-	}
-
-	i := &brewIngester{
-		baseURL: baseBrewAPIURL,
-		logger:  logger,
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
@@ -39,24 +41,16 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 	for _, f := range files {
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
 		if err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"fileName": f.Name()})
+			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"file_name": f.Name()})
 		}
 
 		var input inputApp
 		if err := json.Unmarshal(fileBytes, &input); err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"fileName": f.Name()})
+			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"file_name": f.Name()})
 		}
 
-		if input.Token == "" {
-			return nil, ctxerr.NewWithData(ctx, "missing token for app", map[string]any{"fileName": f.Name()})
-		}
-
-		if input.UniqueIdentifier == "" {
-			return nil, ctxerr.NewWithData(ctx, "missing unique identifier for app", map[string]any{"fileName": f.Name()})
-		}
-
-		if input.Name == "" {
-			return nil, ctxerr.NewWithData(ctx, "missing name for app", map[string]any{"fileName": f.Name()})
+		if err := input.validate(); err != nil {
+			return nil, ctxerr.WrapWithData(ctx, err, "validating input app data", map[string]any{"file_name": f.Name()})
 		}
 
 		level.Info(i.logger).Log("msg", "ingesting homebrew app", "name", input.Name)
@@ -71,6 +65,25 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 	}
 
 	return manifestApps, nil
+}
+
+func (i *brewIngester) IngestApp(ctx context.Context, inputPath string) (*maintained_apps.FMAManifestApp, error) {
+	level.Info(i.logger).Log("msg", "starting homebrew app data ingestion", "input_path", inputPath)
+	fileBytes, err := os.ReadFile(inputPath)
+	if err != nil {
+		return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"file_name": inputPath})
+	}
+
+	var input inputApp
+	if err := json.Unmarshal(fileBytes, &input); err != nil {
+		return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"file_name": inputPath})
+	}
+
+	if err := input.validate(); err != nil {
+		return nil, ctxerr.WrapWithData(ctx, err, "validating input app data", map[string]any{"file_name": inputPath})
+	}
+
+	return i.ingestOne(ctx, input)
 }
 
 const baseBrewAPIURL = "https://formulae.brew.sh/api/"
@@ -168,6 +181,30 @@ type inputApp struct {
 	InstallerFormat string `json:"installer_format"`
 
 	Slug string `json:"slug"`
+}
+
+func (i inputApp) validate() error {
+	if i.Token == "" {
+		return fmt.Errorf("missing token for app")
+	}
+
+	if i.UniqueIdentifier == "" {
+		return fmt.Errorf("missing unique identifier for app")
+	}
+
+	if i.Name == "" {
+		return fmt.Errorf("missing name for app")
+	}
+
+	if i.Slug == "" {
+		return fmt.Errorf("missing slug for app")
+	}
+
+	if i.InstallerFormat == "" {
+		return fmt.Errorf("missing installer format for app")
+	}
+
+	return nil
 }
 
 type brewCask struct {
