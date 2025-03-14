@@ -1,26 +1,28 @@
-#Seamlessly generate and escrow FileVault recovery keys in Fleet with EscrowBuddy
+# Seamlessly Generate and Escrow FileVault Personal Recovery Keys in Fleet with EscrowBuddy
 
 In Fleet version 4.55.0, Fleet introduced a built in EscrowBuddy integration to handle the generation and escrowing of personal FileVault recovery keys. This guide explains why it’s important to have 100% coverage when it comes to escrowing your FileVault keys and what the experience looks like to your end users.
 
-##Why should I use Fleet to escrow FileVault Recovery Keys?
+## Why should I use Fleet to escrow FileVault Recovery Keys?
 As an IT administrator, it’s crucial to know that all the devices you manage are encrypted. By enforcing FileVault through MDM, you ensure that if one of your employees’ laptops is lost or stolen, the data remains inaccessible to unauthorized individuals.
 
-While it’s reassuring to know that your company’s data is always secure, it can pose challenges when legitimate users inadvertently lock themselves out of their computers. This is where Fleet comes into play. Fleet’s ability to securely escrow FileVault recovery keys empowers IT administrators to assist their users in regaining access to their devices. With a valid key, it’s quick and easy to get the user in question back up and running. Without one, anybody who gets locked out of their computer would have to erase their computer to get back up and running.
+While it’s reassuring to know that your company’s data is always secure, it can pose challenges when legitimate users inadvertently lock themselves out of their computers. This is where Fleet comes into play. Fleet’s ability to securely escrow FileVault recovery keys empowers IT administrators to assist their users in regaining access to their devices. With a valid key, it’s quick and easy to get the user in question back up and running. Without one, anybody who gets locked out of their computer would have to erase their device to get back up and running.
 
-##What’s special about EscrowBuddy?
-Prior to Fleet 4.55.0, escrowing FileVault recovery keys was a manual process that required action from your end users. They would have to trigger the escrow process from their My Device page in Fleet Desktop, enter the password they use to log into their Mac, then Fleet would escrow the key. Sometimes, end users would not know they were supposed to do this, and it would result in the FileVault recovery key not being escrowed at all. Finding out a recovery key was never escrowed when you need to use it is a poor experience for the admin and end user. EscrowBuddy makes this better.
+## What’s special about EscrowBuddy?
+Prior to Fleet 4.55.0, escrowing FileVault recovery keys was a manual process that required action from your end users. They would have to trigger the escrow process from their My Device page in Fleet Desktop, enter the password they use to log into their Mac, then Fleet would escrow the key. Sometimes, end users would not know they were supposed to do this, and it would result in the FileVault recovery key not being escrowed at all. Finding out a recovery key was never escrowed when you need to use it is a bad experience for the admin and end user. EscrowBuddy can stop this from happening.
 
 With EscrowBuddy, the generation and escrowing of the recovery keys happens automatically and transparently to the end user. This ensures 100% coverage across your managed devices. No more surprises when you go to retrieve a device’s recovery key; EscrowBuddy has your back to make sure a valid key is always escrowed.
 
-##How do I set up EscrowBuddy with Fleet?
-Since EscrowBuddy is now directly integrated into Fleet, the only thing you need to do is turn on disk encryption on the teams you want to enforce disk encryption on. Fleet will send a configuration profile to all hosts on that team to enable disk encryption and automatically deliver EscrowBuddy to the host.
+## How do I set up EscrowBuddy with Fleet?
+Since EscrowBuddy is now directly integrated into Fleet, the only thing you need to do is turn on disk encryption on the teams you want to enforce disk encryption on. To do this, in Fleet, select your desired team and navigate to **Controls > OS settings > Disk encryption** and check the box next to **Turn on disk encryption**.
 
-When the disk encryption profile is delivered to a host, but a key is not yet escrowed, Fleet will show the profile as Action required (pending). The next time the user logs in to their Mac, EscrowBuddy generates a new recovery key and escrows it to Fleet, seamlessly and transparently to the end user.
+Fleet will send a configuration profile to all macOS hosts on that team to enable disk encryption and automatically deliver EscrowBuddy to them.
 
-##What’s going on behind the scenes?
-Being the scenes, EscrowBuddy runs as a [macOS authorization plugin](https://developer.apple.com/documentation/security/authorization-plug-ins). It works in conjunction with with the FileVault profile that Fleet deploys to hosts to enforce disk encryption.
+When the disk encryption profile is delivered to a host, but a key is not yet escrowed, Fleet will show the profile as Action required (pending). The next time the user logs in to their Mac, EscrowBuddy generates a new recovery key on the host and Fleet will collect it, seamlessly and transparently to the end user.
 
-This sounds great, how can I learn more about exactly what EscrowBuddy is doing to generate
-Like Fleet, EscrowBuddy is an open source project, so the full source code can be inspected to learn more about what’s going on behind the scenes. Take a look at the EscrowBuddy repo on GitHub to learn more.
+## What’s going on behind the scenes?
+Being the scenes, EscrowBuddy runs as a [macOS authorization plugin](https://developer.apple.com/documentation/security/authorization-plug-ins). It works in conjunction with the FileVault profile that Fleet deploys to hosts to enforce disk encryption. If a valid FileVault personal recovery key isn’t escrowed, one will be generated during the next login event.
 
-The Netflix 
+When that happens, EscrowBuddy generates a new recovery key, which is encrypted, wrapped in a CMS envelope, and saved at /var/db/FileVaultPRK.dat. Then, Fleet uses a [vitals query](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Understanding-host-vitals.md#mdm_disk_encryption_key_file_darwin) that uses [filevault_prk](https://fleetdm.com/tables/filevault_prk#apple) table to collect and escrow the key the next time the host refreshes vitals. 
+
+How can I learn more about EscrowBuddy’s technical details?
+Like Fleet, EscrowBuddy is an open source project, so the full source code can be inspected to learn more about what’s going on behind the scenes. Take a look at the [EscrowBuddy repo on GitHub](https://github.com/macadmins/escrow-buddy) to learn more.
