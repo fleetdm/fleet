@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ErrUnauthenticated = errors.New("unauthenticated, or invalid token")
-	ErrMissingLicense  = errors.New("missing or invalid license")
+	ErrUnauthenticated       = errors.New("unauthenticated, or invalid token")
+	ErrPasswordResetRequired = errors.New("Password reset required. Please sign into the Fleet UI to update your password, then log in again with: fleetctl login.")
+	ErrMissingLicense        = errors.New("missing or invalid license")
 )
 
 type SetupAlreadyErr interface {
