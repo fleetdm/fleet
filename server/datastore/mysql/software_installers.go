@@ -607,7 +607,7 @@ SELECT
   si.filename,
   si.extension,
   si.version,
-	si.platform,
+  si.platform,
   si.install_script_content_id,
   si.pre_install_query,
   si.post_install_script_content_id,
