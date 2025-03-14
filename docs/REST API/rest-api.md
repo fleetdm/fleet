@@ -6460,30 +6460,6 @@ None.
 ]
 ```
 
-### Get Volume Purchasing Program (VPP)
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/vpp`
-
-#### Example
-
-`GET /api/v1/fleet/vpp`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "org_name": "Acme Inc.",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "location": "Acme Inc. Main Address"
-}
-```
-
 ### Get identity provider (IdP) details
 
 Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
