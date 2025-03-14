@@ -3358,8 +3358,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.NoError(t, err)
 	var installUUID string
 	for _, r := range results {
-		if r.HostSoftwareInstallsExecutionID != nil && *r.SoftwareInstallerID == *statusResp.Results.Software[0].SoftwareTitleID {
+		if r.HostSoftwareInstallsExecutionID != nil &&
+			r.SoftwareInstallerID != nil &&
+			r.Name == statusResp.Results.Software[0].Name {
 			installUUID = *r.HostSoftwareInstallsExecutionID
+			break
 		}
 	}
 
