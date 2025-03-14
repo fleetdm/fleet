@@ -25,14 +25,25 @@ module.exports = {
     }
 
     if(!sails.config.custom.entraApplicationId){
-      throw new Error(`Missing configuration! PLease set sails.config.custom.entraApplicationId to be the application id of Fleet's microsoft compliance partner application.`)
+      throw new Error(`Missing configuration! Please set sails.config.custom.entraApplicationId to be the application id of Fleet's microsoft compliance partner application.`)
     }
 
-    // TODO: does this endpoint need to do anything else?
+    if(!this.req.headers['Authorization']) {
+      return this.res.unauthorized();
+    }
+
+    let authHeaderValue = this.req.headers['Authorization'];
+    let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
+    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
+    if(!informationAboutThisTenant){
+      return this.res.notFound();
+    }
 
     // All done.
     return {
-      entra_application_id: sails.config.custom.entraApplicationId
+      entra_application_id: sails.config.custom.entraApplicationId,
+      entra_tenant_id: informationAboutThisTenant.entraTenantId,
+      setup_done: informationAboutThisTenant.setupCompleted,
     };
 
   }
