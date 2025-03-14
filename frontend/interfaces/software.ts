@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
-import { HOST_APPLE_PLATFORMS } from "./platform";
+import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
 import { ILabelSoftwareTitle } from "./label";
 
@@ -98,6 +98,7 @@ export interface IAppStoreApp {
   name: string;
   app_store_id: number;
   latest_version: string;
+  created_at: string;
   icon_url: string;
   self_service: boolean;
   platform: typeof HOST_APPLE_PLATFORMS[number];
@@ -108,6 +109,7 @@ export interface IAppStoreApp {
   };
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  automatic_install?: boolean;
   last_install?: {
     install_uuid: string;
     command_uuid: string;
@@ -455,14 +457,14 @@ export interface IFleetMaintainedApp {
   id: number;
   name: string;
   version: string;
-  platform: string;
+  platform: Platform;
 }
 
 export interface IFleetMaintainedAppDetails {
   id: number;
   name: string;
   version: string;
-  platform: string;
+  platform: Platform;
   pre_install_script: string; // TODO: is this needed?
   install_script: string;
   post_install_script: string; // TODO: is this needed?

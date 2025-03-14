@@ -515,7 +515,8 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		hmap.host_uuid,
 		hmap.profile_uuid,
 		hmap.status,
-		hmmc.challenge_retrieved_at
+		hmmc.challenge_retrieved_at,
+		hmmc.not_valid_after
 	FROM
 		host_mdm_apple_profiles hmap
 	LEFT JOIN host_mdm_managed_certificates hmmc
@@ -991,7 +992,7 @@ func insertMDMAppleHostDB(
 
 	mdmHost.ID = uint(id)
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *mdmHost); err != nil {
+	if err := upsertHostDisplayNames(ctx, tx, *mdmHost); err != nil {
 		return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
@@ -1111,7 +1112,7 @@ func createHostFromMDMDB(
 		}
 	}
 
-	if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, hosts...); err != nil {
+	if err := upsertHostDisplayNames(ctx, tx, hosts...); err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert display names")
 	}
 
@@ -1272,9 +1273,9 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 	return nil
 }
 
-func upsertMDMAppleHostDisplayNamesDB(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
-	args := []interface{}{}
-	parts := []string{}
+func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
+	var args []interface{}
+	var parts []string
 	for _, h := range hosts {
 		args = append(args, h.ID, h.DisplayName())
 		parts = append(parts, "(?, ?)")
@@ -1301,6 +1302,10 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		return ctxerr.Wrap(ctx, err, "resolve Fleet MDM URL")
 	}
 
+	// if the device is coming from the DEP sync, we don't consider it
+	// enrolled yet.
+	enrolled := !fromSync
+
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO mobile_device_management_solutions (name, server_url) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE server_url = VALUES(server_url)`,
@@ -1318,10 +1323,6 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 			return ctxerr.Wrap(ctx, err, "query mdm solution id")
 		}
 	}
-
-	// if the device is coming from the DEP sync, we don't consider it
-	// enrolled yet.
-	enrolled := !fromSync
 
 	args := []interface{}{}
 	parts := []string{}
@@ -1342,7 +1343,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	// query results are received; however, we want to insert pending MDM hosts
 	// now because it may still be some time before osquery is running on these
 	// devices. Because these are Apple devices, we're adding them to the "All
-	// Hosts" and "macOS" labels.
+	// Hosts" and one of "macOS", "iOS", "iPadOS" labels.
 	labels := []struct {
 		ID   uint   `db:"id"`
 		Name string `db:"name"`
@@ -1468,6 +1469,12 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 		// unenrollment.
 		if err := ds.deleteMDMOSCustomSettingsForHost(ctx, tx, uuid, host.Platform); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
+		}
+
+		// clear up the MDM-dependent upcoming activities as it won't be able
+		// to process them anymore
+		if err := ds.ClearMDMUpcomingActivitiesDB(ctx, tx, uuid); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
 		}
 
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
@@ -1656,7 +1663,7 @@ INSERT INTO hosts (
 		// Upsert related host tables for the restored host just as if it were initially ingested
 		// from DEP sync. Note we are not upserting host_dep_assignments in order to preserve the
 		// existing timestamps.
-		if err := upsertMDMAppleHostDisplayNamesDB(ctx, tx, *host); err != nil {
+		if err := upsertHostDisplayNames(ctx, tx, *host); err != nil {
 			// TODO: Why didn't this work as expected?
 			return ctxerr.Wrap(ctx, err, "restore pending dep host display name")
 		}
@@ -5805,11 +5812,13 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	    INSERT INTO host_mdm_managed_certificates (
               host_uuid,
               profile_uuid,
-              challenge_retrieved_at
+              challenge_retrieved_at,
+	          not_valid_after
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
-              challenge_retrieved_at = VALUES(challenge_retrieved_at)`,
+              challenge_retrieved_at = VALUES(challenge_retrieved_at),
+			  not_valid_after = VALUES(not_valid_after)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -5818,8 +5827,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
-		valuePart := "(?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt}
+		valuePart := "(?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter}
 		return valuePart, args
 	}
 
@@ -5833,5 +5842,42 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 		return err
 	}
 
+	return nil
+}
+
+// ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
+// require MDM to be processed, for when MDM is turned off for the host (or
+// when it turns on again, e.g. after removing the enrollment profile - it may
+// not necessarily report as "turned off" in that scenario).
+func (ds *Datastore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
+	// NOTE: must be updated if new activity types that require MDM are added to
+	// the upcoming activities.
+	const deleteUpcomingMDMActivities = `
+DELETE FROM upcoming_activities
+	USING upcoming_activities
+		JOIN hosts h ON upcoming_activities.host_id = h.id
+WHERE
+	h.uuid = ? AND
+	upcoming_activities.activity_type IN ('vpp_app_install')
+`
+	_, err := tx.ExecContext(ctx, deleteUpcomingMDMActivities, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing upcoming activities")
+	}
+
+	// get the host ID for that uuid
+	var hostID uint
+	if err := sqlx.GetContext(ctx, tx, &hostID, "SELECT id FROM hosts WHERE uuid = ?", hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "load host ID by UUID")
+	}
+
+	// ensure that if there's an activity waiting to be activated, it does get
+	// activated
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+	}
 	return nil
 }

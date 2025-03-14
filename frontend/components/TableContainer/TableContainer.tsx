@@ -10,6 +10,8 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
@@ -30,6 +32,10 @@ interface IRowProps extends Row {
   };
 }
 
+interface ITableContainerActionButtonProps extends IActionButtonProps {
+  gitOpsModeCompatible?: boolean;
+}
+
 interface ITableContainerProps<T = any> {
   columnConfigs: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
@@ -41,7 +47,7 @@ interface ITableContainerProps<T = any> {
   defaultPageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
-  actionButton?: IActionButtonProps;
+  actionButton?: ITableContainerActionButtonProps;
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
@@ -284,6 +290,47 @@ const TableContainer = <T,>({
     onPaginationChange,
   ]);
 
+  const renderFilterActionButton = () => {
+    // always !!actionButton here, this is for type checker
+    if (actionButton) {
+      if (actionButton.gitOpsModeCompatible) {
+        return (
+          <GitOpsModeTooltipWrapper
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableActionButton || disableChildren}
+                onClick={actionButton.onActionButtonClick}
+                variant={actionButton.variant || "brand"}
+                className={`${baseClass}__table-action-button`}
+              >
+                <>
+                  {actionButton.buttonText}
+                  {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+                </>
+              </Button>
+            )}
+          />
+        );
+      }
+      return (
+        <Button
+          disabled={disableActionButton}
+          onClick={actionButton.onActionButtonClick}
+          variant={actionButton.variant || "brand"}
+          className={`${baseClass}__table-action-button`}
+        >
+          <>
+            {actionButton.buttonText}
+            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+          </>
+        </Button>
+      );
+    }
+    // should never reach here
+    return null;
+  };
+
   const renderFilters = useCallback(() => {
     const opacity = isLoading ? { opacity: 0.4 } : { opacity: 1 };
 
@@ -306,19 +353,7 @@ const TableContainer = <T,>({
           </div>
 
           {actionButton && !actionButton.hideButton && (
-            <div className="stackable-header">
-              <Button
-                disabled={disableActionButton}
-                onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "brand"}
-                className={`${baseClass}__table-action-button`}
-              >
-                <>
-                  {actionButton.buttonText}
-                  {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
-                </>
-              </Button>
-            </div>
+            <div className="stackable-header">{renderFilterActionButton()}</div>
           )}
           <div className="stackable-header top-shift-header">
             {customControl && customControl()}
@@ -386,21 +421,9 @@ const TableContainer = <T,>({
                 </div>
               )}
               <span className="controls">
-                {actionButton && !actionButton.hideButton && (
-                  <Button
-                    disabled={disableActionButton}
-                    onClick={actionButton.onActionButtonClick}
-                    variant={actionButton.variant || "brand"}
-                    className={`${baseClass}__table-action-button`}
-                  >
-                    <>
-                      {actionButton.buttonText}
-                      {actionButton.iconSvg && (
-                        <Icon name={actionButton.iconSvg} />
-                      )}
-                    </>
-                  </Button>
-                )}
+                {actionButton &&
+                  !actionButton.hideButton &&
+                  renderFilterActionButton()}
                 {customControl && customControl()}
               </span>
             </div>

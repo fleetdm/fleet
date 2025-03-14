@@ -26,7 +26,6 @@ import {
   addGravatarUrlToResource,
   getCustomDropdownOptions,
   secondsToDhms,
-  TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -36,6 +35,7 @@ import {
   INVALID_PLATFORMS_REASON,
   INVALID_PLATFORMS_FLASH_MESSAGE,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 
@@ -64,6 +64,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SaveQueryModal from "../SaveQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -171,6 +172,8 @@ const EditQueryForm = ({
 
   const savedQueryMode = !!queryIdForEdit;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // NOTE: SaveQueryModal is only being used to create a new query in this component.
   // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
@@ -338,10 +341,9 @@ const EditQueryForm = ({
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
           router.push(
-            PATHS.QUERY_DETAILS(
-              response.query.id,
-              response.query.team_id ?? undefined
-            )
+            getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
+              team_id: response.query.team_id,
+            })
           );
           renderFlash("success", `Successfully added query.`);
         })
@@ -363,7 +365,11 @@ const EditQueryForm = ({
               })
               .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
-                router.push(PATHS.EDIT_QUERY(response.query.id));
+                router.push(
+                  getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
+                    team_id: apiTeamIdForQuery,
+                  })
+                );
                 renderFlash(
                   "success",
                   `Successfully added query as "Copy of ${lastEditedQueryName}".`
@@ -487,12 +493,15 @@ const EditQueryForm = ({
       setIsEditingName(true);
     }
   };
-  const queryNameWrapperClasses = classnames("query-name-wrapper", {
+
+  const queryNameWrapperClass = "query-name-wrapper";
+  const queryNameWrapperClasses = classnames(queryNameWrapperClass, {
     [`${baseClass}--editing`]: isEditingName,
   });
 
+  const queryDescriptionWrapperClass = "query-description-wrapper";
   const queryDescriptionWrapperClasses = classnames(
-    "query-description-wrapper",
+    queryDescriptionWrapperClass,
     {
       [`${baseClass}--editing`]: isEditingDescription,
     }
@@ -501,34 +510,46 @@ const EditQueryForm = ({
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <div
-          className={queryNameWrapperClasses}
-          onFocus={() => setIsEditingName(true)}
-          onBlur={() => setIsEditingName(false)}
-          onClick={editName}
-        >
-          <AutoSizeInputField
-            name="query-name"
-            placeholder="Add name"
-            value={lastEditedQueryName}
-            inputClassName={`${baseClass}__query-name ${
-              !lastEditedQueryName ? "no-value" : ""
-            }`}
-            maxLength={160}
-            hasError={errors && errors.name}
-            onChange={setLastEditedQueryName}
-            onBlur={() => {
-              setLastEditedQueryName(lastEditedQueryName.trim());
-            }}
-            onKeyPress={onInputKeypress}
-            isFocused={isEditingName}
-          />
-          <Icon
-            name="pencil"
-            className={`edit-icon ${isEditingName ? "hide" : ""}`}
-            size="small-medium"
-          />
-        </div>
+        <GitOpsModeTooltipWrapper
+          position="right"
+          tipOffset={16}
+          renderChildren={(disableChildren) => {
+            const classes = classnames(queryNameWrapperClasses, {
+              [`${queryNameWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
+            });
+            return (
+              <div
+                className={classes}
+                onFocus={() => setIsEditingName(true)}
+                onBlur={() => setIsEditingName(false)}
+                onClick={editName}
+              >
+                <AutoSizeInputField
+                  name="query-name"
+                  placeholder="Add name"
+                  value={lastEditedQueryName}
+                  inputClassName={`${baseClass}__query-name ${
+                    !lastEditedQueryName ? "no-value" : ""
+                  }`}
+                  maxLength={160}
+                  hasError={errors && errors.name}
+                  onChange={setLastEditedQueryName}
+                  onBlur={() => {
+                    setLastEditedQueryName(lastEditedQueryName.trim());
+                  }}
+                  onKeyPress={onInputKeypress}
+                  isFocused={isEditingName}
+                  disableTabability={disableChildren}
+                />
+                <Icon
+                  name="pencil"
+                  className={`edit-icon ${isEditingName ? "hide" : ""}`}
+                  size="small-medium"
+                />
+              </div>
+            );
+          }}
+        />
       );
     }
 
@@ -544,30 +565,42 @@ const EditQueryForm = ({
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <div
-          className={queryDescriptionWrapperClasses}
-          onFocus={() => setIsEditingDescription(true)}
-          onBlur={() => setIsEditingDescription(false)}
-          onClick={editDescription}
-        >
-          <AutoSizeInputField
-            name="query-description"
-            placeholder="Add description"
-            value={lastEditedQueryDescription}
-            maxLength={250}
-            inputClassName={`${baseClass}__query-description ${
-              !lastEditedQueryDescription ? "no-value" : ""
-            }`}
-            onChange={setLastEditedQueryDescription}
-            onKeyPress={onInputKeypress}
-            isFocused={isEditingDescription}
-          />
-          <Icon
-            name="pencil"
-            className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-            size="small-medium"
-          />
-        </div>
+        <GitOpsModeTooltipWrapper
+          position="right"
+          tipOffset={16}
+          renderChildren={(disableChildren) => {
+            const classes = classnames(queryDescriptionWrapperClasses, {
+              [`${queryDescriptionWrapperClass}--disabled-by-gitops-mode`]: disableChildren,
+            });
+            return (
+              <div
+                className={classes}
+                onFocus={() => setIsEditingDescription(true)}
+                onBlur={() => setIsEditingDescription(false)}
+                onClick={editDescription}
+              >
+                <AutoSizeInputField
+                  name="query-description"
+                  placeholder="Add description"
+                  value={lastEditedQueryDescription}
+                  maxLength={250}
+                  inputClassName={`${baseClass}__query-description ${
+                    !lastEditedQueryDescription ? "no-value" : ""
+                  }`}
+                  onChange={setLastEditedQueryDescription}
+                  onKeyPress={onInputKeypress}
+                  isFocused={isEditingDescription}
+                  disableTabability={disableChildren}
+                />
+                <Icon
+                  name="pencil"
+                  className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+                  size="small-medium"
+                />
+              </div>
+            );
+          }}
+        />
       );
     }
     return null;
@@ -627,8 +660,10 @@ const EditQueryForm = ({
               variant="blue-green"
               onClick={() => {
                 router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
+                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    host_id: hostId,
+                    team_id: apiTeamIdForQuery,
+                  })
                 );
               }}
               disabled={disabledLiveQuery}
@@ -730,7 +765,13 @@ const EditQueryForm = ({
           {renderPlatformCompatibility()}
 
           {savedQueryMode && (
-            <>
+            <div
+              // including `form` class here keeps the children fields subject to the global form
+              // children styles
+              className={
+                gitOpsModeEnabled ? "disabled-by-gitops-mode form" : "form"
+              }
+            >
               <Dropdown
                 searchable={false}
                 options={frequencyOptions}
@@ -840,37 +881,46 @@ const EditQueryForm = ({
                   )}
                 </>
               )}
-            </>
+            </div>
           )}
           {renderLiveQueryWarning()}
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {hasSavePermissions && (
               <>
                 {savedQueryMode && (
-                  <Button
-                    variant="text-link"
-                    onClick={promptSaveAsNewQuery()}
-                    disabled={disableSaveFormErrors}
-                    className="save-as-new-loading"
-                    isLoading={isSaveAsNewLoading}
-                  >
-                    Save as new
-                  </Button>
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant="text-link"
+                        onClick={promptSaveAsNewQuery()}
+                        disabled={disableSaveFormErrors || disableChildren}
+                        className="save-as-new-loading"
+                        isLoading={isSaveAsNewLoading}
+                      >
+                        Save as new
+                      </Button>
+                    )}
+                  />
                 )}
                 <div className={`${baseClass}__button-wrap--save-query-button`}>
-                  <Button
-                    className="save-loading"
-                    variant="brand"
-                    onClick={
-                      confirmChanges
-                        ? toggleConfirmSaveChangesModal
-                        : promptSaveQuery()
-                    }
-                    disabled={disableSaveFormErrors}
-                    isLoading={isQueryUpdating}
-                  >
-                    Save
-                  </Button>
+                  <GitOpsModeTooltipWrapper
+                    tipOffset={8}
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        className="save-loading"
+                        variant="brand"
+                        onClick={
+                          confirmChanges
+                            ? toggleConfirmSaveChangesModal
+                            : promptSaveQuery()
+                        }
+                        disabled={disableSaveFormErrors || disableChildren}
+                        isLoading={isQueryUpdating}
+                      >
+                        Save
+                      </Button>
+                    )}
+                  />
                 </div>
               </>
             )}
@@ -896,8 +946,10 @@ const EditQueryForm = ({
                     setEditingExistingQuery(true); // Persists edited query data through live query flow
                   }
                   router.push(
-                    PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                      host_id: hostId,
+                      team_id: currentTeamId,
+                    })
                   );
                 }}
                 disabled={disabledLiveQuery}

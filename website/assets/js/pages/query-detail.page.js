@@ -32,7 +32,7 @@ parasails.registerPage('query-detail', {
     });
     (()=>{
       $('pre code').each((i, block) => {
-        if(block.classList.contains('ps')){
+        if(block.classList.contains('ps') || block.classList.contains('sh')){
           window.hljs.highlightElement(block);
           return;
         }

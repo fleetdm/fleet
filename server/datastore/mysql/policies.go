@@ -181,11 +181,6 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var (
-	errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
-	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
-)
-
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
@@ -193,11 +188,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A software installer with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Software installer with ID %d does not exist", *softwareInstallerID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying software installer")
 		} else if softwareInstallerTeamID != teamID {
-			return errMismatchedInstallerTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Software installer with ID %d does not belong to team ID %d", *softwareInstallerID, teamID),
+			})
 		}
 	}
 
@@ -207,11 +206,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A VPP app with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("VPP app with ID %d does not exist", *vppAppsTeamsID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying VPP app")
 		} else if vppAppTeamID != teamID {
-			return errMismatchedInstallerTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("VPP app with ID %d does not belong to team ID %d", *vppAppsTeamsID, teamID),
+			})
 		}
 	}
 
@@ -221,11 +224,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A script with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Script with ID %d does not exist", *scriptID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying script")
 		} else if scriptTeamID != teamID {
-			return errMismatchedScriptTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Script with ID %d does not belong to team ID %d", *scriptID, teamID),
+			})
 		}
 	}
 
@@ -431,7 +438,19 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	return nil
 }
 
-func (ds *Datastore) ClearAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+func (ds *Datastore) ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx context.Context, installerID uint, hostIDs []uint) error {
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, ds.writer(ctx), installerID, hostIDs, softwareTypeInstaller)
+}
+
+func (ds *Datastore) ClearVPPAppAutoInstallPolicyStatusForHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) error {
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, ds.writer(ctx), vppAppTeamID, hostIDs, softwareTypeVPP)
+}
+
+func (ds *Datastore) ClearVPPAppAutoInstallPolicyStatusForHostsTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, hostIDs []uint) error {
+	return ds.clearAutoInstallPolicyStatusForHosts(ctx, tx, vppAppTeamID, hostIDs, softwareTypeVPP)
+}
+
+func (ds *Datastore) clearAutoInstallPolicyStatusForHosts(ctx context.Context, tx sqlx.ExtContext, softwareID uint, hostIDs []uint, swType softwareType) error {
 	if len(hostIDs) == 0 {
 		return nil
 	}
@@ -443,16 +462,22 @@ UPDATE
 SET
 	passes = NULL
 WHERE
-	p.software_installer_id = ?
+	p.%s_id = ?
 	AND pm.host_id IN (?)
 		`
+	typ := swType
+	if swType == softwareTypeVPP {
+		typ = "vpp_apps_teams" // naming difference between columns in `policies` and in `vpp_app_team_labels`
+	}
 
-	stmt, args, err := sqlx.In(stmt, installerID, hostIDs)
+	stmt = fmt.Sprintf(stmt, typ)
+
+	stmt, args, err := sqlx.In(stmt, softwareID, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building in statement for clearing auto install policy status")
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing auto install policy status")
 	}
 

@@ -9,6 +9,13 @@ Table of Contents
 - [API Inputs](#api-inputs)
 - [Go](#go)
 - [MySQL](#mysql)
+  - [Timestamps](#timestamps)
+  - [UUIDs](#uuids)
+  - [Say no to `goqu`](#say-no-to-goqu)
+  - [Data retention](#data-retention)
+  - [Re-usable transactionable functions](#re-usable-transactionable-functions)
+- [Specific features](#specific-features)
+  - [GitOps](#gitops)
 
 ## API Inputs
 
@@ -34,6 +41,10 @@ Exceptions:
 - Database IDs
 - Extra range of unsigned needed for a specific use case
 - Specific performance/memory requirements
+
+### Unit testing
+
+Use multiple hosts in unit tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
 
 ## MySQL
 
@@ -70,8 +81,8 @@ MySQL. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=80410
 ### Data retention
 
 Sometimes we need data from rows that have been deleted from DB. For example, the activity feed may be retained forever, and it needs user info (or host info) that may not exist anymore.
-Going forward, we need to keep this data in a dedicated table(s). A reference unmerged PR is [here](https://github.com/fleetdm/fleet/pull/17472/files#diff-57a635e42320a87dd15a3ae03d66834f2cbc4fcdb5f3ebb7075d966b96f760afR16).
-The `id` may be the same as that of the original table. For example, if the `user` row is deleted, a new entry with the same `user.id` can be added to `user_persistent_info`.
+We need to keep this data in dedicated table(s). When a `user` row is deleted, a new entry with the same `user.id` is added to `users_deleted` table. The user info can be retrieved using
+`ds.UserOrDeletedUserByID` method.
 
 ### Re-usable transactionable functions
 
@@ -108,3 +119,22 @@ func (ds *Datastore) MyDSMethodWithTransaction(ctx context.Context, yourArgsHere
 
 See [this commit](https://github.com/fleetdm/fleet/pull/22843/files#diff-c5babdad542a72acf2ec2ecb7cb43967fc53850b6998ac629e253336b87e008bR415)
 for an example of this pattern.
+
+## Specific features
+
+### GitOps
+
+[GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files)
+
+`fleetctl gitops` was implemented on top of the existing `fleetctl apply` command. Now that `apply` no longer supports the newest features,
+we need to separate the code for the two commands.
+
+Common issues and gotchas:
+
+- Removing a setting. When a setting is removed from the YAML config file, the GitOps run should remove it from the server. Sometimes, the
+  removal doesn't happen since `apply` did not work like this. Also, developers/QA may forget to test this case explicitly.
+- Few integration tests. GitOps is a complex feature with an extensive state space because many settings interact. At the same time, setting
+  up a test environment for GitOps is difficult. As we work on GitOps, we need to add more integration tests and develop testing utilities
+  to make adding future integration tests easier.
+- GitOps admin can define settings in `default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`. Create unit tests for all these cases
+  for features that support them.

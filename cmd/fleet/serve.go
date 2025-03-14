@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
+	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -52,6 +53,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -187,7 +189,6 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
-			var installerStore fleet.InstallerStore
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -219,14 +220,6 @@ the way that the Fleet server works.
 				carveStore = ds
 			}
 
-			if config.Packaging.S3.Bucket != "" {
-				var err error
-				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
-				if err != nil {
-					initFatal(err, "initializing S3 installer store")
-				}
-			}
-
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
 			if err != nil {
 				initFatal(err, "retrieving migration status")
@@ -236,44 +229,18 @@ the way that the Fleet server works.
 			case fleet.AllMigrationsCompleted:
 				// OK
 			case fleet.UnknownMigrations:
-				fmt.Printf("################################################################################\n"+
-					"# WARNING:\n"+
-					"#   Your Fleet database has unrecognized migrations. This could happen when\n"+
-					"#   running an older version of Fleet on a newer migrated database.\n"+
-					"#\n"+
-					"#   Unknown migrations: tables=%v, data=%v.\n"+
-					"################################################################################\n",
-					migrationStatus.UnknownTable, migrationStatus.UnknownData)
+				printUnknownMigrationsMessage(migrationStatus.UnknownTable, migrationStatus.UnknownData)
 				if dev {
 					os.Exit(1)
 				}
 			case fleet.SomeMigrationsCompleted:
-				fmt.Printf("################################################################################\n"+
-					"# WARNING:\n"+
-					"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
-					"#   errors in Fleet.\n"+
-					"#\n"+
-					"#   Missing migrations: tables=%v, data=%v.\n"+
-					"#\n"+
-					"#   Run `%s prepare db` to perform migrations.\n"+
-					"#\n"+
-					"#   To run the server without performing migrations:\n"+
-					"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
-					"#     - Set config updates.allow_missing_migrations to true, or,\n"+
-					"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
-					"################################################################################\n",
-					migrationStatus.MissingTable, migrationStatus.MissingData, os.Args[0])
+				tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
+				printMissingMigrationsWarning(tables, data)
 				if !config.Upgrades.AllowMissingMigrations {
 					os.Exit(1)
 				}
 			case fleet.NoMigrationsCompleted:
-				fmt.Printf("################################################################################\n"+
-					"# ERROR:\n"+
-					"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
-					"#\n"+
-					"#   Run `%s prepare db` to initialize the database.\n"+
-					"################################################################################\n",
-					os.Args[0])
+				printDatabaseNotInitializedError()
 				os.Exit(1)
 			}
 
@@ -311,7 +278,8 @@ the way that the Fleet server works.
 						os.Exit(1)
 					}
 				} else {
-					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil, []*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
+					if err := ds.ApplyEnrollSecrets(cmd.Context(), nil,
+						[]*fleet.EnrollSecret{{Secret: config.Packaging.GlobalEnrollSecret}}); err != nil {
 						level.Debug(logger).Log("err", err, "msg", "failed to apply enroll secrets")
 					}
 				}
@@ -478,7 +446,8 @@ the way that the Fleet server works.
 			if config.GeoIP.DatabasePath != "" {
 				maxmind, err := fleet.NewMaxMindGeoIP(logger, config.GeoIP.DatabasePath)
 				if err != nil {
-					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path", config.GeoIP.DatabasePath, "error", err)
+					level.Error(logger).Log("msg", "failed to initialize maxmind geoip, check database path", "database_path",
+						config.GeoIP.DatabasePath, "error", err)
 				} else {
 					geoIP = maxmind
 				}
@@ -511,6 +480,7 @@ the way that the Fleet server works.
 			} else {
 				mdmPushService = nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushProviderFactory, nanoMDMLogger)
 			}
+			mds.WithPusher(mdmPushService)
 
 			checkMDMAssets := func(names []fleet.MDMAssetName) (bool, error) {
 				_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), names, nil)
@@ -526,7 +496,8 @@ the way that the Fleet server works.
 			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleAPNsSet() || config.MDM.IsAppleSCEPSet() {
 				if len(config.Server.PrivateKey) == 0 {
-					initFatal(errors.New("inserting MDM APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+					initFatal(errors.New("inserting MDM APNs and SCEP assets"),
+						"missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
 				// first we'll check if the APNs and SCEP assets are already in the database and
@@ -542,7 +513,8 @@ the way that the Fleet server works.
 					toInsert[fleet.MDMAssetAPNSCert] = struct{}{}
 					toInsert[fleet.MDMAssetAPNSKey] = struct{}{}
 				default:
-					level.Warn(logger).Log("msg", "Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+					level.Warn(logger).Log("msg",
+						"Your server already has stored APNs certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
 				// check DB for SCEP assets
@@ -554,14 +526,17 @@ the way that the Fleet server works.
 					toInsert[fleet.MDMAssetCACert] = struct{}{}
 					toInsert[fleet.MDMAssetCAKey] = struct{}{}
 				default:
-					level.Warn(logger).Log("msg", "Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
+					level.Warn(logger).Log("msg",
+						"Your server already has stored SCEP certificates. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
 				if len(toInsert) > 0 {
 					if !config.MDM.IsAppleAPNsSet() {
-						initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"), "validate Apple MDM")
+						initFatal(errors.New("Apple APNs MDM configuration must be provided when Apple SCEP is provided"),
+							"validate Apple MDM")
 					} else if !config.MDM.IsAppleSCEPSet() {
-						initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
+						initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"),
+							"validate Apple MDM")
 					}
 
 					// parse the APNs and SCEP assets from the config
@@ -602,7 +577,8 @@ the way that the Fleet server works.
 			// reconcile Apple Business Manager configuration environment variables with the database
 			if config.MDM.IsAppleBMSet() {
 				if len(config.Server.PrivateKey) == 0 {
-					initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+					initFatal(errors.New("inserting MDM ABM assets"),
+						"missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
 				appleBM, err := config.MDM.AppleBM()
@@ -617,9 +593,11 @@ the way that the Fleet server works.
 				case err != nil:
 					initFatal(err, "reading ABM assets from database")
 				case !found:
-					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM}, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM})
+					toInsert = append(toInsert, fleet.MDMConfigAsset{Name: fleet.MDMAssetABMKey, Value: appleBM.KeyPEM},
+						fleet.MDMConfigAsset{Name: fleet.MDMAssetABMCert, Value: appleBM.CertPEM})
 				default:
-					level.Warn(logger).Log("msg", "Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
+					level.Warn(logger).Log("msg",
+						"Your server already has stored ABM certificates and token. Fleet will ignore any certificates provided via environment variables when this happens.")
 				}
 
 				if len(toInsert) > 0 {
@@ -635,7 +613,8 @@ the way that the Fleet server works.
 						// apple_mdm_dep_profile_assigner cron and backfilled
 						if _, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
 							EncryptedToken: appleBM.EncryptedToken,
-							RenewAt:        time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC), // 2000-01-01 is our "zero value" for time
+							RenewAt: time.Date(2000, time.January, 1, 0, 0, 0, 0,
+								time.UTC), // 2000-01-01 is our "zero value" for time
 						}); err != nil {
 							initFatal(err, "save ABM token")
 						}
@@ -745,7 +724,6 @@ the way that the Fleet server works.
 				ssoSessionStore,
 				liveQueryStore,
 				carveStore,
-				installerStore,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -758,6 +736,15 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+			androidSvc, err := android_service.NewService(
+				ctx,
+				logger,
+				ds,
+				svc,
+			)
+			if err != nil {
+				initFatal(err, "initializing android service")
+			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
@@ -766,7 +753,8 @@ the way that the Fleet server works.
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
-						level.Warn(logger).Log("msg", "the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
+						level.Warn(logger).Log("msg",
+							"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
 					}
 					// Extract the CloudFront URL signer before creating the S3 stores.
 					config.S3.ValidateCloudFrontURL(initFatal)
@@ -810,7 +798,9 @@ the way that the Fleet server works.
 						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
 					} else {
 						softwareInstallStore = store
-						level.Info(logger).Log("msg", "using local filesystem software installer store, this is not suitable for production use", "directory", installerDir)
+						level.Info(logger).Log("msg",
+							"using local filesystem software installer store, this is not suitable for production use", "directory",
+							installerDir)
 					}
 				}
 
@@ -991,6 +981,12 @@ the way that the Fleet server works.
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
 				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					return newRefreshVPPAppVersionsSchedule(ctx, instanceID, ds, logger)
+				}); err != nil {
+					initFatal(err, "failed to register refresh vpp app versions schedule")
+				}
 			}
 
 			if license.IsPremium() && config.Activity.EnableAuditLog {
@@ -1068,7 +1064,8 @@ the way that the Fleet server works.
 
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
+					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)})
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {
@@ -1084,7 +1081,12 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
+					svc,
+					config.Server.URLPrefix,
+					ds,
+					logger,
+				)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
@@ -1141,7 +1143,8 @@ the way that the Fleet server works.
 							initFatal(err, "inserting SCEP challenge")
 						}
 
-						level.Warn(logger).Log("msg", "Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
+						level.Warn(logger).Log("msg",
+							"Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
 					}
 				}
 				if err := service.RegisterAppleMDMProtocolServices(
@@ -1203,7 +1206,8 @@ the way that the Fleet server works.
 				}
 
 				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
-					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path, "/fleet/software/titles/")) ||
+					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
+						"/fleet/software/titles/")) ||
 					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) {
 					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
@@ -1226,6 +1230,15 @@ the way that the Fleet server works.
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
+
+				if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
+					// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+					}
+				}
+
 				apiHandler.ServeHTTP(rw, req)
 			})
 
@@ -1345,6 +1358,34 @@ the way that the Fleet server works.
 	serveCmd.PersistentFlags().BoolVar(&devExpiredLicense, "dev_expired_license", false, "Enable expired development license")
 
 	return serveCmd
+}
+
+func printDatabaseNotInitializedError() {
+	fmt.Printf("################################################################################\n"+
+		"# ERROR:\n"+
+		"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
+		"#\n"+
+		"#   Run `%s prepare db` to initialize the database.\n"+
+		"################################################################################\n",
+		os.Args[0])
+}
+
+func printMissingMigrationsWarning(tables []int64, data []int64) {
+	fmt.Printf("################################################################################\n"+
+		"# WARNING:\n"+
+		"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
+		"#   errors in Fleet.\n"+
+		"#\n"+
+		"#   Missing migrations: %s.\n"+
+		"#\n"+
+		"#   Run `%s prepare db` to perform migrations.\n"+
+		"#\n"+
+		"#   To run the server without performing migrations:\n"+
+		"#     - Set environment variable FLEET_UPGRADES_ALLOW_MISSING_MIGRATIONS=1, or,\n"+
+		"#     - Set config updates.allow_missing_migrations to true, or,\n"+
+		"#     - Use command line argument --upgrades_allow_missing_migrations=true\n"+
+		"################################################################################\n",
+		tablesAndDataToString(tables, data), os.Args[0])
 }
 
 func initLicense(config configpkg.FleetConfig, devLicense, devExpiredLicense bool) (*fleet.LicenseInfo, error) {

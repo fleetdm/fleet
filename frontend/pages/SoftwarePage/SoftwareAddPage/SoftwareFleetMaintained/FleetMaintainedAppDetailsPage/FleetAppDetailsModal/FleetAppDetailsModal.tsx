@@ -1,5 +1,6 @@
 import React from "react";
 
+import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -31,7 +32,7 @@ const FleetAppDetailsModal = ({
       <>
         <div className={`${baseClass}__modal-content`}>
           <DataSet title="Name" value={name} />
-          <DataSet title="Platform" value={platform} />
+          <DataSet title="Platform" value={PLATFORM_DISPLAY_NAMES[platform]} />
           <DataSet title="Version" value={version} />
           {url && (
             <DataSet

@@ -8,7 +8,7 @@ import { IconNames } from "components/icons";
 const baseClass = "internal-link-cell";
 
 interface IInternalLinkCellProps {
-  value: string;
+  value: string | JSX.Element;
   onClick?: () => void;
   className?: string;
   /** iconName is the name of the icon that will be dislayed to the right

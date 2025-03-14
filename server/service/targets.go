@@ -126,7 +126,7 @@ type searchTargetsResponse struct {
 
 func (r searchTargetsResponse) Error() error { return r.Err }
 
-func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func searchTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*searchTargetsRequest)
 
 	results, err := svc.SearchTargets(ctx, req.MatchQuery, req.QueryID, req.Selected)
@@ -266,7 +266,7 @@ type countTargetsResponse struct {
 
 func (r countTargetsResponse) Error() error { return r.Err }
 
-func countTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countTargetsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countTargetsRequest)
 
 	counts, err := svc.CountHostsInTargets(ctx, req.QueryID, req.Selected)

@@ -3,12 +3,17 @@
 
   &__icon {
     position: absolute;
-    right: 6px;
-    top: 28px;
+    left: 12px;
+    top: 0;
+    height: 40px;
+    width: 16px;
+    flex-wrap: wrap;
+    align-content: center;
+    z-index: 1;
     color: $core-fleet-blue;
 
     &--active {
-      color: $core-vibrant-blue;
+      color: $core-vibrant-blue-down;
     }
 
     &--error {
@@ -26,27 +31,11 @@
     align-items: center;
   }
 
-  // Refactor to include svg icons
-  &--icon-start {
-    margin-top: 0;
-
-    .input-icon-field__icon {
-      position: absolute;
-      left: 12px;
-      top: 0;
-      height: 40px;
-      width: 16px;
-      flex-wrap: wrap;
-      align-content: center;
-      z-index: 1;
-    }
-  }
-
   &__input {
     border: 1px solid $ui-fleet-black-10;
     background-color: $ui-light-grey;
     border-radius: $border-radius;
-    padding: 9px 30px 9px $pad-medium;
+    padding: 9.5px 12px 9.5px $pad-medium;
     font-size: $x-small;
     text-indent: 1px;
     position: relative;
@@ -55,6 +44,10 @@
     color: $core-fleet-black;
     font-weight: $regular;
     transition: border-color 100ms;
+
+    &.input-with-icon {
+      padding-left: 36px;
+    }
 
     ::placeholder {
       color: $core-fleet-blue;
@@ -77,33 +70,36 @@
     }
   }
 
-  &__input-wrapper:hover {
+  &__input-wrapper:not(&__input-wrapper--disabled):hover {
     .input-icon-field__input {
-      border: 1px solid $core-vibrant-blue;
+      border: 1px solid $core-vibrant-blue-over;
     }
 
-    // Icon color matches border color on focus and on hover
+    // Icon color matches border color on hover
     .input-icon-field__icon {
       svg {
         path {
-          fill: $core-vibrant-blue;
+          fill: $core-vibrant-blue-over;
         }
       }
     }
   }
 
-  .input-icon-field__input:focus {
-    border: 1px solid $core-vibrant-blue;
+  &__input-wrapper {
+    .input-icon-field__input:focus {
+      border: 1px solid $core-vibrant-blue-down;
 
-    // Icon color matches border color on focus and on hover
-    + .input-icon-field__icon {
-      svg {
-        path {
-          fill: $core-vibrant-blue;
+      // Icon color matches border color on focus
+      + .input-icon-field__icon {
+        svg {
+          path {
+            fill: $core-vibrant-blue-down;
+          }
         }
       }
     }
   }
+
   &__label {
     display: block;
     font-size: $x-small;
@@ -112,23 +108,14 @@
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
     }
+
+    &--disabled {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &__errors {
     color: $core-vibrant-red;
-  }
-
-  // overwrite icon position and input padding
-  &--icon-start {
-    input {
-      padding: 9.5px 12px 9.5px 36px; // New figma styling
-    }
-    .fleeticon {
-      right: auto;
-      left: 16px;
-      top: 36px;
-      font-weight: 700;
-    }
   }
 
   /* removes the 'X' from IE input type=search */

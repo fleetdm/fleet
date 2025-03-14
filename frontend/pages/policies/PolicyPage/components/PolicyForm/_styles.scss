@@ -85,6 +85,9 @@
             }
           }
         }
+        &--disabled-by-gitops-mode {
+          @include disabled;
+        }
       }
       .policy-name-wrapper {
         .no-value {

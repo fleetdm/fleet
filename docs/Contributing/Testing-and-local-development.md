@@ -280,7 +280,7 @@ Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface 
 Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
 - "SMTP server" to `localhost` on port `1026`
 - "Use SSL/TLS to connect (recommended)" to unchecked.
-- "Authentication type" to `Username and Password`
+- "Authentication type" to `Username and password`
 - "SMTP username" to `mailpit-username`
 - "SMTP password" to `mailpit-password`
 - "Auth method" to `Plain`
@@ -340,7 +340,7 @@ Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testin
 
 ### Configuration
 
-Configure SSO on the Organization Settings page with the following:
+Configure SSO on the **Integration settings** page with the following:
 
 ```
 Identity Provider Name: SimpleSAML

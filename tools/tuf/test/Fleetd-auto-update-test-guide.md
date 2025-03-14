@@ -31,13 +31,13 @@ Push:
 Build:
 ```sh
 FLEET_DESKTOP_VERSION=43 make desktop-app-tar-gz
-FLEET_DESKTOP_VERSION=43 make desktop-windows
+FLEET_DESKTOP_VERSION=43.0.0 make desktop-windows
 FLEET_DESKTOP_VERSION=43 make desktop-linux
 ```
 ```sh
 ./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
+./tools/tuf/test/push_target.sh windows desktop fleet-desktop.exe 43.0.0
 ./tools/tuf/test/push_target.sh linux desktop desktop.tar.gz 43
-./tools/tuf/test/push_target.sh windows desktop fleet-desktop.exe 43
 ```
 
 ### osqueryd

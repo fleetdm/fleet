@@ -301,6 +301,14 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
+	if appID.AddAutoInstallPolicy {
+		// Currently, same write permissions are applied on software and policies,
+		// but leaving this here in case it changes in the future.
+		if err := svc.authz.Authorize(ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: teamID}}, fleet.ActionWrite); err != nil {
+			return err
+		}
+	}
+
 	// Validate platform
 	if appID.Platform == "" {
 		appID.Platform = fleet.MacOSPlatform
@@ -329,7 +337,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	if appID.SelfService && appID.Platform != fleet.MacOSPlatform {
-		return fleet.NewUserMessageError(errors.New("Currently, self-service only supports macOS"), http.StatusBadRequest)
+		return fleet.NewUserMessageError(errors.New("Currently, self-service is only supported on macOS, Windows, and Linux. Please add the app without self_service and manually install it on the Host details page."), http.StatusBadRequest)
+	}
+	if appID.AddAutoInstallPolicy && appID.Platform != fleet.MacOSPlatform {
+		return fleet.NewUserMessageError(errors.New("Currently, automatic install is only supported on macOS, Windows, and Linux. Please add the app without automatic_install and manually install it on the Host details page."), http.StatusBadRequest)
 	}
 
 	vppToken, err := svc.getVPPToken(ctx, teamID)
@@ -419,9 +430,9 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
 			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels, AppTeamID: id.AppTeamID}
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels, AppTeamID: id.AppTeamID}
 		}
 	}
 
@@ -447,6 +458,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 						SelfService:        props.SelfService,
 						InstallDuringSetup: props.InstallDuringSetup,
 						ValidatedLabels:    props.ValidatedLabels,
+						AppTeamID:          props.AppTeamID,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,
@@ -513,9 +525,61 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.IconURL = *meta.IconURL
 	}
 
+	// check if labels have changed
+	var existingLabels fleet.LabelIdentsWithScope
+	switch {
+	case len(meta.LabelsExcludeAny) > 0:
+		existingLabels.LabelScope = fleet.LabelScopeExcludeAny
+		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsExcludeAny))
+		for _, l := range meta.LabelsExcludeAny {
+			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+
+	case len(meta.LabelsIncludeAny) > 0:
+		existingLabels.LabelScope = fleet.LabelScopeIncludeAny
+		existingLabels.ByName = make(map[string]fleet.LabelIdent, len(meta.LabelsIncludeAny))
+		for _, l := range meta.LabelsIncludeAny {
+			existingLabels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+	}
+
+	labelsChanged := !validatedLabels.Equal(&existingLabels)
+
+	// Get the hosts that are NOT in label scope currently (before the update happens)
+	var hostsNotInScope map[uint]struct{}
+	if labelsChanged {
+		hostsNotInScope, err = svc.ds.GetExcludedHostIDMapForVPPApp(ctx, meta.VPPAppsTeamsID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts not in scope for vpp app")
+		}
+	}
+
+	// Update the app
 	_, err = svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
+	}
+
+	if labelsChanged {
+		// Get the hosts that are now IN label scope (after the update)
+		hostsInScope, err := svc.ds.GetIncludedHostIDMapForVPPApp(ctx, meta.VPPAppsTeamsID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts in scope for vpp app")
+		}
+
+		var hostsToClear []uint
+		for id := range hostsInScope {
+			if _, ok := hostsNotInScope[id]; ok {
+				// it was not in scope but now it is, so we should clear policy status
+				hostsToClear = append(hostsToClear, id)
+			}
+		}
+
+		// We clear the policy status here because otherwise the policy automation machinery
+		// won't pick this up and the software won't install.
+		if err := svc.ds.ClearVPPAppAutoInstallPolicyStatusForHosts(ctx, meta.VPPAppsTeamsID, hostsToClear); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
+		}
 	}
 
 	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(validatedLabels)

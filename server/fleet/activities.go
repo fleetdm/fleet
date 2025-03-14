@@ -12,6 +12,42 @@ type ContextKey string
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+type Activity struct {
+	CreateTimestamp
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
+	ActorFullName  *string          `json:"actor_full_name,omitempty" db:"name"`
+	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
+	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
+	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	Type           string           `json:"type" db:"activity_type"`
+	Details        *json.RawMessage `json:"details" db:"details"`
+	Streamed       *bool            `json:"-" db:"streamed"`
+	FleetInitiated bool             `json:"fleet_initiated" db:"fleet_initiated"`
+}
+
+// AuthzType implement AuthzTyper to be able to verify access to activities
+func (*Activity) AuthzType() string {
+	return "activity"
+}
+
+// UpcomingActivity is the augmented activity type used to return the list of
+// upcoming (pending) activities for a host.
+type UpcomingActivity struct {
+	Activity
+
+	Cancellable bool `json:"cancellable" db:"cancellable"`
+}
+
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedPack{},
@@ -71,6 +107,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
+	ActivityTypeEnabledGitOpsMode{},
+	ActivityTypeDisabledGitOpsMode{},
+
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
 
@@ -79,6 +118,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+	ActivityTypeEnabledAndroidMDM{},
+	ActivityTypeDisabledAndroidMDM{},
 	ActivityTypeEnabledWindowsMDMMigration{},
 	ActivityTypeDisabledWindowsMDMMigration{},
 
@@ -116,6 +157,12 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
 	ActivityEditedNDESSCEPProxy{},
+	ActivityAddedCustomSCEPProxy{},
+	ActivityDeletedCustomSCEPProxy{},
+	ActivityEditedCustomSCEPProxy{},
+	ActivityAddedDigiCert{},
+	ActivityDeletedDigiCert{},
+	ActivityEditedDigiCert{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -587,33 +634,6 @@ func (a ActivityTypeUserAddedBySSO) ActivityName() string {
 func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when new users are added via SSO JIT provisioning`,
 		`This activity does not contain any detail fields.`, ""
-}
-
-type Activity struct {
-	CreateTimestamp
-
-	// ID is the activity id in the activities table, it is omitted for upcoming
-	// activities as those are "virtual activities" generated from entries in
-	// queues (e.g. pending host_script_results).
-	ID uint `json:"id,omitempty" db:"id"`
-
-	// UUID is the activity UUID for the upcoming activities, as identified in
-	// the relevant queue (e.g. pending host_script_results). It is omitted for
-	// past activities as those are "real activities" with an activity id.
-	UUID string `json:"uuid,omitempty" db:"uuid"`
-
-	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
-	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
-	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
-	Type          string           `json:"type" db:"activity_type"`
-	Details       *json.RawMessage `json:"details" db:"details"`
-	Streamed      *bool            `json:"-" db:"streamed"`
-}
-
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
 }
 
 type ActivityTypeUserLoggedIn struct {
@@ -1141,6 +1161,26 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
   "team_id": 123,
   "team_name": "Workstations"
 }`
+}
+
+type ActivityTypeEnabledGitOpsMode struct{}
+
+func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
+	return "enabled_gitops_mode"
+}
+
+func (a ActivityTypeEnabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables GitOps mode.`, `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledGitOpsMode struct{}
+
+func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
+	return "disabled_gitops_mode"
+}
+
+func (a ActivityTypeDisabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables GitOps mode.`, `This activity does not contain any detail fields.`, ``
 }
 
 type ActivityTypeAddedBootstrapPackage struct {
@@ -2157,4 +2197,102 @@ func (a ActivityEditedNDESSCEPProxy) ActivityName() string {
 
 func (a ActivityEditedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when NDES SCEP proxy configuration is edited in Fleet.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityAddedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomSCEPProxy) ActivityName() string {
+	return "added_custom_scep_proxy"
+}
+func (a ActivityAddedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityDeletedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomSCEPProxy) ActivityName() string {
+	return "deleted_custom_scep_proxy"
+}
+func (a ActivityDeletedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityEditedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomSCEPProxy) ActivityName() string {
+	return "edited_custom_scep_proxy"
+}
+func (a ActivityEditedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityAddedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedDigiCert) ActivityName() string {
+	return "added_digicert"
+}
+func (a ActivityAddedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityDeletedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedDigiCert) ActivityName() string {
+	return "deleted_digicert"
+}
+func (a ActivityDeletedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityEditedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedDigiCert) ActivityName() string {
+	return "edited_digicert"
+}
+func (a ActivityEditedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityTypeEnabledAndroidMDM struct{}
+
+func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
+func (a ActivityTypeEnabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a user turns on MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledAndroidMDM struct{}
+
+func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
+func (a ActivityTypeDisabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a user turns off MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
 }

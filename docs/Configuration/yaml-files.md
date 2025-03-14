@@ -1,8 +1,10 @@
 # YAML files
 
-Use Fleet's best practice GitOps workflow to manage your computers as code.
+Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
-To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
+
+Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
@@ -12,6 +14,7 @@ policies:
 queries:
 agent_options:
 controls: # Can be defined in teams/no-team.yml too.
+software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
@@ -53,31 +56,31 @@ policies:
   query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
   platform: darwin
   critical: false
-  calendar_event_enabled: false
+  calendar_events_enabled: false
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
-  resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
+  resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
   platform: darwin
   critical: false
-  calendar_event_enabled: false
+  calendar_events_enabled: false
   run_script:
-    path: "./disable-guest-account.sh"
+    path: ./disable-guest-account.sh
 - name: Install Firefox on macOS
   platform: darwin
-  description: "This policy checks that Firefox is installed."
-  resolution: "Install Firefox app if not installed."
+  description: This policy checks that Firefox is installed.
+  resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "./firefox.package.yml"
+    package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
   platform: darwin
-  description: "This policy checks that Logic Pro is installed"
-  resolution: "Install Logic Pro App Store app if not installed"
+  description: This policy checks that Logic Pro is installed
+  resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
   install_software:
     package_path: ./linux-firefox.deb.package.yml
-    # app_store_id: "1487937127" (for App Store apps)
+    # app_store_id: '1487937127' (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -87,7 +90,7 @@ policies:
   - path: ../lib/policies-name.policies.yml
 ```
 
-> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_event_enabled` can only be configured for policies on a team.
+> Currently, the `run_script` and `install_software` policy automations can only be configured for a team (`teams/team-name.yml`) or "No team" (`teams/no-team.yml`). The automations can only be added to policies in which the script (or software) is defined in the same team (or "No team"). `calendar_events_enabled` can only be configured for policies on a team.
 
 ## queries
 
@@ -223,13 +226,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 15.1
   ios_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 18.1
   ipados_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
@@ -285,7 +288,7 @@ controls:
 
 ### macos_settings and windows_settings
 
-- `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
@@ -299,8 +302,7 @@ Use `labels_include_all` to target hosts that have all labels in the array, `lab
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
-- `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: `""`).
-- `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
+- `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
@@ -343,6 +345,9 @@ software:
         - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
+      labels_include_any:
+        - Product
+        - Marketing
 ```
 
 Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -386,7 +391,7 @@ self_service: true
 The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
-- `enable_software_inventory` specifies whether or not Fleet collects softwre inventory from hosts (default: `true`).
+- `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 
 #### Example
 
@@ -411,7 +416,7 @@ Can only be configured for all teams (`org_settings`).
 ```yaml
 org_settings:
   fleet_desktop:
-    transparency_url: "https://example.org/transparency"
+    transparency_url: https://example.org/transparency
 ```
 
 ### host_expiry_settings
@@ -432,7 +437,7 @@ org_settings:
 ### org_info
 
 - `org_name` is the name of your organization (default: `""`)
-- `logo_url` is a public URL of the logo for your organization (default: Fleet logo).
+- `org_logo_url` is a public URL of the logo for your organization (default: Fleet logo).
 - `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
 - `contact_url` is a URL that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
@@ -476,7 +481,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### Example
 
-  ```yaml
+```yaml
 org_settings:
   server_settings:
     ai_features_disabled: false
@@ -485,7 +490,7 @@ org_settings:
     query_reports_disabled: false
     scripts_disabled: false
     server_url: https://instance.fleet.com
-  ```
+```
 
 
 ### sso_settings
@@ -494,6 +499,7 @@ The `sso_settings` section lets you define single sign-on (SSO) settings. Learn 
 
 - `enable_sso` (default: `false`)
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
+- `idp_image_url` is an optional link to an image such as a logo for the identity provider. (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
@@ -508,8 +514,9 @@ Can only be configured for all teams (`org_settings`).
 org_settings:
   sso_settings:
     enable_sso: true
-    idp_name: SimpleSAML
-    entity_id: https://example.com
+    idp_name: Okta
+    idp_image_url: https://www.okta.com/favicon.ico
+    entity_id: https://example.okta.com
     metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
     enable_sso_idp_login: true
@@ -672,9 +679,9 @@ org_settings:
   mdm:
     apple_business_manager: # Available in Fleet Premium
     - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned iPhones"
-      ipados_team: "🔳🏢 Company-owned iPads"
+      macos_team: 💻 Workstations
+      ios_team: 📱🏢 Company-owned iPhones
+      ipados_team: 🔳🏢 Company-owned iPads
 ```
 
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
@@ -694,10 +701,10 @@ org_settings:
     volume_purchasing_program: # Available in Fleet Premium
     - location: Fleet Device Management Inc.
       teams: 
-      - "💻 Workstations" 
-      - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned iPhones"
-      - "🔳🏢 Company-owned iPads"
+      - 💻 Workstations
+      - 💻🐣 Workstations (canary)
+      - 📱🏢 Company-owned iPhones
+      - 🔳🏢 Company-owned iPads
 ```
 
 Can only be configured for all teams (`org_settings`).
@@ -706,12 +713,26 @@ Can only be configured for all teams (`org_settings`).
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
 
-Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos_setup) key to control the end user experience during ADE.
+Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
+
+Can only be configured for all teams (`org_settings`):
 
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
+
+#### Example
+
+```
+org_settings:
+  mdm:
+    end_user_authentication:
+      entity_id: https://example.okta.com
+      idp_name: Okta
+      metadata: $END_USER_SSO_METADATA
+      metadata_url: ""
+```
 
 Can only be configured for all teams (`org_settings`).
 

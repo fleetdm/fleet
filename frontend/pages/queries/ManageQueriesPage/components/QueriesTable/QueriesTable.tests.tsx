@@ -143,16 +143,24 @@ const renderAsPremiumGlobalAdmin = createCustomRenderer({
   },
 });
 describe("QueriesTable", () => {
-  it("Renders the page-wide empty state when no queries are present", () => {
+  it("Renders the page-wide empty state when no queries are present (free tier)", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
     const testData: IQueriesTableProps[] = [
       {
         queries: [],
         totalQueriesCount: 0,
         hasNextResults: false,
-        onlyInheritedQueries: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -161,23 +169,78 @@ describe("QueriesTable", () => {
     ];
 
     testData.forEach((tableProps) => {
-      renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
+      render(<QueriesTable {...tableProps} />);
       expect(
         screen.getByText("You don't have any queries")
       ).toBeInTheDocument();
       expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
     });
   });
-  it("Renders inherited global queries and team queries when viewing a team, then renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
+
+  it("Renders the page-wide empty state when no queries are present (all teams)", () => {
+    const testData: IQueriesTableProps[] = [
+      {
+        queries: [],
+        totalQueriesCount: 0,
+        hasNextResults: false,
+        curTeamScopeQueriesPresent: true,
+        isLoading: false,
+        onDeleteQueryClick: jest.fn(),
+        isOnlyObserver: false,
+        isObserverPlus: false,
+        isAnyTeamObserverPlus: false,
+        currentTeamId: undefined,
+        isPremiumTier: true,
+      },
+    ];
+
+    testData.forEach((tableProps) => {
+      renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
+      expect(
+        screen.getByText("You don't have any queries that apply to all teams")
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+    });
+  });
+
+  it("Renders the page-wide empty state when no queries are present (specific team)", () => {
+    const testData: IQueriesTableProps[] = [
+      {
+        queries: [],
+        totalQueriesCount: 0,
+        hasNextResults: false,
+        curTeamScopeQueriesPresent: true,
+        isLoading: false,
+        onDeleteQueryClick: jest.fn(),
+        isOnlyObserver: false,
+        isObserverPlus: false,
+        isAnyTeamObserverPlus: false,
+        isPremiumTier: true,
+        currentTeamId: 1,
+      },
+    ];
+
+    testData.forEach((tableProps) => {
+      renderAsPremiumGlobalAdmin(<QueriesTable {...tableProps} />);
+      expect(
+        screen.getByText("You don't have any queries that apply to this team")
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+    });
+  });
+
+  it("Renders inherited global queries and team queries when viewing a team", async () => {
     const testData: IQueriesTableProps[] = [
       {
         queries: [...testGlobalQueries, ...testTeamQueries],
         totalQueriesCount: 4,
         hasNextResults: false,
-        onlyInheritedQueries: false,
+        curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        onCreateQueryClick: jest.fn(),
         isOnlyObserver: false,
         isObserverPlus: false,
         isAnyTeamObserverPlus: false,
@@ -193,24 +256,32 @@ describe("QueriesTable", () => {
       "Team query 2",
     ];
 
-    testData.forEach(async (tableProps) => {
-      // will have no context to get current user from
-      const { user } = renderAsPremiumGlobalAdmin(
-        <QueriesTable {...tableProps} />
-      );
-      dataStrings.forEach((val) => {
-        expect(screen.getAllByText(val)[0]).toBeInTheDocument();
-      });
-
-      await user.type(
-        screen.getByPlaceholderText("Search by name"),
-        "shouldn't match anything"
-      );
-      expect(screen.getByText("No matching queries")).toBeInTheDocument();
-      dataStrings.forEach((val) => {
-        expect(screen.getAllByText(val)).toHaveLength(0);
-      });
+    // will have no context to get current user from
+    renderAsPremiumGlobalAdmin(<QueriesTable {...testData[0]} />);
+    dataStrings.forEach((val) => {
+      expect(screen.getAllByText(val)[0]).toBeInTheDocument();
     });
+  });
+
+  it("renders the 'no-matching' empty state when a search string is entered that matches no queries", async () => {
+    const testData: IQueriesTableProps = {
+      queries: [],
+      totalQueriesCount: 0,
+      hasNextResults: false,
+      curTeamScopeQueriesPresent: true,
+      isLoading: false,
+      onDeleteQueryClick: jest.fn(),
+      isOnlyObserver: false,
+      isObserverPlus: false,
+      isAnyTeamObserverPlus: false,
+      currentTeamId: 1,
+      queryParams: {
+        query: "dont match me bro",
+      },
+    };
+    // will have no context to get current user from
+    renderAsPremiumGlobalAdmin(<QueriesTable {...testData} />);
+    expect(screen.getByText("No matching queries")).toBeInTheDocument();
   });
 
   it("Renders an observer can run badge and tooltip for a observer can run query", async () => {
@@ -235,10 +306,9 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -276,10 +346,9 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -316,10 +385,9 @@ describe("QueriesTable", () => {
         queries={testQueries}
         totalQueriesCount={1}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -345,10 +413,9 @@ describe("QueriesTable", () => {
         queries={[...testTeamQueries, ...testGlobalQueries]}
         totalQueriesCount={4}
         hasNextResults={false}
-        onlyInheritedQueries={false}
+        curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        onCreateQueryClick={jest.fn()}
         isOnlyObserver={false}
         isObserverPlus={false}
         isAnyTeamObserverPlus={false}
@@ -356,24 +423,18 @@ describe("QueriesTable", () => {
       />
     );
 
-    const numberOfCheckboxes = container.querySelectorAll(
-      "input[type='checkbox']"
-    ).length;
+    const numberOfCheckboxes = screen.queryAllByRole("checkbox").length;
 
     expect(numberOfCheckboxes).toBe(
       testTeamQueries.length + 1 // +1 for Select all checkbox
     );
 
-    const checkbox = container.querySelectorAll(
-      "input[type='checkbox']"
-    )[0] as HTMLInputElement;
+    const checkbox = screen.queryAllByRole("checkbox")[0];
 
-    await waitFor(() => {
-      waitFor(() => {
-        user.click(checkbox);
-      });
-
-      expect(checkbox.checked).toBe(true);
+    await waitFor(async () => {
+      await user.click(checkbox);
     });
+
+    expect(checkbox).toBeChecked();
   });
 });

@@ -54,7 +54,7 @@ CREATE TABLE host_script_results (
     -- was offline and never sent results, we should eventually start accepting a new
     -- script execution).
     KEY idx_host_script_results_host_exit_created (host_id, exit_code, created_at)
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create host_script_results table: %w", err)
 	}

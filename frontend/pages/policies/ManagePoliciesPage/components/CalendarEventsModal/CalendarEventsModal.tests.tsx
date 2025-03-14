@@ -1,26 +1,39 @@
 import React from "react";
 
+import { http, HttpResponse } from "msw";
 import { noop } from "lodash";
 import { fireEvent, screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 import createMockPolicy from "__mocks__/policyMock";
+import mockServer from "test/mock-server";
 
 import CalendarEventsModal from "./CalendarEventsModal";
 
-const testGlobalPolicy = [
-  createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
-  createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
-  createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
-];
+const globalPoliciesHandler = http.get(baseUrl("/policies"), () => {
+  return HttpResponse.json({
+    policies: [
+      createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
+      createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
+      createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
+    ],
+  });
+});
 
-const testTeamPolicies = [
-  createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
-  createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
-];
+const teamPoliciesHandler = http.get(baseUrl("/teams/2/policies"), () => {
+  return HttpResponse.json({
+    policies: [
+      createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
+      createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+    ],
+  });
+});
 
 describe("CalendarEventsModal - component", () => {
   it("renders components for admin", async () => {
+    mockServer.use(globalPoliciesHandler);
+    mockServer.use(teamPoliciesHandler);
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isGlobalAdmin: true,
@@ -37,7 +50,7 @@ describe("CalendarEventsModal - component", () => {
         configured
         enabled
         url="https://server.com/example"
-        policies={testGlobalPolicy}
+        teamId={2}
       />
     );
 
@@ -54,7 +67,11 @@ describe("CalendarEventsModal - component", () => {
   });
 
   it("renders limited components for team maintainer", async () => {
+    mockServer.use(globalPoliciesHandler);
+    mockServer.use(teamPoliciesHandler);
+
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isTeamMaintainer: true,
@@ -70,7 +87,7 @@ describe("CalendarEventsModal - component", () => {
         configured
         enabled
         url="https://server.com/example"
-        policies={testGlobalPolicy}
+        teamId={2}
       />
     );
 

@@ -67,7 +67,7 @@
 
     &:hover:not(.is-disabled) {
       box-shadow: none;
-      border-color: $core-vibrant-blue;
+      border-color: $core-vibrant-blue-over;
     }
   }
 
@@ -135,16 +135,9 @@
     }
   }
 
-  &.is-focused {
+  &.is-focused:not(.is-disabled) {
     &.dropdown__select {
-      border: 1px solid $core-vibrant-blue;
-    }
-
-    &:not(.is-open) {
-      .Select-control {
-        box-shadow: none;
-        border-color: $core-vibrant-blue;
-      }
+      border: 1px solid $core-vibrant-blue-down;
     }
   }
 

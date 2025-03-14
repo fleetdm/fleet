@@ -64,9 +64,12 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
-      "ndes_scep_proxy": null
+      "ndes_scep_proxy": null,
+      "custom_scep_proxy": null,
+      "digicert": null
     },
     "mdm": {
+      "android_enabled_and_configured": false,
       "apple_bm_terms_expired": false,
       "apple_server_url": "",
       "apple_bm_enabled_and_configured": false,
@@ -119,6 +122,10 @@
         "idp_name": ""
       }
     },
-    "scripts": null
+    "scripts": null,
+    "gitops": {
+      "gitops_mode_enabled": false,
+      "repository_url": ""
+    }
   }
 }

@@ -14,6 +14,7 @@ import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
 import { IZendeskJiraIntegrations } from "interfaces/integration";
+import { INotification } from "interfaces/notification";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -21,7 +22,12 @@ import {
   IPoliciesCountResponse,
   IPolicy,
 } from "interfaces/policy";
-import { API_ALL_TEAMS_ID, API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  API_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  ITeamConfig,
+} from "interfaces/team";
 import { TooltipContent } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
@@ -47,6 +53,7 @@ import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
@@ -58,6 +65,10 @@ import InstallSoftwareModal from "./components/InstallSoftwareModal";
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import PolicyRunScriptModal from "./components/PolicyRunScriptModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
+import {
+  getInstallSoftwareErrorMessage,
+  getRunScriptErrorMessage,
+} from "./helpers";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -105,7 +116,7 @@ const ManagePolicyPage = ({
     setFilteredPoliciesPath,
     filteredPoliciesPath,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
+  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
   const { setResetSelectedRows } = useContext(TableContext);
   const {
     setLastEditedQueryName,
@@ -538,6 +549,7 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
+
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -558,27 +570,59 @@ const ManagePolicyPage = ({
 
         return turnedOff || turnedOn || updatedSwId;
       });
+
       if (!changedPolicies.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
-      const responses: Promise<
-        ReturnType<typeof teamPoliciesAPI.update>
-      >[] = [];
-      responses.concat(
-        changedPolicies.map((changedPolicy) => {
-          return teamPoliciesAPI.update(changedPolicy.id, {
-            // "software_title_id": null will unset software install for the policy
-            // "software_title_id": X will set the value to the given integer (except 0).
-            software_title_id: changedPolicy.swIdToInstall || null,
-            team_id: teamIdForApi,
-          });
+
+      const promises = changedPolicies.map((changedPolicy) =>
+        teamPoliciesAPI.update(changedPolicy.id, {
+          software_title_id: changedPolicy.swIdToInstall || null,
+          team_id: teamIdForApi,
         })
       );
-      await Promise.all(responses);
-      await wait(100); // prevent race
+
+      // Allows for all API calls to settle even if there is an error on one
+      const results = await Promise.allSettled(promises);
+
+      const successfulUpdates = results.filter(
+        (result) => result.status === "fulfilled"
+      );
+      const failedUpdates = results.filter(
+        (result) => result.status === "rejected"
+      );
+
+      // Renders API error reason for each error in a single message
+      if (failedUpdates.length > 0) {
+        const errorNotifications: INotification[] = failedUpdates.map(
+          (result, index) => {
+            const message = getInstallSoftwareErrorMessage(
+              result as PromiseRejectedResult,
+              formData,
+              currentTeamName
+            );
+
+            return {
+              id: `error-${index}`,
+              alertType: "error",
+              isVisible: true,
+              message,
+              persistOnPageChange: false,
+            };
+          }
+        );
+
+        renderMultiFlash({
+          notifications: errorNotifications,
+        });
+      } else if (successfulUpdates.length > 0) {
+        // Only render success message if there are no failures
+        renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
+      }
+
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
@@ -592,6 +636,7 @@ const ManagePolicyPage = ({
   ) => {
     try {
       setIsUpdatingPolicies(true);
+
       const changedPolicies = formData.filter((formPolicy) => {
         const prevPolicyState = policiesAvailableToAutomate.find(
           (policy) => policy.id === formPolicy.id
@@ -599,39 +644,73 @@ const ManagePolicyPage = ({
 
         const turnedOff =
           prevPolicyState?.run_script !== undefined &&
-          formPolicy.runScriptEnabled === false;
+          formPolicy.scriptIdToRun === null;
 
         const turnedOn =
           prevPolicyState?.run_script === undefined &&
-          formPolicy.runScriptEnabled === true;
+          formPolicy.scriptIdToRun !== null;
 
-        const updatedRunScriptId =
+        const updatedScriptId =
           prevPolicyState?.run_script?.id !== undefined &&
           formPolicy.scriptIdToRun !== prevPolicyState?.run_script?.id;
 
-        return turnedOff || turnedOn || updatedRunScriptId;
+        return turnedOff || turnedOn || updatedScriptId;
       });
+
       if (!changedPolicies.length) {
         renderFlash("success", "No changes detected.");
         return;
       }
-      const responses: Promise<
-        ReturnType<typeof teamPoliciesAPI.update>
-      >[] = [];
-      responses.concat(
-        changedPolicies.map((changedPolicy) => {
-          return teamPoliciesAPI.update(changedPolicy.id, {
-            // "script_id": null will unset running a script for the policy
-            // "script_id": X will sets script X to run when the policy fails
-            script_id: changedPolicy.scriptIdToRun || null,
-            team_id: teamIdForApi,
-          });
+
+      const promises = formData.map((changedPolicy) =>
+        teamPoliciesAPI.update(changedPolicy.id, {
+          // "script_id": null will unset running a script for the policy
+          // "script_id": X will sets script X to run when the policy fails
+          script_id: changedPolicy.scriptIdToRun || null,
+          team_id: teamIdForApi,
         })
       );
-      await Promise.all(responses);
-      await wait(100);
+
+      // Allows for all API calls to settle even if there is an error on one
+      const results = await Promise.allSettled(promises);
+
+      const successfulUpdates = results.filter(
+        (result) => result.status === "fulfilled"
+      );
+      const failedUpdates = results.filter(
+        (result) => result.status === "rejected"
+      );
+
+      // Renders API error reason for each error in a single message
+      if (failedUpdates.length > 0) {
+        const errorNotifications: INotification[] = failedUpdates.map(
+          (result, index) => {
+            const message = getRunScriptErrorMessage(
+              result as PromiseRejectedResult,
+              formData,
+              currentTeamName
+            );
+
+            return {
+              id: `error-${index}`,
+              alertType: "error",
+              isVisible: true,
+              message,
+              persistOnPageChange: false,
+            };
+          }
+        );
+
+        renderMultiFlash({
+          notifications: errorNotifications,
+        });
+      } else if (successfulUpdates.length > 0) {
+        // Only render success message if there are no failures
+        renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
+      }
+
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
       refetchTeamPolicies();
-      renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
     } catch {
       renderFlash("error", DEFAULT_AUTOMATION_UPDATE_ERR_MSG);
     } finally {
@@ -671,19 +750,10 @@ const ManagePolicyPage = ({
       }
 
       // update changed policies calendar events enabled
-      const changedPolicies = formData.policies.filter((formPolicy) => {
-        const prevPolicyState = policiesAvailableToAutomate.find(
-          (policy) => policy.id === formPolicy.id
-        );
-        return (
-          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
-        );
-      });
-
       responses.concat(
-        changedPolicies.map((changedPolicy) => {
+        formData.changedPolicies.map((changedPolicy) => {
           return teamPoliciesAPI.update(changedPolicy.id, {
-            calendar_events_enabled: changedPolicy.isChecked,
+            calendar_events_enabled: changedPolicy.calendar_events_enabled,
             team_id: teamIdForApi,
           });
         })
@@ -754,14 +824,12 @@ const ManagePolicyPage = ({
     ? teamPolicies && teamPolicies.length > 0
     : globalPolicies && globalPolicies.length > 0;
 
-  // Show CTA buttons if there is no errors AND there are policy results or a search filter
-  const showCtaButtons =
-    !policiesErrors && (policyResults || searchQuery !== "");
+  // Show CTA buttons if there are no errors
+  const showCtaButtons = !policiesErrors;
 
   const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
-  const showAutomationsDropdown =
-    canManageAutomations && hasPoliciesToAutomateOrDelete;
+  const showAutomationsDropdown = canManageAutomations;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -837,7 +905,6 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={globalPolicies || []}
           isLoading={isFetchingGlobalPolicies || isFetchingConfig}
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -871,7 +938,6 @@ const ManagePolicyPage = ({
           isLoading={
             isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
           }
-          onAddPolicyClick={onAddPolicyClick}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -894,6 +960,8 @@ const ManagePolicyPage = ({
       </div>
     );
   };
+
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const isCalEventsConfigured =
     (config?.integrations.google_calendar &&
@@ -983,6 +1051,53 @@ const ManagePolicyPage = ({
     return options;
   };
 
+  let automationsDropdown = null;
+  if (showAutomationsDropdown) {
+    automationsDropdown = (
+      <div className={`${baseClass}__manage-automations-wrapper`}>
+        <DropdownWrapper
+          isDisabled={!hasPoliciesToAutomateOrDelete}
+          className={`${baseClass}__manage-automations-dropdown`}
+          name="policy-automations"
+          onChange={onSelectAutomationOption}
+          placeholder="Manage automations"
+          options={
+            hasPoliciesToAutomateOrDelete
+              ? getAutomationsDropdownOptions(!!automationsConfig)
+              : []
+          }
+          variant="button"
+          nowrapMenu
+        />
+      </div>
+    );
+    if (!hasPoliciesToAutomateOrDelete) {
+      const tipContent =
+        isPremiumTier && currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID ? (
+          <div className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy to this team.
+            <br />
+            For inherited policies select &ldquo;All teams&rdquo;.
+          </div>
+        ) : (
+          <div className={`${baseClass}__header__tooltip`}>
+            To manage automations add a policy.
+          </div>
+        );
+
+      automationsDropdown = (
+        <TooltipWrapper
+          underline={false}
+          tipContent={tipContent}
+          position="top"
+          showArrow
+        >
+          {automationsDropdown}
+        </TooltipWrapper>
+      );
+    }
+  }
+
   if (!isRouteOk) {
     return <Spinner />;
   }
@@ -1024,19 +1139,7 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {showAutomationsDropdown && (
-                <div className={`${baseClass}__manage-automations-wrapper`}>
-                  <DropdownWrapper
-                    className={`${baseClass}__manage-automations-dropdown`}
-                    name="policy-automations"
-                    onChange={onSelectAutomationOption}
-                    placeholder="Manage automations"
-                    options={getAutomationsDropdownOptions(!!automationsConfig)}
-                    variant="button"
-                    nowrapMenu
-                  />
-                </div>
-              )}
+              {automationsDropdown}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
@@ -1063,6 +1166,8 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
+            teamId={currentTeamId ?? 0}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showAddPolicyModal && (
@@ -1086,9 +1191,9 @@ const ManagePolicyPage = ({
             onExit={toggleInstallSoftwareModal}
             onSubmit={onUpdatePolicySoftwareInstall}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showPolicyRunScriptModal && (
@@ -1096,9 +1201,9 @@ const ManagePolicyPage = ({
             onExit={togglePolicyRunScriptModal}
             onSubmit={onUpdatePolicyRunScript}
             isUpdating={isUpdatingPolicies}
-            policies={policiesAvailableToAutomate}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showCalendarEventsModal && (
@@ -1108,8 +1213,9 @@ const ManagePolicyPage = ({
             configured={isCalEventsConfigured}
             enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
-            policies={policiesAvailableToAutomate}
+            teamId={currentTeamId ?? 0}
             isUpdating={isUpdatingPolicies}
+            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
       </div>

@@ -28,7 +28,7 @@ import {
   IVulnerabilitiesResponse,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
@@ -187,13 +187,13 @@ const SoftwareVulnerabilitiesTable = ({
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.cve) {
       const cveName = row.original.cve.toString();
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
 
-      const softwareVulnerabilityDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
-        cveName
-      )}?${teamQueryParam}`;
+      const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
+        {
+          team_id: teamId,
+        }
+      );
 
       router.push(softwareVulnerabilityDetailsPath);
     }
@@ -258,7 +258,7 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={vulnerabilitiesTableHeaders}
         data={data?.vulnerabilities || []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}

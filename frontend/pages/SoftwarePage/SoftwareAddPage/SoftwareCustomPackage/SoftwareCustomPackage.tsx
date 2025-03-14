@@ -5,7 +5,7 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import softwareAPI, {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
@@ -84,9 +84,9 @@ const SoftwareCustomPackage = ({
 
   const onCancel = () => {
     router.push(
-      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+      getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
         team_id: currentTeamId,
-      })}`
+      })
     );
   };
 
@@ -130,7 +130,7 @@ const SoftwareCustomPackage = ({
         newQueryParams.available_for_install = true;
       }
       router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
+        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, newQueryParams)
       );
 
       renderFlash(
@@ -166,6 +166,8 @@ const SoftwareCustomPackage = ({
           className={`${baseClass}__package-form`}
           onCancel={onCancel}
           onSubmit={onSubmit}
+          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
+          gitopsCompatible
         />
         {uploadDetails && (
           <FileProgressModal

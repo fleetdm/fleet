@@ -28,7 +28,9 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  enable_disk_encryption: true
 policies:
+    - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
 queries:
 software:
   packages:

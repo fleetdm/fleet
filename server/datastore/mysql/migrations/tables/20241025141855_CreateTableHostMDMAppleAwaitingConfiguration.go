@@ -14,7 +14,7 @@ func Up_20241025141855(tx *sql.Tx) error {
 CREATE TABLE host_mdm_apple_awaiting_configuration (
 	host_uuid           VARCHAR(255) NOT NULL PRIMARY KEY,
 	awaiting_configuration TINYINT(1) NOT NULL DEFAULT FALSE
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("creating host_mdm_apple_awaiting_configuration  table: %w", err)
 	}

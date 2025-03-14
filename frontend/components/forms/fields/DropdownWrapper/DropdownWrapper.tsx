@@ -31,12 +31,6 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import { TooltipContent } from "interfaces/dropdownOption";
 
-const getOptionBackgroundColor = (
-  state: OptionProps<CustomOptionType, false>
-) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
-};
-
 export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
@@ -45,6 +39,8 @@ export interface CustomOptionType {
   isDisabled?: boolean;
   iconName?: IconNames;
 }
+
+type DropdownWrapperVariant = "table-filter" | "button";
 
 export interface IDropdownWrapper {
   options: CustomOptionType[];
@@ -64,12 +60,31 @@ export interface IDropdownWrapper {
   /** E.g. scroll to view dropdown menu in a scrollable parent container */
   onMenuOpen?: () => void;
   /** Table filter dropdowns have filter icon and height: 40px
-   *  Button dropdowns have hover/active state, padding, height like actual buttons */
-  variant?: "table-filter" | "button";
+   *  Button dropdowns have hover/active state, padding, height matching actual buttons, and no selected option styling */
+  variant?: DropdownWrapperVariant;
   /** This makes the menu fit all text without wrapping,
    * aligning right to fit text on screen */
   nowrapMenu?: boolean;
 }
+
+const getOptionBackgroundColor = (
+  state: OptionProps<CustomOptionType, false>
+) => {
+  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+};
+
+const getOptionFontWeight = (
+  state: OptionProps<CustomOptionType, false>,
+  variant?: DropdownWrapperVariant
+) => {
+  // For "button" dropdowns, selected options are not styled differently
+  if (variant === "button") {
+    return "normal";
+  }
+
+  // For other variants, selected options are bold
+  return state.isSelected ? "bold" : "normal";
+};
 
 const baseClass = "dropdown-wrapper";
 
@@ -229,12 +244,25 @@ const DropdownWrapper = ({
               stroke: COLORS["core-vibrant-blue-over"],
             },
           },
-          "&.react-select__control--is-focused": {
+          ".react-select__control--is-focused": {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
+            boxShadow: "none",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["core-vibrant-blue-down"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["core-vibrant-blue-down"],
+            },
           },
-          "&:active .dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
-          },
+          ...(state.isFocused && {
+            backgroundColor: "rgba(25, 33, 71, 0.05)",
+            ".dropdown-wrapper__placeholder": {
+              color: COLORS["core-vibrant-blue-down"],
+            },
+            ".dropdown-wrapper__indicator path": {
+              stroke: COLORS["core-vibrant-blue-down"],
+            },
+          }),
           // TODO: Figure out a way to apply separate &:focus-visible styling
           // Currently only relying on &:focus styling for tabbing through app
           ...(state.menuIsOpen && {
@@ -262,7 +290,7 @@ const DropdownWrapper = ({
           : COLORS["ui-fleet-black-10"],
         "&:hover": {
           boxShadow: "none",
-          borderColor: COLORS["core-fleet-blue"],
+          borderColor: COLORS["core-vibrant-blue-over"],
           ".dropdown-wrapper__single-value": {
             color: COLORS["core-vibrant-blue-over"],
           },
@@ -276,13 +304,22 @@ const DropdownWrapper = ({
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
         "&.react-select__control--is-focused": {
-          ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-over"],
-          },
+          borderColor: COLORS["core-vibrant-blue-down"],
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-over"],
+            stroke: COLORS["core-vibrant-blue-down"],
+          },
+          ".filter-icon path": {
+            fill: COLORS["core-vibrant-blue-down"],
           },
         },
+        ...(state.isFocused && {
+          ".dropdown-wrapper__placeholder": {
+            color: COLORS["core-vibrant-blue-down"],
+          },
+          ".dropdown-wrapper__indicator path": {
+            stroke: COLORS["core-vibrant-blue-down"],
+          },
+        }),
         ...(state.isDisabled && {
           ".dropdown-wrapper__single-value": {
             color: COLORS["ui-fleet-black-50"],
@@ -322,6 +359,7 @@ const DropdownWrapper = ({
         fontWeight: "bold",
         lineHeight: "normal",
         paddingLeft: 0,
+        opacity: isDisabled ? 0.5 : 1,
         marginTop: variant === "button" ? "-1px" : "1px", // TODO: Figure out vertical centering to not need pixel fix
       };
 
@@ -343,6 +381,7 @@ const DropdownWrapper = ({
       svg: {
         transition: "transform 0.25s ease",
       },
+      opacity: isDisabled ? 0.5 : 1,
     }),
     menu: (provided) => ({
       ...provided,
@@ -380,7 +419,7 @@ const DropdownWrapper = ({
       fontSize: "14px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: state.isSelected ? "bold" : "normal",
+      fontWeight: getOptionFontWeight(state, variant),
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled
@@ -473,7 +512,7 @@ const DropdownWrapper = ({
         tabIndex={isDisabled ? -1 : 0} // Ensures disabled dropdown has no keyboard accessibility
         placeholder={placeholder}
         onMenuOpen={onMenuOpen}
-        controlShouldRenderValue={variant !== "button"}
+        controlShouldRenderValue={variant !== "button"} // Control doesn't change placeholder to selected value
       />
     </FormField>
   );
