@@ -13008,37 +13008,6 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	t := s.T()
 	ctx := context.Background()
 
-	data, err := os.ReadFile("./testdata/PKCSReq.der")
-	require.NoError(t, err)
-	message := base64.StdEncoding.EncodeToString(data)
-
-	// NDES not configured
-	res := s.DoRawNoAuth("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest)
-	errBody, err := io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), "missing operation")
-	// Provide SCEP operation (GetCACaps)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
-	// Provide SCEP operation (GetCACerts)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACert")
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
-	// Provide SCEP operation (PKIOperation)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
-		"message", message)
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
-	// Provide SCEP operation (GetNextCACert)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), "not implemented")
-
 	// Add an MDM profile
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "Good1"),
@@ -13093,16 +13062,51 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		{
 			HostUUID:    host.UUID,
 			ProfileUUID: profileUUID,
+			Type:        fleet.CAConfigNDES,
+			CAName:      "NDES",
 		},
 		{
 			HostUUID:    host.UUID,
 			ProfileUUID: badProfile.ProfileUUID,
+			Type:        fleet.CAConfigNDES,
+			CAName:      "NDES",
 		},
 	})
 	require.NoError(t, err)
 
 	identifier := url.PathEscape(host.UUID + "," + profileUUID)
 	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID)
+
+	data, err := os.ReadFile("./testdata/PKCSReq.der")
+	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(data)
+
+	// NDES not configured
+	res := s.DoRawNoAuth("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest)
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "missing operation")
+	// Provide SCEP operation (GetCACaps)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetCACerts)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "GetCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (PKIOperation)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
+		"message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetNextCACert)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "not implemented")
 
 	// Configure a bad SCEP URL
 	appConf, err := s.ds.AppConfig(context.Background())
@@ -13211,6 +13215,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
 			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+			Type:                 fleet.CAConfigNDES,
+			CAName:               "NDES",
 		},
 	})
 	require.NoError(t, err)
@@ -13226,6 +13232,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
 			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+			Type:                 fleet.CAConfigNDES,
+			CAName:               "NDES",
 		},
 	})
 	require.NoError(t, err)
