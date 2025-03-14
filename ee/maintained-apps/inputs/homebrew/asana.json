@@ -1,7 +1,7 @@
 {
   "name": "Asana",
   "slug": "asana/darwin",
-  "unique_identifier": "com.asana.Asana",
+  "unique_identifier": "com.electron.asana",
   "token": "asana",
   "installer_format": "zip"
 }
