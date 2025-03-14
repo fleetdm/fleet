@@ -533,6 +533,7 @@ This activity contains the following fields:
 
 ```json
 {
+  "host_id": 123,
   "host_serial": "B04FL3ALPT21",
   "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }
