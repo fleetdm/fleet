@@ -667,7 +667,7 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 
 	for campaignTargetIDs := range campaignTargetIter {
 		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			const deleteStmt = `DELETE FROM distributed_query_campaigns WHERE id IN (?)`
+			const deleteStmt = `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
 			deleteQuery, args, err := sqlx.In(deleteStmt, campaignTargetIDs)
 			if err != nil {
 				return err
