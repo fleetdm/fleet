@@ -68,15 +68,16 @@ To connect Entra ID to Fleet, follow these steps:
    it in **Secret token** field.
 8. Select **Test connection** button. You should see success message.
 9. Select **Create** and after successfull creation, you'll be redirected to the overview page.
-10. Select **Attribute mapping** from the side menu, then select **Provision Microsoft Entra ID Groups**.
-11. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are
-    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and
-    they are required as well. Delete the rest of the attributes, select **Save**, and after it's
+10. Select **Attribute mapping** from the side menu, then select **Provision Microsoft Entra ID
+    Groups**.
+11. Ensure that the attributes `displayName`, `members`, and `externalId` are
+    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
     saved, select close icon on the top right corner.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
 12. Select **Provision Microsoft Entra ID Users**.
-13. Ensure that the attributes `displayName`, `members`, and `externalId` are
-    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
+13. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are
+    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and
+    they are required as well. Delete the rest of the attributes, select **Save**, and after it's
     saved, select close icon on the top right corner.
 ![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
 14. Select **Users and groups** from the side menu, select **+ Add user/group**, then select
