@@ -1,11 +1,11 @@
 name: Ingest maintained apps
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'ee/maintained-apps/**'
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'ee/maintained-apps/**'
   workflow_dispatch:
   schedule:
     - cron: '0 14 * * *'
