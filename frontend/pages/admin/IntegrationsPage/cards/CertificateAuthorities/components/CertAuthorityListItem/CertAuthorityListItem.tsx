@@ -17,7 +17,7 @@ interface IActionsProps {
 const Actions = ({ onEdit, onDelete }: IActionsProps) => {
   return (
     <>
-      {/* <GitOpsModeTooltipWrapper
+      <GitOpsModeTooltipWrapper
         position="left"
         renderChildren={(disableChildren) => (
           <Button
@@ -29,7 +29,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             <Icon name="pencil" color="ui-fleet-black-75" />
           </Button>
         )}
-      /> */}
+      />
       <GitOpsModeTooltipWrapper
         position="left"
         renderChildren={(disableChildren) => (

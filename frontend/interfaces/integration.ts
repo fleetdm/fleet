@@ -41,6 +41,33 @@ export interface ICertificatesIntegrationCustomSCEP {
   challenge: string;
 }
 
+export const isNDESCertIntegration = (
+  integration: ICertificateIntegration
+): integration is ICertificatesIntegrationNDES => {
+  return (
+    "admin_url" in integration &&
+    "username" in integration &&
+    "password" in integration
+  );
+};
+
+export const isDigicertCertIntegration = (
+  integration: ICertificateIntegration
+): integration is ICertificatesIntegrationDigicert => {
+  return (
+    "profile_id" in integration &&
+    "certificate_common_name" in integration &&
+    "certificate_user_principal_names" in integration &&
+    "certificate_seat_id" in integration
+  );
+};
+
+export const isCustomSCEPCertIntegration = (
+  integration: ICertificateIntegration
+): integration is ICertificatesIntegrationCustomSCEP => {
+  return "id" in integration && "challenge" in integration;
+};
+
 export type ICertificateAuthorityType = "ndes" | "digicert" | "custom";
 
 /** all the types of certificate integrations */

@@ -75,7 +75,7 @@ func (svc *Service) authenticatePubSub(ctx context.Context, token string) error 
 	//
 	// Note: We could also check that the device belongs to our enterprise, for additional security. We would need an Android cached_mysql for that.
 	// "name": "enterprises/LC044q09r2/devices/3dc9d72fbd517bbc",
-	assets, err := svc.fleetDS.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
 	switch {
 	case fleet.IsNotFound(err):
 		return fleet.NewAuthFailedError("missing Android PubSub token in Fleet")
@@ -173,7 +173,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	if host != nil {
 		level.Debug(svc.logger).Log("msg", "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.fleetDS.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
+		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
@@ -251,7 +251,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
 
-	err = svc.fleetDS.UpdateAndroidHost(ctx, host, fromEnroll)
+	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -259,7 +259,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
-	enrollSecret, err := svc.fleetDS.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
+	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
@@ -301,7 +301,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	_, err = svc.fleetDS.NewAndroidHost(ctx, host)
+	_, err = svc.ds.NewAndroidHost(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -314,7 +314,7 @@ func (svc *Service) getComputerName(device *androidmanagement.Device) string {
 }
 
 func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
-	host, err := svc.fleetDS.AndroidHostLite(ctx, enterpriseSpecificID)
+	host, err := svc.ds.AndroidHostLite(ctx, enterpriseSpecificID)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, nil

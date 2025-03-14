@@ -17,6 +17,7 @@ import {
 import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
 import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
+import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
 
 const baseClass = "certificate-authorities";
 
@@ -30,7 +31,7 @@ const CertificateAuthorities = () => {
     false
   );
   const [
-    showDeleteCertAuthoirtyModal,
+    showDeleteCertAuthorityModal,
     setShowDeleteCertAuthorityModal,
   ] = useState(false);
 
@@ -56,7 +57,6 @@ const CertificateAuthorities = () => {
   };
 
   const onEditCertAuthority = (cert: ICertAuthorityListData) => {
-    // TODO: use useCallback
     const certAuthority = getCertificateAuthority(
       cert.id,
       config?.integrations.ndes_scep_proxy,
@@ -69,7 +69,6 @@ const CertificateAuthorities = () => {
   };
 
   const onDeleteCertAuthority = (cert: ICertAuthorityListData) => {
-    // TODO: use useCallback
     const certAuthority = getCertificateAuthority(
       cert.id,
       config?.integrations.ndes_scep_proxy,
@@ -118,8 +117,13 @@ const CertificateAuthorities = () => {
           onExit={() => setShowAddCertAuthorityModal(false)}
         />
       )}
-      {showEditCertAuthorityModal && <div>Modal showing</div>}
-      {showDeleteCertAuthoirtyModal &&
+      {showEditCertAuthorityModal && selectedCertAuthority && (
+        <EditCertAuthorityModal
+          certAuthority={selectedCertAuthority}
+          onExit={() => setShowEditCertAuthorityModal(false)}
+        />
+      )}
+      {showDeleteCertAuthorityModal &&
         selectedCertAuthority &&
         selectedListItemId && (
           <DeleteCertificateAuthorityModal

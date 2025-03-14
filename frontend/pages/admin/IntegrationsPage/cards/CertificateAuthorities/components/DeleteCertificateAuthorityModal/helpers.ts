@@ -7,7 +7,7 @@ import {
   ICertificatesIntegrationDigicert,
   IGlobalIntegrations,
 } from "interfaces/integration";
-import { useContext } from "react";
+import { useCallback, useContext } from "react";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 
 export const useCertAuthorityDataGenerator = (
@@ -16,45 +16,48 @@ export const useCertAuthorityDataGenerator = (
 ) => {
   const { config } = useContext(AppContext);
 
-  const generateAddPatchData = (formData: IDigicertFormData) => {
-    if (!config) return null;
+  const generateAddPatchData = useCallback(
+    (formData: IDigicertFormData) => {
+      if (!config) return null;
 
-    const data: { integrations: Partial<IGlobalIntegrations> } = {
-      integrations: {},
-    };
+      const data: { integrations: Partial<IGlobalIntegrations> } = {
+        integrations: {},
+      };
 
-    switch (certAuthorityType) {
-      case "ndes":
-        break;
-      case "digicert":
-        data.integrations.digicert = [
-          ...(config.integrations.digicert || []),
-          {
-            name: formData.name,
-            url: formData.url,
-            api_token: formData.apiToken,
-            profile_id: formData.profileId,
-            certificate_common_name: formData.commonName,
-            certificate_user_principal_names: [formData.userPrincipalName],
-            certificate_seat_id: formData.certificateSeatId,
-          },
-        ];
-        break;
-      case "custom":
-        break;
-      default:
-        break;
-    }
+      switch (certAuthorityType) {
+        case "ndes":
+          break;
+        case "digicert":
+          data.integrations.digicert = [
+            ...(config.integrations.digicert || []),
+            {
+              name: formData.name,
+              url: formData.url,
+              api_token: formData.apiToken,
+              profile_id: formData.profileId,
+              certificate_common_name: formData.commonName,
+              certificate_user_principal_names: [formData.userPrincipalName],
+              certificate_seat_id: formData.certificateSeatId,
+            },
+          ];
+          break;
+        case "custom":
+          break;
+        default:
+          break;
+      }
 
-    return data;
-  };
+      return data;
+    },
+    [certAuthorityType, config]
+  );
 
   /**
    * generates the data to be sent to the API to delete the certificate authority.
    * under the hood we are updating the app config object with the new data and
    * have to generate the correct data for the PATCH request.
    */
-  const generateDeletePatchData = () => {
+  const generateDeletePatchData = useCallback(() => {
     if (!config) return null;
 
     const data: { integrations: Partial<IGlobalIntegrations> } = {
@@ -90,16 +93,58 @@ export const useCertAuthorityDataGenerator = (
     }
 
     return data;
-  };
+  }, [certAuthority, certAuthorityType, config]);
 
   /**
    * generates the data to be sent to the API to edit the certificate authority.
    * under the hood we are updating the app config object with the new data and
    * have to generate the correct data for the PATCH request.
    */
-  const generateEditPatchData = (formData: IDigicertFormData) => {
-    if (!config) return null;
-  };
+  const generateEditPatchData = useCallback(
+    (formData: IDigicertFormData) => {
+      if (!config) return null;
+
+      const data: { integrations: Partial<IGlobalIntegrations> } = {
+        integrations: {},
+      };
+
+      switch (certAuthorityType) {
+        case "ndes":
+          break;
+        case "digicert":
+          data.integrations.digicert = config.integrations.digicert?.map(
+            (cert) => {
+              // only update the certificate authority that we are editing
+              if (
+                (certAuthority as ICertificatesIntegrationDigicert).name ===
+                cert.name
+              ) {
+                return {
+                  name: formData.name,
+                  url: formData.url,
+                  api_token: formData.apiToken,
+                  profile_id: formData.profileId,
+                  certificate_common_name: formData.commonName,
+                  certificate_user_principal_names: [
+                    formData.userPrincipalName,
+                  ],
+                  certificate_seat_id: formData.certificateSeatId,
+                };
+              }
+              return cert;
+            }
+          );
+          break;
+        case "custom":
+          break;
+        default:
+          break;
+      }
+
+      return data;
+    },
+    [certAuthority, certAuthorityType, config]
+  );
 
   return {
     generateAddPatchData,
