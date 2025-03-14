@@ -460,6 +460,10 @@ func getQueriesCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
+						labelsAny := []string{}
+						for _, label := range query.LabelsIncludeAny {
+							labelsAny = append(labelsAny, label.LabelName)
+						}
 						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
@@ -473,6 +477,7 @@ func getQueriesCommand() *cli.Command {
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
 							DiscardData:        query.DiscardData,
+							LabelsIncludeAny:   labelsAny,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
