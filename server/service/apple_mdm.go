@@ -3978,6 +3978,8 @@ func preprocessProfileContents(
 						HostUUID:             hostUUID,
 						ProfileUUID:          profUUID,
 						ChallengeRetrievedAt: ptr.Time(time.Now()),
+						Type:                 fleet.CAConfigNDES,
+						CAName:               "NDES",
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
@@ -4012,6 +4014,12 @@ func preprocessProfileContents(
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet SCEP proxy URL variable")
 					}
+					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
+						HostUUID:    hostUUID,
+						ProfileUUID: profUUID,
+						Type:        fleet.CAConfigCustomSCEPProxy,
+						CAName:      caName,
+					})
 				case fleetVar == FleetVarHostEndUserEmailIDP:
 					email, ok, err := getIDPEmail(ctx, ds, target, hostUUID)
 					if err != nil {
@@ -4102,6 +4110,8 @@ func preprocessProfileContents(
 						HostUUID:      hostUUID,
 						ProfileUUID:   profUUID,
 						NotValidAfter: &cert.NotValidAfter,
+						Type:          fleet.CAConfigDigiCert,
+						CAName:        caName,
 					})
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
