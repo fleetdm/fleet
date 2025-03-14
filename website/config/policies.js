@@ -15,6 +15,7 @@ module.exports.policies = {
   'query-generator/*': 'has-query-generator-access',
 
   // Bypass the `is-logged-in` policy for:
+
   'entrance/*': true,
   'webhooks/*': true,
   'account/logout': true,
@@ -68,4 +69,5 @@ module.exports.policies = {
   'view-os-settings': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
+  'microsoft-proxy/*': true,
 };

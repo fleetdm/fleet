@@ -959,4 +959,17 @@ module.exports.routes = {
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+
+
+
+  //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╩ ╩╩╚═╝╩╚═╚═╝╚═╝╚═╝╚   ╩   ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/microsoft-compliance-partner': { action: 'intune-proxy/create-compliance-partner-tenant', csrf: false },
+  'POST /api/v1/microsoft-compliance-partner/setup': { action: 'microsoft-proxy/setup-compliance-partner-tenant', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/settings': { action: 'microsoft-proxy/get-compliance-partner-settings', csrf: false },
+  'DELETE /api/v1/microsoft-compliance-partner': { action: 'microsoft-proxy/remove-one-compliance-partner-tenant', csrf: false },
+  'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', csrf: false },
+
 };
