@@ -1,0 +1,7 @@
+{
+  "name": "Dropbox",
+  "slug": "dropbox/darwin",
+  "unique_identifier": "com.getdropbox.dropbox",
+  "token": "dropbox",
+  "installer_format": "dmg"
+}
