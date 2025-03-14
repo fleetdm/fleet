@@ -732,6 +732,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				eeservice.NewSCEPConfigService(logger, nil),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -1081,13 +1082,10 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				// TODO: need a mechanism to check if android feature is enabled
 				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
 					svc,
 					config.Server.URLPrefix,
-					appCfg.MDM.EnabledAndConfigured,
-					appCfg.MDM.AndroidEnabledAndConfigured,
-					os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1",
+					ds,
 					logger,
 				)
 			}
@@ -1166,7 +1164,7 @@ the way that the Fleet server works.
 
 			// SCEP proxy (for NDES, etc.)
 			if license.IsPremium() {
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
 			}

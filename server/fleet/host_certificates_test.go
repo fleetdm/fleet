@@ -90,6 +90,31 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 			input:    "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM/",
 			expected: &expected,
 		},
+		{
+			name:  "simple common name",
+			input: "/CN=FleetDM",
+			expected: &HostCertificateNameDetails{
+				Country:            "",
+				Organization:       "",
+				OrganizationalUnit: "",
+				CommonName:         "FleetDM",
+			},
+		},
+		{
+			name:  "simple common name with no leading slash",
+			input: "CN=FleetDM",
+			expected: &HostCertificateNameDetails{
+				Country:            "",
+				Organization:       "",
+				OrganizationalUnit: "",
+				CommonName:         "FleetDM",
+			},
+		},
+		{
+			name:  "invalid separator",
+			input: "/C=US,O=Fleet Device Management Inc.,OU=Fleet Device Management Inc.,CN=FleetDM",
+			err:   true,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

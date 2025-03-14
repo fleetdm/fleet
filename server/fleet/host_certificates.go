@@ -3,7 +3,7 @@ package fleet
 import (
 	"crypto/sha1" // nolint:gosec // used for compatibility with existing osquery certificates table schema
 	"crypto/x509"
-	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -189,18 +189,13 @@ type MDMAppleErrorChainItem struct {
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
 	str = strings.TrimSpace(str)
 	str = strings.Trim(str, "/")
-
-	if !strings.Contains(str, "/") {
-		return nil, errors.New("invalid format, wrong separator")
-	}
-
 	parts := strings.Split(str, "/")
 
 	var details HostCertificateNameDetails
 	for _, part := range parts {
 		kv := strings.Split(part, "=")
 		if len(kv) != 2 {
-			return nil, errors.New("invalid distinguished name, wrong key value pair format")
+			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
 		}
 
 		switch strings.ToUpper(kv[0]) {
