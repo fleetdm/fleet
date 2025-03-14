@@ -1,2 +1,0 @@
-- Fixed a bug that caused macOS App Store apps to show up in Fleet as Windows apps if the Windows
-  version of the app was already in Fleet.
