@@ -8,11 +8,11 @@ module.exports = {
 
 
   inputs: {
-    entra_tenant_id: {
+    entraTenantId: {
       type: 'string',
       required: true,
     },
-    fleet_license_key: {
+    fleetLicenseKey: {
       type: 'string',
       required: true,
     }
@@ -26,25 +26,24 @@ module.exports = {
   },
 
 
-  fn: async function ({entra_tenant_id, fleet_license_key}) {
+  fn: async function ({entraTenantId, fleetLicenseKey}) {
 
     // Return a bad request response if this request came from a non-managed cloud Fleet instance.
     if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
       throw 'notACloudCustomer';
     }
 
-    let connectionAlreadyExists = await MicrosoftComplianceTenant.findOne({entraTenantId: entra_tenant_id});
+    let connectionAlreadyExists = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId});
     if(connectionAlreadyExists) {
       throw 'connectionAlreadyExists';
     }
 
-    // TODO: Do we need to validate the license key?
 
     // Create a new database record for this tenant.
     let newTenant = await MicrosoftComplianceTenant.create({
       apiKey: sails.helpers.strings.random.with({len: 30}),
-      entraTenantId: entra_tenant_id,
-      licenseKey: fleet_license_key,
+      entraTenantId: entraTenantId,
+      licenseKey: fleetLicenseKey,
       fleetInstanceUrl: this.req.headers['Origin'],
       setupCompleted: false,
     });
@@ -52,7 +51,7 @@ module.exports = {
 
     return {
       fleet_server_secret: newTenant.apiKey,
-      entra_tenant_id: entra_tenant_id,
+      entra_tenant_id: entraTenantId,
       entra_application_id: sails.config.custom.entraApplicationId
     };
 

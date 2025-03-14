@@ -8,14 +8,10 @@ module.exports = {
 
 
   inputs: {
-    message_id: {
+    messageId: {
       type: 'string',
       required: true,
-    },
-    entra_tenant_id: {
-      type: 'string',
-      required: true,
-    },
+    }
   },
 
 
@@ -25,15 +21,20 @@ module.exports = {
   },
 
 
-  fn: async function ({message_id, entra_tenant_id}) {
+  fn: async function ({messageId}) {
     // Return a bad request response if this request came from a non-managed cloud Fleet instance.
     if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
       throw 'notACloudCustomer';
     }
 
-    let complianceTenantInformation = await MicrosoftComplianceTenant.findOne({entraTenantId: entra_tenant_id});
+    if(!this.req.headers['Authorization']) {
+      return this.res.unauthorized();
+    }
+    let authHeaderValue = this.req.headers['Authorization'];
+    let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
+    let complianceTenantInformation = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
     if(!complianceTenantInformation) {
-      throw 'tenantNotFound';
+      return this.res.notFound();
     }
 
 
@@ -46,13 +47,13 @@ module.exports = {
 
     let complianceStatusResultResponse = await sails.helpers.http.sendHtttpRequest.with({
       method: 'GET',
-      url: `${deviceDataSyncUrl}/${encodeURIComponent(`DataUploadMessages(guid${message_id}`)}?api-version=1.2`,
+      url: `${deviceDataSyncUrl}/${encodeURIComponent(`DataUploadMessages(guid${messageId}`)}?api-version=1.2`,
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
     });
     let result = {
-      message_id,
+      message_id: messageId,
       status: complianceStatusResultResponse.Status
     };
 

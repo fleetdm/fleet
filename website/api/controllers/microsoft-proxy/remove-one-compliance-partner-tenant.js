@@ -8,7 +8,9 @@ module.exports = {
 
 
   exits: {
-
+    success: {
+      description: 'The requesting entra tenant has been successfully deprovisioned.'
+    }
   },
 
 
@@ -22,7 +24,7 @@ module.exports = {
     if(!this.req.headers['Authorization']) {
       return this.res.unauthorized();
     }
-
+    let authHeaderValue = this.req.headers['Authorization'];
     let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
     if(!informationAboutThisTenant) {
