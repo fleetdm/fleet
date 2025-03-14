@@ -1483,6 +1483,7 @@ This activity contains the following fields:
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 
+
 #### Example
 
 ```json
