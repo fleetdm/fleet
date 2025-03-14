@@ -592,7 +592,9 @@ const DataTable = ({
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }
-                        style={multiRowSelectEnabled ? { cursor: "initial" } : {}}
+                        style={
+                          multiRowSelectEnabled ? { cursor: "initial" } : {}
+                        }
                         {...cellProps}
                       >
                         {cell.render("Cell")}
