@@ -26,14 +26,15 @@
 - Updated the UI for adding and editing software for a cleaner, cohesive experience.
 - Added auto-install to FMA via the API, replacing a more brittle client-side implementation.
 - Added pagination inside each of the Manage Automations modals for policies.
-- Added UI to turn on and off Android MDM.
-- Added Android MDM activities.
 - Added script execution to the new `upcoming_activities` table.
 - Added software installs to the new `upcoming_activities` table.
 - Added vpp apps installs to the new `upcoming_activities` table.
 - Updated the list upcoming activities endpoint to use the new `upcoming_activities` table as source of truth.
 - Added support to activate the next activity when one is enqueued or when one is completed.
 - Added UI to the BYOD enrollment page to support enrolling Android devices into Fleet MDM.
+- Added UI to turn on and off Android MDM.
+- Added Android MDM activities.
+> **NOTE:** Android features are currently experimental and disabled by default. To enable, set `ANDROID_FEATURE_ENABLED=1`.
 - Updated UI for device user page with improved instructions for turning on MDM.
 - Added `PATCH /api/latest/fleet/software/titles/:id/name` endpoint for cleaning up incorrect software titles for software that has a bundle ID.
 - Added a daily job that keeps the App Store app version displayed in Fleet in sync with the actual latest version.
