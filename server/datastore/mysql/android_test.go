@@ -243,7 +243,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
 
 	// turn MDM off for android
-	err = ds.androidDS.DeleteAllEnterprises(testCtx())
+	err = ds.DeleteAllEnterprises(testCtx())
 	require.NoError(t, err)
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
