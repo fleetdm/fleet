@@ -4487,6 +4487,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 				require.Equal(t, e.AppStoreApp.AppStoreID, g.AppStoreApp.AppStoreID)
 				require.Equal(t, e.AppStoreApp.Name, g.AppStoreApp.Name)
 				require.Equal(t, e.AppStoreApp.Version, g.AppStoreApp.Version)
+				require.Equal(t, e.AppStoreApp.Platform, g.AppStoreApp.Platform)
 				if e.AppStoreApp.LastInstall != nil {
 					require.Equal(t, e.AppStoreApp.LastInstall.InstallUUID, g.AppStoreApp.LastInstall.InstallUUID)
 					require.Equal(t, e.AppStoreApp.LastInstall.CommandUUID, g.AppStoreApp.LastInstall.CommandUUID)
@@ -4613,7 +4614,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp2",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ipados", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
