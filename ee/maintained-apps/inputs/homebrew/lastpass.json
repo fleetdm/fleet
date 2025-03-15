@@ -1,0 +1,7 @@
+{
+  "name": "LastPass",
+  "slug": "lastpass/darwin",
+  "unique_identifier": "com.lastpass.lastpassmacdesktop",
+  "token": "lastpass",
+  "installer_format": "dmg"
+}

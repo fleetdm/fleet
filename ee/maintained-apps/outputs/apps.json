@@ -16,6 +16,20 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
+      "name": "Asana",
+      "slug": "asana/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.asana",
+      "description": ""
+    },
+    {
+      "name": "BBEdit",
+      "slug": "bbedit/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.barebones.bbedit",
+      "description": ""
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -30,6 +44,20 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Cisco Jabber",
+      "slug": "cisco-jabber/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.cisco.Jabber",
+      "description": ""
+    },
+    {
+      "name": "Citrix Workspace",
+      "slug": "citrix-workspace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.citrix.receiver.nomas",
+      "description": ""
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
@@ -37,11 +65,32 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Discord",
+      "slug": "discord/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.hnc.Discord",
+      "description": ""
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
       "unique_identifier": "com.docker.docker",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
+      "name": "draw.io",
+      "slug": "drawio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.jgraph.drawio.desktop",
+      "description": ""
+    },
+    {
+      "name": "Dropbox",
+      "slug": "dropbox/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.getdropbox.dropbox",
+      "description": ""
     },
     {
       "name": "Figma",
@@ -58,11 +107,25 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "GitHub Desktop",
+      "slug": "github-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.GitHubClient",
+      "description": ""
+    },
+    {
       "name": "Google Chrome",
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "LastPass",
+      "slug": "lastpass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lastpass.lastpassmacdesktop",
+      "description": ""
     },
     {
       "name": "Microsoft Edge",
