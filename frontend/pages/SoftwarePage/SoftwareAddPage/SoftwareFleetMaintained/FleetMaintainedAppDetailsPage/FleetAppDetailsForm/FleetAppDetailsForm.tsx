@@ -9,10 +9,13 @@ import Button from "components/buttons/Button";
 import Card from "components/Card";
 import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
 } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
 
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -21,6 +24,22 @@ import { generateFormValidation } from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
+export const softwareAlreadyAddedTipContent = (softwareTitleId?: number) => {
+  const pathToSoftwareTitles = softwareTitleId
+    ? paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString())
+    : "";
+
+  return (
+    <>
+      You already added this software.{" "}
+      <CustomLink
+        url={pathToSoftwareTitles}
+        text="View software"
+        variant="tooltip-link"
+      />
+    </>
+  );
+};
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
   automaticInstall: boolean;
@@ -49,6 +68,7 @@ interface IFleetAppDetailsFormProps {
   onClickShowSchema: () => void;
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
+  softwareTitleId?: number;
 }
 
 const FleetAppDetailsForm = ({
@@ -61,6 +81,7 @@ const FleetAppDetailsForm = ({
   onClickShowSchema,
   onCancel,
   onSubmit,
+  softwareTitleId,
 }: IFleetAppDetailsFormProps) => {
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
@@ -143,10 +164,11 @@ const FleetAppDetailsForm = ({
     onSubmit(formData);
   };
 
-  const isSubmitDisabled = !formValidation.isValid;
   const gitOpsModeDisabledClass = gitOpsModeEnabled
     ? "form-fields--disabled"
     : "";
+  const isSoftwareAlreadyAdded = !!softwareTitleId;
+  const isSubmitDisabled = !formValidation.isValid || isSoftwareAlreadyAdded;
 
   return (
     <form className={`${baseClass}`} onSubmit={onSubmitForm}>
@@ -156,6 +178,7 @@ const FleetAppDetailsForm = ({
             formData={formData}
             onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
             onToggleSelfService={onToggleSelfServiceCheckbox}
+            disableOptions={isSoftwareAlreadyAdded}
           />
         </Card>
         <Card paddingSize="medium" borderRadiusSize="large">
@@ -173,6 +196,7 @@ const FleetAppDetailsForm = ({
             onSelectCustomTarget={onSelectCustomTargetOption}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            disableOptions={isSoftwareAlreadyAdded}
           />
         </Card>
       </div>
@@ -186,6 +210,7 @@ const FleetAppDetailsForm = ({
           hideText="Advanced options"
           caretPosition="after"
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+          disabled={isSoftwareAlreadyAdded}
         />
         {showAdvancedOptions && (
           <AdvancedOptionsFields
@@ -212,13 +237,21 @@ const FleetAppDetailsForm = ({
       <div className={`${baseClass}__action-buttons`}>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={disableChildren || isSubmitDisabled}
+            <TooltipWrapper
+              tipContent={softwareAlreadyAddedTipContent(softwareTitleId)}
+              disableTooltip={!isSoftwareAlreadyAdded}
+              position="left"
+              showArrow
+              tipOffset={10}
             >
-              Add software
-            </Button>
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={disableChildren || isSubmitDisabled}
+              >
+                Add software
+              </Button>
+            </TooltipWrapper>
           )}
         />
         <Button onClick={onCancel} variant="inverse">
