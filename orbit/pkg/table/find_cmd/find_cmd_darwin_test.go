@@ -185,4 +185,96 @@ func TestGenerate(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, rows[0]["path"], filepath.Join(testDir, "zoo"))
+
+	// Test with not_perm argument
+	rows, err = Generate(context.Background(), table.QueryContext{
+		Constraints: map[string]table.ConstraintList{
+			"directory": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: testDir,
+					},
+				},
+			},
+			"not_perm": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: "-2",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, rows[0]["path"], testDir)
+
+	// Test with invalid not_perm argument
+	_, err = Generate(context.Background(), table.QueryContext{
+		Constraints: map[string]table.ConstraintList{
+			"directory": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: testDir,
+					},
+				},
+			},
+			"not_perm": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: "invalid",
+					},
+				},
+			},
+		},
+	})
+	require.Error(t, err)
+
+	// Test with mindepth and maxdepth
+	err = os.MkdirAll(filepath.Join(testDir, "a/b/c"), os.ModePerm)
+	require.NoError(t, err)
+
+	rows, err = Generate(context.Background(), table.QueryContext{
+		Constraints: map[string]table.ConstraintList{
+			"directory": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: testDir,
+					},
+				},
+			},
+			"mindepth": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: "2",
+					},
+				},
+			},
+			"maxdepth": {
+				Affinity: table.ColumnTypeText,
+				Constraints: []table.Constraint{
+					{
+						Operator:   table.OperatorEquals,
+						Expression: "3",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	require.Equal(t, rows[0]["path"], filepath.Join(testDir, "a/b"))
+	require.Equal(t, rows[1]["path"], filepath.Join(testDir, "a/b/c"))
 }
