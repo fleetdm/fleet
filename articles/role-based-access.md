@@ -44,6 +44,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
+| Add user information from IdP to hosts\*                                                                                                   |          |            | ✅          | ✅    |        |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
