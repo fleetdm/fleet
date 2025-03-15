@@ -294,7 +294,9 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
+  const canAddNewLabels =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
