@@ -2512,9 +2512,11 @@ last_vpp_install AS (
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			COALESCE(lsia.created_at, lvia.created_at) as last_install_installed_at,
 			COALESCE(lsia.execution_id, lvia.execution_id) as last_install_install_uuid,
@@ -2658,9 +2660,11 @@ last_vpp_install AS (
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
@@ -2841,9 +2845,11 @@ last_vpp_install AS (
 		package_self_service,
 		package_name,
 		package_version,
+		package_platform,
 		vpp_app_self_service,
 		vpp_app_adam_id,
 		vpp_app_version,
+		vpp_app_platform,
 		vpp_app_icon_url,
 		last_install_installed_at,
 		last_install_install_uuid,
@@ -2923,9 +2929,11 @@ last_vpp_install AS (
 		PackageSelfService             *bool      `db:"package_self_service"`
 		PackageName                    *string    `db:"package_name"`
 		PackageVersion                 *string    `db:"package_version"`
+		PackagePlatform                *string    `db:"package_platform"`
 		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
 		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
 		VPPAppVersion                  *string    `db:"vpp_app_version"`
+		VPPAppPlatform                 *string    `db:"vpp_app_platform"`
 		VPPAppIconURL                  *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
@@ -2945,9 +2953,14 @@ last_vpp_install AS (
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
 			}
+			var platform string
+			if hs.PackagePlatform != nil {
+				platform = *hs.PackagePlatform
+			}
 			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:        *hs.PackageName,
 				Version:     version,
+				Platform:    platform,
 				SelfService: hs.PackageSelfService,
 			}
 
@@ -2978,9 +2991,14 @@ last_vpp_install AS (
 			if hs.VPPAppVersion != nil {
 				version = *hs.VPPAppVersion
 			}
+			var platform string
+			if hs.VPPAppPlatform != nil {
+				platform = *hs.VPPAppPlatform
+			}
 			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:  *hs.VPPAppAdamID,
 				Version:     version,
+				Platform:    platform,
 				SelfService: hs.VPPAppSelfService,
 				IconURL:     hs.VPPAppIconURL,
 			}
