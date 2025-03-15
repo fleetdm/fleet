@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log/level"
 )
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error {
@@ -214,11 +215,18 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				SelfService:        false,
 				ForSetupExperience: true,
 			})
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "queueing vpp app installation")
-			}
+
 			app.NanoCommandUUID = &cmdUUID
 			app.Status = fleet.SetupExperienceStatusRunning
+
+			if err != nil {
+				// if we get an error (e.g. no available licenses) while attempting to enqueue the
+				// install, then we should immediately go to an error state so setup experience
+				// isn't blocked.
+				level.Warn(svc.logger).Log("msg", "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
+				app.Status = fleet.SetupExperienceStatusFailure
+				app.Error = ptr.String(err.Error())
+			}
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 			}
