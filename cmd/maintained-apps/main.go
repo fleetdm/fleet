@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -23,17 +24,38 @@ func main() {
 	logger = level.NewFilter(logger, level.AllowDebug())
 	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 
+	filePtr := flag.String("file", "", "a specific input file to ingest")
+
+	flag.Parse()
+
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
 
 	ingesters := map[string]maintained_apps.Ingester{
-		"ee/maintained-apps/inputs/homebrew": homebrew.IngestApps,
-		"ee/maintained-apps/inputs/winget":   winget.IngestApps,
+		"ee/maintained-apps/inputs/homebrew": homebrew.NewHomebrewIngester(logger),
+		"ee/maintained-apps/inputs/winget":   winget.NewWingetIngester(logger),
+	}
+
+	if filePtr != nil {
+		dir := path.Dir(*filePtr)
+		if i, ok := ingesters[dir]; ok {
+			app, err := i.IngestApp(ctx, *filePtr)
+			if err != nil {
+				level.Error(logger).Log("msg", "failed to ingest app", "err", err)
+				return
+			}
+
+			if err := processOutput(ctx, app); err != nil {
+				level.Error(logger).Log("msg", "failed to process maintained app output", "err", err)
+			}
+		}
+		return
 	}
 
 	for p, i := range ingesters {
-		apps, err := i(ctx, logger, p)
+		apps, err := i.IngestApps(ctx, p)
 		if err != nil {
-			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
+			level.Error(logger).Log("msg", "failed to ingest apps", "err", err)
+			continue
 		}
 
 		for _, app := range apps {
