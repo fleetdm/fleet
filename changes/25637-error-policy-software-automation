@@ -1,1 +1,0 @@
-- Fleet UI: Fixed policy software automation that falsely reported success when updates actually failed. Users will now be properly notified of failed automation saves.

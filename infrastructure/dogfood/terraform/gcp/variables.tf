@@ -68,7 +68,7 @@ variable "redis_mem" {
 }
 
 variable "image" {
-  default = "fleetdm/fleet:v4.64.2"
+  default = "fleetdm/fleet:v4.65.0"
 }
 
 variable "software_installers_bucket_name" {
