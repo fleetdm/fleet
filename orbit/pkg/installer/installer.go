@@ -269,6 +269,8 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		log.Info().Str("install_id", installID).Msgf("about to download software installer")
 		installerPath, err = r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 		if err != nil {
+			err = fmt.Errorf("downloading installer for installation %s: %w", installID, err)
+			payload.ExecutionError = ptr.String(err.Error())
 			return payload, err
 		}
 	}

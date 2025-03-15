@@ -572,6 +572,7 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+	ExecutionError            *string `json:"execution_error"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic
