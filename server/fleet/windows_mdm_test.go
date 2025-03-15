@@ -411,9 +411,9 @@ func TestValidateUserProvided(t *testing.T) {
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 				  <!-- this is a comment -->
-					<!-- this is another comment -->
+				  <!-- this is another comment -->
 				  <Replace>
-					<!-- this is a comment inside replace -->
+				  <!-- this is a comment inside replace -->
 				    <Target>
 				      <LocURI>Custom/URI</LocURI>
 				    </Target>
