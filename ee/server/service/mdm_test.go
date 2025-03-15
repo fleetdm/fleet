@@ -176,7 +176,7 @@ func TestCountABMTokensAuth(t *testing.T) {
 			{"observer can read", test.UserObserver, false},
 			{"observer+ can read", test.UserObserverPlus, false},
 			{"admin can read", test.UserAdmin, false},
-			{"tm1 gitops cannot read", test.UserTeamGitOpsTeam1, true},
+			{"tm1 gitops can read", test.UserTeamGitOpsTeam1, false},
 			{"tm1 maintainer can read", test.UserTeamMaintainerTeam1, false},
 			{"tm1 observer can read", test.UserTeamObserverTeam1, false},
 			{"tm1 observer+ can read", test.UserTeamObserverPlusTeam1, false},

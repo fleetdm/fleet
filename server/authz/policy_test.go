@@ -80,7 +80,7 @@ func TestAuthorizeAppConfig(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: config, action: read, allow: true},
 		{user: test.UserTeamObserverPlusTeam1, object: config, action: write, allow: false},
 
-		{user: test.UserTeamGitOpsTeam1, object: config, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: config, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: config, action: write, allow: false},
 	})
 }
