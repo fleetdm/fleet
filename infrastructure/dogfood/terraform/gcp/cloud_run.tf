@@ -135,6 +135,10 @@ resource "google_cloud_run_service" "default" {
           value = "true"
         }
         env {
+          name = "FLEET_SERVER_FORCE_H2C"
+          value = "true"
+        }
+        env {
           name  = "FLEET_LOGGING_DEBUG"
           value = var.debug_logging
         }
