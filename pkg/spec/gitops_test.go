@@ -215,6 +215,16 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
+
+					// Check labels
+					require.Len(t, gitops.Labels, 2)
+					assert.Equal(t, "Global label numero uno", gitops.Labels[0].Name)
+					assert.Equal(t, "Global label numero dos", gitops.Labels[1].Name)
+					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
+					require.Len(t, gitops.Labels[1].Hosts, 2)
+					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
+					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+
 				}
 
 				// Check controls

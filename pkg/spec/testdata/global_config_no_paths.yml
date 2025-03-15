@@ -190,3 +190,14 @@ org_settings:
   secrets: # These secrets are used to enroll hosts to the "All teams" team
     - secret: SampleSecret123
     - secret: ABC
+labels:
+  - name: Global label numero uno
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
+  - name: Global label numero dos
+    description: A fly global label
+    hosts: 
+      - host1
+      - host2
+    label_membership_type: manual

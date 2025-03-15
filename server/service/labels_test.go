@@ -80,7 +80,7 @@ func TestLabelsAuth(t *testing.T) {
 		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			true,
+			false,
 			false,
 		},
 		{
