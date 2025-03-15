@@ -96,6 +96,9 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		case xml.ProcInst:
 			return errors.New("The file should include valid XML: processing instructions are not allowed.")
 
+		case xml.Comment:
+			continue
+
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "Replace", "Add":
