@@ -36,13 +36,13 @@ type Service interface {
 type ServiceWithIdentifier interface {
 	// GetCACaps returns a list of options
 	// which are supported by the server.
-	GetCACaps(ctx context.Context) ([]byte, error)
+	GetCACaps(ctx context.Context, identifier string) ([]byte, error)
 
 	// GetCACert returns CA certificate or
 	// a CA certificate chain with intermediates
 	// in a PKCS#7 Degenerate Certificates format
 	// message is an optional string for the CA
-	GetCACert(ctx context.Context, message string) ([]byte, int, error)
+	GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error)
 
 	// PKIOperation handles incoming SCEP messages such as PKCSReq and
 	// sends back a CertRep PKIMessag.

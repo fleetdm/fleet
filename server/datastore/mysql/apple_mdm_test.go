@@ -7206,11 +7206,7 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	// Host and profile do not have certificate metadata
 	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
 	require.NoError(t, err)
-	require.NotNil(t, profile)
-	assert.Equal(t, host.UUID, profile.HostUUID)
-	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
-	assert.Nil(t, profile.ChallengeRetrievedAt)
-	assert.Nil(t, profile.NotValidAfter)
+	assert.Nil(t, profile)
 
 	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
 	notValidAfter := time.Now().Add(24 * time.Hour).UTC().Round(time.Microsecond)
@@ -7220,6 +7216,8 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 			ProfileUUID:          initialCP.ProfileUUID,
 			ChallengeRetrievedAt: &challengeRetrievedAt,
 			NotValidAfter:        &notValidAfter,
+			Type:                 fleet.CAConfigCustomSCEPProxy,
+			CAName:               "test-ca",
 		},
 	})
 	require.NoError(t, err)
@@ -7233,6 +7231,8 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profile.ChallengeRetrievedAt)
 	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
 	assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, profile.Type)
+	assert.Equal(t, "test-ca", profile.CAName)
 
 	// Cleanup should do nothing
 	err = ds.CleanUpMDMManagedCertificates(ctx)

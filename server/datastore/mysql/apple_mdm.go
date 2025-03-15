@@ -516,10 +516,12 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		hmap.profile_uuid,
 		hmap.status,
 		hmmc.challenge_retrieved_at,
-		hmmc.not_valid_after
+		hmmc.not_valid_after,
+		hmmc.type,
+		hmmc.ca_name
 	FROM
 		host_mdm_apple_profiles hmap
-	LEFT JOIN host_mdm_managed_certificates hmmc
+	JOIN host_mdm_managed_certificates hmmc
 		ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid
 	WHERE
 		hmap.host_uuid = ? AND hmap.profile_uuid = ?`
@@ -5813,12 +5815,16 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
               host_uuid,
               profile_uuid,
               challenge_retrieved_at,
-	          not_valid_after
+	          not_valid_after,
+			  type,
+			  ca_name
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
               challenge_retrieved_at = VALUES(challenge_retrieved_at),
-			  not_valid_after = VALUES(not_valid_after)`,
+			  not_valid_after = VALUES(not_valid_after),
+			  type = VALUES(type),
+			  ca_name = VALUES(ca_name)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -5827,8 +5833,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter}
+		valuePart := "(?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter, p.Type, p.CAName}
 		return valuePart, args
 	}
 

@@ -1065,7 +1065,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 
 	// if additional DigiCert validation is needed, get the encrypted config assets from DB
 	if additionalDigiCertValidationNeeded {
-		remainingOldCAs := findWhichDigiCertCAsWereDeleted(oldAppConfig, newAppConfig, &result)
+		remainingOldCAs := filterDeletedDigiCertCAs(oldAppConfig, newAppConfig, &result)
 
 		err := svc.populateDigiCertAPITokens(ctx, remainingOldCAs)
 		if err != nil {
@@ -1164,7 +1164,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 	}
 
 	if additionalCustomSCEPValidationNeeded {
-		remainingOldCAs := findWhichCustomSCEPCAsWereDeleted(oldAppConfig, newAppConfig, &result)
+		remainingOldCAs := filterDeletedCustomSCEPCAs(oldAppConfig, newAppConfig, &result)
 		err := svc.populateCustomSCEPChallenges(ctx, remainingOldCAs)
 		if err != nil {
 			return result, ctxerr.Wrap(ctx, err, "populate challenges")
@@ -1247,7 +1247,9 @@ func (svc *Service) populateCustomSCEPChallenges(ctx context.Context, remainingO
 	return nil
 }
 
-func findWhichDigiCertCAsWereDeleted(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
+// filterDeletedDigiCertCAs identifies deleted DigiCert integrations in the provided configs.
+// It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
+func filterDeletedDigiCertCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
 	result *appConfigCAStatus) []fleet.DigiCertIntegration {
 	remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
 	for _, oldCA := range oldAppConfig.Integrations.DigiCert.Value {
@@ -1267,7 +1269,9 @@ func findWhichDigiCertCAsWereDeleted(oldAppConfig *fleet.AppConfig, newAppConfig
 	return remainingOldCAs
 }
 
-func findWhichCustomSCEPCAsWereDeleted(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
+// filterDeletedCustomSCEPCAs identifies deleted custom SCEP integrations in the provided configs.
+// It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
+func filterDeletedCustomSCEPCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
 	result *appConfigCAStatus) []fleet.CustomSCEPProxyIntegration {
 	remainingOldCAs := make([]fleet.CustomSCEPProxyIntegration, 0, len(oldAppConfig.Integrations.CustomSCEPProxy.Value))
 	for _, oldCA := range oldAppConfig.Integrations.CustomSCEPProxy.Value {

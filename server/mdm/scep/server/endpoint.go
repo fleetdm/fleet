@@ -177,9 +177,9 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 		resp := SCEPResponse{operation: req.Operation}
 		switch req.Operation {
 		case "GetCACaps":
-			resp.Data, resp.Err = svc.GetCACaps(ctx)
+			resp.Data, resp.Err = svc.GetCACaps(ctx, req.Identifier)
 		case "GetCACert":
-			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
+			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message), req.Identifier)
 		case "PKIOperation":
 			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
 		default:
