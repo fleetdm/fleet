@@ -583,22 +583,8 @@ const DataTable = ({
                   {row.cells.map((cell: any, index: number) => {
                     // Only allow row click behavior on first cell
                     // if the first cell is not a checkbox
-                    const isFirstCell = index === 0;
                     const cellProps = cell.getCellProps();
-
-                    const multiRowSelectCell =
-                      isFirstCell && !disableMultiRowSelect;
-
-                    if (!multiRowSelectCell) {
-                      cellProps.onClick = () => {
-                        onClickRow && onClickRow(row);
-                      };
-                      cellProps.onKeyDown = (e: KeyboardEvent) => {
-                        if (e.key === "Enter") {
-                          onClickRow && onClickRow(row);
-                        }
-                      };
-                    }
+                    const multiRowSelectEnabled = !disableMultiRowSelect;
 
                     return (
                       <td
@@ -606,7 +592,9 @@ const DataTable = ({
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }
-                        style={multiRowSelectCell ? { cursor: "initial" } : {}}
+                        style={
+                          multiRowSelectEnabled ? { cursor: "initial" } : {}
+                        }
                         {...cellProps}
                       >
                         {cell.render("Cell")}
