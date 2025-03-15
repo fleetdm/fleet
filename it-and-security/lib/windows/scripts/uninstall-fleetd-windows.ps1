@@ -1,3 +1,5 @@
+# Please don't delete. This script is referenced in the guide here: https://fleetdm.com/guides/how-to-uninstall-fleetd
+
 function Test-Administrator
 {
     [OutputType([bool])]
@@ -26,7 +28,6 @@ function Resolve-Error-Detailed($ErrorRecord = $Error[0]) {
 
 #Stops Orbit service and related processes
 function Stop-Orbit {
-
   # Stop Service
   Stop-Service -Name "Fleet osquery" -ErrorAction "Continue"
   Start-Sleep -Milliseconds 1000
@@ -40,9 +41,7 @@ function Stop-Orbit {
 
 #Remove Orbit footprint from registry and disk
 function Force-Remove-Orbit {
-
   try {
-
     #Stoping Orbit
     Stop-Orbit
 
@@ -58,23 +57,24 @@ function Force-Remove-Orbit {
 
     #Remove HKLM registry entries
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
-
       # Filter for osquery entries
       $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
       if ($properties) {
-
         #Remove Registry Entries
         $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
-
         Get-Item $regKey -ErrorAction "SilentlyContinue" | Remove-Item -Force -ErrorAction "SilentlyContinue"
-
         return
       }
     }
+    
+    # Write success log
+    "Fleet successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
   }
   catch {
     Write-Host "There was a problem running Force-Remove-Orbit"
     Write-Host "$(Resolve-Error-Detailed)"
+    # Write error log
+    "Error removing Fleet at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
     return $false
   }
 
@@ -82,51 +82,55 @@ function Force-Remove-Orbit {
 }
 
 function Main {
-
   try {
     # Is Administrator check
     if (-not (Test-Administrator)) {
-      Write-Host "Please run this script with adming privileges."
+      Write-Host "Please run this script with admin privileges."
       Exit -1
     }
 
     Write-Host "About to uninstall fleetd..."
 
-    if ($mode -eq "remove") {
-        # "remove" is received as argument to the script when called as the
-        # sub-process that will actually remove the fleet agent.
+    if ($args[0] -eq "remove") {
+      # "remove" is received as argument to the script when called as the
+      # sub-process that will actually remove the fleet agent.
 
-        # sleep to give time to fleetd to send the script results to Fleet
-        Start-Sleep -Seconds 20
-        if (Force-Remove-Orbit) {
-            Write-Host "fleetd was uninstalled."
-            Exit 0
-        } else {
-            Write-Host "There was a problem uninstalling fleetd."
-            Exit -1
-        }
+      # Log the start of removal process
+      "Starting removal process at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+      
+      # sleep to give time to fleetd to send the script results to Fleet
+      Start-Sleep -Seconds 20
+      
+      if (Force-Remove-Orbit) {
+        Write-Host "fleetd was uninstalled."
+        Exit 0
+      } else {
+        Write-Host "There was a problem uninstalling fleetd."
+        Exit -1
+      }
     } else {
-        # when this script is executed from fleetd, it does not immediately
-        # remove the agent. Instead, it starts a new detached process that
-        # will do the actual removal. This is done to avoid the agent being
-        # killed by the removal process, which prevents it from sending the
-        # script execution results to Fleet, causing the script to remain
-        # "Pending" and being re-executed when/if the host reinstalls the
-        # agent.
-        #
-        # See https://github.com/fleetdm/fleet/issues/19197#issuecomment-2150020270
-        $execName = $MyInvocation.ScriptName
-        $proc = Start-Process -PassThru -FilePath "powershell" -WindowStyle Hidden -ArgumentList "-MTA", "-ExecutionPolicy", "Bypass", "-File", "$execName remove"
-        Start-Sleep -Seconds 5 # give time to process to start running
-        Write-Host "Removal process started: $($proc.Id)."
+      # when this script is executed from fleetd, it does not immediately
+      # remove the agent. Instead, it starts a new detached process that
+      # will do the actual removal.
+      
+      Write-Host "Removing fleet, system will be unenrolled in 20 seconds..."
+      Write-Host "Executing detached child process"
+      
+      $execName = $MyInvocation.ScriptName
+      $proc = Start-Process -PassThru -FilePath "powershell" -WindowStyle Hidden -ArgumentList "-MTA", "-ExecutionPolicy", "Bypass", "-File", "$execName remove"
+      
+      # Log the process ID
+      "Started removal process with ID: $($proc.Id) at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+      
+      Start-Sleep -Seconds 5 # give time to process to start running
+      Write-Host "Removal process started: $($proc.Id)."
     }
-
   } catch {
-    Write-Host "Errorr: Entry point"
+    Write-Host "Error: Entry point"
     Write-Host "$(Resolve-Error-Detailed)"
     Exit -1
   }
 }
 
-$mode = $args[0]
-$null = Main
+# Execute the script with arguments passed to it
+Main $args[0]
