@@ -69,7 +69,6 @@ type listFleetMaintainedAppsRequest struct {
 }
 
 type listFleetMaintainedAppsResponse struct {
-	Count               int                       `json:"count"`
 	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
@@ -87,7 +86,6 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 
 	listResp := listFleetMaintainedAppsResponse{
 		FleetMaintainedApps: apps,
-		Count:               int(meta.TotalResults), //nolint:gosec // dismiss G115
 		Meta:                meta,
 	}
 
