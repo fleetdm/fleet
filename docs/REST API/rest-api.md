@@ -9976,7 +9976,7 @@ Returns information about the specified Fleet-maintained app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet-maintained app's ID. |
-
+| team_id  | integer | query | If supplied, set `software_title_id` on the response when an installer or VPP app has already been added to that team for that software.  |
 
 #### Example
 
