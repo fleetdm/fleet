@@ -1,11 +1,14 @@
 import React from "react";
 import classnames from "classnames";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "data-set";
 
 interface IDataSetProps {
   title: React.ReactNode;
   value: React.ReactNode;
+  //* Whether to truncate overflowing value and display it in full in a tooltipo */
+  tooltipTruncate?: boolean;
   orientation?: "horizontal" | "vertical";
   className?: string;
 }
@@ -13,6 +16,7 @@ interface IDataSetProps {
 const DataSet = ({
   title,
   value,
+  tooltipTruncate = false,
   orientation = "vertical",
   className,
 }: IDataSetProps) => {
@@ -26,7 +30,9 @@ const DataSet = ({
         {title}
         {orientation === "horizontal" && ":"}
       </dt>
-      <dd>{value}</dd>
+      <dd>
+        {tooltipTruncate ? <TooltipTruncatedText value={value} /> : value}
+      </dd>
     </div>
   );
 };

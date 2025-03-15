@@ -56,7 +56,11 @@ const About = ({
     if (isIosOrIpadosHost) {
       return (
         <>
-          <DataSet title="Serial number" value={aboutData.hardware_serial} />
+          <DataSet
+            title="Serial number"
+            value={aboutData.hardware_serial}
+            tooltipTruncate
+          />
           <DataSet title="Hardware model" value={aboutData.hardware_model} />
         </>
       );
@@ -119,6 +123,7 @@ const About = ({
         <DataSet
           title="MDM server URL"
           value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+          tooltipTruncate
         />
       </>
     );
