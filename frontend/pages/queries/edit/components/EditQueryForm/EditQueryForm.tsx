@@ -533,8 +533,8 @@ const EditQueryForm = ({
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
+          Schema
           <Icon name="info" size="small" />
-          Show schema
         </>
       </Button>
     );

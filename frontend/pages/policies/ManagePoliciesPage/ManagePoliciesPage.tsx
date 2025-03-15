@@ -57,7 +57,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
-import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
@@ -69,6 +68,7 @@ import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
 } from "./helpers";
+import { DEFAULT_POLICY } from "../constants";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -124,6 +124,9 @@ const ManagePolicyPage = ({
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
+    setLastEditedQueryBody,
+    setLastEditedQueryId,
+    setPolicyTeamId,
   } = useContext(PolicyContext);
 
   const {
@@ -154,7 +157,6 @@ const ManagePolicyPage = ({
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
 
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
     false
@@ -490,8 +492,6 @@ const ManagePolicyPage = ({
   const toggleOtherWorkflowsModal = () =>
     setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
-  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
-
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
@@ -778,7 +778,18 @@ const ManagePolicyPage = ({
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
-    toggleAddPolicyModal();
+    setPolicyTeamId(
+      currentTeamId === API_ALL_TEAMS_ID
+        ? APP_CONTEXT_ALL_TEAMS_ID
+        : currentTeamId
+    );
+    setLastEditedQueryBody(DEFAULT_POLICY.query);
+    setLastEditedQueryId(null);
+    router.push(
+      currentTeamId === API_ALL_TEAMS_ID
+        ? PATHS.NEW_POLICY
+        : `${PATHS.NEW_POLICY}?team_id=${currentTeamId}`
+    );
   };
 
   const onDeletePolicyClick = (selectedTableIds: number[]): void => {
@@ -1168,15 +1179,6 @@ const ManagePolicyPage = ({
             onSubmit={onUpdateOtherWorkflows}
             teamId={currentTeamId ?? 0}
             gitOpsModeEnabled={gitOpsModeEnabled}
-          />
-        )}
-        {showAddPolicyModal && (
-          <AddPolicyModal
-            onCancel={toggleAddPolicyModal}
-            router={router}
-            // default to all teams, though should be present here
-            teamId={currentTeamId ?? API_ALL_TEAMS_ID}
-            teamName={currentTeamName}
           />
         )}
         {showDeletePolicyModal && (
