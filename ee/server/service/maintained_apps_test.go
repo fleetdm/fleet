@@ -114,7 +114,7 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{}, nil
 	}
 	authorizer, err := authz.NewAuthorizer()
@@ -122,38 +122,52 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 	svc := &Service{authz: authorizer, ds: ds}
 
 	testCases := []struct {
-		name       string
-		user       *fleet.User
-		shouldFail bool
+		name                        string
+		user                        *fleet.User
+		shouldFailWithNoTeam        bool
+		shouldFailWithMatchingTeam  bool
+		shouldFailWithDifferentTeam bool
 	}{
 		{
 			"global admin",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			false,
 			false,
 		},
 		{
 			"global maintainer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
 			false,
+			false,
+			false,
 		},
 		{
 			"global observer",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			true,
+			true,
 			true,
 		},
 		{
 			"team admin",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
 			false,
+			false,
+			true,
 		},
 		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			false,
+			false,
+			true,
 		},
 		{
 			"team observer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+			true,
 			true,
 		},
 	}
@@ -162,9 +176,25 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
-			_, err := svc.GetFleetMaintainedApp(ctx, 123)
+			_, err := svc.GetFleetMaintainedApp(ctx, 123, nil)
 
-			if tt.shouldFail {
+			if tt.shouldFailWithNoTeam {
+				require.Error(t, err)
+				require.ErrorAs(t, err, &forbiddenError)
+			} else {
+				require.NoError(t, err)
+			}
+
+			_, err = svc.GetFleetMaintainedApp(ctx, 1, ptr.Uint(1))
+			if tt.shouldFailWithMatchingTeam {
+				require.Error(t, err)
+				require.ErrorAs(t, err, &forbiddenError)
+			} else {
+				require.NoError(t, err)
+			}
+
+			_, err = svc.GetFleetMaintainedApp(ctx, 1, ptr.Uint(2))
+			if tt.shouldFailWithDifferentTeam {
 				require.Error(t, err)
 				require.ErrorAs(t, err, &forbiddenError)
 			} else {

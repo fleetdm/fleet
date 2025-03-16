@@ -77,11 +77,11 @@ const teamFMATitlesJoin = `
 				LEFT JOIN
 					software_installers si
 					ON si.title_id = st.id AND si.global_or_team_id = ?
-					AND si.platform IN ("darwin","windows")
+					AND si.platform IN ('darwin','windows')
 				LEFT JOIN
 					vpp_apps va
 					ON va.title_id = st.id
-					AND va.platform = "darwin"
+					AND va.platform = 'darwin'
 				LEFT JOIN
 					vpp_apps_teams vat
 					ON vat.adam_id = va.adam_id
@@ -89,9 +89,9 @@ const teamFMATitlesJoin = `
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
 			) team_titles ON (
-				team_titles.bundle_identifier != "" AND team_titles.bundle_identifier = fla.bundle_identifier
+				team_titles.bundle_identifier != '' AND team_titles.bundle_identifier = fla.bundle_identifier
 			) OR (
-				team_titles.bundle_identifier = "" AND team_titles.name = fla.name
+				team_titles.bundle_identifier = '' AND team_titles.name = fla.name
 			)`
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {

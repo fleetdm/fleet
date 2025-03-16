@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
@@ -140,19 +141,16 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		{
 			ID:       maintained1.ID,
 			Name:     maintained1.Name,
-			Version:  maintained1.Version,
 			Platform: maintained1.Platform,
 		},
 		{
 			ID:       maintained2.ID,
 			Name:     maintained2.Name,
-			Version:  maintained2.Version,
 			Platform: maintained2.Platform,
 		},
 		{
 			ID:       maintained3.ID,
 			Name:     maintained3.Name,
-			Version:  maintained3.Version,
 			Platform: maintained3.Platform,
 		},
 	}
@@ -189,7 +187,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.True(t, meta.HasPreviousResults)
 
 	//
-	// Test excluding results for existing apps (installers)
+	// Test including software title ID for existing apps (installers)
 
 	/// Irrelevant package
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -230,7 +228,7 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on the right team with the wrong platform
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "Maintained1",
 		TeamID:           &team1.ID,
 		InstallScript:    "nothing",
@@ -256,12 +254,13 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 2)
-	require.EqualValues(t, meta.TotalResults, 2)
-	require.Equal(t, expectedApps[1:], apps)
+	require.Len(t, apps, 3)
+	require.EqualValues(t, meta.TotalResults, 3)
+	expectedApps[0].TitleID = ptr.Uint(titleID)
+	require.Equal(t, expectedApps, apps)
 
 	//
-	// Test excluding results for existing apps (VPP)
+	// Test including software title ID for existing apps (VPP)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -281,9 +280,9 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 2)
-	require.EqualValues(t, meta.TotalResults, 2)
-	require.Equal(t, expectedApps[1:], apps)
+	require.Len(t, apps, 3)
+	require.EqualValues(t, meta.TotalResults, 3)
+	require.Equal(t, expectedApps, apps)
 
 	// right vpp app, wrong team
 	vppMaintained2 := &fleet.VPPApp{
@@ -296,24 +295,14 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		},
 		BundleIdentifier: "fleet.maintained2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team2.ID)
 	require.NoError(t, err)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 2)
-	require.EqualValues(t, meta.TotalResults, 2)
-	require.Equal(t, expectedApps[1:], apps)
-
-	// right vpp app, right team
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
-	require.NoError(t, err)
-
-	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
-	require.NoError(t, err)
-	require.Len(t, apps, 1)
-	require.EqualValues(t, meta.TotalResults, 1)
-	require.Equal(t, expectedApps[2:], apps)
+	require.Len(t, apps, 3)
+	require.EqualValues(t, meta.TotalResults, 3)
+	require.Equal(t, expectedApps, apps)
 
 	// right app, right team, wrong platform
 	vppMaintained3 := &fleet.VPPApp{
@@ -332,15 +321,28 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 1)
-	require.EqualValues(t, meta.TotalResults, 1)
-	require.Equal(t, expectedApps[2:], apps)
+	require.Len(t, apps, 3)
+	require.EqualValues(t, meta.TotalResults, 3)
+	require.Equal(t, expectedApps, apps)
 
-	// viewing with no team selected shouldn't exclude any results
+	// right vpp app, right team
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 3)
+	require.EqualValues(t, meta.TotalResults, 3)
+	expectedApps[1].TitleID = ptr.Uint(vppApp.TitleID)
+	require.Equal(t, expectedApps, apps)
+
+	// viewing with no team selected shouldn't include any title IDs
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 3)
 	require.EqualValues(t, meta.TotalResults, 3)
+	expectedApps[0].TitleID = nil
+	expectedApps[1].TitleID = nil
 	require.Equal(t, expectedApps, apps)
 }
 
@@ -360,8 +362,10 @@ func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	gotApp, err := ds.GetMaintainedAppByID(ctx, expApp.ID)
+	gotApp, err := ds.GetMaintainedAppByID(ctx, expApp.ID, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, expApp, gotApp)
+
+	// TODO handle software title ID association
 }
