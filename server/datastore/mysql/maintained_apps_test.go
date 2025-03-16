@@ -23,8 +23,7 @@ func TestMaintainedApps(t *testing.T) {
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"IngestWithBrew", testIngestWithBrew},
-		{"ListAvailableApps", testListAvailableApps},
-		{"GetMaintainedAppByID", testGetMaintainedAppByID},
+		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 	}
 
 	for _, c := range cases {
@@ -90,7 +89,7 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, expectedTokens, actualTokens)
 }
 
-func testListAvailableApps(t *testing.T, ds *Datastore) {
+func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Zaphod Beeblebrox", "zaphod@example.com", true)
@@ -136,6 +135,14 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 		UninstallScript:  "echo uninstalled",
 	})
 	require.NoError(t, err)
+
+	gotApp, err := ds.GetMaintainedAppByID(ctx, maintained1.ID, nil)
+	require.NoError(t, err)
+	require.Equal(t, maintained1, gotApp)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, maintained1, gotApp)
 
 	expectedApps := []fleet.MaintainedApp{
 		{
@@ -246,6 +253,10 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, meta.TotalResults, 3)
 	require.Equal(t, expectedApps, apps)
 
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, maintained1, gotApp)
+
 	/// Correct team and platform
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE software_installers SET platform = ? WHERE platform = ?", fleet.MacOSPlatform, fleet.IOSPlatform)
@@ -258,6 +269,15 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, meta.TotalResults, 3)
 	expectedApps[0].TitleID = ptr.Uint(titleID)
 	require.Equal(t, expectedApps, apps)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, ptr.Uint(0))
+	require.NoError(t, err)
+	require.Equal(t, maintained1, gotApp)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, &team1.ID)
+	require.NoError(t, err)
+	maintained1.TitleID = ptr.Uint(titleID)
+	require.Equal(t, maintained1, gotApp)
 
 	//
 	// Test including software title ID for existing apps (VPP)
@@ -325,6 +345,10 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, meta.TotalResults, 3)
 	require.Equal(t, expectedApps, apps)
 
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, maintained3, gotApp)
+
 	// right vpp app, right team
 	_, err = ds.InsertVPPAppWithTeam(ctx, vppMaintained2, &team1.ID)
 	require.NoError(t, err)
@@ -336,6 +360,11 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	expectedApps[1].TitleID = ptr.Uint(vppApp.TitleID)
 	require.Equal(t, expectedApps, apps)
 
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained2.ID, &team1.ID)
+	require.NoError(t, err)
+	maintained2.TitleID = ptr.Uint(vppApp.TitleID)
+	require.Equal(t, maintained2, gotApp)
+
 	// viewing with no team selected shouldn't include any title IDs
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
@@ -344,28 +373,14 @@ func testListAvailableApps(t *testing.T, ds *Datastore) {
 	expectedApps[0].TitleID = nil
 	expectedApps[1].TitleID = nil
 	require.Equal(t, expectedApps, apps)
-}
 
-func testGetMaintainedAppByID(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	expApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:             "foo",
-		Token:            "token",
-		Version:          "1.0.0",
-		Platform:         "darwin",
-		InstallerURL:     "https://example.com/foo.zip",
-		SHA256:           "sha",
-		BundleIdentifier: "bundle",
-		InstallScript:    "install",
-		UninstallScript:  "uninstall",
-	})
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, nil)
 	require.NoError(t, err)
+	maintained1.TitleID = nil
+	require.Equal(t, maintained1, gotApp)
 
-	gotApp, err := ds.GetMaintainedAppByID(ctx, expApp.ID, nil)
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, nil)
 	require.NoError(t, err)
-
-	require.Equal(t, expApp, gotApp)
-
-	// TODO handle software title ID association
+	maintained3.TitleID = nil
+	require.Equal(t, maintained3, gotApp)
 }
