@@ -1945,12 +1945,14 @@ type Datastore interface {
 	//
 
 	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
-	// either the maintained app or a custom package for the same app is installed on the specified team, if a
-	// team is specified.
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
-	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
-	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
+	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
+	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.

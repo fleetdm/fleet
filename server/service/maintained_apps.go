@@ -101,7 +101,8 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 }
 
 type getFleetMaintainedAppRequest struct {
-	AppID uint `url:"app_id"`
+	AppID  uint  `url:"app_id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getFleetMaintainedAppResponse struct {
@@ -114,7 +115,7 @@ func (r getFleetMaintainedAppResponse) Error() error { return r.Err }
 func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getFleetMaintainedAppRequest)
 
-	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID)
+	app, err := svc.GetFleetMaintainedApp(ctx, req.AppID, req.TeamID)
 	if err != nil {
 		return getFleetMaintainedAppResponse{Err: err}, nil
 	}
@@ -122,7 +123,7 @@ func getFleetMaintainedApp(ctx context.Context, request any, svc fleet.Service) 
 	return getFleetMaintainedAppResponse{FleetMaintainedApp: app}, nil
 }
 
-func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
