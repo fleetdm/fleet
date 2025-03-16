@@ -186,9 +186,11 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}
 
-	return avail, &fleet.PaginationMetadata{
-		HasPreviousResults: opt.Page > 0,
-		HasNextResults:     uint(filteredCount) > (opt.Page+1)*opt.PerPage,
-		TotalResults:       uint(filteredCount), //nolint:gosec // dismiss G115
-	}, nil
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
+	if len(avail) > int(opt.PerPage) {                                                                     //nolint:gosec // dismiss G115
+		meta.HasNextResults = true
+		avail = avail[:len(avail)-1]
+	}
+
+	return avail, meta, nil
 }

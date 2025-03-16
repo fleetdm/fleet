@@ -191,6 +191,7 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 		return nil, nil, authErr
 	}
 
+	opts.IncludeMetadata = true
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet managed apps")
