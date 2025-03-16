@@ -11,13 +11,29 @@ type MaintainedApp struct {
 	TitleID          *uint  `json:"software_title_id" db:"software_title_id"`
 	InstallerURL     string `json:"url,omitempty" db:"installer_url"`
 	SHA256           string `json:"-" db:"sha256"`
-	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+	UniqueIdentifier string `json:"-" db:"bundle_identifier"`
 
 	// InstallScript and UninstallScript are not stored directly in the table, they
 	// must be filled via a JOIN on script_contents. On insert/update/upsert, these
 	// fields are used to provide the content of those scripts.
 	InstallScript   string `json:"install_script,omitempty" db:"install_script"`
 	UninstallScript string `json:"uninstall_script,omitempty" db:"uninstall_script"`
+}
+
+func (s *MaintainedApp) Source() string {
+	if s.Platform == "windows" {
+		return "programs"
+	}
+
+	return "apps"
+}
+
+func (s *MaintainedApp) BundleIdentifier() string {
+	if s.Platform == "windows" {
+		return ""
+	}
+
+	return s.UniqueIdentifier
 }
 
 // AuthzType implements authz.AuthzTyper.

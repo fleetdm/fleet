@@ -231,7 +231,7 @@ INSERT INTO software_installers (
 			payload.UserID,
 			payload.UserID,
 			payload.UserID,
-			payload.FleetLibraryAppID,
+			payload.FleetMaintainedAppID,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -254,7 +254,7 @@ INSERT INTO software_installers (
 			var installerMetadata automatic_policy.InstallerMetadata
 			// Not using apps.json as all queries there are identical to the auto-generated one based on bundle ID.
 			// Will need to be revised to work with FMAv2 and probably Windows.
-			if payload.FleetLibraryAppID != nil && payload.Platform == "darwin" {
+			if payload.FleetMaintainedAppID != nil && payload.Platform == "darwin" {
 				installerMetadata = automatic_policy.MacInstallerMetadata{Title: payload.Title, BundleIdentifier: payload.BundleIdentifier}
 			} else {
 				installerMetadata = automatic_policy.FullInstallerMetadata{

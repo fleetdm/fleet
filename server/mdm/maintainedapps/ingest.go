@@ -179,7 +179,7 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		Platform:         "darwin",
 		InstallerURL:     cask.URL,
 		SHA256:           cask.SHA256,
-		BundleIdentifier: app.BundleIdentifier,
+		UniqueIdentifier: app.BundleIdentifier,
 		InstallScript:    installScript,
 		UninstallScript:  uninstallScript,
 	})

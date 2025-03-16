@@ -53,7 +53,7 @@ ON DUPLICATE KEY UPDATE
 
 		// upsert the maintained app
 		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
-			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
+			app.SHA256, app.UniqueIdentifier, installScriptID, uninstallScriptID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
@@ -95,8 +95,7 @@ const teamFMATitlesJoin = `
 			)`
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
-	stmt := `SELECT fla.id, fla.name, fla.token, fla.version, fla.platform, fla.installer_url, fla.sha256, fla.bundle_identifier,
-		sc1.contents AS install_script, sc2.contents AS uninstall_script, `
+	stmt := `SELECT fla.id, fla.name, fla.platform, fla.bundle_identifier, fla.token, `
 	var args []any
 
 	if teamID != nil {
@@ -106,12 +105,7 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 		stmt += `NULL software_title_id FROM fleet_library_apps fla`
 	}
 
-	stmt += `
-JOIN script_contents sc1 ON sc1.id = fla.install_script_content_id
-JOIN script_contents sc2 ON sc2.id = fla.uninstall_script_content_id
-WHERE
-	fla.id = ?
-	`
+	stmt += ` WHERE fla.id = ?`
 	args = append(args, appID)
 
 	var app fleet.MaintainedApp

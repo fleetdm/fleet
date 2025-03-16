@@ -105,7 +105,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
-		BundleIdentifier: "fleet.maintained1",
+		UniqueIdentifier: "fleet.maintained1",
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
 	})
@@ -118,7 +118,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
-		BundleIdentifier: "fleet.maintained2",
+		UniqueIdentifier: "fleet.maintained2",
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
 	})
@@ -130,7 +130,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
 		SHA256:           "DEADBEEF",
-		BundleIdentifier: "fleet.maintained3",
+		UniqueIdentifier: "fleet.maintained3",
 		InstallScript:    "echo installed",
 		UninstallScript:  "echo uninstalled",
 	})
