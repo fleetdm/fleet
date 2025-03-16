@@ -168,7 +168,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
 	}
 
-	if filteredCount == 0 { // check if we have nothing in the filtered apps list, in which case provide an error back
+	if filteredCount == 0 { // check if we have nothing in the full apps list, in which case provide an error back
 		var totalCount int
 		if err := sqlx.GetContext(ctx, dbReader, &totalCount, `SELECT COUNT(id) FROM fleet_library_apps`); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps total count")
@@ -186,11 +186,9 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
 	}
 
-	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
-	if len(avail) > int(opt.PerPage) {                                                                     //nolint:gosec // dismiss G115
-		meta.HasNextResults = true
-		avail = avail[:len(avail)-1]
-	}
-
-	return avail, meta, nil
+	return avail, &fleet.PaginationMetadata{
+		HasPreviousResults: opt.Page > 0,
+		HasNextResults:     uint(filteredCount) > (opt.Page+1)*opt.PerPage,
+		TotalResults:       uint(filteredCount), //nolint:gosec // dismiss G115
+	}, nil
 }
