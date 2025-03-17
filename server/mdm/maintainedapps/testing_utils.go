@@ -1,4 +1,4 @@
-package maintainedapps
+package maintained_apps
 
 import (
 	"context"

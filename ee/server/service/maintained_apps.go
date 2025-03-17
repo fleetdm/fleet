@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -73,13 +73,13 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// Download installer from the URL
-	timeout := maintainedapps.InstallerTimeout
+	timeout := maintained_apps.InstallerTimeout
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerTFR, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
@@ -261,7 +261,7 @@ func (svc *Service) hydrateFMA(ctx context.Context, app *fleet.MaintainedApp) (*
 		return nil, ctxerr.Errorf(ctx, "manifest retrieval returned HTTP status %d: %s", res.StatusCode, string(body))
 	}
 
-	var manifest maintained_apps.FMAManifestFile
+	var manifest ma.FMAManifestFile
 	if err := json.Unmarshal(body, &manifest); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "unmarshal FMA manifest for %s", app.Token)
 	}

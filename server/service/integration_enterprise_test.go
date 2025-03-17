@@ -16165,7 +16165,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	insertedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
+	insertedApps := maintained_apps.IngestMaintainedApps(t, s.ds)
 	var expectedApps []fleet.MaintainedApp
 	for _, app := range insertedApps {
 		app.Version = "" // we don't expect version to be returned in list view anymore

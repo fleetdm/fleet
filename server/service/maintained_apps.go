@@ -30,7 +30,7 @@ func (r addFleetMaintainedAppResponse) Error() error { return r.Err }
 
 func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
-	ctx, cancel := context.WithTimeout(ctx, maintainedapps.InstallerTimeout)
+	ctx, cancel := context.WithTimeout(ctx, maintained_apps.InstallerTimeout)
 	defer cancel()
 	titleId, err := svc.AddFleetMaintainedApp(
 		ctx,

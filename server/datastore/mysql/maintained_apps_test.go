@@ -45,11 +45,11 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 		return apps
 	}
 
-	expectedApps := maintainedapps.IngestMaintainedApps(t, ds)
+	expectedApps := maintained_apps.IngestMaintainedApps(t, ds)
 	require.Equal(t, expectedApps, listSavedApps())
 
 	// ingesting again results in no changes
-	maintainedapps.IngestMaintainedApps(t, ds)
+	maintained_apps.IngestMaintainedApps(t, ds)
 	require.Equal(t, expectedApps, listSavedApps())
 
 	// upsert the figma app, changing the version
@@ -78,10 +78,10 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 	}
 
 	ctx := context.Background()
-	err := maintainedapps.Refresh(ctx, ds, log.NewNopLogger())
+	err := maintained_apps.Refresh(ctx, ds, log.NewNopLogger())
 	require.NoError(t, err)
 
-	expectedTokens := maintainedapps.ExpectedAppTokens(t)
+	expectedTokens := maintained_apps.ExpectedAppTokens(t)
 	var actualTokens []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")
