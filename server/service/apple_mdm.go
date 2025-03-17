@@ -52,7 +52,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 )
 
@@ -601,14 +601,30 @@ type PKCS12ProfileContent struct {
 	PayloadContent []PKCS12Payload `plist:"PayloadContent"`
 }
 type PKCS12Payload struct {
-	Password       string `plist:"Password"`
-	PayloadContent []byte `plist:"PayloadContent"`
-	PayloadType    string `plist:"PayloadType"`
+	Password       string               `plist:"Password"`
+	PayloadContent PKCS12PayloadContent `plist:"PayloadContent"`
+	PayloadType    string               `plist:"PayloadType"`
+}
+
+type PKCS12PayloadContent []byte
+
+func (p *PKCS12PayloadContent) UnmarshalPlist(f func(interface{}) error) error {
+	var val []byte
+	err := f(&val)
+	if err != nil {
+		// Ignore unmarshalling issues
+		return nil
+	}
+	*p = val
+	return nil
 }
 
 // additionalCustomSCEPValidation checks that Challenge/URL fields march Custom SCEP Fleet variables exactly,
 // and that these variables are only present in a "com.apple.security.scep" payload
 func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPVarsFound) error {
+	// Replace any Fleet variables in data fields. SCEP payload does not need them and we cannot unmarshal if they are present.
+	contents = mdm_types.ProfileDataVariableRegex.ReplaceAllString(contents, "")
+
 	var scepProf SCEPProfileContent
 	err := plist.Unmarshal([]byte(contents), &scepProf)
 	if err != nil {
@@ -648,8 +664,26 @@ type SCEPPayload struct {
 	PayloadType    string             `plist:"PayloadType"`
 }
 type SCEPPayloadContent struct {
-	Challenge string `plist:"Challenge"`
-	URL       string `plist:"URL"`
+	Challenge string
+	URL       string
+}
+
+func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
+	val := &struct {
+		Challenge string `plist:"Challenge"`
+		URL       string `plist:"URL"`
+	}{}
+	err := f(&val)
+	if err != nil {
+		// Ignore unmarshalling issues
+		*p = SCEPPayloadContent{}
+		return nil
+	}
+	*p = SCEPPayloadContent{
+		Challenge: val.Challenge,
+		URL:       val.URL,
+	}
+	return nil
 }
 
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {

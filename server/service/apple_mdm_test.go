@@ -50,10 +50,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/nanolib/log/stdlogfmt"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -4466,10 +4466,9 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile",
 		},
 		{
-			name: "Custom SCEP 2 profiles happy path",
-			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
-				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
-			errMsg: "",
+			name:    "Custom SCEP and DigiCert profiles happy path",
+			profile: customSCEPDigiCertValidationMobileconfig,
+			errMsg:  "",
 		},
 	}
 	for _, tc := range cases {
@@ -4511,3 +4510,6 @@ var customSCEPValidation2Mobileconfig string
 func customSCEPForValidation2(challenge1, url1, challenge2, url2 string) string {
 	return fmt.Sprintf(customSCEPValidation2Mobileconfig, challenge1, url1, challenge2, url2)
 }
+
+//go:embed testdata/profiles/custom-scep-digicert-validation.mobileconfig
+var customSCEPDigiCertValidationMobileconfig string
