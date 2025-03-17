@@ -9948,13 +9948,13 @@ List available Fleet-maintained apps.
       "id": 2,
       "name": "1Password",
       "platform": "windows",
-      "software_title_Id": null
+      "software_title_id": null
     },
     {
       "id": 3,
       "name": "Box Drive",
       "platform": "darwin",
-      "software_title_Id": null
+      "software_title_id": null
     },
     ...
   ],
