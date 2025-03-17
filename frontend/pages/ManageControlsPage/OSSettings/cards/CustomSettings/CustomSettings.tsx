@@ -167,7 +167,6 @@ const CustomSettings = ({
           )}
         />
         <Pagination
-          className={`${baseClass}__pagination-controls`}
           disableNext={!meta?.has_next_results}
           disablePrev={!meta?.has_previous_results}
           hidePagination={

@@ -251,7 +251,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         })}
       </ul>
       <Pagination
-        className={`${baseClass}__pagination-controls`}
         disablePrev={currentPage === 0}
         disableNext={disableNext()}
         onNextPage={() => setCurrentPage(currentPage + 1)}

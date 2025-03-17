@@ -70,35 +70,13 @@ const UpcomingActivityFeed = ({
           );
         })}
       </div>
-      <div className={`${baseClass}__pagination`}>
-        <Pagination
-          disablePrev={!meta.has_previous_results}
-          disableNext={!meta.has_next_results}
-          hidePagination={!meta.has_previous_results && !meta.has_next_results}
-          onPrevPage={() => onPreviousPage}
-          onNextPage={() => onNextPage}
-        />
-        <Button
-          disabled={!meta.has_previous_results}
-          onClick={onPreviousPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            <FleetIcon name="chevronleft" /> Previous
-          </>
-        </Button>
-        <Button
-          disabled={!meta.has_next_results}
-          onClick={onNextPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            Next <FleetIcon name="chevronright" />
-          </>
-        </Button>
-      </div>
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_previous_results && !meta.has_next_results}
+        onPrevPage={() => onPreviousPage}
+        onNextPage={() => onNextPage}
+      />
     </div>
   );
 };

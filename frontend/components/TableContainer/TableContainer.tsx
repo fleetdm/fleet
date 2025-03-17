@@ -266,6 +266,7 @@ const TableContainer = <T,>({
     additionalQueries,
   ]);
 
+  /** Clientside pagination is handled in data table using react-table builtins */
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
       return null;
