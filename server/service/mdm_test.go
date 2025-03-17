@@ -886,6 +886,9 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		require.Nil(t, teamID)
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
 	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		return false, nil
+	}
 
 	// Test that the summary properly combines the results of the two methods
 	des, err := svc.GetMDMDiskEncryptionSummary(ctx, nil)
