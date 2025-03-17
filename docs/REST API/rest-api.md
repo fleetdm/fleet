@@ -9543,7 +9543,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 | automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
-| automatic_patch | boolean | form | Create a policy that triggers a software install on all hosts running an older version. |
+| automatic_update | boolean | form | Create a policy that triggers a software install on all hosts running an older version. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
