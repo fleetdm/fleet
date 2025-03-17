@@ -9942,7 +9942,7 @@ List available Fleet-maintained apps.
       "id": 1,
       "name": "1Password",
       "platform": "darwin",
-      "software_title_Id": 1
+      "software_title_id": 1
     },
     {
       "id": 2,
