@@ -9923,7 +9923,7 @@ List available Fleet-maintained apps.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id  | integer | query | If supplied, only list apps for which an installer doesn't already exist for the specified team.  |
+| team_id  | integer | query | If specified, each app includes the `software_title_id` if the software has already been added to that team.  |
 | page     | integer | query | Page number of the results to fetch.  |
 | per_page | integer | query | Results per page.  |
 
@@ -9941,20 +9941,20 @@ List available Fleet-maintained apps.
     {
       "id": 1,
       "name": "1Password",
-      "version": "8.10.40",
-      "platform": "darwin"
+      "platform": "darwin",
+      "software_title_id": 1
     },
     {
       "id": 2,
       "name": "1Password",
-      "version": "8.10.40",
-      "platform": "windows"
+      "platform": "windows",
+      "software_title_id": null
     },
     {
       "id": 3,
       "name": "Box Drive",
-      "version": "2.39.179",
-      "platform": "darwin"
+      "platform": "darwin",
+      "software_title_id": null
     },
     ...
   ],
@@ -9968,6 +9968,7 @@ List available Fleet-maintained apps.
 ### Get Fleet-maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 Returns information about the specified Fleet-maintained app.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps/:id`
@@ -9977,7 +9978,7 @@ Returns information about the specified Fleet-maintained app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet-maintained app's ID. |
-
+| team_id  | integer | query | If supplied, set `software_title_id` on the response when an installer or VPP app has already been added to that team for that software.  |
 
 #### Example
 
