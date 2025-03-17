@@ -606,6 +606,8 @@ type PKCS12Payload struct {
 	PayloadType    string `plist:"PayloadType"`
 }
 
+// additionalCustomSCEPValidation checks that Challenge/URL fields march Custom SCEP Fleet variables exactly,
+// and that these variables are only present in a "com.apple.security.scep" payload
 func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPVarsFound) error {
 	var scepProf SCEPProfileContent
 	err := plist.Unmarshal([]byte(contents), &scepProf)
@@ -4097,7 +4099,7 @@ func preprocessProfileContents(
 				case fleetVar == FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
-						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
+						url.PathEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, profUUID)))
 					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix)
@@ -4122,7 +4124,7 @@ func preprocessProfileContents(
 					}
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
-						url.PathEscape(fmt.Sprintf("%s,%s", hostUUID, profUUID)))
+						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
 					var err error
 					hostContents, err = replaceFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
 					if err != nil {

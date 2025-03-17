@@ -13806,6 +13806,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	assert.Equal(t, host.HardwareSerial+" idp@example.com", certificate.Subject.CommonName)
 
+	// TODO: check certs
+
 	// ////////////////////////////////
 	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
 	digiCertServer.server.Close() // so that verify fails if attempted
@@ -13838,6 +13840,9 @@ func digiCertForTest(name, identifier, caName string) []byte {
 
 //go:embed testdata/profiles/custom-scep.mobileconfig
 var customSCEPMobileconfig string
+
+//go:embed testdata/profiles/custom-scep2.mobileconfig
+var customSCEPMobileconfig2 []byte
 
 func customSCEPForTest(name, identifier, caName string) []byte {
 	return []byte(fmt.Sprintf(customSCEPMobileconfig, caName, caName, name, identifier, uuid.New().String()))
@@ -14182,10 +14187,11 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// Happy path
 	// First, add custom SCEP config
 	ca0 := getCustomSCEPIntegration(scepServerURL, "caName")
-	ca0.Challenge = "bad"
+	ca1 := getCustomSCEPIntegration(scepServerURL, "caName1")
+	ca1.Challenge = "challenge1"
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1},
 		},
 	}
 	raw, err := json.Marshal(appConfig)
@@ -14283,8 +14289,56 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	}
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
 
+	// //////////////////////////////////////////////
+	// Upload a profile with two SCEP payloads
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")}, // keep existing profile
+		{Name: "CustomSCEP2", Contents: customSCEPMobileconfig2},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	found = false
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "CustomSCEP2" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Empty(t, prof.Detail)
+			profileUUID = prof.ProfileUUID
+			break
+		}
+	}
+	assert.True(t, found)
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting SCEP profile")
+	fullCmd = micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile = fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	scepProfile = SCEPProfileContent{}
+	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
+	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
+	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[1].PayloadType)
+	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
+	assert.Equal(t, ca1.Challenge, scepProfile.PayloadContent[1].PayloadContent.Challenge)
+	identifier = url.PathEscape(host.UUID + "," + profileUUID)
+	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
+	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[1].PayloadContent.URL)
+
 	// ////////////////////////////////////////////
-	// Remove the CA and try to re-send the profile
+	// Remove the CAs and try to re-send the profile
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"custom_scep_proxy": nil,
@@ -14820,6 +14874,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
 
 			"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
+
 			// App with 0 licenses
 			"5": `{"bundleId": "e-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
 		}
