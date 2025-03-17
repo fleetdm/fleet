@@ -2856,7 +2856,15 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -2866,17 +2874,51 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
       },
       {
-        "id": 1,
+        "id": 4,
         "name": "SomeQuery",
         "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
+      },
+      {
+        "id": 5,
+        "name": "Install zoom.us.app",
+        "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';",
+        "description": "ZoomInstallerIT.pkg version 6.3.11.50104 is installed when the host doesn't have any version of it installed.",
+        "resolution": "",
+        "platform": "darwin",
+        "response": "fail",
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": null,
+        "author_name": "Fleet",
+        "author_email": "",
+        "team_id": 274,
+        "fleet_maintained": true,      
       }
     ],
     "software": [
@@ -3098,7 +3140,8 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "fleet_maintained": false
       }
     ],
     "software": [
@@ -6599,7 +6642,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6617,7 +6661,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6670,7 +6715,8 @@ _Available in Fleet Premium_
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6693,7 +6739,8 @@ _Available in Fleet Premium_
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
         "id": 234
-      }
+      },
+      "fleet_maintained": false
     },
     {
       "id": 3,
@@ -6716,7 +6763,8 @@ _Available in Fleet Premium_
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
-      }
+      },
+      "fleet_maintained": false
     }
   ],
   "inherited_policies": [
@@ -6736,7 +6784,8 @@ _Available in Fleet Premium_
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6769,7 +6818,8 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6787,7 +6837,8 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 136,
@@ -6805,7 +6856,8 @@ _Available in Fleet Premium_
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -8893,8 +8945,19 @@ Get a list of all software.
         "automatic_install_policies": [
           {
             "id": 343,
-            "name": "[Install software] Firefox.app",
-          }
+            "name": "Custom policy",
+            "fleet_maintained": false
+          },
+          {
+            "id": 344,
+            "name": "Install Firefox.app",
+            "fleet_maintained": true
+          },
+          {
+            "id": 345,
+            "name": "Patch Firefox.app",
+            "fleet_maintained": true
+          },
         ],
       },
       "app_store_app": null,
@@ -9180,6 +9243,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
+          "fleet_maintained": false
         }
       ],
       "status": {
@@ -9246,6 +9310,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
+          "fleet_maintained": false
         } 
       ],
       "status": {
@@ -9253,12 +9318,6 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       },
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Logic.app",
-        }
-      ],
     },
     "source": "apps",
     "browser": "",
@@ -9483,10 +9542,12 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| automatic_patch | boolean | form | Create a policy that triggers a software install on all hosts running an older version. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+Changes to `software` (the package) will reset `installed`, `pending`, and `failed` counts. Changes to any field other than `self_service` will cancel pending installs and uninstalls.
 
 #### Example
 
@@ -9708,6 +9769,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
+        "fleet_maintained": false
       } 
     ],
     "status": {
