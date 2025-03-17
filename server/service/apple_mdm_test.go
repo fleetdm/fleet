@@ -4309,11 +4309,16 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 					getDigiCertIntegration("https://example.com", "caName2"),
 				},
 			},
+			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
+				Set:   true,
+				Valid: true,
+				Value: []fleet.CustomSCEPProxyIntegration{
+					getCustomSCEPIntegration("https://example.com", "scepName"),
+					getCustomSCEPIntegration("https://example.com", "scepName2"),
+				},
+			},
 		},
 	}
-
-	profile := digiCertForTest("N0", "I0", "caName")
-	assert.NoError(t, validateConfigProfileFleetVariables(appConfig, string(profile)))
 
 	cases := []struct {
 		name    string
@@ -4367,7 +4372,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "DigiCert password is not a fleet variable",
 			profile: digiCertForValidation("x$FLEET_VAR_DIGICERT_PASSWORD_caName", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
 				"com.apple.security.pkcs12"),
-			errMsg: "must match the Password and PayloadContent fields in the  profile exactly",
+			errMsg: "must match the Password and PayloadContent fields in the profile exactly",
 		},
 		{
 			name: "DigiCert data is not a fleet variable",
@@ -4393,6 +4398,79 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName2"),
 			errMsg: "",
 		},
+		{
+			name: "Custom SCEP badCA",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_bad", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_bad", "Name",
+				"com.apple.security.scep"),
+			errMsg: "_bad is not supported in configuration profiles",
+		},
+		{
+			name:    "Custom SCEP challenge missing",
+			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName", "Name", "com.apple.security.scep"),
+			errMsg:  "Missing $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+		},
+		{
+			name: "Custom SCEP url missing",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "https://bozo.com", "Name",
+				"com.apple.security.scep"),
+			errMsg: "Missing $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+		},
+		{
+			name: "Custom SCEP challenge and url CA names don't match",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Missing $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName in the profile",
+		},
+		{
+			name: "Custom SCEP challenge shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName is already present in configuration profile",
+		},
+		{
+			name: "Custom SCEP url shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName is already present in configuration profile",
+		},
+		{
+			name: "Custom SCEP profile is not scep",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"Name", "com.apple.security.SCEP"),
+			errMsg: "can only be present in 'com.apple.security.scep' profiles",
+		},
+		{
+			name: "Custom SCEP challenge is not a fleet variable",
+			profile: customSCEPForValidation("x$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "must match the Challenge and URL fields in the profile exactly",
+		},
+		{
+			name: "Custom SCEP url is not a fleet variable",
+			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "x${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile",
+		},
+		{
+			name: "Custom SCEP happy path",
+			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "",
+		},
+		{
+			name: "Custom SCEP 2 profiles with swapped variables",
+			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
+			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile",
+		},
+		{
+			name: "Custom SCEP 2 profiles happy path",
+			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
+			errMsg: "",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -4409,12 +4487,27 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 //go:embed testdata/profiles/digicert-validation.mobileconfig
 var digiCertValidationMobileconfig string
 
-//go:embed testdata/profiles/digicert-validation2.mobileconfig
-var digiCertValidation2Mobileconfig string
-
 func digiCertForValidation(password, data, name, payloadType string) string {
 	return fmt.Sprintf(digiCertValidationMobileconfig, password, data, name, payloadType)
 }
+
+//go:embed testdata/profiles/digicert-validation2.mobileconfig
+var digiCertValidation2Mobileconfig string
+
 func digiCertForValidation2(password1, data1, password2, data2 string) string {
 	return fmt.Sprintf(digiCertValidation2Mobileconfig, password1, data1, password2, data2)
+}
+
+//go:embed testdata/profiles/custom-scep-validation.mobileconfig
+var customSCEPValidationMobileconfig string
+
+func customSCEPForValidation(challenge, url, name, payloadType string) string {
+	return fmt.Sprintf(customSCEPValidationMobileconfig, challenge, url, name, payloadType)
+}
+
+//go:embed testdata/profiles/custom-scep-validation2.mobileconfig
+var customSCEPValidation2Mobileconfig string
+
+func customSCEPForValidation2(challenge1, url1, challenge2, url2 string) string {
+	return fmt.Sprintf(customSCEPValidation2Mobileconfig, challenge1, url1, challenge2, url2)
 }

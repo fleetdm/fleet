@@ -512,7 +512,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
 					if ca.Name == caName {
 						found = true
-						customSCEPVars = customSCEPVars.SetURL(caName)
+						customSCEPVars, ok = customSCEPVars.SetURL(caName)
 						break
 					}
 				}
@@ -521,12 +521,11 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
 					if ca.Name == caName {
 						found = true
-						customSCEPVars = customSCEPVars.SetChallenge(caName)
+						customSCEPVars, ok = customSCEPVars.SetChallenge(caName)
 						break
 					}
 				}
 			}
-			// TODO(#26623): Check that SCEP variables are present in SCEP payload
 			if !found {
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles", k)}
 			}
@@ -536,17 +535,23 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			}
 		}
 	}
-	if !digiCertVars.Ok() {
-		return &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
-	}
 	if digiCertVars.Found() {
+		if !digiCertVars.Ok() {
+			return &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
+		}
 		err := additionalDigiCertValidation(contents, digiCertVars)
 		if err != nil {
 			return err
 		}
 	}
-	if !customSCEPVars.Ok() {
-		return &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
+	if customSCEPVars.Found() {
+		if !customSCEPVars.Ok() {
+			return &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
+		}
+		err := additionalCustomSCEPValidation(contents, customSCEPVars)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -562,7 +567,7 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 			contents = strings.ReplaceAll(contents, match[0], encoded)
 		}
 	}
-	var pkcs12Prof PKCS12PayloadContent
+	var pkcs12Prof PKCS12ProfileContent
 	err := plist.Unmarshal([]byte(contents), &pkcs12Prof)
 	if err != nil {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse PKCS12 payload with Fleet variables: %s", err.Error())}
@@ -586,19 +591,63 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 	}
 	if len(foundCAs) < len(digiCertVars.CAs()) {
 		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VARS_DIGICERT_PASSWORD_<ca_name> and $FLEET_VARS_DIGICERT_DATA_<ca_name>" +
-			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the " +
+			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the" +
 			" profile exactly"}
 	}
 	return nil
 }
 
-type PKCS12PayloadContent struct {
+type PKCS12ProfileContent struct {
 	PayloadContent []PKCS12Payload `plist:"PayloadContent"`
 }
 type PKCS12Payload struct {
 	Password       string `plist:"Password"`
 	PayloadContent []byte `plist:"PayloadContent"`
 	PayloadType    string `plist:"PayloadType"`
+}
+
+func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPVarsFound) error {
+	var scepProf SCEPProfileContent
+	err := plist.Unmarshal([]byte(contents), &scepProf)
+	if err != nil {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse SCEP payload with Fleet variables: %s", err.Error())}
+	}
+	var foundCAs []string
+	var challengePrefix = "FLEET_VAR_" + FleetVarCustomSCEPChallengePrefix
+	var urlPrefix = "FLEET_VAR_" + FleetVarCustomSCEPProxyURLPrefix
+	for _, payload := range scepProf.PayloadContent {
+		if payload.PayloadType == "com.apple.security.scep" {
+			for _, ca := range customSCEPVars.CAs() {
+				// Check for exact match on challenge and URL
+				if payload.PayloadContent.Challenge == "$"+challengePrefix+ca || payload.PayloadContent.Challenge == "${"+challengePrefix+ca+"}" {
+					if payload.PayloadContent.URL == "$"+urlPrefix+ca || payload.PayloadContent.URL == "${"+urlPrefix+ca+"}" {
+						foundCAs = append(foundCAs, ca)
+						break
+					}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and" +
+						" $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile"}
+				}
+			}
+		}
+	}
+	if len(foundCAs) < len(customSCEPVars.CAs()) {
+		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name>" +
+			" can only be present in 'com.apple.security.scep' profiles and must match the Challenge and URL fields in the" +
+			" profile exactly"}
+	}
+	return nil
+}
+
+type SCEPProfileContent struct {
+	PayloadContent []SCEPPayload `plist:"PayloadContent"`
+}
+type SCEPPayload struct {
+	PayloadContent SCEPPayloadContent `plist:"PayloadContent"`
+	PayloadType    string             `plist:"PayloadType"`
+}
+type SCEPPayloadContent struct {
+	Challenge string `plist:"Challenge"`
+	URL       string `plist:"URL"`
 }
 
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
@@ -4054,7 +4103,9 @@ func preprocessProfileContents(
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix)
 					ca, ok := customSCEPCAs[caName]
 					if !ok {
-						continue // Should never happen since we validated/populated DigiCert CAs earlier
+						level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						continue
 					}
 					var err error
 					hostContents, err = replaceFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
@@ -4065,7 +4116,9 @@ func preprocessProfileContents(
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix)
 					ca, ok := customSCEPCAs[caName]
 					if !ok {
-						continue // Should never happen since we validated/populated DigiCert CAs earlier
+						level.Error(logger).Log("msg", "Custom SCEP CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						continue
 					}
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
@@ -4107,7 +4160,9 @@ func preprocessProfileContents(
 					caName := strings.TrimPrefix(fleetVar, FleetVarDigiCertDataPrefix)
 					ca, ok := digiCertCAs[caName]
 					if !ok {
-						continue // Should never happen since we validated/populated DigiCert CAs earlier
+						level.Error(logger).Log("msg", "Custom DigiCert CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						continue
 					}
 					caCopy := *ca
 
@@ -4427,44 +4482,79 @@ func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 }
 
 type customSCEPVarsFound struct {
-	urlCA       string
-	challengeCA string
+	urlCA       map[string]struct{}
+	challengeCA map[string]struct{}
 }
 
 // Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
 // This allows the Admin to override the SCEP challenge in the profile.
-func (d *customSCEPVarsFound) Ok() bool {
-	if d == nil {
+func (cs *customSCEPVarsFound) Ok() bool {
+	if cs == nil {
 		return true
 	}
-	if len(d.challengeCA) == 0 {
-		return true
+	if len(cs.challengeCA) != len(cs.urlCA) {
+		return false
 	}
-	return d.challengeCA == d.urlCA
+	for ca := range cs.challengeCA {
+		if _, ok := cs.urlCA[ca]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
-func (d *customSCEPVarsFound) ErrorMessage() string {
-	if len(d.urlCA) == 0 {
-		return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarCustomSCEPProxyURLPrefix, d.challengeCA)
-	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s%s and $FLEET_VAR_%s%s in the profile.",
-		FleetVarCustomSCEPProxyURLPrefix, d.challengeCA, FleetVarCustomSCEPProxyURLPrefix, d.urlCA)
+func (cs *customSCEPVarsFound) Found() bool {
+	return cs != nil
 }
 
-func (d *customSCEPVarsFound) SetURL(value string) *customSCEPVarsFound {
-	if d == nil {
-		return &customSCEPVarsFound{urlCA: value}
+func (cs *customSCEPVarsFound) CAs() []string {
+	if cs == nil {
+		return nil
 	}
-	d.urlCA = value
-	return d
+	keys := make([]string, 0, len(cs.urlCA))
+	for key := range cs.urlCA {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
-func (d *customSCEPVarsFound) SetChallenge(value string) *customSCEPVarsFound {
-	if d == nil {
-		return &customSCEPVarsFound{challengeCA: value}
+func (cs *customSCEPVarsFound) ErrorMessage() string {
+	for ca := range cs.challengeCA {
+		if _, ok := cs.urlCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarCustomSCEPProxyURLPrefix, ca)
+		}
 	}
-	d.challengeCA = value
-	return d
+	for ca := range cs.urlCA {
+		if _, ok := cs.challengeCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarCustomSCEPChallengePrefix, ca)
+		}
+	}
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		FleetVarCustomSCEPProxyURLPrefix, FleetVarCustomSCEPChallengePrefix)
+}
+
+func (cs *customSCEPVarsFound) SetURL(value string) (*customSCEPVarsFound, bool) {
+	if cs == nil {
+		cs = &customSCEPVarsFound{}
+	}
+	if cs.urlCA == nil {
+		cs.urlCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := cs.urlCA[value]
+	cs.urlCA[value] = struct{}{}
+	return cs, !alreadyPresent
+}
+
+func (cs *customSCEPVarsFound) SetChallenge(value string) (*customSCEPVarsFound, bool) {
+	if cs == nil {
+		cs = &customSCEPVarsFound{}
+	}
+	if cs.challengeCA == nil {
+		cs.challengeCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := cs.challengeCA[value]
+	cs.challengeCA[value] = struct{}{}
+	return cs, !alreadyPresent
 }
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
