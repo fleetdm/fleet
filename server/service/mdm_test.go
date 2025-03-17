@@ -887,7 +887,7 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
 	}
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
-		return false, nil
+		return true, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
