@@ -4143,7 +4143,6 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 						continue
 					}
-					fmt.Printf("Replaceing Fleet variable $FLEET_VAR_%s with %s for CA %s\n", fleetVar, ca.Challenge, ca.Name)
 					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix)
