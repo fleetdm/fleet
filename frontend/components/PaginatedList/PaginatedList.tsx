@@ -10,7 +10,7 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Pagination from "pages/ManageControlsPage/components/Pagination";
+import Pagination from "components/Pagination";
 
 const baseClass = "paginated-list";
 

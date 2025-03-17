@@ -16,7 +16,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
-import Pagination from "pages/ManageControlsPage/components/Pagination";
+import Pagination from "components/Pagination";
 
 import UploadList from "../../../components/UploadList";
 
@@ -170,6 +170,9 @@ const CustomSettings = ({
           className={`${baseClass}__pagination-controls`}
           disableNext={!meta?.has_next_results}
           disablePrev={!meta?.has_previous_results}
+          hidePagination={
+            !meta?.has_next_results && !meta?.has_previous_results
+          }
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
         />

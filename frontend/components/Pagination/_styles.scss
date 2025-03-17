@@ -1,6 +1,10 @@
-.pagination-new {
+.pagination {
   display: flex;
-  align-items: center;
+  justify-content: flex-end;
+  margin-top: $pad-small;
+  margin-bottom: $pad-small;
+  margin-left: auto;
+  text-align: right;
   gap: $pad-large;
 
   &__pagination-button {

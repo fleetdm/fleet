@@ -7,6 +7,7 @@ import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
@@ -70,6 +71,13 @@ const UpcomingActivityFeed = ({
         })}
       </div>
       <div className={`${baseClass}__pagination`}>
+        <Pagination
+          disablePrev={!meta.has_previous_results}
+          disableNext={!meta.has_next_results}
+          hidePagination={!meta.has_previous_results && !meta.has_next_results}
+          onPrevPage={() => onPreviousPage}
+          onNextPage={() => onNextPage}
+        />
         <Button
           disabled={!meta.has_previous_results}
           onClick={onPreviousPage}

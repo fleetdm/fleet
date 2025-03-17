@@ -6,7 +6,6 @@ import useDeepEffect from "hooks/useDeepEffect";
 import { noop } from "lodash";
 
 import SearchField from "components/forms/fields/SearchField";
-// @ts-ignore
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -271,13 +270,14 @@ const TableContainer = <T,>({
     if (disablePagination || isClientSidePagination) {
       return null;
     }
+
     return (
       <Pagination
-        resultsOnCurrentPage={data.length}
-        currentPage={pageIndex}
-        resultsPerPage={pageSize}
-        onPaginationChange={onPaginationChange}
-        disableNextPage={disableNextPage}
+        disablePrev={pageIndex === 0}
+        disableNext={disableNextPage || data.length < pageSize}
+        onPrevPage={() => onPaginationChange(pageIndex - 1)}
+        onNextPage={() => onPaginationChange(pageIndex + 1)}
+        hidePagination={disableNextPage && pageIndex === 0}
       />
     );
   }, [
@@ -479,6 +479,14 @@ const TableContainer = <T,>({
     wideSearch,
   ]);
 
+  const disableNext = () => {
+    const totalItems = 44; // Test
+    if (!totalItems) {
+      return data.length < pageSize;
+    }
+    return pageIndex * pageSize + data.length >= totalItems;
+  };
+
   return (
     <div className={wrapperClasses}>
       {renderFilters()}
@@ -491,14 +499,15 @@ const TableContainer = <T,>({
           !isLoading) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
+            {/* This UI only shows if a user navigates to a table page with a URL page param that is outside the # of pages available */}
             {pageIndex !== 0 && (
               <div className={`${baseClass}__empty-page`}>
-                <div className={`${baseClass}__previous`}>
+                <div className={`${baseClass}__previous-button`}>
                   <Pagination
-                    resultsOnCurrentPage={data.length}
-                    currentPage={pageIndex}
-                    resultsPerPage={pageSize}
-                    onPaginationChange={onPaginationChange}
+                    disablePrev={pageIndex === 0}
+                    disableNext={disableNext()}
+                    onNextPage={() => onPaginationChange(pageIndex + 1)}
+                    onPrevPage={() => onPaginationChange(pageIndex - 1)}
                   />
                 </div>
               </div>
