@@ -1,0 +1,55 @@
+name: Ingest maintained apps
+
+permissions:
+  contents: write
+
+# TODO(JVE): add schedule/other triggers
+on:
+  pull_request:
+    paths:
+      - "ee/maintained-apps/inputs/**.json"
+  workflow_dispatch:
+
+jobs:
+  build:  
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      # TODO(JVE): uncomment this
+      # - name: Harden Runner
+      #   uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      #   with:
+      #     egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@v4
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.head_ref }}
+          path: fleet
+
+      - name: Setup Go
+        uses: actions/setup-go@v4.1.0
+        with:
+          cache: false
+          go-version: '^1.23.4'
+
+      - name: Ingest maintained apps
+        run: |
+          cd fleet
+          go mod download
+          go run cmd/maintained-apps/main.go
+
+      - name: Commit generated manifest data
+        run: |
+          cd fleet
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          git commit -am "Generated manifest data"
+          git push
+
+
+
+
