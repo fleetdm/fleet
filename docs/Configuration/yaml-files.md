@@ -345,7 +345,7 @@ software:
   app_store_apps:
     - app_store_id: '1091189122'
   fleet_maintained_apps:
-    - fleet_maintained_app_id: macos-slack
+    - slug: slack/darwin
       self_service: true
       labels_include_any:
         - Design
