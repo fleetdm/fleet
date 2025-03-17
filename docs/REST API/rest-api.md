@@ -9828,7 +9828,7 @@ Returns information about the specified Fleet-maintained app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet-maintained app's ID. |
-
+| fleet_maintained_app_id   | integer | body | **Required.** The ID of Fleet-maintained app. |
 
 #### Example
 
@@ -9842,6 +9842,7 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
+    "fleet_maintained_app_id": 3,
     "name": "1Password",
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
