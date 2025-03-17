@@ -13594,7 +13594,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
 	digiCertServer.certReqMu.Unlock()
-	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID)
+	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
 	require.NotNil(t, certProf.NotValidAfter)
 	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
