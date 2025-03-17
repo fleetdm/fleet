@@ -6,7 +6,7 @@ _Available in Fleet Premium_
 
 In Fleet, you can install Apple App Store apps using the [Volume Purchasing Program (VPP)](https://support.apple.com/guide/app-store/volume-purchasing-app-store-mac-firc1767ec54/mac) on your macOS, iOS, and iPadOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your hosts.
 
-Once a VPP app has been added to a team, it can be [automatically installed on hosts via policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet) as of Fleet [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0).
+Once a VPP app has been added to a team, it can be [automatically installed on hosts via policy automations](https://fleetdm.com/guides/automatic-software-install-in-fleet) as of Fleet [v4.63.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.63.0), and policies can be automatically created when adding a VPP app to a team as of [v4.65.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.65.0).
 
 ## Prerequisites
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
@@ -35,7 +35,11 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 4. **View your available apps**: Click on the "App Store (VPP)" tab in the "Add software" page. The page will list the apps that you have purchased through VPP but still need to add to Fleet.
 
-5. **Add an app**: Select an app from the list. Select the hosts that you want to target with this app, under "Target". Select "All hosts" if you want the app to be available to all your hosts. Select "Custom" to scope the app to specific groups of hosts based on label membership. You can select "Include any", which will scope the app to hosts that have any of the labels you select, or "Exclude any", which will scope the app to hosts that do _not_ have the selected labels. You may optionally check the "Self-Service" box at the bottom left of the page if you wish for the app to be available for user-initiated installs. Finally, click the "Add software" button in the bottom right of the page. The app should appear in the software list for the selected team.
+5. **Configure the app**: Select an app from the list. Select the hosts that you want to target with this app, under "Target". Select "All hosts" if you want the app to be available to all your hosts. Select "Custom" to scope the app to specific groups of hosts based on label membership. You can select "Include any", which will scope the app to hosts that have any of the labels you select, or "Exclude any", which will scope the app to hosts that do _not_ have the selected labels.
+
+> For macOS apps, you can check the "Self-service" box on the page if you wish for the app to be available for user-initiated installs. You can also check the "Automatic install" box to have Fleet create a policy that installs the app on targeted hosts on the team that don't have the app already installed.
+
+6. **Add the app**: Click the "Add software" button in the bottom right of the page. The app should appear in the software list for the selected team.
 
 ## Remove the app from Fleet
 
@@ -110,6 +114,6 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `soft
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-01-21">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through installing VPP apps on macOS, iOS, and iPadOS using Fleet.">
