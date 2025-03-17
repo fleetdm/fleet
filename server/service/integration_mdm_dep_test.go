@@ -3207,30 +3207,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	})
 
 	t.Cleanup(func() {
-		s.appleVPPConfigSrvConfig.Assets = []vpp.Asset{
-			{
-				AdamID:         "1",
-				PricingParam:   "STDQ",
-				AvailableCount: 12,
-			},
-			{
-				AdamID:         "2",
-				PricingParam:   "STDQ",
-				AvailableCount: 3,
-			},
-			{
-				AdamID:         "3",
-				PricingParam:   "STDQ",
-				AvailableCount: 1,
-			},
-		}
+		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
 	})
 
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
-	// Add a VPP app
+	// Add the app with 0 licenses available
 	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "5", SelfService: true}, http.StatusOK)
 
 	// Add the VPP app to setup experience
@@ -3258,20 +3242,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-
-		// Can be useful for debugging
-		// switch cmd.Command.RequestType {
-		// case "InstallProfile":
-		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
-		// case "InstallEnterpriseApplication":
-		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
-		// 	} else {
-		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		// 	}
-		// default:
-		// 	fmt.Println(">>>> device received command: ", cmd.Command.RequestType)
-		// }
 
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)

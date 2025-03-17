@@ -122,6 +122,24 @@ type appleVPPConfigSrvConf struct {
 	Location      string
 }
 
+var defaultVPPAssetList = []vpp.Asset{
+	{
+		AdamID:         "1",
+		PricingParam:   "STDQ",
+		AvailableCount: 12,
+	},
+	{
+		AdamID:         "2",
+		PricingParam:   "STDQ",
+		AvailableCount: 3,
+	},
+	{
+		AdamID:         "3",
+		PricingParam:   "STDQ",
+		AvailableCount: 1,
+	},
+}
+
 func (s *integrationMDMTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationMDMTestSuite")
 
@@ -356,23 +374,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	if s.appleVPPConfigSrvConfig == nil {
 		s.appleVPPConfigSrvConfig = &appleVPPConfigSrvConf{
-			Assets: []vpp.Asset{
-				{
-					AdamID:         "1",
-					PricingParam:   "STDQ",
-					AvailableCount: 12,
-				},
-				{
-					AdamID:         "2",
-					PricingParam:   "STDQ",
-					AvailableCount: 3,
-				},
-				{
-					AdamID:         "3",
-					PricingParam:   "STDQ",
-					AvailableCount: 1,
-				},
-			},
+			Assets:        defaultVPPAssetList,
 			SerialNumbers: []string{"123", "456"},
 			Location:      "Fleet Location One",
 		}
