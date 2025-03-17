@@ -14199,8 +14199,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// Happy path
 	// First, add custom SCEP config
 	ca0 := getCustomSCEPIntegration(scepServerURL, "caName")
-	ca1 := getCustomSCEPIntegration(scepServerURL, "caName1")
-	ca1.Challenge = "challenge1"
+	ca1 := getCustomSCEPIntegration(scepServerURL, "caName2")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1},
@@ -14212,14 +14211,15 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	req.RawMessage = raw
 	res := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 1)
+	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 2)
 	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
 		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
 	}
 
 	// Then, upload the profile using the SCEP config
+	profileContents := customSCEPForTest("N0", "I0", "caName")
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")},
+		{Name: "N0", Contents: profileContents},
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 	getHostResp := getDeviceHostResponse{}
@@ -14258,7 +14258,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
 	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
 	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
-	identifier := url.PathEscape(host.UUID + "," + profileUUID)
+	identifier := url.PathEscape(host.UUID + "," + profileUUID + "," + "caName")
 	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
 
 	// /////////////////////////////////////
@@ -14300,11 +14300,17 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		"I0": {Identifier: "I0", DisplayName: "N0", InstallDate: time.Now()},
 	}
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
+	prof, err := s.ds.GetHostMDMCertificateProfile(context.Background(), host.UUID, profileUUID, "caName")
+	require.NoError(t, err)
+	require.NotNil(t, prof)
+	assert.Equal(t, "caName", prof.CAName)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
+	assert.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
 
 	// //////////////////////////////////////////////
 	// Upload a profile with two SCEP payloads
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")}, // keep existing profile
+		{Name: "N0", Contents: profileContents}, // keep existing profile
 		{Name: "CustomSCEP2", Contents: customSCEPMobileconfig2},
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
@@ -14312,13 +14318,14 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	found = false
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	var profileUUID2 string
 	for _, prof := range *getHostResp.Host.MDM.Profiles {
 		if prof.Name == "CustomSCEP2" {
 			found = true
 			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
 			assert.Empty(t, prof.Detail)
-			profileUUID = prof.ProfileUUID
+			profileUUID2 = prof.ProfileUUID
 			break
 		}
 	}
@@ -14341,12 +14348,14 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	scepProfile = SCEPProfileContent{}
 	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
+	require.Len(t, scepProfile.PayloadContent, 2)
 	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
 	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[1].PayloadType)
 	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
 	assert.Equal(t, ca1.Challenge, scepProfile.PayloadContent[1].PayloadContent.Challenge)
-	identifier = url.PathEscape(host.UUID + "," + profileUUID)
+	identifier = url.PathEscape(host.UUID + "," + profileUUID2 + "," + "caName")
 	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
+	identifier = url.PathEscape(host.UUID + "," + profileUUID2 + "," + "caName2")
 	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[1].PayloadContent.URL)
 
 	// ////////////////////////////////////////////
