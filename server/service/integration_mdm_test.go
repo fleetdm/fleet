@@ -112,6 +112,7 @@ type integrationMDMTestSuite struct {
 	appleITunesSrvData        map[string]string
 	appleGDMFSrv              *httptest.Server
 	mockedDownloadFleetdmMeta fleetdbase.Metadata
+	scepConfig                *eeservice.SCEPConfigService
 }
 
 // appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
@@ -119,6 +120,24 @@ type appleVPPConfigSrvConf struct {
 	Assets        []vpp.Asset
 	SerialNumbers []string
 	Location      string
+}
+
+var defaultVPPAssetList = []vpp.Asset{
+	{
+		AdamID:         "1",
+		PricingParam:   "STDQ",
+		AvailableCount: 12,
+	},
+	{
+		AdamID:         "2",
+		PricingParam:   "STDQ",
+		AvailableCount: 3,
+	},
+	{
+		AdamID:         "3",
+		PricingParam:   "STDQ",
+		AvailableCount: 1,
+	},
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -209,6 +228,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		softwareInstallerStore = s3.SetupTestSoftwareInstallerStore(s.T(), "integration-tests", "")
 		bootstrapPackageStore = s3.SetupTestBootstrapPackageStore(s.T(), "integration-tests", "")
 	}
+	scepTimeout := ptr.Duration(10 * time.Second)
+	s.scepConfig = eeservice.NewSCEPConfigService(serverLogger, scepTimeout).(*eeservice.SCEPConfigService)
 
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -302,9 +323,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				}
 			},
 		},
-		APNSTopic:       "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
-		EnableSCEPProxy: true,
-		WithDEPWebview:  true,
+		APNSTopic:         "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		EnableSCEPProxy:   true,
+		WithDEPWebview:    true,
+		SCEPConfigService: s.scepConfig,
 	}
 
 	// ensure all our tests support challenges with invalid XML characters
@@ -352,23 +374,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	if s.appleVPPConfigSrvConfig == nil {
 		s.appleVPPConfigSrvConfig = &appleVPPConfigSrvConf{
-			Assets: []vpp.Asset{
-				{
-					AdamID:         "1",
-					PricingParam:   "STDQ",
-					AvailableCount: 12,
-				},
-				{
-					AdamID:         "2",
-					PricingParam:   "STDQ",
-					AvailableCount: 3,
-				},
-				{
-					AdamID:         "3",
-					PricingParam:   "STDQ",
-					AvailableCount: 1,
-				},
-			},
+			Assets:        defaultVPPAssetList,
 			SerialNumbers: []string{"123", "456"},
 			Location:      "Fleet Location One",
 		}
@@ -515,13 +521,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		// macos app
 		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
 		// macos, ios, ipados app
-		"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+		"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
 		// ipados app
-		"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
+		"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
 
 		"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
+		// App with 0 licenses
+		"5": `{"bundleId": "e-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
 	}
 
 	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -13098,10 +13104,9 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		time.Sleep(1 * time.Second)
 		w.WriteHeader(http.StatusOK)
 	}))
-	origNDESTimeout := eeservice.NDESTimeout
-	eeservice.NDESTimeout = ptr.Duration(1 * time.Microsecond)
+	*s.scepConfig.Timeout = time.Microsecond
 	t.Cleanup(func() {
-		eeservice.NDESTimeout = origNDESTimeout
+		*s.scepConfig.Timeout = 10 * time.Second
 		ndesTimeoutServer.Close()
 	})
 	appConf.Integrations.NDESSCEPProxy.Value.URL = ndesTimeoutServer.URL
@@ -13114,46 +13119,9 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	// PKIOperation
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation",
 		"PKIOperation", "message", message)
-	eeservice.NDESTimeout = origNDESTimeout
+	*s.scepConfig.Timeout = 10 * time.Second
 
-	// Spin up an "external" SCEP server, which Fleet server will proxy
-	newSCEPServer := func(t *testing.T, opts ...scepserver.ServiceOption) *httptest.Server {
-		var server *httptest.Server
-		teardown := func() {
-			if server != nil {
-				server.Close()
-			}
-			os.Remove("./testdata/externalCA/serial")
-			os.Remove("./testdata/externalCA/index.txt")
-		}
-		t.Cleanup(teardown)
-
-		var err error
-		var certDepot depot.Depot // cert storage
-		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
-		if err != nil {
-			t.Fatal(err)
-		}
-		certDepot = &noopCertDepot{certDepot}
-		crt, key, err := certDepot.CA([]byte{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var svc scepserver.Service // scep service
-		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
-		if err != nil {
-			t.Fatal(err)
-		}
-		logger := kitlog.NewNopLogger()
-		e := scepserver.MakeServerEndpoints(svc)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-		r := mux.NewRouter()
-		r.Handle("/scep", scepHandler)
-		server = httptest.NewServer(r)
-		return server
-	}
-	scepServer := newSCEPServer(t)
+	scepServer := startSCEPServer(t)
 
 	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
@@ -13254,6 +13222,48 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 }
 
+func startSCEPServer(t *testing.T) *httptest.Server {
+	// Spin up an "external" SCEP server, which Fleet server will proxy
+	newSCEPServer := func(t *testing.T) *httptest.Server {
+		var server *httptest.Server
+		teardown := func() {
+			if server != nil {
+				server.Close()
+			}
+			os.Remove("./testdata/externalCA/serial")
+			os.Remove("./testdata/externalCA/index.txt")
+		}
+		t.Cleanup(teardown)
+
+		var err error
+		var certDepot depot.Depot // cert storage
+		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
+		if err != nil {
+			t.Fatal(err)
+		}
+		certDepot = &noopCertDepot{certDepot}
+		crt, key, err := certDepot.CA([]byte{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var svc scepserver.Service // scep service
+		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
+		if err != nil {
+			t.Fatal(err)
+		}
+		logger := kitlog.NewNopLogger()
+		e := scepserver.MakeServerEndpoints(svc)
+		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+		r := mux.NewRouter()
+		r.Handle("/scep", scepHandler)
+		server = httptest.NewServer(r)
+		return server
+	}
+	scepServer := newSCEPServer(t)
+	return scepServer
+}
+
 func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	t := s.T()
 	ctx := context.Background()
@@ -13273,7 +13283,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg := extractServerErrorText(rawRes.Body)
 	require.Contains(t, errMsg, "Could not verify DigiCert profile ID")
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Add 3 DigiCert integrations
@@ -13295,7 +13305,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	res := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
 	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	res = appConfigResponse{}
@@ -13304,7 +13314,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	for _, ca := range res.Integrations.DigiCert.Value {
 		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 	}
-	assets, err := s.ds.GetAllCAConfigAssets(ctx)
+	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
 	assert.EqualValues(t, "api_token0", assets["ca0"].Value)
@@ -13361,7 +13371,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		}
 		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 	}
-	assets, err = s.ds.GetAllCAConfigAssets(ctx)
+	assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	require.NoError(t, err)
 	require.Len(t, assets, 3)
 	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
@@ -13412,7 +13422,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	res = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
 	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssets(ctx)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Check that 3 deleted activities are present
@@ -13710,6 +13720,25 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, []string{"_idp@example.com_"}, stringSlice)
 	digiCertServer.certReqMu.Unlock()
+
+	// ////////////////////////////////
+	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
+	digiCertServer.server.Close() // so that verify fails if attempted
+	caFleetVars.CertificateCommonName = "common_name"
+	caFleetVars.CertificateUserPrincipalNames = nil
+	caFleetVars.CertificateSeatID = "seat_id"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.DigiCert.Value, 3)
 }
 
 func digiCertForTest(name, identifier, caName string) []byte {
@@ -13869,6 +13898,189 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 	}))
 	t.Cleanup(mockServer.server.Close)
 	return mockServer
+}
+
+func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
+	t := s.T()
+	ctx := context.Background()
+	scepServer := startSCEPServer(t)
+	scepServerURL := scepServer.URL + "/scep"
+
+	// Add custom SCEP integration with bad URL
+	caBad := getCustomSCEPIntegration("https://httpstat.us/410", "ca")
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	var req modifyAppConfigRequest
+	req.RawMessage = raw
+	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg := extractServerErrorText(rawRes.Body)
+	assert.Contains(t, errMsg, "invalid SCEP URL")
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Add 3 CustomSCEPProxy integrations
+	ca0 := getCustomSCEPIntegration(scepServerURL, "ca0")
+	ca0.Challenge = "challenge0"
+	ca1 := getCustomSCEPIntegration(scepServerURL, "ca1")
+	ca1.Challenge = "challenge1"
+	ca2 := getCustomSCEPIntegration(scepServerURL, "ca2")
+	ca2.Challenge = "challenge2"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1, ca2},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
+	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	assert.True(t, fleet.IsNotFound(err))
+
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 3)
+	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
+		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
+	}
+	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	assert.EqualValues(t, "challenge0", assets["ca0"].Value)
+	assert.EqualValues(t, "challenge1", assets["ca1"].Value)
+	assert.EqualValues(t, "challenge2", assets["ca2"].Value)
+
+	// Check 3 added activities are present
+	var listActivities listActivitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	activity := fleet.ActivityAddedCustomSCEPProxy{}
+	caNames := make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		if act.Type == activity.ActivityName() {
+			err := json.Unmarshal(*act.Details, &activity)
+			require.NoError(t, err)
+			caNames = append(caNames, activity.Name)
+			if len(caNames) == 3 {
+				break
+			}
+		}
+	}
+	slices.Sort(caNames)
+	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
+
+	// Add 1, modify 1, delete 1, keep 1 the same (CustomSCEPProxy integrations)
+	ca1.Challenge = "challenge1-modified"
+	ca3 := getCustomSCEPIntegration(scepServerURL, "ca3")
+	ca3.Challenge = "challenge3"
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca3, ca2, ca1},
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	require.Len(t, res.Integrations.CustomSCEPProxy.Value, 3)
+	assert.NotEqual(t, res.Integrations.CustomSCEPProxy.Value[0].Name, res.Integrations.CustomSCEPProxy.Value[1].Name)
+	assert.NotEqual(t, res.Integrations.CustomSCEPProxy.Value[1].Name, res.Integrations.CustomSCEPProxy.Value[2].Name)
+	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
+		switch ca.Name {
+		case "ca1":
+			assert.True(t, ca.Equals(&ca1))
+		case "ca2":
+			assert.True(t, ca.Equals(&ca2))
+		case "ca3":
+			assert.True(t, ca.Equals(&ca3))
+		default:
+			t.Fatalf("unexpected ca name: %s", ca.Name)
+		}
+		assert.Equal(t, ca.Challenge, fleet.MaskedPassword)
+	}
+	assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	require.NoError(t, err)
+	require.Len(t, assets, 3)
+	assert.EqualValues(t, "challenge1-modified", assets["ca1"].Value)
+	assert.EqualValues(t, "challenge2", assets["ca2"].Value)
+	assert.EqualValues(t, "challenge3", assets["ca3"].Value)
+
+	listActivities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	activity = fleet.ActivityAddedCustomSCEPProxy{}
+	editActivity := fleet.ActivityEditedCustomSCEPProxy{}
+	delActivity := fleet.ActivityDeletedCustomSCEPProxy{}
+	var numFound int
+	for _, act := range listActivities.Activities {
+		switch act.Type {
+		case activity.ActivityName():
+			err := json.Unmarshal(*act.Details, &activity)
+			require.NoError(t, err)
+			assert.Equal(t, activity.Name, ca3.Name)
+			numFound++
+		case editActivity.ActivityName():
+			err := json.Unmarshal(*act.Details, &editActivity)
+			require.NoError(t, err)
+			assert.Equal(t, editActivity.Name, ca1.Name)
+			numFound++
+		case delActivity.ActivityName():
+			err := json.Unmarshal(*act.Details, &delActivity)
+			require.NoError(t, err)
+			assert.Equal(t, delActivity.Name, ca0.Name)
+			numFound++
+		}
+		if numFound == 3 {
+			break
+		}
+	}
+	assert.Equal(t, 3, numFound)
+
+	// Clear CustomSCEPProxy integrations
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": nil,
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
+	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Check that 3 deleted activities are present
+	listActivities = listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.True(t, len(listActivities.Activities) > 0)
+	delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
+	caNames = make([]string, 0, 3)
+	for _, act := range listActivities.Activities {
+		if act.Type == delActivity.ActivityName() {
+			err := json.Unmarshal(*act.Details, &delActivity)
+			require.NoError(t, err)
+			caNames = append(caNames, delActivity.Name)
+			if len(caNames) == 3 {
+				break
+			}
+		}
+	}
+	slices.Sort(caNames)
+	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
 }
 
 type noopCertDepot struct{ depot.Depot }
@@ -14371,23 +14583,22 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 			// macos app
 			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
 			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
+			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
 			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
+			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
 
 			"4": `{"bundleId": "d-4", "artworkUrl512": "https://example.com/images/4", "version": "4.0.0", "trackName": "App 4", "TrackID": 4}`,
+
+			// App with 0 licenses
+			"5": `{"bundleId": "e-5", "artworkUrl512": "https://example.com/images/5", "version": "5.0.0", "trackName": "App 5", "TrackID": 5}`,
 		}
 	})
 
 	// Set up 3 apps - macOS, iOS, and iPadOS
 	s.appleITunesSrvData = map[string]string{
 		"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["iPhone5s-iPhone5s"] }`,
-		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
+		"2": `{"bundleId": "d-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2, "supportedDevices": ["iPhone5s-iPhone5s"] }`,
+		"3": `{"bundleId": "b-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3, "supportedDevices": ["iPadAir-iPadAir"] }`,
 	}
 
 	var newTeamResp teamResponse

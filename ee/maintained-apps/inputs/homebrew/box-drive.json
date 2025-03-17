@@ -1,0 +1,7 @@
+{
+  "name": "Box Drive",
+  "slug": "box-drive/darwin",
+  "unique_identifier": "com.box.desktop",
+  "token": "box-drive",
+  "installer_format": "pkg"
+}

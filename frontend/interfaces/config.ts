@@ -169,10 +169,6 @@ export interface IConfig {
     disable_data_sync: boolean;
     recent_vulnerability_max_age: number;
   };
-  // Note: `vulnerability_settings` is deprecated and should not be used
-  // vulnerability_settings: {
-  //   databases_path: string;
-  // };
   webhook_settings: IWebhookSettings;
   integrations: IGlobalIntegrations;
   logging: {

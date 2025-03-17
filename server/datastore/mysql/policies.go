@@ -1815,7 +1815,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		return nil, nil
 	}
 
-	query := `
+	baseQuery := `
 	SELECT
 		p.id AS id,
 		p.name AS name,
@@ -1832,14 +1832,26 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		tmID = *teamID
 	}
 
-	query, args, err := sqlx.In(query, softwareTitleIDs, softwareTitleIDs, tmID)
+	batchSize := 32000 // see https://github.com/fleetdm/fleet/issues/26753 on the math behind this number
+	var policies []fleet.AutomaticInstallPolicy
+	err := common_mysql.BatchProcessSimple(softwareTitleIDs, batchSize, func(softwareTitleIDsToProcess []uint) error {
+		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build select get policies by software id query")
+		}
+
+		var policyBatch []fleet.AutomaticInstallPolicy
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyBatch, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get policies by software installer id")
+		}
+
+		policies = append(policies, policyBatch...)
+
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build select get policies by software id query")
+		return nil, err
 	}
 
-	var policies []fleet.AutomaticInstallPolicy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies by software installer id")
-	}
 	return policies, nil
 }
