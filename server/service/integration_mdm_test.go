@@ -14759,8 +14759,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
 	}
 	for _, status := range diskStatuses {
-		// s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
-		_ = status
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
 	}
 
 	// now turn disk encryption on

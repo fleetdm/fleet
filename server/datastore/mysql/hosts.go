@@ -1426,7 +1426,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	sqlFmt := ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
 		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
-		OR ` + includeLinuxCond + ` 
+		OR ` + includeLinuxCond + `
 	)`
 
 	if opt.TeamFilter == nil {
@@ -1577,6 +1577,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 	var subqueryParams []interface{}
 	whereWindows := "FALSE"
 	whereMacOS := "FALSE"
+	whereLinux := "FALSE"
 
 	switch opt.OSSettingsDiskEncryptionFilter {
 	case fleet.DiskEncryptionVerified:
@@ -1616,8 +1617,11 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt
 		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
 	}
 
-	whereLinux := fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxDiskEncryptionStatus())
-	subqueryParams = append(subqueryParams, opt.OSSettingsDiskEncryptionFilter)
+	// Linux hosts have disk encryption statuses only if it is enabled.
+	if enableDiskEncryption {
+		whereLinux = fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxDiskEncryptionStatus())
+		subqueryParams = append(subqueryParams, opt.OSSettingsDiskEncryptionFilter)
+	}
 
 	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), append(params, subqueryParams...)
 }
