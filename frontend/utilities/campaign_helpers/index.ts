@@ -1,4 +1,9 @@
-import { ICampaign, ICampaignState } from "interfaces/campaign";
+import {
+  ICampaign,
+  ICampaignState,
+  IHostCounts,
+  IHostWithQueryResults,
+} from "interfaces/campaign";
 import { IHost } from "interfaces/host";
 import { useContext } from "react";
 import { NotificationContext } from "context/notification";
@@ -53,59 +58,57 @@ const updateCampaignStateFromResults = (
   { data }: IResult
 ) => {
   const {
-    errors = [],
-    hosts = [],
-    hosts_count: hostsCount = { total: 0, failed: 0, successful: 0 },
-    query_results: queryResults = [],
+    errors: prevErrors = [],
+    hosts: prevHostsWithResults = [],
+    hosts_count: prevHostCounts = { total: 0, failed: 0, successful: 0 },
+    query_results: prevQueryResults = [],
   } = campaign;
-  const { error, host, rows = [] } = data;
+  const { error: curError, host: curHost, rows: curQueryResults = [] } = data;
 
   let newErrors;
-  let newHosts;
-  let newHostsCount;
+  let newHostsWithResults: IHostWithQueryResults[];
+  // hosts_count.total is incremented by 1 in both cases, error and results
+  let newHostCounts: IHostCounts;
 
-  if (error || error === "") {
-    const newFailed = hostsCount.failed + 1;
-    const newTotal = hostsCount.successful + newFailed;
-
-    newErrors = errors.concat([
+  if (curError || curError === "") {
+    // both  `campaign.errors` and `campaign.hosts_count.failed` updated by this same condition,
+    // therefore `campaign.errors.length` === `campaign.hosts_count.failed`
+    newErrors = prevErrors.concat([
       {
-        host_display_name: host?.display_name,
-        osquery_version: host?.osquery_version,
+        host_display_name: curHost?.display_name,
+        osquery_version: curHost?.osquery_version,
         error:
-          error ||
+          curError ||
           // Hosts with osquery version below 4.4.0 receive an empty error message
           // when the live query fails so we create our own message.
           "Error details require osquery 4.4.0+ (Launcher does not provide error details)",
       },
     ]);
-    newHostsCount = {
-      successful: hostsCount.successful,
-      failed: newFailed,
-      total: newTotal,
+    newHostCounts = {
+      total: prevHostCounts.total + 1,
+      successful: prevHostCounts.successful,
+      failed: prevHostCounts.failed + 1,
     };
-    newHosts = hosts;
+    newHostsWithResults = prevHostsWithResults;
   } else {
-    const newSuccessful = hostsCount.successful + 1;
-    const newTotal = hostsCount.failed + newSuccessful;
-
-    newErrors = [...errors];
-    newHostsCount = {
-      successful: newSuccessful,
-      failed: hostsCount.failed,
-      total: newTotal,
+    // received non-error response
+    newErrors = [...prevErrors];
+    newHostCounts = {
+      total: prevHostCounts.total + 1,
+      successful: prevHostCounts.successful + 1,
+      failed: prevHostCounts.failed,
     };
-    const newHost = { ...host, query_results: rows };
-    newHosts = hosts.concat(newHost);
+    const curHostWithResults = { ...curHost, query_results: curQueryResults };
+    newHostsWithResults = prevHostsWithResults.concat(curHostWithResults);
   }
 
   return {
     campaign: {
       ...campaign,
       errors: newErrors,
-      hosts: newHosts,
-      hosts_count: newHostsCount,
-      query_results: [...queryResults, ...rows],
+      hosts: newHostsWithResults,
+      hosts_count: newHostCounts,
+      query_results: [...prevQueryResults, ...curQueryResults],
     },
   };
 };

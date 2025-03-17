@@ -59,7 +59,7 @@ interface ILiveResultsHeadingProps {
   numHostsTargeted: number;
   numHostsResponded: number;
   numHostsRespondedResults: number;
-  numHostsRespondedNoResults: number;
+  numHostsRespondedNoErrorsAndNoResults: number;
   numHostsRespondedErrors: number;
   isFinished: boolean;
   onClickDone: (evt: React.MouseEvent<HTMLButtonElement>) => void;
@@ -73,7 +73,7 @@ const LiveResultsHeading = ({
   numHostsTargeted,
   numHostsResponded,
   numHostsRespondedResults,
-  numHostsRespondedNoResults,
+  numHostsRespondedNoErrorsAndNoResults,
   numHostsRespondedErrors,
   isFinished,
   onClickDone,
@@ -119,8 +119,8 @@ const LiveResultsHeading = ({
                     <br />
                     No results:{" "}
                     <b>
-                      {numHostsRespondedNoResults}{" "}
-                      {pluralizeHost(numHostsRespondedNoResults)}
+                      {numHostsRespondedNoErrorsAndNoResults}{" "}
+                      {pluralizeHost(numHostsRespondedNoErrorsAndNoResults)}
                     </b>
                     <br />
                     Errors:{" "}

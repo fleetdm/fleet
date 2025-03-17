@@ -17,6 +17,20 @@ export interface ICampaignError {
   error: string;
 }
 
+export interface IHostCounts {
+  total: number;
+  successful: number; // Does not include ChromeOS results that are partially successful
+  // returned_rows:
+  // returned_no_rows:
+  failed: number; // number of hosts that a) did respond with b) an error - equivalent to `campaign.errors.length`
+}
+
+export interface IHostWithQueryResults extends IHost {
+  query_results: QueryResults;
+}
+
+type QueryResults = Record<string, unknown>[];
+
 export interface ICampaign {
   // upstream websocket and services methods return any
   // so narrower typing at this level is not actually guaranteed
@@ -25,18 +39,12 @@ export interface ICampaign {
   };
   created_at: string;
   errors: ICampaignError[];
-  hosts: IHost[];
+  hosts: IHostWithQueryResults[];
   // confirm definitions, document
-  hosts_count: {
-    total: number;
-    successful: number; // Does not include ChromeOS results that are partially successful
-    // returned_rows:
-    // returned_no_rows:
-    failed: number; // Lucas guess - hosts that returned an error? Possibly hosts that were targeted but didn't respond? - confirm, document
-  };
+  hosts_count: IHostCounts;
   id: number;
   query_id: number;
-  query_results: Record<string, unknown>[];
+  query_results: QueryResults;
   status: string;
   totals: {
     count: number;
