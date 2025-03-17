@@ -9547,7 +9547,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-Changes to `software` (the package) will reset `installed`, `pending`, and `failed` counts. Changes to any field other than `self_service` will cancel pending installs and uninstalls.
+Changes to any field other than `self_service` will cancel pending installs and uninstalls. Changes to `software` (the package) will reset `installed` and `failed` counts.
 
 #### Example
 
