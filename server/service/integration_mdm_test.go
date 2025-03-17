@@ -13768,6 +13768,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 3)
+	p = s.assertConfigProfilesByIdentifier(nil, "DigiCert2", true)
 
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
@@ -13806,7 +13807,18 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	assert.Equal(t, host.HardwareSerial+" idp@example.com", certificate.Subject.CommonName)
 
-	// TODO: check certs
+	prof, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
+	require.NoError(t, err)
+	require.NotNil(t, prof)
+	assert.NotNil(t, prof.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigDigiCert, prof.Type)
+	assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+	prof, err = s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "FleetVars")
+	require.NoError(t, err)
+	require.NotNil(t, prof)
+	assert.NotNil(t, prof.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigDigiCert, prof.Type)
+	assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
 
 	// ////////////////////////////////
 	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen

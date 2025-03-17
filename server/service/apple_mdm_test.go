@@ -2698,7 +2698,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		originalContents1 := contents1
 		originalExpectedContents1 := expectedContents1
 		contents1 = []byte(newContents)
-		expectedContents1 = []byte("https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID,
+		expectedContents1 = []byte("https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s,NDES", hostUUID,
 			p1)))
 		t.Cleanup(func() {
 			contents1 = originalContents1
@@ -2999,7 +2999,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + FleetVarNDESSCEPProxyURL),
 	}
-	expectedURL := "https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s", hostUUID, "p1"))
+	expectedURL := "https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, "p1"))
 	updatedProfile = nil
 	populateTargets()
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
