@@ -7031,7 +7031,7 @@ _Available in Fleet Premium_
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label in the array. |
 
-Only one of `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts on the specified `platforms` are targeted.
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts on the specified `platform` are targeted.
 
 #### Example (preferred)
 
@@ -7107,7 +7107,7 @@ The semantics for creating a team policy are the same as for global policies, se
 
 Either `query` or `query_id` must be provided.
 
-Only one of `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts on the specified `platforms` are targeted.
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts on the specified `platform` are targeted.
 
 
 #### Example
