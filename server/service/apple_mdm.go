@@ -4109,11 +4109,8 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 						continue
 					}
-					var err error
-					hostContents, err = replaceFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet SCEP proxy challenge variable")
-					}
+					fmt.Printf("Replaceing Fleet variable $FLEET_VAR_%s with %s for CA %s\n", fleetVar, ca.Challenge, ca.Name)
+					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix)
 					ca, ok := customSCEPCAs[caName]
@@ -4125,11 +4122,7 @@ func preprocessProfileContents(
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
-					var err error
-					hostContents, err = replaceFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet SCEP proxy URL variable")
-					}
+					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:    hostUUID,
 						ProfileUUID: profUUID,
@@ -4215,15 +4208,9 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents, err = replaceFleetPrefixVariableInXML(FleetVarDigiCertDataPrefix, caName, hostContents,
+					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertDataPrefix, caName, hostContents,
 						base64.StdEncoding.EncodeToString(cert.PfxData))
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert certificate data")
-					}
-					hostContents, err = replaceFleetPrefixVariableInXML(FleetVarDigiCertPasswordPrefix, caName, hostContents, cert.Password)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "replacing Fleet prefix variable for DigiCert password")
-					}
+					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertPasswordPrefix, caName, hostContents, cert.Password)
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:      hostUUID,
 						ProfileUUID:   profUUID,
@@ -4632,18 +4619,17 @@ func replaceFleetVariableInXML(regExp *regexp.Regexp, contents string, replaceme
 	return regExp.ReplaceAllString(contents, buf.String())
 }
 
-func replaceFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {
+func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) string {
 	// Escape XML characters since this replacement is intended for XML profile.
 	b := make([]byte, 0, len(replacement))
 	buf := bytes.NewBuffer(b)
 	// error is always nil for Buffer.Write method, so we ignore it
 	_ = xml.EscapeText(buf, []byte(replacement))
 
-	regExp, err := regexp.Compile(fmt.Sprintf(`(\$FLEET_VAR_%s%s)|(\${FLEET_VAR_%s%s})`, prefix, suffix, prefix, suffix))
-	if err != nil {
-		return "", ctxerr.Wrap(context.Background(), err, "compiling regex")
-	}
-	return regExp.ReplaceAllString(contents, buf.String()), nil
+	// We are replacing an exact variable, which should be present in XML like: <something>$FLEET_VAR_OUR_VAR</something>
+	contents = strings.ReplaceAll(contents, fmt.Sprintf(">$FLEET_VAR_%s%s<", prefix, suffix), fmt.Sprintf(">%s<", buf.String()))
+	contents = strings.ReplaceAll(contents, fmt.Sprintf(">${FLEET_VAR_%s%s}<", prefix, suffix), fmt.Sprintf(">%s<", buf.String()))
+	return contents
 }
 
 func findFleetVariables(contents string) map[string]interface{} {

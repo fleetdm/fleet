@@ -8,9 +8,9 @@
                 <key>PayloadContent</key>
                 <dict>
                     <key>Challenge</key>
-                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_caName</string>
+                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName</string>
                     <key>URL</key>
-                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_caName}</string>
+                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}</string>
                     <key>Key Type</key>
                     <string>RSA</string>
                     <key>Key Usage</key>
@@ -48,9 +48,9 @@
                 <key>PayloadContent</key>
                 <dict>
                     <key>Challenge</key>
-                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_caName2</string>
+                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2</string>
                     <key>URL</key>
-                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_caName2}</string>
+                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2}</string>
                     <key>Key Type</key>
                     <string>RSA</string>
                     <key>Key Usage</key>
