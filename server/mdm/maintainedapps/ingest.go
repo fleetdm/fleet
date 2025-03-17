@@ -176,7 +176,7 @@ func (i ingester) ingestOne(ctx context.Context, app maintainedApp, client *http
 		Token:   cask.Token,
 		Version: cask.Version,
 		// for now, maintained apps are always macOS (darwin)
-		Platform:         fleet.MacOSPlatform,
+		Platform:         "darwin",
 		InstallerURL:     cask.URL,
 		SHA256:           cask.SHA256,
 		BundleIdentifier: app.BundleIdentifier,
