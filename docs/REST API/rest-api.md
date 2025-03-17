@@ -8942,7 +8942,7 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-        "automatic_install_policies": [
+        "policies": [
           {
             "id": 343,
             "name": "Custom policy",
@@ -9239,7 +9239,7 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
@@ -9306,7 +9306,7 @@ Returns information about the specified software. By default, `versions` are sor
       "created_at": "2024-04-01T14:22:58Z",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
@@ -9765,7 +9765,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 17
       }
     ],
-    "automatic_install_policies": [
+    "policies": [
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
