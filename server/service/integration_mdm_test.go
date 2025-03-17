@@ -14986,6 +14986,111 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionActionRequired), linuxHost1.ID, linuxHost2.ID)
 }
 
+// Test for #24267
+func (s *integrationMDMTestSuite) TestPendingADEEnrollHostsIgnoredInStatsAndFilters() {
+	t := s.T()
+	ctx := context.Background()
+
+	s.setSkipWorkerJobs(t)
+	abmOrgName := "abm_org"
+	s.enableABM(abmOrgName)
+
+	// get the All hosts label ID
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, ls, 1)
+	allHostsLblID := ls["All Hosts"]
+
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	mockRespDevices := []*mdmtest.TestAppleMDMClient{
+		mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1"),
+		mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1"),
+	}
+	s.mockDEPResponse(abmOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
+			require.NoError(t, err)
+		case "/server/devices":
+			err := encoder.Encode(godep.DeviceResponse{})
+			require.NoError(t, err)
+		case "/devices/sync":
+			depResp := []godep.Device{}
+			for _, d := range mockRespDevices {
+				depResp = append(depResp, godep.Device{SerialNumber: d.SerialNumber})
+			}
+			err := encoder.Encode(godep.DeviceResponse{Devices: depResp})
+			require.NoError(t, err)
+		case "/profile/devices":
+			_, _ = w.Write([]byte(`{}`))
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// trigger a DEP sync to create the pending-enroll host
+	s.runDEPSchedule()
+
+	// get the created phantom hosts
+	var lhr listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr)
+	require.Len(t, lhr.Hosts, 2)
+	phantomHost1, phantomHost2 := lhr.Hosts[0], lhr.Hosts[1]
+	err = s.ds.AddLabelsToHost(ctx, phantomHost1.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, phantomHost2.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+
+	// first a quick stats check without disk encryption
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+
+	// enable disk encryption
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	// all profiles counts are expected to be 0 (no host is MDM-enrolled in Fleet)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+
+	// filter hosts with any OS Settings status, should have none
+	statuses := []fleet.OSSettingsStatus{
+		fleet.OSSettingsVerified, fleet.OSSettingsVerifying,
+		fleet.OSSettingsPending, fleet.OSSettingsFailed,
+	}
+	for _, status := range statuses {
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
+	}
+
+	// all disk encryption counts are expected to be 0 (no host is MDM-enrolled in Fleet)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+
+	// filter hosts with any Disk Encryption status, should have none
+	diskStatuses := []fleet.DiskEncryptionStatus{
+		fleet.DiskEncryptionVerified, fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionActionRequired, fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
+	}
+	for _, status := range diskStatuses {
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
+	}
+}
+
 func pluckHostIDsFromHostResponse(hosts []fleet.HostResponse) []uint {
 	if len(hosts) == 0 {
 		return nil
