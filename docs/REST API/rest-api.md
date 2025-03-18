@@ -9442,7 +9442,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tgz, .tar.gz) to install on macOS, Windows, or Linux hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts.
 
 
 `POST /api/v1/fleet/software/package`
