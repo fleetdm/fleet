@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-json-experiment/json/v1"
@@ -411,6 +412,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	}))
 	t.Cleanup(digiCertServer.Close)
 
+	scepServer := scep_server.StartTestSCEPServer(t)
+
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFile.WriteString(fmt.Sprintf(`
@@ -431,9 +434,13 @@ org_settings:
         certificate_common_name: digicert_cn
         certificate_user_principal_names: ["digicert_upn"]
         certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: %s
+        challenge: challenge    
 policies:
 queries:
-`, digiCertServer.URL))
+`, digiCertServer.URL, scepServer.URL+"/scep"))
 	require.NoError(t, err)
 
 	// Apply configs
@@ -456,6 +463,13 @@ queries:
 	require.True(t, gotProfile)
 	gotProfileMu.Unlock()
 
+	require.True(t, appConfig.Integrations.CustomSCEPProxy.Valid)
+	require.Len(t, appConfig.Integrations.CustomSCEPProxy.Value, 1)
+	customSCEPProxyCA := appConfig.Integrations.CustomSCEPProxy.Value[0]
+	require.Equal(t, "CustomScepProxy", customSCEPProxyCA.Name)
+	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
+	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
+
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
 agent_options:
@@ -475,6 +489,7 @@ queries:
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 	appConfig, err = s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-	//	require.Empty(t, appConfig.Integrations.DigiCert.Value)
+	assert.Empty(t, appConfig.Integrations.DigiCert.Value)
+	assert.Empty(t, appConfig.Integrations.CustomSCEPProxy.Value)
 
 }

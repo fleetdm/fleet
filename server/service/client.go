@@ -1565,6 +1565,36 @@ func (c *Client) DoGitOps(
 				return nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
 			}
 		}
+		if digicertIntegration, ok := integrations.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
+			integrations.(map[string]interface{})["digicert"] = nil
+		} else {
+			// We unmarshal DigiCert integration into its dedicated type for additional validation.
+			digicertJSON, err := json.Marshal(integrations.(map[string]interface{})["digicert"])
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.digicert cannot be marshalled into JSON: %w", err)
+			}
+			var digicertData optjson.Slice[fleet.DigiCertIntegration]
+			err = json.Unmarshal(digicertJSON, &digicertData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.digicert cannot be parsed: %w", err)
+			}
+			integrations.(map[string]interface{})["digicert"] = digicertData
+		}
+		if customSCEPIntegration, ok := integrations.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
+			integrations.(map[string]interface{})["custom_scep_proxy"] = nil
+		} else {
+			// We unmarshal Custom SCEP integration into its dedicated type for additional validation
+			custonSCEPJSON, err := json.Marshal(integrations.(map[string]interface{})["custom_scep_proxy"])
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be marshalled into JSON: %w", err)
+			}
+			var customSCEPData optjson.Slice[fleet.CustomSCEPProxyIntegration]
+			err = json.Unmarshal(custonSCEPJSON, &customSCEPData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be parsed: %w", err)
+			}
+			integrations.(map[string]interface{})["custom_scep_proxy"] = customSCEPData
+		}
 
 		// Ensure webhooks settings exists
 		webhookSettings, ok := group.AppConfig.(map[string]any)["webhook_settings"]
