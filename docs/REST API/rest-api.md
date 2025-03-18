@@ -9842,7 +9842,7 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
-    "fleet_maintained_app_id": 3,
+    "slug": "adobe-acrobat-reader/darwin",
     "name": "1Password",
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
