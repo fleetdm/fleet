@@ -31,6 +31,18 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 		assert.NotEmpty(t, act.Name)
 		return nil
 	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		labels := make(map[string]*fleet.Label, len(names))
+		for _, name := range names {
+			if name == "foo" {
+				labels["foo"] = &fleet.Label{
+					Name: "foo",
+					ID:   1,
+				}
+			}
+		}
+		return labels, nil
+	}
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testCases := []struct {
@@ -41,10 +53,11 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 		{
 			"All valid",
 			fleet.QueryPayload{
-				Name:     ptr.String("test query"),
-				Query:    ptr.String("select 1"),
-				Logging:  ptr.String("snapshot"),
-				Platform: ptr.String(""),
+				Name:             ptr.String("test query"),
+				Query:            ptr.String("select 1"),
+				Logging:          ptr.String("snapshot"),
+				Platform:         ptr.String(""),
+				LabelsIncludeAny: []string{"foo"},
 			},
 			false,
 		},
@@ -107,6 +120,27 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 				Platform: ptr.String("darwin,windows,sphinx"),
 			},
 			true,
+		},
+		{
+			"All valid",
+			fleet.QueryPayload{
+				Name:     ptr.String("test query"),
+				Query:    ptr.String("select 1"),
+				Logging:  ptr.String("snapshot"),
+				Platform: ptr.String(""),
+			},
+			false,
+		},
+		{
+			"Missing label",
+			fleet.QueryPayload{
+				Name:             ptr.String("test query"),
+				Query:            ptr.String("select 1"),
+				Logging:          ptr.String("snapshot"),
+				Platform:         ptr.String(""),
+				LabelsIncludeAny: []string{"foo", "bar"},
+			},
+			false,
 		},
 	}
 
