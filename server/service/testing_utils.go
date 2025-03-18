@@ -162,6 +162,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if len(opts) > 0 && opts[0].SCEPConfigService != nil {
 		scepConfigService = opts[0].SCEPConfigService
 	}
+	if len(opts) > 0 && opts[0].DigiCertService != nil {
+		digiCertService = opts[0].DigiCertService
+	}
 
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
@@ -349,6 +352,7 @@ type TestServerOpts struct {
 	WithDEPWebview        bool
 	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
 	SCEPConfigService     fleet.SCEPConfigService
+	DigiCertService       fleet.DigiCertService
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1762,6 +1763,7 @@ func TestAppConfigCAs(t *testing.T) {
 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
 		}
 		mt.svc.config.Server.PrivateKey = "exists"
+		mt.svc.digiCertService = digicert.NewService()
 		addMockDatastoreForCA(t, mt)
 		return mt
 	}

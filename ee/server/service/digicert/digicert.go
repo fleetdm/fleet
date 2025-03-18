@@ -36,7 +36,7 @@ type Service struct {
 // Compile-time check for DigiCertService interface
 var _ fleet.DigiCertService = (*Service)(nil)
 
-func NewService(opts ...Opt) *Service {
+func NewService(opts ...Opt) fleet.DigiCertService {
 	s := &Service{}
 	s.populateOpts(opts)
 	return s
