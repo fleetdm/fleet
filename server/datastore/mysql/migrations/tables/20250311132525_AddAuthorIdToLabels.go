@@ -12,7 +12,8 @@ func init() {
 func Up_20250311132525(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"ALTER TABLE `labels` " +
-			"ADD COLUMN `author_id` int unsigned NULL DEFAULT NULL;",
+			"ADD COLUMN `author_id` int unsigned NULL DEFAULT NULL, " +
+			"ADD CONSTRAINT FOREIGN KEY (`author_id`) REFERENCES `users` (`id`) ON DELETE SET NULL; ",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to add author_id column to labels table: %w", err)
