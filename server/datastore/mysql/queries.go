@@ -102,7 +102,7 @@ func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, querie
 		if err := q.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
-		_, err := stmt.ExecContext(
+		result, err := stmt.ExecContext(
 			ctx,
 			q.Name,
 			q.Description,
@@ -121,6 +121,39 @@ func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, querie
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec queries insert")
 		}
+
+		// Get the ID of the row, if it was a new query.
+		id, _ := result.LastInsertId()
+		// If the ID is 0, it was an update, so we need to get the ID.
+		if id == 0 {
+			var (
+				rows *sql.Rows
+				err  error
+			)
+			// Get the query that was updated.
+			if q.TeamID == nil {
+				rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id is NULL", q.Name)
+			} else {
+				rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id = ?", q.Name, q.TeamID)
+			}
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "select queries id")
+			}
+			// Get the ID from the rows
+			if rows.Next() {
+				if err := rows.Scan(&id); err != nil {
+					return ctxerr.Wrap(ctx, err, "scan queries id")
+				}
+			} else {
+				return ctxerr.Wrap(ctx, err, "could not find query after update")
+			}
+			if err := rows.Close(); err != nil {
+				return ctxerr.Wrap(ctx, err, "close queries id")
+			}
+
+		}
+		q.ID = uint(id)
+
 		err = ds.updateQueryLabelsInTx(ctx, q, tx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec queries update labels")
@@ -331,7 +364,7 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, query *fleet.Que
 		return ctxerr.Wrap(ctx, err, "creating query labels")
 	}
 
-	if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {
+	if err := loadLabelsForQueries(ctx, tx, []*fleet.Query{query}); err != nil {
 		return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
 	}
 
