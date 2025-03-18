@@ -18,14 +18,14 @@ export interface ICampaignError {
 }
 
 export interface IUIHostCounts {
-  total: number; // number of hosts that responded at all, either with results, no results, or an error
+  total: number; // Number of hosts that responded at all, either with results, no results, or an error
   successful: number; // Number of hosts that responded with results or no results. Excludes hosts that responded with an error. Does not include ChromeOS results that are partially successful
-  failed: number; // number of hosts that responded with an error - equivalent to `campaign.errors.length`
+  failed: number; // Number of hosts that responded with an error - equivalent to `campaign.errors.length`
 }
 
 export interface IServerHostCounts {
   countOfHostsWithResults: number; // Number of hosts that responded with any results
-  countOfHostsWithNoResults: number; // Number of hosts that have responded with no results, excluding errors
+  countOfHostsWithNoResults: number; // Number of hosts that have responded with no results and no errors
 }
 
 export interface IHostWithQueryResults extends IHost {
@@ -42,7 +42,7 @@ export interface ICampaign {
   };
   created_at: string;
 
-  // totals is a summary of data the server knows about hosts targeted by this campaign, reported at
+  // `totals` is a summary of data the server knows about hosts targeted by this campaign, reported at
   // the outset of the live query campaign via a "totals"-type websocket message
   totals: {
     count: number;
@@ -51,18 +51,18 @@ export interface ICampaign {
     online: number;
   };
 
-  // errors, hosts, hosts_count, and query_results are constructed and updated by the UI from query campaign data as it streams
+  // `errors`, `hosts`, `hosts_count`, and `query_results` are constructed and updated by the UI from query campaign data as it streams
   // in via "result"-type websocket messages. There is significant overlap of the data contained within
   // these fields.
   errors: ICampaignError[];
-  hosts: IHostWithQueryResults[]; // array of all hosts that responded and their associated results
-  uiHostCounts: IUIHostCounts; // aggregate data about the results of the live query campaign. Differs from server_host_counts in that this object is constructed and updated by the UI
+  hosts: IHostWithQueryResults[]; // Array of all hosts that responded to the query, each including and their associated results
+  uiHostCounts: IUIHostCounts; // Aggregate data about the results of the live query campaign. Differs from `serverHostCounts` in that this object is constructed and updated by the UI from incoming "result"-type websocket messages
   queryResults: QueryResults;
 
-  // status and server_host_counts represent information about the state of a live query campaign
+  // `status` and `server_host_counts` represent information about the state of a live query campaign
   // and the hosts it targets, reported via "status"-type websocket messages.
-  status: string; // really "" | "pending" | "finished";
-  serverHostCounts: IServerHostCounts; // differs from hosts_count in that this object is tracked and reported by the server
+  status: string; // "" | "pending" | "finished";
+  serverHostCounts: IServerHostCounts; // Differs from `uiHostCounts` in that the fields of this object are tracked and reported by the server via "status"-type websocket messages
 
   id: number;
   query_id: number;

@@ -18,7 +18,7 @@ interface IResult {
   };
 }
 
-interface ICampaignStatus {
+interface IIncomingCampaignStatus {
   type: "status";
   data: {
     // acutal_results == count_of_hosts_with_results + count_of_hosts_with_no_results
@@ -45,7 +45,7 @@ interface IError {
   data: string;
 }
 
-type ISocketData = IResult | ICampaignStatus | ITotals | IError;
+type ISocketData = IResult | IIncomingCampaignStatus | ITotals | IError;
 
 const updateCampaignStateFromTotals = (
   campaign: ICampaign,
@@ -124,7 +124,7 @@ const updateCampaignStateFromStatus = (
       count_of_hosts_with_results: newCountOfHostsWithResults,
       count_of_hosts_with_no_results: newCountOfHostsWithNoResults,
     },
-  }: ICampaignStatus
+  }: IIncomingCampaignStatus
 ) => {
   return {
     campaign: {
