@@ -16,20 +16,6 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
-      "name": "Asana",
-      "slug": "asana/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.electron.asana",
-      "description": ""
-    },
-    {
-      "name": "BBEdit",
-      "slug": "bbedit/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.barebones.bbedit",
-      "description": ""
-    },
-    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -125,7 +111,7 @@
       "slug": "lastpass/darwin",
       "platform": "darwin",
       "unique_identifier": "com.lastpass.lastpassmacdesktop",
-      "description": ""
+      "description": "LastPass is a password manager that creates, stores, and autofills strong passwords for you."
     },
     {
       "name": "Microsoft Edge",

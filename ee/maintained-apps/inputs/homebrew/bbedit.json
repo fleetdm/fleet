@@ -1,7 +1,0 @@
-{
-  "name": "BBEdit",
-  "slug": "bbedit/darwin",
-  "unique_identifier": "com.barebones.bbedit",
-  "token": "bbedit",
-  "installer_format": "dmg"
-}
