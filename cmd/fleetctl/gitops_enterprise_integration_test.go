@@ -491,6 +491,9 @@ queries:
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
 agent_options:
+controls:
+  macos_settings:
+    custom_settings:
 org_settings:
   server_settings:
     server_url: $FLEET_URL
