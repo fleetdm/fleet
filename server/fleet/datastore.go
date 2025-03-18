@@ -396,14 +396,6 @@ type Datastore interface {
 	OSVersion(ctx context.Context, osVersionID uint, teamFilter *TeamFilter) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
 
-	// ////////////////////////////////////////////////////////////////////////////
-	// Android
-
-	GetAndroidDS() android.Datastore
-	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
-	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
 
@@ -1448,8 +1440,8 @@ type Datastore interface {
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
-	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
 	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
@@ -1954,12 +1946,15 @@ type Datastore interface {
 	// Fleet-maintained apps
 	//
 
-	// ListAvailableFleetMaintainedApps returns a list of
-	// Fleet-maintained apps available to a specific team (or the full list of apps if no team is specified)
+	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
-	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
-	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
+	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
+	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
@@ -2002,8 +1997,23 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android
 
-	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	AndroidDatastore
+}
+
+type AndroidDatastore interface {
+	android.Datastore
+	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
+	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
+	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
+	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
+	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
+	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
+	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

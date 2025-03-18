@@ -428,6 +428,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "text-icon",
                 iconSvg: "eye",
                 onClick: toggleManageEnrollSecretsModal,
+                gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
@@ -435,6 +436,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "text-icon",
                 iconSvg: "pencil",
                 onClick: toggleRenameTeamModal,
+                gitOpsModeCompatible: true,
               },
               {
                 type: "secondary",
@@ -443,6 +445,7 @@ const TeamDetailsWrapper = ({
                 iconSvg: "trash",
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteTeamModal,
+                gitOpsModeCompatible: true,
               },
             ]}
           />

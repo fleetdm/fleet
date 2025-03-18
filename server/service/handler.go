@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -366,7 +367,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Fleet-maintained apps
 	ue.POST("/api/_version_/fleet/software/fleet_maintained_apps", addFleetMaintainedAppEndpoint, addFleetMaintainedAppRequest{})
-	ue.PATCH("/api/_version_/fleet/software/fleet_maintained_apps", editFleetMaintainedAppEndpoint, editFleetMaintainedAppRequest{})
 	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsEndpoint, listFleetMaintainedAppsRequest{})
 	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps/{app_id}", getFleetMaintainedApp, getFleetMaintainedAppRequest{})
 
@@ -1117,10 +1117,12 @@ func RegisterSCEPProxy(
 	rootMux *http.ServeMux,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	timeout *time.Duration,
 ) error {
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
+		timeout,
 	)
 	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)
