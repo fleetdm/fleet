@@ -6,7 +6,7 @@ import getMatchedSoftwareIcon, {
   SOFTWARE_SOURCE_TO_ICON_MAP,
 } from ".";
 
-// Extend the props type to include the new selection prop
+// Extend the props type to include the new selection prop because name and source are mutually exclusive
 type IconWrapperProps = Pick<ISoftware, "name" | "source"> & {
   selection?: string;
 };
@@ -23,9 +23,11 @@ const meta: Meta<typeof IconWrapper> = {
     selection: {
       control: "select",
       options: [
-        ...Object.keys(SOFTWARE_NAME_TO_ICON_MAP).map((name) => `name:${name}`),
+        ...Object.keys(SOFTWARE_NAME_TO_ICON_MAP).map(
+          (name) => `${name} (name)`
+        ),
         ...Object.keys(SOFTWARE_SOURCE_TO_ICON_MAP).map(
-          (source) => `source:${source}`
+          (source) => `${source} (source)`
         ),
       ],
     },
@@ -40,9 +42,10 @@ export const Default: Story = {
   render: ({ selection }) => {
     if (!selection) return <IconWrapper name="" source="" />;
 
-    const [type, value] = selection.split(":");
+    const [value, type] = selection.split(" (");
+    const cleanType = type.slice(0, -1); // Remove the closing parenthesis
     const props =
-      type === "name"
+      cleanType === "name"
         ? { name: value, source: "" }
         : { name: "", source: value };
     return <IconWrapper {...props} />;
