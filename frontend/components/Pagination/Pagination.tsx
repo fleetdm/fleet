@@ -11,8 +11,8 @@ export interface IPaginationProps {
   disableNext?: boolean;
   /**  Disable prev page is usually passed through from api meta data, on page 0, or on loading */
   disablePrev?: boolean;
-  onNextPage?: () => void;
-  onPrevPage?: () => void;
+  onNextPage: () => void;
+  onPrevPage: () => void;
   className?: string;
   hidePagination?: boolean;
 }
@@ -34,7 +34,7 @@ const Pagination = ({
   return (
     <div className={classNames}>
       <Button
-        variant="unstyled"
+        variant="inverse"
         disabled={disablePrev}
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
@@ -42,7 +42,7 @@ const Pagination = ({
         <Icon name="chevron-left" color="core-fleet-blue" /> Previous
       </Button>
       <Button
-        variant="unstyled"
+        variant="inverse"
         disabled={disableNext}
         onClick={onNextPage}
         className={`${baseClass}__pagination-button`}
