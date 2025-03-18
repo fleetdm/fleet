@@ -443,6 +443,9 @@ queries:
 `, digiCertServer.URL, scepServer.URL+"/scep"))
 	require.NoError(t, err)
 
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
 	// Apply configs
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
