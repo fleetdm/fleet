@@ -765,7 +765,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		// Make sure that all labels were found
 		for _, label := range spec.LabelsIncludeAny {
 			if _, ok := labelsMap[label]; !ok {
-				return nil, ctxerr.Wrap(ctx, err, "label not found")
+				return nil, ctxerr.New(ctx, "label not found")
 			}
 		}
 	}
