@@ -12,11 +12,14 @@ on:
     - cron: '0 21 * * *'
 
 permissions:
-  contents: write         # Required to push new branch
-  pull-requests: write    # Required to open PRs
+  contents: read
+  pull-requests: read
 
 jobs:
-  build:  
+  build:
+    permissions:
+      contents: write         # Required to push new branch
+      pull-requests: write    # Required to open PRs
     runs-on: ubuntu-latest
     timeout-minutes: 180
 
