@@ -32,9 +32,12 @@ const (
 )
 
 type campaignStatus struct {
-	ExpectedResults uint   `json:"expected_results"`
-	ActualResults   uint   `json:"actual_results"`
-	Status          string `json:"status"`
+	ExpectedResults uint `json:"expected_results"`
+	// ActualResults == HostWithResultsCount + HostWithNoResultsCount
+	ActualResults             uint   `json:"actual_results"`
+	CountOfHostsWithResults   uint   `json:"count_of_hosts_with_results"`
+	CountOfHostsWithNoResults uint   `json:"count_of_hosts_with_no_results"`
+	Status                    string `json:"status"`
 }
 
 type statsToSave struct {
@@ -261,6 +264,11 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				if err != nil {
 					_ = level.Error(logger).Log("msg", "error writing to channel", "err", err)
 				}
+				if len(res.Rows) == 0 {
+					status.CountOfHostsWithNoResults++
+				} else {
+					status.CountOfHostsWithResults++
+				}
 				status.ActualResults++
 			case error:
 				level.Error(logger).Log("msg", "received error from pubsub channel", "err", res)
@@ -333,8 +341,10 @@ func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQ
 }
 
 // overwriteLastExecuted is used for testing purposes to overwrite the last executed time of the live query stats.
-var overwriteLastExecuted = false
-var overwriteLastExecutedTime time.Time
+var (
+	overwriteLastExecuted     = false
+	overwriteLastExecutedTime time.Time
+)
 
 func (svc Service) updateStats(
 	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,

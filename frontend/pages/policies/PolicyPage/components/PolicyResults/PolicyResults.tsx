@@ -58,7 +58,7 @@ const PolicyResults = ({
 }: IPolicyResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(PolicyContext);
 
-  const { hosts: hostResponses, hosts_count: hostsCount, errors } =
+  const { hosts: hostResponses, uiHostCounts: hostsCount, errors } =
     campaign || {};
 
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);

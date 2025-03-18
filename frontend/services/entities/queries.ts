@@ -118,15 +118,7 @@ export default {
         query_id: queryId,
         selected,
       });
-      console.log("Campaign before adding `hosts_count` field: ", campaign);
-      return Promise.resolve({
-        ...campaign,
-        hosts_count: {
-          successful: 0,
-          failed: 0,
-          total: 0,
-        },
-      });
+      return campaign;
     } catch (e) {
       throw new Error(
         getErrorReason(e) || `run query: parse server error ${e}`

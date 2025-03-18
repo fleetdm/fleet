@@ -61,7 +61,7 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostCounts, query_results: queryResults, errors } =
+  const { uiHostCounts, serverHostCounts, queryResults, errors } =
     campaign || {};
 
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -267,15 +267,12 @@ const QueryResults = ({
     <div className={baseClass}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
-        // should be num of hosts that returned either any result rows, empty result rows, or any errors
-        numHostsResponded={hostCounts.total}
-        // num hosts that returned >= 1 result rows
-        // hosts_count.successful?
-        numHostsRespondedResults={hostCounts.successful}
-        // TODO: num hosts that successfully returned 0 result rows
-        numHostsRespondedNoErrorsAndNoResults={0}
-        //  num hosts that returned an error
-        numHostsRespondedErrors={hostCounts.failed}
+        numHostsResponded={uiHostCounts.total}
+        numHostsRespondedResults={serverHostCounts.countOfHostsWithResults}
+        numHostsRespondedNoErrorsAndNoResults={
+          serverHostCounts.countOfHostsWithNoResults
+        }
+        numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunAgain}
