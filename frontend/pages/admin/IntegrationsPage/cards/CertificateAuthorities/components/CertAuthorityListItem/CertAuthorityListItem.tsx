@@ -5,7 +5,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-import { ICertAuthority } from "../../helpers";
+import { ICertAuthorityListData } from "../../helpers";
 
 const baseClass = "cert-authority-list-item";
 
@@ -48,7 +48,7 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
 };
 
 interface ICertAuthorityListItemProps {
-  cert: ICertAuthority;
+  cert: ICertAuthorityListData;
   onClickEdit: () => void;
   onClickDelete: () => void;
 }
@@ -60,7 +60,7 @@ const CertAuthorityListItem = ({
 }: ICertAuthorityListItemProps) => {
   return (
     <ListItem
-      className={`${baseClass}__list-item`}
+      className={baseClass}
       graphic="file-certificate"
       title={cert.name}
       details={cert.name}
