@@ -55,7 +55,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	// upsert the figma app, changing the version
 	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:         "Figma",
-		Token:        "figma",
+		Slug:         "figma",
 		InstallerURL: "https://desktop.figma.com/mac-arm/Figma-999.9.9.zip",
 		Version:      "999.9.9",
 		Platform:     "darwin",
@@ -100,7 +100,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
-		Token:            "maintained1",
+		Slug:             "maintained1",
 		Version:          "1.0.0",
 		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
@@ -113,7 +113,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained2",
-		Token:            "maintained2",
+		Slug:             "maintained2",
 		Version:          "1.0.0",
 		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",
@@ -125,7 +125,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained3",
-		Token:            "maintained3",
+		Slug:             "maintained3",
 		Version:          "1.0.0",
 		Platform:         "darwin",
 		InstallerURL:     "http://example.com/main1",

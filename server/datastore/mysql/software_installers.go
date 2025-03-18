@@ -210,7 +210,7 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email,
-	fleet_library_app_id
+	fleet_maintained_app_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
 
 		args := []interface{}{
@@ -569,7 +569,7 @@ SELECT
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
 	si.platform,
-	si.fleet_library_app_id
+	si.fleet_maintained_app_id
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id

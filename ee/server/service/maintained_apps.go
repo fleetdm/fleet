@@ -227,13 +227,12 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 // TODO move to maintained apps service
 func (svc *Service) hydrateFMA(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	slug := app.Token + "/darwin" // TODO replace with slug
 	baseURL := fmaOutputsBase
 	if baseFromEnvVar := os.Getenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
 		baseURL = baseFromEnvVar
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s.json", baseURL, slug), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s.json", baseURL, app.Slug), nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create http request")
 	}
@@ -263,9 +262,9 @@ func (svc *Service) hydrateFMA(ctx context.Context, app *fleet.MaintainedApp) (*
 
 	var manifest ma.FMAManifestFile
 	if err := json.Unmarshal(body, &manifest); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal FMA manifest for %s", app.Token)
+		return nil, ctxerr.Wrapf(ctx, err, "unmarshal FMA manifest for %s", app.Slug)
 	}
-	manifest.Versions[0].Slug = slug
+	manifest.Versions[0].Slug = app.Slug
 
 	app.Version = manifest.Versions[0].Version
 	app.Platform = manifest.Versions[0].Platform()

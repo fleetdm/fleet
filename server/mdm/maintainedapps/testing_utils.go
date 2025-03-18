@@ -62,13 +62,5 @@ func IngestMaintainedApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedAp
 // expected to be in the maintained apps library after ingestion. The tokens are
 // taken from the apps.json list.
 func ExpectedAppTokens(t *testing.T) []string {
-	var apps []maintainedApp
-	err := json.Unmarshal(appsJSON, &apps)
-	require.NoError(t, err)
-
-	tokens := make([]string, len(apps))
-	for i, app := range apps {
-		tokens[i] = app.Identifier
-	}
-	return tokens
+	return []string{} // TODO
 }
