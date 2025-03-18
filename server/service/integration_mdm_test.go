@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	_ "embed"
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
@@ -10419,13 +10420,12 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 
 	// Enroll to Fleet with fleetd first.
 	desktopToken := uuid.New().String()
-	lastEnrolledAt := time.Now().UTC()
 	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
 	fleetHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
-		LastEnrolledAt:  lastEnrolledAt,
+		LastEnrolledAt:  time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
 		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
 		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
@@ -10438,15 +10438,21 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
 	require.NoError(t, err)
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	lastEnrolledAt := hostResp.Host.LastEnrolledAt
+
+	// Add the following here for debug: time.Sleep(2 * time.Second)
 
 	// Enroll with MDM manually after.
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	hostResp := getHostResponse{}
+	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
-	require.Equal(t, lastEnrolledAt.Truncate(1*time.Second).UTC(), hostResp.Host.LastEnrolledAt.Truncate(1*time.Second).UTC())
+	assert.Equal(t, lastEnrolledAt, hostResp.Host.LastEnrolledAt)
 }
 
 func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
@@ -13004,37 +13010,6 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	t := s.T()
 	ctx := context.Background()
 
-	data, err := os.ReadFile("./testdata/PKCSReq.der")
-	require.NoError(t, err)
-	message := base64.StdEncoding.EncodeToString(data)
-
-	// NDES not configured
-	res := s.DoRawNoAuth("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest)
-	errBody, err := io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), "missing operation")
-	// Provide SCEP operation (GetCACaps)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
-	// Provide SCEP operation (GetCACerts)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetCACert")
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
-	// Provide SCEP operation (PKIOperation)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
-		"message", message)
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
-	// Provide SCEP operation (GetNextCACert)
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"1%2C1", nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
-	errBody, err = io.ReadAll(res.Body)
-	require.NoError(t, err)
-	assert.Contains(t, string(errBody), "not implemented")
-
 	// Add an MDM profile
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "Good1"),
@@ -13052,11 +13027,12 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 2)
 	var profileUUID string
-	var badProfile fleet.HostMDMAppleProfile
+	var goodProfile, badProfile fleet.HostMDMAppleProfile
 	for _, profile := range profiles {
 		switch profile.Identifier {
 		case "Good1":
 			profileUUID = profile.ProfileUUID
+			goodProfile = profile
 		case "Bad1":
 			profile.Status = &fleet.MDMDeliveryFailed
 			badProfile = profile
@@ -13072,10 +13048,67 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            badProfile.Status,
 		Detail:            badProfile.Detail,
 		Checksum:          []byte("checksum"),
+	}, {
+		ProfileUUID:       goodProfile.ProfileUUID,
+		ProfileIdentifier: goodProfile.Identifier,
+		ProfileName:       goodProfile.Name,
+		HostUUID:          host.UUID,
+		CommandUUID:       goodProfile.CommandUUID,
+		OperationType:     goodProfile.OperationType,
+		Status:            goodProfile.Status,
+		Detail:            goodProfile.Detail,
+		Checksum:          []byte("checksum"),
 	}})
 	require.NoError(t, err)
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		{
+			HostUUID:    host.UUID,
+			ProfileUUID: profileUUID,
+			Type:        fleet.CAConfigNDES,
+			CAName:      "NDES",
+		},
+		{
+			HostUUID:    host.UUID,
+			ProfileUUID: badProfile.ProfileUUID,
+			Type:        fleet.CAConfigNDES,
+			CAName:      "NDES",
+		},
+	})
+	require.NoError(t, err)
+
 	identifier := url.PathEscape(host.UUID + "," + profileUUID)
 	badIdentifier := url.PathEscape(host.UUID + "," + badProfile.ProfileUUID)
+
+	data, err := os.ReadFile("./testdata/PKCSReq.der")
+	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(data)
+
+	// NDES not configured
+	res := s.DoRawNoAuth("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest)
+	errBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "missing operation")
+	// Provide SCEP operation (GetCACaps)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "GetCACaps")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetCACerts)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "GetCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (PKIOperation)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "PKIOperation",
+		"message", message)
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), eeservice.MessageSCEPProxyNotConfigured)
+	// Provide SCEP operation (GetNextCACert)
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation", "GetNextCACert")
+	errBody, err = io.ReadAll(res.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(errBody), "not implemented")
 
 	// Configure a bad SCEP URL
 	appConf, err := s.ds.AppConfig(context.Background())
@@ -13184,6 +13217,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
 			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter)),
+			Type:                 fleet.CAConfigNDES,
+			CAName:               "NDES",
 		},
 	})
 	require.NoError(t, err)
@@ -13199,6 +13234,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
 			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-eeservice.NDESChallengeInvalidAfter + time.Minute)),
+			Type:                 fleet.CAConfigNDES,
+			CAName:               "NDES",
 		},
 	})
 	require.NoError(t, err)
@@ -13741,43 +13778,18 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Len(t, res.Integrations.DigiCert.Value, 3)
 }
 
+//go:embed testdata/profiles/digicert.mobileconfig
+var digiCertMobileconfig string
+
 func digiCertForTest(name, identifier, caName string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-    <array>
-        <dict>
-            <key>Password</key>
-            <string>$FLEET_VAR_DIGICERT_PASSWORD_%s</string>
-            <key>PayloadContent</key>
-            <data>${FLEET_VAR_DIGICERT_DATA_%s}</data>
-            <key>PayloadDisplayName</key>
-            <string>CertificatePKCS12</string>
-            <key>PayloadIdentifier</key>
-            <string>com.fleetdm.pkcs12</string>
-            <key>PayloadType</key>
-            <string>com.apple.security.pkcs12</string>
-            <key>PayloadUUID</key>
-            <string>ee86cfcb-2409-42c2-9394-1f8113412e04</string>
-            <key>PayloadVersion</key>
-            <integer>1</integer>
-        </dict>
-	</array>
-	<key>PayloadDisplayName</key>
-	<string>%s</string>
-	<key>PayloadIdentifier</key>
-	<string>%s</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>%s</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>
-`, caName, caName, name, identifier, uuid.New().String()))
+	return []byte(fmt.Sprintf(digiCertMobileconfig, caName, caName, name, identifier, uuid.New().String()))
+}
+
+//go:embed testdata/profiles/custom-scep.mobileconfig
+var customSCEPMobileconfig string
+
+func customSCEPForTest(name, identifier, caName string) []byte {
+	return []byte(fmt.Sprintf(customSCEPMobileconfig, caName, caName, name, identifier, uuid.New().String()))
 }
 
 type mockDigiCertServer struct {
@@ -14081,6 +14093,179 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	}
 	slices.Sort(caNames)
 	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
+}
+
+func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	// ctx := context.Background()
+	scepServer := startSCEPServer(t)
+	scepServerURL := scepServer.URL + "/scep"
+
+	// Create a host and then enroll to MDM.
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setupPusher(s, t, mdmDevice)
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+	// Receive enrollment profiles (we are not checking/testing these here)
+	for {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		if cmd == nil {
+			break
+		}
+		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// /////////////////////////////////////////
+	// Upload a profile without defining the CA
+	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")},
+	}}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(resp.Body)
+	assert.Contains(t, errMsg, "FLEET_VAR_CUSTOM_SCEP_")
+	assert.Contains(t, errMsg, "_caName is not supported")
+
+	// /////////////////////////////////////////
+	// Happy path
+	// First, add custom SCEP config
+	ca0 := getCustomSCEPIntegration(scepServerURL, "caName")
+	ca0.Challenge = "bad"
+	appConfig := map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0},
+		},
+	}
+	raw, err := json.Marshal(appConfig)
+	require.NoError(t, err)
+	req := modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 1)
+	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
+		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
+	}
+
+	// Then, upload the profile using the SCEP config
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	getHostResp := getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	var found bool
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	var profileUUID string
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "N0" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Empty(t, prof.Detail)
+			profileUUID = prof.ProfileUUID
+			break
+		}
+	}
+	assert.True(t, found)
+
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting SCEP profile")
+	var fullCmd micromdm.CommandPayload
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile := fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	var scepProfile struct {
+		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+	}
+	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
+	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0]["PayloadType"].(string))
+	challenge := scepProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})["Challenge"].(string)
+	payloadURL := scepProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})["URL"].(string)
+	assert.Equal(t, ca0.Challenge, challenge)
+	identifier := url.PathEscape(host.UUID + "," + profileUUID)
+	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, payloadURL)
+
+	// /////////////////////////////////////
+	// Test SCEP traffic being sent by host
+	// GetCACaps
+	scepRes := s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACaps")
+	body, err := io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+
+	// GetCACert
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACert")
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	certs, err := x509.ParseCertificates(body)
+	require.NoError(t, err)
+	assert.Len(t, certs, 1)
+
+	// PKIOperation
+	data, err := os.ReadFile("./testdata/PKCSReq.der")
+	require.NoError(t, err)
+	message := base64.StdEncoding.EncodeToString(data)
+
+	// Note, a cert is not returned here because the message is not a fully valid SCEP request. However, building a valid SCEP request is a bit involved,
+	// and this request is sufficient for testing our proxy functionality.
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	pkiMessage, err := scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+
+	// Host acknowledges the profile and we mark it as verified
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+	hostProfs := map[string]*fleet.HostMacOSProfile{
+		"I0": {Identifier: "I0", DisplayName: "N0", InstallDate: time.Now()},
+	}
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
+
+	// ////////////////////////////////////////////
+	// Remove the CA and try to re-send the profile
+	appConfig = map[string]interface{}{
+		"integrations": map[string]interface{}{
+			"custom_scep_proxy": nil,
+		},
+	}
+	raw, err = json.Marshal(appConfig)
+	require.NoError(t, err)
+	req = modifyAppConfigRequest{}
+	req.RawMessage = raw
+	res = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
+	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, profileUUID), nil, http.StatusAccepted)
+	s.awaitTriggerProfileSchedule(t)
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	found = false
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "N0" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Contains(t, prof.Detail, "caName certificate authority doesn't exist")
+			break
+		}
+	}
+	assert.True(t, found)
 }
 
 type noopCertDepot struct{ depot.Depot }
@@ -14851,42 +15036,20 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	err = s.ds.AddLabelsToHost(ctx, winHost2.ID, []uint{allHostsLblID})
 	require.NoError(t, err)
 
-	// enable disk encryption
-	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	// first a quick stats check without disk encryption
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+
+	// enable disk encryption
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	pluckHostIDs := func(hosts []fleet.HostResponse) []uint {
-		if len(hosts) == 0 {
-			return nil
-		}
-
-		ids := make([]uint, len(hosts))
-		for i, h := range hosts {
-			ids[i] = h.ID
-		}
-		return ids
-	}
-
-	checkFilters := func(filter, value string, expectIDs ...uint) {
-		listHostsRes := listHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, filter, value)
-		require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
-		require.Equal(t, expectIDs, pluckHostIDs(listHostsRes.Hosts), value)
-
-		countResp := countHostsResponse{}
-		s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, filter, value)
-		require.Equal(t, len(expectIDs), countResp.Count, value)
-
-		listHostsRes = listHostsResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLblID), nil, http.StatusOK, &listHostsRes, filter, value)
-		require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
-		require.Equal(t, expectIDs, pluckHostIDs(listHostsRes.Hosts), value)
-
-		// The other hosts-filter-related endpoints (delete by filter, transfer by
-		// filter, hosts report) all use either ListHosts or ListsHostsInLabel.
-	}
 
 	// all profiles counts are expected to be 0 (no host is MDM-enrolled in Fleet)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
@@ -14897,7 +15060,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 		fleet.OSSettingsPending, fleet.OSSettingsFailed,
 	}
 	for _, status := range statuses {
-		checkFilters("os_settings", string(status))
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
 	}
 
 	// all disk encryption counts are expected to be 0 (no host is MDM-enrolled in Fleet)
@@ -14910,7 +15073,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
 	}
 	for _, status := range diskStatuses {
-		checkFilters("os_settings_disk_encryption", string(status))
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
 	}
 
 	// enroll a Windows host in Fleet MDM
@@ -14921,8 +15084,8 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
 
 	// filters should return this host
-	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
-	checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), winHost1.ID)
+	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
 
 	// enroll the other Windows host in a third-party MDM
 	err = s.ds.SetOrUpdateMDMData(ctx, winHost2.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "")
@@ -14933,6 +15096,110 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
 
 	// filters should NOT return this host
-	checkFilters("os_settings", string(fleet.OSSettingsPending), winHost1.ID)
-	checkFilters("os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), winHost1.ID)
+	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionEnforcing), winHost1.ID)
+}
+
+// Test for #24266
+func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	// get the All hosts label ID
+	ls, err := s.ds.LabelIDsByName(ctx, []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, ls, 1)
+	allHostsLblID := ls["All Hosts"]
+
+	// create a couple Linux hosts that would support disk encryption if it was enabled
+	linuxHost1 := createOrbitEnrolledHost(t, "ubuntu", "h1", s.ds)
+	linuxHost2 := createOrbitEnrolledHost(t, "rhel", "h2", s.ds)
+	linuxHost2.OSVersion = "Fedora 41"
+	err = s.ds.UpdateHost(ctx, linuxHost2)
+	require.NoError(t, err)
+	linuxHost3 := createOrbitEnrolledHost(t, "arch", "h3", s.ds)
+
+	err = s.ds.AddLabelsToHost(ctx, linuxHost1.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, linuxHost2.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, linuxHost3.ID, []uint{allHostsLblID})
+	require.NoError(t, err)
+
+	// ensure disk encryption is disabled
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	// all profiles counts are expected to be 0
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+
+	// filter hosts with any OS Settings status, should have none
+	statuses := []fleet.OSSettingsStatus{
+		fleet.OSSettingsVerified, fleet.OSSettingsVerifying,
+		fleet.OSSettingsPending, fleet.OSSettingsFailed,
+	}
+	for _, status := range statuses {
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(status))
+	}
+
+	// all disk encryption counts are expected to be 0 (not enabled)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+
+	// filter hosts with any Disk Encryption status, should have none
+	diskStatuses := []fleet.DiskEncryptionStatus{
+		fleet.DiskEncryptionVerified, fleet.DiskEncryptionVerifying,
+		fleet.DiskEncryptionActionRequired, fleet.DiskEncryptionEnforcing,
+		fleet.DiskEncryptionFailed, fleet.DiskEncryptionRemovingEnforcement,
+	}
+	for _, status := range diskStatuses {
+		s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(status))
+	}
+
+	// now turn disk encryption on
+	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	// the 2 LUKS-supported linux hosts should show up
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 2}, nil)
+	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), linuxHost1.ID, linuxHost2.ID)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 2}}, false)
+	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionActionRequired), linuxHost1.ID, linuxHost2.ID)
+}
+
+func pluckHostIDsFromHostResponse(hosts []fleet.HostResponse) []uint {
+	if len(hosts) == 0 {
+		return nil
+	}
+
+	ids := make([]uint, len(hosts))
+	for i, h := range hosts {
+		ids[i] = h.ID
+	}
+	return ids
+}
+
+// verifies that ListHosts, CountHosts and ListHostsInLabel all return the
+// expected host IDs when run with the provided filter.
+func (s *withServer) checkListHostsFilter(t *testing.T, allHostsLabelID uint, filter, value string, expectIDs ...uint) {
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, filter, value)
+	require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
+	require.ElementsMatch(t, expectIDs, pluckHostIDsFromHostResponse(listHostsRes.Hosts), value)
+
+	countResp := countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, filter, value)
+	require.Equal(t, len(expectIDs), countResp.Count, value)
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabelID), nil, http.StatusOK, &listHostsRes, filter, value)
+	require.Len(t, listHostsRes.Hosts, len(expectIDs), value)
+	require.ElementsMatch(t, expectIDs, pluckHostIDsFromHostResponse(listHostsRes.Hosts), value)
+
+	// The other hosts-filter-related endpoints (delete by filter, transfer by
+	// filter, hosts report) all use either ListHosts or ListsHostsInLabel.
 }
