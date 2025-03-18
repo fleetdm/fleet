@@ -33,7 +33,7 @@ const (
 
 type campaignStatus struct {
 	ExpectedResults uint `json:"expected_results"`
-	// ActualResults == HostWithResultsCount + HostWithNoResultsCount
+	// ActualResults == CountOfHostsWithResults + CountOfHostsWithNoResults
 	ActualResults             uint   `json:"actual_results"`
 	CountOfHostsWithResults   uint   `json:"count_of_hosts_with_results"`
 	CountOfHostsWithNoResults uint   `json:"count_of_hosts_with_no_results"`
@@ -243,7 +243,8 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		case res := <-readChan:
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
-			case fleet.DistributedQueryResult:
+			case fleet.DistributedQueryResult: // includes error host responses, though they don't contribute to the "result" nor "no result" counts reported in status messages
+
 				// Calculate result size for performance stats
 				outputSize := calculateOutputSize(&perfStatsTracker, &res)
 				mapHostnameRows(&res)
@@ -264,10 +265,15 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 				if err != nil {
 					_ = level.Error(logger).Log("msg", "error writing to channel", "err", err)
 				}
-				if len(res.Rows) == 0 {
-					status.CountOfHostsWithNoResults++
-				} else {
-					status.CountOfHostsWithResults++
+				if res.Error == nil {
+					// Fleet considers a host-reported error to be neither a "result" nor "no result"
+					// The Fleet UI currently tracks errors as they stream in, though the server doesn't
+					// report that count here
+					if len(res.Rows) == 0 {
+						status.CountOfHostsWithNoResults++
+					} else {
+						status.CountOfHostsWithResults++
+					}
 				}
 				status.ActualResults++
 			case error:
