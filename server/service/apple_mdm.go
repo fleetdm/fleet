@@ -2815,6 +2815,8 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	fmt.Println(">>>>> AUTHENTICATE!", r.ID)
+
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		var nfe fleet.NotFoundError
@@ -2840,6 +2842,8 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		}
 	}
 
+	// TODO(iosrevive): Step 1: during Authenticate, in the Reset lifecycle stage,
+	// store the platform in the nano_enrollment information.
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:         mdmlifecycle.HostActionReset,
 		Platform:       platform,
@@ -2873,6 +2877,8 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	fmt.Println(">>>>> TOKENUPDATE!", r.ID)
+
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
@@ -2910,6 +2916,8 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/check_out
 func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.CheckOut) error {
+	fmt.Println(">>>>> CHECKOUT!", r.ID)
+
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
 	if err != nil {
 		return err
@@ -2985,7 +2993,24 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	fmt.Println(">>>>> COMMANDANDREPORTRESULTS!", r.ID, cmdResult.CommandUUID, cmdResult.Status, r.Params)
+
 	if cmdResult.Status == "Idle" {
+		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
+		// beeen deleted from Fleet (no host entry) will still send checkin
+		// requests from time to time. Those should be Idle requests without a
+		// CommandUUID. As stated in tickets #22941 and #22391, Fleet iDevices
+		// should be re-created when they checkin with MDM.
+
+		// TODO(iosrevive): Step 2: identify via the new nano_devices.platform if
+		// this is an iDevice that doesn't have a corresponding host entry, and if
+		// so, trigger a refetch device info for it (we can't create the host entry
+		// here as we don't have any other device information besides the UDID).
+		// I.e. the equivalent of:
+		// https://github.com/fleetdm/fleet/blob/769fd37aafe23e0c04e014bbe1a34804b8f1d348/server/service/hosts.go#L1111-L1114
+		// We can't insert the requested command in host_mdm_commands because the
+		// host entry doesn't exist yet.
+
 		// macOS hosts are considered unlocked if they are online any time
 		// after they have been unlocked. If the host has been seen after a
 		// successful unlock, take the opportunity and update the value in the
@@ -2998,6 +3023,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		return nil, nil
 	}
+
+	fmt.Println(">>>>> CommandAndReportResults: ", cmdResult.CommandUUID)
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
@@ -3225,6 +3252,12 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	host.HardwareModel = productName
 	host.DetailUpdatedAt = time.Now()
 	host.RefetchRequested = false
+
+	// TODO(iosrevive): Step 3: if the host entry does not exist but the nano
+	// device does and has ios/ipados platform, create it here as "ingested from
+	// MDM check-in."
+	// I.e. the equivalent of
+	// https://github.com/fleetdm/fleet/blob/769fd37aafe23e0c04e014bbe1a34804b8f1d348/server/mdm/lifecycle/lifecycle.go#L124-L132
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
@@ -3398,6 +3431,10 @@ func SendPushesToPendingDevices(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
+	// TODO(iosrevive): Step 4 (optional), if we want to go out of our way to
+	// re-create the deleted iDevices ASAP, we could include them in the list of
+	// hosts to send a push to, so that they checkin early (it can be arbitrarily
+	// long without a push notification).
 	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")

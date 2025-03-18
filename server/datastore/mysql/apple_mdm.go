@@ -4160,6 +4160,8 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		// reset the enrolled_from_migration value. We only get to this
 		// stage if the host is enrolling with Fleet, SCEP renewals are
 		// short-circuited before this.
+		// TODO(iosrevive): Step 1b: this is where we could update nano_enrollments to
+		// store the platform (or in nano_devices).
 		_, err = tx.ExecContext(
 			ctx,
 			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND enabled = 1",
@@ -5286,9 +5288,9 @@ func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context
 	const stmt = `
 SELECT DISTINCT neq.id
 FROM nano_enrollment_queue neq
-LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid AND ncr.id = neq.id
-WHERE neq.active = 1 AND ncr.status IS NULL
-AND neq.created_at >= NOW() - INTERVAL 7 DAY
+-- LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid AND ncr.id = neq.id
+-- WHERE neq.active = 1 AND ncr.status IS NULL
+-- AND neq.created_at >= NOW() - INTERVAL 7 DAY
 LIMIT 500
 `
 
