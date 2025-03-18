@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -27,23 +28,40 @@ import (
 // defaultTimeout is the timeout for requests.
 const defaultTimeout = 20 * time.Second
 
-type integrationOpts struct {
+type Service struct {
+	logger  kitlog.Logger
 	timeout time.Duration
 }
 
+// Compile-time check for DigiCertService interface
+var _ fleet.DigiCertService = (*Service)(nil)
+
+func NewService(opts ...Opt) *Service {
+	s := &Service{}
+	s.populateOpts(opts)
+	return s
+}
+
 // Opt is the type for DigiCert integration options.
-type Opt func(o *integrationOpts)
+type Opt func(*Service)
 
 // WithTimeout sets the timeout to use for the HTTP client.
 func WithTimeout(t time.Duration) Opt {
-	return func(o *integrationOpts) {
-		o.timeout = t
+	return func(s *Service) {
+		s.timeout = t
 	}
 }
 
-func VerifyProfileID(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, opts ...Opt) error {
+// WithLogger sets the logger to use for the service.
+func WithLogger(logger kitlog.Logger) Opt {
+	return func(s *Service) {
+		s.logger = logger
+	}
+}
 
-	client := fleethttp.NewClient(fleethttp.WithTimeout(populateOpts(opts).timeout))
+func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertIntegration) error {
+
+	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	config.URL = strings.TrimRight(config.URL, "/")
 	req, err := http.NewRequest("GET", config.URL+"/mpki/api/v2/profile/"+url.PathEscape(config.ProfileID), nil)
@@ -76,28 +94,24 @@ func VerifyProfileID(ctx context.Context, logger kitlog.Logger, config fleet.Dig
 	if p.Status != "Active" {
 		return ctxerr.Errorf(ctx, "DigiCert profile status is not Active: %s", p.Status)
 	}
-	level.Debug(logger).Log("msg", "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
+	level.Debug(s.logger).Log("msg", "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
 	return nil
 }
 
-func populateOpts(opts []Opt) integrationOpts {
-	o := integrationOpts{
-		timeout: defaultTimeout,
-	}
+func (s *Service) populateOpts(opts []Opt) {
 	for _, opt := range opts {
-		opt(&o)
+		opt(s)
 	}
-	return o
+	if s.timeout <= 0 {
+		s.timeout = defaultTimeout
+	}
+	if s.logger == nil {
+		s.logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+	}
 }
 
-type Certificate struct {
-	PfxData       []byte
-	Password      string
-	NotValidAfter time.Time
-}
-
-func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.DigiCertIntegration, opts ...Opt) (*Certificate, error) {
-	client := fleethttp.NewClient(fleethttp.WithTimeout(populateOpts(opts).timeout))
+func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertIntegration) (*fleet.DigiCertCertificate, error) {
+	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	// Generate a CSR (Certificate Signing Request).
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -213,7 +227,7 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 		return nil, ctxerr.Errorf(ctx, "did not receive DigiCert certificate")
 	}
 
-	level.Debug(logger).Log("msg", "DigiCert certificate created", "serial_number", certResp.SerialNumber)
+	level.Debug(s.logger).Log("msg", "DigiCert certificate created", "serial_number", certResp.SerialNumber)
 
 	// Decode the certificate from PEM format
 	certBlock, _ := pem.Decode([]byte(certResp.Certificate))
@@ -236,7 +250,7 @@ func GetCertificate(ctx context.Context, logger kitlog.Logger, config fleet.Digi
 		return nil, ctxerr.Wrap(ctx, err, "creating PKCS12 bundle")
 	}
 
-	return &Certificate{
+	return &fleet.DigiCertCertificate{
 		PfxData:       pkcs12Data,
 		Password:      password,
 		NotValidAfter: cert.NotAfter,

@@ -3824,8 +3824,10 @@ func ReconcileAppleProfiles(
 	}
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
-	err = preprocessProfileContents(ctx, appConfig, ds, eeservice.NewSCEPConfigService(logger, nil), logger, installTargets, profileContents,
-		hostProfilesToInstallMap)
+	err = preprocessProfileContents(ctx, appConfig, ds,
+		eeservice.NewSCEPConfigService(logger, nil),
+		digicert.NewService(digicert.WithLogger(logger)),
+		logger, installTargets, profileContents, hostProfilesToInstallMap)
 	if err != nil {
 		return err
 	}
@@ -3945,6 +3947,7 @@ func preprocessProfileContents(
 	appConfig *fleet.AppConfig,
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
+	digiCertService fleet.DigiCertService,
 	logger kitlog.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
@@ -4225,7 +4228,7 @@ func preprocessProfileContents(
 						}
 					}
 
-					cert, err := digicert.GetCertificate(ctx, logger, caCopy)
+					cert, err := digiCertService.GetCertificate(ctx, caCopy)
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{

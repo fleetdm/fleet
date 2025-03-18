@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1101,7 +1100,7 @@ func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet
 				needToVerify = true
 			}
 			if _, ok := result.digicert[newCA.Name]; ok && needToVerify {
-				err := digicert.VerifyProfileID(ctx, svc.logger, newCA)
+				err := svc.digiCertService.VerifyProfileID(ctx, newCA)
 				if err != nil {
 					invalid.Append("integrations.digicert.profile_id",
 						fmt.Sprintf("Could not verify DigiCert profile ID %s for CA %s: %s", newCA.ProfileID, newCA.Name, err))

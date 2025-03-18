@@ -17,6 +17,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -69,6 +70,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
 		scepConfigService                               = eeservice.NewSCEPConfigService(logger, nil)
+		digiCertService                                 = digicert.NewService(digicert.WithLogger(logger))
 
 		mdmStorage            fleet.MDMAppleStore
 		mdmPusher             nanomdm_push.Pusher
@@ -194,6 +196,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		cronSchedulesService,
 		wstepManager,
 		scepConfigService,
+		digiCertService,
 	)
 	if err != nil {
 		panic(err)
