@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# curl -s https://releases.1password.com/mac/index.xml | grep -o "<title>.*</title>" |grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)*" |sort -t. -k1,1nr -k2,2nr -k3,3nr -k4,4nr | head -1
-
-
 # Variables
 REPO_OWNER="fleetdm"
 REPO_NAME="fleet"
