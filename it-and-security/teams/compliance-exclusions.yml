@@ -29,6 +29,10 @@ agent_options:
     desktop: edge
 controls:
   enable_disk_encryption: true
+  scripts:
+    - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
 policies:
     - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
 queries:
