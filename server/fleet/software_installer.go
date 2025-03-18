@@ -293,7 +293,7 @@ const (
 Exit code: %d (Failed)
 %s
 `
-	SoftwareInstallerDownloadFailedCopy = "Software installer download failed."
+	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -318,10 +318,10 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 	switch *h.InstallScriptExitCode {
 	case 0:
 		// ok, continue
-	case ErrorCodeScriptsDisabled:
+	case ExitCodeScriptsDisabled:
 		*h.Output = SoftwareInstallerScriptsDisabledCopy
 		return
-	case ErrorCodeInstallerDownload:
+	case ExitCodeInstallerDownloadFailed:
 		*h.Output = SoftwareInstallerDownloadFailedCopy
 		return
 	default:
@@ -604,8 +604,13 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 }
 
 const (
-	ErrorCodeScriptsDisabled   = -2
-	ErrorCodeInstallerDownload = -3
+	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
+	// disabled.
+	ExitCodeScriptsDisabled = -2
+	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
+	ExitCodeInstallerDownloadFailed = -3
 )
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
