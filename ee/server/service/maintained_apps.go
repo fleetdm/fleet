@@ -120,25 +120,26 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:        installerTFR,
-		Title:                app.Name,
-		UserID:               vc.UserID(),
-		TeamID:               teamID,
-		Version:              app.Version,
-		Filename:             filename,
-		Platform:             app.Platform,
-		Source:               app.Source(),
-		Extension:            extension,
-		BundleIdentifier:     app.BundleIdentifier(),
-		StorageID:            app.SHA256,
-		FleetMaintainedAppID: maintainedAppID,
-		PreInstallQuery:      preInstallQuery,
-		PostInstallScript:    postInstallScript,
-		SelfService:          selfService,
-		InstallScript:        installScript,
-		UninstallScript:      uninstallScript,
-		ValidatedLabels:      validatedLabels,
-		AutomaticInstall:     automaticInstall,
+		InstallerFile:         installerTFR,
+		Title:                 app.Name,
+		UserID:                vc.UserID(),
+		TeamID:                teamID,
+		Version:               app.Version,
+		Filename:              filename,
+		Platform:              app.Platform,
+		Source:                app.Source(),
+		Extension:             extension,
+		BundleIdentifier:      app.BundleIdentifier(),
+		StorageID:             app.SHA256,
+		FleetMaintainedAppID:  maintainedAppID,
+		PreInstallQuery:       preInstallQuery,
+		PostInstallScript:     postInstallScript,
+		SelfService:           selfService,
+		InstallScript:         installScript,
+		UninstallScript:       uninstallScript,
+		ValidatedLabels:       validatedLabels,
+		AutomaticInstall:      automaticInstall,
+		AutomaticInstallQuery: app.AutomaticInstallQuery,
 	}
 
 	// Create record in software installers table
@@ -272,6 +273,7 @@ func (svc *Service) hydrateFMA(ctx context.Context, app *fleet.MaintainedApp) (*
 	app.SHA256 = manifest.Versions[0].SHA256
 	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
 	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
+	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
 
 	return app, nil
 }

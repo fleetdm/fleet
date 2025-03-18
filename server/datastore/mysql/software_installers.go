@@ -252,10 +252,12 @@ INSERT INTO software_installers (
 
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
-			// Not using apps.json as all queries there are identical to the auto-generated one based on bundle ID.
-			// Will need to be revised to work with FMAv2 and probably Windows.
-			if payload.FleetMaintainedAppID != nil && payload.Platform == "darwin" {
-				installerMetadata = automatic_policy.MacInstallerMetadata{Title: payload.Title, BundleIdentifier: payload.BundleIdentifier}
+			if payload.AutomaticInstallQuery != "" {
+				installerMetadata = automatic_policy.FMAInstallerMetadata{
+					Title:    payload.Title,
+					Platform: payload.Platform,
+					Query:    payload.AutomaticInstallQuery,
+				}
 			} else {
 				installerMetadata = automatic_policy.FullInstallerMetadata{
 					Title:            payload.Title,
