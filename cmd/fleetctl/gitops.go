@@ -148,31 +148,25 @@ func gitopsCommand() *cli.Command {
 						config.Controls = noTeamControls
 					}
 
-					// If config.Labels is empty, populate it with the existing persisted labels.
-					if config.Labels != nil && len(config.Labels) == 0 {
-						persistedLabels, err := fleetClient.GetLabels()
-						if err != nil {
-							return err
-						}
-						for _, persistedLabel := range persistedLabels {
-							if persistedLabel.LabelType == fleet.LabelTypeRegular {
-								config.Labels = append(config.Labels, persistedLabel)
-							}
+					// If config.Labels is nil, it means we plan on deleting all existing labels.
+					if config.Labels == nil {
+						proposedLabelNames = make([]string, 0)
+					} else if len(config.Labels) > 0 {
+						// If config.Labels is populated, get the names it contains.
+						proposedLabelNames = make([]string, len(config.Labels))
+						for i, l := range config.Labels {
+							proposedLabelNames[i] = l.Name
 						}
 					}
-
-					// Get the names of the labels we'd have after this run.
-					proposedLabelNames = make([]string, len(config.Labels))
-					for i, l := range config.Labels {
-						proposedLabelNames[i] = l.Name
-					}
-
 				} else if !appConfig.License.IsPremium() {
 					logf("[!] skipping team config %s since teams are only supported for premium Fleet users\n", flFilename)
 					continue
 				}
 
-				// If we're only running team configs, get the list of available labels from the db.
+				// If we haven't populated this list yet, it means we're either doing team-level GitOps only,
+				// or a global YAML was provided with no `labels:` key in it (meaning "keep existing labels").
+				// In either case we'll get the list of label names from the db so we can ensure that we're
+				// not attempting to apply non-existent labels to other entities.
 				if proposedLabelNames == nil {
 					proposedLabelNames = make([]string, 0)
 					persistedLabels, err := fleetClient.GetLabels()

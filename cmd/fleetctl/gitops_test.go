@@ -739,11 +739,11 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
 	t.Setenv("SOFTWARE_INSTALLER_URL", fleetServerURL)
-	file := "./testdata/gitops/global_config_no_paths.yml"
 
-	// Dry run
-	logs := runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
+	// Dry run w/ top-level labels key
+	logs := runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths.yml", "--dry-run"})
 	fmt.Printf("%s", logs)
+	fmt.Printf("-----------\n")
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.Len(t, enrolledSecrets, 0)
 	assert.Len(t, appliedPolicySpecs, 0)
@@ -754,9 +754,24 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedLabelSpecs, 0)
 	assert.Len(t, deletedLabels, 0)
 
-	// Real run
-	logs = runAppForTest(t, []string{"gitops", "-f", file})
+	// // Dry run w/out top-level labels key
+	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml", "--dry-run"})
 	fmt.Printf("%s", logs)
+	fmt.Printf("-----------\n")
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
+	assert.Len(t, enrolledSecrets, 0)
+	assert.Len(t, appliedPolicySpecs, 0)
+	assert.Len(t, appliedQueries, 0)
+	assert.Len(t, appliedScripts, 0)
+	assert.Len(t, appliedMacProfiles, 0)
+	assert.Len(t, appliedWinProfiles, 0)
+	assert.Len(t, appliedLabelSpecs, 0)
+	assert.Len(t, deletedLabels, 0)
+
+	// Real run w/ top-level labels key
+	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths.yml"})
+	fmt.Printf("%s", logs)
+	fmt.Printf("-----------\n")
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Contains(t, string(*savedAppConfig.AgentOptions), "distributed_denylist_duration")
@@ -778,6 +793,15 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
 	assert.Len(t, appliedLabelSpecs, 2)
 	assert.Len(t, deletedLabels, 1)
+
+	// Reset labels arrays
+	deletedLabels = make([]string, 0)
+	appliedLabelSpecs = make([]*fleet.LabelSpec, 0)
+	// Real run w/out top-level labels key
+	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml"})
+	fmt.Printf("%s", logs)
+	assert.Len(t, appliedLabelSpecs, 0)
+	assert.Len(t, deletedLabels, 0)
 }
 
 func TestGitOpsFullTeam(t *testing.T) {
