@@ -293,6 +293,8 @@ type HostMDMCertificateProfile struct {
 	Status               *MDMDeliveryStatus `db:"status"`
 	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
 	NotValidAfter        *time.Time         `db:"not_valid_after"`
+	Type                 CAConfigAssetType  `db:"type"`
+	CAName               string             `db:"ca_name"`
 }
 
 type HostMDMProfileDetail string
@@ -975,4 +977,6 @@ type MDMBulkUpsertManagedCertificatePayload struct {
 	HostUUID             string
 	ChallengeRetrievedAt *time.Time
 	NotValidAfter        *time.Time
+	Type                 CAConfigAssetType
+	CAName               string
 }

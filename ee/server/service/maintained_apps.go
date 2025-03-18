@@ -57,7 +57,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
-	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
@@ -125,7 +125,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		TeamID:            teamID,
 		Version:           app.Version,
 		Filename:          filename,
-		Platform:          string(app.Platform),
+		Platform:          app.Platform,
 		Source:            "apps",
 		Extension:         extension,
 		BundleIdentifier:  app.BundleIdentifier,
@@ -191,6 +191,7 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 		return nil, nil, authErr
 	}
 
+	opts.IncludeMetadata = true
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet managed apps")
@@ -199,14 +200,20 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 	return avail, meta, nil
 }
 
-func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	// Special case auth for maintained apps (vs. normal installers) as maintained apps are not scoped to a team;
-	// use SoftwareInstaller for authorization elsewhere.
-	if err := svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead); err != nil {
-		return nil, err
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+	var authErr error
+	// viewing the maintained app without showing team-specific info can be done by anyone who can view individual FMAs
+	if teamID == nil {
+		authErr = svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead)
+	} else { // viewing the maintained app when showing team-specific info requires access to that team
+		authErr = svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead)
 	}
 
-	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
+	if authErr != nil {
+		return nil, authErr
+	}
+
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get fleet maintained app")
 	}
