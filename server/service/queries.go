@@ -762,6 +762,12 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		for labelName := range labelsMap {
 			queryLabels = append(queryLabels, fleet.LabelIdent{LabelName: labelName, LabelID: labelsMap[labelName].ID})
 		}
+		// Make sure that all labels were found
+		for _, label := range spec.LabelsIncludeAny {
+			if _, ok := labelsMap[label]; !ok {
+				return nil, ctxerr.Wrap(ctx, err, "label not found")
+			}
+		}
 	}
 	return &fleet.Query{
 		Name:        spec.Name,

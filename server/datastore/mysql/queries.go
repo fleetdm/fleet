@@ -121,6 +121,10 @@ func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, querie
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec queries insert")
 		}
+		err = ds.updateQueryLabelsInTx(ctx, q, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec queries update labels")
+		}
 	}
 
 	err = tx.Commit()
@@ -256,9 +260,18 @@ func (ds *Datastore) NewQuery(
 	return query, nil
 }
 
+func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+	return ds.updateQueryLabelsInTx(ctx, query, nil)
+}
+
 // updates the LabelsIncludeAny for a query, using the string value of
 // the label. Labels IDs are populated
-func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, query *fleet.Query, txToUse *sqlx.Tx) error {
+	var (
+		tx  *sqlx.Tx
+		err error
+	)
+
 	insertLabelSql := `
 		INSERT INTO query_labels (
 			query_id,
@@ -274,33 +287,48 @@ func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) 
 		WHERE query_id = ?
 	`
 
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+	if txToUse == nil {
+		tx, err = ds.writer(ctx).BeginTxx(ctx, nil)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing old query labels")
+			return ctxerr.Wrap(ctx, err, "begin updateQueryLabelsInTx")
 		}
+		defer func() {
+			if err != nil {
+				rbErr := tx.Rollback()
+				// It seems possible that there might be a case in
+				// which the error we are dealing with here was thrown
+				// by the call to tx.Commit(), and the docs suggest
+				// this call would then result in sql.ErrTxDone.
+				if rbErr != nil && rbErr != sql.ErrTxDone {
+					panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+				}
+			}
+		}()
+	} else {
+		tx = txToUse
+	}
 
-		if len(query.LabelsIncludeAny) == 0 {
-			return nil
-		}
+	_, err = tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "removing old query labels")
+	}
 
-		labelNames := []string{}
-		for _, label := range query.LabelsIncludeAny {
-			labelNames = append(labelNames, label.LabelName)
-		}
-
-		labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query label update statement")
-		}
-
-		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query labels")
-		}
-
+	if len(query.LabelsIncludeAny) == 0 {
 		return nil
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query labels")
+	}
+
+	labelNames := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelNames = append(labelNames, label.LabelName)
+	}
+
+	labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query label update statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query labels")
 	}
 
 	if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {

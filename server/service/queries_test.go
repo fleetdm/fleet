@@ -140,7 +140,7 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 				Platform:         ptr.String(""),
 				LabelsIncludeAny: []string{"foo", "bar"},
 			},
-			false,
+			true,
 		},
 	}
 
@@ -195,6 +195,14 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		assert.NotEmpty(t, act.Name)
 		return nil
 	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		act, ok := activity.(fleet.ActivityTypeCreatedSavedQuery)
+		assert.True(t, ok)
+		assert.NotEmpty(t, act.Name)
+		return nil
+	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -206,10 +214,11 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 		{
 			"All valid",
 			fleet.QueryPayload{
-				Name:     ptr.String("updated test query"),
-				Query:    ptr.String("select 1"),
-				Logging:  ptr.String("snapshot"),
-				Platform: ptr.String(""),
+				Name:             ptr.String("updated test query"),
+				Query:            ptr.String("select 1"),
+				Logging:          ptr.String("snapshot"),
+				Platform:         ptr.String(""),
+				LabelsIncludeAny: []string{"foo"},
 			},
 			false,
 		},
@@ -270,6 +279,17 @@ func TestQueryPayloadValidationModify(t *testing.T) {
 				Query:    ptr.String("select 1"),
 				Logging:  ptr.String("differential"),
 				Platform: ptr.String("darwin,windows,sphinx"),
+			},
+			true,
+		},
+		{
+			"Missing label",
+			fleet.QueryPayload{
+				Name:             ptr.String("updated test query"),
+				Query:            ptr.String("select 1"),
+				Logging:          ptr.String("snapshot"),
+				Platform:         ptr.String(""),
+				LabelsIncludeAny: []string{"foo", "bar"},
 			},
 			true,
 		},
