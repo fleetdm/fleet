@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
@@ -9,7 +9,7 @@ import { AppContext } from "context/app";
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 
-import { generateErrorMessage } from "./helpers";
+import { generateDropdownOptions, generateErrorMessage } from "./helpers";
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
@@ -25,7 +25,7 @@ interface IAddCertAuthorityModalProps {
 }
 
 const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
-  const { setConfig } = useContext(AppContext);
+  const { config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [
     certAuthorityType,
@@ -41,6 +41,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     userPrincipalName: "",
     certificateSeatId: "",
   });
+
   const { generateAddPatchData } = useCertAuthorityDataGenerator(
     certAuthorityType
   );
@@ -69,6 +70,10 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     setIsAdding(false);
   };
 
+  const dropdownOptions = useMemo(() => {
+    return generateDropdownOptions(!!config?.integrations.ndes_scep_proxy);
+  }, [config?.integrations.ndes_scep_proxy]);
+
   return (
     <Modal
       className={baseClass}
@@ -78,7 +83,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     >
       <>
         <Dropdown
-          options={[{ label: "Digicert", value: "digicert" }]}
+          options={dropdownOptions}
           value={certAuthorityType}
           className={`${baseClass}__cert-authority-dropdown`}
           onChange={onChangeDropdown}
