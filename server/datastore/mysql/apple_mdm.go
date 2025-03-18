@@ -4114,7 +4114,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		var host fleet.Host
 		err := sqlx.GetContext(
 			ctx, tx, &host,
-			`SELECT id, platform FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
+			`SELECT id, platform, team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
@@ -4160,12 +4160,12 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		// reset the enrolled_from_migration value. We only get to this
 		// stage if the host is enrolling with Fleet, SCEP renewals are
 		// short-circuited before this.
-		// TODO(iosrevive): Step 1b: this is where we could update nano_enrollments to
-		// store the platform (or in nano_devices).
 		_, err = tx.ExecContext(
 			ctx,
-			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND enabled = 1",
-			hostUUID,
+			`UPDATE nano_enrollments ne, nano_devices nd
+			SET ne.enrolled_from_migration = 0, nd.platform = ?, nd.enroll_team_id = ?
+			WHERE ne.id = ? AND ne.enabled = 1 AND ne.device_id = nd.id`,
+			host.Platform, host.TeamID, hostUUID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration value")
