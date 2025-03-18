@@ -14,6 +14,7 @@ export interface IPaginationProps {
   onNextPage: () => void;
   onPrevPage: () => void;
   className?: string;
+  /** UI Pattern: Hide pagination iff there's one page of results */
   hidePagination?: boolean;
 }
 
