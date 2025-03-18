@@ -28,8 +28,6 @@ import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";

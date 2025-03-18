@@ -11,10 +11,8 @@ import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import Pagination from "components/Pagination";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
@@ -26,7 +24,6 @@ import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetai
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
-import Pagination from "components/Pagination";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {

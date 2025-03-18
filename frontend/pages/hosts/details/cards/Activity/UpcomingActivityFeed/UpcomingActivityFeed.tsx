@@ -3,10 +3,7 @@ import React from "react";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
 import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 

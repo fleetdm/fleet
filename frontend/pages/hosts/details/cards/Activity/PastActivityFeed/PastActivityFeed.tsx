@@ -3,9 +3,6 @@ import React from "react";
 import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
