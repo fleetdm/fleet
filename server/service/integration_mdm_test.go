@@ -15207,7 +15207,6 @@ func (s *withServer) checkListHostsFilter(t *testing.T, allHostsLabelID uint, fi
 // Test for #27231
 func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	t := s.T()
-	ctx := context.Background()
 	s.setSkipWorkerJobs(t)
 
 	// create a team with its enroll secret
@@ -15226,5 +15225,25 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 1)
 	host := listHostsRes.Hosts[0]
-	_, _ = host, ctx
+	require.Equal(t, mdmDevice.UUID, host.UUID)
+	require.Equal(t, mdmDevice.SerialNumber, host.HardwareSerial)
+
+	// delete the host
+	var delResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &delResp)
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 0)
+
+	// do an MDM sync, will re-create the host
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd) // no command to process
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	require.Equal(t, mdmDevice.UUID, listHostsRes.Hosts[0].UUID)
+	require.Equal(t, mdmDevice.SerialNumber, listHostsRes.Hosts[0].HardwareSerial)
 }
