@@ -9542,8 +9542,8 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Trigger a software install only on hosts missing the software. |
-| automatic_update | boolean | form | Trigger a software install on all hosts running an older version. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
+| minimum_version | string | form | Currently, the only valid option is `"current"`. Trigger a software install on all hosts running an older version. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
