@@ -846,6 +846,14 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	})
 	require.NoError(t, err)
 
+	user, err := db.NewUser(context.Background(), &fleet.User{
+		Name:       "Adminboi",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+
 	label := &fleet.Label{
 		Name:        "my label",
 		Description: "a label",
@@ -861,11 +869,11 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 		Description: "a label",
 		Query:       "select 1 from processes;",
 		Platform:    "darwin",
-		AuthorID:    ptr.Uint(123),
+		AuthorID:    ptr.Uint(user.ID),
 	}
 	label2, err = db.NewLabel(context.Background(), label2)
 	require.NoError(t, err)
-	require.Equal(t, uint(123), *label2.AuthorID)
+	require.Equal(t, user.ID, *label2.AuthorID)
 
 	// Create an Apple config profile
 	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0))
