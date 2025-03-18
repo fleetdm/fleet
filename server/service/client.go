@@ -470,33 +470,6 @@ func (c *Client) ApplyGroup(
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 
-		// if there is no custom setting but the windows and mac settings are
-		// non-nil, this means that we want to clear the existing custom settings,
-		// so we still go on with calling the batch-apply endpoint.
-		//
-		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
-		// custom settings but windows is present and empty (but mac is absent),
-		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			// Figure out if MDM should be enabled.
-			assumeEnabled := false
-			// This cast is safe because we've already checked AppConfig when extracting custom settings
-			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
-			if ok {
-				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
-				if ok {
-					assumeEnabled, ok = mdmEnabled.(bool)
-					assumeEnabled = ok && assumeEnabled
-				}
-			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
-			}
-		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			switch {
 			case macosSetup.BootstrapPackage.Value != "":
@@ -589,6 +562,42 @@ func (c *Client) ApplyGroup(
 			logfn("[+] would've applied fleet config\n")
 		} else {
 			logfn("[+] applied fleet config\n")
+		}
+
+		// We apply profiles after the main AppConfig org_settings because profiles may
+		// contain Fleet variables that are set in org_settings, such as $FLEET_VAR_DIGICERT_PASSWORD_My_CA
+		//
+		// if there is no custom setting but the windows and mac settings are
+		// non-nil, this means that we want to clear the existing custom settings,
+		// so we still go on with calling the batch-apply endpoint.
+		//
+		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
+		// custom settings but windows is present and empty (but mac is absent),
+		// shouldn't that clear the windows ones?
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
+			if err != nil {
+				return nil, nil, nil, nil, err
+			}
+			// Figure out if MDM should be enabled.
+			assumeEnabled := false
+			// This cast is safe because we've already checked AppConfig when extracting custom settings
+			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+			if ok {
+				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
+				if ok {
+					assumeEnabled, ok = mdmEnabled.(bool)
+					assumeEnabled = ok && assumeEnabled
+				}
+			}
+			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
+			}
+			if opts.DryRun {
+				logfn("[+] would've applied MDM profiles\n")
+			} else {
+				logfn("[+] applied MDM profiles\n")
+			}
 		}
 	}
 
