@@ -13,9 +13,10 @@ import { generateDropdownOptions, generateErrorMessage } from "./helpers";
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
+import NDESForm from "../NDESForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
 
-export type ICertFormData = IDigicertFormData;
-// | IAnotherCertFormData
+export type ICertFormData = IDigicertFormData | INDESFormData;
 // | IYetAnotherCertFormData;
 
 const baseClass = "add-cert-authority-modal";
@@ -32,7 +33,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     setCertAuthorityType,
   ] = useState<ICertificateAuthorityType>("digicert");
   const [isAdding, setIsAdding] = useState(false);
-  const [formData, setFormData] = useState<IDigicertFormData>({
+  const [digicertFormData, setDigicertFormData] = useState<IDigicertFormData>({
     name: "",
     url: "https://one.digicert.com",
     apiToken: "",
@@ -40,6 +41,12 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     commonName: "",
     userPrincipalName: "",
     certificateSeatId: "",
+  });
+  const [ndesFormData, setNDESFormData] = useState<INDESFormData>({
+    scepURL: "",
+    adminURL: "",
+    username: "",
+    password: "",
   });
 
   const { generateAddPatchData } = useCertAuthorityDataGenerator(
@@ -51,10 +58,40 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
   };
 
   const onChangeForm = (update: { name: string; value: string }) => {
-    setFormData({ ...formData, [update.name]: update.value });
+    let setFormData;
+    let formData: ICertFormData;
+    switch (certAuthorityType) {
+      case "digicert":
+        setFormData = setDigicertFormData;
+        formData = digicertFormData;
+        break;
+      case "ndes":
+        setFormData = setNDESFormData;
+        formData = ndesFormData;
+        break;
+      default:
+        return;
+    }
+
+    (setFormData as React.Dispatch<React.SetStateAction<ICertFormData>>)({
+      ...formData,
+      [update.name]: update.value,
+    });
   };
 
   const onAddCertAuthority = async () => {
+    let formData: ICertFormData;
+    switch (certAuthorityType) {
+      case "digicert":
+        formData = digicertFormData;
+        break;
+      case "ndes":
+        formData = ndesFormData;
+        break;
+      default:
+        return;
+    }
+
     const addPatchData = generateAddPatchData(formData);
     setIsAdding(true);
     try {
@@ -74,6 +111,37 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     return generateDropdownOptions(!!config?.integrations.ndes_scep_proxy);
   }, [config?.integrations.ndes_scep_proxy]);
 
+  const renderForm = () => {
+    const submitBtnText = "Add CA";
+
+    switch (certAuthorityType) {
+      case "digicert":
+        return (
+          <DigicertForm
+            formData={digicertFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "ndes":
+        return (
+          <NDESForm
+            formData={ndesFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Modal
       className={baseClass}
@@ -89,14 +157,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
           onChange={onChangeDropdown}
           searchable={false}
         />
-        <DigicertForm
-          formData={formData}
-          submitBtnText="Add CA"
-          isSubmitting={isAdding}
-          onChange={onChangeForm}
-          onSubmit={onAddCertAuthority}
-          onCancel={onExit}
-        />
+        {renderForm()}
       </>
     </Modal>
   );

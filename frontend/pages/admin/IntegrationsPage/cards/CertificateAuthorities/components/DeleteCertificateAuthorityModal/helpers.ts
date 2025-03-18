@@ -9,6 +9,8 @@ import {
 } from "interfaces/integration";
 import { useCallback, useContext } from "react";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
+import { INDESFormData } from "../NDESForm/NDESForm";
 
 export const useCertAuthorityDataGenerator = (
   certAuthorityType: ICertificateAuthorityType,
@@ -17,7 +19,7 @@ export const useCertAuthorityDataGenerator = (
   const { config } = useContext(AppContext);
 
   const generateAddPatchData = useCallback(
-    (formData: IDigicertFormData) => {
+    (formData: ICertFormData) => {
       if (!config) return null;
 
       const data: { integrations: Partial<IGlobalIntegrations> } = {
@@ -26,18 +28,41 @@ export const useCertAuthorityDataGenerator = (
 
       switch (certAuthorityType) {
         case "ndes":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            scepURL,
+            adminURL,
+            username,
+            password,
+          } = formData as INDESFormData;
+          data.integrations.ndes_scep_proxy = {
+            url: scepURL,
+            admin_url: adminURL,
+            username,
+            password,
+          };
           break;
         case "digicert":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            name,
+            url,
+            apiToken,
+            profileId,
+            commonName,
+            userPrincipalName,
+            certificateSeatId,
+          } = formData as IDigicertFormData;
           data.integrations.digicert = [
             ...(config.integrations.digicert || []),
             {
-              name: formData.name,
-              url: formData.url,
-              api_token: formData.apiToken,
-              profile_id: formData.profileId,
-              certificate_common_name: formData.commonName,
-              certificate_user_principal_names: [formData.userPrincipalName],
-              certificate_seat_id: formData.certificateSeatId,
+              name,
+              url,
+              api_token: apiToken,
+              profile_id: profileId,
+              certificate_common_name: commonName,
+              certificate_user_principal_names: [userPrincipalName],
+              certificate_seat_id: certificateSeatId,
             },
           ];
           break;
