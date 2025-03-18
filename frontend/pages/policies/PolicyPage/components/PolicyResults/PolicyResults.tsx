@@ -58,7 +58,7 @@ const PolicyResults = ({
 }: IPolicyResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(PolicyContext);
 
-  const { hosts: hostResponses, uiHostCounts: hostsCount, errors } =
+  const { hosts: hostResponses, uiHostCounts, serverHostCounts, errors } =
     campaign || {};
 
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
@@ -144,11 +144,11 @@ const PolicyResults = ({
         {" "}
         (Yes:{" "}
         <TooltipWrapper tipContent={`${yesCt} host${yesCt !== 1 ? "s" : ""}`}>
-          {Math.ceil((yesCt / hostsCount.successful) * 100)}%
+          {Math.ceil((yesCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         , No:{" "}
         <TooltipWrapper tipContent={`${noCt} host${noCt !== 1 ? "s" : ""}`}>
-          {Math.floor((noCt / hostsCount.successful) * 100)}%
+          {Math.floor((noCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         )
       </span>
@@ -157,10 +157,10 @@ const PolicyResults = ({
 
   const renderResultsTable = () => {
     const emptyResults =
-      !hostResponses || !hostResponses.length || !hostsCount.successful;
+      !hostResponses || !hostResponses.length || !uiHostCounts.successful;
     const hasNoResultsYet = !isQueryFinished && emptyResults;
     const finishedWithNoResults =
-      isQueryFinished && (!hostsCount.successful || emptyResults);
+      isQueryFinished && (!uiHostCounts.successful || emptyResults);
 
     if (hasNoResultsYet) {
       return <AwaitingResults />;
@@ -235,10 +235,12 @@ const PolicyResults = ({
     <div className={baseClass}>
       <LiveResultsHeading
         numHostsTargeted={targetsTotalCount}
-        numHostsResponded={hostsCount.total}
-        numHostsRespondedResults={hostsCount.successful}
-        numHostsRespondedNoErrorsAndNoResults={hostsCount.failed}
-        numHostsRespondedErrors={errors?.length || 0}
+        numHostsResponded={uiHostCounts.total}
+        numHostsRespondedResults={serverHostCounts.countOfHostsWithResults}
+        numHostsRespondedNoErrorsAndNoResults={
+          serverHostCounts.countOfHostsWithNoResults
+        }
+        numHostsRespondedErrors={uiHostCounts.failed}
         isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunQuery}
