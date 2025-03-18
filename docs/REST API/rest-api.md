@@ -6460,6 +6460,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
+- [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6574,6 +6575,33 @@ None.
     ],
   }
 ]
+```
+
+### Get Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+Get info about Android Enterprise that's connected to Fleet.
+
+`GET /api/v1/fleet/android_enterprise`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
+
+```json
+
+{
+  "android_enterprise_id": "LC0445szuv"
+}
 ```
 
 ---
