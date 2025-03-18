@@ -2993,8 +2993,6 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
-	fmt.Println(">>>>> COMMANDANDREPORTRESULTS!", r.ID, cmdResult.CommandUUID, cmdResult.Status, r.Params)
-
 	if cmdResult.Status == "Idle" {
 		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
 		// beeen deleted from Fleet (no host entry) will still send checkin
