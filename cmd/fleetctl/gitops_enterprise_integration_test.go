@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -376,6 +377,8 @@ team_settings:
 
 }
 
+// TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
+// At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
 func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	t := s.T()
 	user := s.createGitOpsUser(t)
@@ -414,11 +417,19 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 
 	scepServer := scep_server.StartTestSCEPServer(t)
 
+	// Get the path to the directory of this test file
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to get runtime caller info")
+	dirPath := filepath.Dir(currentFile)
+
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	_, err = globalFile.WriteString(fmt.Sprintf(`
 agent_options:
 controls:
+  macos_settings:
+    custom_settings:
+      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -440,7 +451,7 @@ org_settings:
         challenge: challenge    
 policies:
 queries:
-`, digiCertServer.URL, scepServer.URL+"/scep"))
+`, dirPath, digiCertServer.URL, scepServer.URL+"/scep"))
 	require.NoError(t, err)
 
 	// Set the required environment variables
@@ -473,10 +484,13 @@ queries:
 	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
 	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
 
+	profiles, _, err := s.ds.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, profiles, 1)
+
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
 agent_options:
-controls:
 org_settings:
   server_settings:
     server_url: $FLEET_URL
