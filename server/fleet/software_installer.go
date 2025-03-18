@@ -293,6 +293,7 @@ const (
 Exit code: %d (Failed)
 %s
 `
+	SoftwareInstallerDownloadFailedCopy = "Software installer download failed."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -313,13 +314,21 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 	if h.Output == nil || h.InstallScriptExitCode == nil {
 		return
 	}
-	if *h.InstallScriptExitCode == -2 {
+
+	switch *h.InstallScriptExitCode {
+	case 0:
+		// ok, continue
+	case ErrorCodeScriptsDisabled:
 		*h.Output = SoftwareInstallerScriptsDisabledCopy
 		return
-	} else if *h.InstallScriptExitCode != 0 {
+	case ErrorCodeInstallerDownload:
+		*h.Output = SoftwareInstallerDownloadFailedCopy
+		return
+	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
 		return
 	}
+
 	h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, *h.Output))
 
 	if h.PostInstallScriptExitCode == nil || h.PostInstallScriptOutput == nil {
@@ -572,7 +581,6 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
-	ExecutionError            *string `json:"execution_error"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic
@@ -594,6 +602,11 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallPending
 	}
 }
+
+const (
+	ErrorCodeScriptsDisabled   = -2
+	ErrorCodeInstallerDownload = -3
+)
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {
