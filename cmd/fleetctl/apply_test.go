@@ -1658,7 +1658,7 @@ spec:
 
 	// Apply labels.
 	var appliedLabels []*fleet.LabelSpec
-	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId uint) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
 	}
@@ -1753,7 +1753,7 @@ func TestApplyLabels(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
-	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId uint) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
 	}
@@ -2772,7 +2772,7 @@ func TestApplySpecs(t *testing.T) {
 
 	setupDS := func(ds *mock.Store) {
 		// labels
-		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId uint) error {
+		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 			return nil
 		}
 

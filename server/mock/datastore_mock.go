@@ -134,7 +134,7 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
-type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId uint) error
+type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
 
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
@@ -3518,7 +3518,7 @@ func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	return s.ApplyLabelSpecsFunc(ctx, specs)
 }
 
-func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorId uint) error {
+func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 	s.mu.Lock()
 	s.ApplyLabelSpecsWithAuthorFuncInvoked = true
 	s.mu.Unlock()

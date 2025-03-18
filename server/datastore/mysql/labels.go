@@ -15,10 +15,10 @@ import (
 )
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
-	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, 0)
+	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
 }
 
-func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID uint) (err error) {
+func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
@@ -34,7 +34,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			label_type,
 			label_membership_type,
 			author_id
-		) VALUES ( ?, ?, ?, ?, ?, ?, NULLIF(?, 0) )
+		) VALUES ( ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
