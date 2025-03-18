@@ -59,8 +59,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -72,7 +70,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -14348,12 +14345,6 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		}
 	}
 	assert.True(t, found)
-}
-
-type noopCertDepot struct{ depot.Depot }
-
-func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {
-	return nil
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
