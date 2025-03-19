@@ -75,14 +75,14 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		//
 		case payload.Extension == "exe":
 			return &fleet.BadRequestError{
-				Message: "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
+				Message: "Couldn't upload. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
 			}
 		case payload.Extension == "pkg" && payload.BundleIdentifier == "":
 			// For pkgs without bundle identifier the request usually fails before reaching this point,
 			// but addMetadataToSoftwarePayload may not fail if the package has "package IDs" but not a "bundle identifier",
 			// in which case we want to fail here because we cannot generate a policy without a bundle identifier.
 			return &fleet.BadRequestError{
-				Message: "Couldn't add. Policy couldn't be created because bundle identifier can't be extracted.",
+				Message: "Couldn't upload. Policy couldn't be created because bundle identifier can't be extracted.",
 			}
 		}
 	}
@@ -1380,7 +1380,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if len(meta.PackageIDs) == 0 {
 		return "", &fleet.BadRequestError{
-			Message:     "Couldn't add. Unable to extract necessary metadata.",
+			Message:     "Couldn't upload. Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
 		}
 	}
