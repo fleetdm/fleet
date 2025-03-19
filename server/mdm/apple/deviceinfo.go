@@ -39,7 +39,7 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 )
 
