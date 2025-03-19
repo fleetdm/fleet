@@ -15228,6 +15228,12 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	require.Equal(t, mdmDevice.UUID, host.UUID)
 	require.Equal(t, mdmDevice.SerialNumber, host.HardwareSerial)
 
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "nano_devices", "id", "platform", "enroll_team_id")
+		mysql.DumpTable(t, q, "nano_enrollments")
+		return nil
+	})
+
 	// delete the host
 	var delResp deleteHostResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &delResp)
@@ -15235,6 +15241,12 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	listHostsRes = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 0)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "nano_devices", "id", "platform", "enroll_team_id")
+		mysql.DumpTable(t, q, "nano_enrollments")
+		return nil
+	})
 
 	// do an MDM sync, will re-create the host
 	cmd, err := mdmDevice.Idle()

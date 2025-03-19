@@ -3006,6 +3006,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if !ok {
 				return nil, ctxerr.Errorf(r.Context, "authenticate enrollment message to re-create a deleted host is not of the expected type: %T", msg)
 			}
+
 			err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 				Action:         mdmlifecycle.HostActionReset,
 				Platform:       deletedDevice.Platform,

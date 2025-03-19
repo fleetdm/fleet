@@ -4162,13 +4162,19 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		// short-circuited before this.
 		_, err = tx.ExecContext(
 			ctx,
-			`UPDATE nano_enrollments ne, nano_devices nd
-			SET ne.enrolled_from_migration = 0, nd.platform = ?, nd.enroll_team_id = ?
-			WHERE ne.id = ? AND ne.enabled = 1 AND ne.device_id = nd.id`,
-			host.Platform, host.TeamID, hostUUID,
+			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND enabled = 1",
+			hostUUID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration value")
+		}
+		_, err = tx.ExecContext(
+			ctx,
+			`UPDATE nano_devices SET platform = ?, enroll_team_id = ? WHERE id = ?`,
+			host.Platform, host.TeamID, hostUUID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting platform and enroll_team_id")
 		}
 
 		return nil
