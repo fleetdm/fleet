@@ -70,6 +70,7 @@ const CustomSCEPForm = ({
           label="SCEP URL"
           name="scepURL"
           value={scepURL}
+          error={formValidation.scepURL?.message}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/scep"

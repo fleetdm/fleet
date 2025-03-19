@@ -1,4 +1,5 @@
-import { getErrorReason } from "interfaces/errors";
+import valid_url from "components/forms/validators/valid_url";
+
 import { ICustomSCEPFormData } from "./CustomSCEPForm";
 
 // TODO: create a validator abstraction for this and the other form validation files
@@ -6,7 +7,7 @@ import { ICustomSCEPFormData } from "./CustomSCEPForm";
 export interface ICustomSCEPFormValidation {
   isValid: boolean;
   name?: { isValid: boolean; message?: string };
-  scepURL?: { isValid: boolean };
+  scepURL?: { isValid: boolean; message?: string };
   challenge?: { isValid: boolean };
 }
 
@@ -49,6 +50,14 @@ const FORM_VALIDATIONS: Record<
         isValid: (formData: ICustomSCEPFormData) => {
           return formData.scepURL.length > 0;
         },
+      },
+      {
+        name: "validUrl",
+        isValid: (formData: ICustomSCEPFormData) => {
+          return valid_url({ url: formData.scepURL });
+        },
+        message: (formData: ICustomSCEPFormData) =>
+          `${formData.scepURL} is not a valid URL`,
       },
     ],
   },
