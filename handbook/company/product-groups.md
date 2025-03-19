@@ -512,6 +512,10 @@ New developers are added to the on-call rotation by their manager after they hav
 **First-line response**
 - Community pull requests.
 
+All PRs from the community are routed through the on-call developer. Follow the proces to [review a community pull request](https://fleetdm.com/handbook/engineering#review-a-community-pull-request).
+
+> There is a small script to help show community PRs and issues in [oncall/oncall.sh](https://github.com/fleetdm/fleet/blob/main/tools/oncall/oncall.sh).
+
 - **Second-line response**
 - Customer and community support.
 
@@ -520,15 +524,6 @@ Customer Support Engineers are responsible for the first response to Slack messa
 We respond within 1-hour (during business hours) for interactions and ask the on-call developer to address any questions sent their way promptly. When a Customer Support Engineer is unavailable, the on-call developer may sometimes be asked to take over the first response duties. Note that we do not need to have answers within 1 hour -- we need to at least acknowledge and collect any additional necessary information, while researching/escalating to find answers internally. See [Escalations](#escalations) for more on this.
 
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
-
-- **PR reviews**
-PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually.
-
-PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
-
-All PRs from the community are routed through the on-call developer. For code changes, if the on-call developer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an developer with the appropriate domain knowledge. It is the on-call developer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
-
-> There is a small script to help show community PRs and issues in [oncall/oncall.sh](https://github.com/fleetdm/fleet/blob/main/tools/oncall/oncall.sh)
 
 - **Customer success meetings**
 The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the :help-customers Slack channel requesting invitations to upcoming meetings.
