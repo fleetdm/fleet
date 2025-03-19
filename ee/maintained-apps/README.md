@@ -5,16 +5,24 @@
 1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.
 2. Find that app's metadata. For homebrew, you can visit https://formulae.brew.sh/ and find the app there.
 3. Create a new file called `$YOUR_APP_NAME.json` in the `inputs/$SOURCE` directory. For
-   example, if you wanted to add Slack and use homebrew as the source, you would create the
-   file `inputs/homebrew/slack.json`.
-4. Fill out the file according to the [breakdown below](#input-file-schema). For our example Slack app, it would look like this:
+   example, if you wanted to add Box Drive and use homebrew as the source, you would create the
+   file `inputs/homebrew/box-drive.json`.
+4. Fill out the file according to the [breakdown below](#input-file-schema). For our example Box Drive app, it would look like this:
    ```json
    {
-        "name": "Slack",
-        "unique_identifier": "com.tinyspeck.slackmacgap",
-        "token": "slack",
-        "installer_format": "dmg",
-        "slug": "slack/darwin"
+      "name": "Box Drive",
+      "slug": "box-drive/darwin",
+      "unique_identifier": "com.box.desktop",
+      "token": "box-drive",
+      "installer_format": "pkg",
+      "pre_uninstall_scripts": [
+         "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER fileproviderctl domain remove -A com.box.desktop.boxfileprovider)",
+         "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-archive-unsynced-content Box)",
+         "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-preserve-unsynced-content Box)",
+         "(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)",
+         "echo \"${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\\ Support/Box/uninstall_box_drive_r\" >> /etc/sudoers.d/box_uninstall"
+      ],
+      "post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"]
    }
    ```
 5. Open a PR to the `fleet` repository with the new app file. This will trigger a CI job which will automatically update your PR with the required output files. These files contain important data such as the install and uninstall scripts for the app.
@@ -51,4 +59,10 @@ For the app name part, use `-` to separate words if necessary, for example `adob
 The platform part can be any of these values:
 - `darwin`
 
-For example, use a `slug` of `slack/darwin` for Slack on macOS.
+For example, use a `slug` of `box-drive/darwin` for Box Drive on macOS.
+
+#### `pre_uninstall_scripts`
+These are command lines that will be run _before_ the generated uninstall script is executed.
+
+#### `post_uninstall_scripts`
+These are command lines that will be run _after_ the generated uninstall script is executed.

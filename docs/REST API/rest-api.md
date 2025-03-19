@@ -2640,6 +2640,12 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "Fedora Linux",
       "description": "All Fedora hosts",
       "label_type": "builtin"
+    },
+    {
+      "id": 16,
+      "name": "Android",
+      "description": "All Android hosts",
+      "label_type": "builtin"
     }
   ],
   "platforms": [
@@ -2670,8 +2676,11 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     {
       "platform": "windows",
       "hosts_count": 12044
+    },
+    {
+      "platform": "Android",
+      "hosts_count": 200
     }
-
   ]
 }
 ```
@@ -6389,6 +6398,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
 - [Get identity provider (IdP) details](#get-identity-provider-idp-details)
+- [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6511,13 +6521,16 @@ Get details about SCIM (System for Cross-domain Identity Management (SCIM)) inte
 
 `GET /api/v1/fleet/scim`
 
+
 #### Parameters
 
 None.
 
+
 #### Example
 
 `GET /api/v1/fleet/scim`
+
 
 ##### Default response
 
@@ -6533,6 +6546,36 @@ None.
 }
 ```
 
+
+
+### Get Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+Get info about Android Enterprise that's connected to Fleet.
+
+`GET /api/v1/fleet/android_enterprise`
+
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise`
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enterprise_id": "LC0445szuv"
+}
+```
+
 ---
 
 ## Policies
@@ -6541,8 +6584,8 @@ None.
 - [List team policies](#list-team-policies)
 - [Count policies](#count-policies)
 - [Count team policies](#count-team-policies)
-- [Get policy by ID](#get-policy-by-id)
-- [Get team policy by ID](#get-team-policy-by-id)
+- [Get policy](#get-policy)
+- [Get team policy](#get-team-policy)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
 - [Delete policies](#delete-policies)
@@ -6868,7 +6911,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get policy by ID
+### Get policy
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -6911,7 +6954,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy by ID
+### Get team policy
 
 _Available in Fleet Premium_
 

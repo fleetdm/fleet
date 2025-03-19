@@ -21,8 +21,8 @@ import TableCount from "components/TableContainer/TableCount";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
-import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
@@ -37,6 +37,7 @@ interface IQueryResultsProps {
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  // set during target selection, persisted through each step of the flow
   targetsTotalCount: number;
 }
 
@@ -60,7 +61,7 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostsCount, query_results: queryResults, errors } =
+  const { uiHostCounts, serverHostCounts, queryResults, errors } =
     campaign || {};
 
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -264,10 +265,15 @@ const QueryResults = ({
 
   return (
     <div className={baseClass}>
-      <QueryResultsHeading
-        respondedHosts={hostsCount.total}
-        targetsTotalCount={targetsTotalCount}
-        isQueryFinished={isQueryFinished}
+      <LiveResultsHeading
+        numHostsTargeted={targetsTotalCount}
+        numHostsResponded={uiHostCounts.total}
+        numHostsRespondedResults={serverHostCounts.countOfHostsWithResults}
+        numHostsRespondedNoErrorsAndNoResults={
+          serverHostCounts.countOfHostsWithNoResults
+        }
+        numHostsRespondedErrors={uiHostCounts.failed}
+        isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
