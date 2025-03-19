@@ -75,6 +75,7 @@ const CustomSCEPForm = ({
           placeholder="https://example.com/scep"
         />
         <InputField
+          type="password"
           label="Challenge"
           name="challenge"
           value={challenge}
