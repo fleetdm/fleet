@@ -46,11 +46,8 @@ const SoftwareOptionsSelector = ({
   const isAutomaticInstallDisabled =
     platform === "ios" || platform === "ipados" || isExePackage;
 
-  /** Tooltip if enabled or exe package */
-  const automaticInstallDisabledTooltip = (): JSX.Element | undefined => {
-    if (!isAutomaticInstallDisabled) {
-      return <>Automatically install only on hosts missing this software.</>;
-    }
+  /** Tooltip for auto install is enabled or exe package */
+  const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage) {
       return (
         <>
@@ -61,6 +58,7 @@ const SoftwareOptionsSelector = ({
         </>
       );
     }
+    return <>Automatically install only on hosts missing this software.</>;
   };
 
   return (
@@ -87,7 +85,10 @@ const SoftwareOptionsSelector = ({
           value={formData.automaticInstall}
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
-          tooltipContent={automaticInstallDisabledTooltip()}
+          tooltipContent={
+            (!isAutomaticInstallDisabled || isExePackage) &&
+            getAutomaticInstallTooltip()
+          }
           disabled={isAutomaticInstallDisabled}
         >
           Automatic install
