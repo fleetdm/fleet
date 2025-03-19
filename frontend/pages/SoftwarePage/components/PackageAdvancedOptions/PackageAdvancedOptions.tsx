@@ -79,7 +79,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
           newTab
         />{" "}
         Fleet automatically builds install and uninstall scripts for .msi
-        packages and Fleet-maintained Apps.
+        packages and Fleet-maintained apps.
       </>
     );
   }
