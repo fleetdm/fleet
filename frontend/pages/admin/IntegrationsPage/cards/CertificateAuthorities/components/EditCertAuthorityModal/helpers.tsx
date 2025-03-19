@@ -2,8 +2,6 @@ import {
   ICertificateAuthorityType,
   ICertificateIntegration,
   ICertificatesIntegrationCustomSCEP,
-  ICertificatesIntegrationDigicert,
-  ICertificatesIntegrationNDES,
   isCustomSCEPCertIntegration,
   isDigicertCertIntegration,
   isNDESCertIntegration,
