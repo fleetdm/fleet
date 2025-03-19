@@ -131,12 +131,7 @@ How to unenroll a host from Fleet:
 
 2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. Instructions for turning off MDM on Windows hosts coming soon.
 
-3. Determine the platform of the host you're trying to unenroll and follow the instructions to uninstall the fleetd agent:
-
-- macOS: Run the [script here](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/cleanup_macos.sh) 
-- Windows: On the Windows device, select **Start > Settings > Apps > Apps & features**. Find "Fleet osquery", select **Uninstall**.
-- Linux (Ubuntu): With the APT package manager installed, run `sudo apt remove fleet-osquery -y`.
-- Linux (CentOS): Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`.
+3. Determine the platform of the host you're trying to unenroll and follow the instructions to uninstall the fleetd agent [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
