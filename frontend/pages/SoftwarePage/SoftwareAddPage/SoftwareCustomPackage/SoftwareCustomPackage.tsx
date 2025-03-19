@@ -94,7 +94,7 @@ const SoftwareCustomPackage = ({
     if (!formData.software) {
       renderFlash(
         "error",
-        `Couldn't add. Please refresh the page and try again.`
+        `Couldn't upload. Please refresh the page and try again.`
       );
       return;
     }
@@ -102,7 +102,7 @@ const SoftwareCustomPackage = ({
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
       renderFlash(
         "error",
-        `Couldn't add. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
+        `Couldn't upload. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
       );
       return;
     }
