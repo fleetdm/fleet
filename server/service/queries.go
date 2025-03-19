@@ -841,6 +841,10 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		}
 		teamName = team.Name
 	}
+	labelsAny := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelsAny = append(labelsAny, label.LabelName)
+	}
 	return &fleet.QuerySpec{
 		Name:        query.Name,
 		Description: query.Description,
@@ -854,6 +858,7 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		AutomationsEnabled: query.AutomationsEnabled,
 		Logging:            query.Logging,
 		DiscardData:        query.DiscardData,
+		LabelsIncludeAny:   labelsAny,
 	}, nil
 }
 
