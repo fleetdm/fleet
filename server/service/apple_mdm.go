@@ -2815,8 +2815,6 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
-	fmt.Println(">>>>> AUTHENTICATE!", r.ID)
-
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		var nfe fleet.NotFoundError
@@ -2875,8 +2873,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
-	fmt.Println(">>>>> TOKENUPDATE!", r.ID)
-
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
@@ -2914,8 +2910,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/check_out
 func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.CheckOut) error {
-	fmt.Println(">>>>> CHECKOUT!", r.ID)
-
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
 	if err != nil {
 		return err
@@ -3001,15 +2995,32 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(r.Context, err, "lookup enrolled but deleted device info")
 		}
-		if deletedDevice != nil {
-			// TODO(iosrevive): Step 2: identify via the new nano_devices.platform if
-			// this is an iDevice that doesn't have a corresponding host entry, and if
-			// so, trigger a refetch device info for it (we can't create the host entry
-			// here as we don't have any other device information besides the UDID).
-			// I.e. the equivalent of:
-			// https://github.com/fleetdm/fleet/blob/769fd37aafe23e0c04e014bbe1a34804b8f1d348/server/service/hosts.go#L1111-L1114
-			// We can't insert the requested command in host_mdm_commands because the
-			// host entry doesn't exist yet.
+
+		// only re-create iPhone/iPad devices, macOS are recreated via the fleetd checkin
+		if deletedDevice != nil && (deletedDevice.Platform == "ios" || deletedDevice.Platform == "ipados") {
+			msg, err := mdm.DecodeCheckin([]byte(deletedDevice.Authenticate))
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "decode authenticate enrollment message to re-create a deleted host")
+			}
+			authMsg, ok := msg.(*mdm.Authenticate)
+			if !ok {
+				return nil, ctxerr.Errorf(r.Context, "authenticate enrollment message to re-create a deleted host is not of the expected type: %T", msg)
+			}
+			err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+				Action:         mdmlifecycle.HostActionReset,
+				Platform:       deletedDevice.Platform,
+				UUID:           deletedDevice.ID,
+				HardwareSerial: deletedDevice.SerialNumber,
+				HardwareModel:  authMsg.ProductName,
+			})
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "trigger mdm reset lifecycle to re-create a deleted host")
+			}
+
+			// // TODO: restore the host's enrollment team
+			// if deletedDevice.EnrollTeamID != nil {
+			// 	svc.ds.AddHostsToTeam(r.Context, deletedDevice.TeamID, []fleet.Host{})
+			// }
 		}
 
 		// macOS hosts are considered unlocked if they are online any time
@@ -3028,8 +3039,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		return nil, nil
 	}
-
-	fmt.Println(">>>>> CommandAndReportResults: ", cmdResult.CommandUUID)
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
