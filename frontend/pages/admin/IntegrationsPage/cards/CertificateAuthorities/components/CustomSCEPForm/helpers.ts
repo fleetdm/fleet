@@ -64,6 +64,16 @@ const FORM_VALIDATIONS: Record<
   },
 };
 
+const getErrorMessage = (
+  formData: ICustomSCEPFormData,
+  message?: IValidationMessage
+) => {
+  if (message === undefined || typeof message === "string") {
+    return message;
+  }
+  return message(formData);
+};
+
 // eslint-disable-next-line import/prefer-default-export
 export const validateFormData = (formData: ICustomSCEPFormData) => {
   const formValidation: ICustomSCEPFormValidation = {
@@ -84,6 +94,7 @@ export const validateFormData = (formData: ICustomSCEPFormData) => {
       formValidation.isValid = false;
       formValidation[objKey] = {
         isValid: false,
+        message: getErrorMessage(formData, failedValidation.message),
       };
     }
   });
@@ -103,26 +114,26 @@ const SCEP_URL_TIMEOUT_ERROR =
 const DEFAULT_ERROR =
   "Something went wrong updating your SCEP server. Please try again.";
 
-export const getErrorMessage = (
-  err: unknown,
-  formData: ICustomSCEPFormData
-) => {
-  const reason = getErrorReason(err);
+// export const getErrorMessage = (
+//   err: unknown,
+//   formData: ICustomSCEPFormData
+// ) => {
+//   const reason = getErrorReason(err);
 
-  if (reason.includes("invalid admin URL or credentials")) {
-    return BAD_CREDENTIALS_ERROR;
-  } else if (reason.includes("the password cache is full")) {
-    return CACHE_ERROR;
-  } else if (reason.includes("does not have sufficient permissions")) {
-    INSUFFICIENT_PERMISSIONS_ERROR;
-  } else if (
-    reason.includes(formData.scepURL) &&
-    reason.includes("context deadline exceeded")
-  ) {
-    return SCEP_URL_TIMEOUT_ERROR;
-  } else if (reason.includes("invalid SCEP URL")) {
-    return BAD_SCEP_URL_ERROR;
-  }
+//   if (reason.includes("invalid admin URL or credentials")) {
+//     return BAD_CREDENTIALS_ERROR;
+//   } else if (reason.includes("the password cache is full")) {
+//     return CACHE_ERROR;
+//   } else if (reason.includes("does not have sufficient permissions")) {
+//     INSUFFICIENT_PERMISSIONS_ERROR;
+//   } else if (
+//     reason.includes(formData.scepURL) &&
+//     reason.includes("context deadline exceeded")
+//   ) {
+//     return SCEP_URL_TIMEOUT_ERROR;
+//   } else if (reason.includes("invalid SCEP URL")) {
+//     return BAD_SCEP_URL_ERROR;
+//   }
 
-  return DEFAULT_ERROR;
-};
+//   return DEFAULT_ERROR;
+// };

@@ -60,6 +60,7 @@ const CustomSCEPForm = ({
           label="Name"
           name="name"
           value={name}
+          error={formValidation.name?.message}
           onChange={onInputChange}
           parseTarget
           placeholder="SCEP_WIFI"

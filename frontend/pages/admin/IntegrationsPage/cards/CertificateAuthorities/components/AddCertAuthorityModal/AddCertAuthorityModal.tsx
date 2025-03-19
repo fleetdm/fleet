@@ -9,7 +9,7 @@ import { AppContext } from "context/app";
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 
-import { generateDropdownOptions, generateErrorMessage } from "./helpers";
+import { generateDropdownOptions, getErrorMessage } from "./helpers";
 
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
@@ -122,7 +122,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       onExit();
       setConfig(newConfig);
     } catch (e) {
-      renderFlash("error", generateErrorMessage(e));
+      renderFlash("error", getErrorMessage(e));
     }
     setIsAdding(false);
   };
