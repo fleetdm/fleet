@@ -5890,7 +5890,7 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) GetAppleMDMEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
+func (ds *Datastore) GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
 	const stmt = `
 SELECT
 	d.id,

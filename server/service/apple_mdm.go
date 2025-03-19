@@ -2997,15 +2997,20 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// requests from time to time. Those should be Idle requests without a
 		// CommandUUID. As stated in tickets #22941 and #22391, Fleet iDevices
 		// should be re-created when they checkin with MDM.
-
-		// TODO(iosrevive): Step 2: identify via the new nano_devices.platform if
-		// this is an iDevice that doesn't have a corresponding host entry, and if
-		// so, trigger a refetch device info for it (we can't create the host entry
-		// here as we don't have any other device information besides the UDID).
-		// I.e. the equivalent of:
-		// https://github.com/fleetdm/fleet/blob/769fd37aafe23e0c04e014bbe1a34804b8f1d348/server/service/hosts.go#L1111-L1114
-		// We can't insert the requested command in host_mdm_commands because the
-		// host entry doesn't exist yet.
+		deletedDevice, err := svc.ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(r.Context, cmdResult.UDID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(r.Context, err, "lookup enrolled but deleted device info")
+		}
+		if deletedDevice != nil {
+			// TODO(iosrevive): Step 2: identify via the new nano_devices.platform if
+			// this is an iDevice that doesn't have a corresponding host entry, and if
+			// so, trigger a refetch device info for it (we can't create the host entry
+			// here as we don't have any other device information besides the UDID).
+			// I.e. the equivalent of:
+			// https://github.com/fleetdm/fleet/blob/769fd37aafe23e0c04e014bbe1a34804b8f1d348/server/service/hosts.go#L1111-L1114
+			// We can't insert the requested command in host_mdm_commands because the
+			// host entry doesn't exist yet.
+		}
 
 		// macOS hosts are considered unlocked if they are online any time
 		// after they have been unlocked. If the host has been seen after a
@@ -3013,8 +3018,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// db as well.
 		//
 		// TODO: sanity check if this approach is still valid after we implement wipe
-		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+
+		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
+		if deletedDevice == nil {
+			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+			}
 		}
 
 		return nil, nil
@@ -3249,11 +3258,6 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	host.DetailUpdatedAt = time.Now()
 	host.RefetchRequested = false
 
-	// TODO(iosrevive): Step 3: if the host entry does not exist but the nano
-	// device does and has ios/ipados platform, create it here as "ingested from
-	// MDM check-in."
-	// I.e. the equivalent of
-	// https://github.com/fleetdm/fleet/blob/769fd37aafe23e0c04e014bbe1a34804b8f1d348/server/mdm/lifecycle/lifecycle.go#L124-L132
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
@@ -3427,10 +3431,10 @@ func SendPushesToPendingDevices(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-	// TODO(iosrevive): Step 4 (optional), if we want to go out of our way to
-	// re-create the deleted iDevices ASAP, we could include them in the list of
-	// hosts to send a push to, so that they checkin early (it can be arbitrarily
-	// long without a push notification).
+	// TODO(iosrevive): (optional), if we want to go out of our way to re-create
+	// the deleted iDevices ASAP, we could include them in the list of hosts to
+	// send a push to, so that they checkin early (it can be arbitrarily long
+	// without a push notification).
 	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")

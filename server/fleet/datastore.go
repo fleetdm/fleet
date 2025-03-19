@@ -1498,10 +1498,10 @@ type Datastore interface {
 	// not necessarily report as "turned off" in that scenario).
 	ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
-	// GetAppleMDMEnrolledDeviceDeletedFromFleet returns the information of a
+	// GetMDMAppleEnrolledDeviceDeletedFromFleet returns the information of a
 	// device that is still enrolled in Fleet MDM but the corresponding host has
 	// been deleted from Fleet.
-	GetAppleMDMEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
