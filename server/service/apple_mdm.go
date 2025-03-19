@@ -72,7 +72,7 @@ const (
 )
 
 const (
-	SameProfileNameUploadErrorMsg = "Couldn't add. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+	SameProfileNameUploadErrorMsg = "Couldn't upload. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
 )
 
 var (
