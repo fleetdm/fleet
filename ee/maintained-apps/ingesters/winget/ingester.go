@@ -90,15 +90,24 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
 		}
 
-		var installerURL string
+		var installerData wingetInstaller
 		for _, installer := range m.Installers {
+			// TODO(JVE): handle the user scope case (e.g. Notion)
 			if installer.Scope == machineScope {
-				fmt.Printf("machine scoped installer.InstallerURL: %v\n", installer.InstallerURL)
-				installerURL = installer.InstallerURL
+				// fmt.Printf("machine scoped installer.InstallerURL: %v\n", installer.InstallerURL)
+				// installerURL = installer.InstallerURL
+				installerData = installer
 			}
 		}
 
-		manifestApps = append(manifestApps, &maintained_apps.FMAManifestApp{Name: input.Name, Slug: input.Slug, InstallerURL: installerURL})
+		manifestApps = append(manifestApps, &maintained_apps.FMAManifestApp{
+			Name:             input.Name,
+			Slug:             input.Slug,
+			InstallerURL:     installerData.InstallerURL,
+			SHA256:           installerData.InstallerSha256,
+			Version:          m.PackageVersion,
+			UniqueIdentifier: m.PackageIdentifier, // TODO(JVE): is this true?
+		})
 
 	}
 
@@ -112,7 +121,9 @@ type inputApp struct {
 }
 
 type wingetManifest struct {
-	Installers []wingetInstaller `yaml:"Installers"`
+	PackageIdentifier string            `yaml:"PackageIdentifier"`
+	PackageVersion    string            `yaml:"PackageVersion"`
+	Installers        []wingetInstaller `yaml:"Installers"`
 }
 
 type wingetInstaller struct {

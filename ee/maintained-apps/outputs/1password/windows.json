@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "",
+      "version": "8.10.64",
       "queries": {
         "exists": ""
       },
       "installer_url": "https://downloads.1password.com/win/1PasswordSetup-8.10.64.msi",
-      "unique_identifier": "",
+      "unique_identifier": "AgileBits.1Password",
       "install_script_ref": "",
       "uninstall_script_ref": "",
-      "sha256": ""
+      "sha256": "77479FFAEF60167D2D0BA4CD85F3DD7914D248F417216D14CC9790A64ABDEAE4"
     }
   ],
   "refs": {
