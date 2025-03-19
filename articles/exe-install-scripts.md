@@ -14,7 +14,7 @@ The recommended way to install software on Windows hosts is to use machine-scope
 
 Here's an example **install** script:
 
-```
+```PowerShell
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
@@ -45,7 +45,7 @@ Exit $exitCode
 
 Here's an example **uninstall** script:
 
-```
+```PowerShell
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
 $softwareName = $PACKAGE_ID
