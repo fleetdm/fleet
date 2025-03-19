@@ -91,6 +91,8 @@ const RunQuery = ({
     websocket = new SockJS(`${BASE_URL}/v1/fleet/results`, undefined, {});
     websocket.onopen = () => {
       setupDistributedQuery(websocket);
+      // `prevCampaignState` at this point is the default state. Update that with what we get from
+      // the API response
       setCampaignState((prevCampaignState) => ({
         ...prevCampaignState,
         campaign: { ...prevCampaignState.campaign, returnedCampaign },
