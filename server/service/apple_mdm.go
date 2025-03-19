@@ -3018,10 +3018,15 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "trigger mdm reset lifecycle to re-create a deleted host")
 			}
 
-			// // TODO: restore the host's enrollment team
-			// if deletedDevice.EnrollTeamID != nil {
-			// 	svc.ds.AddHostsToTeam(r.Context, deletedDevice.TeamID, []fleet.Host{})
-			// }
+			if deletedDevice.EnrollTeamID != nil {
+				host, err := svc.ds.HostLiteByIdentifier(r.Context, deletedDevice.ID)
+				if err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "load re-created host by identifier")
+				}
+				if err := svc.ds.AddHostsToTeam(r.Context, deletedDevice.EnrollTeamID, []uint{host.ID}); err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "transfer re-created host to enrollment team")
+				}
+			}
 		}
 
 		// macOS hosts are considered unlocked if they are online any time
