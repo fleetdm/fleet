@@ -2842,8 +2842,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		}
 	}
 
-	// TODO(iosrevive): Step 1: during Authenticate, in the Reset lifecycle stage,
-	// store the platform in the nano_enrollment information.
 	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:         mdmlifecycle.HostActionReset,
 		Platform:       platform,

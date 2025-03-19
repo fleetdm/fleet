@@ -5889,3 +5889,32 @@ WHERE
 	}
 	return nil
 }
+
+func (ds *Datastore) GetAppleMDMEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
+	const stmt = `
+SELECT
+	d.id,
+	d.serial_number,
+	d.authenticate,
+	d.platform,
+	d.enroll_team_id
+FROM
+	nano_devices d
+	JOIN nano_enrollments e ON d.id = e.device_id
+	LEFT OUTER JOIN hosts h ON h.uuid = d.id
+WHERE
+	e.type = 'Device' AND
+	e.enabled = 1 AND
+	d.id = ? AND
+	h.id IS NULL
+`
+
+	var res fleet.MDMAppleEnrolledDeviceInfo
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("NanoDevice").WithName(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple enrolled device info")
+	}
+	return &res, nil
+}

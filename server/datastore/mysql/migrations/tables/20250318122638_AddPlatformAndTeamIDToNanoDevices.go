@@ -19,6 +19,10 @@ ALTER TABLE nano_devices
 	if err != nil {
 		return fmt.Errorf("failed to alter nano_devices: %w", err)
 	}
+
+	// TODO(mna): parse the authenticate field of existing nano_devices that
+	// don't have a corresponding host entry (deleted hosts) and set the platform
+	// value to ios/ipados so that they can be recreated when they checkin.
 	return nil
 }
 
