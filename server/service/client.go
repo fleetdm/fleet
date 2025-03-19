@@ -590,7 +590,11 @@ func (c *Client) ApplyGroup(
 					assumeEnabled = ok && assumeEnabled
 				}
 			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
+			profilesSpecOptions := opts.ApplySpecOptions
+			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
+			// this HTTP request gets routed to another Fleet server.
+			profilesSpecOptions.NoCache = true
+			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 			if opts.DryRun {

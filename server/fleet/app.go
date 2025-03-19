@@ -1206,6 +1206,9 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+	// NoCache indicates that cached_mysql calls should be bypassed on the server.
+	// This is needed where related data was just updated and we need that latest data from the DB.
+	NoCache bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1237,6 +1240,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.DryRun {
 		query.Set("dry_run", "true")
+	}
+	if o.NoCache {
+		query.Set("no_cache", "true")
 	}
 	return query.Encode()
 }
