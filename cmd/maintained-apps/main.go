@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -22,6 +23,9 @@ func main() {
 	logger := kitlog.NewJSONLogger(os.Stderr)
 	logger = level.NewFilter(logger, level.AllowDebug())
 	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
+	appPtr := flag.String("app", "", "app name")
+	flag.Parse()
+	fmt.Printf("appPtr: %v\n", *appPtr)
 
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
 
@@ -37,6 +41,9 @@ func main() {
 		}
 
 		for _, app := range apps {
+			if appPtr != nil && app.Name != *appPtr {
+				continue
+			}
 			if app.IsEmpty() {
 				level.Info(logger).Log("msg", "skipping manifest update due to empty output", "slug", app.Slug)
 				continue

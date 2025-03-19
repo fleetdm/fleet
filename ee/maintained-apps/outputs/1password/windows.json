@@ -1,0 +1,18 @@
+{
+  "versions": [
+    {
+      "version": "",
+      "queries": {
+        "exists": ""
+      },
+      "installer_url": "https://downloads.1password.com/win/1PasswordSetup-8.10.64.msi",
+      "unique_identifier": "",
+      "install_script_ref": "",
+      "uninstall_script_ref": "",
+      "sha256": ""
+    }
+  ],
+  "refs": {
+    "": ""
+  }
+}
