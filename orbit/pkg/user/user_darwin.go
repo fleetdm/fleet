@@ -9,6 +9,8 @@ import (
 	"regexp"
 )
 
+var re *regexp.Regexp = regexp.MustCompile(`\s+Name : (\S+)`)
+
 // UserLoggedInViaGui returns the name of the user logged into the machine via the GUI.
 func UserLoggedInViaGui() (*string, error) {
 	// Attempt to get the console user.
@@ -22,7 +24,6 @@ func UserLoggedInViaGui() (*string, error) {
 
 	// Extract all "Name : username" entries, and return the first one that
 	// isn't _mbsetupuser (if any).
-	re := regexp.MustCompile(`\s+Name : (\S+)`)
 	matches := re.FindAllStringSubmatch(out.String(), -1)
 
 	for _, match := range matches {
