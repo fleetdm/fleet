@@ -36,7 +36,7 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: digicert update: add this back when the feature is ready
   {
     title: "Certificates",
-    urlSection: "certificate-authorities",
+    urlSection: "certificates",
     path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
     Card: CertificateAuthorities,
   },
