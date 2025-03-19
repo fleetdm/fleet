@@ -30,6 +30,12 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 	var manifestApps []*maintained_apps.FMAManifestApp
 
+	githubHTTPClient := fleethttp.NewGithubClient()
+	githubClient := github.NewClient(githubHTTPClient)
+	opts := &github.RepositoryContentGetOptions{
+		Ref: "master",
+	}
+
 	for _, f := range files {
 
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
@@ -44,41 +50,42 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
 
-		// get the data from the repo in github
-		githubHTTPClient := fleethttp.NewGithubClient()
-		githubClient := github.NewClient(githubHTTPClient)
+		// this is the path within the winget GitHub repo where the manifests are located
+		dirPath := path.Join("manifests", string(bytes.ToLower([]byte{input.Vendor[0]})), input.Vendor, input.Name)
 
 		_, contents, _, err := githubClient.Repositories.GetContents(ctx,
 			"microsoft",
 			"winget-pkgs",
-			// TODO(JVE): make this path calculation a function
-			fmt.Sprintf("manifests/%s/%s/%s", string(bytes.ToLower([]byte{input.Vendor[0]})), input.Vendor, input.Name),
-			&github.RepositoryContentGetOptions{
-				Ref: "master",
-			},
+			dirPath,
+			opts,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("get data from winget repo request: %w", err)
 		}
 
+		// sort the list of directories in descending order
 		slices.SortFunc(contents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
+		// this directory has the latest version data in it
 		latestVersionDir := contents[0]
+		if latestVersionDir.GetName() == "" {
+			level.Warn(logger).Log("msg", "latest version not found", "app", input.Name)
+			continue
+		}
+
+		// this is the path to the specific manifest file we need
+		filePath := path.Join(dirPath, latestVersionDir.GetName(), fmt.Sprintf("%s.%s.installer.yaml", input.Vendor, input.Name))
 
 		fileContents, _, _, err := githubClient.Repositories.GetContents(ctx,
 			"microsoft",
 			"winget-pkgs",
-			// TODO(JVE): make this path calculation a function
-			fmt.Sprintf("manifests/%s/%s/%s/%s/%s.%s.installer.yaml", string(bytes.ToLower([]byte{input.Vendor[0]})), input.Vendor, input.Name, latestVersionDir.GetName(), input.Vendor, input.Name),
-			&github.RepositoryContentGetOptions{
-				Ref: "master",
-			},
+			filePath,
+			opts,
 		)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting the ")
 		}
 
-		fmt.Printf("fileContents.GetName(): %v\n", fileContents.GetName())
 		manifestContents, err := fileContents.GetContent()
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest file contents")
