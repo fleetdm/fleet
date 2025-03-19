@@ -28,6 +28,7 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
+  // TODO mark (un)install script as invalid when blank with an EXE
   preInstallQuery: {
     validations: [
       {

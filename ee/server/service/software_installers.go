@@ -373,6 +373,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if installScript == "" {
 			installScript = file.GetInstallScript(existingInstaller.Extension)
 		}
+		if installScript == "" {
+			return nil, ctxerr.New(ctx, fmt.Sprintf("install script must be provided for %s packages", strings.ToUpper(existingInstaller.Extension)))
+		}
 
 		if installScript != existingInstaller.InstallScript {
 			dirty["InstallScript"] = true
@@ -392,6 +395,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
 		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+		}
+		if uninstallScript == "" {
+			return nil, ctxerr.New(ctx, fmt.Sprintf("uninstall script must be provided for %s packages", strings.ToUpper(existingInstaller.Extension)))
 		}
 
 		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
@@ -1408,9 +1414,15 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if payload.InstallScript == "" {
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
+	if payload.InstallScript == "" {
+		return meta.Extension, ctxerr.New(ctx, fmt.Sprintf("install script must be provided for %s packages", strings.ToUpper(meta.Extension)))
+	}
 
 	if payload.UninstallScript == "" {
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
+	}
+	if payload.UninstallScript == "" {
+		return meta.Extension, ctxerr.New(ctx, fmt.Sprintf("uninstall script must be provided for %s packages", strings.ToUpper(meta.Extension)))
 	}
 
 	if payload.BundleIdentifier != "" {

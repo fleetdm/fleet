@@ -30,17 +30,35 @@ const PKG_TYPE_TO_ID_TEXT = {
   exe: "software name",
 } as const;
 
-const getInstallHelpText = (pkgType: PackageType) => (
-  <>
-    Use the $INSTALLER_PATH variable to point to the installer.{" "}
-    {getSupportedScriptTypeText(pkgType)}{" "}
-    <CustomLink
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
-      text="Learn more about install scripts"
-      newTab
-    />
-  </>
-);
+const getInstallHelpText = (pkgType: PackageType) => {
+  if (pkgType === "exe") {
+    return (
+      <>
+        Use the $INSTALLER_PATH variable to point to the installer.{" "}
+        {getSupportedScriptTypeText(pkgType)}.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
+          text="EXE install scripts must be built manually."
+          newTab
+        />{" "}
+        Fleet can automatically build install and uninstall scripts for MSI
+        packages and Fleet-maintained Apps.
+      </>
+    );
+  }
+
+  return (
+    <>
+      Use the $INSTALLER_PATH variable to point to the installer.{" "}
+      {getSupportedScriptTypeText(pkgType)}{" "}
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
+        text="Learn more about install scripts"
+        newTab
+      />
+    </>
+  );
+};
 
 const getPostInstallHelpText = (pkgType: PackageType) => {
   return getSupportedScriptTypeText(pkgType);
@@ -49,6 +67,23 @@ const getPostInstallHelpText = (pkgType: PackageType) => {
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
     return "Currently, shell scripts are supported";
+  }
+
+  if (pkgType === "exe") {
+    return (
+      <>
+        $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[pkgType]}{" "}
+        from the .{pkgType} file after the software is added.{" "}
+        {getSupportedScriptTypeText(pkgType)}{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
+          text="EXE uninstall scripts must be built manually."
+          newTab
+        />{" "}
+        Fleet can automatically build install and uninstall scripts for MSI
+        packages and Fleet-maintained Apps.
+      </>
+    );
   }
 
   return (
@@ -97,14 +132,15 @@ const PackageAdvancedOptions = ({
   onChangeUninstallScript,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const name = selectedPackage?.name || "";
+  const ext = name.split(".").pop() as PackageType;
 
   const renderAdvancedOptions = () => {
-    const name = selectedPackage?.name || "";
-    const ext = name.split(".").pop() as PackageType;
     if (!isPackageType(ext)) {
       // this should never happen
       return null;
     }
+
     return (
       <AdvancedOptionsFields
         className={`${baseClass}__input-fields`}
@@ -143,7 +179,9 @@ const PackageAdvancedOptions = ({
           </>
         }
       />
-      {showAdvancedOptions && !!selectedPackage && renderAdvancedOptions()}
+      {(showAdvancedOptions || ext === "exe") &&
+        !!selectedPackage &&
+        renderAdvancedOptions()}
     </div>
   );
 };
