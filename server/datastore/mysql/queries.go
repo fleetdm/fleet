@@ -320,22 +320,28 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, query *fleet.Que
 		WHERE query_id = ?
 	`
 
+	// If we aren't given a transaction, start our own.
 	if txToUse == nil {
 		tx, err = ds.writer(ctx).BeginTxx(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "begin updateQueryLabelsInTx")
 		}
+		// Handle errors by attempting to roll back.
 		defer func() {
 			if err != nil {
 				rbErr := tx.Rollback()
-				// It seems possible that there might be a case in
-				// which the error we are dealing with here was thrown
-				// by the call to tx.Commit(), and the docs suggest
-				// this call would then result in sql.ErrTxDone.
+				// Handle error in rollback.
 				if rbErr != nil && rbErr != sql.ErrTxDone {
 					panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
 				}
 			}
+		}()
+		// When we're done updating labels, commit our transaction.
+		defer func() {
+			if err != nil {
+				return
+			}
+			err = tx.Commit()
 		}()
 	} else {
 		tx = txToUse
