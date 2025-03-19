@@ -9828,7 +9828,6 @@ Returns information about the specified Fleet-maintained app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet-maintained app's ID. |
-| slug   | integer | body | **Required.** The slug of Fleet-maintained app. You can find all the slugs [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).|
 
 #### Example
 
