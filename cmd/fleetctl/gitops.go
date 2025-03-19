@@ -357,18 +357,18 @@ func concatLabels(labelArrays ...[]string) []string {
 }
 
 // Given a set of referenced labels and info about who is using them, update a provided usage map.
-func updateLabelUsage(labels []string, ident string, usageType string, currentUsage *map[string][]LabelUsage) {
+func updateLabelUsage(labels []string, ident string, usageType string, currentUsage map[string][]LabelUsage) {
 	for _, label := range labels {
 		var usage []LabelUsage
-		if _, ok := (*currentUsage)[label]; !ok {
-			(*currentUsage)[label] = make([]LabelUsage, 0)
+		if _, ok := currentUsage[label]; !ok {
+			currentUsage[label] = make([]LabelUsage, 0)
 		}
-		usage = (*currentUsage)[label]
+		usage = currentUsage[label]
 		usage = append(usage, LabelUsage{
 			Name: ident,
 			Type: usageType,
 		})
-		(*currentUsage)[label] = usage
+		currentUsage[label] = usage
 	}
 }
 
@@ -382,7 +382,7 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsIncludeAll, setting.LabelsExcludeAny)
-				updateLabelUsage(labels, setting.Path, "MDM Profile", &result)
+				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
 			}
 		}
 	}
@@ -390,18 +390,18 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 	// Get software package installer label usage
 	for _, setting := range config.Software.Packages {
 		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
-		updateLabelUsage(labels, setting.URL, "Software Package", &result)
+		updateLabelUsage(labels, setting.URL, "Software Package", result)
 	}
 
 	// Get app store app installer label usage
 	for _, setting := range config.Software.AppStoreApps {
 		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
-		updateLabelUsage(labels, setting.AppStoreID, "App Store App", &result)
+		updateLabelUsage(labels, setting.AppStoreID, "App Store App", result)
 	}
 
 	// Get query label usage
 	for _, query := range config.Queries {
-		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", &result)
+		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
 	}
 
 	return result

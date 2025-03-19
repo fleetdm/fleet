@@ -32,7 +32,7 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/smallstep/scep"
 )
