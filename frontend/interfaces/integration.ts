@@ -35,7 +35,6 @@ export interface ICertificatesIntegrationDigicert {
 }
 
 export interface ICertificatesIntegrationCustomSCEP {
-  id: number;
   name: string;
   url: string;
   challenge: string;

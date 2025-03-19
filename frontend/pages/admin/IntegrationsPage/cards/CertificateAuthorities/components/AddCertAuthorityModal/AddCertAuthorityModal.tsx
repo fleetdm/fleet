@@ -10,14 +10,19 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 
 import { generateDropdownOptions, generateErrorMessage } from "./helpers";
+
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 import NDESForm from "../NDESForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
+import CustomSCEPForm from "../CustomSCEPForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 
-export type ICertFormData = IDigicertFormData | INDESFormData;
-// | IYetAnotherCertFormData;
+export type ICertFormData =
+  | IDigicertFormData
+  | INDESFormData
+  | ICustomSCEPFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -48,6 +53,14 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     username: "",
     password: "",
   });
+  const [
+    customSCEPFormData,
+    setCustomSCEPFormData,
+  ] = useState<ICustomSCEPFormData>({
+    name: "",
+    scepURL: "",
+    challenge: "",
+  });
 
   const { generateAddPatchData } = useCertAuthorityDataGenerator(
     certAuthorityType
@@ -69,6 +82,10 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
         setFormData = setNDESFormData;
         formData = ndesFormData;
         break;
+      case "custom":
+        setFormData = setCustomSCEPFormData;
+        formData = customSCEPFormData;
+        break;
       default:
         return;
     }
@@ -87,6 +104,9 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
         break;
       case "ndes":
         formData = ndesFormData;
+        break;
+      case "custom":
+        formData = customSCEPFormData;
         break;
       default:
         return;
@@ -130,6 +150,17 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
         return (
           <NDESForm
             formData={ndesFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "custom":
+        return (
+          <CustomSCEPForm
+            formData={customSCEPFormData}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
             onChange={onChangeForm}
