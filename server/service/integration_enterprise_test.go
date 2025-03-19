@@ -13445,7 +13445,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 		Filename:      "no_bundle_identifier.pkg",
 		TeamID:        &team.ID,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't upload. Unable to extract necessary metadata.")
 }
 
 func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
@@ -13461,7 +13461,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
 		TeamID:           &team.ID,
 		AutomaticInstall: true,
 	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.")
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't upload. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.")
 }
 
 // 1. host reports software
