@@ -1,14 +1,12 @@
 ## Fleet 4.65.0 (Mar 14, 2025)
 
-## Security engineering
+## Security
 - Added UI for viewing certificate details on the host details and my device pages.
 - Added new features to include certificates in host vitals for macOS, iOS, and iPadOS.
 - Added the list host certificates (and list device's certificates) endpoints.
 - Improved the copy for the delete and transfer host modal to be more clear about the disk encryption key behavior.
 - Permit setting SSO metadata and metadata_url in gitops and UI.
 - Fixed an issue where the Show Query modal would truncate large queries.
-
-## Vulnerability management
 - Fixed Python for Windows software version mutation to avoid panics on software ingestion in some cases.
 - Prevented an invalid `FLEET_VULNERABILITIES_MAX_CONCURRENCY` value from causing deadlocks during vulnerability processing.
 - Updated default for vulnerabilities max concurrency from 5 to 1.
@@ -19,7 +17,7 @@
 - Fixed an issue with increased resource usage during vulnerabilities processing by adding database indexes.
 - Fixed false-positives on released PowerShell versions for CVE-2025-21171 and all PowerShell versions on CVE-2023-48795.
 
-## IT engineering
+## IT
 - Implemented GitOps mode that locks settings in the UI that are managed by GitOps.
 - Allowed VPP apps to be automatically installed via a Fleet-created policy. 
 - Added ability for users to automatically install App Store Apps without writing a policy in the Fleet UI.
