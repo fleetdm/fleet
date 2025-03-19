@@ -5,19 +5,22 @@ import { AppContext } from "context/app";
 import {
   ICertificateIntegration,
   isDigicertCertIntegration,
+  isNDESCertIntegration,
 } from "interfaces/integration";
 import certificatesAPI from "services/entities/certificates";
 
 import Modal from "components/Modal";
 
-import DigicertForm from "../DigicertForm";
 import {
   generateDefaultFormData,
   generateErrorMessage,
   getCertificateAuthorityType,
 } from "./helpers";
+
+import DigicertForm from "../DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
+import NDESForm from "../NDESForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -70,6 +73,9 @@ const EditCertAuthorityModal = ({
   };
 
   const getFormComponent = () => {
+    if (isNDESCertIntegration(certAuthority)) {
+      return NDESForm;
+    }
     if (isDigicertCertIntegration(certAuthority)) {
       return DigicertForm;
     }
@@ -82,6 +88,7 @@ const EditCertAuthorityModal = ({
 
     return (
       <FormComponent
+        // @ts-ignore TODO: figure out how to fix this type issue
         formData={formData}
         submitBtnText="Save"
         isSubmitting={isUpdating}

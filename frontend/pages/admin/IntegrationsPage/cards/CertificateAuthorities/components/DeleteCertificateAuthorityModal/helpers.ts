@@ -126,7 +126,7 @@ export const useCertAuthorityDataGenerator = (
    * have to generate the correct data for the PATCH request.
    */
   const generateEditPatchData = useCallback(
-    (formData: IDigicertFormData) => {
+    (formData: ICertFormData) => {
       if (!config) return null;
 
       const data: { integrations: Partial<IGlobalIntegrations> } = {
@@ -135,8 +135,31 @@ export const useCertAuthorityDataGenerator = (
 
       switch (certAuthorityType) {
         case "ndes":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            scepURL,
+            adminURL,
+            username,
+            password,
+          } = formData as INDESFormData;
+          data.integrations.ndes_scep_proxy = {
+            url: scepURL,
+            admin_url: adminURL,
+            username,
+            password,
+          };
           break;
         case "digicert":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            name,
+            url,
+            apiToken,
+            profileId,
+            commonName,
+            userPrincipalName,
+            certificateSeatId,
+          } = formData as IDigicertFormData;
           data.integrations.digicert = config.integrations.digicert?.map(
             (cert) => {
               // only update the certificate authority that we are editing
@@ -145,15 +168,13 @@ export const useCertAuthorityDataGenerator = (
                 cert.name
               ) {
                 return {
-                  name: formData.name,
-                  url: formData.url,
-                  api_token: formData.apiToken,
-                  profile_id: formData.profileId,
-                  certificate_common_name: formData.commonName,
-                  certificate_user_principal_names: [
-                    formData.userPrincipalName,
-                  ],
-                  certificate_seat_id: formData.certificateSeatId,
+                  name,
+                  url,
+                  api_token: apiToken,
+                  profile_id: profileId,
+                  certificate_common_name: commonName,
+                  certificate_user_principal_names: [userPrincipalName],
+                  certificate_seat_id: certificateSeatId,
                 };
               }
               return cert;
