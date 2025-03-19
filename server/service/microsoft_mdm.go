@@ -2250,6 +2250,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			CommandUUID:   target.cmdUUID,
 			OperationType: fleet.MDMOperationTypeInstall,
 			Status:        &fleet.MDMDeliveryPending,
+			Checksum:      p.Checksum,
 		})
 		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
@@ -2259,7 +2260,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	for pid := range toGetContents {
 		profileUUIDs = append(profileUUIDs, pid)
 	}
-	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx, profileUUIDs)
+	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx,
+		profileUUIDs) // TODO: contents also need to include checksum which we should double check
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
@@ -2287,7 +2289,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
 	}
 
-	// Upsert the status of the host profiles we need to track.
+	// Upsert the host profiles we need to track.
 	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}

@@ -1663,6 +1663,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{0},
 			},
 			{
 				ProfileUUID:   profiles[1],
@@ -1671,6 +1672,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{1},
 			},
 			{
 				ProfileUUID:   profiles[2],
@@ -1679,6 +1681,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{2},
 			},
 			{
 				ProfileUUID:   profiles[3],
@@ -1687,6 +1690,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{3},
 			},
 			{
 				ProfileUUID:   profiles[4],
@@ -1695,6 +1699,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{4},
 			},
 		},
 	)
@@ -1717,6 +1722,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerified,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{0},
 			},
 			{
 				ProfileUUID:   profiles[1],
@@ -1725,6 +1731,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerified,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{1},
 			},
 			{
 				ProfileUUID:   profiles[2],
@@ -1733,6 +1740,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerified,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{2},
 			},
 			{
 				ProfileUUID:   profiles[3],
@@ -1741,6 +1749,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerified,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{3},
 			},
 			{
 				ProfileUUID:   profiles[4],
@@ -1749,6 +1758,7 @@ func testBulkOperationsMDMWindowsHostProfiles(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerified,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      []byte{4},
 			},
 		},
 	)

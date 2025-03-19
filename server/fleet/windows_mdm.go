@@ -160,6 +160,7 @@ type MDMWindowsProfilePayload struct {
 	Detail        string             `db:"detail"`
 	CommandUUID   string             `db:"command_uuid"`
 	Retries       int                `db:"retries"`
+	Checksum      []byte             `db:"checksum"`
 }
 
 func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
@@ -171,7 +172,8 @@ func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.CommandUUID == other.CommandUUID &&
-		p.Retries == other.Retries
+		p.Retries == other.Retries &&
+		bytes.Equal(p.Checksum, other.Checksum)
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {
@@ -182,4 +184,5 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 	OperationType MDMOperationType
 	Status        *MDMDeliveryStatus
 	Detail        string
+	Checksum      []byte
 }
