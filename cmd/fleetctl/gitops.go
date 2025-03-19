@@ -360,15 +360,15 @@ func concatLabels(labelArrays ...[]string) []string {
 func updateLabelUsage(labels []string, ident string, usageType string, currentUsage map[string][]LabelUsage) {
 	for _, label := range labels {
 		var usage []LabelUsage
-		if _, ok := (currentUsage)[label]; !ok {
-			(currentUsage)[label] = make([]LabelUsage, 0)
+		if _, ok := currentUsage[label]; !ok {
+			currentUsage[label] = make([]LabelUsage, 0)
 		}
-		usage = (currentUsage)[label]
+		usage = currentUsage[label]
 		usage = append(usage, LabelUsage{
 			Name: ident,
 			Type: usageType,
 		})
-		(currentUsage)[label] = usage
+		currentUsage[label] = usage
 	}
 }
 
