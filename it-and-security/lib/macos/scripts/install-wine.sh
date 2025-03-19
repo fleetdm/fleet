@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Please don't delete. This script is linked to, as a redirect, from fleetctl and the Fleet website.
 
 set -eo pipefail
 
