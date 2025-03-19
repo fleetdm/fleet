@@ -4114,7 +4114,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		var host fleet.Host
 		err := sqlx.GetContext(
 			ctx, tx, &host,
-			`SELECT id, platform FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
+			`SELECT id, platform, team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
@@ -4162,8 +4162,10 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		// short-circuited before this.
 		_, err = tx.ExecContext(
 			ctx,
-			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND enabled = 1",
-			hostUUID,
+			`UPDATE nano_enrollments ne, nano_devices nd
+			SET ne.enrolled_from_migration = 0, nd.platform = ?, nd.enroll_team_id = ?
+			WHERE ne.id = ? AND ne.enabled = 1 AND ne.device_id = nd.id`,
+			host.Platform, host.TeamID, hostUUID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration value")
@@ -5886,4 +5888,33 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetAppleMDMEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
+	const stmt = `
+SELECT
+	d.id,
+	d.serial_number,
+	d.authenticate,
+	d.platform,
+	d.enroll_team_id
+FROM
+	nano_devices d
+	JOIN nano_enrollments e ON d.id = e.device_id
+	LEFT OUTER JOIN hosts h ON h.uuid = d.id
+WHERE
+	e.type = 'Device' AND
+	e.enabled = 1 AND
+	d.id = ? AND
+	h.id IS NULL
+`
+
+	var res fleet.MDMAppleEnrolledDeviceInfo
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("NanoDevice").WithName(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple enrolled device info")
+	}
+	return &res, nil
 }
