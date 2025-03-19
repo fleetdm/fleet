@@ -936,6 +936,14 @@ func updateMDMAppleHostDB(
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
 	}
 
+	mdmHost.ID = hostID
+
+	// load the enrolled team id for that host, will be needed later in the
+	// HostActionReset lifecycle
+	if err := sqlx.GetContext(ctx, tx, &mdmHost.TeamID, `SELECT team_id FROM hosts WHERE id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "load host team id")
+	}
+
 	// clear any host_mdm_actions following re-enrollment here
 	if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "error clearing mdm apple host_mdm_actions")
