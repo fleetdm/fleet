@@ -2001,10 +2001,6 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 	}
 	var numUpdates int
 	var labelsToDelete []string
-	proposedLabels := make(map[string]bool, len(config.Labels))
-	for _, proposedLabel := range config.Labels {
-		proposedLabels[proposedLabel.Name] = false
-	}
 	for _, persistedLabel := range persistedLabels {
 		if persistedLabel.LabelType == fleet.LabelTypeBuiltIn {
 			continue
@@ -2012,7 +2008,6 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		if slices.IndexFunc(config.Labels, func(configLabel *fleet.LabelSpec) bool { return configLabel.Name == persistedLabel.Name }) == -1 {
 			labelsToDelete = append(labelsToDelete, persistedLabel.Name)
 		} else {
-			proposedLabels[persistedLabel.Name] = true
 			numUpdates++
 		}
 	}
