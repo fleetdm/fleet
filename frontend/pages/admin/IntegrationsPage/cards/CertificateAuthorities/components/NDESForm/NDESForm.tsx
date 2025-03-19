@@ -68,7 +68,6 @@ const NDESForm = ({
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep/mscep.dll"
-          // disabled={gitOpsModeEnabled}
         />
         <InputField
           inputWrapperClass={`${baseClass}__admin-url-input`}
@@ -84,7 +83,6 @@ const NDESForm = ({
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep_admin/"
-          // disabled={gitOpsModeEnabled}
         />
         <InputField
           inputWrapperClass={`${baseClass}__username-input`}
@@ -101,7 +99,6 @@ const NDESForm = ({
           onChange={onInputChange}
           parseTarget
           placeholder="username@example.microsoft.com"
-          // disabled={gitOpsModeEnabled}
         />
         <InputField
           inputWrapperClass={`${baseClass}__password-input`}
@@ -120,13 +117,9 @@ const NDESForm = ({
           parseTarget
           placeholder="••••••••"
           blockAutoComplete
-          // disabled={gitOpsModeEnabled}
         />
       </div>
       <div className={`${baseClass}__cta`}>
-        {/* <GitOpsModeTooltipWrapper
-          tipOffset={-8}
-          renderChildren={(disableChildren) => ( */}
         <TooltipWrapper
           tipContent="Complete all required fields to save."
           underline={false}
@@ -142,8 +135,6 @@ const NDESForm = ({
             {submitBtnText}
           </Button>
         </TooltipWrapper>
-        {/* )}
-        /> */}
         <Button variant="inverse" onClick={onCancel}>
           Cancel
         </Button>
