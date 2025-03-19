@@ -34,15 +34,13 @@ const getInstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "exe") {
     return (
       <>
-        Use the $INSTALLER_PATH variable to point to the installer.{" "}
+        For Windows, Fleet only creates install scripts for .msi packages. Use the $INSTALLER_PATH variable to point to the installer. {" "}
         {getSupportedScriptTypeText(pkgType)}.{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
-          text="EXE install scripts must be built manually."
+          text="Learn more"
           newTab
         />{" "}
-        Fleet can automatically build install and uninstall scripts for MSI
-        packages and Fleet-maintained Apps.
       </>
     );
   }
