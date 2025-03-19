@@ -388,6 +388,7 @@ const TableContainer = <T,>({
         </div>
       );
     }
+
     return (
       <>
         {wideSearch && searchable && (

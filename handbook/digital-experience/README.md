@@ -800,7 +800,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
   1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
   2. Go to the organizer (or nearest fleetie who's not the CEO):
     - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
-    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Savannah before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
 

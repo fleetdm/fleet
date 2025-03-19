@@ -91,23 +91,39 @@ func (ds *Datastore) saveCAAssets(ctx context.Context, tx sqlx.ExtContext, info 
 		info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
 	}
 
-	if info.Integrations.DigiCert.Valid {
-		tokensToSave := make([]fleet.CAConfigAsset, 0, len(info.Integrations.DigiCert.Value))
-		for i, ca := range info.Integrations.DigiCert.Value {
-			if ca.APIToken != "" && ca.APIToken != fleet.MaskedPassword {
-				tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
-					Name:  ca.Name,
-					Value: []byte(ca.APIToken),
-					Type:  fleet.CAConfigDigiCert,
-				})
+	if info.Integrations.DigiCert.Valid || info.Integrations.CustomSCEPProxy.Valid {
+		tokensToSave := make([]fleet.CAConfigAsset, 0, len(info.Integrations.DigiCert.Value)+len(info.Integrations.CustomSCEPProxy.Value))
+		if info.Integrations.DigiCert.Valid {
+			for i, ca := range info.Integrations.DigiCert.Value {
+				if ca.APIToken != "" && ca.APIToken != fleet.MaskedPassword {
+					tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
+						Name:  ca.Name,
+						Value: []byte(ca.APIToken),
+						Type:  fleet.CAConfigDigiCert,
+					})
+				}
+				info.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
 			}
-			info.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
+		}
+
+		if info.Integrations.CustomSCEPProxy.Valid {
+			for i, ca := range info.Integrations.CustomSCEPProxy.Value {
+				if ca.Challenge != "" && ca.Challenge != fleet.MaskedPassword {
+					tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
+						Name:  ca.Name,
+						Value: []byte(ca.Challenge),
+						Type:  fleet.CAConfigCustomSCEPProxy,
+					})
+				}
+				info.Integrations.CustomSCEPProxy.Value[i].Challenge = fleet.MaskedPassword
+			}
 		}
 		err := ds.saveCAConfigAssets(ctx, tx, tokensToSave)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "saving DigiCert API tokens")
+			return ctxerr.Wrap(ctx, err, "saving CA assets")
 		}
 	}
+
 	return nil
 }
 
