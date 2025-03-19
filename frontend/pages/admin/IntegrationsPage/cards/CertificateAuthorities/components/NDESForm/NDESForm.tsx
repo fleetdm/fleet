@@ -55,68 +55,42 @@ const NDESForm = ({
     <form onSubmit={onSubmitForm}>
       <div className={`${baseClass}__fields`}>
         <InputField
-          inputWrapperClass={`${baseClass}__scep-url-input`}
           label="SCEP URL"
           name="scepURL"
-          tooltip={
-            <>
-              The URL used by client devices
-              <br /> to request and retrieve certificates.
-            </>
-          }
           value={scepURL}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep/mscep.dll"
+          helpText="The URL used by client devices to request and retrieve certificates."
         />
         <InputField
-          inputWrapperClass={`${baseClass}__admin-url-input`}
           label="Admin URL"
           name="adminURL"
-          tooltip={
-            <>
-              The admin interface for managing the SCEP
-              <br /> service and viewing configuration details.
-            </>
-          }
           value={adminURL}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep_admin/"
+          helpText="The admin interface for managing the SCEP service and viewing configuration details."
         />
         <InputField
-          inputWrapperClass={`${baseClass}__username-input`}
           label="Username"
           name="username"
-          tooltip={
-            <>
-              The username in the down-level logon name format
-              <br />
-              required to log in to the SCEP admin page.
-            </>
-          }
           value={username}
           onChange={onInputChange}
           parseTarget
           placeholder="username@example.microsoft.com"
+          helpText="The username in the down-level logon name format required to log in to the SCEP admin page."
         />
         <InputField
-          inputWrapperClass={`${baseClass}__password-input`}
           label="Password"
           name="password"
-          tooltip={
-            <>
-              The password to use to log in
-              <br />
-              to the SCEP admin page.
-            </>
-          }
           value={password}
           type="password"
           onChange={onInputChange}
           parseTarget
           placeholder="••••••••"
           blockAutoComplete
+          helpText="The password required to log in to the SCEP admin page."
         />
       </div>
       <div className={`${baseClass}__cta`}>
