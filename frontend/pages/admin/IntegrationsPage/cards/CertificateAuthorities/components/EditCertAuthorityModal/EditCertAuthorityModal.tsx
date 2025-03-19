@@ -106,6 +106,7 @@ const EditCertAuthorityModal = ({
       title="Edit certificate authority (CA)"
       width="large"
       onExit={onExit}
+      isContentDisabled={isUpdating}
     >
       {renderForm()}
     </Modal>

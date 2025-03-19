@@ -179,6 +179,7 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       title="Add certificate authority (CA)"
       width="large"
       onExit={onExit}
+      isContentDisabled={isAdding}
     >
       <>
         <Dropdown
