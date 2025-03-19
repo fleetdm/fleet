@@ -13,7 +13,7 @@ import Modal from "components/Modal";
 
 import {
   generateDefaultFormData,
-  generateErrorMessage,
+  getErrorMessage,
   getCertificateAuthorityType,
 } from "./helpers";
 
@@ -68,7 +68,7 @@ const EditCertAuthorityModal = ({
       onExit();
       setConfig(newConfig);
     } catch (e) {
-      renderFlash("error", generateErrorMessage(e));
+      renderFlash("error", getErrorMessage(e));
     }
     setIsUpdating(false);
   };

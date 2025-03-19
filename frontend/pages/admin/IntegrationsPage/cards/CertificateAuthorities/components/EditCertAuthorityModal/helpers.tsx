@@ -10,14 +10,7 @@ import {
 } from "interfaces/integration";
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-
-const DEFAULT_ERROR_MESSAGE =
-  "Couldn't edit certificate authority. Please try again.";
-
-// eslint-disable-next-line import/prefer-default-export
-export const generateErrorMessage = (e: unknown) => {
-  return DEFAULT_ERROR_MESSAGE;
-};
+import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
 
 export const getCertificateAuthorityType = (
   certAuthority: ICertificateIntegration
@@ -55,4 +48,8 @@ export const generateDefaultFormData = (
     scepURL: customSCEPcert.url,
     challenge: customSCEPcert.challenge,
   };
+};
+
+export const getErrorMessage = (err: unknown) => {
+  return `Couldn't edit certificate authority. ${getDisplayErrMessage(err)}`;
 };

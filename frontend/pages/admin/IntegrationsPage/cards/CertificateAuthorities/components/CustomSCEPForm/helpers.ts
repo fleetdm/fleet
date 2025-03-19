@@ -110,39 +110,3 @@ export const validateFormData = (formData: ICustomSCEPFormData) => {
 
   return formValidation;
 };
-
-const BAD_SCEP_URL_ERROR = "Invalid SCEP URL. Please correct and try again.";
-const BAD_CREDENTIALS_ERROR =
-  "Couldn't add. Admin URL or credentials are invalid.";
-const CACHE_ERROR =
-  "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again. By default, NDES caches 5 passwords and they expire 60 minutes after they are created.";
-const INSUFFICIENT_PERMISSIONS_ERROR =
-  "Couldn't add. This account doesn't have sufficient permissions. Please use the account with enroll permission.";
-const SCEP_URL_TIMEOUT_ERROR =
-  "Couldn't add. Request to NDES (SCEP URL) timed out. Please try again.";
-const DEFAULT_ERROR =
-  "Something went wrong updating your SCEP server. Please try again.";
-
-// export const getErrorMessage = (
-//   err: unknown,
-//   formData: ICustomSCEPFormData
-// ) => {
-//   const reason = getErrorReason(err);
-
-//   if (reason.includes("invalid admin URL or credentials")) {
-//     return BAD_CREDENTIALS_ERROR;
-//   } else if (reason.includes("the password cache is full")) {
-//     return CACHE_ERROR;
-//   } else if (reason.includes("does not have sufficient permissions")) {
-//     INSUFFICIENT_PERMISSIONS_ERROR;
-//   } else if (
-//     reason.includes(formData.scepURL) &&
-//     reason.includes("context deadline exceeded")
-//   ) {
-//     return SCEP_URL_TIMEOUT_ERROR;
-//   } else if (reason.includes("invalid SCEP URL")) {
-//     return BAD_SCEP_URL_ERROR;
-//   }
-
-//   return DEFAULT_ERROR;
-// };
