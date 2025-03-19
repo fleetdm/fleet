@@ -72,9 +72,9 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
@@ -13176,7 +13176,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 
 	// PKIOperation
 	// Invalid identifier format
-	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier+"%2Cbozo", nil, http.StatusBadRequest, nil, "operation",
+	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+"bozo", nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	errBody, err = io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -13594,7 +13594,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 	assert.Equal(t, ca.CertificateUserPrincipalNames, stringSlice)
 	digiCertServer.certReqMu.Unlock()
-	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID)
+	certProf, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
 	require.NotNil(t, certProf.NotValidAfter)
 	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
@@ -13759,6 +13759,68 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	digiCertServer.certReqMu.Unlock()
 
 	// ////////////////////////////////
+	// Test a good profile with 2 DigiCert payloads -- happy path
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N2", Contents: profile},          // resend the previous profile so it doesn't get removed
+		{Name: "N4", Contents: profileFleetVars}, // resend the previous profile so it doesn't get removed
+		{Name: "DigiCert2", Contents: digiCert2Mobileconfig},
+	}}, http.StatusNoContent)
+	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(profiles), 3)
+	p = s.assertConfigProfilesByIdentifier(nil, "DigiCert2", true)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
+	fullCmd = micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile = fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	pkcs12Prof = pkcs12Profile{}
+	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
+	require.Len(t, pkcs12Prof.PayloadContent, 2)
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[0]["PayloadType"].(string))
+	assert.Equal(t, "com.apple.security.pkcs12", pkcs12Prof.PayloadContent[1]["PayloadType"].(string))
+	password = pkcs12Prof.PayloadContent[0]["Password"].(string)
+	data = pkcs12Prof.PayloadContent[0]["PayloadContent"].([]byte)
+	_, certificate, err = pkcs12.Decode(data, password)
+	require.NoError(t, err)
+	assert.Equal(t, ca.CertificateCommonName, certificate.Subject.CommonName)
+	password = pkcs12Prof.PayloadContent[1]["Password"].(string)
+	data = pkcs12Prof.PayloadContent[1]["PayloadContent"].([]byte)
+	_, certificate, err = pkcs12.Decode(data, password)
+	require.NoError(t, err)
+	assert.Equal(t, host.HardwareSerial+" idp@example.com", certificate.Subject.CommonName)
+
+	prof, err := s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
+	require.NoError(t, err)
+	require.NotNil(t, prof)
+	assert.NotNil(t, prof.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigDigiCert, prof.Type)
+	assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+	prof, err = s.ds.GetHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "FleetVars")
+	require.NoError(t, err)
+	require.NotNil(t, prof)
+	assert.NotNil(t, prof.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigDigiCert, prof.Type)
+	assert.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+
+	// ////////////////////////////////
 	// Modify the CN/UPN/Seat ID of the profile -- DigiCert verification should not happen
 	digiCertServer.server.Close() // so that verify fails if attempted
 	caFleetVars.CertificateCommonName = "common_name"
@@ -13781,12 +13843,18 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 //go:embed testdata/profiles/digicert.mobileconfig
 var digiCertMobileconfig string
 
+//go:embed testdata/profiles/digicert2.mobileconfig
+var digiCert2Mobileconfig []byte
+
 func digiCertForTest(name, identifier, caName string) []byte {
 	return []byte(fmt.Sprintf(digiCertMobileconfig, caName, caName, name, identifier, uuid.New().String()))
 }
 
 //go:embed testdata/profiles/custom-scep.mobileconfig
 var customSCEPMobileconfig string
+
+//go:embed testdata/profiles/custom-scep2.mobileconfig
+var customSCEPMobileconfig2 []byte
 
 func customSCEPForTest(name, identifier, caName string) []byte {
 	return []byte(fmt.Sprintf(customSCEPMobileconfig, caName, caName, name, identifier, uuid.New().String()))
@@ -14121,20 +14189,21 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// /////////////////////////////////////////
 	// Upload a profile without defining the CA
 	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")},
+		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "scepName")},
 	}}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(resp.Body)
 	assert.Contains(t, errMsg, "FLEET_VAR_CUSTOM_SCEP_")
-	assert.Contains(t, errMsg, "_caName is not supported")
+	assert.Contains(t, errMsg, "_scepName is not supported")
 
 	// /////////////////////////////////////////
 	// Happy path
 	// First, add custom SCEP config
-	ca0 := getCustomSCEPIntegration(scepServerURL, "caName")
-	ca0.Challenge = "bad"
+	ca0 := getCustomSCEPIntegration(scepServerURL, "scepName")
+	ca1 := getCustomSCEPIntegration(scepServerURL, "scepName2")
+	t.Logf("scepName2 challenge:%s", ca1.Challenge)
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1},
 		},
 	}
 	raw, err := json.Marshal(appConfig)
@@ -14143,14 +14212,15 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	req.RawMessage = raw
 	res := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 1)
+	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 2)
 	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
 		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
 	}
 
 	// Then, upload the profile using the SCEP config
+	profileContents := customSCEPForTest("N0", "I0", "scepName")
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N0", Contents: customSCEPForTest("N0", "I0", "caName")},
+		{Name: "N0", Contents: profileContents},
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 	getHostResp := getDeviceHostResponse{}
@@ -14185,16 +14255,12 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		rawProfile = p7.Content
 	}
 
-	var scepProfile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
-	}
+	var scepProfile SCEPProfileContent
 	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
-	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0]["PayloadType"].(string))
-	challenge := scepProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})["Challenge"].(string)
-	payloadURL := scepProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})["URL"].(string)
-	assert.Equal(t, ca0.Challenge, challenge)
-	identifier := url.PathEscape(host.UUID + "," + profileUUID)
-	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, payloadURL)
+	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
+	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
+	identifier := url.PathEscape(host.UUID + "," + profileUUID + "," + "scepName")
+	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
 
 	// /////////////////////////////////////
 	// Test SCEP traffic being sent by host
@@ -14235,9 +14301,67 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		"I0": {Identifier: "I0", DisplayName: "N0", InstallDate: time.Now()},
 	}
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
+	prof, err := s.ds.GetHostMDMCertificateProfile(context.Background(), host.UUID, profileUUID, "scepName")
+	require.NoError(t, err)
+	require.NotNil(t, prof)
+	assert.Equal(t, "scepName", prof.CAName)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
+	assert.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
+
+	// //////////////////////////////////////////////
+	// Upload a profile with two SCEP payloads
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N0", Contents: profileContents}, // keep existing profile
+		{Name: "CustomSCEP2", Contents: customSCEPMobileconfig2},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	found = false
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	var profileUUID2 string
+	for _, prof := range *getHostResp.Host.MDM.Profiles {
+		if prof.Name == "CustomSCEP2" {
+			found = true
+			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+			assert.Empty(t, prof.Detail)
+			profileUUID2 = prof.ProfileUUID
+			break
+		}
+	}
+	assert.True(t, found)
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting SCEP profile")
+	fullCmd = micromdm.CommandPayload{}
+	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+	require.NotNil(t, fullCmd.Command)
+	require.NotNil(t, fullCmd.Command.InstallProfile)
+	rawProfile = fullCmd.Command.InstallProfile.Payload
+	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+		p7, err := pkcs7.Parse(rawProfile)
+		require.NoError(t, err)
+		require.NoError(t, p7.Verify())
+		rawProfile = p7.Content
+	}
+
+	scepProfile = SCEPProfileContent{}
+	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
+	t.Logf("raw profile: %s", string(rawProfile))
+	require.Len(t, scepProfile.PayloadContent, 2)
+	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
+	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[1].PayloadType)
+	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
+	assert.Equal(t, ca1.Challenge, scepProfile.PayloadContent[1].PayloadContent.Challenge)
+	identifier = url.PathEscape(host.UUID + "," + profileUUID2 + "," + "scepName")
+	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
+	identifier = url.PathEscape(host.UUID + "," + profileUUID2 + "," + "scepName2")
+	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[1].PayloadContent.URL)
 
 	// ////////////////////////////////////////////
-	// Remove the CA and try to re-send the profile
+	// Remove the CAs and try to re-send the profile
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"custom_scep_proxy": nil,
@@ -14261,7 +14385,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 			found = true
 			assert.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
-			assert.Contains(t, prof.Detail, "caName certificate authority doesn't exist")
+			assert.Contains(t, prof.Detail, "scepName certificate authority doesn't exist")
 			break
 		}
 	}
