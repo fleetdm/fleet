@@ -186,3 +186,8 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 	Detail        string
 	Checksum      []byte
 }
+
+type MDMWindowsProfileContents struct {
+	SyncML   []byte `db:"syncml"`
+	Checksum []byte `db:"checksum"`
+}

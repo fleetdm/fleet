@@ -1567,13 +1567,13 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	return nil
 }
 
-func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string][]byte, error) {
+func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 	if len(uuids) == 0 {
 		return nil, nil
 	}
 
 	stmt := `
-          SELECT profile_uuid, syncml
+          SELECT profile_uuid, syncml, checksum
           FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)
 	`
 	query, args, err := sqlx.In(stmt, uuids)
@@ -1584,14 +1584,18 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 	var profs []struct {
 		ProfileUUID string `db:"profile_uuid"`
 		SyncML      []byte `db:"syncml"`
+		Checksum    []byte `db:"checksum"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query")
 	}
 
-	results := make(map[string][]byte)
+	results := make(map[string]fleet.MDMWindowsProfileContents, len(profs))
 	for _, p := range profs {
-		results[p.ProfileUUID] = p.SyncML
+		results[p.ProfileUUID] = fleet.MDMWindowsProfileContents{
+			SyncML:   p.SyncML,
+			Checksum: p.Checksum,
+		}
 	}
 
 	return results, nil
@@ -2095,14 +2099,14 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 					operation_type,
 					status,
 					command_uuid,
-					checksum,
+					checksum
 				)
 				VALUES %s
 				ON DUPLICATE KEY UPDATE
 					operation_type = VALUES(operation_type),
 					status = NULL,
 					command_uuid = VALUES(command_uuid),
-					detail = ''
+					detail = '',
 					checksum = VALUES(checksum)
 			`, strings.TrimSuffix(valuePart, ","))
 
@@ -2124,6 +2128,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 			Detail:        p.Detail,
 			CommandUUID:   p.CommandUUID,
 			Retries:       p.Retries,
+			Checksum:      p.Checksum,
 		}
 		pargs = append(
 			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,

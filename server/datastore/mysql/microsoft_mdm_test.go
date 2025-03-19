@@ -1,7 +1,8 @@
 package mysql
 
 import (
-	"context" // nolint:gosec // used only to hash for efficient comparisons
+	"context"
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -1854,17 +1855,18 @@ func testGetMDMWindowsProfilesContents(t *testing.T, ds *Datastore) {
 
 	cases := []struct {
 		ids  []string
-		want map[string][]byte
+		want map[string]fleet.MDMWindowsProfileContents
 	}{
 		{[]string{}, nil},
 		{nil, nil},
-		{[]string{profileUUIDs[0]}, map[string][]byte{profileUUIDs[0]: generateDummyWindowsProfile(profileUUIDs[0])}},
+		{[]string{profileUUIDs[0]},
+			map[string]fleet.MDMWindowsProfileContents{profileUUIDs[0]: generateDummyWindowsProfileContents(profileUUIDs[0])}},
 		{
 			[]string{profileUUIDs[0], profileUUIDs[1], profileUUIDs[2]},
-			map[string][]byte{
-				profileUUIDs[0]: generateDummyWindowsProfile(profileUUIDs[0]),
-				profileUUIDs[1]: generateDummyWindowsProfile(profileUUIDs[1]),
-				profileUUIDs[2]: generateDummyWindowsProfile(profileUUIDs[2]),
+			map[string]fleet.MDMWindowsProfileContents{
+				profileUUIDs[0]: generateDummyWindowsProfileContents(profileUUIDs[0]),
+				profileUUIDs[1]: generateDummyWindowsProfileContents(profileUUIDs[1]),
+				profileUUIDs[2]: generateDummyWindowsProfileContents(profileUUIDs[2]),
 			},
 		},
 	}
@@ -2173,9 +2175,11 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 		ctx,
 		*windowsConfigProfileForTest(t, "prof-include-any", "./Foo/Bar", l1, l2, l3),
 	)
-
 	require.NoError(t, err)
 	require.NotEmpty(t, includeAnyProf.ProfileUUID)
+	profileChecksums := make(map[string][]byte)
+	checksum := md5.Sum(includeAnyProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[includeAnyProf.ProfileUUID] = checksum[:]
 
 	// Create a profile with "include-all" with l4 and l5
 	includeAllProf, err := ds.NewMDMWindowsConfigProfile(
@@ -2184,6 +2188,8 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.NotEmpty(t, includeAllProf.ProfileUUID)
+	checksum = md5.Sum(includeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[includeAllProf.ProfileUUID] = checksum[:]
 
 	// Create a profile with "exclude-all" with l6 and l7
 	excludeAllProf, err := ds.NewMDMWindowsConfigProfile(
@@ -2191,6 +2197,8 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 		*windowsConfigProfileForTest(t, "prof-exclude-any", "./Foo/Bar", l6, l7),
 	)
 	require.NoError(t, err)
+	checksum = md5.Sum(excludeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
+	profileChecksums[excludeAllProf.ProfileUUID] = checksum[:]
 
 	// Connect the host and l1, l4, l5
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{l1.ID, host.ID}, {l4.ID, host.ID}, {l5.ID, host.ID}})
@@ -2204,9 +2212,12 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	profilesToInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
-		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID},
-		{ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID},
-		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAllProf.ProfileUUID]},
+		{ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAnyProf.ProfileUUID]},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAllProf.ProfileUUID]},
 	}, profilesToInstall)
 
 	// Remove the l1<->host relationship, but add l2<->labelHost. The profile should still show
@@ -2220,9 +2231,12 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
-		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID},
-		{ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID},
-		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAllProf.ProfileUUID]},
+		{ProfileUUID: includeAnyProf.ProfileUUID, ProfileName: includeAnyProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAnyProf.ProfileUUID]},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAllProf.ProfileUUID]},
 	}, profilesToInstall)
 
 	// Remove the l2<->host relationship. Since the profile is "include-any", it should no longer
@@ -2233,8 +2247,10 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
-		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID},
-		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: includeAllProf.ProfileUUID, ProfileName: includeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[includeAllProf.ProfileUUID]},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAllProf.ProfileUUID]},
 	}, profilesToInstall)
 
 	// Remove the l4<->host relationship. Since the profile is "include-all", it should no longer show
@@ -2245,7 +2261,8 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	profilesToInstall, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMWindowsProfilePayload{
-		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID},
+		{ProfileUUID: excludeAllProf.ProfileUUID, ProfileName: excludeAllProf.Name, HostUUID: host.UUID,
+			Checksum: profileChecksums[excludeAllProf.ProfileUUID]},
 	}, profilesToInstall)
 
 	// Add a l6<->host relationship. The exclude-any profile should be gone now.

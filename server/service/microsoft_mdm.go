@@ -2260,8 +2260,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	for pid := range toGetContents {
 		profileUUIDs = append(profileUUIDs, pid)
 	}
-	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx,
-		profileUUIDs) // TODO: contents also need to include checksum which we should double check
+	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx, profileUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
@@ -2273,7 +2272,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
 		}
 
-		command, err := buildCommandFromProfileBytes(p, target.cmdUUID)
+		command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
 		if err != nil {
 			level.Info(logger).Log("err", err, "profile_uuid", profUUID)
 			continue
@@ -2282,6 +2281,8 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 		}
 	}
+
+	// TODO: Update hostProfiles.Checksum if needed
 
 	// Windows profiles are just deleted from the DB, the notion of sending
 	// a command to remove a profile doesn't exist.

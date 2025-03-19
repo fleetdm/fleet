@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"fmt"
 	"testing"
 
@@ -37,11 +37,11 @@ func TestUp_20250318165922(t *testing.T) {
 	var checksum []byte
 	err = db.QueryRow(`SELECT checksum FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, "w1").Scan(&checksum)
 	require.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%x", md5.Sum([]byte(syncml))),
+	assert.Equal(t, fmt.Sprintf("%x", md5.Sum([]byte(syncml))), // nolint:gosec // used only to hash for efficient comparisons
 		fmt.Sprintf("%x", checksum)) // nolint:gosec // used only to hash for efficient comparisons
 
 	err = db.QueryRow(`SELECT checksum FROM host_mdm_windows_profiles WHERE profile_uuid = ?`, "w1").Scan(&checksum)
 	require.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("%x", md5.Sum([]byte(syncml))),
+	assert.Equal(t, fmt.Sprintf("%x", md5.Sum([]byte(syncml))), // nolint:gosec // used only to hash for efficient comparisons
 		fmt.Sprintf("%x", checksum)) // nolint:gosec // used only to hash for efficient comparisons
 }
