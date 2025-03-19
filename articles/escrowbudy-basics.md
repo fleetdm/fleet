@@ -34,5 +34,5 @@ Like Fleet, EscrowBuddy is an open source project, so the full source code can b
 <meta name="authorFullName" value="Dale Ribeiro">
 <meta name="authorGitHubUsername" value="ddribeiro">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2024-14-03">
+<meta name="publishedOn" value="2025-03-19">
 <meta name="description" value="Learn how Fleet's EscrowBuddy integration makes sure your FileVault Personal Recovery Keys are always escrowed">
