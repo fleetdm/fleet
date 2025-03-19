@@ -199,7 +199,7 @@ module.exports = {
               if(axiosError.response.data.errors && _.isArray(axiosError.response.data.errors)){
                 if(axiosError.response.data.errors[0] && axiosError.response.data.errors[0].reason) {
                   let errorMessageFromFleetInstance = axiosError.response.data.errors[0].reason;
-                  if(_.startsWith(errorMessageFromFleetInstance, `Couldn't upload. Fleet couldn't read the version`)){
+                  if(_.startsWith(errorMessageFromFleetInstance, `Couldn't add. Fleet couldn't read the version`)){
                     return 'couldNotReadVersion';
                   } else {
                     sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance} \n Axios error: ${require('util').inspect(error, {depth: 3})}`);
@@ -293,7 +293,7 @@ module.exports = {
                 if(axiosError.response.data.errors && _.isArray(axiosError.response.data.errors)){
                   if(axiosError.response.data.errors[0] && axiosError.response.data.errors[0].reason) {
                     let errorMessageFromFleetInstance = axiosError.response.data.errors[0].reason;
-                    if(_.startsWith(errorMessageFromFleetInstance, `Couldn't upload. Fleet couldn't read the version`)){
+                    if(_.startsWith(errorMessageFromFleetInstance, `Couldn't add. Fleet couldn't read the version`)){
                       return 'couldNotReadVersion';
                     } else {
                       sails.log.warn(`When attempting to upload a software installer, an unexpected error occurred communicating with the Fleet API. Error returned from Fleet API: ${errorMessageFromFleetInstance} \n Axios error: ${require('util').inspect(error, {depth: 3})}`);

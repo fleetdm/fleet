@@ -8,7 +8,7 @@ import CustomLink from "components/CustomLink";
 
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
-const DEFAULT_ERROR_MESSAGE = "Couldn't upload. Please try again.";
+const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
@@ -18,7 +18,7 @@ export const getErrorMessage = (err: unknown) => {
   const reason = getErrorReason(err);
 
   if (isTimeout) {
-    return "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+    return "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
   } else if (reason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
   } else if (reason.includes("Unable to extract necessary metadata")) {
