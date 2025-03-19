@@ -15227,6 +15227,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	host := listHostsRes.Hosts[0]
 	require.Equal(t, mdmDevice.UUID, host.UUID)
 	require.Equal(t, mdmDevice.SerialNumber, host.HardwareSerial)
+	require.NotNil(t, host.TeamID)
 
 	// delete the host
 	var delResp deleteHostResponse
@@ -15236,7 +15237,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 0)
 
-	// do an MDM sync, will re-create the host
+	// do an MDM sync, will re-create the host and move it to its enrollment team
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd) // no command to process
@@ -15246,4 +15247,5 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	require.Len(t, listHostsRes.Hosts, 1)
 	require.Equal(t, mdmDevice.UUID, listHostsRes.Hosts[0].UUID)
 	require.Equal(t, mdmDevice.SerialNumber, listHostsRes.Hosts[0].HardwareSerial)
+	require.Equal(t, host.TeamID, listHostsRes.Hosts[0].TeamID)
 }
