@@ -147,11 +147,15 @@ func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, querie
 			} else {
 				return ctxerr.Wrap(ctx, err, "could not find query after update")
 			}
+			if err = rows.Err(); err != nil {
+				return ctxerr.Wrap(ctx, err, "err queries id")
+			}
 			if err := rows.Close(); err != nil {
 				return ctxerr.Wrap(ctx, err, "close queries id")
 			}
 
 		}
+		//nolint:gosec // dismiss G115
 		q.ID = uint(id)
 
 		err = ds.updateQueryLabelsInTx(ctx, q, tx)
