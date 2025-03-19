@@ -12,8 +12,6 @@ Some EXE installers and uninstallers require additional switches or flags to run
 
 The recommended way to install software on Windows hosts is to use machine-scoped install scripts. These scripts install the software for all local users on the computer and run the installation process with administrator privileges.
 
-Fleet defaults to a machine-scoped install script when you add software using an EXE installer.
-
 ## User-scoped install scripts
 
 Some software can only be installed for a specific user. In this case, you can use user-scoped install scripts. The software is installed only for the user currently logged in, and the installation process is run with the user's privileges.
