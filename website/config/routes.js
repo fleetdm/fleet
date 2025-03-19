@@ -575,7 +575,7 @@ module.exports.routes = {
   'GET /docs/deploy': '/docs/deploy/introduction',
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
-  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts#install-fleetd',
   'GET /docs/using-fleet/fleetd': '/docs/using-fleet/enroll-hosts',
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
