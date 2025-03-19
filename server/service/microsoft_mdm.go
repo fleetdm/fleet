@@ -2282,7 +2282,13 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 	}
 
-	// TODO: Update hostProfiles.Checksum if needed
+	// Since we are not using DB transactions, it is a tiny chance that the profile contents don't match
+	// the checksum we retrieved earlier. Update the checksums if needed.
+	for _, p := range hostProfiles {
+		if _, ok := profileContents[p.ProfileUUID]; ok {
+			p.Checksum = profileContents[p.ProfileUUID].Checksum
+		}
+	}
 
 	// Windows profiles are just deleted from the DB, the notion of sending
 	// a command to remove a profile doesn't exist.
