@@ -122,7 +122,7 @@ export const useCertAuthorityDataGenerator = (
         data.integrations.custom_scep_proxy = config.integrations.custom_scep_proxy?.filter(
           (cert) => {
             return (
-              (certAuthority as ICertificatesIntegrationCustomSCEP).name ===
+              (certAuthority as ICertificatesIntegrationCustomSCEP).name !==
               cert.name
             );
           }
