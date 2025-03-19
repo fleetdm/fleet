@@ -1,6 +1,14 @@
 <div id="transparency" v-cloak>
   <div purpose="page-container" class="container-fluid">
     <div purpose="page-content">
+      <div purpose="secureframe-section" v-if="showSecureframeBanner">
+        <div purpose="secureframe-banner" class="d-flex flex-column">
+          <img alt="Secureframe logo" src="/images/logo-secureframe-46x48@2x.png">
+          <h2>Automate compliance. <br>Improve security. Reduce risk.</h2>
+          <p>Build trust with customers using automation backed by world-class experts</p>
+        <animated-arrow-button class="mx-auto" href="https://secureframe.com" target="_blank" text-color="#FFFFFF" arrow-color="#0FD082">Learn more</animated-arrow-button>
+        </div>
+      </div>
       <div purpose="hero-text">
         <h1 class="text-center">Why is Fleet on my computer?</h1>
         <p class="text-center">Fleet makes it a little easier for your IT team to keep your computer healthy without interfering with your work.</p>
@@ -162,14 +170,6 @@
         </div>
       </div>
       <p purpose="agents-note">Fleet can't guarantee that other personal data isn't being captured by user activity monitoring or cybersecurity tools like Veriato, CrowdStrike, etc.</p>
-    </div>
-  </div>
-  <div purpose="secureframe-section" v-if="showSecureframeBanner">
-    <div purpose="secureframe-banner" class="d-flex flex-column">
-      <img alt="Secureframe logo" src="/images/logo-secureframe-46x48@2x.png">
-      <h2>Automate compliance. <br>Improve security. Reduce risk.</h2>
-      <p>Build trust with customers using automation backed by world-class experts</p>
-    <animated-arrow-button class="mx-auto" href="https://secureframe.com" target="_blank" text-color="#FFFFFF" arrow-color="#0FD082">Learn more</animated-arrow-button>
     </div>
   </div>
   </div>
