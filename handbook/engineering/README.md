@@ -356,6 +356,11 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
 
 
+### Request product group transfer
+
+Product groups are organized by core use case to allow each product group to develop subject matter expertise. Transferring between product groups offers engineers the opportunity to gain experience contributing to other areas of Fleet. To request a product group transfer, notify the Engineering Manager of your [product group]([url](https://fleetdm.com/handbook/company/product-groups#current-product-groups)) or the [CTO](https://fleetdm.com/handbook/engineering#team) to be considered for transfer the next time the requested product group has an available position.
+
+
 ### Record engineering KPIs
 
 We track the effectiveness of our processes by observing issue throughput and identifying where buildups (and therefore bottlenecks) are occurring.
