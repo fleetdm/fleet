@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
@@ -42,8 +43,6 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 		}
 
 		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
-
-		// TODO: fully implement this ingester, right now it's just a stub/noop
 
 		// get the data from the repo in github
 		githubHTTPClient := fleethttp.NewGithubClient()
@@ -91,10 +90,14 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 		}
 
 		var installerData wingetInstaller
+		var installScript, uninstallScript, existsQuery string
 		for _, installer := range m.Installers {
 			// TODO: handle non-machine scope (aka .exe installers)
 			if installer.Scope == machineScope {
 				installerData = installer
+				installScript = file.GetInstallScript(installer.InstallerType)
+				uninstallScript = file.GetUninstallScript(installer.InstallerType)
+				existsQuery = fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", installerData.ProductCode)
 			}
 		}
 
@@ -106,11 +109,13 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			Version:          m.PackageVersion,
 			UniqueIdentifier: input.UniqueIdentifier,
 			Queries: maintained_apps.FMAQueries{
-				Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", installerData.ProductCode),
+				Exists: existsQuery,
 			},
-			// TODO(JVE): get the installation scripts for MSIs we generate
+			InstallScript:      installScript,
+			UninstallScript:    uninstallScript,
+			InstallScriptRef:   maintained_apps.GetScriptRef(installScript),
+			UninstallScriptRef: maintained_apps.GetScriptRef(uninstallScript),
 		})
-
 	}
 
 	return manifestApps, nil
@@ -130,7 +135,8 @@ type wingetManifest struct {
 }
 
 type wingetInstaller struct {
-	Architecture           string                   `yaml:"Architecture"`
+	Architecture string `yaml:"Architecture"`
+	// InstallerType is the filetype of the installer. Either "exe" or "msi".
 	InstallerType          string                   `yaml:"InstallerType"`
 	Scope                  string                   `yaml:"Scope"`
 	InstallerURL           string                   `yaml:"InstallerUrl"`
