@@ -112,7 +112,7 @@ func (e *NoMaintainedAppsInDatabase) StatusCode() int {
 }
 
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	stmt := `SELECT fma.id, fma.name, fma.platform, `
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var args []any
 
 	if teamID != nil {
