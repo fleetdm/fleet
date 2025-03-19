@@ -8,7 +8,7 @@ import CustomLink from "components/CustomLink";
 
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
-const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
+const DEFAULT_ERROR_MESSAGE = "Couldn't upload. Please try again.";
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
