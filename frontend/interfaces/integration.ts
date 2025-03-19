@@ -64,7 +64,9 @@ export const isDigicertCertIntegration = (
 export const isCustomSCEPCertIntegration = (
   integration: ICertificateIntegration
 ): integration is ICertificatesIntegrationCustomSCEP => {
-  return "id" in integration && "challenge" in integration;
+  return (
+    "name" in integration && "url" in integration && "challenge" in integration
+  );
 };
 
 export type ICertificateAuthorityType = "ndes" | "digicert" | "custom";
