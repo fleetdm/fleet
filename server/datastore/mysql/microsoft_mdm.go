@@ -1299,6 +1299,8 @@ const windowsProfilesToInstallQuery = `
 		LEFT JOIN host_mdm_windows_profiles hmwp
 			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
 	WHERE
+		-- profile or secret variables(TODO) have been updated
+		( hmwp.checksum != ds.checksum ) OR -- IFNULL(hmwp.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
 		-- profiles in A but not in B
 		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
 		-- profiles in A and B with operation type "install" and NULL status
