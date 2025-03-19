@@ -78,7 +78,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
           text="EXE uninstall scripts must be built manually."
           newTab
         />{" "}
-        Fleet can automatically build install and uninstall scripts for MSI
+        Fleet automatically builds install and uninstall scripts for .msi
         packages and Fleet-maintained Apps.
       </>
     );
