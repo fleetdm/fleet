@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -904,6 +905,14 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsFilter: fleet.OSSettingsVerifying}, 1)  // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
+
+	// disk encryption for linux, must enable disk encryption for no team first
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
 	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)) // set host 1 to verified
@@ -938,6 +947,12 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID}))
+
+	// enable disk encryption for that team
+	team1.Config.MDM.EnableDiskEncryption = true
+	_, err = ds.SaveTeam(context.Background(), team1)
+	require.NoError(t, err)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
 	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)) // set host 1 to verified

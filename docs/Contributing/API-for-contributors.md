@@ -578,6 +578,9 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Connect Android Enterprise](#connect-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
 - [Get Android enrollment token](#get-android-enrollment-token)
+- [Create Android enrollment token](#create-android-enrollment-token)
+- [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
+- [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1405,6 +1408,7 @@ Android Enterprise successfully connected
 This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
+
 
 ## Get or apply configuration files
 

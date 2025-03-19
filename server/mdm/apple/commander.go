@@ -15,7 +15,7 @@ import (
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 // commandPayload is the common structure all MDM commands use

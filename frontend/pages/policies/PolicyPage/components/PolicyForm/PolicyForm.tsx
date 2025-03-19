@@ -18,6 +18,8 @@ import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 // @ts-ignore
@@ -30,6 +32,7 @@ import Spinner from "components/Spinner";
 import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import CustomLink from "components/CustomLink";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
@@ -307,17 +310,25 @@ const PolicyForm = ({
   };
 
   const renderLabelComponent = (): JSX.Element | null => {
-    if (!showOpenSchemaActionText) {
-      return null;
-    }
-
     return (
-      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
-        <>
-          <Icon name="info" size="small" />
-          Show schema
-        </>
-      </Button>
+      <div className={`${baseClass}__sql-editor-label-actions`}>
+        {showOpenSchemaActionText && (
+          <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+            <>
+              Schema
+              <Icon name="info" size="small" />
+            </>
+          </Button>
+        )}
+        {!policyIdForEdit && (
+          // only when creating a new policy
+          <CustomLink
+            text="Examples"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/policy-templates`}
+            newTab
+          />
+        )}
+      </div>
     );
   };
 
