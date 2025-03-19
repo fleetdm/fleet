@@ -5894,7 +5894,7 @@ func (ds *Datastore) GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Conte
 	const stmt = `
 SELECT
 	d.id,
-	d.serial_number,
+	COALESCE(d.serial_number, '') as serial_number,
 	d.authenticate,
 	d.platform,
 	d.enroll_team_id
