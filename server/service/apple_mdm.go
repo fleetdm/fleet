@@ -560,13 +560,10 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 // and that these variables are only present in a "com.apple.security.pkcs12" payload
 func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFound) error {
 	// Find and replace matches in base64 encoded data contents so we can unmarshal the plist and keep the Fleet vars.
-	matches := mdm_types.ProfileDataVariableRegex.FindAllStringSubmatch(contents, -1)
-	for _, match := range matches {
-		if len(match) > 0 {
-			encoded := base64.StdEncoding.EncodeToString([]byte(match[0]))
-			contents = strings.ReplaceAll(contents, match[0], encoded)
-		}
-	}
+	contents = mdm_types.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
+		return base64.StdEncoding.EncodeToString([]byte(match))
+	})
+
 	var pkcs12Prof PKCS12ProfileContent
 	err := plist.Unmarshal([]byte(contents), &pkcs12Prof)
 	if err != nil {
