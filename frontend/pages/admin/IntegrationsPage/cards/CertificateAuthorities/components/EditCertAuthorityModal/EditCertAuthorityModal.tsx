@@ -21,6 +21,7 @@ import DigicertForm from "../DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
 import NDESForm from "../NDESForm";
+import CustomSCEPForm from "../CustomSCEPForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -79,7 +80,7 @@ const EditCertAuthorityModal = ({
     if (isDigicertCertIntegration(certAuthority)) {
       return DigicertForm;
     }
-    return null;
+    return CustomSCEPForm;
   };
 
   const renderForm = () => {
