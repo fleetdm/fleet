@@ -430,7 +430,8 @@ module.exports.routes = {
     action: 'view-transparency',
     locals: {
       pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
-      pageTitleForMeta: 'Better with Fleet'
+      pageTitleForMeta: 'Better with Fleet',
+      hideStartCTA: true,
     }
   },
 
