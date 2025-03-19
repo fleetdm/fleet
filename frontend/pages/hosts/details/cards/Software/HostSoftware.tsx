@@ -22,6 +22,7 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
@@ -37,7 +38,6 @@ import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from 
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
-import CardHeader from "components/CardHeader";
 
 const baseClass = "software-card";
 
