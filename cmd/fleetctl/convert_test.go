@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -37,7 +36,6 @@ func TestConvertFileOutput(t *testing.T) {
 	// convert command ran and wrote converted file to output destination
 	got, err := os.ReadFile(file.Name())
 	require.NoError(t, err)
-	fmt.Println(string(got))
 	require.YAMLEq(t, string(expected), string(got))
 }
 
