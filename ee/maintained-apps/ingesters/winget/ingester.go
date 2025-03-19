@@ -76,7 +76,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("get data from winget repo request: %w", err)
+			return nil, ctxerr.Wrap(ctx, err, "getting the ")
 		}
 
 		fmt.Printf("fileContents.GetName(): %v\n", fileContents.GetName())
@@ -92,10 +92,8 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		var installerData wingetInstaller
 		for _, installer := range m.Installers {
-			// TODO(JVE): handle the user scope case (e.g. Notion)
+			// TODO: handle non-machine scope (aka .exe installers)
 			if installer.Scope == machineScope {
-				// fmt.Printf("machine scoped installer.InstallerURL: %v\n", installer.InstallerURL)
-				// installerURL = installer.InstallerURL
 				installerData = installer
 			}
 		}
@@ -106,7 +104,11 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			InstallerURL:     installerData.InstallerURL,
 			SHA256:           installerData.InstallerSha256,
 			Version:          m.PackageVersion,
-			UniqueIdentifier: m.PackageIdentifier, // TODO(JVE): is this true?
+			UniqueIdentifier: input.UniqueIdentifier,
+			Queries: maintained_apps.FMAQueries{
+				Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", installerData.ProductCode),
+			},
+			// TODO(JVE): get the installation scripts for MSIs we generate
 		})
 
 	}
@@ -115,9 +117,10 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 }
 
 type inputApp struct {
-	Name   string `json:"name"`
-	Slug   string `json:"slug"`
-	Vendor string `json:"vendor"`
+	Name             string `json:"name"`
+	Slug             string `json:"slug"`
+	Vendor           string `json:"vendor"`
+	UniqueIdentifier string `json:"unique_identifier"`
 }
 
 type wingetManifest struct {
