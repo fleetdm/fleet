@@ -1,15 +1,4 @@
 # Test config
-labels:
-  - name: a
-    description: A cool global label
-    query: SELECT 1 FROM osquery_info
-    label_membership_type: dynamic
-  - name: b
-    description: A fresh global label
-    label_membership_type: manual
-    hosts:
-      - host1
-      - host2        
 controls: # Controls added to "No team"
   macos_settings:
     custom_settings:
