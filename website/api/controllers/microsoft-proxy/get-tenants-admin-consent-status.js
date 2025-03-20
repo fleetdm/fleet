@@ -28,12 +28,14 @@ module.exports = {
 
 
   exits: {
-    adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'badRequest'}
+    success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'success'},
+    adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'success'}
   },
 
 
   fn: async function ({tenant, state, error, error_description}) {
 
+    // If an error or error_description are provided, then the admin did not consent, and we will return a 200 response.
     if(error || error_description){
       throw 'adminDidNotConsent';
     }
