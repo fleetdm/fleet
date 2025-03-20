@@ -4,7 +4,18 @@ module.exports = {
   friendlyName: 'Remove one compliance partner tenant',
 
 
-  description: '',
+  description: 'Updates a microsfot compliance tenant\'s status as "deprovisioned" and deletes the associated Database record',
+
+  inputs: {
+    entraTenantId: {
+      type: 'string',
+      required: true,
+    },
+    fleetServerSecret: {
+      type: 'string',
+      requried: true,
+    },
+  },
 
 
   exits: {
@@ -14,21 +25,11 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({entraTenantId, fleetServerSecret}) {
 
-    // Return a bad request response if this request came from a non-managed cloud Fleet instance.
-    if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
-      throw 'notACloudCustomer';
-    }
-
-    if(!this.req.headers['Authorization']) {
-      return this.res.unauthorized();
-    }
-    let authHeaderValue = this.req.headers['Authorization'];
-    let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
-    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
+    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided API key.'});// TODO: return a more clear error.
+      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});// TODO: return a more clear error.
     }
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
@@ -51,6 +52,8 @@ module.exports = {
         PartnerEnrollmentUrl: '', //TODO: how do we get this, the example in microsoft's docs are using customer.com/enrollment, so does this need to be a value of a url on the connected Fleet instance?
         PartnerRemediationUrl: '', // TODO: same as the above.
       }
+    }).intercept((err)=>{
+      return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
     await MicrosoftComplianceTenant.destroyOne({id: informationAboutThisTenant.id});

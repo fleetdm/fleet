@@ -88,7 +88,7 @@ module.exports = {
         PartnerManagedCompliance: true
       }
     }).intercept((err)=>{
-      return new Error({error: `An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`})
+      return new Error({error: `An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
     // Example response:
@@ -117,7 +117,7 @@ module.exports = {
         'Authorization': `Bearer ${accessToken}`
       }
     }).intercept((err)=>{
-      return new Error({error: `An error occurred when sending a request to find the default "All users" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`})
+      return new Error({error: `An error occurred when sending a request to find the default "All users" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
     // Get the ID returned in the response.
     let groupId = groupResponse.value[0].id;
@@ -137,7 +137,7 @@ module.exports = {
         ]
       }
     }).intercept((err)=>{
-      return new Error({error: `An error occurred when sending a assign a new compliance policy to "All users" on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`})
+      return new Error({error: `An error occurred when sending a assign a new compliance policy to "All users" on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
     // Example response:
     // {

@@ -20,7 +20,7 @@ module.exports = {
       type: 'string',
       description: 'This value is only present if an entra admin did approve the permissions for the compliance partner policy'
     },
-    error_description: {
+    error_description: {// eslint-disable-line camelcase
       type: 'string',
       description: 'This value is only present if an entra admin did approve the permissions for the compliance partner policy'
     }
@@ -33,10 +33,10 @@ module.exports = {
   },
 
 
-  fn: async function ({tenant, state, error, error_description}) {
+  fn: async function ({tenant, state, error, error_description}) {// eslint-disable-line camelcase
 
     // If an error or error_description are provided, then the admin did not consent, and we will return a 200 response.
-    if(error || error_description){
+    if(error || error_description){// eslint-disable-line camelcase
       throw 'adminDidNotConsent';
     }
 

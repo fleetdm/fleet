@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get access token and api urls',
 
 
-  description: '',
+  description: 'Retreives an access token and the URLS of API endpoints for a Microsoft compliance tenant',
 
 
   inputs: {
@@ -28,7 +28,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({id: complianceTenantRecordId});
     if(!informationAboutThisTenant) {
-      return new Error(`No matching tenant record could be found with the specified ID. (${complianceTenantRecordId}`)
+      return new Error(`No matching tenant record could be found with the specified ID. (${complianceTenantRecordId}`);
     }
 
     // Get an access token for this
@@ -37,10 +37,10 @@ module.exports = {
       url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
       enctype: 'application/x-www-form-urlencoded',
       body: {
-        client_id: sails.config.custom.compliancePartnerClientId,
+        client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
         scope: 'https://graph.microsoft.com/.default',
-        client_secret: sails.config.custom.compliancePartnerClientSecret,
-        grant_type: 'client_credentials'
+        client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
+        grant_type: 'client_credentials'// eslint-disable-line camelcase
       }
     });
     // TODO: return error if no access token.

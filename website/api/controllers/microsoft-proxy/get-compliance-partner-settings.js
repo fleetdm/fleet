@@ -30,12 +30,14 @@ module.exports = {
       return this.res.notFound();
     }
     if(informationAboutThisTenant.adminConsented) {
+      // If an entra admin already consented for this tenant, return admin_consented: true,
       return {
-        entra_tenant_id: entraTenantId,
-        setup_done: informationAboutThisTenant.setupCompleted,
-        admin_consented: true
+        entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
+        setup_done: informationAboutThisTenant.setupCompleted,// eslint-disable-line camelcase
+        admin_consented: true// eslint-disable-line camelcase
       };
     } else {
+      // Otherwise, build an admin consent url for this tenant and include it in the response body.
       // Generate a state token for the admin consent link.
       let stateTokenForThisAdminConsentLink = sails.helpers.strings.random.with({len: 30, style: 'url-friendly'});
 
@@ -46,11 +48,11 @@ module.exports = {
       let adminConsentUrlForThisTenant = `https://login.microsoftonline.com/${entraTenantId}/adminconsent?client_id=${encodeURIComponent(sails.config.custom.compliancePartnerClientId)}&state=${encodeURIComponent(stateTokenForThisAdminConsentLink)}&redirect_uri=${encodeURIComponent('fleetdm.com/api/v1/microsoft-compliance-partner/adminconsent')}`;
 
       return {
-        entra_tenant_id: entraTenantId,
-        setup_done: informationAboutThisTenant.setupCompleted,
-        admin_consented: false,
-        admin_consent_url: adminConsentUrlForThisTenant
-      }
+        entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
+        setup_done: informationAboutThisTenant.setupCompleted,// eslint-disable-line camelcase
+        admin_consented: false,// eslint-disable-line camelcase
+        admin_consent_url: adminConsentUrlForThisTenant// eslint-disable-line camelcase
+      };
     }
 
   }

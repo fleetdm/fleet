@@ -42,8 +42,8 @@ module.exports = {
 
 
     return {
-      fleet_server_secret: newTenant.apiKey,
-      entra_tenant_id: entraTenantId,
+      fleet_server_secret: newTenant.apiKey,// eslint-disable-line camelcase
+      entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
     };
 
   }

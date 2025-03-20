@@ -8,6 +8,14 @@ module.exports = {
 
 
   inputs: {
+    entraTenantId: {
+      type: 'string',
+      required: true,
+    },
+    fleetServerSecret: {
+      type: 'string',
+      requried: true,
+    },
     deviceId: {
       type: 'string',
       description: 'The devices ID in entra',
@@ -29,7 +37,7 @@ module.exports = {
     userId: {
       type: 'string',
       required: true,
-    }, // Entra ID “user ID”.
+    },
     compliant: {
       type: 'boolean',
       required: true,
@@ -48,36 +56,26 @@ module.exports = {
   },
 
 
-  fn: async function ({deviceId, deviceName, os, osVersion, userId, compliant, lastCheckInTime}) {
+  fn: async function ({entraTenantId, fleetServerSecret, deviceId, deviceName, os, osVersion, userId, compliant, lastCheckInTime}) {
 
-    // Return a bad request response if this request came from a non-managed cloud Fleet instance.
-    if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
-      throw 'notACloudCustomer';
-    }
 
-    if(!this.req.headers['Authorization']) {
-      return this.res.unauthorized();
+    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
+    if(!informationAboutThisTenant) {
+      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
     }
-    let authHeaderValue = this.req.headers['Authorization'];
-    let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
-    let complianceTenantInformation = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
-    if(!complianceTenantInformation) {
-      return this.res.notFound();
-    }
-
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
-      complianceTenantRecordId: complianceTenantInformation.id
+      complianceTenantRecordId: informationAboutThisTenant.id
     });
 
     let accessToken = tokenAndApiUrls.accessToken;
     let deviceDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
-    // Build the report for thsi device:
+    // Build the complaince report for this device:
     let complianceUpdateContent = [
       {
         EntityType: 1, // EntityType 1 = Device inventory data.
-        TenantId: complianceTenantInformation.entraTenantId,
+        TenantId: informationAboutThisTenant.entraTenantId,
         DeviceManagementState: 'managed',
         DeviceId: deviceId,
         DeviceName: deviceName,
@@ -91,7 +89,7 @@ module.exports = {
       },
       {
         EntityType: 4, // EntityType 4 = compliance data
-        TenantId: complianceTenantInformation.entraTenantId,
+        TenantId: informationAboutThisTenant.entraTenantId,
         DeviceId: deviceId,
         UserId: userId,
         LastUpdateTime: new Date(lastCheckInTime).toISOString(),
@@ -107,17 +105,17 @@ module.exports = {
         'Authorization': `Bearer ${accessToken}`
       },
       body: {
-        TenantId: complianceTenantInformation.entraTenantId,
+        TenantId: informationAboutThisTenant.entraTenantId,
         UploadTime: new Date().toISOString(),
         Content: complianceUpdateContent,
       }
+    }).intercept((err)=>{
+      return new Error({error: `An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
-    // Create a database record for this message.
-    let newMessageRecord = await MicrosoftComplianceStatusMessage.create({messageId: complianceUpdateResponse.MessageId});
 
     return {
-      message_id: newMessageRecord.messageId,
+      message_id: complianceUpdateResponse.MessageId,// eslint-disable-line camelcase
     };
   }
 

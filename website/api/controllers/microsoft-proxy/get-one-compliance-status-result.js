@@ -4,10 +4,18 @@ module.exports = {
   friendlyName: 'Get one compliance status result',
 
 
-  description: '',
+  description: 'Retreives the result of a compliance status update of a Microsoft complaince tenant.',
 
 
   inputs: {
+    entraTenantId: {
+      type: 'string',
+      required: true,
+    },
+    fleetServerSecret: {
+      type: 'string',
+      requried: true,
+    },
     messageId: {
       type: 'string',
       required: true,
@@ -16,30 +24,19 @@ module.exports = {
 
 
   exits: {
-    notACloudCustomer: { description: 'This request was not made by a managed cloud customer', responseType: 'badRequest' },
     tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'}
   },
 
 
-  fn: async function ({messageId}) {
-    // Return a bad request response if this request came from a non-managed cloud Fleet instance.
-    if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
-      throw 'notACloudCustomer';
-    }
+  fn: async function ({entraTenantId, fleetServerSecret, messageId}) {
 
-    if(!this.req.headers['Authorization']) {
-      return this.res.unauthorized();
+    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
+    if(!informationAboutThisTenant) {
+      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
     }
-    let authHeaderValue = this.req.headers['Authorization'];
-    let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
-    let complianceTenantInformation = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
-    if(!complianceTenantInformation) {
-      return this.res.notFound();
-    }
-
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
-      complianceTenantRecordId: complianceTenantInformation.id
+      complianceTenantRecordId: informationAboutThisTenant.id
     });
 
     let accessToken = tokenAndApiUrls.accessToken;
@@ -51,12 +48,15 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
+    }).intercept((err)=>{
+      return new Error({error: `An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
+
     let result = {
-      message_id: messageId,
+      message_id: messageId,// eslint-disable-line camelcase
       status: complianceStatusResultResponse.Status
     };
-
+    // If the status is "Failed", attach the error details to the response body.
     if(complianceStatusResultResponse.Status === 'Failed') {
       result.details = complianceStatusResultResponse.ErrorDetail;
     }
