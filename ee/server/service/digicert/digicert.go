@@ -28,6 +28,11 @@ import (
 // defaultTimeout is the timeout for requests.
 const defaultTimeout = 20 * time.Second
 
+const (
+	errMessageInvalidAPIToken = "The API token configured in %s certificate authority is invalid. Status code for POST request: %d"
+	errMessageInvalidProfile  = "The \"profile_id\" configured in %s certificate authority doesn't exist. Status code for POST request: %d"
+)
+
 type Service struct {
 	logger  kitlog.Logger
 	timeout time.Duration
@@ -203,12 +208,26 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 		var errResp errorResponse
 		err = json.UnmarshalRead(resp.Body, &errResp)
 		if err != nil || len(errResp.Errors) == 0 {
+			switch resp.StatusCode {
+			case http.StatusUnauthorized:
+				return nil, ctxerr.Errorf(ctx, errMessageInvalidAPIToken, config.Name, resp.StatusCode)
+			case http.StatusForbidden:
+				return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile, config.Name, resp.StatusCode)
+			}
 			return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
 		}
 
 		combinedErrorMessages := make([]string, len(errResp.Errors))
 		for i, e := range errResp.Errors {
 			combinedErrorMessages[i] = e.Message
+		}
+		switch resp.StatusCode {
+		case http.StatusUnauthorized:
+			return nil, ctxerr.Errorf(ctx, errMessageInvalidAPIToken+", errors: %s", config.Name, resp.StatusCode,
+				strings.Join(combinedErrorMessages, "; "))
+		case http.StatusForbidden:
+			return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile+", errors: %s", config.Name, resp.StatusCode,
+				strings.Join(combinedErrorMessages, "; "))
 		}
 		return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s", resp.StatusCode,
 			strings.Join(combinedErrorMessages, "; "))
