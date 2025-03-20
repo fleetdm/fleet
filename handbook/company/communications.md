@@ -789,7 +789,7 @@ Before spending any money on an offsite, inviting people, booking travel, or oth
 
 After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
   - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
-  - **Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
+  - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
 
 ### Attending conferences
