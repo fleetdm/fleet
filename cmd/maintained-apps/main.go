@@ -23,7 +23,7 @@ func main() {
 	logger := kitlog.NewJSONLogger(os.Stderr)
 	logger = level.NewFilter(logger, level.AllowDebug())
 	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-	appPtr := flag.String("app", "", "app name")
+	slugPtr := flag.String("slug", "", "app slug")
 	flag.Parse()
 
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
@@ -40,7 +40,7 @@ func main() {
 		}
 
 		for _, app := range apps {
-			if appPtr != nil && app.Name != *appPtr {
+			if slugPtr != nil && app.Slug != *slugPtr {
 				continue
 			}
 			if app.IsEmpty() {

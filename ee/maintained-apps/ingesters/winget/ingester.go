@@ -125,12 +125,12 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		// Walk through the installers and get any data we missed
 		for _, installer := range m.Installers {
-			if (installer.Scope == machineScope || m.Scope == machineScope) || installer.Architecture == arch64Bit {
+			if (installer.Scope == machineScope || m.Scope == machineScope) && installer.Architecture == arch64Bit {
 				// Use the first machine scoped installer
 				installerURL = installer.InstallerURL
 				sha256 = installer.InstallerSha256
 				installerType := installer.InstallerType
-				if installerType == "" {
+				if installerType == "" || installerType == installerTypeWix {
 					// try to get it from the URL
 					urlParts := strings.Split(installerURL, ".")
 					if len(urlParts) > 1 {
@@ -218,5 +218,6 @@ type appsAndFeaturesEntries struct {
 const (
 	machineScope     = "machine"
 	installerTypeMSI = "msi"
+	installerTypeWix = "wix"
 	arch64Bit        = "x64"
 )
