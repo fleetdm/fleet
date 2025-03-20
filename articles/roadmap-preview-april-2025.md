@@ -31,7 +31,7 @@ Big opportunities that Fleet is building towards in the near future (next 180 da
 - 🤖 AI-generated osquery queries
 - 👻 Fleet for configuration management (ala Puppet)
 
-Any feedback or a questions?  Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
+Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Noah Talerman">
