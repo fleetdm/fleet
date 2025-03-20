@@ -191,7 +191,9 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	require.NotEmpty(t, jsn.UUID)
 
 	logString := s.buf.String()
-	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log","uuid":"`+jsn.UUID+`"}`, logString)
+	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log"`)
+	assert.Contains(t, logString, `"uuid":"`+jsn.UUID)
+	assert.Contains(t, logString, `"took":`)
 }
 
 func (s *integrationLoggerTestSuite) TestSubmitLog() {

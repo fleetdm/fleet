@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,11 +28,11 @@ type TestOrbitClient struct {
 	saveInstallerResultFn      func(*fleet.HostSoftwareInstallResultPayload) error
 }
 
-func (oc *TestOrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string) (string, error) {
+func (oc *TestOrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string, progressFunc func(int)) (string, error) {
 	return oc.downloadInstallerFromURLFn(url, filename, downloadDir)
 }
 
-func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
+func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string, progressFunc func(int)) (string, error) {
 	return oc.downloadInstallerFn(installerID, downloadDir)
 }
 
@@ -730,7 +731,7 @@ func TestScriptsDisabled(t *testing.T) {
 	}
 	oc.getInstallerDetailsFn = getInstallerDetailsDefaultFn
 
-	out, err := r.installSoftware(context.Background(), "1")
+	out, err := r.installSoftware(context.Background(), "1", log.With().Logger())
 	require.NoError(t, err)
 	require.EqualValues(t, &fleet.HostSoftwareInstallResultPayload{
 		InstallUUID:               "1",
