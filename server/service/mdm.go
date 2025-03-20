@@ -1412,7 +1412,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
 			msg = strings.TrimSpace(msg[:ix])
 		}
-		err := &fleet.BadRequestError{Message: "Couldn't upload. " + msg}
+		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 

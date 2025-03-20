@@ -146,7 +146,7 @@ func validateFleetProvidedLocURI(locURI string) error {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
 			switch fleetLocURI {
 			case syncml.FleetBitLockerTargetLocURI:
-				return errors.New("Couldn’t add. The configuration profile can’t include BitLocker settings. To control these settings use disk encryption endpoint.")
+				return errors.New("The configuration profile can't include BitLocker settings. To control these settings use disk encryption endpoint.")
 			}
 			if len(errHints) == 2 {
 				return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.",

@@ -252,7 +252,7 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 		for _, t := range screenedTypes {
 			switch t {
 			case FleetFileVaultPayloadType, FleetFileVaultOptionsPayloadType, FleetRecoveryKeyEscrowPayloadType:
-				return errors.New("Couldn't add. The configuration profile can’t include FileVault settings. " +
+				return errors.New("Couldn't add. The configuration profile can't include FileVault settings. " +
 					"To control these settings use disk encryption endpoint.")
 			}
 		}

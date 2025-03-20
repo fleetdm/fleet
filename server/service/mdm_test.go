@@ -1220,7 +1220,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"BitLocker profile", 0,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
-			"The configuration profile can’t include BitLocker settings."},
+			"The configuration profile can't include BitLocker settings."},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
@@ -1234,7 +1234,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"team BitLocker profile", 1,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
-			"The configuration profile can’t include BitLocker settings."},
+			"The configuration profile can't include BitLocker settings."},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
@@ -1582,7 +1582,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			</plist>`, mobileconfig.FleetFileVaultPayloadType)),
 				},
 			},
-			"The configuration profile can’t include FileVault settings.",
+			"The configuration profile can't include FileVault settings.",
 		},
 		{
 			"unsupported Apple config profile Fleet variable",

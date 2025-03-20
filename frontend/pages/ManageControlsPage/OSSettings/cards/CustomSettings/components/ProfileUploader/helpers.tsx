@@ -43,7 +43,19 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   ) {
     return (
       <span>
-        {apiReason} To control these settings, go to <b>Disk encryption</b>.
+        Couldn't add. The configuration profile can't include BitLocker settings. To control these settings, go to <b>Disk encryption</b>.
+      </span>
+    );
+  }
+
+  if (
+      apiReason.includes(
+          "The configuration profile can't include FileVault settings."
+      )
+  ) {
+    return (
+        <span>
+        Couldn't add. The configuration profile can't include FileVault settings. To control these settings, go to <b>Disk encryption</b>.
       </span>
     );
   }
