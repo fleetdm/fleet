@@ -1127,7 +1127,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 }
 
-// TestWindowsProfileResent verifies that a Windows profile is resend when its contents have been modified.
+// TestWindowsProfileResend verifies that a Windows profile is resent when its contents have been modified.
 func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	t := s.T()
 	ctx := context.Background()

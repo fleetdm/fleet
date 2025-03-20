@@ -29,8 +29,9 @@ import (
 const defaultTimeout = 20 * time.Second
 
 const (
-	errMessageInvalidAPIToken = "The API token configured in %s certificate authority is invalid. Status code for POST request: %d"
-	errMessageInvalidProfile  = "The \"profile_id\" configured in %s certificate authority doesn't exist. Status code for POST request: %d"
+	errMessageInvalidAPIToken = "The API token configured in %s certificate authority is invalid. " + // nolint:gosec // ignore G101
+		"Status code for POST request: %d"
+	errMessageInvalidProfile = "The \"profile_id\" configured in %s certificate authority doesn't exist. Status code for POST request: %d"
 )
 
 type Service struct {
