@@ -1,11 +1,17 @@
-import React, { useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
+
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { validateFormData, IDigicertFormValidation } from "./helpers";
+import {
+  validateFormData,
+  IDigicertFormValidation,
+  generateFormValidations,
+} from "./helpers";
 
 const baseClass = "digicert-form";
 
@@ -36,6 +42,12 @@ const DigicertForm = ({
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
+  const { config } = useContext(AppContext);
+  const validations = useMemo(
+    () => generateFormValidations(config?.integrations.digicert ?? []),
+    [config?.integrations.digicert]
+  );
+
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(
     {
       isValid: false,
@@ -59,7 +71,10 @@ const DigicertForm = ({
 
   const onInputChange = (update: { name: string; value: string }) => {
     setFormValidation(
-      validateFormData({ ...formData, [update.name]: update.value })
+      validateFormData(
+        { ...formData, [update.name]: update.value },
+        validations
+      )
     );
     onChange(update);
   };
