@@ -235,9 +235,9 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 	}
 
 	if !r.scriptsEnabled() {
-		// fleetctl knows that -2 means script was disabled on host
+		// Fleet knows that -2 means script was disabled on host
 		logger.Info().Msg("scripts are disabled for this host, stopping installation")
-		payload.InstallScriptExitCode = ptr.Int(-2)
+		payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeScriptsDisabled)
 		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
 		return payload, nil
 	}
@@ -304,6 +304,10 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 		)
 		if err != nil {
 			logger.Err(err).Msg("failed to download software installer")
+			// Set a special exit code to indicate that the installer download failed, so that Fleet
+			// will mark this installation as failed.
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer download failed")
 			return payload, err
 		}
 		logger.Info().Str("installerPath", installerPath).Msg("software installer downloaded")

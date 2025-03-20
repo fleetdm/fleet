@@ -1,0 +1,40 @@
+.live-results-heading {
+  &__information {
+    margin-top: 20px;
+    gap: $pad-small;
+    display: flex;
+    flex-direction: column;
+    font-size: $x-small;
+  }
+
+  &__percent-responded {
+    display: flex;
+  }
+
+  &__targeted-count {
+    font-weight: $bold;
+
+    .icon-tooltip {
+      margin-left: $pad-small;
+    }
+  }
+
+  &__responding-spinner {
+    margin-left: $pad-small;
+  }
+
+  &__btn-wrapper {
+    margin-top: $pad-large;
+    margin-bottom: $pad-xxlarge;
+    display: flex;
+    align-items: center;
+
+    .button {
+      padding: $pad-small $pad-medium;
+
+      &:not(:last-of-type) {
+        margin-right: $pad-small;
+      }
+    }
+  }
+}

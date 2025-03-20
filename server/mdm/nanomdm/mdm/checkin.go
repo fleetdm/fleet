@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 var ErrUnrecognizedMessageType = errors.New("unrecognized MessageType")
