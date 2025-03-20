@@ -817,9 +817,9 @@ func (c *Client) ApplyGroup(
 					switch {
 					case b != nil:
 						if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
-							if strings.Contains(err.Error(), "Couldn't upload") {
+							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
-								// "Couldn't upload. CONFIG_NAME_INVALID"
+								// "Couldn't add. CONFIG_NAME_INVALID"
 								// We want the part after the period (this is the error name from Apple)
 								// to render a more helpful error message.
 								parts := strings.Split(err.Error(), ".")

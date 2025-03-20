@@ -47,7 +47,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			err = fleet.NewGatewayTimeoutError("Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
+			err = fleet.NewGatewayTimeoutError("Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
 		}
 
 		return &addFleetMaintainedAppResponse{Err: err}, nil
