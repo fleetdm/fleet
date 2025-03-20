@@ -83,7 +83,7 @@ The dollar sign (`$`) can be escaped so it's not considered a variable by using 
 
 ## Known limitations and issues
 
-- Windows profiles are currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [issue #25030](https://github.com/fleetdm/fleet/issues/25030)
+- After changing a secret used by a Windows profile, that profile is currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [story #27351](https://github.com/fleetdm/fleet/issues/27351)
 - Fleet does not hide the secret in script results. DO NOT print/echo your secrets to the console output.
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
