@@ -1,0 +1,77 @@
+name: Ingest maintained apps
+
+on:
+  push:
+    branches:
+      - sgress454/dismiss-old-fma-prs
+
+permissions:
+  contents: write         # Required to push new branch
+  pull-requests: write    # Required to open PRs
+
+jobs:
+  build:  
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Get current date and time
+        id: date
+        run: echo "::set-output name=date::$(date +'%y%m%d%H%M')"
+
+      - name: Checkout Fleet
+        uses: actions/checkout@v4
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.head_ref }}
+          path: fleet
+
+      - name: Setup Go
+        uses: actions/setup-go@v4.1.0
+        with:
+          cache: false
+          go-version: '^1.23.4'
+
+      # - name: Ingest maintained apps
+      #   run: |
+      #     cd fleet
+      #     go mod download
+      #     go run cmd/maintained-apps/main.go
+
+      - name: Search for Existing PRs
+        id: search_pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: pullRequests } = await github.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${context.ref}`,
+            });
+            return pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]');
+
+      - name: Log PRs
+        run: echo "${{ steps.search_pr.outputs }}"
+
+      # - name: Create Pull Request
+      #   uses: peter-evans/create-pull-request@v7
+      #   with:
+      #     base: main
+      #     path: fleet
+      #     branch: fma-${{ steps.date.outputs.date }}
+      #     delete-branch: true
+      #     title: "Update Fleet-maintained apps"
+      #     commit-message: |
+      #       Update Fleet-maintained apps.
+
+      #       Generated automatically with cmd/maintained-apps.
+      #     body: Automated ingestion of latest Fleet-maintained app data.
+
+
