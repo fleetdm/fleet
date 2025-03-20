@@ -1,0 +1,1 @@
+- Added "author_id" to labels db table to track who created a label

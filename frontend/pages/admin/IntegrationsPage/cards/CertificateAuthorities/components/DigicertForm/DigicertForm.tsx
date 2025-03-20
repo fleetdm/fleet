@@ -91,9 +91,9 @@ const DigicertForm = ({
           value={name}
           onChange={onInputChange}
           error={formValidation.name?.message}
-          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CERT_DATA_DIGICERT_WIFI)."
+          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_DIGICERT_DATA_WIFI_CERTIFICATE)."
           parseTarget
-          placeholder="DIGICERT_WIFI"
+          placeholder="WIFI_CERTIFICATE"
         />
         <InputField
           name="url"

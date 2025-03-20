@@ -442,7 +442,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			msg := SameProfileNameUploadErrorMsg
 			if re, ok := existsErr.(interface{ Resource() string }); ok {
 				if re.Resource() == "MDMAppleConfigProfile.PayloadIdentifier" {
-					msg = "Couldn't upload. A configuration profile with this identifier (PayloadIdentifier) already exists."
+					msg = "Couldn't add. A configuration profile with this identifier (PayloadIdentifier) already exists."
 				}
 			}
 			err = fleet.NewInvalidArgumentError("profile", msg).
@@ -4227,7 +4227,7 @@ func preprocessProfileContents(
 
 					cert, err := digiCertService.GetCertificate(ctx, caCopy)
 					if err != nil {
-						detail := fmt.Sprintf("Couldn't get certificate from %s. %s", caCopy.Name, err)
+						detail := fmt.Sprintf("Couldn't get certificate from DigiCert for %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:   target.cmdUUID,
 							HostUUID:      hostUUID,

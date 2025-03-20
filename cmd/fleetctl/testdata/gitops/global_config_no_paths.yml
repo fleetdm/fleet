@@ -47,6 +47,9 @@ queries:
     observer_can_run: false
     automations_enabled: false
     logging: snapshot
+    labels_include_any:
+      - a
+      - b
   - name: orbit_info
     query: SELECT * from orbit_info;
     interval: 0
