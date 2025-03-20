@@ -65,7 +65,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "Custom configuration profiles can't include BitLocker settings.",
+			wantErr: "The configuration profile can’t include BitLocker settings.",
 		},
 		{
 			name: "Reserved LocURI with implicit ./Device prefix",
@@ -78,7 +78,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "Custom configuration profiles can't include BitLocker settings.",
+			wantErr: "The configuration profile can’t include BitLocker settings.",
 		},
 		{
 			name: "XML with Multiple Replace Elements",
@@ -121,7 +121,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "Custom configuration profiles can't include BitLocker settings",
+			wantErr: "The configuration profile can’t include BitLocker settings.",
 		},
 		{
 			name: "XML with Mixed Replace and Add",
