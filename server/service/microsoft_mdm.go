@@ -2216,9 +2216,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// there, so we make another request. Using a map to deduplicate.
 	toGetContents := make(map[string]bool)
 
-	// hostProfiles tracks each host_mdm_windows_profile we need to upsert
+	// hostProfilesToUpdate tracks each host_mdm_windows_profile we need to upsert
 	// with the new status, operation_type, etc.
-	hostProfiles := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
+	hostProfilesToUpdate := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
 
 	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
@@ -2243,7 +2243,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 
-		hostProfiles = append(hostProfiles, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+		hostProfilesToUpdate = append(hostProfilesToUpdate, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
 			ProfileUUID:   p.ProfileUUID,
 			HostUUID:      p.HostUUID,
 			ProfileName:   p.ProfileName,
@@ -2282,9 +2282,9 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		}
 	}
 
-	// Since we are not using DB transactions, it is a tiny chance that the profile contents don't match
+	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
 	// the checksum we retrieved earlier. Update the checksums if needed.
-	for _, p := range hostProfiles {
+	for _, p := range hostProfilesToUpdate {
 		if _, ok := profileContents[p.ProfileUUID]; ok {
 			p.Checksum = profileContents[p.ProfileUUID].Checksum
 		}
@@ -2297,7 +2297,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	}
 
 	// Upsert the host profiles we need to track.
-	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfiles); err != nil {
+	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilesToUpdate); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 

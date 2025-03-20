@@ -2340,6 +2340,7 @@ func expectWindowsProfiles(
 	return m
 }
 
+// TODO: victor to review/update test
 func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
