@@ -1,4 +1,3 @@
-// To be used within <Card/>
 import React from "react";
 import classnames from "classnames";
 
@@ -10,10 +9,8 @@ interface ICardHeaderProps {
   className?: string;
 }
 
-/**
- * A generic CardHeader component that will be used to render content within a CardHeader with a border and
- * and selected background color.
- */
+/** A generic CardHeader component to be used within Card component
+ * that styles header and subheader */
 const CardHeader = ({ header, subheader, className }: ICardHeaderProps) => {
   const classNames = classnames(baseClass, className);
 
