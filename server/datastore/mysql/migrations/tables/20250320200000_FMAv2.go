@@ -34,7 +34,31 @@ ALTER TABLE software_installers
 		return fmt.Errorf("failed to unlink diverged Fleet-maintained apps: %w", err)
 	}
 
-	// may want to delete script contents that are only referenced by FMAs
+	// Clean up Fleet Library App associated scripts before we drop the columns on the table
+	_, err = tx.Exec(`DELETE FROM
+  script_contents
+WHERE
+  NOT EXISTS (
+    SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM software_installers si
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM fleet_library_apps fla
+			WHERE script_contents.id IN (fla.install_script_content_id, fla.uninstall_script_content_id)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
+	)
+  AND NOT EXISTS (
+    SELECT 1 FROM script_upcoming_activities WHERE script_content_id = script_contents.id
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to clean up unused scripts: %w", err)
+	}
 
 	_, err = tx.Exec(`
 ALTER TABLE fleet_maintained_apps
