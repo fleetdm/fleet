@@ -63,7 +63,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingesting app")
+			return nil, ctxerr.Wrap(ctx, err, "ingesting homebrew app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
