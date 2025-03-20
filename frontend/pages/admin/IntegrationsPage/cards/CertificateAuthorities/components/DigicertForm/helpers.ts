@@ -34,7 +34,6 @@ type IFormValidations = Record<
 export const generateFormValidations = (
   digicertIntegrations: ICertificatesIntegrationDigicert[]
 ) => {
-  console.log("validation");
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
       validations: [
@@ -135,7 +134,6 @@ const getErrorMessage = (
   return message(formData);
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const validateFormData = (
   formData: IDigicertFormData,
   validationConfig: IFormValidations

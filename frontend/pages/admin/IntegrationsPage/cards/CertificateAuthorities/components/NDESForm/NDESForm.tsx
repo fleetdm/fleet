@@ -58,6 +58,7 @@ const NDESForm = ({
           label="SCEP URL"
           name="scepURL"
           value={scepURL}
+          error={formValidation.scepURL?.message}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep/mscep.dll"
@@ -67,6 +68,7 @@ const NDESForm = ({
           label="Admin URL"
           name="adminURL"
           value={adminURL}
+          error={formValidation.adminURL?.message}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep_admin/"

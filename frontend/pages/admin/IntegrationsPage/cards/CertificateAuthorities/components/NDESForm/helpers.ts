@@ -1,12 +1,15 @@
 import { getErrorReason } from "interfaces/errors";
+
+import valid_url from "components/forms/validators/valid_url";
+
 import { INDESFormData } from "./NDESForm";
 
 // TODO: create a validator abstraction for this and the other form validation files
 
 export interface INDESFormValidation {
   isValid: boolean;
-  scepURL?: { isValid: boolean };
-  adminURL?: { isValid: boolean };
+  scepURL?: { isValid: boolean; message?: string };
+  adminURL?: { isValid: boolean; message?: string };
   username?: { isValid: boolean };
   password?: { isValid: boolean };
 }
@@ -33,6 +36,14 @@ const FORM_VALIDATIONS: Record<
           return formData.scepURL.length > 0;
         },
       },
+      {
+        name: "validUrl",
+        isValid: (formData: INDESFormData) => {
+          return valid_url({ url: formData.scepURL });
+        },
+        message: (formData: INDESFormData) =>
+          `${formData.scepURL} is not a valid URL`,
+      },
     ],
   },
   adminURL: {
@@ -42,6 +53,14 @@ const FORM_VALIDATIONS: Record<
         isValid: (formData: INDESFormData) => {
           return formData.adminURL.length > 0;
         },
+      },
+      {
+        name: "validUrl",
+        isValid: (formData: INDESFormData) => {
+          return valid_url({ url: formData.adminURL });
+        },
+        message: (formData: INDESFormData) =>
+          `${formData.adminURL} is not a valid URL`,
       },
     ],
   },
@@ -67,6 +86,16 @@ const FORM_VALIDATIONS: Record<
   },
 };
 
+const getValifationErrorMessage = (
+  formData: INDESFormData,
+  message?: IValidationMessage
+) => {
+  if (message === undefined || typeof message === "string") {
+    return message;
+  }
+  return message(formData);
+};
+
 // eslint-disable-next-line import/prefer-default-export
 export const validateFormData = (formData: INDESFormData) => {
   const formValidation: INDESFormValidation = {
@@ -87,6 +116,7 @@ export const validateFormData = (formData: INDESFormData) => {
       formValidation.isValid = false;
       formValidation[objKey] = {
         isValid: false,
+        message: getValifationErrorMessage(formData, failedValidation.message),
       };
     }
   });

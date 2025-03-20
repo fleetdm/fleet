@@ -1,11 +1,17 @@
-import React, { useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
+
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { ICustomSCEPFormValidation, validateFormData } from "./helpers";
+import {
+  generateFormValidations,
+  ICustomSCEPFormValidation,
+  validateFormData,
+} from "./helpers";
 
 const baseClass = "ndes-form";
 
@@ -32,6 +38,11 @@ const CustomSCEPForm = ({
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
+  const { config } = useContext(AppContext);
+  const validations = useMemo(
+    () => generateFormValidations(config?.integrations.custom_scep_proxy ?? []),
+    [config?.integrations.custom_scep_proxy]
+  );
   const [
     formValidation,
     setFormValidation,
@@ -48,7 +59,10 @@ const CustomSCEPForm = ({
 
   const onInputChange = (update: { name: string; value: string }) => {
     setFormValidation(
-      validateFormData({ ...formData, [update.name]: update.value })
+      validateFormData(
+        { ...formData, [update.name]: update.value },
+        validations
+      )
     );
     onChange(update);
   };

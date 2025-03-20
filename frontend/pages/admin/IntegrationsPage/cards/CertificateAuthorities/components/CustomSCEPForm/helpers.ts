@@ -1,3 +1,5 @@
+import { ICertificatesIntegrationCustomSCEP } from "interfaces/integration";
+
 import valid_url from "components/forms/validators/valid_url";
 
 import { ICustomSCEPFormData } from "./CustomSCEPForm";
@@ -21,56 +23,73 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-const FORM_VALIDATIONS: Record<
+type IFormValidations = Record<
   IFormValidationKey,
   { validations: IValidation[] }
-> = {
-  name: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return formData.name.length > 0;
+>;
+
+export const generateFormValidations = (
+  customSCEPIntegrations: ICertificatesIntegrationCustomSCEP[]
+) => {
+  const FORM_VALIDATIONS: IFormValidations = {
+    name: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return formData.name.length > 0;
+          },
         },
-      },
-      {
-        name: "invalidCharacters",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return /^[a-zA-Z0-9_]+$/.test(formData.name);
+        {
+          name: "invalidCharacters",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return /^[a-zA-Z0-9_]+$/.test(formData.name);
+          },
+          message:
+            "Invalid characters. Only letters, numbers and underscores allowed.",
         },
-        message:
-          "Inalid characters. Only letters, numbers and underscores allowed.",
-      },
-    ],
-  },
-  scepURL: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return formData.scepURL.length > 0;
+        {
+          name: "unique",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return !!customSCEPIntegrations.find(
+              (cert) => cert.name !== formData.name
+            );
+          },
+          message: "Name is already used by another DigiCert CA.",
         },
-      },
-      {
-        name: "validUrl",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return valid_url({ url: formData.scepURL });
+      ],
+    },
+    scepURL: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return formData.scepURL.length > 0;
+          },
         },
-        message: (formData: ICustomSCEPFormData) =>
-          `${formData.scepURL} is not a valid URL`,
-      },
-    ],
-  },
-  challenge: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return formData.challenge.length > 0;
+        {
+          name: "validUrl",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return valid_url({ url: formData.scepURL });
+          },
+          message: (formData: ICustomSCEPFormData) =>
+            `${formData.scepURL} is not a valid URL`,
         },
-      },
-    ],
-  },
+      ],
+    },
+    challenge: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return formData.challenge.length > 0;
+          },
+        },
+      ],
+    },
+  };
+
+  return FORM_VALIDATIONS;
 };
 
 const getErrorMessage = (
@@ -84,14 +103,17 @@ const getErrorMessage = (
 };
 
 // eslint-disable-next-line import/prefer-default-export
-export const validateFormData = (formData: ICustomSCEPFormData) => {
+export const validateFormData = (
+  formData: ICustomSCEPFormData,
+  validationConfig: IFormValidations
+) => {
   const formValidation: ICustomSCEPFormValidation = {
     isValid: true,
   };
 
-  Object.keys(FORM_VALIDATIONS).forEach((key) => {
-    const objKey = key as keyof typeof FORM_VALIDATIONS;
-    const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
+  Object.keys(validationConfig).forEach((key) => {
+    const objKey = key as keyof typeof validationConfig;
+    const failedValidation = validationConfig[objKey].validations.find(
       (validation) => !validation.isValid(formData)
     );
 
