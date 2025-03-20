@@ -29,12 +29,12 @@ const InstallerActionCell = ({
 }: IInstallerActionCellProps) => {
   const cellClasses = classnames(baseClass, className);
 
-  // Some FMAs are not supported for Windows
+  // Not all FMAs are supported for all platforms
   if (!value) {
     return (
       <TextCell
         className={cellClasses}
-        emptyCellTooltipText="Currently unavailable for Windows."
+        emptyCellTooltipText="Currently unavailable for this platform."
       />
     );
   }

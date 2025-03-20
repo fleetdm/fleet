@@ -458,7 +458,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
-  software_title_id?: number; // Omitted unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
 export type FleetMaintainedAppPlatform = Extract<
@@ -481,5 +481,5 @@ export interface IFleetMaintainedAppDetails {
   post_install_script: string;
   uninstall_script: string;
   url: string;
-  software_title_id?: number; // Omitted unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
