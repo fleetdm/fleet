@@ -51,11 +51,13 @@ export const generateFormValidations = (
         {
           name: "unique",
           isValid: (formData: ICustomSCEPFormData) => {
-            return !!customSCEPIntegrations.find(
-              (cert) => cert.name !== formData.name
+            return (
+              customSCEPIntegrations.find(
+                (cert) => cert.name === formData.name
+              ) === undefined
             );
           },
-          message: "Name is already used by another DigiCert CA.",
+          message: "Name is already used by another custom SCEP CA.",
         },
       ],
     },
