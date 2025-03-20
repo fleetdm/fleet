@@ -51,7 +51,6 @@
     "Platform": true,
     "AdCampaign": true,
     "MicrosoftComplianceTenant": true,
-    "MicrosoftComplianceStatusMessage": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },
