@@ -2411,7 +2411,7 @@ func enableDesktopWindows() {
 	}
 	binPath := string(match[1])
 	log.Info().Msg(binPath)
-	binPath += " --fleet-desktop=\"True\""
+	binPath = strings.Replace(binPath, "--root-dir", "--fleet-desktop=\"True\" --root-dir", 1)
 
 	// Set the new service configuration, adding desktop flags
 	scConfig := exec.Command("sc.exe", "config", "Fleet osquery", "binPath=", binPath)
