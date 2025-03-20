@@ -26,7 +26,9 @@ import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
-import { generateFormValidation } from "./helpers";
+import { createTooltipContent, generateFormValidation } from "./helpers";
+import TooltipWrapper from "components/TooltipWrapper";
+import { Tooltip } from "react-tooltip-5";
 
 export const baseClass = "package-form";
 
@@ -47,6 +49,8 @@ export interface IPackageFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
+  installScript?: { isValid: boolean; message?: string };
+  uninstallScript?: { isValid: boolean; message?: string };
   customTarget?: { isValid: boolean };
 }
 
@@ -212,6 +216,7 @@ const PackageForm = ({
   };
 
   const isSubmitDisabled = !formValidation.isValid;
+  const submitTooltipContent = createTooltipContent(formValidation);
 
   const classNames = classnames(baseClass, className);
 
@@ -316,15 +321,33 @@ const PackageForm = ({
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
             tipOffset={6}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                variant="brand"
-                disabled={disableChildren || isSubmitDisabled}
-              >
-                {isEditingSoftware ? "Save" : "Add software"}
-              </Button>
-            )}
+            renderChildren={(disableChildren) =>
+              submitTooltipContent ? (
+                <TooltipWrapper
+                  tipContent={submitTooltipContent}
+                  underline={false}
+                  showArrow
+                  tipOffset={10}
+                  position="left"
+                >
+                  <Button
+                    type="submit"
+                    variant="brand"
+                    disabled={disableChildren || isSubmitDisabled}
+                  >
+                    {isEditingSoftware ? "Save" : "Add software"}
+                  </Button>
+                </TooltipWrapper>
+              ) : (
+                <Button
+                  type="submit"
+                  variant="brand"
+                  disabled={disableChildren || isSubmitDisabled}
+                >
+                  {isEditingSoftware ? "Save" : "Add software"}
+                </Button>
+              )
+            }
           />
         </div>
       </form>
