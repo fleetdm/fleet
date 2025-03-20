@@ -65,11 +65,11 @@ export const getDisplayErrMessage = (err: unknown) => {
   let message: string | JSX.Element = DEFAULT_ERROR;
   const reason = getErrorReason(err);
 
-  if (reason.includes("api token")) {
+  if (reason.includes("invalid API token")) {
     message = INVALID_API_TOKEN_ERROR;
-  } else if (reason.includes("profile guid")) {
+  } else if (reason.includes("invalid profile GUID")) {
     message = INVALID_PROFILE_GUID_ERROR;
-  } else if (reason.includes("invalid url")) {
+  } else if (reason.includes("invalid URL")) {
     message = INVALID_URL_ERROR;
   } else if (reason.includes("private key")) {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
