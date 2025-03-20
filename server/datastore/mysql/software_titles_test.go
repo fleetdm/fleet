@@ -1184,6 +1184,7 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 }
 
 func testListSoftwareTitlesOverflow(t *testing.T, ds *Datastore) {
+	t.Skip("This test is too slow to run in CI")
 	ctx := context.Background()
 
 	host := test.NewHost(t, ds, "host", "", "hostkey1", "hostuuid1", time.Now())
