@@ -2082,6 +2082,19 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
@@ -2374,6 +2387,18 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				return map[string]*fleet.Label{
+					"a": {
+						ID:   1,
+						Name: "a",
+					},
+					"b": {
+						ID:   2,
+						Name: "b",
+					},
+				}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
