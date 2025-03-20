@@ -53,6 +53,18 @@ func addLabelMocks(ds *mock.Store) {
 		deletedLabels = append(deletedLabels, name)
 		return nil
 	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
+	}
 }
 
 func TestGitOpsFilenameValidation(t *testing.T) {
