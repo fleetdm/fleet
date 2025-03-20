@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 func installScriptForApp(app maintainedApp, cask *brewCask) (string, error) {

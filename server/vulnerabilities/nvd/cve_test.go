@@ -535,6 +535,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		version      string
 		osID         uint
 		includedCVEs []string
+		excludedCVEs []string
 	}{
 		{
 			platform: "darwin",
@@ -600,6 +601,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				"CVE-2023-32396",
 				"CVE-2023-29497",
 			},
+		},
+		{
+			platform: "darwin",
+			version:  "15.3",
+			osID:     3,
+			// This was resolved in 15.3, so it should be excluded. See https://github.com/fleetdm/fleet/issues/26561.
+			excludedCVEs: []string{"CVE-2025-24176"},
 		},
 	}
 
@@ -699,6 +707,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		for _, tc := range cveOSTests {
 			for _, cve := range tc.includedCVEs {
 				require.Contains(t, osCVEsFound[tc.osID], cve)
+			}
+			for _, cve := range tc.excludedCVEs {
+				require.NotContains(t, osCVEsFound[tc.osID], cve)
 			}
 		}
 	})

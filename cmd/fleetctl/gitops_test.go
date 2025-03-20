@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -199,11 +200,15 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	scepConfig := &scep_mock.SCEPConfigService{}
+	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License:         license,
-			KeyValueStore:   newMemKeyValueStore(),
-			EnableSCEPProxy: true,
+			License:           license,
+			KeyValueStore:     newMemKeyValueStore(),
+			EnableSCEPProxy:   true,
+			SCEPConfigService: scepConfig,
 		},
 	)
 
@@ -1360,13 +1365,17 @@ software:
 
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
-	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "must be the global config"))
+	require.NoError(t, err)
+
+	// No global file, only team file
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+	require.NoError(t, err)
 
 	// Global file specified multiple times
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+	fmt.Printf("err.Error(): %v\n", err.Error())
+	assert.Contains(t, err.Error(), "only one global config file may be provided")
 
 	// Duplicate secret
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})

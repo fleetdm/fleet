@@ -240,13 +240,13 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any:
+        labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
       - path: ../lib/macos-profile2.json
-        labels_include_all:
+        labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
       - path: ../lib/macos-profile3.mobileconfig
-        labels_include_any:
+        labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
   windows_settings:
@@ -339,7 +339,7 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any:
+      labels_include_any: # Available in Fleet Premium
         - Engineering
         - Customer Support
   app_store_apps:

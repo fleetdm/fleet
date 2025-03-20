@@ -158,9 +158,9 @@ module.exports = {
 
       // If this is Fleet's Vanta connection, exclude hosts on the "Compliance exclusions" team.
       // See https://github.com/fleetdm/fleet/issues/19312 for more information.
-      if(vantaConnection.id === 3){
+      if(vantaConnection.id === 64){
         allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
-          return host.team_id !== 178;// Compliance exclusions team
+          return [275, 274].includes(host.team_id);
         });
       }
 

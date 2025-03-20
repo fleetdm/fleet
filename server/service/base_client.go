@@ -49,6 +49,10 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			msg: extractServerErrorText(response.Body),
 		}
 	case http.StatusUnauthorized:
+		errText := extractServerErrorText(response.Body)
+		if strings.Contains(errText, "password reset required") {
+			return ErrPasswordResetRequired
+		}
 		return ErrUnauthenticated
 	case http.StatusPaymentRequired:
 		return ErrMissingLicense

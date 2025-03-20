@@ -12,7 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 type profileItem[T any] struct {

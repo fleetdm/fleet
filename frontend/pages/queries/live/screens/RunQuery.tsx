@@ -104,7 +104,7 @@ const RunQuery = ({
       setupDistributedQuery(websocket);
       setCampaignState((prevCampaignState) => ({
         ...prevCampaignState,
-        campaign: returnedCampaign,
+        campaign: { ...prevCampaignState.campaign, returnedCampaign },
         queryIsRunning: true,
       }));
 
