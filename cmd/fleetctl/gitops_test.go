@@ -45,7 +45,7 @@ func addLabelMocks(ds *mock.Store) {
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
 	}
 
@@ -694,7 +694,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		appliedLabelSpecs = specs
 		return nil
 	}
