@@ -3,9 +3,12 @@ package service
 import "text/template"
 
 type fileVaultProfileOptions struct {
-	PayloadIdentifier    string
-	PayloadName          string
-	Base64DerCertificate string
+	PayloadIdentifier            string
+	PayloadName                  string
+	Base64DerCertificate         string
+	FileVaultPayloadType         string
+	FileVaultOptionsPayloadType  string
+	RecoveryKeyEscrowPayloadType string
 }
 
 var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey=error").Parse(`<?xml version="1.0" encoding="UTF-8"?>
@@ -22,9 +25,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadDisplayName</key>
 			<string>FileVault 2</string>
 			<key>PayloadIdentifier</key>
-			<string>com.apple.MCX.FileVault2.3548D750-6357-4910-8DEA-D80ADCE2C787</string>
+			<string>{{ .FileVaultPayloadType }}.3548D750-6357-4910-8DEA-D80ADCE2C787</string>
 			<key>PayloadType</key>
-			<string>com.apple.MCX.FileVault2</string>
+			<string>{{ .FileVaultPayloadType }}</string>
 			<key>PayloadUUID</key>
 			<string>3548D750-6357-4910-8DEA-D80ADCE2C787</string>
 			<key>PayloadVersion</key>
@@ -44,9 +47,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadDisplayName</key>
 			<string>FileVault Recovery Key Escrow</string>
 			<key>PayloadIdentifier</key>
-			<string>com.apple.security.FDERecoveryKeyEscrow.3690D771-DCB8-4D5D-97D6-209A138DF03E</string>
+			<string>{{ .RecoveryKeyEscrowPayloadType }}.3690D771-DCB8-4D5D-97D6-209A138DF03E</string>
 			<key>PayloadType</key>
-			<string>com.apple.security.FDERecoveryKeyEscrow</string>
+			<string>{{ .RecoveryKeyEscrowPayloadType }}</string>
 			<key>PayloadUUID</key>
 			<string>3C329F2B-3D47-4141-A2B5-5C52A2FD74F8</string>
 			<key>PayloadVersion</key>
@@ -72,9 +75,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>dontAllowFDEDisable</key>
 			<true/>
 			<key>PayloadIdentifier</key>
-			<string>com.apple.MCX.62024f29-105E-497A-A724-1D5BA4D9E854</string>
+			<string>{{ .FileVaultOptionsPayloadType }}.62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadType</key>
-			<string>com.apple.MCX</string>
+			<string>{{ .FileVaultOptionsPayloadType }}</string>
 			<key>PayloadUUID</key>
 			<string>62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadVersion</key>
