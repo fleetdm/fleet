@@ -2595,7 +2595,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	if len(privateKey) == 0 {
-		return ctxerr.New(ctx, "Couldn't upload APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		return ctxerr.New(ctx, "Couldn't add APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
 	if cert == nil {

@@ -3273,7 +3273,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.json", []byte("{"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't upload. The file should include valid JSON:")
+	require.Contains(t, errMsg, "Couldn't add. The file should include valid JSON:")
 
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{

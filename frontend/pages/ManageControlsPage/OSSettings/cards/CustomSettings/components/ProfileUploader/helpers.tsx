@@ -26,7 +26,15 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
 };
 
 export const DEFAULT_ERROR_MESSAGE =
-  "Couldn’t add configuration profile. Please try again.";
+  "Couldn't add configuration profile. Please try again.";
+
+const generateUnsupportedVariableErrMsg = (errMsg: string) => {
+  const regex = /\$[A-Z0-9_]+/;
+  const varName = errMsg.match(regex);
+  return varName
+    ? `Couldn't add. Variable "${varName[0]}" doesn't exist.`
+    : DEFAULT_ERROR_MESSAGE;
+};
 
 /** We want to add some additional messageing to some of the error messages so
  * we add them in this function. Otherwise, we'll just return the error message from the
@@ -78,6 +86,10 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (apiReason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
+  }
+
+  if (apiReason.includes("Fleet variable")) {
+    return generateUnsupportedVariableErrMsg(apiReason);
   }
 
   return apiReason || DEFAULT_ERROR_MESSAGE;

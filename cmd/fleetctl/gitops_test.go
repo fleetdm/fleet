@@ -46,13 +46,25 @@ func addLabelMocks(ds *mock.Store) {
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return nil, nil
 	}
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
 	}
 
 	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
 	}
 }
 
@@ -763,7 +775,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		appliedLabelSpecs = specs
 		return nil
 	}
@@ -771,6 +783,19 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil
+	}
+
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
 	}
 
 	// Mock appConfig
@@ -828,7 +853,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedLabelSpecs, 0)
 	assert.Len(t, deletedLabels, 0)
 
-	// // Dry run w/out top-level labels key
+	// Dry run w/out top-level labels key
 	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml", "--dry-run"})
 	fmt.Printf("%s", logs)
 	fmt.Printf("-----------\n")
@@ -867,6 +892,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
 	assert.Len(t, appliedLabelSpecs, 2)
 	assert.Len(t, deletedLabels, 1)
+	assert.Len(t, appliedQueries[0].LabelsIncludeAny, 2)
+	assert.Equal(t, appliedQueries[0].LabelsIncludeAny[0].LabelName, "a")
+	assert.Equal(t, appliedQueries[0].LabelsIncludeAny[1].LabelName, "b")
 
 	// Reset labels arrays
 	deletedLabels = make([]string, 0)
@@ -2135,6 +2163,19 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
@@ -2427,6 +2468,18 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				return map[string]*fleet.Label{
+					"a": {
+						ID:   1,
+						Name: "a",
+					},
+					"b": {
+						ID:   2,
+						Name: "b",
+					},
+				}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
