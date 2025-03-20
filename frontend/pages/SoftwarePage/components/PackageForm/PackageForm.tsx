@@ -11,6 +11,7 @@ import { ILabelSummary } from "interfaces/label";
 import { PackageType } from "interfaces/package_type";
 
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 import FileUploader from "components/FileUploader";
 import {
   CUSTOM_TARGET_OPTIONS,
@@ -27,8 +28,6 @@ import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
 import { createTooltipContent, generateFormValidation } from "./helpers";
-import TooltipWrapper from "components/TooltipWrapper";
-import { Tooltip } from "react-tooltip-5";
 
 export const baseClass = "package-form";
 
