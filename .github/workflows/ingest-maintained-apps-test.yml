@@ -57,8 +57,18 @@ jobs:
             });
             return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
 
+      - name: Randomly Select Dev
+        id: select_dev
+        run: |
+          DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@')
+          GITHUB_ID=$(echo ${DEVS} | tr ' ' '\n' | shuf | head -n 1)
+          echo "github_id=$GITHUB_ID" >> ${GITHUB_OUTPUT}
+
       - name: Log Found PRs
-        run: echo "${{ steps.search_pr.outputs.result }}"
+        run: |
+          echo "${{ steps.search_pr.outputs.result }}"
+          echo "${{ steps.select_dev.outputs.github_id }}"
+          
       # - name: Create Pull Request
       #   uses: peter-evans/create-pull-request@v7
       #   with:
