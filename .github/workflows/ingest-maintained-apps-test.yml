@@ -24,13 +24,13 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date +'%y%m%d%H%M')"
 
-      # - name: Checkout Fleet
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: fleetdm/fleet
-      #     fetch-depth: 1
-      #     ref: ${{ github.head_ref }}
-      #     path: fleet
+      - name: Checkout Fleet
+        uses: actions/checkout@v4
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.head_ref }}
+          path: fleet
 
       # - name: Setup Go
       #   uses: actions/setup-go@v4.1.0
