@@ -480,14 +480,6 @@ const TableContainer = <T,>({
     wideSearch,
   ]);
 
-  const disableNext = () => {
-    const totalItems = 44; // Test
-    if (!totalItems) {
-      return data.length < pageSize;
-    }
-    return pageIndex * pageSize + data.length >= totalItems;
-  };
-
   return (
     <div className={wrapperClasses}>
       {renderFilters()}
@@ -505,8 +497,7 @@ const TableContainer = <T,>({
               <div className={`${baseClass}__empty-page`}>
                 <div className={`${baseClass}__previous-button`}>
                   <Pagination
-                    disablePrev={pageIndex === 0}
-                    disableNext={disableNext()}
+                    disableNext
                     onNextPage={() => onPaginationChange(pageIndex + 1)}
                     onPrevPage={() => onPaginationChange(pageIndex - 1)}
                   />
