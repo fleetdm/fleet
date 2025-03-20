@@ -1532,6 +1532,10 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 	profiles, err = ds.ListMDMWindowsProfilesToInstall(ctx)
 	require.NoError(t, err)
 	profilesMatch(t, append(globalProfiles, append(globalProfiles, teamProfiles...)...), profiles)
+	profileByUUID := make(map[string]*fleet.MDMWindowsProfilePayload, len(profiles))
+	for _, prof := range profiles {
+		profileByUUID[prof.ProfileUUID] = prof
+	}
 
 	// cron runs and updates the status
 	err = ds.BulkUpsertMDMWindowsHostProfiles(
@@ -1543,6 +1547,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[globalProfiles[0]].Checksum,
 			},
 			{
 				ProfileUUID:   globalProfiles[0],
@@ -1551,6 +1556,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[globalProfiles[0]].Checksum,
 			},
 			{
 				ProfileUUID:   globalProfiles[1],
@@ -1559,6 +1565,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[globalProfiles[1]].Checksum,
 			},
 			{
 				ProfileUUID:   globalProfiles[1],
@@ -1567,6 +1574,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[globalProfiles[1]].Checksum,
 			},
 			{
 				ProfileUUID:   globalProfiles[2],
@@ -1575,6 +1583,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[globalProfiles[2]].Checksum,
 			},
 			{
 				ProfileUUID:   globalProfiles[2],
@@ -1583,6 +1592,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[globalProfiles[2]].Checksum,
 			},
 			{
 				ProfileUUID:   teamProfiles[0],
@@ -1591,6 +1601,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[teamProfiles[0]].Checksum,
 			},
 			{
 				ProfileUUID:   teamProfiles[1],
@@ -1599,6 +1610,7 @@ func testMDMWindowsProfileManagement(t *testing.T, ds *Datastore) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 				CommandUUID:   "command-uuid",
+				Checksum:      profileByUUID[teamProfiles[1]].Checksum,
 			},
 		},
 	)
