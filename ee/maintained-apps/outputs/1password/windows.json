@@ -9,7 +9,7 @@
       "unique_identifier": "1Password",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "77479FFAEF60167D2D0BA4CD85F3DD7914D248F417216D14CC9790A64ABDEAE4"
+      "sha256": "77479ffaef60167d2d0ba4cd85f3dd7914d248f417216d14cc9790a64abdeae4"
     }
   ],
   "refs": {

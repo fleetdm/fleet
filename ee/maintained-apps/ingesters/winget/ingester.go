@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"strings"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -112,7 +113,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			Name:             input.Name,
 			Slug:             input.Slug,
 			InstallerURL:     installerData.InstallerURL,
-			SHA256:           installerData.InstallerSha256,
+			SHA256:           strings.ToLower(installerData.InstallerSha256),
 			Version:          m.PackageVersion,
 			UniqueIdentifier: input.UniqueIdentifier,
 			Queries: maintained_apps.FMAQueries{

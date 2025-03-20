@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -90,7 +90,9 @@ func (svc *Service) AddFleetMaintainedApp(
 	gotHash := hex.EncodeToString(h.Sum(nil))
 
 	// Validate the bytes we got are what we expected, if a valid SHA is supplied
-	if app.SHA256 != noCheckHash {
+	fmt.Printf("app.SHA256: %v\n", app.SHA256)
+	fmt.Printf("gotHash: %v\n", gotHash)
+	if app.SHA256 != noCheckHash && app.SHA256 != "" {
 		if gotHash != app.SHA256 {
 			return 0, ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
 		}
