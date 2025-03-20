@@ -30,6 +30,13 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
+      "name": "Box Drive",
+      "slug": "box-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Box Drive",
+      "description": ""
+    },
+    {
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",

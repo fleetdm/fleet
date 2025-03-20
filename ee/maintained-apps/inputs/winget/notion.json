@@ -1,5 +1,5 @@
 {
   "name": "Notion",
   "slug": "notion/windows",
-  "vendor": "Notion"
+  "package_identifier": "Notion.Notion"
 }

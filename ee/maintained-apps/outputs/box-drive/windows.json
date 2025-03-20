@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "8.10.64",
+      "version": "2.43.205",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{DA39A6BE-3B6A-4D64-8B1D-EABFE806EF08}';"
+        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{023DC454-39E5-46FD-8F1B-DF6F344AAADB}';"
       },
-      "installer_url": "https://downloads.1password.com/win/1PasswordSetup-8.10.64.msi",
-      "unique_identifier": "1Password",
+      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.43.205.msi",
+      "unique_identifier": "Box Drive",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "77479ffaef60167d2d0ba4cd85f3dd7914d248f417216d14cc9790a64abdeae4"
+      "sha256": "5c2fbb3d3b88843f2a41d97ef6790c8b959a4a3e88216e57638c2d884b883ea3"
     }
   ],
   "refs": {

@@ -1,13 +1,13 @@
 package winget
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"slices"
+	"strings"
 
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -40,18 +40,29 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
 		if err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"fileName": f.Name()})
+			return nil, ctxerr.WrapWithData(ctx, err, "reading app input file", map[string]any{"file_name": f.Name()})
 		}
 
 		var input inputApp
 		if err := json.Unmarshal(fileBytes, &input); err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"fileName": f.Name()})
+			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"file_name": f.Name()})
 		}
 
 		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
 
 		// this is the path within the winget GitHub repo where the manifests are located
-		dirPath := path.Join("manifests", string(bytes.ToLower([]byte{input.Vendor[0]})), input.Vendor, input.Name)
+		packageIdentParts := strings.Split(input.PackageIdentifier, ".")
+		if len(packageIdentParts) != 2 {
+			return nil, ctxerr.NewWithData(ctx, "invalid package identifier for app", map[string]any{"package_identifier": input.PackageIdentifier, "app": input.Name})
+		}
+
+		dirPath := path.Join(
+			"manifests",
+			// string(bytes.ToLower([]byte{input.PackageIdentifier[0]})),
+			strings.ToLower(input.PackageIdentifier[:1]),
+			packageIdentParts[0],
+			packageIdentParts[1],
+		)
 
 		_, contents, _, err := githubClient.Repositories.GetContents(ctx,
 			"microsoft",
@@ -60,7 +71,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			opts,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("get data from winget repo request: %w", err)
+			return nil, fmt.Errorf("get data from winget repo: %w", err)
 		}
 
 		// sort the list of directories in descending order
@@ -74,7 +85,11 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 		}
 
 		// this is the path to the specific manifest file we need
-		filePath := path.Join(dirPath, latestVersionDir.GetName(), fmt.Sprintf("%s.%s.installer.yaml", input.Vendor, input.Name))
+		filePath := path.Join(
+			dirPath,
+			latestVersionDir.GetName(),
+			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
+		)
 
 		fileContents, _, _, err := githubClient.Repositories.GetContents(ctx,
 			"microsoft",
@@ -96,49 +111,66 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
 		}
 
-		var installerData wingetInstaller
-		var installScript, uninstallScript, existsQuery string
-		for _, installer := range m.Installers {
-			// TODO: handle non-machine scope (aka .exe installers)
-			if installer.Scope == machineScope {
-				installerData = installer
-				installScript = file.GetInstallScript(installer.InstallerType)
-				uninstallScript = file.GetUninstallScript(installer.InstallerType)
-				existsQuery = fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", installerData.ProductCode)
+		var out maintained_apps.FMAManifestApp
+
+		// TODO: handle non-machine scope (aka .exe installers)
+		var installScript, uninstallScript, installerURL, productCode, sha256 string
+		if m.InstallerType == installerTypeMSI {
+			installerURL = m.Installers[0].InstallerURL
+			sha256 = m.Installers[0].InstallerSha256
+			productCode = m.ProductCode
+			installScript = file.GetInstallScript(m.InstallerType)
+			uninstallScript = file.GetUninstallScript(m.InstallerType)
+		} else {
+			for _, installer := range m.Installers {
+				if installer.Scope == machineScope {
+					// Use the first machine scoped installer
+					installerURL = installer.InstallerURL
+					sha256 = installer.InstallerSha256
+					installScript = file.GetInstallScript(installer.InstallerType)
+					uninstallScript = file.GetUninstallScript(installer.InstallerType)
+					productCode = installer.ProductCode
+					break
+				}
 			}
 		}
 
-		manifestApps = append(manifestApps, &maintained_apps.FMAManifestApp{
-			Name:             input.Name,
-			Slug:             input.Slug,
-			InstallerURL:     installerData.InstallerURL,
-			SHA256:           installerData.InstallerSha256,
-			Version:          m.PackageVersion,
-			UniqueIdentifier: input.UniqueIdentifier,
-			Queries: maintained_apps.FMAQueries{
-				Exists: existsQuery,
-			},
-			InstallScript:      installScript,
-			UninstallScript:    uninstallScript,
-			InstallScriptRef:   maintained_apps.GetScriptRef(installScript),
-			UninstallScriptRef: maintained_apps.GetScriptRef(uninstallScript),
-		})
+		out.Name = input.Name
+		out.Slug = input.Slug
+		out.InstallerURL = installerURL
+		out.UniqueIdentifier = input.UniqueIdentifier
+		out.SHA256 = strings.ToLower(sha256) // maintain consistency with darwin outputs SHAs
+		out.Version = m.PackageVersion
+		out.Queries = maintained_apps.FMAQueries{
+			Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", productCode),
+		}
+		out.InstallScript = installScript
+		out.UninstallScript = uninstallScript
+		out.InstallScriptRef = maintained_apps.GetScriptRef(installScript)
+		out.UninstallScriptRef = maintained_apps.GetScriptRef(uninstallScript)
+
+		manifestApps = append(manifestApps, &out)
 	}
 
 	return manifestApps, nil
 }
 
 type inputApp struct {
-	Name             string `json:"name"`
-	Slug             string `json:"slug"`
-	Vendor           string `json:"vendor"`
-	UniqueIdentifier string `json:"unique_identifier"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
+	// AgileBits) and an app part (e.g. 1Password), joined by a "."
+	PackageIdentifier string `json:"package_identifier"`
+	UniqueIdentifier  string `json:"unique_identifier"`
 }
 
 type wingetManifest struct {
-	PackageIdentifier string            `yaml:"PackageIdentifier"`
-	PackageVersion    string            `yaml:"PackageVersion"`
-	Installers        []wingetInstaller `yaml:"Installers"`
+	PackageIdentifier      string                   `yaml:"PackageIdentifier"`
+	PackageVersion         string                   `yaml:"PackageVersion"`
+	Installers             []wingetInstaller        `yaml:"Installers"`
+	InstallerType          string                   `yaml:"InstallerType"`
+	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
+	ProductCode            string                   `yaml:"ProductCode"`
 }
 
 type wingetInstaller struct {
@@ -164,4 +196,7 @@ type appsAndFeaturesEntries struct {
 	UpgradeCode string `yaml:"UpgradeCode"`
 }
 
-const machineScope = "machine"
+const (
+	machineScope     = "machine"
+	installerTypeMSI = "msi"
+)

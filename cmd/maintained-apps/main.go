@@ -25,7 +25,6 @@ func main() {
 	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 	appPtr := flag.String("app", "", "app name")
 	flag.Parse()
-	fmt.Printf("appPtr: %v\n", *appPtr)
 
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
 
