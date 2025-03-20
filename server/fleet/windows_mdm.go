@@ -152,20 +152,22 @@ func validateFleetProvidedLocURI(locURI string) error {
 }
 
 type MDMWindowsProfilePayload struct {
-	ProfileUUID   string             `db:"profile_uuid"`
-	ProfileName   string             `db:"profile_name"`
-	HostUUID      string             `db:"host_uuid"`
-	Status        *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType MDMOperationType   `db:"operation_type"`
-	Detail        string             `db:"detail"`
-	CommandUUID   string             `db:"command_uuid"`
-	Retries       int                `db:"retries"`
-	Checksum      []byte             `db:"checksum"`
+	ProfileUUID      string             `db:"profile_uuid"`
+	ProfileName      string             `db:"profile_name"`
+	HostUUID         string             `db:"host_uuid"`
+	Status           *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType    MDMOperationType   `db:"operation_type"`
+	Detail           string             `db:"detail"`
+	CommandUUID      string             `db:"command_uuid"`
+	Retries          int                `db:"retries"`
+	Checksum         []byte             `db:"checksum"`
+	SecretsUpdatedAt *time.Time         `db:"secrets_updated_at"`
 }
 
 func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
-	return statusEqual &&
+	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	return statusEqual && secretsEqual &&
 		p.ProfileUUID == other.ProfileUUID &&
 		p.HostUUID == other.HostUUID &&
 		p.ProfileName == other.ProfileName &&

@@ -1129,6 +1129,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 		mwcp.profile_uuid,
 		mwcp.name,
 		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		0 as count_profile_labels,
 		0 as count_non_broken_labels,
@@ -1158,6 +1159,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 		mwcp.profile_uuid,
 		mwcp.name,
 		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
@@ -1192,6 +1194,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 		mwcp.profile_uuid,
 		mwcp.name,
 		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
@@ -1229,6 +1232,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 		mwcp.profile_uuid,
 		mwcp.name,
 		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
@@ -1294,7 +1298,8 @@ const windowsProfilesToInstallQuery = `
 		ds.profile_uuid,
 		ds.host_uuid,
 		ds.name as profile_name,
-		ds.checksum
+		ds.checksum,
+		ds.secrets_updated_at
 	FROM ( ` + windowsMDMProfilesDesiredStateQuery + ` ) as ds
 		LEFT JOIN host_mdm_windows_profiles hmwp
 			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid

@@ -2340,7 +2340,6 @@ func expectWindowsProfiles(
 	return m
 }
 
-// TODO: victor to review/update test
 func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -2453,6 +2452,15 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "N4", "l4"),
 		windowsConfigProfileForTest(t, "N5", "l5"),
 	}, false)
+
+	// Change the content of one profile -- update expected
+	applyAndExpect([]*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N4", "l4b"),
+		windowsConfigProfileForTest(t, "N5", "l5"),
+	}, nil, []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "N4", "l4b"),
+		windowsConfigProfileForTest(t, "N5", "l5"),
+	}, true)
 
 	// clear profiles for tm1
 	applyAndExpect(nil, ptr.Uint(1), nil, true)
