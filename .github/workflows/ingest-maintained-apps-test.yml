@@ -68,7 +68,18 @@ jobs:
           echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
           echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
 
+      - name: Test PR parsing
+        if: steps.search_pr.outputs.result != '[]'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+            for (const prNumber of prNumbers) {
+              console.log(prNumber);
+            }
+
       # - name: Create Pull Request
+      #   id: create-pr
       #   uses: peter-evans/create-pull-request@v7
       #   with:
       #     base: main
@@ -81,7 +92,7 @@ jobs:
 
       #       Generated automatically with cmd/maintained-apps.
       #     body: Automated ingestion of latest Fleet-maintained app data.
-      #     assignees: steps.get_assignee_ids.outputs.github_ids
+      #     assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
 
       # - name: Close Existing PRs
       #   if: steps.search_pr.outputs.result != '[]'
@@ -89,7 +100,14 @@ jobs:
       #   with:
       #     script: |
       #       const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+      #       const newPrNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
       #       for (const prNumber of prNumbers) {
+      #         await github.rest.issues.createComment({
+      #           owner: context.repo.owner,
+      #           repo: context.repo.repo,
+      #           issue_number: prNumber,
+      #           body: `Closing in favor of #${newPrNumber}.`,
+      #         });
       #         await github.rest.pulls.update({
       #           owner: context.repo.owner,
       #           repo: context.repo.repo,
