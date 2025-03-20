@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"database/sql"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/jmoiron/sqlx"
@@ -1541,7 +1543,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			[]fleet.MDMProfileBatchPayload{
 				{
-					Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+					Name: "foo", Contents: []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1555,7 +1557,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 						<key>PayloadIdentifier</key>
 						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
 						<key>PayloadType</key>
-						<string>com.apple.MCX.FileVault2</string>
+						<string>%s</string>
 						<key>PayloadUUID</key>
 						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
 						<key>PayloadVersion</key>
@@ -1573,10 +1575,10 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<key>PayloadVersion</key>
 				<integer>1</integer>
 			</dict>
-			</plist>`),
+			</plist>`, mobileconfig.FleetFileVaultPayloadType)),
 				},
 			},
-			"unsupported PayloadType(s)",
+			"The configuration profile can’t include FileVault settings.",
 		},
 		{
 			"unsupported Apple config profile Fleet variable",
