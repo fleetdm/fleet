@@ -267,7 +267,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label_type,
 		label_membership_type,
 		author_id
-	) VALUES ( ?, ?, ?, ?, ?, ?, NULLIF(?, 0))
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
