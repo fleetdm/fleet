@@ -115,23 +115,40 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		// TODO: handle non-machine scope (aka .exe installers)
 		var installScript, uninstallScript, installerURL, productCode, sha256 string
-		if m.InstallerType == installerTypeMSI {
-			installerURL = m.Installers[0].InstallerURL
-			sha256 = m.Installers[0].InstallerSha256
+
+		// Some data is present on the top-level object, so try to grab that first
+		if m.InstallerType == installerTypeMSI || m.Scope == machineScope {
 			productCode = m.ProductCode
 			installScript = file.GetInstallScript(m.InstallerType)
 			uninstallScript = file.GetUninstallScript(m.InstallerType)
-		} else {
-			for _, installer := range m.Installers {
-				if installer.Scope == machineScope {
-					// Use the first machine scoped installer
-					installerURL = installer.InstallerURL
-					sha256 = installer.InstallerSha256
-					installScript = file.GetInstallScript(installer.InstallerType)
-					uninstallScript = file.GetUninstallScript(installer.InstallerType)
-					productCode = installer.ProductCode
-					break
+		}
+
+		// Walk through the installers and get any data we missed
+		for _, installer := range m.Installers {
+			if (installer.Scope == machineScope || m.Scope == machineScope) || installer.Architecture == arch64Bit {
+				// Use the first machine scoped installer
+				installerURL = installer.InstallerURL
+				sha256 = installer.InstallerSha256
+				installerType := installer.InstallerType
+				if installerType == "" {
+					// try to get it from the URL
+					urlParts := strings.Split(installerURL, ".")
+					if len(urlParts) > 1 {
+						if urlParts[len(urlParts)-1] == installerTypeMSI {
+							installerType = installerTypeMSI
+						}
+					}
 				}
+				if installScript == "" {
+					installScript = file.GetInstallScript(installerType)
+				}
+				if uninstallScript == "" {
+					uninstallScript = file.GetUninstallScript(installerType)
+				}
+				if productCode == "" {
+					productCode = installer.ProductCode
+				}
+				break
 			}
 		}
 
@@ -141,6 +158,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 		out.UniqueIdentifier = input.UniqueIdentifier
 		out.SHA256 = strings.ToLower(sha256) // maintain consistency with darwin outputs SHAs
 		out.Version = m.PackageVersion
+		fmt.Printf("productCode: %v\n", productCode)
 		out.Queries = maintained_apps.FMAQueries{
 			Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", productCode),
 		}
@@ -171,6 +189,7 @@ type wingetManifest struct {
 	InstallerType          string                   `yaml:"InstallerType"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
+	Scope                  string                   `yaml:"Scope"`
 }
 
 type wingetInstaller struct {
@@ -199,4 +218,5 @@ type appsAndFeaturesEntries struct {
 const (
 	machineScope     = "machine"
 	installerTypeMSI = "msi"
+	arch64Bit        = "x64"
 )

@@ -79,6 +79,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Google Chrome",
+      "slug": "google-chrome/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
+      "description": ""
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
