@@ -1,8 +1,11 @@
 import {
   ICertificateAuthorityType,
   ICertificateIntegration,
+  ICertificatesIntegrationCustomSCEP,
   ICertificatesIntegrationDigicert,
+  ICertificatesIntegrationNDES,
   isCustomSCEPCertIntegration,
+  isDigicertCertIntegration,
   isNDESCertIntegration,
 } from "interfaces/integration";
 
@@ -16,25 +19,40 @@ export const generateErrorMessage = (e: unknown) => {
   return DEFAULT_ERROR_MESSAGE;
 };
 
-export const generateDefaultFormData = (
-  certAuthority: ICertificateIntegration
-): ICertFormData => {
-  const cert = certAuthority as ICertificatesIntegrationDigicert;
-  return {
-    name: cert.name,
-    url: cert.url,
-    apiToken: cert.api_token,
-    profileId: cert.profile_id,
-    commonName: cert.certificate_common_name,
-    userPrincipalName: cert.certificate_user_principal_names[0],
-    certificateSeatId: cert.certificate_seat_id,
-  };
-};
-
 export const getCertificateAuthorityType = (
   certAuthority: ICertificateIntegration
 ): ICertificateAuthorityType => {
   if (isNDESCertIntegration(certAuthority)) return "ndes";
   if (isCustomSCEPCertIntegration(certAuthority)) return "custom";
   return "digicert";
+};
+
+export const generateDefaultFormData = (
+  certAuthority: ICertificateIntegration
+): ICertFormData => {
+  if (isNDESCertIntegration(certAuthority)) {
+    return {
+      scepURL: certAuthority.url,
+      adminURL: certAuthority.admin_url,
+      username: certAuthority.username,
+      password: certAuthority.password,
+    };
+  } else if (isDigicertCertIntegration(certAuthority)) {
+    return {
+      name: certAuthority.name,
+      url: certAuthority.url,
+      apiToken: certAuthority.api_token,
+      profileId: certAuthority.profile_id,
+      commonName: certAuthority.certificate_common_name,
+      userPrincipalName: certAuthority.certificate_user_principal_names[0],
+      certificateSeatId: certAuthority.certificate_seat_id,
+    };
+  }
+
+  const customSCEPcert = certAuthority as ICertificatesIntegrationCustomSCEP;
+  return {
+    name: customSCEPcert.name,
+    scepURL: customSCEPcert.url,
+    challenge: customSCEPcert.challenge,
+  };
 };
