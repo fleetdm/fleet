@@ -28,9 +28,8 @@ import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
+import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -79,8 +78,6 @@ interface IDataTableProps {
 interface IHeaderGroup extends HeaderGroup {
   title?: string;
 }
-
-const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
 // This data table uses react-table for implementation. The relevant v7 documentation of the library
 // can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
@@ -322,7 +319,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize);
   }, [setPageSize]);
 
   useDeepEffect(() => {
@@ -458,17 +455,6 @@ const DataTable = ({
     !isAllPagesSelected;
 
   const pageOrRows = isClientSidePagination ? page : rows;
-
-  const previousButton = (
-    <>
-      <FleetIcon name="chevronleft" /> Previous
-    </>
-  );
-  const nextButton = (
-    <>
-      Next <FleetIcon name="chevronright" />
-    </>
-  );
 
   const tableStyles = classnames({
     "data-table__table": true,
@@ -626,32 +612,23 @@ const DataTable = ({
           </div>
         )}
         {isClientSidePagination ? (
-          <div className={`${baseClass}__pagination`}>
-            <Button
-              variant="unstyled"
-              onClick={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-                onClientSidePaginationChange &&
-                  onClientSidePaginationChange(pageIndex - 1);
-                previousPage();
-              }}
-              disabled={!canPreviousPage}
-            >
-              {previousButton}
-            </Button>
-            <Button
-              variant="unstyled"
-              onClick={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-                onClientSidePaginationChange &&
-                  onClientSidePaginationChange(pageIndex + 1);
-                nextPage();
-              }}
-              disabled={!canNextPage}
-            >
-              {nextButton}
-            </Button>
-          </div>
+          <Pagination
+            disablePrev={!canPreviousPage}
+            disableNext={!canNextPage}
+            onPrevPage={() => {
+              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+              onClientSidePaginationChange &&
+                onClientSidePaginationChange(pageIndex - 1);
+              previousPage();
+            }}
+            onNextPage={() => {
+              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+              onClientSidePaginationChange &&
+                onClientSidePaginationChange(pageIndex + 1);
+              nextPage();
+            }}
+            hidePagination={!canPreviousPage && !canNextPage}
+          />
         ) : (
           renderPagination && renderPagination()
         )}

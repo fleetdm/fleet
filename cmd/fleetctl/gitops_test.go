@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -223,12 +224,15 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	scepConfig := &scep_mock.SCEPConfigService{}
 	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
 	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	digiCertService := &digicert_mock.Service{}
+	digiCertService.VerifyProfileIDFunc = func(_ context.Context, _ fleet.DigiCertIntegration) error { return nil }
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:           license,
 			KeyValueStore:     newMemKeyValueStore(),
 			EnableSCEPProxy:   true,
 			SCEPConfigService: scepConfig,
+			DigiCertService:   digiCertService,
 		},
 	)
 
@@ -308,6 +312,21 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
+	ds.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
+		switch assetType {
+		case fleet.CAConfigCustomSCEPProxy:
+			return map[string]fleet.CAConfigAsset{
+				"CustomScepProxy2": {
+					Name:  "CustomScepProxy2",
+					Value: []byte("challenge2"),
+					Type:  fleet.CAConfigCustomSCEPProxy,
+				},
+			}, nil
+		default:
+			return nil, &notFoundError{}
+		}
+	}
+
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
@@ -337,6 +356,27 @@ org_settings:
       admin_url: https://ndes.example.com/admin
       username: ndes_user
       password: ndes_password
+    digicert:
+      - name: DigiCert
+        url: https://one.digicert.com
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn"]
+        certificate_seat_id: digicert_seat_id
+      - name: DigiCert2
+        url: https://two.digicert.com
+        api_token: digicert_api_token2
+        profile_id: digicert_profile_id2
+        certificate_common_name: digicert_cn2
+        certificate_seat_id: digicert_seat_id2
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: https://custom.scep.proxy.com
+        challenge: challenge
+      - name: CustomScepProxy2
+        url: https://custom.scep.proxy.com2
+        challenge: challenge2
   server_settings:
     server_url: $FLEET_SERVER_URL
   org_info:
@@ -365,6 +405,35 @@ software:
 	// GitOps should not overwrite GitOps UI Mode.
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
+
+	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)
+	require.True(t, savedAppConfig.Integrations.DigiCert.Valid)
+	digicerts := savedAppConfig.Integrations.DigiCert.Value
+	require.Len(t, digicerts, 2)
+	assert.Equal(t, "DigiCert", digicerts[0].Name)
+	assert.Equal(t, "https://one.digicert.com", digicerts[0].URL)
+	assert.Equal(t, "digicert_api_token", digicerts[0].APIToken)
+	assert.Equal(t, "digicert_profile_id", digicerts[0].ProfileID)
+	assert.Equal(t, "digicert_cn", digicerts[0].CertificateCommonName)
+	assert.Equal(t, []string{"digicert_upn"}, digicerts[0].CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id", digicerts[0].CertificateSeatID)
+	assert.Equal(t, "DigiCert2", digicerts[1].Name)
+	assert.Equal(t, "https://two.digicert.com", digicerts[1].URL)
+	assert.Equal(t, "digicert_api_token2", digicerts[1].APIToken)
+	assert.Equal(t, "digicert_profile_id2", digicerts[1].ProfileID)
+	assert.Equal(t, "digicert_cn2", digicerts[1].CertificateCommonName)
+	assert.Empty(t, digicerts[1].CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id2", digicerts[1].CertificateSeatID)
+
+	require.True(t, savedAppConfig.Integrations.CustomSCEPProxy.Valid)
+	sceps := savedAppConfig.Integrations.CustomSCEPProxy.Value
+	require.Len(t, sceps, 2)
+	assert.Equal(t, "CustomScepProxy", sceps[0].Name)
+	assert.Equal(t, "https://custom.scep.proxy.com", sceps[0].URL)
+	assert.Equal(t, "challenge", sceps[0].Challenge)
+	assert.Equal(t, "CustomScepProxy2", sceps[1].Name)
+	assert.Equal(t, "https://custom.scep.proxy.com2", sceps[1].URL)
+	assert.Equal(t, "challenge2", sceps[1].Challenge)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {

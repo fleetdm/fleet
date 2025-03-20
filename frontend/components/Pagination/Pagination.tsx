@@ -4,33 +4,38 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-const baseClass = "pagination-new";
+const baseClass = "pagination";
 
-interface IPaginationProps {
+export interface IPaginationProps {
+  /**  Disable next page is usually passed through from api metadata, or on loading */
   disableNext?: boolean;
+  /**  Disable prev page is usually passed through from api meta data, on page 0, or on loading */
   disablePrev?: boolean;
-  onNextPage?: () => void;
-  onPrevPage?: () => void;
+  onNextPage: () => void;
+  onPrevPage: () => void;
   className?: string;
+  /** UI Pattern: Hide pagination iff there's one page of results */
+  hidePagination?: boolean;
 }
 
-/**
- * This is the new pagination component that we will want to replace other pagination
- * components with. Going forward this should be the component used for pagination.
- */
 const Pagination = ({
   disableNext,
   disablePrev,
   onNextPage,
   onPrevPage,
   className,
+  hidePagination = false,
 }: IPaginationProps) => {
   const classNames = classnames(baseClass, className);
+
+  if (hidePagination) {
+    return null;
+  }
 
   return (
     <div className={classNames}>
       <Button
-        variant="unstyled"
+        variant="inverse"
         disabled={disablePrev}
         onClick={onPrevPage}
         className={`${baseClass}__pagination-button`}
@@ -38,7 +43,7 @@ const Pagination = ({
         <Icon name="chevron-left" color="core-fleet-blue" /> Previous
       </Button>
       <Button
-        variant="unstyled"
+        variant="inverse"
         disabled={disableNext}
         onClick={onNextPage}
         className={`${baseClass}__pagination-button`}
