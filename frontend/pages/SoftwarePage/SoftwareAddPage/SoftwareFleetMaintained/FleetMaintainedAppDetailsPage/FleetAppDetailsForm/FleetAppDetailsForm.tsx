@@ -71,6 +71,7 @@ interface IFleetAppDetailsFormProps {
   defaultInstallScript: string;
   defaultPostInstallScript: string;
   defaultUninstallScript: string;
+  teamId?: string;
   showSchemaButton: boolean;
   onClickShowSchema: () => void;
   onCancel: () => void;
@@ -84,6 +85,7 @@ const FleetAppDetailsForm = ({
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,
+  teamId,
   showSchemaButton,
   onClickShowSchema,
   onCancel,
@@ -92,7 +94,6 @@ const FleetAppDetailsForm = ({
 }: IFleetAppDetailsFormProps) => {
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
-  const { currentTeam } = useContext(AppContext);
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -248,11 +249,12 @@ const FleetAppDetailsForm = ({
             <TooltipWrapper
               tipContent={softwareAlreadyAddedTipContent(
                 softwareTitleId,
-                currentTeam?.id
+                teamId
               )}
               disableTooltip={!isSoftwareAlreadyAdded}
               position="left"
               showArrow
+              underline={false}
               tipOffset={10}
             >
               <Button

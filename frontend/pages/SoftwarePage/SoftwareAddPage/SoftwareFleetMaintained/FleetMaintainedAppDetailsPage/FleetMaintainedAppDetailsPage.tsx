@@ -142,7 +142,7 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
-    () => softwareAPI.getFleetMaintainedApp(appId),
+    () => softwareAPI.getFleetMaintainedApp(appId, teamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -270,6 +270,7 @@ const FleetMaintainedAppDetailsPage = ({
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}
               defaultUninstallScript={fleetApp.uninstall_script}
+              teamId={teamId}
               onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
