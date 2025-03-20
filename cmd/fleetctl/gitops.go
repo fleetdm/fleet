@@ -399,7 +399,10 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 		updateLabelUsage(labels, setting.AppStoreID, "App Store App", result)
 	}
 
-	// TODO -- Get query label usage
+	// Get query label usage
+	for _, query := range config.Queries {
+		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
+	}
 
 	return result
 }
