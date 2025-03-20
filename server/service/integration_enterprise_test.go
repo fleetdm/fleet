@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -16201,23 +16202,58 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	insertedApps := maintained_apps.IngestMaintainedApps(t, s.ds)
 	var expectedApps []fleet.MaintainedApp
 	for _, app := range insertedApps {
-		app.Version = "" // we don't expect version to be returned in list view anymore
 		expectedApps = append(expectedApps, app)
 	}
 
-	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		h := sha256.New()
-		_, err := h.Write(installerBytes)
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA := hex.EncodeToString(h.Sum(nil))
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       installerServer.URL + "/installer.zip",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             spoofedSHA,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		switch slug {
+		case "fail":
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+
+		case "notfound":
+			w.WriteHeader(http.StatusNotFound)
+			return
+
+		case "badinstaller":
+			manifest.Versions[0].InstallerURL = installerServer.URL + "/badinstaller"
+
+		case "timeout":
+			manifest.Versions[0].InstallerURL = installerServer.URL + "/timeout"
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
 		require.NoError(t, err)
-		spoofedSHA := hex.EncodeToString(h.Sum(nil))
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, installerServer.URL+"/installer.zip")
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", installerServer.URL+"/badinstaller")
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", installerServer.URL+"/timeout")
-		return err
-	})
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -16232,19 +16268,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
-	var listAppsNoID []fleet.MaintainedApp
-	for _, app := range listMAResp.FleetMaintainedApps {
-		app.ID = 0
-		listAppsNoID = append(listAppsNoID, app)
-	}
 
-	slices.SortFunc(listAppsNoID, func(a, b fleet.MaintainedApp) int {
+	slices.SortFunc(listMAResp.FleetMaintainedApps, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
-	require.Equal(t, expectedApps, listAppsNoID)
+	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse
 	s.DoJSON(
@@ -16268,10 +16299,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
 	// TODO this will change when actual install scripts are created.
 	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
+	maintained_apps.Hydrate(ctx, dbAppRecord)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
 		Name:            dbAppRecord.Name,
+		Slug:            dbAppRecord.Slug,
 		Version:         dbAppRecord.Version,
 		Platform:        dbAppRecord.Platform,
 		InstallerURL:    dbAppRecord.InstallerURL,
@@ -16338,7 +16371,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:            &team.ID,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
-		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
@@ -16353,6 +16385,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
 	require.NoError(t, err)
+	maintained_apps.Hydrate(ctx, mapp)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
 	require.Equal(t, mapp.TitleID, i.TitleID)
@@ -16363,7 +16396,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err := s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
 	require.NoError(t, err)
-	require.Equal(t, req.InstallScript, string(install))
+	require.Equal(t, mapp.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
 	postinstall, err := s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
@@ -16397,6 +16430,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		0,
 	)
 
+	// Edit DB to point some apps at bad-installer/timeout slugs
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 2", "badinstaller")
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 3", "timeout")
+		return err
+	})
+
 	// Should return an error; SHAs don't match up
 	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
@@ -16413,7 +16454,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		AppID:             4,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
-		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
 
@@ -16434,6 +16474,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	)
 
 	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
+	maintained_apps.Hydrate(ctx, mapp)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
@@ -16452,7 +16493,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
 	require.NoError(t, err)
-	require.Equal(t, req.InstallScript, string(install))
+	require.Equal(t, mapp.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
 	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)

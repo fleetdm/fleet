@@ -40,7 +40,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	listSavedApps := func() []fleet.MaintainedApp {
 		var apps []fleet.MaintainedApp
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &apps, "SELECT name, version, platform FROM fleet_library_apps ORDER BY token")
+			return sqlx.SelectContext(ctx, q, &apps, "SELECT name, platform FROM fleet_maintained_apps ORDER BY slug")
 		})
 		return apps
 	}
@@ -81,7 +81,7 @@ func testIngestWithBrew(t *testing.T, ds *Datastore) {
 	err := maintained_apps.Refresh(ctx, ds, log.NewNopLogger())
 	require.NoError(t, err)
 
-	expectedTokens := maintained_apps.ExpectedAppTokens(t)
+	expectedTokens := maintained_apps.ExpectedAppSlugs(t)
 	var actualTokens []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")

@@ -4,16 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -67,7 +63,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
-	app, err = svc.hydrateFMA(ctx, app)
+	app, err = maintained_apps.Hydrate(ctx, app)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
@@ -202,8 +198,6 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 	return avail, meta, nil
 }
 
-const fmaOutputsBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/maintained-apps/outputs"
-
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 	var authErr error
 	// viewing the maintained app without showing team-specific info can be done by anyone who can view individual FMAs
@@ -222,58 +216,5 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 		return nil, err
 	}
 
-	return svc.hydrateFMA(ctx, app)
-}
-
-// TODO move to maintained apps service
-func (svc *Service) hydrateFMA(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	baseURL := fmaOutputsBase
-	if baseFromEnvVar := os.Getenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
-		baseURL = baseFromEnvVar
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s.json", baseURL, app.Slug), nil)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := httpClient.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "app not found in Fleet manifests")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "manifest retrieval returned HTTP status %d: %s", res.StatusCode, string(body))
-	}
-
-	var manifest ma.FMAManifestFile
-	if err := json.Unmarshal(body, &manifest); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal FMA manifest for %s", app.Slug)
-	}
-	manifest.Versions[0].Slug = app.Slug
-
-	app.Version = manifest.Versions[0].Version
-	app.Platform = manifest.Versions[0].Platform()
-	app.InstallerURL = manifest.Versions[0].InstallerURL
-	app.SHA256 = manifest.Versions[0].SHA256
-	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
-	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
-	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
-
-	return app, nil
+	return maintained_apps.Hydrate(ctx, app)
 }

@@ -146,7 +146,6 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 				InstallScriptRef:   "foobaz",
 				UninstallScriptRef: "foobaz",
 				SHA256:             "deadbeef",
-				Slug:               "1password/darwin",
 			})
 
 			manifest = ma.FMAManifestFile{
@@ -223,6 +222,7 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 
 	var forbiddenError *authz.Forbidden
 	require.NoError(t, os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL))
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})
@@ -252,5 +252,4 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 			}
 		})
 	}
-	require.NoError(t, os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"))
 }
