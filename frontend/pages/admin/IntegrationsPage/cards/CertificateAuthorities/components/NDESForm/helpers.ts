@@ -41,8 +41,7 @@ const FORM_VALIDATIONS: Record<
         isValid: (formData: INDESFormData) => {
           return valid_url({ url: formData.scepURL });
         },
-        message: (formData: INDESFormData) =>
-          `${formData.scepURL} is not a valid URL`,
+        message: "Must be a valid URL.",
       },
     ],
   },
@@ -59,8 +58,7 @@ const FORM_VALIDATIONS: Record<
         isValid: (formData: INDESFormData) => {
           return valid_url({ url: formData.adminURL });
         },
-        message: (formData: INDESFormData) =>
-          `${formData.adminURL} is not a valid URL`,
+        message: "Must be a valid URL",
       },
     ],
   },

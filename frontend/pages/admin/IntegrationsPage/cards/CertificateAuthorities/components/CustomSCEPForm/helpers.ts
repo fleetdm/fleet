@@ -29,7 +29,8 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  customSCEPIntegrations: ICertificatesIntegrationCustomSCEP[]
+  customSCEPIntegrations: ICertificatesIntegrationCustomSCEP[],
+  isEditing: boolean
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -52,6 +53,7 @@ export const generateFormValidations = (
           name: "unique",
           isValid: (formData: ICustomSCEPFormData) => {
             return (
+              isEditing ||
               customSCEPIntegrations.find(
                 (cert) => cert.name === formData.name
               ) === undefined
@@ -74,8 +76,7 @@ export const generateFormValidations = (
           isValid: (formData: ICustomSCEPFormData) => {
             return valid_url({ url: formData.scepURL });
           },
-          message: (formData: ICustomSCEPFormData) =>
-            `${formData.scepURL} is not a valid URL`,
+          message: "Must be a valid URL.",
         },
       ],
     },

@@ -29,6 +29,7 @@ interface IDigicertFormProps {
   formData: IDigicertFormData;
   submitBtnText: string;
   isSubmitting: boolean;
+  isEditing?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -38,14 +39,16 @@ const DigicertForm = ({
   formData,
   submitBtnText,
   isSubmitting,
+  isEditing = false,
   onChange,
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
   const { config } = useContext(AppContext);
   const validations = useMemo(
-    () => generateFormValidations(config?.integrations.digicert ?? []),
-    [config?.integrations.digicert]
+    () =>
+      generateFormValidations(config?.integrations.digicert ?? [], isEditing),
+    [config?.integrations.digicert, isEditing]
   );
 
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(

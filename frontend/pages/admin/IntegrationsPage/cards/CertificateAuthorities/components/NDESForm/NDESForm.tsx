@@ -20,6 +20,7 @@ interface INDESFormProps {
   formData: INDESFormData;
   submitBtnText: string;
   isSubmitting: boolean;
+  isEditing?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -29,6 +30,7 @@ const NDESForm = ({
   formData,
   submitBtnText,
   isSubmitting,
+  isEditing = false,
   onChange,
   onSubmit,
   onCancel,

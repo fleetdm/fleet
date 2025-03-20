@@ -25,6 +25,7 @@ interface ICustomSCEPFormProps {
   formData: ICustomSCEPFormData;
   submitBtnText: string;
   isSubmitting: boolean;
+  isEditing?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -34,13 +35,18 @@ const CustomSCEPForm = ({
   formData,
   submitBtnText,
   isSubmitting,
+  isEditing = false,
   onChange,
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
   const { config } = useContext(AppContext);
   const validations = useMemo(
-    () => generateFormValidations(config?.integrations.custom_scep_proxy ?? []),
+    () =>
+      generateFormValidations(
+        config?.integrations.custom_scep_proxy ?? [],
+        isEditing
+      ),
     [config?.integrations.custom_scep_proxy]
   );
   const [

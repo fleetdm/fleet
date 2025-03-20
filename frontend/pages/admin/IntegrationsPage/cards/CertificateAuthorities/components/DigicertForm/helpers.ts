@@ -32,7 +32,8 @@ type IFormValidations = Record<
 >;
 
 export const generateFormValidations = (
-  digicertIntegrations: ICertificatesIntegrationDigicert[]
+  digicertIntegrations: ICertificatesIntegrationDigicert[],
+  isEditing: boolean
 ) => {
   const FORM_VALIDATIONS: IFormValidations = {
     name: {
@@ -55,6 +56,7 @@ export const generateFormValidations = (
           name: "unique",
           isValid: (formData: IDigicertFormData) => {
             return (
+              isEditing ||
               digicertIntegrations.find(
                 (cert) => cert.name === formData.name
               ) === undefined
@@ -77,8 +79,7 @@ export const generateFormValidations = (
           isValid: (formData: IDigicertFormData) => {
             return valid_url({ url: formData.url });
           },
-          message: (formData: IDigicertFormData) =>
-            `${formData.url} is not a valid URL`,
+          message: "Must be a valid URL.",
         },
       ],
     },
