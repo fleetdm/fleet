@@ -427,7 +427,7 @@ Opinionated conventions help people work faster and spend less time figuring out
 
 Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
-> _**Note:** There are only a few "special" labels that are exceptions to this rule:
+> _**Note:** There are only a few "special" labels that are exceptions to this rule_:
 > - `bug` A defect in the product.
 > - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 > - `story` A user story.
