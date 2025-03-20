@@ -62,6 +62,7 @@ func ExpectedAppSlugs(t *testing.T) []string {
 	base := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename))))
 	outputsDir := filepath.Join(base, "ee/maintained-appsList/outputs")
 	b, err := os.ReadFile(filepath.Join(outputsDir, "appsList.json"))
+	require.NoError(t, err)
 
 	var appsList AppsList
 	err = json.Unmarshal(b, &appsList)

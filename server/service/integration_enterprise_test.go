@@ -16200,10 +16200,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Insert the list of maintained apps
 	insertedApps := maintained_apps.IngestMaintainedApps(t, s.ds)
-	var expectedApps []fleet.MaintainedApp
-	for _, app := range insertedApps {
-		expectedApps = append(expectedApps, app)
-	}
+	expectedApps := insertedApps
 
 	h := sha256.New()
 	_, err := h.Write(installerBytes)
@@ -16299,7 +16296,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
 	// TODO this will change when actual install scripts are created.
 	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
-	maintained_apps.Hydrate(ctx, dbAppRecord)
+	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, dbAppRecord)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
@@ -16385,7 +16383,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
 	require.NoError(t, err)
-	maintained_apps.Hydrate(ctx, mapp)
+	_, err = maintained_apps.Hydrate(ctx, mapp)
+	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
 	require.Equal(t, mapp.TitleID, i.TitleID)
@@ -16474,7 +16473,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	)
 
 	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
-	maintained_apps.Hydrate(ctx, mapp)
+	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, mapp)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
