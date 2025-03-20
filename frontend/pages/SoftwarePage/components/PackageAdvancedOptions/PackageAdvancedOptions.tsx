@@ -34,13 +34,14 @@ const getInstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "exe") {
     return (
       <>
-        For Windows, Fleet only creates install scripts for .msi packages. Use the $INSTALLER_PATH variable to point to the installer. {" "}
-        {getSupportedScriptTypeText(pkgType)}.{" "}
+        For Windows, Fleet only creates install scripts for .msi packages. Use
+        the $INSTALLER_PATH variable to point to the installer.{" "}
+        {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
           text="Learn more"
           newTab
-        />{" "}
+        />
       </>
     );
   }
@@ -64,7 +65,7 @@ const getPostInstallHelpText = (pkgType: PackageType) => {
 
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
-    return "Currently, shell scripts are supported";
+    return "Currently, shell scripts are supported.";
   }
 
   if (pkgType === "exe") {
