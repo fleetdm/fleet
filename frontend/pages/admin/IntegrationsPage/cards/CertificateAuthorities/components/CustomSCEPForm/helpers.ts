@@ -1,3 +1,5 @@
+import { ICertificatesIntegrationCustomSCEP } from "interfaces/integration";
+
 import valid_url from "components/forms/validators/valid_url";
 
 import { ICustomSCEPFormData } from "./CustomSCEPForm";
@@ -21,56 +23,76 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-const FORM_VALIDATIONS: Record<
+type IFormValidations = Record<
   IFormValidationKey,
   { validations: IValidation[] }
-> = {
-  name: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return formData.name.length > 0;
+>;
+
+export const generateFormValidations = (
+  customSCEPIntegrations: ICertificatesIntegrationCustomSCEP[],
+  isEditing: boolean
+) => {
+  const FORM_VALIDATIONS: IFormValidations = {
+    name: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return formData.name.length > 0;
+          },
         },
-      },
-      {
-        name: "invalidCharacters",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return /^[a-zA-Z0-9_]+$/.test(formData.name);
+        {
+          name: "invalidCharacters",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return /^[a-zA-Z0-9_]+$/.test(formData.name);
+          },
+          message:
+            "Invalid characters. Only letters, numbers and underscores allowed.",
         },
-        message:
-          "Inalid characters. Only letters, numbers and underscores allowed.",
-      },
-    ],
-  },
-  scepURL: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return formData.scepURL.length > 0;
+        {
+          name: "unique",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return (
+              isEditing ||
+              customSCEPIntegrations.find(
+                (cert) => cert.name === formData.name
+              ) === undefined
+            );
+          },
+          message: "Name is already used by another custom SCEP CA.",
         },
-      },
-      {
-        name: "validUrl",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return valid_url({ url: formData.scepURL });
+      ],
+    },
+    scepURL: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return formData.scepURL.length > 0;
+          },
         },
-        message: (formData: ICustomSCEPFormData) =>
-          `${formData.scepURL} is not a valid URL`,
-      },
-    ],
-  },
-  challenge: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: ICustomSCEPFormData) => {
-          return formData.challenge.length > 0;
+        {
+          name: "validUrl",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return valid_url({ url: formData.scepURL });
+          },
+          message: "Must be a valid URL.",
         },
-      },
-    ],
-  },
+      ],
+    },
+    challenge: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: ICustomSCEPFormData) => {
+            return formData.challenge.length > 0;
+          },
+        },
+      ],
+    },
+  };
+
+  return FORM_VALIDATIONS;
 };
 
 const getErrorMessage = (
@@ -84,14 +106,17 @@ const getErrorMessage = (
 };
 
 // eslint-disable-next-line import/prefer-default-export
-export const validateFormData = (formData: ICustomSCEPFormData) => {
+export const validateFormData = (
+  formData: ICustomSCEPFormData,
+  validationConfig: IFormValidations
+) => {
   const formValidation: ICustomSCEPFormValidation = {
     isValid: true,
   };
 
-  Object.keys(FORM_VALIDATIONS).forEach((key) => {
-    const objKey = key as keyof typeof FORM_VALIDATIONS;
-    const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
+  Object.keys(validationConfig).forEach((key) => {
+    const objKey = key as keyof typeof validationConfig;
+    const failedValidation = validationConfig[objKey].validations.find(
       (validation) => !validation.isValid(formData)
     );
 
@@ -110,39 +135,3 @@ export const validateFormData = (formData: ICustomSCEPFormData) => {
 
   return formValidation;
 };
-
-const BAD_SCEP_URL_ERROR = "Invalid SCEP URL. Please correct and try again.";
-const BAD_CREDENTIALS_ERROR =
-  "Couldn't add. Admin URL or credentials are invalid.";
-const CACHE_ERROR =
-  "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again. By default, NDES caches 5 passwords and they expire 60 minutes after they are created.";
-const INSUFFICIENT_PERMISSIONS_ERROR =
-  "Couldn't add. This account doesn't have sufficient permissions. Please use the account with enroll permission.";
-const SCEP_URL_TIMEOUT_ERROR =
-  "Couldn't add. Request to NDES (SCEP URL) timed out. Please try again.";
-const DEFAULT_ERROR =
-  "Something went wrong updating your SCEP server. Please try again.";
-
-// export const getErrorMessage = (
-//   err: unknown,
-//   formData: ICustomSCEPFormData
-// ) => {
-//   const reason = getErrorReason(err);
-
-//   if (reason.includes("invalid admin URL or credentials")) {
-//     return BAD_CREDENTIALS_ERROR;
-//   } else if (reason.includes("the password cache is full")) {
-//     return CACHE_ERROR;
-//   } else if (reason.includes("does not have sufficient permissions")) {
-//     INSUFFICIENT_PERMISSIONS_ERROR;
-//   } else if (
-//     reason.includes(formData.scepURL) &&
-//     reason.includes("context deadline exceeded")
-//   ) {
-//     return SCEP_URL_TIMEOUT_ERROR;
-//   } else if (reason.includes("invalid SCEP URL")) {
-//     return BAD_SCEP_URL_ERROR;
-//   }
-
-//   return DEFAULT_ERROR;
-// };

@@ -20,6 +20,7 @@ interface INDESFormProps {
   formData: INDESFormData;
   submitBtnText: string;
   isSubmitting: boolean;
+  isEditing?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -29,6 +30,7 @@ const NDESForm = ({
   formData,
   submitBtnText,
   isSubmitting,
+  isEditing = false,
   onChange,
   onSubmit,
   onCancel,
@@ -58,6 +60,7 @@ const NDESForm = ({
           label="SCEP URL"
           name="scepURL"
           value={scepURL}
+          error={formValidation.scepURL?.message}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep/mscep.dll"
@@ -67,6 +70,7 @@ const NDESForm = ({
           label="Admin URL"
           name="adminURL"
           value={adminURL}
+          error={formValidation.adminURL?.message}
           onChange={onInputChange}
           parseTarget
           placeholder="https://example.com/certsrv/mscep_admin/"
