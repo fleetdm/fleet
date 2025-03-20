@@ -11,6 +11,9 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
+permissions:
+  contents: read
+
 jobs:
   updates-update-timestamp:
     runs-on: ubuntu-latest

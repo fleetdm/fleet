@@ -19,7 +19,7 @@ export const getErrorMessage = (
   const reason = getErrorReason(err);
 
   if (isTimeout) {
-    return "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+    return "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
   } else if (reason.includes("selected package is")) {
     return (
       <>

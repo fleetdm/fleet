@@ -81,9 +81,11 @@ controls:
     - path: ../lib/macos/scripts/collect-fleetd-logs.sh
     - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
     - path: ../lib/macos/scripts/remove-old-nudge.sh
-    - path: ../lib/windows/scripts/remove-fleetd.ps1
+    - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
+    - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -107,6 +109,11 @@ software:
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
     - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
+    - path: ../lib/windows/software/slack.yml # Slack for Windows
+    - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
+    - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
+    - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
+    - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop

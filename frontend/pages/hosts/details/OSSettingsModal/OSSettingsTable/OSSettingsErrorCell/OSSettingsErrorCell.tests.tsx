@@ -100,4 +100,64 @@ describe("OSSettingsErrorCell", () => {
     expect(screen.getByText(/Learn more/)).toBeInTheDocument();
     expect(screen.getByText(/Learn more/).tagName.toLowerCase()).toBe("a");
   });
+
+  it("renders a formatted tooltip when the error message matches custom scep error patern", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Fleet couldn’t populate $FLEET_VAR_CUSTOM_SCEP_URL_SCEP_WIFI because SCEP_WIFI certificate authority doesn’t exist.`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/add it and resend the configuration profile/)
+    ).toBeInTheDocument();
+  });
+
+  it("renders a formatted tooltip when the error message matches digicert guid patern", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Couldn’t get certificate from DigiCert. The "profile_id" configured in DIGICERT_WIFI certificate authority doesn’t exist.`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
+    expect(screen.getByText("DIGICERT_WIFI")).toBeInTheDocument();
+    expect(screen.getByText("Profile GUID")).toBeInTheDocument();
+  });
+
+  it("renders a formatted tooltip when the error message matches digicert token patern", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Couldn’t get certificate from DigiCert. The API token configured in DIGICERT_TEST certificate authority is invalid.`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
+    expect(screen.getByText("DIGICERT_TEST")).toBeInTheDocument();
+    expect(screen.getByText("API token")).toBeInTheDocument();
+  });
 });
