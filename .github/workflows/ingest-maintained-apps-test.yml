@@ -60,9 +60,8 @@ jobs:
       - name: Randomly Select Dev
         id: select_dev
         run: |
-          pwd
-          ls -al
-          DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@')
+          ls -al ./fleet
+          DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@')
           GITHUB_ID=$(echo ${DEVS} | tr ' ' '\n' | shuf | head -n 1)
           echo "github_id=$GITHUB_ID" >> ${GITHUB_OUTPUT}
 
