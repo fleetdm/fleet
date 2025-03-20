@@ -167,9 +167,6 @@ const FleetMaintainedAppDetailsPage = ({
     }
   );
 
-  // const isSoftwareAdded = !!fleetApp?.software_title_id;
-  const isSoftwareAdded = true; // TODO: Remove after dev testing
-
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
   };

@@ -44,14 +44,14 @@ const SoftwareOptionsSelector = ({
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
+  const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
+  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
-    platform === "ios" || platform === "ipados" || isExePackage;
-  /** Show automatic install tooltip if enabled or exe package */
-  const showAutomaticInstallTooltip =
-    !(isAutomaticInstallDisabled || disableOptions) || isExePackage;
+    disableOptions || isPlatformIosOrIpados || isExePackage;
 
-  /** Tooltip for auto install is enabled or exe package */
+  /** Tooltip only shows when enabled or for exe package */
+  const showAutomaticInstallTooltip =
+    !isAutomaticInstallDisabled || isExePackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage) {
       return (
@@ -69,7 +69,7 @@ const SoftwareOptionsSelector = ({
   return (
     <div className="form-field">
       <div className="form-field__label">Options</div>
-      {isSelfServiceDisabled && (
+      {isPlatformIosOrIpados && (
         <p>
           Currently, self-service and automatic installation are not available
           for iOS and iPadOS. Manually install on the <b>Host details</b> page
@@ -80,10 +80,8 @@ const SoftwareOptionsSelector = ({
         value={formData.selfService}
         onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
-        tooltipContent={
-          !(isSelfServiceDisabled || disableOptions) && SELF_SERVICE_TOOLTIP
-        }
-        disabled={isSelfServiceDisabled || disableOptions}
+        tooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+        disabled={isSelfServiceDisabled}
       >
         Self-service
       </Checkbox>
@@ -95,7 +93,7 @@ const SoftwareOptionsSelector = ({
           tooltipContent={
             showAutomaticInstallTooltip && getAutomaticInstallTooltip()
           }
-          disabled={isAutomaticInstallDisabled || disableOptions}
+          disabled={isAutomaticInstallDisabled}
         >
           Automatic install
         </Checkbox>
