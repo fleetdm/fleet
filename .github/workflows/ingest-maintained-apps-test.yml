@@ -24,19 +24,19 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date +'%y%m%d%H%M')"
 
-      - name: Checkout Fleet
-        uses: actions/checkout@v4
-        with:
-          repository: fleetdm/fleet
-          fetch-depth: 1
-          ref: ${{ github.head_ref }}
-          path: fleet
+      # - name: Checkout Fleet
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: fleetdm/fleet
+      #     fetch-depth: 1
+      #     ref: ${{ github.head_ref }}
+      #     path: fleet
 
-      - name: Setup Go
-        uses: actions/setup-go@v4.1.0
-        with:
-          cache: false
-          go-version: '^1.23.4'
+      # - name: Setup Go
+      #   uses: actions/setup-go@v4.1.0
+      #   with:
+      #     cache: false
+      #     go-version: '^1.23.4'
 
       # - name: Ingest maintained apps
       #   run: |
@@ -55,11 +55,9 @@ jobs:
               state: 'open',
               head: `${context.repo.owner}:${context.ref}`,
             });
-            return pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]');
-
-      - name: Log PRs
-        run: echo "${{ steps.search_pr.outputs }}"
-
+            const prs = pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]');
+            console.log(prs.map(pr => pr.number).join('\n'));
+    
       # - name: Create Pull Request
       #   uses: peter-evans/create-pull-request@v7
       #   with:
