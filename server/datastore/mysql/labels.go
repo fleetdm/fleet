@@ -15,6 +15,10 @@ import (
 )
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
+	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
+}
+
+func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
@@ -28,8 +32,9 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			query,
 			platform,
 			label_type,
-			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ?, ?)
+			label_membership_type,
+			author_id
+		) VALUES ( ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -37,7 +42,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
 			label_membership_type = VALUES(label_membership_type)
-	`
+		`
 
 		prepTx, ok := tx.(sqlx.PreparerContext)
 		if !ok {
@@ -53,7 +58,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType)
+			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
@@ -260,8 +265,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		query,
 		platform,
 		label_type,
-		label_membership_type
-	) VALUES ( ?, ?, ?, ?, ?, ?)
+		label_membership_type,
+		author_id
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -272,6 +278,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.Platform,
 		label.LabelType,
 		label.LabelMembershipType,
+		label.AuthorID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")
