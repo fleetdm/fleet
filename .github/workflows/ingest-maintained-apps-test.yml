@@ -68,50 +68,40 @@ jobs:
           echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
           echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
 
-      - name: Test PR parsing
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: main
+          path: fleet
+          branch: fma-${{ steps.date.outputs.date }}
+          delete-branch: true
+          title: "Update Fleet-maintained apps"
+          commit-message: |
+            Update Fleet-maintained apps.
+
+            Generated automatically with cmd/maintained-apps.
+          body: Automated ingestion of latest Fleet-maintained app data.
+          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
+
+      - name: Close Existing PRs
         if: steps.search_pr.outputs.result != '[]'
         uses: actions/github-script@v6
         with:
           script: |
             const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+            const newPrNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
             for (const prNumber of prNumbers) {
-              console.log(prNumber);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `Closing in favor of #${newPrNumber}.`,
+              });
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                state: 'closed',
+              });
             }
-
-      # - name: Create Pull Request
-      #   id: create-pr
-      #   uses: peter-evans/create-pull-request@v7
-      #   with:
-      #     base: main
-      #     path: fleet
-      #     branch: fma-${{ steps.date.outputs.date }}
-      #     delete-branch: true
-      #     title: "Update Fleet-maintained apps"
-      #     commit-message: |
-      #       Update Fleet-maintained apps.
-
-      #       Generated automatically with cmd/maintained-apps.
-      #     body: Automated ingestion of latest Fleet-maintained app data.
-      #     assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
-
-      # - name: Close Existing PRs
-      #   if: steps.search_pr.outputs.result != '[]'
-      #   uses: actions/github-script@v6
-      #   with:
-      #     script: |
-      #       const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
-      #       const newPrNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
-      #       for (const prNumber of prNumbers) {
-      #         await github.rest.issues.createComment({
-      #           owner: context.repo.owner,
-      #           repo: context.repo.repo,
-      #           issue_number: prNumber,
-      #           body: `Closing in favor of #${newPrNumber}.`,
-      #         });
-      #         await github.rest.pulls.update({
-      #           owner: context.repo.owner,
-      #           repo: context.repo.repo,
-      #           pull_number: prNumber,
-      #           state: 'closed',
-      #         });
-      #       }
