@@ -471,33 +471,6 @@ func (c *Client) ApplyGroup(
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 
-		// if there is no custom setting but the windows and mac settings are
-		// non-nil, this means that we want to clear the existing custom settings,
-		// so we still go on with calling the batch-apply endpoint.
-		//
-		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
-		// custom settings but windows is present and empty (but mac is absent),
-		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			// Figure out if MDM should be enabled.
-			assumeEnabled := false
-			// This cast is safe because we've already checked AppConfig when extracting custom settings
-			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
-			if ok {
-				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
-				if ok {
-					assumeEnabled, ok = mdmEnabled.(bool)
-					assumeEnabled = ok && assumeEnabled
-				}
-			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
-			}
-		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			switch {
 			case macosSetup.BootstrapPackage.Value != "":
@@ -590,6 +563,46 @@ func (c *Client) ApplyGroup(
 			logfn("[+] would've applied fleet config\n")
 		} else {
 			logfn("[+] applied fleet config\n")
+		}
+
+		// We apply profiles after the main AppConfig org_settings because profiles may
+		// contain Fleet variables that are set in org_settings, such as $FLEET_VAR_DIGICERT_PASSWORD_My_CA
+		//
+		// if there is no custom setting but the windows and mac settings are
+		// non-nil, this means that we want to clear the existing custom settings,
+		// so we still go on with calling the batch-apply endpoint.
+		//
+		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
+		// custom settings but windows is present and empty (but mac is absent),
+		// shouldn't that clear the windows ones?
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
+			if err != nil {
+				return nil, nil, nil, nil, err
+			}
+			// Figure out if MDM should be enabled.
+			assumeEnabled := false
+			// This cast is safe because we've already checked AppConfig when extracting custom settings
+			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+			if ok {
+				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
+				if ok {
+					assumeEnabled, ok = mdmEnabled.(bool)
+					assumeEnabled = ok && assumeEnabled
+				}
+			}
+			profilesSpecOptions := opts.ApplySpecOptions
+			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
+			// this HTTP request gets routed to another Fleet server.
+			profilesSpecOptions.NoCache = true
+			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
+			}
+			if opts.DryRun {
+				logfn("[+] would've applied MDM profiles\n")
+			} else {
+				logfn("[+] applied MDM profiles\n")
+			}
 		}
 	}
 
@@ -1573,6 +1586,36 @@ func (c *Client) DoGitOps(
 			if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
 				return nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
 			}
+		}
+		if digicertIntegration, ok := integrations.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
+			integrations.(map[string]interface{})["digicert"] = nil
+		} else {
+			// We unmarshal DigiCert integration into its dedicated type for additional validation.
+			digicertJSON, err := json.Marshal(integrations.(map[string]interface{})["digicert"])
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.digicert cannot be marshalled into JSON: %w", err)
+			}
+			var digicertData optjson.Slice[fleet.DigiCertIntegration]
+			err = json.Unmarshal(digicertJSON, &digicertData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.digicert cannot be parsed: %w", err)
+			}
+			integrations.(map[string]interface{})["digicert"] = digicertData
+		}
+		if customSCEPIntegration, ok := integrations.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
+			integrations.(map[string]interface{})["custom_scep_proxy"] = nil
+		} else {
+			// We unmarshal Custom SCEP integration into its dedicated type for additional validation
+			custonSCEPJSON, err := json.Marshal(integrations.(map[string]interface{})["custom_scep_proxy"])
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be marshalled into JSON: %w", err)
+			}
+			var customSCEPData optjson.Slice[fleet.CustomSCEPProxyIntegration]
+			err = json.Unmarshal(custonSCEPJSON, &customSCEPData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be parsed: %w", err)
+			}
+			integrations.(map[string]interface{})["custom_scep_proxy"] = customSCEPData
 		}
 
 		// Ensure webhooks settings exists
