@@ -39,8 +39,6 @@ import { getErrorMessage } from "./helpers";
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 const REQUEST_TIMEOUT_ERROR_MESSAGE =
   "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-const AUTOMATIC_POLICY_ERROR_MESSAGE =
-  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
 
 const baseClass = "fleet-maintained-app-details-page";
 
