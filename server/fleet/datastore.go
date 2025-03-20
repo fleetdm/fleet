@@ -1615,7 +1615,7 @@ type Datastore interface {
 
 	// GetMDMWindowsProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
 
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
