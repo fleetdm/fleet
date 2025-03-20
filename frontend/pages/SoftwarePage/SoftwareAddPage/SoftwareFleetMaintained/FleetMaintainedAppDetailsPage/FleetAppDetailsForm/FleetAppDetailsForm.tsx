@@ -25,7 +25,7 @@ const baseClass = "fleet-app-details-form";
 
 export const softwareAlreadyAddedTipContent = (
   softwareTitleId?: number,
-  teamId?: number
+  teamId?: string
 ) => {
   const pathToSoftwareTitles = softwareTitleId
     ? getPathWithQueryParams(

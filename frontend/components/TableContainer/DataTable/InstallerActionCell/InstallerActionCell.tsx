@@ -55,7 +55,10 @@ const InstallerActionCell = ({
     return (
       <div className={cellClasses}>
         <TooltipWrapper
-          tipContent={softwareAlreadyAddedTipContent(softwareTitleId, teamId)}
+          tipContent={softwareAlreadyAddedTipContent(
+            softwareTitleId,
+            teamId?.toString()
+          )}
           disableTooltip={!softwareTitleId}
           position="top"
           underline={false}
