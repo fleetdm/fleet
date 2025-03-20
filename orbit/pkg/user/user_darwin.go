@@ -9,7 +9,7 @@ import (
 	"regexp"
 )
 
-var re *regexp.Regexp = regexp.MustCompile(`\s+Name : (\S+)`)
+var re = regexp.MustCompile(`\s+Name : (\S+)`)
 
 // UserLoggedInViaGui returns the name of the user logged into the machine via the GUI.
 func UserLoggedInViaGui() (*string, error) {
