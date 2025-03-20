@@ -50,7 +50,32 @@ jobs:
           go mod download
           go run cmd/maintained-apps/main.go
 
+      - name: Search for Existing PRs
+        id: search_pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+
+      - name: Get Assignee IDs
+        id: get_assignee_ids
+        run: |
+          DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
+          echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
+
+      - name: Log Info
+        run: |
+          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
+          echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
+
       - name: Create Pull Request
+        id: create-pr
         uses: peter-evans/create-pull-request@v7
         with:
           base: main
@@ -63,5 +88,26 @@ jobs:
 
             Generated automatically with cmd/maintained-apps.
           body: Automated ingestion of latest Fleet-maintained app data.
+          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
 
-
+      - name: Close Existing PRs
+        if: steps.search_pr.outputs.result != '[]'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+            const newPrNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
+            for (const prNumber of prNumbers) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `Closing in favor of #${newPrNumber}.`,
+              });
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                state: 'closed',
+              });
+            }
