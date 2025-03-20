@@ -434,6 +434,15 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, removeAllFnCalled)
 		require.True(t, tmpDirFnCalled)
 		require.Equal(t, tmpDir, removedDir)
+
+		require.NotNil(t, savedInstallerResult)
+		require.NotNil(t, savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, *savedInstallerResult.InstallScriptExitCode, fleet.ExitCodeInstallerDownloadFailed)
+		require.NotNil(t, savedInstallerResult.InstallScriptOutput)
+		require.Equal(t, *savedInstallerResult.InstallScriptOutput, "Installer download failed")
+		require.Nil(t, savedInstallerResult.PostInstallScriptExitCode)
+		require.Nil(t, savedInstallerResult.PostInstallScriptOutput)
+		require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
 	})
 	t.Run("failed results upload", func(t *testing.T) {
 		var retries int

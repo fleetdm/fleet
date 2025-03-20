@@ -12983,6 +12983,39 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		http.StatusNotFound)
 	// no new activity created
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), lastActID)
+
+	// "re-install", but this time there's an installer download failure
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"install_script_exit_code": %d,
+			"install_script_output": "Installer download failed"
+		}`, *host.OrbitNodeKey, installUUIDs[2], fleet.ExitCodeInstallerDownloadFailed)),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:      host.ID,
+		InstallUUID: installUUIDs[2],
+		Status:      fleet.SoftwareInstallFailed,
+		Output:      ptr.String(fleet.SoftwareInstallerDownloadFailedCopy),
+	})
+	wantAct = fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload3.Title,
+		SoftwarePackage: payload3.Filename,
+		InstallUUID:     installUUIDs[2],
+		Status:          string(fleet.SoftwareInstallFailed),
+	}
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	var hostActivityResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostActivityResp)
+	require.Len(t, hostActivityResp.Activities, 4)
+	require.NotNil(t, hostActivityResp.Activities[0].Details)
+	var actDetails fleet.ActivityTypeInstalledSoftware
+	require.NoError(t, json.Unmarshal(*hostActivityResp.Activities[0].Details, &actDetails))
+	require.Equal(t, wantAct, actDetails)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
