@@ -43,7 +43,7 @@ module.exports = {
 
     // Get zoom OAuth token:
     let oauthResponse = await sails.helpers.http.post.with({
-      url: `https://zoom.us/oauth/token`,
+      url: `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${sails.config.custom.zoomAccountId}`,
       headers: {
         'Authorization': `Basic ${Buffer.from(`${sails.config.custom.zoomClientId}:${sails.config.custom.zoomClientSecret}`).toString('base64')}`,
       },
