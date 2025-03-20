@@ -28,6 +28,7 @@ interface ISoftwareOptionsSelector {
   isExePackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
+  disableOptions?: boolean;
 }
 
 const SoftwareOptionsSelector = ({
@@ -39,12 +40,16 @@ const SoftwareOptionsSelector = ({
   isCustomPackage,
   isExePackage,
   isEditingSoftware,
+  disableOptions = false,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
   const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
   const isAutomaticInstallDisabled =
     platform === "ios" || platform === "ipados" || isExePackage;
+  /** Show automatic install tooltip if enabled or exe package */
+  const showAutomaticInstallTooltip =
+    !(isAutomaticInstallDisabled || disableOptions) || isExePackage;
 
   /** Tooltip for auto install is enabled or exe package */
   const getAutomaticInstallTooltip = (): JSX.Element => {
@@ -75,8 +80,10 @@ const SoftwareOptionsSelector = ({
         value={formData.selfService}
         onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
-        tooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
-        disabled={isSelfServiceDisabled}
+        tooltipContent={
+          !(isSelfServiceDisabled || disableOptions) && SELF_SERVICE_TOOLTIP
+        }
+        disabled={isSelfServiceDisabled || disableOptions}
       >
         Self-service
       </Checkbox>
@@ -86,10 +93,9 @@ const SoftwareOptionsSelector = ({
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
           tooltipContent={
-            (!isAutomaticInstallDisabled || isExePackage) &&
-            getAutomaticInstallTooltip()
+            showAutomaticInstallTooltip && getAutomaticInstallTooltip()
           }
-          disabled={isAutomaticInstallDisabled}
+          disabled={isAutomaticInstallDisabled || disableOptions}
         >
           Automatic install
         </Checkbox>
