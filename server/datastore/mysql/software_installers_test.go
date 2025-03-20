@@ -2079,20 +2079,20 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{ID: 1})
 	require.NoError(t, err)
 	installerFMA, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:     tfr1,
-		BundleIdentifier:  "com.foo.fma",
-		Platform:          "darwin",
-		Extension:         "dmg",
-		FleetLibraryAppID: ptr.Uint(fma.ID),
-		StorageID:         "storage1",
-		Filename:          "foobar1",
-		Title:             "FooFMA",
-		Version:           "1.0",
-		Source:            "apps",
-		UserID:            user1.ID,
-		TeamID:            &team1.ID,
-		AutomaticInstall:  true,
-		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+		InstallerFile:        tfr1,
+		BundleIdentifier:     "com.foo.fma",
+		Platform:             "darwin",
+		Extension:            "dmg",
+		FleetMaintainedAppID: ptr.Uint(fma.ID),
+		StorageID:            "storage1",
+		Filename:             "foobar1",
+		Title:                "FooFMA",
+		Version:              "1.0",
+		Source:               "apps",
+		UserID:               user1.ID,
+		TeamID:               &team1.ID,
+		AutomaticInstall:     true,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 

@@ -16155,7 +16155,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
 		var id uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_library_app_id = ?", mappID)
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?", mappID)
 		})
 
 		return id
@@ -16165,7 +16165,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	insertedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
+	insertedApps := maintained_apps.IngestMaintainedApps(t, s.ds)
 	var expectedApps []fleet.MaintainedApp
 	for _, app := range insertedApps {
 		app.Version = "" // we don't expect version to be returned in list view anymore
@@ -16323,7 +16323,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
 	require.Equal(t, mapp.TitleID, i.TitleID)
-	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
+	require.Equal(t, ptr.Uint(1), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
@@ -16352,7 +16352,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.UniqueIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
@@ -16405,14 +16405,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.UniqueIdentifier), title.BundleIdentifier)
 	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(4), i.FleetLibraryAppID)
+	require.Equal(t, ptr.Uint(4), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)

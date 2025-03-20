@@ -15,45 +15,21 @@ import (
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
 INSERT INTO
-	fleet_library_apps (
-		name, token, version, platform, installer_url,
-		sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id
-	)
+	fleet_maintained_apps (name, slug, platform, unique_identifier)
 VALUES
-	( ?, ?, ?, ?, ?,
-	  ?, ?, ?, ? )
+	(?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	name = VALUES(name),
-	version = VALUES(version),
 	platform = VALUES(platform),
-	installer_url = VALUES(installer_url),
-	sha256 = VALUES(sha256),
-	bundle_identifier = VALUES(bundle_identifier),
-	install_script_content_id = VALUES(install_script_content_id),
-	uninstall_script_content_id = VALUES(uninstall_script_content_id)
+	unique_identifier = VALUES(unique_identifier)
 `
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		// ensure the install script exists
-		installRes, err := insertScriptContents(ctx, tx, app.InstallScript)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert install script content")
-		}
-		installScriptID, _ := installRes.LastInsertId()
-
-		// ensure the uninstall script exists
-		uninstallRes, err := insertScriptContents(ctx, tx, app.UninstallScript)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert uninstall script content")
-		}
-		uninstallScriptID, _ := uninstallRes.LastInsertId()
-
 		// upsert the maintained app
-		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
-			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
+		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
@@ -70,7 +46,7 @@ ON DUPLICATE KEY UPDATE
 }
 
 const teamFMATitlesJoin = `
-			team_titles.id software_title_id FROM fleet_library_apps fla
+			team_titles.id software_title_id FROM fleet_maintained_apps fma
 			LEFT JOIN (
 				SELECT DISTINCT st.id, st.bundle_identifier, st.name
 				FROM software_titles st
@@ -89,29 +65,23 @@ const teamFMATitlesJoin = `
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
 			) team_titles ON (
-				team_titles.bundle_identifier != '' AND team_titles.bundle_identifier = fla.bundle_identifier
+				team_titles.bundle_identifier != '' AND team_titles.bundle_identifier = fma.unique_identifier
 			) OR (
-				team_titles.bundle_identifier = '' AND team_titles.name = fla.name
+				team_titles.bundle_identifier = '' AND team_titles.name = fma.name
 			)`
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
-	stmt := `SELECT fla.id, fla.name, fla.token, fla.version, fla.platform, fla.installer_url, fla.sha256, fla.bundle_identifier,
-		sc1.contents AS install_script, sc2.contents AS uninstall_script, `
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
 	var args []any
 
 	if teamID != nil {
 		stmt += teamFMATitlesJoin
 		args = []any{teamID, teamID}
 	} else {
-		stmt += `NULL software_title_id FROM fleet_library_apps fla`
+		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
 
-	stmt += `
-JOIN script_contents sc1 ON sc1.id = fla.install_script_content_id
-JOIN script_contents sc2 ON sc2.id = fla.uninstall_script_content_id
-WHERE
-	fla.id = ?
-	`
+	stmt += ` WHERE fma.id = ?`
 	args = append(args, appID)
 
 	var app fleet.MaintainedApp
@@ -142,19 +112,19 @@ func (e *NoMaintainedAppsInDatabase) StatusCode() int {
 }
 
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	stmt := `SELECT fla.id, fla.name, fla.platform, `
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var args []any
 
 	if teamID != nil {
 		stmt += teamFMATitlesJoin + ` WHERE TRUE`
 		args = []any{teamID, teamID}
 	} else {
-		stmt += `NULL software_title_id FROM fleet_library_apps fla`
+		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
 
 	if match := opt.MatchQuery; match != "" {
 		match = likePattern(match)
-		stmt += ` AND (fla.name LIKE ?)`
+		stmt += ` AND (fma.name LIKE ?)`
 		args = append(args, match)
 	}
 
@@ -170,7 +140,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 
 	if filteredCount == 0 { // check if we have nothing in the full apps list, in which case provide an error back
 		var totalCount int
-		if err := sqlx.GetContext(ctx, dbReader, &totalCount, `SELECT COUNT(id) FROM fleet_library_apps`); err != nil {
+		if err := sqlx.GetContext(ctx, dbReader, &totalCount, `SELECT COUNT(id) FROM fleet_maintained_apps`); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps total count")
 		}
 

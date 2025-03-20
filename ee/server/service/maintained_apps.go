@@ -4,11 +4,16 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -17,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
-// noCheckHash is used by homebrew to signal that a hash shouldn't be checked.
+// noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
 const noCheckHash = "no_check"
 
 func (svc *Service) AddFleetMaintainedApp(
@@ -62,51 +67,41 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
+	app, err = svc.hydrateFMA(ctx, app)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
+	}
+
 	// Download installer from the URL
-	timeout := maintainedapps.InstallerTimeout
+	timeout := maintained_apps.InstallerTimeout
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerTFR, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
 	defer installerTFR.Close()
 
-	extension, err := maintainedapps.ExtensionForBundleIdentifier(app.BundleIdentifier)
-	if err != nil {
-		return 0, ctxerr.Errorf(ctx, "getting extension from bundle identifier %q", app.BundleIdentifier)
-	}
+	h := sha256.New()
+	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
+	gotHash := hex.EncodeToString(h.Sum(nil))
 
-	// Validate the bytes we got are what we expected, if homebrew supports
-	// it, the string "no_check" is a special token used to signal that the
-	// hash shouldn't be checked.
+	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {
-		h := sha256.New()
-		_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-		gotHash := hex.EncodeToString(h.Sum(nil))
-
 		if gotHash != app.SHA256 {
 			return 0, ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
 		}
-
-		if err := installerTFR.Rewind(); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
-		}
+	} else { // otherwise set the app hash to what we downloaded so storage writes correctly
+		app.SHA256 = gotHash
 	}
 
-	// Fall back to the filename if we weren't able to extract a filename from the installer response
-	if filename == "" {
-		filename = app.Name
+	if err := installerTFR.Rewind(); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
 	}
-
-	// The UI requires all filenames to have extensions. If we couldn't get
-	// one, use the extension we extracted prior
-	if filepath.Ext(filename) == "" {
-		filename = filename + "." + extension
-	}
+	extension := filepath.Ext(filename)[1:]
 
 	installScript = file.Dos2UnixNewlines(installScript)
 	if installScript == "" {
@@ -118,26 +113,33 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
+	maintainedAppID := &app.ID
+	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
+		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {
+		maintainedAppID = nil // don't set app as maintained if scripts have been modified
+	}
+
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:     installerTFR,
-		Title:             app.Name,
-		UserID:            vc.UserID(),
-		TeamID:            teamID,
-		Version:           app.Version,
-		Filename:          filename,
-		Platform:          app.Platform,
-		Source:            "apps",
-		Extension:         extension,
-		BundleIdentifier:  app.BundleIdentifier,
-		StorageID:         app.SHA256,
-		FleetLibraryAppID: &app.ID,
-		PreInstallQuery:   preInstallQuery,
-		PostInstallScript: postInstallScript,
-		SelfService:       selfService,
-		InstallScript:     installScript,
-		UninstallScript:   uninstallScript,
-		ValidatedLabels:   validatedLabels,
-		AutomaticInstall:  automaticInstall,
+		InstallerFile:         installerTFR,
+		Title:                 app.Name,
+		UserID:                vc.UserID(),
+		TeamID:                teamID,
+		Version:               app.Version,
+		Filename:              filename,
+		Platform:              app.Platform,
+		Source:                app.Source(),
+		Extension:             extension,
+		BundleIdentifier:      app.BundleIdentifier(),
+		StorageID:             app.SHA256,
+		FleetMaintainedAppID:  maintainedAppID,
+		PreInstallQuery:       preInstallQuery,
+		PostInstallScript:     postInstallScript,
+		SelfService:           selfService,
+		InstallScript:         installScript,
+		UninstallScript:       uninstallScript,
+		ValidatedLabels:       validatedLabels,
+		AutomaticInstall:      automaticInstall,
+		AutomaticInstallQuery: app.AutomaticInstallQuery,
 	}
 
 	// Create record in software installers table
@@ -194,11 +196,13 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 	opts.IncludeMetadata = true
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet managed apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet maintained apps")
 	}
 
 	return avail, meta, nil
 }
+
+const fmaOutputsBase = "https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/maintained-apps/outputs"
 
 func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 	var authErr error
@@ -215,8 +219,61 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get fleet maintained app")
+		return nil, err
 	}
+
+	return svc.hydrateFMA(ctx, app)
+}
+
+// TODO move to maintained apps service
+func (svc *Service) hydrateFMA(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+	baseURL := fmaOutputsBase
+	if baseFromEnvVar := os.Getenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL"); baseFromEnvVar != "" {
+		baseURL = baseFromEnvVar
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/%s.json", baseURL, app.Slug), nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create http request")
+	}
+
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute http request")
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read http response body")
+	}
+
+	switch res.StatusCode {
+	case http.StatusOK:
+		// success, go on
+	case http.StatusNotFound:
+		return nil, ctxerr.New(ctx, "app not found in Fleet manifests")
+	default:
+		if len(body) > 512 {
+			body = body[:512]
+		}
+		return nil, ctxerr.Errorf(ctx, "manifest retrieval returned HTTP status %d: %s", res.StatusCode, string(body))
+	}
+
+	var manifest ma.FMAManifestFile
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "unmarshal FMA manifest for %s", app.Slug)
+	}
+	manifest.Versions[0].Slug = app.Slug
+
+	app.Version = manifest.Versions[0].Version
+	app.Platform = manifest.Versions[0].Platform()
+	app.InstallerURL = manifest.Versions[0].InstallerURL
+	app.SHA256 = manifest.Versions[0].SHA256
+	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
+	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
+	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
 
 	return app, nil
 }

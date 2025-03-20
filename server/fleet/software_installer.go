@@ -136,8 +136,8 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
-	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetMaintainedAppID *uint `json:"-" db:"fleet_maintained_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -343,32 +343,33 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID             *uint
-	InstallScript      string
-	PreInstallQuery    string
-	PostInstallScript  string
-	InstallerFile      *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID          string
-	Filename           string
-	Title              string
-	Version            string
-	Source             string
-	Platform           string
-	BundleIdentifier   string
-	SelfService        bool
-	UserID             uint
-	URL                string
-	FleetLibraryAppID  *uint
-	PackageIDs         []string
-	UninstallScript    string
-	Extension          string
-	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
-	LabelsIncludeAny   []string // names of "include any" labels
-	LabelsExcludeAny   []string // names of "exclude any" labels
+	TeamID               *uint
+	InstallScript        string
+	PreInstallQuery      string
+	PostInstallScript    string
+	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID            string
+	Filename             string
+	Title                string
+	Version              string
+	Source               string
+	Platform             string
+	BundleIdentifier     string
+	SelfService          bool
+	UserID               uint
+	URL                  string
+	FleetMaintainedAppID *uint
+	PackageIDs           []string
+	UninstallScript      string
+	Extension            string
+	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny     []string // names of "include any" labels
+	LabelsExcludeAny     []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
-	ValidatedLabels  *LabelIdentsWithScope
-	AutomaticInstall bool
+	ValidatedLabels       *LabelIdentsWithScope
+	AutomaticInstall      bool
+	AutomaticInstallQuery string
 }
 
 type UpdateSoftwareInstallerPayload struct {
