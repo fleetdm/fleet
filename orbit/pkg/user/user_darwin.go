@@ -14,7 +14,7 @@ var re *regexp.Regexp = regexp.MustCompile(`\s+Name : (\S+)`)
 // UserLoggedInViaGui returns the name of the user logged into the machine via the GUI.
 func UserLoggedInViaGui() (*string, error) {
 	// Attempt to get the console user.
-	cmd := exec.Command("sh", "-c", `scutil <<< "show State:/Users/ConsoleUser"`)
+	cmd := exec.Command("/bin/sh", "-c", `scutil <<< "show State:/Users/ConsoleUser"`)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
