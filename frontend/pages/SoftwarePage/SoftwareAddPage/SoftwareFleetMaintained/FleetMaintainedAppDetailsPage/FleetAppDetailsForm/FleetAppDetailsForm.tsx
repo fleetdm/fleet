@@ -1,8 +1,13 @@
 import React, { useContext, useState } from "react";
-
 import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+} from "pages/SoftwarePage/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+import paths from "router/paths";
 
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
@@ -11,12 +16,6 @@ import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
-import {
-  CUSTOM_TARGET_OPTIONS,
-  generateHelpText,
-} from "pages/SoftwarePage/helpers";
-import paths from "router/paths";
-
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
@@ -24,14 +23,22 @@ import { generateFormValidation } from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
-export const softwareAlreadyAddedTipContent = (softwareTitleId?: number) => {
+export const softwareAlreadyAddedTipContent = (
+  softwareTitleId?: number,
+  teamId?: number
+) => {
   const pathToSoftwareTitles = softwareTitleId
-    ? paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString())
+    ? getPathWithQueryParams(
+        paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString()),
+        {
+          team_id: teamId,
+        }
+      )
     : "";
-
   return (
     <>
-      You already added this software.{" "}
+      You already added this software.
+      <br />
       <CustomLink
         url={pathToSoftwareTitles}
         text="View software"
@@ -85,6 +92,7 @@ const FleetAppDetailsForm = ({
 }: IFleetAppDetailsFormProps) => {
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
+  const { currentTeam } = useContext(AppContext);
 
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -238,7 +246,10 @@ const FleetAppDetailsForm = ({
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
             <TooltipWrapper
-              tipContent={softwareAlreadyAddedTipContent(softwareTitleId)}
+              tipContent={softwareAlreadyAddedTipContent(
+                softwareTitleId,
+                currentTeam?.id
+              )}
               disableTooltip={!isSoftwareAlreadyAdded}
               position="left"
               showArrow
