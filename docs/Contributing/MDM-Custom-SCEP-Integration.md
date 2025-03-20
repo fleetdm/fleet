@@ -9,6 +9,10 @@ We will use a SCEP server from https://github.com/micromdm/scep (v2.3.0 as of th
 - Initialize and launch the server per instructions on the GitHub page
 - The SCEP URL will be like: http://localhost:2016/scep (with `/scep` suffix)
 
+## Implementation details
+
+The Proxy URL inserted into the SCEP profile follows the following format: `<server URL>/mdm/scep/proxy/<hostUUID>%2C<profileUUID>%2C<caName>`
+
 ## Issues and limitations
 
 - CA name should be treated as a unique identifier and never changed once set. The profiles (and potential renewals) are tied to the CA name. To cleanly change the CA name, remove any profiles using the old CA name (which will remove the associated certificates from devices), change the CA name, upload new profiles using the new CA name.
