@@ -29,7 +29,6 @@ const InstallerActionCell = ({
 }: IInstallerActionCellProps) => {
   const cellClasses = classnames(baseClass, className);
 
-  console.log("value", value);
   // Some FMAs are not supported for Windows
   if (!value) {
     return (
