@@ -6712,8 +6712,8 @@ None.
 - [List team policies](#list-team-policies)
 - [Count policies](#count-policies)
 - [Count team policies](#count-team-policies)
-- [Get policy by ID](#get-policy-by-id)
-- [Get team policy by ID](#get-team-policy-by-id)
+- [Get policy](#get-policy)
+- [Get team policy](#get-team-policy)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
 - [Delete policies](#delete-policies)
@@ -7039,7 +7039,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get policy by ID
+### Get policy
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -7082,7 +7082,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy by ID
+### Get team policy
 
 _Available in Fleet Premium_
 
