@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -171,12 +172,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installerType := installer.InstallerType
 			if installerType == "" || installerType == installerTypeWix {
 				// try to get it from the URL
-				urlParts := strings.Split(installerURL, ".")
-				if len(urlParts) > 1 {
-					if urlParts[len(urlParts)-1] == installerTypeMSI {
-						installerType = installerTypeMSI
-					}
-				}
+				// TODO: this may not work in all situations
+				// TODO: also, "wix" might always mean an MSI installer, in which case we should
+				// just use that
+				installerType = strings.Trim(filepath.Ext(installerURL), ".")
+				fmt.Printf("installerType: %v\n", installerType)
 			}
 			if installScript == "" {
 				installScript = file.GetInstallScript(installerType)
