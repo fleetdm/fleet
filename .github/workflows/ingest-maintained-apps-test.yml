@@ -32,17 +32,17 @@ jobs:
           ref: ${{ github.head_ref }}
           path: fleet
 
-      # - name: Setup Go
-      #   uses: actions/setup-go@v4.1.0
-      #   with:
-      #     cache: false
-      #     go-version: '^1.23.4'
+      - name: Setup Go
+        uses: actions/setup-go@v4.1.0
+        with:
+          cache: false
+          go-version: '^1.23.4'
 
-      # - name: Ingest maintained apps
-      #   run: |
-      #     cd fleet
-      #     go mod download
-      #     go run cmd/maintained-apps/main.go
+      - name: Ingest maintained apps
+        run: |
+          cd fleet
+          go mod download
+          go run cmd/maintained-apps/main.go
 
       - name: Search for Existing PRs
         id: search_pr
@@ -57,18 +57,17 @@ jobs:
             });
             return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
 
-      - name: Randomly Select Dev
-        id: select_dev
+      - name: Get Assignee IDs
+        id: get_assignee_ids
         run: |
-          DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@')
-          GITHUB_ID=$(echo ${DEVS} | tr ' ' '\n' | shuf | head -n 1)
-          echo "github_id=$GITHUB_ID" >> ${GITHUB_OUTPUT}
+          DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
+          echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
 
-      - name: Log Found PRs
+      - name: Log Info
         run: |
-          echo "${{ steps.search_pr.outputs.result }}"
-          echo "${{ steps.select_dev.outputs.github_id }}"
-          
+          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
+          echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
+
       # - name: Create Pull Request
       #   uses: peter-evans/create-pull-request@v7
       #   with:
@@ -82,5 +81,19 @@ jobs:
 
       #       Generated automatically with cmd/maintained-apps.
       #     body: Automated ingestion of latest Fleet-maintained app data.
+      #     assignees: steps.get_assignee_ids.outputs.github_ids
 
-
+      # - name: Close Existing PRs
+      #   if: steps.search_pr.outputs.result != '[]'
+      #   uses: actions/github-script@v6
+      #   with:
+      #     script: |
+      #       const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+      #       for (const prNumber of prNumbers) {
+      #         await github.rest.pulls.update({
+      #           owner: context.repo.owner,
+      #           repo: context.repo.repo,
+      #           pull_number: prNumber,
+      #           state: 'closed',
+      #         });
+      #       }
