@@ -1622,14 +1622,18 @@ func (d *desktopRunner) Execute() error {
 			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
 			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
 			// for more details.
-			loggedInGui, err := user.IsUserLoggedInViaGui()
+			loggedInUser, err := user.UserLoggedInViaGui()
 			if err != nil {
 				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
 				return true
 			}
 
-			if !loggedInGui {
+			if loggedInUser == nil {
 				return true
+			}
+
+			if *loggedInUser != "" {
+				opts = append(opts, execuser.WithUser(*loggedInUser))
 			}
 
 			log.Info().Msg("killing any pre-existing fleet-desktop instances")

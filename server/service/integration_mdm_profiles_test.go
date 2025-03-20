@@ -1127,6 +1127,174 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	})
 }
 
+// TestWindowsProfileResend verifies that a Windows profile is resent when its contents have been modified.
+func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
+	t := s.T()
+	ctx := context.Background()
+
+	testProfiles := []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+		{Name: "N2", Contents: syncml.ForTestWithData(map[string]string{"L2": "D2", "L3": "D3"})},
+	}
+
+	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	expectedProfileStatuses := map[string]fleet.MDMDeliveryStatus{
+		"N1": fleet.MDMDeliveryVerifying,
+		"N2": fleet.MDMDeliveryVerifying,
+	}
+	checkProfilesStatus := func(t *testing.T) {
+		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, storedProfs, len(expectedProfileStatuses))
+		for _, p := range storedProfs {
+			want, ok := expectedProfileStatuses[p.Name]
+			require.True(t, ok, "unexpected profile: %s", p.Name)
+			require.Equal(t, want, *p.Status, "expected status %s but got %s for profile: %s", want, *p.Status, p.Name)
+		}
+	}
+
+	type profileData struct {
+		Status string
+		LocURI string
+		Data   string
+	}
+	hostProfileReports := map[string][]profileData{
+		"N1": {{"200", "L1", "D1"}},
+		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
+	}
+	reportHostProfs := func(t *testing.T, profileNames ...string) {
+		var responseOps []*fleet.SyncMLCmd
+		for _, profileName := range profileNames {
+			report, ok := hostProfileReports[profileName]
+			require.True(t, ok)
+
+			for _, p := range report {
+				ref := microsoft_mdm.HashLocURI(profileName, p.LocURI)
+				responseOps = append(responseOps, &fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					CmdRef:  &ref,
+					Data:    ptr.String(p.Status),
+				})
+
+				// the protocol can respond with only a `Status`
+				// command if the status failed
+				if p.Status != "200" || p.Data != "" {
+					responseOps = append(responseOps, &fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdResults},
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
+						CmdRef:  &ref,
+						Items: []fleet.CmdItem{
+							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
+						},
+					})
+				}
+			}
+		}
+
+		msg, err := createSyncMLMessage("2", "2", "foo", "bar", responseOps)
+		require.NoError(t, err)
+		out, err := xml.Marshal(msg)
+		require.NoError(t, err)
+		require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.logger, s.ds, h, out))
+	}
+
+	verifyCommands := func(wantProfileInstalls int, status string) {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		// profile installs + 2 protocol commands acks
+		require.Len(t, cmds, wantProfileInstalls+2)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		atomicCmds := 0
+		for _, c := range cmds {
+			if c.Verb == "Atomic" {
+				atomicCmds++
+			}
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+				Cmd:     ptr.String(c.Verb),
+				Data:    ptr.String(status),
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		require.Equal(t, wantProfileInstalls, atomicCmds)
+		cmds, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		// the ack of the message should be the only returned command
+		require.Len(t, cmds, 1)
+	}
+
+	t.Run("do not resend if nothing changed", func(t *testing.T) {
+		t.Cleanup(func() {
+			// Clear the profiles
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
+				http.StatusNoContent)
+		})
+
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		// profiles to install + 2 boilerplate <Status>
+		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerifying
+		checkProfilesStatus(t) // all profiles verifying
+
+		// report osquery results and confirm that all profiles are verified
+		reportHostProfs(t, "N1", "N2")
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t)
+
+		// trigger a profile sync and confirm that no profiles were sent
+		verifyCommands(0, syncml.CmdStatusOK)
+
+		// Upload the same profiles again
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		// trigger a profile sync and confirm that no profiles were sent
+		verifyCommands(0, syncml.CmdStatusOK)
+	})
+
+	t.Run("resend if contents changed", func(t *testing.T) {
+		t.Cleanup(func() {
+			// Clear the profiles
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
+				http.StatusNoContent)
+		})
+
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		// profiles to install + 2 boilerplate <Status>
+		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerifying
+		checkProfilesStatus(t) // all profiles verifying
+
+		// report osquery results and confirm that all profiles are verified
+		reportHostProfs(t, "N1", "N2")
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t)
+
+		// trigger a profile sync and confirm that no profiles were sent
+		verifyCommands(0, syncml.CmdStatusOK)
+
+		// Change one profile and upload
+		copiedTestProfiles := make([]fleet.MDMProfileBatchPayload, len(testProfiles))
+		copy(copiedTestProfiles, testProfiles)
+		copiedTestProfiles[0].Contents = syncml.ForTestWithData(map[string]string{"L1": "D1-modified"})
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: copiedTestProfiles}, http.StatusNoContent)
+		// Confirm that one profile was sent and its status
+		verifyCommands(1, syncml.CmdStatusOK)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t) // all profiles verifying
+	})
+}
+
 func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	ctx := context.Background()
 	t := s.T()

@@ -23,6 +23,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -733,6 +734,7 @@ the way that the Fleet server works.
 				cronSchedules,
 				wstepCertManager,
 				eeservice.NewSCEPConfigService(logger, nil),
+				digicert.NewService(digicert.WithLogger(logger)),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")

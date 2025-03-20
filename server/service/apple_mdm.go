@@ -560,13 +560,10 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 // and that these variables are only present in a "com.apple.security.pkcs12" payload
 func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFound) error {
 	// Find and replace matches in base64 encoded data contents so we can unmarshal the plist and keep the Fleet vars.
-	matches := mdm_types.ProfileDataVariableRegex.FindAllStringSubmatch(contents, -1)
-	for _, match := range matches {
-		if len(match) > 0 {
-			encoded := base64.StdEncoding.EncodeToString([]byte(match[0]))
-			contents = strings.ReplaceAll(contents, match[0], encoded)
-		}
-	}
+	contents = mdm_types.ProfileDataVariableRegex.ReplaceAllStringFunc(contents, func(match string) string {
+		return base64.StdEncoding.EncodeToString([]byte(match))
+	})
+
 	var pkcs12Prof PKCS12ProfileContent
 	err := plist.Unmarshal([]byte(contents), &pkcs12Prof)
 	if err != nil {
@@ -3824,8 +3821,10 @@ func ReconcileAppleProfiles(
 	}
 
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
-	err = preprocessProfileContents(ctx, appConfig, ds, eeservice.NewSCEPConfigService(logger, nil), logger, installTargets, profileContents,
-		hostProfilesToInstallMap)
+	err = preprocessProfileContents(ctx, appConfig, ds,
+		eeservice.NewSCEPConfigService(logger, nil),
+		digicert.NewService(digicert.WithLogger(logger)),
+		logger, installTargets, profileContents, hostProfilesToInstallMap)
 	if err != nil {
 		return err
 	}
@@ -3945,6 +3944,7 @@ func preprocessProfileContents(
 	appConfig *fleet.AppConfig,
 	ds fleet.Datastore,
 	scepConfig fleet.SCEPConfigService,
+	digiCertService fleet.DigiCertService,
 	logger kitlog.Logger,
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
@@ -4225,9 +4225,9 @@ func preprocessProfileContents(
 						}
 					}
 
-					cert, err := digicert.GetCertificate(ctx, logger, caCopy)
+					cert, err := digiCertService.GetCertificate(ctx, caCopy)
 					if err != nil {
-						detail := fmt.Sprintf("Couldn't get certificate from %s. %s", caCopy.Name, err)
+						detail := fmt.Sprintf("Couldn't get certificate from DigiCert for %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 							CommandUUID:   target.cmdUUID,
 							HostUUID:      hostUUID,

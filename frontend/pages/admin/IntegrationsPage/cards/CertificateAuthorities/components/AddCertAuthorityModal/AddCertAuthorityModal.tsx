@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 
 import { NotificationContext } from "context/notification";
 import certificatesAPI from "services/entities/certificates";
@@ -9,14 +9,20 @@ import { AppContext } from "context/app";
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 
-import { generateErrorMessage } from "./helpers";
+import { generateDropdownOptions, getErrorMessage } from "./helpers";
+
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
+import NDESForm from "../NDESForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import CustomSCEPForm from "../CustomSCEPForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 
-export type ICertFormData = IDigicertFormData;
-// | IAnotherCertFormData
-// | IYetAnotherCertFormData;
+export type ICertFormData =
+  | IDigicertFormData
+  | INDESFormData
+  | ICustomSCEPFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -25,14 +31,14 @@ interface IAddCertAuthorityModalProps {
 }
 
 const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
-  const { setConfig } = useContext(AppContext);
+  const { config, setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [
     certAuthorityType,
     setCertAuthorityType,
   ] = useState<ICertificateAuthorityType>("digicert");
   const [isAdding, setIsAdding] = useState(false);
-  const [formData, setFormData] = useState<IDigicertFormData>({
+  const [digicertFormData, setDigicertFormData] = useState<IDigicertFormData>({
     name: "",
     url: "https://one.digicert.com",
     apiToken: "",
@@ -41,6 +47,21 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
     userPrincipalName: "",
     certificateSeatId: "",
   });
+  const [ndesFormData, setNDESFormData] = useState<INDESFormData>({
+    scepURL: "",
+    adminURL: "",
+    username: "",
+    password: "",
+  });
+  const [
+    customSCEPFormData,
+    setCustomSCEPFormData,
+  ] = useState<ICustomSCEPFormData>({
+    name: "",
+    scepURL: "",
+    challenge: "",
+  });
+
   const { generateAddPatchData } = useCertAuthorityDataGenerator(
     certAuthorityType
   );
@@ -50,10 +71,47 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
   };
 
   const onChangeForm = (update: { name: string; value: string }) => {
-    setFormData({ ...formData, [update.name]: update.value });
+    let setFormData;
+    let formData: ICertFormData;
+    switch (certAuthorityType) {
+      case "digicert":
+        setFormData = setDigicertFormData;
+        formData = digicertFormData;
+        break;
+      case "ndes":
+        setFormData = setNDESFormData;
+        formData = ndesFormData;
+        break;
+      case "custom":
+        setFormData = setCustomSCEPFormData;
+        formData = customSCEPFormData;
+        break;
+      default:
+        return;
+    }
+
+    (setFormData as React.Dispatch<React.SetStateAction<ICertFormData>>)({
+      ...formData,
+      [update.name]: update.value,
+    });
   };
 
   const onAddCertAuthority = async () => {
+    let formData: ICertFormData;
+    switch (certAuthorityType) {
+      case "digicert":
+        formData = digicertFormData;
+        break;
+      case "ndes":
+        formData = ndesFormData;
+        break;
+      case "custom":
+        formData = customSCEPFormData;
+        break;
+      default:
+        return;
+    }
+
     const addPatchData = generateAddPatchData(formData);
     setIsAdding(true);
     try {
@@ -64,9 +122,55 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       onExit();
       setConfig(newConfig);
     } catch (e) {
-      renderFlash("error", generateErrorMessage(e));
+      renderFlash("error", getErrorMessage(e));
     }
     setIsAdding(false);
+  };
+
+  const dropdownOptions = useMemo(() => {
+    return generateDropdownOptions(!!config?.integrations.ndes_scep_proxy);
+  }, [config?.integrations.ndes_scep_proxy]);
+
+  const renderForm = () => {
+    const submitBtnText = "Add CA";
+
+    switch (certAuthorityType) {
+      case "digicert":
+        return (
+          <DigicertForm
+            formData={digicertFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "ndes":
+        return (
+          <NDESForm
+            formData={ndesFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "custom":
+        return (
+          <CustomSCEPForm
+            formData={customSCEPFormData}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -75,23 +179,17 @@ const AddCertAuthorityModal = ({ onExit }: IAddCertAuthorityModalProps) => {
       title="Add certificate authority (CA)"
       width="large"
       onExit={onExit}
+      isContentDisabled={isAdding}
     >
       <>
         <Dropdown
-          options={[{ label: "Digicert", value: "digicert" }]}
+          options={dropdownOptions}
           value={certAuthorityType}
           className={`${baseClass}__cert-authority-dropdown`}
           onChange={onChangeDropdown}
           searchable={false}
         />
-        <DigicertForm
-          formData={formData}
-          submitBtnText="Add CA"
-          isSubmitting={isAdding}
-          onChange={onChangeForm}
-          onSubmit={onAddCertAuthority}
-          onCancel={onExit}
-        />
+        {renderForm()}
       </>
     </Modal>
   );

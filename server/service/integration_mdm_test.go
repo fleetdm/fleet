@@ -59,11 +59,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -71,7 +70,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -13154,7 +13152,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		"PKIOperation", "message", message)
 	*s.scepConfig.Timeout = 10 * time.Second
 
-	scepServer := startSCEPServer(t)
+	scepServer := scep_server.StartTestSCEPServer(t)
 
 	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
@@ -13257,48 +13255,6 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
 	require.NoError(t, err)
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
-}
-
-func startSCEPServer(t *testing.T) *httptest.Server {
-	// Spin up an "external" SCEP server, which Fleet server will proxy
-	newSCEPServer := func(t *testing.T) *httptest.Server {
-		var server *httptest.Server
-		teardown := func() {
-			if server != nil {
-				server.Close()
-			}
-			os.Remove("./testdata/externalCA/serial")
-			os.Remove("./testdata/externalCA/index.txt")
-		}
-		t.Cleanup(teardown)
-
-		var err error
-		var certDepot depot.Depot // cert storage
-		certDepot, err = filedepot.NewFileDepot("./testdata/externalCA")
-		if err != nil {
-			t.Fatal(err)
-		}
-		certDepot = &noopCertDepot{certDepot}
-		crt, key, err := certDepot.CA([]byte{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var svc scepserver.Service // scep service
-		svc, err = scepserver.NewService(crt[0], key, scepserver.NopCSRSigner())
-		if err != nil {
-			t.Fatal(err)
-		}
-		logger := kitlog.NewNopLogger()
-		e := scepserver.MakeServerEndpoints(svc)
-		scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
-		r := mux.NewRouter()
-		r.Handle("/scep", scepHandler)
-		server = httptest.NewServer(r)
-		return server
-	}
-	scepServer := newSCEPServer(t)
-	return scepServer
 }
 
 func (s *integrationMDMTestSuite) TestDigiCertConfig() {
@@ -13983,7 +13939,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	t := s.T()
 	ctx := context.Background()
-	scepServer := startSCEPServer(t)
+	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
 	// Add custom SCEP integration with bad URL
@@ -14166,8 +14122,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
-	// ctx := context.Background()
-	scepServer := startSCEPServer(t)
+	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
 	// Create a host and then enroll to MDM.
@@ -14390,12 +14345,6 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		}
 	}
 	assert.True(t, found)
-}
-
-type noopCertDepot struct{ depot.Depot }
-
-func (d *noopCertDepot) Put(_ string, _ *x509.Certificate) error {
-	return nil
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {

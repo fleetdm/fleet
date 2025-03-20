@@ -1,11 +1,6 @@
 .activity-card {
   position: relative;
 
-  h2 {
-    font-size: $medium;
-    margin: 0 0 $pad-large;
-  }
-
   &__loading-overlay {
     height: 100%;
     width: 100%;

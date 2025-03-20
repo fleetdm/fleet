@@ -269,6 +269,7 @@ const PackageForm = ({
                 onToggleSelfService={onToggleSelfServiceCheckbox}
                 isCustomPackage
                 isEditingSoftware={isEditingSoftware}
+                isExePackage={isExePackage}
               />
             </Card>
             <Card
