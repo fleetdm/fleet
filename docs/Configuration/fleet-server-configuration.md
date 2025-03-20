@@ -706,6 +706,8 @@ The license key provided to Fleet customers which provides access to Fleet Premi
     key: foobar
   ```
 
+> Wondering where to get a license key?  You can [grab a license](https://fleetdm.com/new-license) or if you have questions, [schedule a demo](https://fleetdm.com/contact).
+
 ## Session
 
 ### session_key_size

@@ -24,6 +24,8 @@ interface ISoftwareOptionsSelector {
   platform?: string;
   className?: string;
   isCustomPackage?: boolean;
+  /** Exe packages do not have ability to select automatic install */
+  isExePackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
 }
@@ -35,13 +37,29 @@ const SoftwareOptionsSelector = ({
   platform,
   className,
   isCustomPackage,
+  isExePackage,
   isEditingSoftware,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
   const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
   const isAutomaticInstallDisabled =
-    platform === "ios" || platform === "ipados";
+    platform === "ios" || platform === "ipados" || isExePackage;
+
+  /** Tooltip for auto install is enabled or exe package */
+  const getAutomaticInstallTooltip = (): JSX.Element => {
+    if (isExePackage) {
+      return (
+        <>
+          Fleet can&apos;t create a policy to detect existing installations for
+          .exe packages. To automatically install an .exe, add a custom policy
+          and enable the install software automation on the <b>Policies</b>{" "}
+          page.
+        </>
+      );
+    }
+    return <>Automatically install only on hosts missing this software.</>;
+  };
 
   return (
     <div className="form-field">
@@ -68,9 +86,8 @@ const SoftwareOptionsSelector = ({
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
           tooltipContent={
-            !isAutomaticInstallDisabled && (
-              <>Automatically install only on hosts missing this software.</>
-            )
+            (!isAutomaticInstallDisabled || isExePackage) &&
+            getAutomaticInstallTooltip()
           }
           disabled={isAutomaticInstallDisabled}
         >

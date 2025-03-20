@@ -373,6 +373,9 @@ type QuerySpec struct {
 	//
 	// If not set, then the default value is false.
 	DiscardData bool `json:"discard_data"`
+	// LabelsIncludeAny is a list of labels that will be used to
+	// target a query
+	LabelsIncludeAny []string `json:"labels_include_any"`
 }
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {
