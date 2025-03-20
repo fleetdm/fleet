@@ -408,31 +408,34 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  addedNdesScepProxy: () => {
-    return (
+  addedCertificateAuthority: (name = "") => {
+    return name ? (
       <>
         {" "}
-        added Microsoft&apos;s Network Device Enrollment Service (NDES) as your
-        SCEP server.
+        added a certificate authority (<b>{name}</b>).
       </>
+    ) : (
+      <> added a certificate authority.</>
     );
   },
-  deletedNdesScepProxy: () => {
-    return (
+  deletedCertificateAuthority: (name = "") => {
+    return name ? (
       <>
         {" "}
-        removed Microsoft&apos;s Network Device Enrollment Service (NDES) as
-        your SCEP server.
+        deleted a certificate authority (<b>{name}</b>).
       </>
+    ) : (
+      <> deleted a certificate authority.</>
     );
   },
-  editedNdesScepProxy: () => {
-    return (
+  editedCertificateAuthority: (name = "") => {
+    return name ? (
       <>
         {" "}
-        edited configurations for Microsoft&apos;s Network Device Enrollment
-        Service (NDES) as your SCEP server.
+        edited a certificate authority (<b>{name}</b>).
       </>
+    ) : (
+      <> edited a certificate authority.</>
     );
   },
   createdWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
@@ -1163,13 +1166,29 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.AddedNdesScepProxy: {
-      return TAGGED_TEMPLATES.addedNdesScepProxy();
+      return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
     }
     case ActivityType.DeletedNdesScepProxy: {
-      return TAGGED_TEMPLATES.deletedNdesScepProxy();
+      return TAGGED_TEMPLATES.deletedCertificateAuthority("NDES");
     }
     case ActivityType.EditedNdesScepProxy: {
-      return TAGGED_TEMPLATES.editedNdesScepProxy();
+      return TAGGED_TEMPLATES.editedCertificateAuthority("NDES");
+    }
+    case ActivityType.AddedCustomScepProxy:
+    case ActivityType.AddedDigicert: {
+      return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
+    }
+    case ActivityType.DeletedCustomScepProxy:
+    case ActivityType.DeletedDigicert: {
+      return TAGGED_TEMPLATES.deletedCertificateAuthority(
+        activity.details?.name
+      );
+    }
+    case ActivityType.EditedCustomScepProxy:
+    case ActivityType.EditedDigicert: {
+      return TAGGED_TEMPLATES.editedCertificateAuthority(
+        activity.details?.name
+      );
     }
     case ActivityType.CreatedWindowsProfile: {
       return TAGGED_TEMPLATES.createdWindowsProfile(activity, isPremiumTier);

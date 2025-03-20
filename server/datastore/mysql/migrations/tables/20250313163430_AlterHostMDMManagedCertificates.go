@@ -19,7 +19,7 @@ func Up_20250313163430(tx *sql.Tx) error {
 	ADD COLUMN ca_name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES' AFTER type
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to add not_valid_after column to host_mdm_managed_certificates table: %s", err)
+		return fmt.Errorf("failed to add type and ca_name columns to host_mdm_managed_certificates table: %s", err)
 	}
 
 	return nil

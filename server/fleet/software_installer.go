@@ -293,6 +293,7 @@ const (
 Exit code: %d (Failed)
 %s
 `
+	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -313,13 +314,21 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 	if h.Output == nil || h.InstallScriptExitCode == nil {
 		return
 	}
-	if *h.InstallScriptExitCode == -2 {
+
+	switch *h.InstallScriptExitCode {
+	case 0:
+		// ok, continue
+	case ExitCodeScriptsDisabled:
 		*h.Output = SoftwareInstallerScriptsDisabledCopy
 		return
-	} else if *h.InstallScriptExitCode != 0 {
+	case ExitCodeInstallerDownloadFailed:
+		*h.Output = SoftwareInstallerDownloadFailedCopy
+		return
+	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
 		return
 	}
+
 	h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, *h.Output))
 
 	if h.PostInstallScriptExitCode == nil || h.PostInstallScriptOutput == nil {
@@ -595,6 +604,16 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallPending
 	}
 }
+
+const (
+	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
+	// disabled.
+	ExitCodeScriptsDisabled = -2
+	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
+	ExitCodeInstallerDownloadFailed = -3
+)
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {

@@ -1,0 +1,9 @@
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: $pad-small;
+  margin-bottom: $pad-small;
+  margin-left: auto;
+  text-align: right;
+  gap: $pad-large;
+}
