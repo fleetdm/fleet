@@ -3,12 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -17,8 +24,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-json-experiment/json/v1"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -77,12 +87,14 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		FleetConfig: &fleetCfg,
-		MDMStorage:  mdmStorage,
-		DEPStorage:  depStorage,
-		SCEPStorage: scepStorage,
-		Pool:        redisPool,
-		APNSTopic:   "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		FleetConfig:       &fleetCfg,
+		MDMStorage:        mdmStorage,
+		DEPStorage:        depStorage,
+		SCEPStorage:       scepStorage,
+		Pool:              redisPool,
+		APNSTopic:         "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		SCEPConfigService: eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
+		DigiCertService:   digicert.NewService(),
 	}
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
@@ -362,5 +374,142 @@ team_settings:
 		assert.Equal(t, 0, result)
 		return nil
 	})
+
+}
+
+// TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
+// At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
+func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
+	t := s.T()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	var (
+		gotProfileMu sync.Mutex
+		gotProfile   bool
+	)
+	digiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Method {
+		case http.MethodGet:
+			matches := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`).FindStringSubmatch(r.URL.Path)
+			if len(matches) != 2 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			profileID := matches[1]
+
+			resp := map[string]string{
+				"id":     profileID,
+				"name":   "DigiCert",
+				"status": "Active",
+			}
+			err := json.NewEncoder(w).Encode(resp)
+			require.NoError(t, err)
+			gotProfileMu.Lock()
+			gotProfile = profileID == "digicert_profile_id"
+			defer gotProfileMu.Unlock()
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	t.Cleanup(digiCertServer.Close)
+
+	scepServer := scep_server.StartTestSCEPServer(t)
+
+	// Get the path to the directory of this test file
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to get runtime caller info")
+	dirPath := filepath.Dir(currentFile)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  integrations:
+    digicert:
+      - name: DigiCert
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn"]
+        certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: %s
+        challenge: challenge    
+policies:
+queries:
+`, dirPath, digiCertServer.URL, scepServer.URL+"/scep"))
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	require.True(t, appConfig.Integrations.DigiCert.Valid)
+	require.Len(t, appConfig.Integrations.DigiCert.Value, 1)
+	digicertCA := appConfig.Integrations.DigiCert.Value[0]
+	require.Equal(t, "DigiCert", digicertCA.Name)
+	require.Equal(t, digiCertServer.URL, digicertCA.URL)
+	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
+	require.Equal(t, "digicert_profile_id", digicertCA.ProfileID)
+	require.Equal(t, "digicert_cn", digicertCA.CertificateCommonName)
+	require.Equal(t, []string{"digicert_upn"}, digicertCA.CertificateUserPrincipalNames)
+	require.Equal(t, "digicert_seat_id", digicertCA.CertificateSeatID)
+	gotProfileMu.Lock()
+	require.True(t, gotProfile)
+	gotProfileMu.Unlock()
+
+	require.True(t, appConfig.Integrations.CustomSCEPProxy.Valid)
+	require.Len(t, appConfig.Integrations.CustomSCEPProxy.Value, 1)
+	customSCEPProxyCA := appConfig.Integrations.CustomSCEPProxy.Value[0]
+	require.Equal(t, "CustomScepProxy", customSCEPProxyCA.Name)
+	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
+	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
+
+	profiles, _, err := s.ds.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, profiles, 1)
+
+	// Now test that we can clear the configs
+	_, err = globalFile.WriteString(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	appConfig, err = s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, appConfig.Integrations.DigiCert.Value)
+	assert.Empty(t, appConfig.Integrations.CustomSCEPProxy.Value)
 
 }
