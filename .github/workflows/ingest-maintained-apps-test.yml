@@ -52,10 +52,9 @@ jobs:
             const { data: pullRequests } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              state: 'open',
-              head: `${context.repo.owner}:${context.ref}`,
+              state: 'open'
             });
-            return pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
 
       - name: Log Found PRs
         run: echo "${{ steps.search_pr.outputs.result }}"
