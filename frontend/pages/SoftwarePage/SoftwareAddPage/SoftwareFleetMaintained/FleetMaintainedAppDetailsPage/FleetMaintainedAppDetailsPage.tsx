@@ -34,18 +34,11 @@ import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetai
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
-import {
-  getErrorMessage,
-  getFleetAppPolicyDescription,
-  getFleetAppPolicyName,
-  getFleetAppPolicyQuery,
-} from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 const REQUEST_TIMEOUT_ERROR_MESSAGE =
   "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-const AUTOMATIC_POLICY_ERROR_MESSAGE =
-  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -172,6 +165,9 @@ const FleetMaintainedAppDetailsPage = ({
     }
   );
 
+  // const isSoftwareAdded = !!fleetApp?.software_title_id;
+  const isSoftwareAdded = true; // TODO: Remove after dev testing
+
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
   };
@@ -278,6 +274,7 @@ const FleetMaintainedAppDetailsPage = ({
               onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
+              softwareTitleId={fleetApp.software_title_id}
             />
           </div>
         </>

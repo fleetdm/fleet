@@ -26,6 +26,7 @@ interface ISoftwareOptionsSelector {
   isCustomPackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
+  disableOptions?: boolean;
 }
 
 const SoftwareOptionsSelector = ({
@@ -36,6 +37,7 @@ const SoftwareOptionsSelector = ({
   className,
   isCustomPackage,
   isEditingSoftware,
+  disableOptions = false,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
@@ -57,8 +59,10 @@ const SoftwareOptionsSelector = ({
         value={formData.selfService}
         onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
-        tooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
-        disabled={isSelfServiceDisabled}
+        tooltipContent={
+          !(isSelfServiceDisabled || disableOptions) && SELF_SERVICE_TOOLTIP
+        }
+        disabled={isSelfServiceDisabled || disableOptions}
       >
         Self-service
       </Checkbox>
@@ -68,11 +72,11 @@ const SoftwareOptionsSelector = ({
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
           tooltipContent={
-            !isAutomaticInstallDisabled && (
+            !(isAutomaticInstallDisabled || disableOptions) && (
               <>Automatically install only on hosts missing this software.</>
             )
           }
-          disabled={isAutomaticInstallDisabled}
+          disabled={isAutomaticInstallDisabled || disableOptions}
         >
           Automatic install
         </Checkbox>
