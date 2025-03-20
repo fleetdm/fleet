@@ -7,10 +7,8 @@ on:
     paths:
       # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
       - '.github/workflows/generate-desktop-targets.yml'
-  pull_request:
-    paths:
-      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-targets.yml'
+    tags:
+      - "orbit-*" # For testing, use a pre-release tag like 'orbit-1.24.0-1'
   workflow_dispatch:
 
 defaults:
