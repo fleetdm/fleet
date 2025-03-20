@@ -69,7 +69,10 @@ export const getDisplayErrMessage = (err: unknown) => {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile GUID")) {
     message = INVALID_PROFILE_GUID_ERROR;
-  } else if (reason.includes("invalid URL")) {
+  } else if (
+    reason.includes("invalid URL") ||
+    reason.includes("no such host")
+  ) {
     message = INVALID_URL_ERROR;
   } else if (reason.includes("private key")) {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
