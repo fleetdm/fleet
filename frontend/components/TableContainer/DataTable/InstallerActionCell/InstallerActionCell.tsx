@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
+import { IFleetMaintainedApp } from "interfaces/software";
 
 import { softwareAlreadyAddedTipContent } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import classnames from "classnames";
@@ -14,7 +15,7 @@ import TextCell from "../TextCell";
 const baseClass = "installer-action-cell";
 
 interface IInstallerActionCellProps {
-  value?: any;
+  value?: Omit<IFleetMaintainedApp, "name" | "version"> | null;
   router?: InjectedRouter;
   className?: string;
   teamId?: number;
@@ -28,6 +29,7 @@ const InstallerActionCell = ({
 }: IInstallerActionCellProps) => {
   const cellClasses = classnames(baseClass, className);
 
+  console.log("value", value);
   // Some FMAs are not supported for Windows
   if (!value) {
     return (
@@ -59,6 +61,7 @@ const InstallerActionCell = ({
           position="top"
           underline={false}
           showArrow
+          clickable
           tipOffset={10}
         >
           <Icon name="success" />
