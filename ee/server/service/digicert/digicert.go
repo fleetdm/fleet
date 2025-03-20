@@ -77,7 +77,14 @@ func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertInte
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// all good
+	case http.StatusUnauthorized:
+		return ctxerr.Errorf(ctx, "most likely invalid API token; status code: %d", resp.StatusCode)
+	case http.StatusForbidden:
+		return ctxerr.Errorf(ctx, "most likely invalid profile GUID; status code: %d", resp.StatusCode)
+	default:
 		return ctxerr.Errorf(ctx, "unexpected DigiCert status code: %d", resp.StatusCode)
 	}
 
