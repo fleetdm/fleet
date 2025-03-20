@@ -3508,6 +3508,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			}
 			return builder.String()
 		}
+		expectedToString := func() string {
+			var builder strings.Builder
+			builder.WriteString("Expected:\n")
+			for _, g := range expected {
+				builder.WriteString(fmt.Sprintf("%+v\n", g))
+			}
+			return builder.String()
+		}
+		fmt.Printf(gotToString())
+		fmt.Printf(expectedToString())
 		require.Len(t, got, len(expected)-len(expectOmitted), gotToString())
 		prev := ""
 		for _, g := range got {

@@ -2283,7 +2283,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	}
 
 	type hostSoftware struct {
-		fleet.HostSoftwareInstalledVersion
 		fleet.HostSoftwareWithInstaller
 
 		LastInstallInstalledAt         *time.Time `db:"last_install_installed_at"`
@@ -2291,27 +2290,37 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 		LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-		SoftwareSource      string  `db:"software_source"`
-		VulnerabilitiesList *string `db:"vulnerabilities_list"`
-		InstallerID         *uint   `db:"installer_id"`
-		PackageSelfService  *bool   `db:"package_self_service"`
-		PackageName         *string `db:"package_name"`
-		PackageVersion      *string `db:"package_version"`
-		VPPAppSelfService   *bool   `db:"vpp_app_self_service"`
-		VPPAppAdamID        *string `db:"vpp_app_adam_id"`
-		VPPAppVersion       *string `db:"vpp_app_version"`
-		VPPAppIconURL       *string `db:"vpp_app_icon_url"`
+		LastOpenedAt        *time.Time `db:"last_opened_at"`
+		BundleIdentifier    *string    `db:"bundle_identifier"`
+		Version             *string    `db:"version"`
+		SoftwareID          *uint      `db:"software_id"`
+		SoftwareSource      *string    `db:"software_source"`
+		VulnerabilitiesList *string    `db:"vulnerabilities_list"`
+		InstallerID         *uint      `db:"installer_id"`
+		PackageSelfService  *bool      `db:"package_self_service"`
+		PackageName         *string    `db:"package_name"`
+		PackageVersion      *string    `db:"package_version"`
+		VPPAppSelfService   *bool      `db:"vpp_app_self_service"`
+		VPPAppAdamID        *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion       *string    `db:"vpp_app_version"`
+		VPPAppIconURL       *string    `db:"vpp_app_icon_url"`
 	}
 
+	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
 	installedSoftwareStmt := `
 		SELECT
+			software_titles.id AS id,
 			host_software.software_id AS software_id,
 			host_software.last_opened_at,
 			NULL AS status
 		FROM 
 			host_software
+		INNER JOIN
+			software ON host_software.software_id = software.id
+		INNER JOIN
+			software_titles ON software.title_id = software_titles.id
 		WHERE
 			host_software.host_id = :host_id
 	`
@@ -2326,7 +2335,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	for _, s := range hostInstalledSoftware {
-		bySoftwareID[s.SoftwareID] = s
+		bySoftwareTitleID[s.ID] = s
+		if s.SoftwareID != nil {
+			bySoftwareID[*s.SoftwareID] = s
+		}
 	}
 
 	softwareInstallsStmt := `
@@ -2388,7 +2400,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
                 )
         )
         SELECT
-			software.id AS software_id,
 			software_installers.title_id AS id,
 			lsia.*
 		FROM
@@ -2397,9 +2408,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			software_installers ON lsia.installer_id = software_installers.id
 		INNER JOIN
 			software_titles ON software_installers.title_id = software_titles.id
-		INNER JOIN
-			software ON software.title_id = software_titles.id
-			AND software.version = software_installers.version
     `
 	softwareInstallsStmt, args, err = sqlx.Named(softwareInstallsStmt, namedArgs)
 	if err != nil {
@@ -2411,7 +2419,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	for _, s := range softwareInstalls {
-		bySoftwareID[s.SoftwareID] = s
+		bySoftwareTitleID[s.ID] = s
 	}
 
 	softwareUninstallsStmt := `
@@ -2481,9 +2489,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			software_installers ON lsua.installer_id = software_installers.id
 		INNER JOIN
 			software_titles ON software_installers.title_id = software_titles.id
-		INNER JOIN
-			software ON software.title_id = software_titles.id
-			AND software.version = software_installers.version
     `
 	softwareUninstallsStmt, args, err = sqlx.Named(softwareUninstallsStmt, namedArgs)
 	if err != nil {
@@ -2495,7 +2500,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 	for _, s := range softwareUninstalls {
-		bySoftwareID[s.SoftwareID] = s
+		bySoftwareTitleID[s.ID] = s
 	}
 
 	vppInstallsStmt := fmt.Sprintf(`
@@ -2674,18 +2679,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		// Clear out all the previous software titles as we are only filtering for available software
 		if opts.OnlyAvailableForInstall {
-			bySoftwareID = make(map[uint]*hostSoftware, len(availableSoftwareTitles))
+			bySoftwareTitleID = make(map[uint]*hostSoftware, len(availableSoftwareTitles))
 		}
 		for _, s := range availableSoftwareTitles {
-			if s.SoftwareID != 0 {
-				bySoftwareID[s.SoftwareID] = s
-			}
+			bySoftwareTitleID[s.ID] = s
 		}
 	}
 
-	var softwareIds []uint
+	var softwareTitleIds []uint
+	for softwareTitleID := range bySoftwareTitleID {
+		softwareTitleIds = append(softwareTitleIds, softwareTitleID)
+	}
+
+	var softwareIDs []uint
 	for softwareID := range bySoftwareID {
-		softwareIds = append(softwareIds, softwareID)
+		softwareIDs = append(softwareIDs, softwareID)
 	}
 
 	var vppAdamIDs []string
@@ -2695,7 +2703,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	var titleCount uint
 	var hostSoftwareList []*hostSoftware
-	if len(softwareIds) > 0 || len(vppAdamIDs) > 0 {
+	if len(softwareTitleIds) > 0 || len(vppAdamIDs) > 0 {
 		var args []interface{}
 		var stmt string
 		var softwareTitleStatment string
@@ -2723,7 +2731,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vulnerableJoin = `LEFT JOIN software_cve ON software_cve.software_id = software.id`
 		}
 
-		if len(softwareIds) > 0 {
+		if len(softwareTitleIds) > 0 {
+			installedSoftwareJoinsCondition := ""
+			if len(softwareIDs) > 0 {
+				installedSoftwareJoinsCondition = `AND software.id IN (?)`
+			}
+
 			softwareTitleStatment = `
 			-- SELECT for software
 			%s
@@ -2732,18 +2745,23 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			LEFT JOIN
 				software_installers ON software_titles.id = software_installers.title_id 
 				AND software_installers.global_or_team_id = :global_or_team_id
-			INNER JOIN 
-				software ON software_titles.id = software.title_id
+			LEFT JOIN
+				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
 			` + vulnerableJoin + `
 			WHERE
-				software.id IN (?) 
+				software_titles.id IN (?)
 				AND true
 			` + softwareOnlySelfServiceClause + `
 			-- GROUP by for software
 			%s
 			`
 
-			softwareTitleStatment, softwareTitleArgs, err := sqlx.In(softwareTitleStatment, softwareIds)
+			var softwareTitleArgs []interface{}
+			if len(softwareIDs) > 0 {
+				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareIDs, softwareTitleIds)
+			} else {
+				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareTitleIds)
+			}
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
 			}
@@ -2799,7 +2817,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		var countStmt string
-		if len(softwareIds) > 0 && len(vppAdamIDs) > 0 {
+		if len(softwareTitleIds) > 0 && len(vppAdamIDs) > 0 {
 			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
 		} else {
 			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
@@ -2815,7 +2833,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "get host software count")
 		}
 
-		if len(softwareIds) > 0 {
+		if len(softwareTitleIds) > 0 {
 			stmt = fmt.Sprintf(stmt,
 				// For software installers
 				`
@@ -2828,8 +2846,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.version AS package_version,
 					software.id AS software_id,
 					software.source AS software_source,
-					software.version,
-					software.bundle_identifier,
+					software.version AS version,
+					software.bundle_identifier AS bundle_identifier,
 					NULL AS vpp_app_self_service,
 					NULL AS vpp_app_adam_id,
 					NULL AS vpp_app_version,
@@ -2914,26 +2932,30 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, s := range hostSoftwareList {
-			// Find software from bySoftwareID
-			software, _ := bySoftwareID[s.SoftwareID]
-			// Find installed path
-			paths, _ := installedPathBySoftwareId[s.SoftwareID]
+			softwareTitle := bySoftwareTitleID[s.ID]
+			version := &fleet.HostSoftwareInstalledVersion{}
+			if s.SoftwareID != nil {
+				// Find software from bySoftwareID, indicating the version is installed on host
+				if software, ok := bySoftwareID[*s.SoftwareID]; ok {
+					// Find installed path
+					paths, _ := installedPathBySoftwareId[*s.SoftwareID]
+					version.Version = *s.Version
+					version.Source = *s.SoftwareSource
+					version.BundleIdentifier = *s.BundleIdentifier
+					version.LastOpenedAt = software.LastOpenedAt
+					version.InstalledPaths = paths
 
-			version := &fleet.HostSoftwareInstalledVersion{
-				Version:          s.Version,
-				Source:           s.SoftwareSource,
-				BundleIdentifier: s.BundleIdentifier,
-				LastOpenedAt:     software.LastOpenedAt,
-				InstalledPaths:   paths,
-			}
-			if s.VulnerabilitiesList != nil {
-				rawVulnerabilities := strings.Split(*s.VulnerabilitiesList, ",")
-				for i := range rawVulnerabilities {
-					rawVulnerabilities[i] = strings.TrimSpace(rawVulnerabilities[i])
+					if s.VulnerabilitiesList != nil {
+						rawVulnerabilities := strings.Split(*s.VulnerabilitiesList, ",")
+						for i := range rawVulnerabilities {
+							rawVulnerabilities[i] = strings.TrimSpace(rawVulnerabilities[i])
+						}
+						version.Vulnerabilities = rawVulnerabilities
+					}
 				}
-				version.Vulnerabilities = rawVulnerabilities
 			}
 
+			// If we have seen the software title already, then we just need to add an installed version to the InstalledVersions list
 			if storedIndex, ok := indexOfSoftwareTitle[s.ID]; ok {
 				// Combine the software version, source, and bundle identifier of the current `s` with the existing record
 				deduplicatedList[storedIndex].InstalledVersions = append(
@@ -2941,25 +2963,24 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					version,
 				)
 			} else {
-				s.InstalledVersions = append(s.InstalledVersions, version)
-				// Merge the data of `software` into `s`
-				s.Status = software.Status
-				s.LastInstallInstallUUID = software.LastInstallInstallUUID
-				s.LastInstallInstalledAt = software.LastInstallInstalledAt
-				s.InstallerID = software.InstallerID
-				s.LastUninstallScriptExecutionID = software.LastUninstallScriptExecutionID
-				s.LastUninstallUninstalledAt = software.LastUninstallUninstalledAt
-				s.PackageSelfService = software.PackageSelfService
-				s.VPPAppSelfService = software.VPPAppSelfService
-				s.VPPAppAdamID = software.VPPAppAdamID
-				s.VPPAppVersion = software.VPPAppVersion
-
-				// for whatever reason despite the order in which the structs are embedded,
-				// the source field from the db is getting added to HostSoftwareInstalledVersion
-				// instead of HostSoftwareWithInstaller.
-				if s.HostSoftwareWithInstaller.Source == "" {
-					s.HostSoftwareWithInstaller.Source = s.HostSoftwareInstalledVersion.Source
+				if version.Version != "" {
+					s.InstalledVersions = append(s.InstalledVersions, version)
 				}
+				// Merge the data of `software` into `s`
+				s.Status = softwareTitle.Status
+				s.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
+				s.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
+				s.InstallerID = softwareTitle.InstallerID
+				s.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
+				s.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
+				if softwareTitle.PackageSelfService != nil {
+					s.PackageSelfService = softwareTitle.PackageSelfService
+				}
+				if softwareTitle.VPPAppSelfService != nil {
+					s.VPPAppSelfService = softwareTitle.VPPAppSelfService
+				}
+				s.VPPAppAdamID = softwareTitle.VPPAppAdamID
+				s.VPPAppVersion = softwareTitle.VPPAppVersion
 
 				// promote the package name and version to the proper destination fields
 				if s.PackageName != nil {
@@ -2974,22 +2995,22 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					}
 
 					// promote the last install info to the proper destination fields
-					if s.LastInstallInstallUUID != nil && *s.LastInstallInstallUUID != "" {
+					if softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
 						s.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
-							InstallUUID: *s.LastInstallInstallUUID,
+							InstallUUID: *softwareTitle.LastInstallInstallUUID,
 						}
-						if s.LastInstallInstalledAt != nil {
-							s.SoftwarePackage.LastInstall.InstalledAt = *s.LastInstallInstalledAt
+						if softwareTitle.LastInstallInstalledAt != nil {
+							s.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
 						}
 					}
 
 					// promote the last uninstall info to the proper destination fields
-					if s.LastUninstallScriptExecutionID != nil && *s.LastUninstallScriptExecutionID != "" {
+					if softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
 						s.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
-							ExecutionID: *s.LastUninstallScriptExecutionID,
+							ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
 						}
-						if s.LastUninstallUninstalledAt != nil {
-							s.SoftwarePackage.LastUninstall.UninstalledAt = *s.LastUninstallUninstalledAt
+						if softwareTitle.LastUninstallUninstalledAt != nil {
+							s.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
 						}
 					}
 				}
