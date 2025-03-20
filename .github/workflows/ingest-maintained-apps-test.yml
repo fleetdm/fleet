@@ -55,9 +55,10 @@ jobs:
               state: 'open',
               head: `${context.repo.owner}:${context.ref}`,
             });
-            const prs = pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]');
-            console.log(prs.map(pr => pr.number).join('\n'));
-    
+            return pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+
+      - name: Log Found PRs
+        run: echo "${{ steps.search_pr.outputs }}"
       # - name: Create Pull Request
       #   uses: peter-evans/create-pull-request@v7
       #   with:
