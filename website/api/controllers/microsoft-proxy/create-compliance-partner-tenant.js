@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Create compliance partner tenant',
 
 
-  description: '',
+  description: 'Creates a new Microsoft compliance partner tenant record for a provided tenant ID and returns a generated secret.',
 
 
   inputs: {
@@ -12,28 +12,20 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    fleetLicenseKey: {
-      type: 'string',
-      required: true,
-    }
   },
 
 
   exits: {
-    success: { description: ''},
-    notACloudCustomer: { description: 'This request was not made by a managed cloud customer', responseType: 'badRequest' },
-    connectionAlreadyExists: {description: 'A microsfot compliance tenant already exists for the provided entra tenant id.'}
+    success: { description: '' },
+    connectionAlreadyExists: {description: 'A Microsoft compliance tenant already exists for the provided entra tenant id.'}
   },
 
 
   fn: async function ({entraTenantId, fleetLicenseKey}) {
 
-    // Return a bad request response if this request came from a non-managed cloud Fleet instance.
-    if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
-      throw 'notACloudCustomer';
-    }
-
+    // Look for an existing microsoftComplianceTenant record.
     let connectionAlreadyExists = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId});
+    // If we found one with the provided tenant ID, return an error.
     if(connectionAlreadyExists) {
       throw 'connectionAlreadyExists';
     }
@@ -41,7 +33,7 @@ module.exports = {
 
     // Create a new database record for this tenant.
     let newTenant = await MicrosoftComplianceTenant.create({
-      apiKey: sails.helpers.strings.random.with({len: 30}),
+      fleetServerSecret: sails.helpers.strings.random.with({len: 30}),
       entraTenantId: entraTenantId,
       licenseKey: fleetLicenseKey,
       fleetInstanceUrl: this.req.headers['Origin'],
@@ -52,7 +44,6 @@ module.exports = {
     return {
       fleet_server_secret: newTenant.apiKey,
       entra_tenant_id: entraTenantId,
-      entra_application_id: sails.config.custom.entraApplicationId
     };
 
   }

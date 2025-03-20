@@ -971,5 +971,6 @@ module.exports.routes = {
   'DELETE /api/v1/microsoft-compliance-partner': { action: 'microsoft-proxy/remove-one-compliance-partner-tenant', csrf: false },
   'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
   'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/get-tenants-admin-consent-status', csrf: false },
 
 };

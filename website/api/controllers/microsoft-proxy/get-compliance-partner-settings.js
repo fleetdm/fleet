@@ -6,40 +6,52 @@ module.exports = {
 
   description: '',
 
-
-  exits: {
-    success: { description: 'The microsoft entra application ID was sent to a managed cloud instance.'},
-    notACloudCustomer: { description: 'This request was not made by a managed cloud customer', responseType: 'badRequest' },
+  inputs: {
+    entraTenantId: {
+      type: 'string',
+      required: true,
+    },
+    fleetServerSecret: {
+      type: 'string',
+      requried: true,
+    },
   },
 
 
-  fn: async function () {
-    // Return a bad request response if this request came from a non-managed cloud Fleet instance.
-    if(!this.req.headers['Origin'] || !this.req.headers['Origin'].match(/cloud\.fleetdm\.com$/g)) {
-      throw 'notACloudCustomer';
-    }
+  exits: {
+    success: { description: 'The microsoft entra application ID was sent to a managed cloud instance.'},
+  },
 
-    if(!sails.config.custom.entraApplicationId){
-      throw new Error(`Missing configuration! Please set sails.config.custom.entraApplicationId to be the application id of Fleet's microsoft compliance partner application.`)
-    }
 
-    if(!this.req.headers['Authorization']) {
-      return this.res.unauthorized();
-    }
+  fn: async function ({entraTenantId, fleetServerSecret}) {
 
-    let authHeaderValue = this.req.headers['Authorization'];
-    let tokenForThisRequest = authHeaderValue.split('Bearer ')[1];
-    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({apiKey: tokenForThisRequest});
-    if(!informationAboutThisTenant){
+    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
+    if(!informationAboutThisTenant) {
       return this.res.notFound();
     }
+    if(informationAboutThisTenant.adminConsented) {
+      return {
+        entra_tenant_id: entraTenantId,
+        setup_done: informationAboutThisTenant.setupCompleted,
+        admin_consented: true
+      };
+    } else {
+      // Generate a state token for the admin consent link.
+      let stateTokenForThisAdminConsentLink = sails.helpers.strings.random.with({len: 30, style: 'url-friendly'});
 
-    // All done.
-    return {
-      entra_application_id: sails.config.custom.entraApplicationId,
-      entra_tenant_id: informationAboutThisTenant.entraTenantId,
-      setup_done: informationAboutThisTenant.setupCompleted,
-    };
+      // Update the database record for this tenant to include the generated state token.
+      await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({stateTokenForAdminConsent: stateTokenForThisAdminConsentLink});
+
+      // Build an admin consent url for this request.
+      let adminConsentUrlForThisTenant = `https://login.microsoftonline.com/${entraTenantId}/adminconsent?client_id=${encodeURIComponent(sails.config.custom.compliancePartnerClientId)}&state=${encodeURIComponent(stateTokenForThisAdminConsentLink)}&redirect_uri=${encodeURIComponent('fleetdm.com/api/v1/microsoft-compliance-partner/adminconsent')}`;
+
+      return {
+        entra_tenant_id: entraTenantId,
+        setup_done: informationAboutThisTenant.setupCompleted,
+        admin_consented: false,
+        admin_consent_url: adminConsentUrlForThisTenant
+      }
+    }
 
   }
 
