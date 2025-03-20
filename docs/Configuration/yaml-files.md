@@ -390,6 +390,8 @@ self_service: true
 
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
+> Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
+
 ## org_settings and team_settings
 
 ### features
