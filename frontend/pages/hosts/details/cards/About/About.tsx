@@ -18,6 +18,7 @@ import {
   BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
+import CardHeader from "components/CardHeader";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -225,12 +226,12 @@ const About = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      paddingSize="xxlarge"
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <h2>About</h2>
+      <CardHeader header="About" />
       <div className="info-flex">
         <DataSet
           title="Added to Fleet"

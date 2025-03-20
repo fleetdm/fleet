@@ -22,6 +22,7 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
@@ -415,17 +416,17 @@ const HostSoftware = ({
 
   return (
     <Card
+      className={baseClass}
       borderRadiusSize="xxlarge"
-      paddingSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      className={`${baseClass} ${isMyDevicePage ? "device-software" : ""}`}
     >
-      <div className={`card-header`}>Software</div>
-      {isMyDevicePage && (
-        <div className={`card-subheader`}>
-          Software installed on your device.
-        </div>
-      )}
+      <CardHeader
+        header="Software"
+        subheader={
+          isMyDevicePage ? "Software installed on your device." : undefined
+        }
+      />
       {renderHostSoftware()}
     </Card>
   );

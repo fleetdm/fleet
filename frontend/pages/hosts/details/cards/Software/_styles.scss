@@ -1,9 +1,4 @@
 .software-card {
-  .card-header {
-    font-weight: $bold;
-    margin: 0 0 $pad-large 0;
-  }
-
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
@@ -109,18 +104,5 @@
         }
       }
     }
-  }
-}
-
-.device-software {
-  .card-header {
-    font-weight: $regular;
-    margin: 0 0 $pad-small 0;
-  }
-
-  .card-subheader {
-    margin: 0 0 $pad-large 0;
-    color: $ui-fleet-black-75;
-    font-size: $x-small;
   }
 }
