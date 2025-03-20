@@ -58,7 +58,7 @@ jobs:
             return pullRequests.filter(pr => pr.title === 'Update Fleet-maintained apps' && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
 
       - name: Log Found PRs
-        run: echo "${{ steps.search_pr.outputs }}"
+        run: echo "${{ steps.search_pr.outputs.result }}"
       # - name: Create Pull Request
       #   uses: peter-evans/create-pull-request@v7
       #   with:
