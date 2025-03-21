@@ -71,16 +71,15 @@ const getUninstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "exe") {
     return (
       <>
-        $PACKAGE_ID will be populated with the {PKG_TYPE_TO_ID_TEXT[pkgType]}{" "}
-        from the .{pkgType} file after the software is added.{" "}
+        For Windows, Fleet only creates uninstall scripts for .msi packages.
+        $PACKAGE_ID will be populated with the software name from the .exe file
+        after it&apos;s added.
         {getSupportedScriptTypeText(pkgType)}{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
-          text="EXE uninstall scripts must be built manually."
+          text="Learn more"
           newTab
-        />{" "}
-        Fleet automatically builds install and uninstall scripts for .msi
-        packages and Fleet-maintained apps.
+        />
       </>
     );
   }
