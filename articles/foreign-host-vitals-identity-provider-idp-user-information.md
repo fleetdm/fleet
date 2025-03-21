@@ -22,7 +22,7 @@ To connect Okta to Fleet, follow these steps:
 6. On **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select **General** tab of the newly created app, then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM**, and select **Save**.
-9. Select **Provisioning** tab, then in **SCIM Connection**, select **Edit**.
+9. Select the **Provisioning** tab and then, in **SCIM Connection**, select **Edit**.
 10. In **SCIM connector base URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
 11. In **Unique identifier field for users**, enter `userName`.
 12. For **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
