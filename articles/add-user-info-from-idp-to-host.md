@@ -53,7 +53,7 @@ To send users and groups information to Fleet, you have to assign them to SCIM a
    Fleet, and Fleet will map those groups to already provisioned users .
 
 
-## Connect Microsoft Entra ID
+## Microsoft Entra ID
 
 To connect Entra ID to Fleet, follow these steps:
 
