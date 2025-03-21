@@ -1,10 +1,11 @@
 import React from "react";
 import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+
 import { createCustomRenderer, renderWithSetup } from "test/test-utils";
+import createMockConfig from "__mocks__/configMock";
 
 import AddCertAuthorityModal from "./AddCertAuthorityModal";
-import createMockConfig from "__mocks__/configMock";
 
 describe("AddCertAuthorityModal", () => {
   it("renders the Digicert form by default", () => {
