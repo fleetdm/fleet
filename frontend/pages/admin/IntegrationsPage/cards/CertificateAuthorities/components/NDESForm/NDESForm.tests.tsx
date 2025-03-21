@@ -29,7 +29,7 @@ describe("NDESForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeVisible();
   });
 
-  it("enables and disabled form submittion depending on the form validation", async () => {
+  it("enables and disables form submission depending on the form validation", async () => {
     const { user } = renderWithSetup(
       <NDESForm
         formData={createTestFormData()}
