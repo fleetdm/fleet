@@ -22,12 +22,14 @@ module.exports = {
       type: 'string',
       description: 'The Microsoft entra tenant ID for this compliance tenant',
       unique: true,
+      required: true,
     },
 
     fleetInstanceUrl: {
       type: 'string',
       description: 'The url of the connected Fleet instance.',
       unique: true,
+      required: true,
     },
 
     setupCompleted: {
