@@ -9,7 +9,7 @@ Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#micr
 To add IdP host vitals, follow steps for your IdP.
 
 
-## Connect Okta
+## Okta
 
 To connect Okta to Fleet, follow these steps:
 
