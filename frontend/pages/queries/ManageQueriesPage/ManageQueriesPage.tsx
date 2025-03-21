@@ -26,6 +26,7 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -118,6 +119,13 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
+  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
+  // this prop.
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -139,7 +147,7 @@ const ManageQueriesPage = ({
       {
         scope: "queries",
         teamId: teamIdForApi,
-        page: curPageFromURL,
+        page: tableQueryDataForApi?.pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         // a search match query, not a Fleet Query
         query: location.query.query,
@@ -181,6 +189,35 @@ const ManageQueriesPage = ({
   useEffect(() => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
   }, []);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [location, curPageFromURL]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    // this function encapsulates setting local page state to 0 and triggering the descendant
+    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
+    setTableQueryDataForApi(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    // change in state triggers effect in TableContainer (see comment above this state definition)
+    setResetPageIndex(true);
+  };
+
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+      handleResetPageIndex();
+    },
+    [handleTeamChange]
+  );
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
@@ -251,7 +288,7 @@ const ManageQueriesPage = ({
             <TeamsDropdown
               currentUserTeams={userTeams}
               selectedTeamId={currentTeamId}
-              onChange={handleTeamChange}
+              onChange={onTeamChange}
             />
           );
         } else if (!isOnGlobalTeam && userTeams.length === 1) {
@@ -282,6 +319,7 @@ const ManageQueriesPage = ({
         queryParams={location.query}
         currentTeamId={teamIdForApi}
         isPremiumTier={isPremiumTier}
+        resetPageIndex={resetPageIndex}
       />
     );
   };

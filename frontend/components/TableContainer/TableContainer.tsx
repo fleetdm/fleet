@@ -265,20 +265,21 @@ const TableContainer = <T,>({
     pageIndex,
     additionalQueries,
   ]);
-
-  /** Clientside pagination is handled in data table using react-table builtins */
+  /** This is server side pagination. Clientside pagination is handled in
+   * data table using react-table builtins */
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
       return null;
     }
-
     return (
       <Pagination
         disablePrev={pageIndex === 0}
         disableNext={disableNextPage || data.length < pageSize}
         onPrevPage={() => onPaginationChange(pageIndex - 1)}
         onNextPage={() => onPaginationChange(pageIndex + 1)}
-        hidePagination={disableNextPage && pageIndex === 0}
+        hidePagination={
+          (disableNextPage || data.length < pageSize) && pageIndex === 0
+        }
       />
     );
   }, [
@@ -289,6 +290,7 @@ const TableContainer = <T,>({
     pageIndex,
     pageSize,
     onPaginationChange,
+    resetPageIndex,
   ]);
 
   const renderFilterActionButton = () => {
