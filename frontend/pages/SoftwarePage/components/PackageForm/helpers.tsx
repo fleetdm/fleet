@@ -49,7 +49,7 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForExe",
         isValid: (formData) => {
-          if (formData.software?.type !== "exe") {
+          if (formData.software?.type === "exe") {
             // Handle undefined safely with nullish coalescing
             return (formData.installScript ?? "").trim().length > 0;
           }
@@ -64,7 +64,7 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForExe",
         isValid: (formData) => {
-          if (formData.software?.type !== "exe") {
+          if (formData.software?.type === "exe") {
             // Handle undefined safely with nullish coalescing
             return (formData.uninstallScript ?? "").trim().length > 0;
           }
