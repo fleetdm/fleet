@@ -35,9 +35,9 @@ const NDESForm = ({
   onSubmit,
   onCancel,
 }: INDESFormProps) => {
-  const [formValidation, setFormValidation] = useState<INDESFormValidation>({
-    isValid: false,
-  });
+  const [formValidation, setFormValidation] = useState<INDESFormValidation>(
+    () => validateFormData(formData)
+  );
 
   const { scepURL, adminURL, username, password } = formData;
 

@@ -52,9 +52,9 @@ const CustomSCEPForm = ({
   const [
     formValidation,
     setFormValidation,
-  ] = useState<ICustomSCEPFormValidation>({
-    isValid: false,
-  });
+  ] = useState<ICustomSCEPFormValidation>(() =>
+    validateFormData(formData, validations)
+  );
 
   const { name, scepURL, challenge } = formData;
 

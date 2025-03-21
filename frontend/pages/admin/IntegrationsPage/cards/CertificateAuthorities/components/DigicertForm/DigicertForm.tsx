@@ -52,9 +52,7 @@ const DigicertForm = ({
   );
 
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(
-    {
-      isValid: false,
-    }
+    () => validateFormData(formData, validations)
   );
 
   const {
