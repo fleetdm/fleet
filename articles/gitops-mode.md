@@ -26,9 +26,8 @@ features](https://fleetdm.com/docs/configuration/yaml-files). They will still be
 - Run live queries
 
 ## More on GitOps
-<!-- TODO - update to link to Allen's article! -->
-
-- [Why use GitOps to configure Fleet?](https://www.example.com)
+<!-- TODO - update to link to Allen's article, uncomment -->
+<!-- - [Why use GitOps to configure Fleet?](https://www.example.com) -->
 - [Preventing Mistakes with GitOps](https://fleetdm.com/guides/articles/preventing-mistakes-with-gitops)
 
 <meta name="articleTitle" value="GitOps mode">
@@ -36,4 +35,4 @@ features](https://fleetdm.com/docs/configuration/yaml-files). They will still be
 <meta name="authorGitHubUsername" value="jacobshandling">
 <meta name="publishedOn" value="2025-03-21">
 <meta name="category" value="guides">
-<meta name="description" value="Use GitOps mode to prevent UI users from updating GitOps-managed features">
+<meta name="description" value="Use GitOps mode to prevent UI users from updating GitOps-managed **features**">
