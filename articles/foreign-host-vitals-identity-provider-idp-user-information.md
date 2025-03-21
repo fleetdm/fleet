@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium._
 
-Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace),as well as any other identity provider (IdP) that supports the [SCIM](https://scim.cloud/) standard.
+Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace), as well as any other identity provider (IdP) that supports the [SCIM](https://scim.cloud/) standard.
 
 To add IdP host vitals, follow steps for your IdP.
 
