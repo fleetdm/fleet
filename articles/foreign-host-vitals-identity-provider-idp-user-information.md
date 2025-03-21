@@ -78,7 +78,7 @@ Now, Microsoft Entra ID will send data to Fleet immediately. Future requests hap
 
 ## Google Workspace
 
-Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to import users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
+Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to export users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
 
 ### Prerequisites
 
