@@ -34,14 +34,7 @@
       "slug": "cisco-jabber/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cisco.Jabber",
-      "description": ""
-    },
-    {
-      "name": "Citrix Workspace",
-      "slug": "citrix-workspace/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.citrix.receiver.nomas",
-      "description": ""
+      "description": "Cisco Jabber is a unified communications application that integrates instant messaging, presence, voice, video, voice messaging, desktop sharing, and conferencing."
     },
     {
       "name": "Cloudflare WARP",
@@ -55,7 +48,7 @@
       "slug": "discord/darwin",
       "platform": "darwin",
       "unique_identifier": "com.hnc.Discord",
-      "description": ""
+      "description": "Discord is a communication platform that allows users to connect with friends, communities, and other groups through voice, video, and text chat."
     },
     {
       "name": "Docker Desktop",
@@ -69,14 +62,14 @@
       "slug": "drawio/darwin",
       "platform": "darwin",
       "unique_identifier": "com.jgraph.drawio.desktop",
-      "description": ""
+      "description": "Draw.io is a diagramming application that allows users to create various types of diagrams, including flowcharts, process diagrams, org charts, UML, ER, and network diagrams."
     },
     {
       "name": "Dropbox",
       "slug": "dropbox/darwin",
       "platform": "darwin",
       "unique_identifier": "com.getdropbox.dropbox",
-      "description": ""
+      "description": "Dropbox is a cloud storage and file synchronization service that allows users to store, access, and share files online from any device."
     },
     {
       "name": "Figma",
@@ -97,7 +90,7 @@
       "slug": "github-desktop/darwin",
       "platform": "darwin",
       "unique_identifier": "com.github.GitHubClient",
-      "description": ""
+      "description": "GitHub Desktop is an application that provides a graphical user interface (GUI) for interacting with Git and GitHub."
     },
     {
       "name": "Google Chrome",
