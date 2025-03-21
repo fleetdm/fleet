@@ -40,15 +40,12 @@ To connect Okta to Fleet, follow these steps:
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
-1. Select **Directory > Groups** in the main menu, then select **Add group**. Name it so you know that users from this group will be provisioned to Fleet (e.g "Fleet human-device mapping").
-2. On the same page, select **Rules** tab. Create rule that will assign users from groups that you want to provision to Fleet to newly created "Fleet human-device mapping" group.
+1. In OKta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
+2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
 ![Okta group rule](../website/assets/images/articles/okta-scim-group-rules.png)
-3. Select **Applications > Applications** in the main menu, select app that you created previously, then select **Assignements** tab.
-4. Select **Assign > Assign to Groups**, then click **Assign** next to the "Fleet human-device mapping" group, then select **Done**. Now all users that you assigned to "Fleet human-device mapping" group via rule will be provisioned to Fleet. It may take a while if you have many users.
-5. On the same page, select **Push Groups** tab, then select **Push Groups > Find groups by name**,
-   and add all groups that you assigned via rule to "Fleet human-device mapping" group previously (make sure that
-   **Push group memberships immediately** is selected). All groups will be provisioned to
-   Fleet, and Fleet will map those groups to already provisioned users .
+3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
+4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Then, select **Done**. Now all users that you assigned to the  "Fleet human-device mapping" group will be provisioned to Fleet. It may take a while if you have many users.
+5. On the same page, select **Push Groups** tab. Then, select **Push Groups > Find groups by name** and add all groups that you assigned to "Fleet human-device mapping" group previously (make sure that **Push group memberships immediately** is selected). All groups will be provisioned in Fleet, and Fleet will map those groups to users.
 
 
 ## Microsoft Entra ID
