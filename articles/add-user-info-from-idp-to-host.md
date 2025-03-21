@@ -91,7 +91,7 @@ To connect Entra ID to Fleet, follow these steps:
 > requests are triggered every 20-40 minutes. If you edit user information in Entra, it might
 > take up to 40 minutes to see the change in Fleet.
 
-## Connect Google Workspace
+## Connect Google Workspace (with authentik)
 
 Google Workspace doesn't support SCIM provisioning, so we suggest using [authentik](https://goauthentik.io/) to import users from Google Workspace and then add users to Fleet via SCIM protocol.
 
@@ -227,8 +227,14 @@ Below you can learn how to do each step above.
 6. For **TLS client authentication certificate** select certificate created in 2nd section (Google LDAP certificate)
 7. For **Bind CN** enter userneame that you saved in the first section, and for **Bind Password** enter password that you saved.
 8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dn=yourcompany,dn=com).
-9. For **User Property Mappings,** remove all selected properties by clicking "X" icon, and select all user properties that we created in the section above in the left box and select ">" icon between boxes.
-10. For **Group Property Mappings**, remove all selected properties by clicking "X" icon, and select all group properties that we created in the section above in the left box and select ">" icon between boxes.
+9. For **User Property Mappings,** remove all selected properties by clicking "X" icon, and select
+   all user properties that we created in the section above in the left box and select ">" icon
+   between boxes.
+![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings.png)
+10. For **Group Property Mappings**, remove all selected properties by clicking "X" icon, and select
+    all group properties that we created in the section above in the left box and select ">" icon
+    between boxes.
+![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings.png)
 11. Under **Additional settings** enter values below.
 12. **User object filter** > `(objectClass=person)`,  **Group object filter** > `(objectClass= groupOfNames)`, **Group membership field** > `member`, **Object uniqueness field** > `objectSid`
 13. Select **Finish** to save configuration. 
