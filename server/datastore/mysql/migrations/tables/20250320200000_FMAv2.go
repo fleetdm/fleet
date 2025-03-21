@@ -12,30 +12,8 @@ func init() {
 }
 
 func Up_20250317201526(tx *sql.Tx) error {
-	_, err := tx.Exec(`
-ALTER TABLE software_installers
-	CHANGE COLUMN fleet_library_app_id fleet_maintained_app_id INT unsigned DEFAULT NULL
-`)
-	if err != nil {
-		return fmt.Errorf("failed to rename fleet_library_app_id column: %w", err)
-	}
-
-	_, err = tx.Exec(`RENAME TABLE fleet_library_apps TO fleet_maintained_apps`)
-	if err != nil {
-		return fmt.Errorf("failed to rename fleet_library_apps: %w", err)
-	}
-
-	_, err = tx.Exec(`UPDATE software_installers si
-		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
-		SET fleet_maintained_app_id = NULL
-	    WHERE fma.install_script_content_id != si.install_script_content_id
-	    	OR fma.uninstall_script_content_id != si.uninstall_script_content_id`)
-	if err != nil {
-		return fmt.Errorf("failed to unlink diverged Fleet-maintained apps: %w", err)
-	}
-
 	// Clean up Fleet Library App associated scripts before we drop the columns on the table
-	_, err = tx.Exec(`DELETE FROM
+	_, err := tx.Exec(`DELETE FROM
   script_contents
 WHERE
   NOT EXISTS (
@@ -58,6 +36,28 @@ WHERE
 	)`)
 	if err != nil {
 		return fmt.Errorf("failed to clean up unused scripts: %w", err)
+	}
+
+	_, err = tx.Exec(`
+ALTER TABLE software_installers
+	CHANGE COLUMN fleet_library_app_id fleet_maintained_app_id INT unsigned DEFAULT NULL
+`)
+	if err != nil {
+		return fmt.Errorf("failed to rename fleet_library_app_id column: %w", err)
+	}
+
+	_, err = tx.Exec(`RENAME TABLE fleet_library_apps TO fleet_maintained_apps`)
+	if err != nil {
+		return fmt.Errorf("failed to rename fleet_library_apps: %w", err)
+	}
+
+	_, err = tx.Exec(`UPDATE software_installers si
+		JOIN fleet_maintained_apps fma ON fma.id = si.fleet_maintained_app_id
+		SET fleet_maintained_app_id = NULL
+	    WHERE fma.install_script_content_id != si.install_script_content_id
+	    	OR fma.uninstall_script_content_id != si.uninstall_script_content_id`)
+	if err != nil {
+		return fmt.Errorf("failed to unlink diverged Fleet-maintained apps: %w", err)
 	}
 
 	_, err = tx.Exec(`
