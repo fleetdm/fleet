@@ -29,7 +29,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'Invalid Tenant ID: No MicrosoftComplianceTenant record was found that matches the provided API key.'});// TODO: return a more clear error.
+      return new Error({error: 'Invalid Tenant ID: No MicrosoftComplianceTenant record was found that matches the provided API key.'});
     }
     if(informationAboutThisTenant.fleetServerSecret !== fleetServerSecret){
       return new Error({error: 'Invalid secret: The provided fleetServerSecret does not match the secret for the provided tenant ID.'});
@@ -57,8 +57,8 @@ module.exports = {
       },
       body: {
         Provisioned: 1,// 1 = provisioned, 2 = deprovisioned.
-        PartnerEnrollmentUrl: '', //TODO: how do we get this, the example in microsoft's docs are using customer.com/enrollment, so does this need to be a value of a url on the connected Fleet instance?
-        PartnerRemediationUrl: '', // TODO: same as the above.
+        PartnerEnrollmentUrl: `${informationAboutThisTenant.fleetInstanceUrl}/enrollment`,
+        PartnerRemediationUrl: `${informationAboutThisTenant.fleetInstanceUrl}/remediation`,
       }
     }).intercept((err)=>{
       return new Error({error: `an error occurred when provisioning a new Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});

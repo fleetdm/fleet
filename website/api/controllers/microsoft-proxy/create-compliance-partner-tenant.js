@@ -17,17 +17,23 @@ module.exports = {
 
   exits: {
     success: { description: '' },
-    connectionAlreadyExists: {description: 'A Microsoft compliance tenant already exists for the provided entra tenant id.'}
+    connectionAlreadyExists: {description: 'A Microsoft compliance tenant already exists for the provided entra tenant id.', statusCode: 409},
+    missingOriginHeader: { description: 'No Origin header set', responseType: 'badRequest'},
   },
 
 
-  fn: async function ({entraTenantId, fleetLicenseKey}) {
+  fn: async function ({entraTenantId}) {
 
     // Look for an existing microsoftComplianceTenant record.
     let connectionAlreadyExists = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId});
-    // If we found one with the provided tenant ID, return an error.
+    // If we found one with the provided tenant ID, return a 409 response.
     if(connectionAlreadyExists) {
       throw 'connectionAlreadyExists';
+    }
+
+    // Return a bad request response if the origin header is missing.
+    if(!this.req.headers['Origin']) {
+      throw 'missingOriginHeader';
     }
 
 
@@ -35,7 +41,6 @@ module.exports = {
     let newTenant = await MicrosoftComplianceTenant.create({
       fleetServerSecret: sails.helpers.strings.random.with({len: 30}),
       entraTenantId: entraTenantId,
-      licenseKey: fleetLicenseKey,
       fleetInstanceUrl: this.req.headers['Origin'],
       setupCompleted: false,
     });

@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Receive one devices compliance status',
 
 
-  description: '',
+  description: 'Receives compliance information about a device and sends it to a tenant\'s Entra instance for processing.',
 
 
   inputs: {
@@ -50,9 +50,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'A devices compliance status was successfully received'},
-    notACloudCustomer: { description: 'This request was not made by a managed cloud customer', responseType: 'badRequest' },
-    tenantNotFound: {description: 'No existing Microsoft compliance tenant was found for the Fleet instance that sent the request.', responseType: 'unauthorized'}
+    success: { description: 'A devices compliance status was successfully sent to an entra tenants instance'},
   },
 
 
@@ -84,7 +82,7 @@ module.exports = {
         LastUpdateTime: new Date(lastCheckInTime).toISOString(),
         Os: os,
         OsVersion: osVersion,
-        EasIds: [],
+        EasIds: [],// This field is required but can be sent as an empty array.
         complianceStatus: compliant,
       },
       {

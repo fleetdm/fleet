@@ -29,7 +29,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});// TODO: return a more clear error.
+      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
     }
 
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
@@ -49,8 +49,8 @@ module.exports = {
       },
       body: {
         Provisioned: 2,// 1 = provisioned, 2 = deprovisioned.
-        PartnerEnrollmentUrl: '', //TODO: how do we get this, the example in microsoft's docs are using customer.com/enrollment, so does this need to be a value of a url on the connected Fleet instance?
-        PartnerRemediationUrl: '', // TODO: same as the above.
+        PartnerEnrollmentUrl: `${informationAboutThisTenant.fleetInstanceUrl}/enrollment`,
+        PartnerRemediationUrl: `${informationAboutThisTenant.fleetInstanceUrl}/remediation`,
       }
     }).intercept((err)=>{
       return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
