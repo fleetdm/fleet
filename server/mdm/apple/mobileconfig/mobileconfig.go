@@ -18,10 +18,11 @@ import (
 const (
 	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
 	// used by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultPayloadIdentifier   = "com.fleetdm.fleet.mdm.filevault"
-	FleetFileVaultPayloadType         = "com.apple.MCX.FileVault2"
-	FleetFileVaultOptionsPayloadType  = "com.apple.MCX"
-	FleetRecoveryKeyEscrowPayloadType = "com.apple.security.FDERecoveryKeyEscrow"
+	FleetFileVaultPayloadIdentifier        = "com.fleetdm.fleet.mdm.filevault"
+	FleetFileVaultPayloadType              = "com.apple.MCX.FileVault2"
+	FleetFileVaultOptionsPayloadType       = "com.apple.MCX"
+	FleetRecoveryKeyEscrowPayloadType      = "com.apple.security.FDERecoveryKeyEscrow"
+	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include FileVault settings."
 
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
@@ -252,8 +253,7 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 		for _, t := range screenedTypes {
 			switch t {
 			case FleetFileVaultPayloadType, FleetFileVaultOptionsPayloadType, FleetRecoveryKeyEscrowPayloadType:
-				return errors.New("Couldn't add. The configuration profile can't include FileVault settings. " +
-					"To control these settings use disk encryption endpoint.")
+				return errors.New(DiskEncryptionProfileRestrictionErrMsg)
 			}
 		}
 		return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screenedTypes, ", "))
