@@ -4,10 +4,9 @@
 
 _Available in Fleet Premium._
 
-Learn how to connect your identity provider (IdP) to retrieve end-user information and map it to a
-host. Fleet uses [SCIM](https://scim.cloud/) protocol.
+Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), [authentik](#google-workspace),as well as any other identity provider (IdP) that supports the [SCIM](https://scim.cloud/) standard.
 
-Below you can learn how to connect [Okta](https://www.okta.com/), [Microsoft Entra ID](https://www.microsoft.com/en-us/security/business/identity-access/microsoft-entra-id) or [Authentik](https://goauthentik.io/).
+To add IdP host vitals, follow steps for your IdP.
 
 
 ## Connect Okta
