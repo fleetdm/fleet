@@ -13,7 +13,7 @@ To add IdP host vitals, follow steps for your IdP.
 
 To connect Okta to Fleet, follow these steps:
 
-1. Head to Okta admin dashboard
+1. Head to Okta admin dashboard.
 2. Select **Applications > Applications** in the main menu, then select **Create App Integration**.
 3. Select **SAML 2.0** option and select **Next**.
 4. On **General Settings** page, add friendly **App name** (e.g Fleet SCIM), and select **Next**.
