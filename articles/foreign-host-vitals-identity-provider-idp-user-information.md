@@ -74,9 +74,7 @@ To connect Entra ID to Fleet, follow these steps:
 15. Select the users and groups that you want to add to Fleet and then select **Assign**. 
 16. From the side menu, select **Overview** and select **Start provisioning**.
 
-> After you started provisioning Microsoft Entra ID sends data to Fleet immediately. Subsequent
-> requests are triggered every 20-40 minutes. If you edit user information in Entra, it might
-> take up to 40 minutes to see the change in Fleet.
+Now, Microsoft Entra ID will send data to Fleet immediately. Future requests happen every 20-40 minutes. So, if you edit user information in Entra, it might take up to 40 minutes to see the change in Fleet.
 
 ## Google Workspace
 
