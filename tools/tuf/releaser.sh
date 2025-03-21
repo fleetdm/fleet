@@ -132,7 +132,7 @@ release_fleetd_to_edge () {
     BRANCH_NAME="release-fleetd-v$VERSION"
     ORBIT_TAG="orbit-v$VERSION"
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
-        prompt "A PR will be created to trigger a Github Action to build desktop."
+        prompt "A PR will be created to for the release of fleetd $VERSION, and a tag will be pushed to trigger a Github Action to build desktop and orbit."
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
         make changelog-orbit version="$VERSION"
@@ -140,11 +140,9 @@ release_fleetd_to_edge () {
         "$GO_TOOLS_DIRECTORY/replace" .github/workflows/generate-desktop-targets.yml "FLEET_DESKTOP_VERSION: .+\n" "FLEET_DESKTOP_VERSION: $VERSION\n"
         git add .github/workflows/generate-desktop-targets.yml "$ORBIT_CHANGELOG"
         git commit -m "Release fleetd $VERSION"
-        git push origin "$BRANCH_NAME"
-        gh pr create -f -B main -t "Release fleetd $VERSION"
-        prompt "A 'git tag' will be created to trigger a Github Action to build orbit."
         git tag "$ORBIT_TAG"
-        git push origin "$ORBIT_TAG"
+        git push origin "$BRANCH_NAME" --follow-tags
+        gh pr create -f -B main -t "Release fleetd $VERSION"
         popd
     fi
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
