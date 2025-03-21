@@ -12,8 +12,8 @@
       "name": "1Password",
       "slug": "1password/windows",
       "platform": "windows",
-      "unique_identifier": "",
-      "description": ""
+      "unique_identifier": "1Password",
+      "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -34,7 +34,7 @@
       "slug": "box-drive/windows",
       "platform": "windows",
       "unique_identifier": "Box Drive",
-      "description": ""
+      "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
       "name": "Brave",
@@ -83,7 +83,7 @@
       "slug": "google-chrome/windows",
       "platform": "windows",
       "unique_identifier": "Google Chrome",
-      "description": ""
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Microsoft Edge",
@@ -97,7 +97,7 @@
       "slug": "microsoft-edge/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Edge",
-      "description": ""
+      "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
       "name": "Microsoft Excel",
@@ -153,7 +153,7 @@
       "slug": "slack/windows",
       "platform": "windows",
       "unique_identifier": "Slack",
-      "description": ""
+      "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
       "name": "TeamViewer",
@@ -188,7 +188,7 @@
       "slug": "zoom/windows",
       "platform": "windows",
       "unique_identifier": "Zoom",
-      "description": ""
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]
 }
