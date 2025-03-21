@@ -3,7 +3,6 @@ package maintained_apps
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,15 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// IngestMaintainedApps ingests the maintained apps from the apps list manifest
+// SyncApps ingests the maintained apps from the apps list manifest
 // to fill the library of maintained apps with valid data for tests.
 // It returns the results of the ingestion as a slice of
 // fleet.MaintainedApps.
-func IngestMaintainedApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
+func SyncApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedApp {
 	_, filename, _, _ := runtime.Caller(0)
 	base := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename))))
 	outputsDir := filepath.Join(base, "ee/maintained-apps/outputs")
-	fmt.Println(outputsDir)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, err := os.ReadFile(filepath.Join(outputsDir, r.URL.Path))
@@ -60,8 +58,8 @@ func IngestMaintainedApps(t *testing.T, ds fleet.Datastore) []fleet.MaintainedAp
 func ExpectedAppSlugs(t *testing.T) []string {
 	_, filename, _, _ := runtime.Caller(0)
 	base := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(filename))))
-	outputsDir := filepath.Join(base, "ee/maintained-appsList/outputs")
-	b, err := os.ReadFile(filepath.Join(outputsDir, "appsList.json"))
+	outputsDir := filepath.Join(base, "ee/maintained-apps/outputs")
+	b, err := os.ReadFile(filepath.Join(outputsDir, "apps.json"))
 	require.NoError(t, err)
 
 	var appsList AppsList

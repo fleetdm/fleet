@@ -16199,7 +16199,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	insertedApps := maintained_apps.IngestMaintainedApps(t, s.ds)
+	insertedApps := maintained_apps.SyncApps(t, s.ds)
 	expectedApps := insertedApps
 
 	h := sha256.New()

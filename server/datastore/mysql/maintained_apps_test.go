@@ -2,14 +2,12 @@ package mysql
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +20,7 @@ func TestMaintainedApps(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
-		{"IngestWithBrew", testIngestWithBrew},
+		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 	}
 
@@ -40,53 +38,55 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	listSavedApps := func() []fleet.MaintainedApp {
 		var apps []fleet.MaintainedApp
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &apps, "SELECT name, platform FROM fleet_maintained_apps ORDER BY slug")
+			return sqlx.SelectContext(ctx, q, &apps, "SELECT name, platform, slug FROM fleet_maintained_apps ORDER BY slug")
 		})
 		return apps
 	}
 
-	expectedApps := maintained_apps.IngestMaintainedApps(t, ds)
-	require.Equal(t, expectedApps, listSavedApps())
+	expectedApps := maintained_apps.SyncApps(t, ds)
+	var expectedAppsBaseInfo []fleet.MaintainedApp
+	for _, app := range expectedApps {
+		expectedAppsBaseInfo = append(expectedAppsBaseInfo, fleet.MaintainedApp{
+			Name:     app.Name,
+			Platform: app.Platform,
+			Slug:     app.Slug,
+		})
+	}
+
+	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
 
 	// ingesting again results in no changes
-	maintained_apps.IngestMaintainedApps(t, ds)
-	require.Equal(t, expectedApps, listSavedApps())
+	maintained_apps.SyncApps(t, ds)
+	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
 
 	// upsert the figma app, changing the version
 	_, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
-		Name:         "Figma",
-		Slug:         "figma",
-		InstallerURL: "https://desktop.figma.com/mac-arm/Figma-999.9.9.zip",
-		Version:      "999.9.9",
-		Platform:     "darwin",
+		Name:     "Figma 2",
+		Slug:     "figma/darwin",
+		Platform: "darwin",
 	})
 	require.NoError(t, err)
 
 	// change the expected app data for figma
-	for idx := range expectedApps {
-		if expectedApps[idx].Name == "Figma" {
-			expectedApps[idx].Version = "999.9.9"
+	for idx := range expectedAppsBaseInfo {
+		if expectedAppsBaseInfo[idx].Slug == "figma/darwin" {
+			expectedAppsBaseInfo[idx].Name = "Figma 2"
 			break
 		}
 	}
-	require.Equal(t, expectedApps, listSavedApps())
+
+	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
 }
 
-func testIngestWithBrew(t *testing.T, ds *Datastore) {
-	if os.Getenv("NETWORK_TEST") == "" {
-		t.Skip("set environment variable NETWORK_TEST=1 to run")
-	}
+func testSync(t *testing.T, ds *Datastore) {
+	maintained_apps.SyncApps(t, ds)
 
-	ctx := context.Background()
-	err := maintained_apps.Refresh(ctx, ds, log.NewNopLogger())
-	require.NoError(t, err)
-
-	expectedTokens := maintained_apps.ExpectedAppSlugs(t)
-	var actualTokens []string
+	expectedSlugs := maintained_apps.ExpectedAppSlugs(t)
+	var actualSlugs []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(ctx, q, &actualTokens, "SELECT token FROM fleet_library_apps ORDER BY token")
+		return sqlx.SelectContext(context.Background(), q, &actualSlugs, "SELECT slug FROM fleet_maintained_apps ORDER BY slug")
 	})
-	require.ElementsMatch(t, expectedTokens, actualTokens)
+	require.ElementsMatch(t, expectedSlugs, actualSlugs)
 }
 
 func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
@@ -101,38 +101,23 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
 		Slug:             "maintained1",
-		Version:          "1.0.0",
 		Platform:         "darwin",
-		InstallerURL:     "http://example.com/main1",
-		SHA256:           "DEADBEEF",
 		UniqueIdentifier: "fleet.maintained1",
-		InstallScript:    "echo installed",
-		UninstallScript:  "echo uninstalled",
 	})
 
 	require.NoError(t, err)
 	maintained2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained2",
 		Slug:             "maintained2",
-		Version:          "1.0.0",
 		Platform:         "darwin",
-		InstallerURL:     "http://example.com/main1",
-		SHA256:           "DEADBEEF",
 		UniqueIdentifier: "fleet.maintained2",
-		InstallScript:    "echo installed",
-		UninstallScript:  "echo uninstalled",
 	})
 	require.NoError(t, err)
 	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained3",
 		Slug:             "maintained3",
-		Version:          "1.0.0",
 		Platform:         "darwin",
-		InstallerURL:     "http://example.com/main1",
-		SHA256:           "DEADBEEF",
 		UniqueIdentifier: "fleet.maintained3",
-		InstallScript:    "echo installed",
-		UninstallScript:  "echo uninstalled",
 	})
 	require.NoError(t, err)
 
@@ -149,16 +134,19 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 			ID:       maintained1.ID,
 			Name:     maintained1.Name,
 			Platform: maintained1.Platform,
+			Slug:     "maintained1",
 		},
 		{
 			ID:       maintained2.ID,
 			Name:     maintained2.Name,
 			Platform: maintained2.Platform,
+			Slug:     "maintained2",
 		},
 		{
 			ID:       maintained3.ID,
 			Name:     maintained3.Name,
 			Platform: maintained3.Platform,
+			Slug:     "maintained3",
 		},
 	}
 
