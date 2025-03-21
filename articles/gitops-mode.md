@@ -2,7 +2,9 @@
 
 Turning on
 
-What's still enabled in the UI when GitOps mode is on? https://fleetdm.com/docs/configuration/yaml-files
+What's still enabled in the UI when GitOps mode is on?
+- Users and labels
+- Anything that you can't configure in YAML: https://fleetdm.com/docs/configuration/yaml-files
 
 Why GitOps? <link to Allen's article>
 
