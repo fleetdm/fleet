@@ -97,7 +97,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	if err := installerTFR.Rewind(); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
 	}
-	extension := filepath.Ext(filename)[1:]
+	extension := strings.TrimLeft(filepath.Ext(filename), ".")
 
 	installScript = file.Dos2UnixNewlines(installScript)
 	if installScript == "" {
