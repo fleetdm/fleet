@@ -38,7 +38,7 @@ To connect Okta to Fleet, follow these steps:
 
 ### Assign users and groups to Fleet
 
-To send users and groups information to Fleet, you have to assign them to SCIM app that you created previously.
+To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
 1. Select **Directory > Groups** in the main menu, then select **Add group**. Name it so you know that users from this group will be provisioned to Fleet (e.g "Fleet human-device mapping").
 2. On the same page, select **Rules** tab. Create rule that will assign users from groups that you want to provision to Fleet to newly created "Fleet human-device mapping" group.
