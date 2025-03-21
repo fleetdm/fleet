@@ -171,6 +171,8 @@ const (
 const (
 	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
 	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+
+	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
 
 // Supported MS-MDE2 enrollment versions
