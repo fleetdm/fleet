@@ -102,7 +102,6 @@ const CustomSCEPForm = ({
           value={challenge}
           onChange={onInputChange}
           parseTarget
-          placeholder="••••••••••••"
           helpText="Password to authenticate with a SCEP server."
         />
       </div>

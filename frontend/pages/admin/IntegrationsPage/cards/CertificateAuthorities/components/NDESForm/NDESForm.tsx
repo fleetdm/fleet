@@ -92,7 +92,6 @@ const NDESForm = ({
           type="password"
           onChange={onInputChange}
           parseTarget
-          placeholder="••••••••"
           blockAutoComplete
           helpText="The password required to log in to the SCEP admin page."
         />
