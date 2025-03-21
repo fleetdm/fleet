@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250317201526, Down_20250317201526)
+	MigrationClient.AddMigration(Up_20250320200000, Down_20250320200000)
 }
 
-func Up_20250317201526(tx *sql.Tx) error {
+func Up_20250320200000(tx *sql.Tx) error {
 	// Clean up Fleet Library App associated scripts before we drop the columns on the table
 	_, err := tx.Exec(`DELETE FROM
   script_contents
@@ -112,6 +112,6 @@ ALTER TABLE fleet_maintained_apps
 	return nil
 }
 
-func Down_20250317201526(tx *sql.Tx) error {
+func Down_20250320200000(tx *sql.Tx) error {
 	return nil
 }
