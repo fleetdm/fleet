@@ -1,1 +1,0 @@
-- add configuration to fleet server to enable h2c (forcing http2) to get around a limitation in GCP Cloud Run for upload file sizes
