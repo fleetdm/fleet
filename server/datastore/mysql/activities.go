@@ -596,20 +596,17 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	unsavedQueryIter := slices.Chunk(allUnsavedQueryIDs, deleteIDsBatchSize)
 
 	for unsavedQueryIDs := range unsavedQueryIter {
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			const deleteStmt = `DELETE FROM queries WHERE id IN (?)`
-			deleteQuery, args, err := sqlx.In(deleteStmt, unsavedQueryIDs)
-			if err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, deleteQuery, args...); err != nil {
-				return err
-			}
-
-			return nil
-		}); err != nil {
+		const deleteStmt = `DELETE FROM queries WHERE id IN (?)`
+		deleteQuery, args, err := sqlx.In(deleteStmt, unsavedQueryIDs)
+		if err != nil {
+			return err
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired unsaved queries")
 		}
+
+		return nil
+
 	}
 
 	// Cleanup orphaned distributed campaigns that reference non-existing queries.
@@ -631,20 +628,16 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	campaignIter := slices.Chunk(allCampaignIDs, deleteIDsBatchSize)
 
 	for campaignIDs := range campaignIter {
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			const deleteStmt = `DELETE FROM distributed_query_campaigns WHERE id IN (?)`
-			deleteQuery, args, err := sqlx.In(deleteStmt, campaignIDs)
-			if err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, deleteQuery, args...); err != nil {
-				return err
-			}
-
-			return nil
-		}); err != nil {
+		const deleteStmt = `DELETE FROM distributed_query_campaigns WHERE id IN (?)`
+		deleteQuery, args, err := sqlx.In(deleteStmt, campaignIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating delete expired distributed query campaigns stmt")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired distributed query campaigns")
 		}
+
+		return nil
 	}
 
 	// Cleanup orphaned distributed campaign targets that reference non-existing distributed campaigns.
@@ -666,20 +659,16 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	campaignTargetIter := slices.Chunk(allCampaignTargetIDs, deleteIDsBatchSize)
 
 	for campaignTargetIDs := range campaignTargetIter {
-		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			const deleteStmt = `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
-			deleteQuery, args, err := sqlx.In(deleteStmt, campaignTargetIDs)
-			if err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, deleteQuery, args...); err != nil {
-				return err
-			}
-
-			return nil
-		}); err != nil {
+		const deleteStmt = `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
+		deleteQuery, args, err := sqlx.In(deleteStmt, campaignTargetIDs)
+		if err != nil {
+			return err
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired distributed query campaign targets")
 		}
+
+		return nil
 	}
 
 	return nil
