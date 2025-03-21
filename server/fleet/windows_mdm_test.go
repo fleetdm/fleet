@@ -428,7 +428,7 @@ func TestValidateUserProvided(t *testing.T) {
 				SyncML: []byte(`
 				  <!-- this is a comment -->
 				  <!-- this is another comment -->
-					<LocURI>Custom/URI</LocURI>
+				  <LocURI>Custom/URI</LocURI>
 				  <Replace>
 				  <!-- this is a comment inside replace -->
 				    <Target>
