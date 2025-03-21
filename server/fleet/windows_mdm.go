@@ -97,6 +97,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			return errors.New("The file should include valid XML: processing instructions are not allowed.")
 
 		case xml.Comment:
+			inValidNode = true
 			continue
 
 		case xml.StartElement:
