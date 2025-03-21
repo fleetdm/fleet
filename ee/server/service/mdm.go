@@ -150,12 +150,9 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
-		PayloadIdentifier:            mobileconfig.FleetFileVaultPayloadIdentifier,
-		PayloadName:                  mdm.FleetFileVaultProfileName,
-		Base64DerCertificate:         base64.StdEncoding.EncodeToString(cert.Raw),
-		FileVaultPayloadType:         mobileconfig.FleetFileVaultPayloadType,
-		FileVaultOptionsPayloadType:  mobileconfig.FleetFileVaultOptionsPayloadType,
-		RecoveryKeyEscrowPayloadType: mobileconfig.FleetRecoveryKeyEscrowPayloadType,
+		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+		PayloadName:          mdm.FleetFileVaultProfileName,
+		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Raw),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
