@@ -1,4 +1,4 @@
-# Add user information from identity provider (IdP) to host
+# Foreign host vitals: identity provider (IdP) user information
 
 ![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img.png)
 
