@@ -67,8 +67,7 @@ To connect Entra ID to Fleet, follow these steps:
     saved, select close icon on the top right corner.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
 12. Select **Provision Microsoft Entra ID Users**.
-13. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are
-    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon on the top right corner.
+13. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon on the top right corner.
 ![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
 14. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
 15. Select the users and groups that you want to add to Fleet and then select **Assign**. 
@@ -85,41 +84,41 @@ Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standa
 - [Install](https://docs.goauthentik.io/docs/install-config/install/aws) and run authentik
 - Google Workspace Business Plus plan (or one of the plans listed in [Google Secure LDAP](https://support.google.com/a/answer/9048516?hl=en&ref_topic=9048334&sjid=5482490660946222035-EU) article)
 
-### How to connect
+### Connect
 
-- [Add LDAP client in Google Admin console](#1-add-ldap-client-in-google-admin-console)
-- [Add LDAP authentication certificate to authentik](#2-add-ldap-authentication-certificate-to-authentik)
-- [Add custom LDAP property mappings to authentik](#3-add-custom-ldap-property-mappings-to-authentik)
-- [Configure LDAP connection in authentik](#4-configure-ldap-connection-in-authentik)
-- [Configure SCIM provider and application in authentik to add users to Fleet](#5-add-users-from-authentik-to-fleet)
+To map users from Google Workspace to hosts in Fleet, we will do the following steps:
 
-Below you can learn how to do each step above.
+1. Add LDAP client in Google Admin console
+2. Add LDAP authentication certificate to authentik
+3. Add custom LDAP property mappings to authentik
+4. Configure LDAP connection in authentik
+5. Configure SCIM provider to map users to hosts in Fleet
 
-#### 1. Add LDAP client in Google Admin console
+#### Step 1: Add LDAP client in Google Admin console
 
-1. Head to [Google Admin console](https://admin.google.com/)
-2. Select **Apps > LDAP** from the side menu.
-3. Select **ADD CLIENT**, add friendly name (e.g. authentik) and description, then select **CONTINUE**.
+1. Head to the [Google Admin console](https://admin.google.com/).
+2. From the side menu, select **Apps > LDAP**.
+3. Select **ADD CLIENT**, add friendly name (e.g. "authentik") and description, and then select **CONTINUE**.
 4. Select **Entire domain** in **Verify user credentials** and **Read user information** sections.
-5. Toggle switch under **Read group information** to **On,** and select **ADD LDAP CLIENT**.
-6. Select **Download certificate**, and select **CONTINUE TO CLIENT DETAILS**.
-7. Select **Authentication card**, select **GENERATE NEW CREDENTIALS**.
-8. Save **Username** and **Password**, beacuse we'll need those together with downloaded certificate in the next sections, to connect authentik to Google LDAP.
+5. Toggle the switch under **Read group information** to **On** and select **ADD LDAP CLIENT**.
+6. Select **Download certificate** and select **CONTINUE TO CLIENT DETAILS**.
+7. Select **Authentication card** and select **GENERATE NEW CREDENTIALS**.
+8. Save **Username** and **Password**. We'll need those along with a certificate we'll download in the next section.
 
 
-#### 2. Add LDAP authentication certificate to authentik
+#### Step 2: Add LDAP authentication certificate to authentik
 
-1. Navigate to your authentik admin dashboard
-2. Select **System > Certificates** from the side menu.
-3. Select Create, and add friendly name (e.g. Google LDAP certificate).
-4. Now find downloaded certificate on your computer, unarchive it, then open `.crt` with text editor (e.g. TextEdit), copy its content and paste to **Certificate** field.
-5. Open `.key` file with text editor and copy its content to **Private key** field, then select **Create**.
+1. Navigate to your authentik admin dashboard.
+2. From the side menu, select **System > Certificates**.
+3. Select **Create** and add friendly name (e.g. "Google LDAP certificate").
+4. Now find downloaded certificate on your computer and unarchive it. Then, open the `.crt` with text editor (e.g. TextEdit), copy its contents, and paste to **Certificate** field.
+5. Open the `.key` file with text editor and copy its content to the **Private key** field. Then, select **Create**.
 
-#### 3. Add custom LDAP property mappings to authentik
+#### Step 3: Add custom LDAP property mappings to authentik
 
-1. In authentik, select **Customization > Propery Mappings** from the side menu.
-2. Select **Create**, then select **LDAP Source Property Mapping** from the list, and select **Next**.
-3. You need to repeat this few times and add each of these property mappings below:
+1. In authentik's side menu, select **Customization > Propery Mappings**,
+2. Select **Create** and **LDAP Source Property Mapping** from the list. Then, select **Next**.
+3. You need to repeat this few times and add each of these property mappings:
 
 - **Name**: Google LDAP objectSid > ldap_uniq
 - **Expression**:
@@ -202,42 +201,37 @@ Below you can learn how to do each step above.
     }
     ```
 
-#### 4. Configure LDAP connection in authentik
+#### Step 4: Configure LDAP connection in authentik
 
-1. Select **Directory > Federation and Social login** from the side menu.
-2. Select **Create**, then select **LDAP Source**, and select **Next**.
-3. Add friendly name (e.g. Google LDAP)
+1. From the side menu, select **Directory > Federation and Social login**.
+2. Select **Create**, **LDAP Source**, and **Next**.
+3. Add a friendly name (e.g. "Google LDA"P").
 4. Make sure that **Enable**, **Sync users** and **Sync groups** are toggled on.
-5. In **Server URL** enter `ldap://ldap.google.com`. For more information refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
-6. For **TLS client authentication certificate** select certificate created in 2nd section (Google LDAP certificate)
-7. For **Bind CN** enter userneame that you saved in the first section, and for **Bind Password** enter password that you saved.
+5. In the **Server URL** enter `ldap://ldap.google.com`. For more information refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
+6. For the **TLS client authentication certificate**, select your certificate created in 2nd section (Google LDAP certificate)
+7. For the **Bind CN**, enter the userneame that you saved in the first step. For **Bind Password**, enter the password you saved.
 8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dn=yourcompany,dn=com).
-9. For **User Property Mappings,** remove all selected properties by clicking "X" icon, and select
-   all user properties that we created in the section above in the left box and select ">" icon
-   between boxes.
+9. For the **User Property Mappings,** remove all selected properties by clicking the "X" icon, and select all user properties that we created in the left box and select the ">" icon between boxes.
 ![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings.png)
-10. For **Group Property Mappings**, remove all selected properties by clicking "X" icon, and select
-    all group properties that we created in the section above in the left box and select ">" icon
-    between boxes.
+10. For the **Group Property Mappings**, remove all selected properties by clicking the "X" icon, and select all group properties that we created in the left box and select the ">" icon between boxes.
 ![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings.png)
-11. Under **Additional settings** enter values below.
-12. **User object filter** > `(objectClass=person)`,  **Group object filter** > `(objectClass= groupOfNames)`, **Group membership field** > `member`, **Object uniqueness field** > `objectSid`
-13. Select **Finish** to save configuration. 
-14. After few minutes, on **Directory > Users** page you should see users from your Google Workspace.
+11. Under **Additional settings**, enter values below:
+**User object filter** > `(objectClass=person)`,  **Group object filter** > `(objectClass= groupOfNames)`, **Group membership field** > `member`, **Object uniqueness field** > `objectSid`
+13. Select **Finish** to save your configuration. 
+14. After few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
 
-#### 5. Add users from authentik to Fleet
+#### Step 5: Map users to hosts in Fleet
 
-1. Select **Applications > Providers** from the side menu, select **Create**, then select **SCIM Provider**, and select **Next**.
-2. Add friendly name (e.g. Fleet SCIM provider).
-3. In **URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-4. Create Fleet API-only user with maintainer permissions, copy API token for that user, and paste it to authentik, in **Token** field.
+1. From the side menu, select **Applications > Providers**, **Create**, **SCIM Provider**, and then **Next**.
+2. Add a friendly name (e.g. "Fleet SCIM provider").
+3. For the **URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
+4. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in the **Token** field.
 5. Select **Finish** to save provider.
-6. Now, select **Applications > Applications** from the side menu, and select **Create**.
-7. Add friendly name (e.g. Fleet SCIM app) and slug (e.g. fleet-scim-app).
-8. For **Backchannel Providers**,** **select provider created above (Fleet SCIM provider).
-9. Select **Create** to add application.
-10. After few minutes, you should see that users are added in Fleet, if you go to Fleet and navigate
-    to **Settings > Integrations > Identity Provider (IdP)**. 
+6. Now, from the side menu, select **Applications > Applications**. Then, select **Create**.
+7. Add a friendly name (e.g. "Fleet SCIM app") and slug (e.g. "fleet-scim-app").
+8. For the **Backchannel Providers**, select the provider created above ("Fleet SCIM provider").
+9. Select **Create** to add the application.
+10. After few minutes, you should see users mapped to hosts in Fleet.
 
 
 ## Verify connection in Fleet
