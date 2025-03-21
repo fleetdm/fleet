@@ -1,5 +1,7 @@
 # Add user information from identity provider (IdP) to host
 
+![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img.png)
+
 _Available in Fleet Premium._
 
 Learn how to connect your identity provider (IdP) to retrieve end-user information and map it to a
@@ -278,4 +280,5 @@ last name).
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2025-04-11">
 <meta name="articleTitle" value="Add user information from identity provider (IdP) to host">
+<meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img.png">
 <meta name="category" value="guides">
