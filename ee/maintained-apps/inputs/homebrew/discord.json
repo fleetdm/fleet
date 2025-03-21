@@ -1,0 +1,7 @@
+{
+  "name": "Discord",
+  "slug": "discord/darwin",
+  "unique_identifier": "com.hnc.Discord",
+  "token": "discord",
+  "installer_format": "dmg"
+}
