@@ -92,17 +92,10 @@ type wingetIngester struct {
 
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
 	// this is the path within the winget GitHub repo where the manifests are located
-	packageIdentParts := strings.Split(input.PackageIdentifier, ".")
-	if len(packageIdentParts) != 2 {
-		return nil, ctxerr.NewWithData(ctx, "invalid package identifier for app", map[string]any{"package_identifier": input.PackageIdentifier, "app": input.Name})
-	}
-
 	dirPath := path.Join(
 		"manifests",
-		// string(bytes.ToLower([]byte{input.PackageIdentifier[0]})),
 		strings.ToLower(input.PackageIdentifier[:1]),
-		packageIdentParts[0],
-		packageIdentParts[1],
+		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
 	)
 
 	_, contents, _, err := i.githubClient.Repositories.GetContents(ctx,
@@ -176,7 +169,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 				// TODO: also, "wix" might always mean an MSI installer, in which case we should
 				// just use that
 				installerType = strings.Trim(filepath.Ext(installerURL), ".")
-				fmt.Printf("installerType: %v\n", installerType)
 			}
 			if installScript == "" {
 				installScript = file.GetInstallScript(installerType)
@@ -197,7 +189,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = strings.ToLower(sha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
-	fmt.Printf("productCode: %v\n", productCode)
 	out.Queries = maintained_apps.FMAQueries{
 		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", productCode),
 	}
