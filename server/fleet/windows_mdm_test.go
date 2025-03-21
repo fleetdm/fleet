@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,7 +66,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "The configuration profile can't include BitLocker settings.",
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			name: "Reserved LocURI with implicit ./Device prefix",
@@ -78,7 +79,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "The configuration profile can't include BitLocker settings.",
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			name: "XML with Multiple Replace Elements",
@@ -121,7 +122,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "The configuration profile can't include BitLocker settings.",
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			name: "XML with Mixed Replace and Add",
