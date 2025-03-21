@@ -146,8 +146,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	return nil
 }
 
-var fleetProvidedLocURIValidationMap = map[string][2]string{
-	syncml.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+var fleetProvidedLocURIValidationMap = map[string][]string{
+	syncml.FleetBitLockerTargetLocURI: nil,
 	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
@@ -155,7 +155,14 @@ func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
+			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
+				return errors.New("The configuration profile can't include BitLocker settings. To control these settings use disk encryption endpoint.")
+			}
+			if len(errHints) == 2 {
+				return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.",
+					errHints[0], errHints[1])
+			}
+			return fmt.Errorf("Custom configuration profiles can't include these settings. %q", errHints)
 		}
 	}
 
