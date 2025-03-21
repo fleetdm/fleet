@@ -1302,19 +1302,31 @@ module.exports = {
           if(app.platform !== 'darwin'){
             return;
           }
+
           let appInformation = {
             name: app.name,
-            identifier: app.slug.split('/darwin')[0],// Note: apps in the maintained apps json have the platform postfixed to the identifier in their slug.
+            identifier: app.slug.split('/'+app.platform)[0],
+            outputSlug: app.slug,
             bundleIdentifier: app.unique_identifier,
             description: app.description,
-            token: app.token,
+            platform: app.platform,
           };
 
           // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.
           let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json'))
           .intercept('doesNotExist', ()=>{
-            return new Error(`Could not build app library configuration from ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
+            return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
+          let expectedAppIconFilename = path.join(topLvlRepoPath, 'website/assets/images/', `app-icon-${appInformation.identifier}-60x60@2x.png`);
+
+          // FUTURE: copy the app icons from where they are stored in the repo (when they are stored in the repo).
+          let iconImageExistsForThisApp = await sails.helpers.fs.exists(expectedAppIconFilename);
+          if(!iconImageExistsForThisApp){
+            throw new Error(`Could not build app library configuration config from the ee/maintained-apps folder. An app icon is missing for ${app.name} (${app.platform}) when it was expected to be found at ${path.join(topLvlRepoPath, 'website/assets/images/', `app-icon-${appInformation.identifier}-60x60@2x.png`)}. To resolve, make sure an app icon exists in the expected location and try running this script again.`);
+            // FUTURE: can we use a generic fallback icon?
+          } else {
+            appInformation.iconFilename = expectedAppIconFilename;
+          }
           // Get the latest version of the app from the versions array.
           let latestVersionOfThisApp = detailedInformationAboutThisApp.versions[0];
           // get the ref that is used as the key for this version's uninstall script in the `refs` array.
