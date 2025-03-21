@@ -92,7 +92,7 @@ To connect Entra ID to Fleet, follow these steps:
 > requests are triggered every 20-40 minutes. If you edit user information in Entra, it might
 > take up to 40 minutes to see the change in Fleet.
 
-## Connect Google Workspace (with authentik)
+## Google Workspace
 
 Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to import users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
 
