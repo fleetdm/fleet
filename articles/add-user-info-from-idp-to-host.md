@@ -94,7 +94,7 @@ To connect Entra ID to Fleet, follow these steps:
 
 ## Connect Google Workspace (with authentik)
 
-Google Workspace doesn't support SCIM provisioning, so we suggest using [authentik](https://goauthentik.io/) to import users from Google Workspace and then add users to Fleet via SCIM protocol.
+Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standard. The best practice is to import users to [authentik](https://goauthentik.io/). Authentik then adds users to Fleet.
 
 ### Prerequisites
 
