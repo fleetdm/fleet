@@ -225,7 +225,7 @@ Below you can learn how to do each step above.
 2. Select **Create**, then select **LDAP Source**, and select **Next**.
 3. Add friendly name (e.g. Google LDAP)
 4. Make sure that **Enable**, **Sync users** and **Sync groups** are toggled on.
-5. In **Server URL** enter `ldap://ldap.google.com`.
+5. In **Server URL** enter `ldap://ldap.google.com`. For more information refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
 6. For **TLS client authentication certificate** select certificate created in 2nd section (Google LDAP certificate)
 7. For **Bind CN** enter userneame that you saved in the first section, and for **Bind Password** enter password that you saved.
 8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dn=yourcompany,dn=com).
