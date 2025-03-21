@@ -79,6 +79,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	// structure (Target>Item>LocURI) so we don't need to track all the tags.
 	var inValidNode bool
 	var inLocURI bool
+	var inComment bool
 
 	for {
 		tok, err := dec.Token()
@@ -97,10 +98,19 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			return errors.New("The file should include valid XML: processing instructions are not allowed.")
 
 		case xml.Comment:
-			inValidNode = true
+			inComment = true
 			continue
 
 		case xml.StartElement:
+			// Top-level comments should be followed by <Replace> or <Add> elements
+			if inComment {
+				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements after comments")
+				}
+				inValidNode = true
+				inComment = false
+			}
+
 			switch t.Name.Local {
 			case "Replace", "Add":
 				inValidNode = true
