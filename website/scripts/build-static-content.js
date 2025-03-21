@@ -1298,6 +1298,7 @@ module.exports = {
         let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
         await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
+          // FUTURE: add support for windows apps once the page is updated to be multi-platform.
           if(app.platform !== 'darwin'){
             return;
           }
@@ -1310,9 +1311,9 @@ module.exports = {
           };
 
           // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.
-          let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+appInformation.identifier+'/darwin.json'))
+          let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json'))
           .intercept('doesNotExist', ()=>{
-            return new Error(`Could not build app library configuration from ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+appInformation.identifier+'/darwin.json')}. Was it moved?')}.`);
+            return new Error(`Could not build app library configuration from ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
           // Get the latest version of the app from the versions array.
           let latestVersionOfThisApp = detailedInformationAboutThisApp.versions[0];
