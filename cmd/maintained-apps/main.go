@@ -40,7 +40,7 @@ func main() {
 		}
 
 		for _, app := range apps {
-			if slugPtr != nil && app.Slug != *slugPtr {
+			if slugPtr != nil && *slugPtr != "" && app.Slug != *slugPtr {
 				continue
 			}
 			if app.IsEmpty() {
