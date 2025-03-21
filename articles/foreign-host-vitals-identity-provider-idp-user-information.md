@@ -52,36 +52,27 @@ To send users and groups information to Fleet, you have to assign them to your n
 
 To connect Entra ID to Fleet, follow these steps:
 
-1. Head to [Microsoft Entra admin](https://entra.microsoft.com/).
-2. Select **Applications > Enterprise applications** in the main menu, select **+ New
-   application**, then select **+Create your own application**.
-3. Add a friendly name of the app (e.g Fleet SCIM), select **Integrate any other application you
-   don't find in the gallery (Non-gallery)**, then select **Create**.
-4. Select **Provisioning** from the side menu.
+1. Head to [Microsoft Entra](https://entra.microsoft.com/).
+2. In the main menu, select **Applications > Enterprise applications**. Then, select **+ New
+   application** and **+Create your own application**.
+3. Add a friendly name for the app (e.g. Fleet SCIM), select **Integrate any other application you don't find in the gallery (Non-gallery)**, and select **Create**.
+4. From the side menu, select **Provisioning**.
 5. In **Get started with application provisioning** section, select **Connect your application**.
-6. In **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-7. Create Fleet API-only user with maintainer permissions, copy API token for that user, and paste
-   it in **Secret token** field.
-8. Select **Test connection** button. You should see success message.
-9. Select **Create** and after successfull creation, you'll be redirected to the overview page.
-10. Select **Attribute mapping** from the side menu, then select **Provision Microsoft Entra ID
-    Groups**.
-11. Ensure that the attributes `displayName`, `members`, and `externalId` are
-    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
+6. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
+7. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in the **Secret token** field.
+8. Select the **Test connection** button. You should see success message.
+9. Select **Create** and, after successful creation, you'll be redirected to the overview page.
+10. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
+11. Ensure that the attributes `displayName`, `members`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
     saved, select close icon on the top right corner.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
 12. Select **Provision Microsoft Entra ID Users**.
 13. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are
-    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and
-    they are required as well. Delete the rest of the attributes, select **Save**, and after it's
-    saved, select close icon on the top right corner.
+    mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon on the top right corner.
 ![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
-14. Select **Users and groups** from the side menu, select **+ Add user/group**, then select
-    **None Selected** link.
-    
-15. Select users and groups that you want to add to Fleet, then select
-    **Assign**. 
-16. Select **Overview** from the side menu and select **Start provisioning**.
+14. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
+15. Select the users and groups that you want to add to Fleet and then select **Assign**. 
+16. From the side menu, select **Overview** and select **Start provisioning**.
 
 > After you started provisioning Microsoft Entra ID sends data to Fleet immediately. Subsequent
 > requests are triggered every 20-40 minutes. If you edit user information in Entra, it might
