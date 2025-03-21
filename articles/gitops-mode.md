@@ -1,32 +1,31 @@
 # GitOps mode
 
-The Fleet UI now supports GitOps mode, which helps users avoid unexpected changes when using GitOps
-to configure Fleet by preventing users from manually updating
-GitOps-configurable settings and features in the UI.
+GitOps mode helps users avoid unexpected changes by preventing manual updates of [GitOps-configurable features](https://fleetdm.com/docs/configuration/yaml-files) in the UI.
 
-For example, if a user uses the UI to add
-a new saved query and then runs GitOps, the manual change will be overwritten by the GitOps
-configuration. To help avoid this potentially confusing situation, GitOps mode prevents the user
-from manually saving or editing the query in the first place (though does still allow running an ad-hoc live query):
+For example, if a user in the Fleet UI adds a query and then GitOps runs, the query will be deleted.
+GitOps mode helps avoid this by presenting the user from saving or editing the query in the first place
+(though does still allow running an ad-hoc live query):
 
 ![](../website/assets/images/articles/gitops-mode-disables-saving-queries.png)
 
-## Enabling GitOps mode
+
+## Enabling
 To turn GitOps mode on or off, navigate to **Settings** > **Integrations** > **Change management**:
 
 ![](../website/assets/images/articles/enabling-gitops-mode.gif)
 
-## What it covers
 
-GitOps mode prevents the UI user from editing [GitOps-configurable settings and
-features](https://fleetdm.com/docs/configuration/yaml-files). They will still be able to, for example:
+## Still available
+
+GitOps mode prevents the UI user from editing [GitOps-configurable features](https://fleetdm.com/docs/configuration/yaml-files). They will still be able to, for example:
 - Read any data presented in the UI
 - Add and edit users
 - Add and edit labels
 - Run live queries
 
-## More on GitOps
-<!-- TODO - update to link to Allen's article, uncomment -->
+
+## More
+****<!-- TODO - update to link to Allen's article, uncomment -->
 <!-- - [Why use GitOps to configure Fleet?](https://www.example.com) -->
 - [Preventing Mistakes with GitOps](https://fleetdm.com/guides/articles/preventing-mistakes-with-gitops)
 
