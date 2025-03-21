@@ -587,7 +587,7 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 		}
 	}
 	if len(foundCAs) < len(digiCertVars.CAs()) {
-		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VARS_DIGICERT_PASSWORD_<ca_name> and $FLEET_VARS_DIGICERT_DATA_<ca_name>" +
+		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> and $FLEET_VAR_DIGICERT_DATA_<ca_name>" +
 			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the" +
 			" profile exactly"}
 	}
