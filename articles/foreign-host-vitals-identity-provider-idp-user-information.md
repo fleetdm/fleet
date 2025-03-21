@@ -28,13 +28,11 @@ To connect Okta to Fleet, follow these steps:
 12. For **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
 13. For **Authentication Mode** select **HTTP Header**.
 14. Create Fleet API-only user with maintainer permissions, copy API token for that user, and paste it to Okta, in **Authorization** field.
-15. Select **Test Connector Configuration** button. You should see success message in Okta.
-16. Head to Fleet, select **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
-17. Back in Okta, select **Save**
-18. Under **Provisioning** tab, select **To App**, then select **Edit** in **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, and **Deactivate Users**, then select **Save**.
-19. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it.
-    Currently, Fleet support `userName`, `givenName`, and `familyName` SCIM attributes and they are
-    required as well. Delete the rest of the attributes.
+15. Select the **Test Connector Configuration** button. You should see success message in Okta.
+16. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
+17. Back in Okta, select **Save**.
+18. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
+19. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping.png)
 
 
