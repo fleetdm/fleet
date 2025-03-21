@@ -24,14 +24,10 @@ module.exports = {
       unique: true,
     },
 
-    fleetLicenseKey: {
-      type: 'string',
-      description: 'The license key for the connected Fleet instance'
-    },
-
     fleetInstanceUrl: {
       type: 'string',
-      description: 'The url of the connected Fleet instance.'
+      description: 'The url of the connected Fleet instance.',
+      unique: true,
     },
 
     setupCompleted: {
@@ -53,8 +49,7 @@ module.exports = {
 
     stateTokenForAdminConsent: {
       type: 'boolean',
-      description: 'A token used to TODO.',
-      extendedDescription: 'Used only during the initial setup.',
+      description: 'A token used to authenticate admin consent webhook requests.',
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
