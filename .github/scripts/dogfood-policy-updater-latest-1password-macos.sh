@@ -41,7 +41,7 @@ fi
 echo "Policy version number: $policy_version_number"
 
 # Fetch the latest 1Password macOS version
-latest_1password_macos_version=$(curl -s https://releases.1password.com/mac/index.xml | grep "<title>" | grep -v "beta\|preview\|test" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)*" | sort -t. -k1,1nr -k2,2nr -k3,3nr -k4,4nr | head -1)
+/usr/bin/curl -LSs 'https://releases.1password.com/mac/index.xml' | /usr/bin/xmllint --xpath "//title[not(contains(text(),'Beta'))][not(contains(text(),'Preview'))][not(contains(text(),'Test'))]/text()" - | /usr/bin/grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)*" | /usr/bin/sort -rV | /usr/bin/sed -n '1p'
 
 if [ -z "$latest_1password_macos_version" ]; then
     echo "Error: Failed to fetch the latest macOS version."
