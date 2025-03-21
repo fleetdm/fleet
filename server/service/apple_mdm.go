@@ -405,6 +405,9 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if err := cp.ValidateUserProvided(); err != nil {
+		if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error() + ` To control these settings use disk encryption endpoint.`})
+		}
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -587,7 +590,7 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 		}
 	}
 	if len(foundCAs) < len(digiCertVars.CAs()) {
-		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VARS_DIGICERT_PASSWORD_<ca_name> and $FLEET_VARS_DIGICERT_DATA_<ca_name>" +
+		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> and $FLEET_VAR_DIGICERT_DATA_<ca_name>" +
 			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the" +
 			" profile exactly"}
 	}

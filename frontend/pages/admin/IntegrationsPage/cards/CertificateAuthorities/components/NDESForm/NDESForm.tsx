@@ -35,9 +35,9 @@ const NDESForm = ({
   onSubmit,
   onCancel,
 }: INDESFormProps) => {
-  const [formValidation, setFormValidation] = useState<INDESFormValidation>({
-    isValid: false,
-  });
+  const [formValidation, setFormValidation] = useState<INDESFormValidation>(
+    () => validateFormData(formData)
+  );
 
   const { scepURL, adminURL, username, password } = formData;
 
@@ -92,7 +92,6 @@ const NDESForm = ({
           type="password"
           onChange={onInputChange}
           parseTarget
-          placeholder="••••••••"
           blockAutoComplete
           helpText="The password required to log in to the SCEP admin page."
         />

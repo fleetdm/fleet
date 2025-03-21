@@ -114,17 +114,17 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 		{
 			testName:     "AllFileVaultScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
-			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "FileVault2Screened",
 			payloadTypes: []string{"com.apple.MCX.FileVault2"},
-			shouldFail:   []string{"com.apple.MCX.FileVault2"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "FDERecoveryKeyEscrowScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow"},
-			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "FDERecoveryRedirectScreened",
@@ -139,7 +139,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 		{
 			testName:     "FileVaultMixedWithOtherPayloadTypes",
 			payloadTypes: []string{"com.apple.MCX.FileVault2", "com.apple.security.firewall", "com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX"},
-			shouldFail:   []string{"com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryKeyEscrow"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "NoPayloadContent",
