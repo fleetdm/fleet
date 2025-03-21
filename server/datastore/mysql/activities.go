@@ -599,14 +599,11 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		const deleteStmt = `DELETE FROM queries WHERE id IN (?)`
 		deleteQuery, args, err := sqlx.In(deleteStmt, unsavedQueryIDs)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "creating query to delete unsaved queries")
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired unsaved queries")
 		}
-
-		return nil
-
 	}
 
 	// Cleanup orphaned distributed campaigns that reference non-existing queries.
@@ -636,8 +633,6 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired distributed query campaigns")
 		}
-
-		return nil
 	}
 
 	// Cleanup orphaned distributed campaign targets that reference non-existing distributed campaigns.
@@ -662,13 +657,11 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		const deleteStmt = `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
 		deleteQuery, args, err := sqlx.In(deleteStmt, campaignTargetIDs)
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "creating query to delete expired query campaign targets")
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting expired distributed query campaign targets")
 		}
-
-		return nil
 	}
 
 	return nil
