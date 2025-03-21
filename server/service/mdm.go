@@ -2101,7 +2101,7 @@ func getWindowsProfiles(
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			msg := err.Error()
 			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
-				msg = msg + ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
+				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
 			}
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))
