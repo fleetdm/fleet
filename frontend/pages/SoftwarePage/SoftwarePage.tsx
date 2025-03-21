@@ -341,6 +341,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       })
     );
     toggleSoftwareFiltersModal();
+    setResetPageIndex(true);
   };
 
   const navigateToNav = useCallback(
