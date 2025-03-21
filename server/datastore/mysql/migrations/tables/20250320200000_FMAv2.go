@@ -98,7 +98,7 @@ ALTER TABLE fleet_maintained_apps
 
 	// clear old Zoom FMA before swapping in new one
 	if len(slugs) > 1 || (len(slugs) == 1 && slugs[0] == "zoom/darwin") {
-		_, err = tx.Exec(`DELETE FROM fleet_maintaned_apps WHERE slug = 'zoom/darwin'`)
+		_, err = tx.Exec(`DELETE FROM fleet_maintained_apps WHERE slug = 'zoom/darwin'`)
 		if err != nil {
 			return fmt.Errorf("failed to remove duplicate Zoom FMA: %w", err)
 		}
