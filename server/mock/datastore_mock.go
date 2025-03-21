@@ -134,6 +134,8 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
+type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
+
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
@@ -1444,6 +1446,9 @@ type DataStore struct {
 
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
+
+	ApplyLabelSpecsWithAuthorFunc        ApplyLabelSpecsWithAuthorFunc
+	ApplyLabelSpecsWithAuthorFuncInvoked bool
 
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
@@ -3551,6 +3556,13 @@ func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	s.ApplyLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyLabelSpecsFunc(ctx, specs)
+}
+
+func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
+	s.mu.Lock()
+	s.ApplyLabelSpecsWithAuthorFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyLabelSpecsWithAuthorFunc(ctx, specs, authorId)
 }
 
 func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {

@@ -335,7 +335,7 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 			if errors.As(err, &httpErr) {
 				// We can count on this working because of how the godep.HTTPerror Error() method
 				// formats its output.
-				return ctxerr.Errorf(ctx, "Couldn't upload. %s", string(httpErr.Body))
+				return ctxerr.Errorf(ctx, "Couldn't add. %s", string(httpErr.Body))
 			}
 
 			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")

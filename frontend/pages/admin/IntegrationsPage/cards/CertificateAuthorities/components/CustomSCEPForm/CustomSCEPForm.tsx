@@ -47,7 +47,7 @@ const CustomSCEPForm = ({
         config?.integrations.custom_scep_proxy ?? [],
         isEditing
       ),
-    [config?.integrations.custom_scep_proxy]
+    [config?.integrations.custom_scep_proxy, isEditing]
   );
   const [
     formValidation,
@@ -83,8 +83,8 @@ const CustomSCEPForm = ({
           error={formValidation.name?.message}
           onChange={onInputChange}
           parseTarget
-          placeholder="SCEP_WIFI"
-          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_SCEP_WIFI)."
+          placeholder="WIFI_CERTIFICATE"
+          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_CERTIFICATE)."
         />
         <InputField
           label="SCEP URL"

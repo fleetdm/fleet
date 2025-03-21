@@ -1659,13 +1659,13 @@ spec:
 
 	// Apply labels.
 	var appliedLabels []*fleet.LabelSpec
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
 	}
 	name = writeTmpYml(t, labelsSpec)
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
@@ -1754,7 +1754,7 @@ func TestApplyLabels(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
 	}
@@ -1762,35 +1762,35 @@ func TestApplyLabels(t *testing.T) {
 	name := writeTmpYml(t, labelsSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
 
 	appliedLabels = nil
-	ds.ApplyLabelSpecsFuncInvoked = false
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	name = writeTmpYml(t, manualLabelSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "manual_label", appliedLabels[0].Name)
 	assert.Empty(t, appliedLabels[0].Query)
 
 	appliedLabels = nil
-	ds.ApplyLabelSpecsFuncInvoked = false
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	name = writeTmpYml(t, emptyManualLabelSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
 	assert.Empty(t, appliedLabels[0].Query)
 
 	appliedLabels = nil
-	ds.ApplyLabelSpecsFuncInvoked = false
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	name = writeTmpYml(t, nohostsManualLabelSpec)
 
@@ -1817,7 +1817,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, builtinLabelSpec)
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.False(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	assert.True(t, ds.LabelsByNameFuncInvoked)
 
 	// Apply built-in label (with changes)
@@ -2773,7 +2773,7 @@ func TestApplySpecs(t *testing.T) {
 
 	setupDS := func(ds *mock.Store) {
 		// labels
-		ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 			return nil
 		}
 

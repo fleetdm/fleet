@@ -423,6 +423,23 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "",
 		},
 		{
+			name: "XML with top level comment followed by invalid element",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <!-- this is a comment -->
+				  <!-- this is another comment -->
+				  <LocURI>Custom/URI</LocURI>
+				  <Replace>
+				  <!-- this is a comment inside replace -->
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements after comments",
+		},
+		{
 			name: "XML with nested root element in data",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`

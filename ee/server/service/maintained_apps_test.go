@@ -2,8 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -109,14 +115,56 @@ func TestListMaintainedAppsAuth(t *testing.T) {
 }
 
 func TestGetMaintainedAppAuth(t *testing.T) {
-	t.Parallel()
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
-		return &fleet.MaintainedApp{}, nil
+		return &fleet.MaintainedApp{Slug: "1password/darwin"}, nil
 	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+		var manifest ma.FMAManifestFile
+		switch slug {
+		case "fail":
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+
+		case "notfound":
+			w.WriteHeader(http.StatusNotFound)
+			return
+
+		case "1password/darwin":
+			var versions []*ma.FMAManifestApp
+			versions = append(versions, &ma.FMAManifestApp{
+				Version: "1",
+				Queries: ma.FMAQueries{
+					Exists: "SELECT 1 FROM osquery_info;",
+				},
+				InstallerURL:       "https://google.com",
+				InstallScriptRef:   "foobaz",
+				UninstallScriptRef: "foobaz",
+				SHA256:             "deadbeef",
+			})
+
+			manifest = ma.FMAManifestFile{
+				Versions: versions,
+				Refs: map[string]string{
+					"foobaz": "Hello World!",
+				},
+			}
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Fatalf("unexpected app token %s", slug)
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	svc := &Service{authz: authorizer, ds: ds}
@@ -173,6 +221,8 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 	}
 
 	var forbiddenError *authz.Forbidden
+	require.NoError(t, os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL))
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: tt.user})

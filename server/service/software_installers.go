@@ -77,7 +77,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var nerr net.Error
 		if errors.As(err, &nerr) && nerr.Timeout() {
 			return nil, fleet.NewUserMessageError(
-				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				ctxerr.New(ctx, "Couldn't add. Please ensure your internet connection speed is sufficient and stable."),
 				http.StatusRequestTimeout,
 			)
 		}
@@ -228,7 +228,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var nerr net.Error
 		if errors.As(err, &nerr) && nerr.Timeout() {
 			return nil, fleet.NewUserMessageError(
-				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				ctxerr.New(ctx, "Couldn't add. Please ensure your internet connection speed is sufficient and stable."),
 				http.StatusRequestTimeout,
 			)
 		}
