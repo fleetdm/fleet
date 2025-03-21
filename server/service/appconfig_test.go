@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -133,7 +134,7 @@ func TestAppConfigAuth(t *testing.T) {
 			"team gitops",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
-			true,
+			false,
 		},
 		{
 			"user without roles",
@@ -610,7 +611,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		{
 			"team gitops",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			true,
+			false,
 		},
 		{
 			"user without roles",
@@ -1762,6 +1763,7 @@ func TestAppConfigCAs(t *testing.T) {
 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
 		}
 		mt.svc.config.Server.PrivateKey = "exists"
+		mt.svc.digiCertService = digicert.NewService()
 		addMockDatastoreForCA(t, mt)
 		return mt
 	}

@@ -2268,33 +2268,61 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
-	var onlyVulnerableJoin string
-	var cveMetaJoin string
-	var vulnerabilityFiltersClause string
+	var vulnerableLastSoftwareInstallJoins,
+		vulnerableLastSoftwareUninstallJoins,
+		vulnerableLastVppInstall,
+		onlyVulnerableJoin,
+		vulnerabilityFiltersClause,
+		cveMetaJoin string
 	var hasCVEFilters bool
 
 	if opts.VulnerableOnly {
-		onlyVulnerableJoin = `
-INNER JOIN software_cve scve ON scve.software_id = s.id
+		// we don't currently do any vulnerability scanning on upcoming software/vpp installs/uninstalls
+		// so we don't need to join to software_cve for
+		// upcoming_software_install, upcoming_software_uninstall, upcoming_vpp_install
+		vulnerableLastSoftwareInstallJoins = `
+	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
+    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
 		`
-		cveMetaJoin = "INNER JOIN cve_meta cm ON scve.cve = cm.cve"
+		vulnerableLastSoftwareUninstallJoins = `
+	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
+    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
+		`
+		vulnerableLastVppInstall = `
+    INNER JOIN vpp_apps va ON va.adam_id = hvsi.adam_id
+               AND va.platform = hvsi.platform
+    INNER JOIN software_titles ON software_titles.id = va.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
+		`
+		onlyVulnerableJoin = `
+INNER JOIN software_cve ON software_cve.software_id = s.id
+		`
+		cveMetaJoin = "INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
 
 		if opts.KnownExploit {
-			vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
+			vulnerabilityFiltersClause += " AND cve_meta.cisa_known_exploit = 1"
 			hasCVEFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cm.cvss_score >= :min_cvss"
+			vulnerabilityFiltersClause += " AND cve_meta.cvss_score >= :min_cvss"
 			hasCVEFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cm.cvss_score <= :max_cvss"
+			vulnerabilityFiltersClause += " AND cve_meta.cvss_score <= :max_cvss"
 			hasCVEFilters = true
 		}
 
 		// Only join CVE table if there are filters
 		if hasCVEFilters {
 			onlyVulnerableJoin += cveMetaJoin
+			vulnerableLastSoftwareInstallJoins += cveMetaJoin
+			vulnerableLastSoftwareUninstallJoins += cveMetaJoin
+			vulnerableLastVppInstall += cveMetaJoin
 		}
 	}
 
@@ -2389,6 +2417,7 @@ last_software_install AS (
 		hsi.status
 	FROM
 		host_software_installs hsi
+		%s
 		LEFT JOIN host_software_installs hsi2
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
@@ -2412,6 +2441,7 @@ last_software_install AS (
 				siua.software_installer_id = hsi.software_installer_id AND
 				ua.activity_type = 'software_install'
 		)
+		%s
 ),
 last_software_uninstall AS (
 	SELECT
@@ -2422,6 +2452,7 @@ last_software_uninstall AS (
 		hsi.status
 	FROM
 		host_software_installs hsi
+		%s
 		LEFT JOIN host_software_installs hsi2
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
@@ -2445,6 +2476,7 @@ last_software_uninstall AS (
 				siua.software_installer_id = hsi.software_installer_id AND
 				ua.activity_type = 'software_uninstall'
 		)
+		%s
 ),
 upcoming_vpp_install AS (
 	SELECT
@@ -2481,6 +2513,7 @@ last_vpp_install AS (
 		%s
 	FROM
 		host_vpp_software_installs hvsi
+		%s
 		LEFT JOIN nano_command_results ncr
 			ON ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
@@ -2504,6 +2537,7 @@ last_vpp_install AS (
 				vaua.platform = hvsi.platform AND
 				ua.activity_type = 'vpp_app_install'
 		)
+		%s
 )
 		SELECT
 			st.id,
@@ -2646,7 +2680,18 @@ last_vpp_install AS (
 			)
 
 			%s
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+`,
+		vulnerableLastSoftwareInstallJoins,
+		vulnerabilityFiltersClause,
+		vulnerableLastSoftwareUninstallJoins,
+		vulnerabilityFiltersClause,
+		vppAppHostStatusNamedQuery("hvsi", "ncr", "status"),
+		vulnerableLastVppInstall,
+		vulnerabilityFiltersClause,
+		status,
+		softwareIsInstalledOnHostClause,
+		onlySelfServiceClause,
+	)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be

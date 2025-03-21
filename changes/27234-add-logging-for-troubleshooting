@@ -1,0 +1,1 @@
+* Added `took` field (request duration) on server logs for requests that fail (non-2XX).

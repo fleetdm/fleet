@@ -10,7 +10,7 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Pagination from "pages/ManageControlsPage/components/Pagination";
+import Pagination from "components/Pagination";
 
 const baseClass = "paginated-list";
 
@@ -251,7 +251,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         })}
       </ul>
       <Pagination
-        className={`${baseClass}__pagination-controls`}
         disablePrev={currentPage === 0}
         disableNext={disableNext()}
         onNextPage={() => setCurrentPage(currentPage + 1)}

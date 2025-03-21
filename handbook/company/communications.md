@@ -191,7 +191,7 @@ Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/
 
 ### Video
 
-Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
+Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  All videos are edited and uploaded within 2 business days of recording the meeting. 
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/29167232-652c-4c64-a37c-910cc781f2c1">
 
@@ -427,7 +427,7 @@ Opinionated conventions help people work faster and spend less time figuring out
 
 Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
-> _**Note:** There are only a few "special" labels that are exceptions to this rule:
+> _**Note:** There are only a few "special" labels that are exceptions to this rule_:
 > - `bug` A defect in the product.
 > - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 > - `story` A user story.

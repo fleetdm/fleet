@@ -78,7 +78,7 @@ const OperatingSystems = ({
           auto-update expiration date.{" "}
           <CustomLink
             url="https://fleetdm.com/learn-more-about/chromeos-updates"
-            text="See supported devices"
+            text="Learn more"
             newTab
             multiline
           />

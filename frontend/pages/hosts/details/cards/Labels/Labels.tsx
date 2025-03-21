@@ -5,6 +5,7 @@ import { ILabel } from "interfaces/label";
 import classnames from "classnames";
 
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import { LABEL_DISPLAY_MAP } from "utilities/constants";
 
 const baseClass = "labels-card";
@@ -36,11 +37,11 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
   return (
     <Card
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      paddingSize="xxlarge"
       className={classNames}
     >
-      <h2>Labels</h2>
+      <CardHeader header="Labels" />
       {labels.length === 0 ? (
         <p className="info-flex__item">
           No labels are associated with this host.

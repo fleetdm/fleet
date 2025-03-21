@@ -41,7 +41,8 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		}
 	}
 
-	cmd := exec.Command("/usr/bin/open", arg...)
+	arg = append([]string{"-u", opts.user, "/usr/bin/open"}, arg...)
+	cmd := exec.Command("sudo", arg...)
 	tw := &TransientWriter{}
 	cmd.Stderr = io.MultiWriter(tw, os.Stderr)
 	cmd.Stdout = io.MultiWriter(tw, os.Stdout)

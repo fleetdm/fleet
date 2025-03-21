@@ -18,7 +18,11 @@ import (
 const (
 	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
 	// used by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultPayloadIdentifier = "com.fleetdm.fleet.mdm.filevault"
+	FleetFileVaultPayloadIdentifier        = "com.fleetdm.fleet.mdm.filevault"
+	FleetFileVaultPayloadType              = "com.apple.MCX.FileVault2"
+	FleetFileVaultOptionsPayloadType       = "com.apple.MCX"
+	FleetRecoveryKeyEscrowPayloadType      = "com.apple.security.FDERecoveryKeyEscrow"
+	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include FileVault settings."
 
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
@@ -58,15 +62,12 @@ func FleetPayloadIdentifiers() map[string]struct{} {
 
 // FleetPayloadTypes returns a map of PayloadType strings
 // that are handled and delivered by Fleet.
-//
-// TODO(roperzh): when I was refactoring this, I noticed that the strings are
-// not constants, we should refactor that and use the constant in the templates
-// we use to generate the FileVault mobileconfig.
 func FleetPayloadTypes() map[string]struct{} {
 	return map[string]struct{}{
-		"com.apple.security.FDERecoveryKeyEscrow": {},
-		"com.apple.MCX.FileVault2":                {},
-		"com.apple.security.FDERecoveryRedirect":  {},
+		FleetRecoveryKeyEscrowPayloadType:        {},
+		FleetFileVaultPayloadType:                {},
+		FleetFileVaultOptionsPayloadType:         {},
+		"com.apple.security.FDERecoveryRedirect": {}, // no longer supported in macOS 10.13 and later
 	}
 }
 
@@ -249,6 +250,12 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 	}
 
 	if len(screenedTypes) > 0 {
+		for _, t := range screenedTypes {
+			switch t {
+			case FleetFileVaultPayloadType, FleetFileVaultOptionsPayloadType, FleetRecoveryKeyEscrowPayloadType:
+				return errors.New(DiskEncryptionProfileRestrictionErrMsg)
+			}
+		}
 		return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screenedTypes, ", "))
 	}
 
