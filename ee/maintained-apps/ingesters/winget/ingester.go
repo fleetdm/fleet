@@ -12,8 +12,18 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting winget app data ingestion")
+type wingetIngester struct {
+	logger kitlog.Logger
+}
+
+func NewWingetIngester(logger kitlog.Logger) maintained_apps.Ingester {
+	return &wingetIngester{
+		logger: logger,
+	}
+}
+
+func (i *wingetIngester) IngestApps(ctx context.Context, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
+	level.Info(i.logger).Log("msg", "starting winget app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
@@ -34,7 +44,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"fileName": f.Name()})
 		}
 
-		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
+		level.Info(i.logger).Log("msg", "ingesting winget app", "name", input.Name)
 
 		// TODO: fully implement this ingester, right now it's just a stub/noop
 
@@ -43,6 +53,11 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 	}
 
 	return manifestApps, nil
+}
+
+func (i *wingetIngester) IngestApp(ctx context.Context, inputPath string) (*maintained_apps.FMAManifestApp, error) {
+	// TODO: implement
+	return nil, nil
 }
 
 type inputApp struct {
