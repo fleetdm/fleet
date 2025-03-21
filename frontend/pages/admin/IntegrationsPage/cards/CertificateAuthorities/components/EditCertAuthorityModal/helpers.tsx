@@ -48,6 +48,45 @@ export const generateDefaultFormData = (
   };
 };
 
+export const updateFormData = (
+  certAuthority: ICertificateIntegration,
+  prevFormData: ICertFormData,
+  update: { name: string; value: string }
+) => {
+  const newData = { ...prevFormData, [update.name]: update.value };
+
+  // for some inputs that change we want to reset one of the other inputs
+  // and force users to re-enter it.
+  if (isDigicertCertIntegration(certAuthority)) {
+    if (
+      update.name === "name" ||
+      update.name === "url" ||
+      update.name === "profileId"
+    ) {
+      return {
+        ...newData,
+        apiToken: "",
+      };
+    }
+  } else if (isNDESCertIntegration(certAuthority)) {
+    if (update.name === "adminURL" || update.name === "username") {
+      return {
+        ...newData,
+        password: "",
+      };
+    }
+  } else if (isCustomSCEPCertIntegration(certAuthority)) {
+    if (update.name === "name" || update.name === "scepURL") {
+      return {
+        ...newData,
+        challenge: "",
+      };
+    }
+  }
+
+  return newData;
+};
+
 export const getErrorMessage = (err: unknown) => {
   return `Couldn't edit certificate authority. ${getDisplayErrMessage(err)}`;
 };
