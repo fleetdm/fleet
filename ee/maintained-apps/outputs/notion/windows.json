@@ -1,0 +1,18 @@
+{
+  "versions": [
+    {
+      "version": "4.7.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE identifying_number = '';"
+      },
+      "installer_url": "",
+      "unique_identifier": "Notion",
+      "install_script_ref": "e3b0c442",
+      "uninstall_script_ref": "e3b0c442",
+      "sha256": ""
+    }
+  ],
+  "refs": {
+    "e3b0c442": ""
+  }
+}

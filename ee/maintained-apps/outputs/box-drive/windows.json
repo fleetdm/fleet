@@ -5,11 +5,11 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE identifying_number = '{023DC454-39E5-46FD-8F1B-DF6F344AAADB}';"
       },
-      "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.43.205.msi",
+      "installer_url": "",
       "unique_identifier": "Box Drive",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "5c2fbb3d3b88843f2a41d97ef6790c8b959a4a3e88216e57638c2d884b883ea3"
+      "sha256": ""
     }
   ],
   "refs": {
