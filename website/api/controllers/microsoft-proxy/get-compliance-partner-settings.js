@@ -1,0 +1,61 @@
+module.exports = {
+
+
+  friendlyName: 'Get compliance partner settings',
+
+
+  description: '',
+
+  inputs: {
+    entraTenantId: {
+      type: 'string',
+      required: true,
+    },
+    fleetServerSecret: {
+      type: 'string',
+      requried: true,
+    },
+  },
+
+
+  exits: {
+    success: { description: 'The microsoft entra application ID was sent to a managed cloud instance.'},
+  },
+
+
+  fn: async function ({entraTenantId, fleetServerSecret}) {
+
+    let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
+    if(!informationAboutThisTenant) {
+      return this.res.notFound();
+    }
+    if(informationAboutThisTenant.adminConsented) {
+      // If an entra admin already consented for this tenant, return admin_consented: true,
+      return {
+        entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
+        setup_done: informationAboutThisTenant.setupCompleted,// eslint-disable-line camelcase
+        admin_consented: true// eslint-disable-line camelcase
+      };
+    } else {
+      // Otherwise, build an admin consent url for this tenant and include it in the response body.
+      // Generate a state token for the admin consent link.
+      let stateTokenForThisAdminConsentLink = sails.helpers.strings.random.with({len: 30, style: 'url-friendly'});
+
+      // Update the database record for this tenant to include the generated state token.
+      await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({stateTokenForAdminConsent: stateTokenForThisAdminConsentLink});
+
+      // Build an admin consent url for this request.
+      let adminConsentUrlForThisTenant = `https://login.microsoftonline.com/${entraTenantId}/adminconsent?client_id=${encodeURIComponent(sails.config.custom.compliancePartnerClientId)}&state=${encodeURIComponent(stateTokenForThisAdminConsentLink)}&redirect_uri=${encodeURIComponent('fleetdm.com/api/v1/microsoft-compliance-partner/adminconsent')}`;
+
+      return {
+        entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
+        setup_done: informationAboutThisTenant.setupCompleted,// eslint-disable-line camelcase
+        admin_consented: false,// eslint-disable-line camelcase
+        admin_consent_url: adminConsentUrlForThisTenant// eslint-disable-line camelcase
+      };
+    }
+
+  }
+
+
+};
