@@ -4,7 +4,7 @@ services:
     type: web
     runtime: image
     image:
-      url: 'fleetdm/fleet:latest'
+      url: "fleetdm/fleet:5eb6cb8"
     preDeployCommand: "fleet prepare --no-prompt=true db"
     healthCheckPath: /healthz
     disk:

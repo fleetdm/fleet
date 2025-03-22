@@ -3,12 +3,12 @@
   gap: $pad-smedium;
 
   // >= 320px and < 480px
-  @media (min-width: $break-mobile-xs) {
+  @media (min-width: $break-xs) {
     grid-template-columns: repeat(2, 1fr);
   }
 
   // >= 480px and < 880px
-  @media (min-width: $break-mobile-sm) {
+  @media (min-width: $break-sm) {
     grid-template-columns: 1fr;
     grid-template-rows: initial; // undo multi row
 
