@@ -577,6 +577,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
 - [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
@@ -1289,6 +1290,7 @@ This endpoint is used to proxy SCEP requests to the configured SCEP server. It u
 ### Get Android Enterprise signup URL
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
 
 `GET /api/v1/fleet/android_enterprise/signup_url`
@@ -1382,6 +1384,7 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 ### Get Android Enterprise server-sent event
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
 
 `GET /api/v1/fleet/android_enterprise/signup_sse`
@@ -1401,6 +1404,7 @@ Android Enterprise successfully connected
 ### Android Enterprise PubSub push endpoint
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
