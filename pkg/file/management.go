@@ -10,9 +10,6 @@ var installPkgScript string
 //go:embed scripts/install_msi.ps1
 var installMsiScript string
 
-//go:embed scripts/install_exe.ps1
-var installExeScript string
-
 //go:embed scripts/install_deb.sh
 var installDebScript string
 
@@ -30,8 +27,6 @@ func GetInstallScript(extension string) string {
 		return installRPMScript
 	case "pkg":
 		return installPkgScript
-	case "exe":
-		return installExeScript
 	default:
 		return ""
 	}
@@ -71,9 +66,6 @@ func GetRemoveScript(extension string) string {
 	}
 }
 
-//go:embed scripts/uninstall_exe.ps1
-var uninstallExeScript string
-
 //go:embed scripts/uninstall_pkg.sh
 var uninstallPkgScript string
 
@@ -98,8 +90,6 @@ func GetUninstallScript(extension string) string {
 		return uninstallRPMScript
 	case "pkg":
 		return uninstallPkgScript
-	case "exe":
-		return uninstallExeScript
 	default:
 		return ""
 	}
