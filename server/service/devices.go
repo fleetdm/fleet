@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 
@@ -402,6 +403,11 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 	}
 
 	transparencyURL := fleet.DefaultTransparencyURL
+	// See #27309
+	if isSecureFrame := os.Getenv("FLEET_ENABLE_SECUREFRAME_PARTNERSHIP"); isSecureFrame == "1" {
+		transparencyURL = "https://fleetdm.com/better?utm_source=secureframe"
+	}
+
 	// Fleet Premium license is required for custom transparency url
 	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
