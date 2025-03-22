@@ -1825,7 +1825,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 				<integer>1</integer>
 			</dict>
 			</plist>`, mobileconfig.FleetFileVaultPayloadType))},
-			"The configuration profile can't include FileVault settings.",
+			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 		},
 	}
 	for name := range fleetmdm.FleetReservedProfileNames() {
