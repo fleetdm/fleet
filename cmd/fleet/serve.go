@@ -368,6 +368,9 @@ the way that the Fleet server works.
 				PubSub: logging.PubSubConfig{
 					Project: config.PubSub.Project,
 				},
+				Webhook: logging.WebhookConfig{
+					EndpointURL: config.Webhook.EndpointURL,
+				},
 				KafkaREST: logging.KafkaRESTConfig{
 					ProxyHost:        config.KafkaREST.ProxyHost,
 					ContentTypeValue: config.KafkaREST.ContentTypeValue,

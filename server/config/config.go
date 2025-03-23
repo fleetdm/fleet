@@ -299,6 +299,11 @@ type EmailConfig struct {
 	EmailBackend string `yaml:"backend"`
 }
 
+// IDK what i'm doing here.
+type WebhookConfig struct {
+	EndpointURL string `yaml:"test_webhook_url"`
+}
+
 // LambdaConfig defines configs for the AWS Lambda logging plugin
 type LambdaConfig struct {
 	Region           string
@@ -610,6 +615,7 @@ type FleetConfig struct {
 	Packaging        PackagingConfig
 	MDM              MDMConfig
 	Calendar         CalendarConfig
+	Webhook 		WebhookConfig
 }
 
 type MDMConfig struct {

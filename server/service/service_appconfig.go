@@ -187,6 +187,13 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					AuditFunction:  conf.Lambda.AuditFunction,
 				},
 			}
+		case "webhook":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "webhook",
+				Config: fleet.WebhookConfig {
+					EndpointURL: conf.Webhook.EndpointURL,
+				},
+			}
 		case "pubsub":
 			*lp.target = fleet.LoggingPlugin{
 				Plugin: "pubsub",

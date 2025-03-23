@@ -1397,6 +1397,11 @@ type PubSubConfig struct {
 	config.PubSubConfig
 }
 
+
+type WebhookConfig struct {
+	EndpointURL string `json:"webhook_url"`
+}
+
 // FirehoseConfig shadows config.FirehoseConfig only exposing a subset of fields
 type FirehoseConfig struct {
 	Region       string `json:"region"`

@@ -58,6 +58,10 @@ type PubSubConfig struct {
 	AddAttributes bool
 }
 
+type WebhookConfig struct {
+	EndpointURL string
+}
+
 type KafkaRESTConfig struct {
 	Topic string
 
@@ -75,6 +79,7 @@ type Config struct {
 	Lambda     LambdaConfig
 	PubSub     PubSubConfig
 	KafkaREST  KafkaRESTConfig
+	Webhook    WebhookConfig 
 }
 
 func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLogger, error) {
@@ -113,6 +118,15 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create firehose %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "webhook":
+		writer, err := NewWebhookLogWriter(
+			config.Webhook.EndpointURL,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create webhook %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	case "kinesis":
