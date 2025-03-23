@@ -86,12 +86,10 @@ jobs:
 
     # Go dependencies are cached by actions/setup-go
     - name: Install Go Dependencies
-      run: go get .
+      run: make deps-go
 
     - name: Install ZSH
-      # We may not get the latest zsh because we are NOT running 'sudo apt update' since it adds ~20s to each test.
-      # If you need the latest zsh, please create a separate job for that test.
-      run: sudo apt install -y zsh
+      run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
       run: |
