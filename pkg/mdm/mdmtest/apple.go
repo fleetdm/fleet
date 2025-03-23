@@ -592,7 +592,7 @@ func (c *TestAppleMDMClient) Authenticate() error {
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"SerialNumber": c.SerialNumber,
 	}
-	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
+	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPod") || strings.HasPrefix(c.Model, "iPad") {
 		payload["ProductName"] = c.Model
 	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)

@@ -77,6 +77,7 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 
 	assetSet := r.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, or iPad, we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") ||
+		strings.HasPrefix(device.Product, "iPod") ||
 		strings.HasPrefix(device.Product, "iPad") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
