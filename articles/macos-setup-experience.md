@@ -144,7 +144,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
 
   > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
-    The `await_device_configured` option is always set to `true` to allow Fleet to take actions like running scripts and installing software packages during the enrollment profile.
+    The `await_device_configured` option is always set to `true` to allow Fleet to take actions like running scripts and installing software packages during the enrollment process.
     If you'd like to release devices manually, you can check the "Release device manually" option in Setup experience > Setup assistant > Show advanced options.
 
 ### Step 2: Upload the profile to Fleet
