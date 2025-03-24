@@ -1,43 +1,83 @@
 # Connect end users to Wi-Fi with a certificate (from DigiCert, SCEP, or NDES) 
 
+_Available in Fleet Premium_
+
 Fleet [v4.66.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.66.0) introduces support for helping your end users connect to Wi-Fi by adding your certificate authority to issue certificates for Wi-Fi authentication. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
-This guide will walk you through configuring certificate authority and delivering configuration profile.
+This guide will walk you through configuring certificate authority and delivering configuration
+profile.
 
-## Prerequisites
+## Digicert
 
-* Fleet Premium with admin permissions.
-* Fleet [v4.66.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) or greater.
-* Apple MDM enabled.
-* NDES: A Windows Server with AD CS (Active Directory Certificate Services) and NDES installed and configured, including the certificate templates for the certificates you want to enroll for.
-  * The default password cache size for NDES is five passwords. Increase this value to account for the number of devices you expect to enroll simultaneously, including devices that may be offline and need to enroll when they come online.
+### Step 1: Create service user in DigiCert
+
+1. Head to [Digicert One](https://one.digicert.com/).
+2. Follow instructions here, to create service user, and save service user API token.
+> Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
+> when creating service user.
+
+### Step 2: Create certificate profile in DigiCert
+
+1. In DigiCert [Trust Lifcycle Manager](https://one.digicert.com/mpki/dashboard), select
+   **Policies > Certificate profiles** from the main menu, then select **Create profile from
+   template**, and select **Generic Device Certificate** from the list.
+2. Add a friendly **Profile name** (e.g. "Fleet - Wi-Fi authentication").
+3. Select your **Business unit** and **Issuing CA**.
+4. Select **REST API** from **Enrollment method**, then select **3rd party app** from
+   **Authentication method** dropdown, and select **Next**.
+5. Configure certificate expiration as you wish.
+6. In **Subject DN and SAN fields** section, make sure to add **Common name** and **Other name
+   (UPN)**. For **Common name**, select **REST request** from **Source for the field's value**
+   dropdown, and check **Required**. For **Other name (UPN)**, select **REST Request**, and check
+   both **Required** and **Multiple** checkboxes.
+7. You can click **Next** and leave all default options until you get to the last step, where you
+   need to select service user created in first step from **Select Service User** dropdown, and
+   select **Create**
+
+### Step 3: Connect Fleet to DigiCert
+
+1. Go to Fleet, navigate to **Settings**, select **Integrations** tab, and select
+   **Certificates**.
+2. Select **Add CA** button, and select **DigiCert** from the dropdown on the top.
+3. Add **Name** for your certificate authority. It's best to use all caps, beacuse it will be used
+   as variable name in configuration profile and name it based on your use case (e.g.
+   WIFI_AUTHENTICATION).
+4. Keep default **URL**, or adjust if you're using on-prem DigiCert One. URL should match the one
+   you use to login to your DigiCert One account.
+5. Paste **API token** from the **Step 1** section above.
+6. Paste **Profile GUID** of certificate profile created in the **Step 2** section above. To get
+   Profile GUID, go to [Certificate profiles](https://one.digicert.com/mpki/policies/profiles) page,
+   open your profile, and copy **GUID**.
+7. For **CN**, **UPN**, and **Certificate seat ID**, you can use fixed values or one of the [Fleet's
+   host
+   variables](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
+8. Select **Add CA**, and your CA should appear in the list.
+
+### Step 4: Create a configuration profile
+
+...
 
 ## Microsoft NDES
 
-### 1. Connect Fleet to NDES
+### Step 1: Connect Fleet to NDES
 
 1. Go to the Fleet, navigate to **Settings**, select **Integrations** tab, and select **Certificates**.
 2. Select **Add CA** button, and select **Microsoft NDES** from the dropdown on the top.
-
-![Add SCEP](../website/assets/images/articles/add-scep.png)
-
-### 2. Configure NDES SCEP settings
-
-You will need to provide the SCEP URL that accepts the SCEP protocol. You'll also need to give the admin URL with the associated username and password to get the one-time challenge passwords for SCEP enrollment.
-
-![Configure NDES SCEP settings](../website/assets/images/articles/ndes-scep-config.png)
+3. Add **SCEP URL** that accepts the SCEP protocol.
+4. Add **Admin URL** and associated **Username** and **Password** to get the one-time challenge
+   password for SCEP enrollment.
 
 Note:
 * The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/` respectively. These path suffixes are the default paths for NDES on Windows Server 2022 and should only be changed if you have customized the paths on your server.
 * When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
 
-### 3. Create a SCEP configuration profile
+### Step 2: Create a SCEP configuration profile
 
 Create a configuration profile in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`.
 
 Adjust the `Subject` values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
 
-Example profile:
+Example configuration profile:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -103,13 +143,13 @@ Example profile:
 
 Upload the profile to Fleet in **Controls** > **OS Settings** > **Custom settings**.
 
-When sending the profile to hosts, Fleet will replace the `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variables with the proper values. Any errors will appear as a `Failed` status in the host's `OS settings`.
+When sending the profile to hosts, Fleet will replace the `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variables with the proper values.Any errors will appear as a **Failed** status in the host's **OS settings**.
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
 
 > Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
 
-## How does it work?
+### How does it work?
 
 The SCEP proxy in Fleet acts as a middleman between the device and the NDES server. When a device requests a certificate, the SCEP proxy forwards the request to the NDES server, retrieves the certificate, and sends it back to the device. In addition, the SCEP proxy:
 
@@ -122,27 +162,14 @@ The SCEP proxy in Fleet acts as a middleman between the device and the NDES serv
 
 The issued certificate will appear in the System Keychain on macOS. During the profile installation, the OS generates several temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
 
-## Use case: connecting to a corporate WiFi network
-
-A common use case for SCEP is connecting devices to a corporate WiFi network. This involves creating a profile with SCEP and WiFi payloads and linking them together. Here's how you can use Fleet's SCEP proxy to achieve this:
-
-1. Send the root CA certificate to the device using a [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
-2. Create a profile with a SCEP payload and a [WiFi payload](https://developer.apple.com/documentation/devicemanagement/wifi?language=objc), and send it to the device.
-  - The `PayloadCertificateUUID` in the WiFi payload should reference the `PayloadUUID` of the SCEP payload.
-  - For more information on connecting your Apple devices to 802.1X networks, see [this guide from Apple](https://support.apple.com/en-my/guide/deployment/depabc994b84/web).
-
-## Assumptions and limitations
+### Assumptions and limitations
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Certificate renewal is coming soon.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 
-## Conclusion
-
-Fleet's NDES SCEP proxy feature allows your devices to receive certificates from your certificate authority's NDES service. This feature simplifies managing certificates on your devices and enables a secure and efficient way to connect them to your corporate network.
-
-<meta name="articleTitle" value="Connect end users to Wi-Fi with Simple Certificate Enrollment Protocol (SCEP)">
+<meta name="articleTitle" value="Connect end users to Wi-Fi with a certificate (from DigiCert, SCEP, or NDES)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-10-30">
-<meta name="description" value="Learn how to help your end users connect to Wi-Fi by adding your SCEP server">
+<meta name="description" value="Learn how to automatically connect device to a Wi-Fi by adding your certificate authority and issuing certificate from it.">
