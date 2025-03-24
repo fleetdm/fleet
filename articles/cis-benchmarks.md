@@ -49,25 +49,65 @@ If either of these conditions fails, the host is considered to be failing the po
 
 All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 
-How to import them to Fleet:
-```sh
-# Download policy queries from Fleet's repository 
-# macOS 13
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml
+1. Install [yq](https://github.com/mikefarah/yq) if you you don't have it already.
+2. Run this Shell script to transform the policies into [Fleet YAML]([https://fleetdm.com/docs/configuration/yaml-files](https://fleetdm.com/docs/configuration/yaml-files#policies)):
 
-# Windows 10 (note the same file name. Rename as needed.)
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-10/cis-policy-queries.yml
+```
+#!/bin/bash
+#shellcheck disable=SC2207
 
-# Windows 11 (note the same file name. Rename as needed.)
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-11/cis-policy-queries.yml
 
-# Apply the downloaded policies to Fleet for all files.
-fleetctl apply --context <context> -f <path-to-macOS-13-policies> --policies-team <team-name>
-fleetctl apply --context <context> -f <path-to-windows-10-policies> --policies-team <team-name>
-fleetctl apply --context <context> -f <path-to-windows-11-policies> --policies-team <team-name>
+
+# convert.cis.policy.queries.yml @2024 Fleet Device Management
+# Brock Walters (brock@fleetdm.com)
+
+
+
+# CIS queries as written here:
+#    https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/cis-policy-queries.yml
+# must be converted to be uploaded via Fleet GitOps.
+#
+# This script takes as input the YAML from the file linked above & creates a new YAML array compatible with the "Separate file" format documented here:
+#    https://fleetdm.com/docs/configuration/yaml-files#separate-file
+
+
+
+
+# get CIS queries raw file from Fleet repo
+cisfile='https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml'
+cispath='/private/tmp/cis.yml'
+cisspfl='/private/tmp/cis.gitops.yml'
+
+/usr/bin/curl -X GET -LSs "$cisfile" -o "$cispath"
+
+
+
+# create CIS benchmark array
+IFS=$'\n'
+cisarry=($(/opt/homebrew/bin/yq '.spec.name' "$cispath" | /usr/bin/grep -v '\-\-\-'))
+
+for i in "${cisarry[@]}"
+do
+	cisname="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval '.name')"
+	cispfrm="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval '.platform')"
+	cisdscr="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.description')"
+	cisrslt="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.resolution')"
+	cisqrry="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.query')" 
+
+	printf "name: %s\nplatform: %s\ndescription: |\n%s\nresolution: |\n%s\nquery: |\n%s\n" "$cisname" "$cispfrm" "$cisdscr" "$cisrslt" "$cisqrry" | /usr/bin/sed 's/^/    /g;s/^[[:space:]]*name:/- name:/;s/^[[:space:]]*platform:/  platform:/;s/^[[:space:]]*description:/  description:/;s/^[[:space:]]*resolution:/  resolution:/;s/^[[:space:]]*query:/  query:/'
+
+# set -x
+# trap read debug
+
+done
+
+# /usr/bin/awk '/apiVersion/{flag=1} /^  contributors:/{flag=2} flag')"
+# /usr/bin/sed -n "/$i/,/^----+/p" "$sqlfile"
 ```
 
-To apply the policies on a specific team use the `--policies-team` flag:
+3. Copy/paste the CIS policies you want into your YAML file and run GitOps.
+
+If you're using `fleetctl apply`, you can apply the policies to a specific team use the `--policies-team` flag:
 ```sh
 fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```
