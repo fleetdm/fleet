@@ -560,7 +560,7 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
-	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+	UIGitOpsMode *UIGitOpsModeConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//

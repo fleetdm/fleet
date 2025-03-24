@@ -277,7 +277,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			// Set a GitOps UI mode to verify that applying GitOps config won't overwrite it.
-			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+			UIGitOpsMode: &fleet.UIGitOpsModeConfig{
 				GitopsModeEnabled: true,
 				RepositoryURL:     "https://didsomeonesaygitops.biz",
 			},
