@@ -1,4 +1,4 @@
-# Connect end users to Wi-Fi with Simple Certificate Enrollment Protocol (SCEP)
+# Connect end users to Wi-Fi with a certificate (from DigiCert, SCEP, or NDES) 
 
 Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) introduces support for helping your end users connect to Wi-Fi by adding your SCEP server. Fleet currently supports Microsoft's Network Device Enrollment Service (NDES) as a SCEP server.
 
