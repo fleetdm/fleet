@@ -69,7 +69,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 6. Draft changes to the Fleet product that solve the problem specified in the story.
    - Constantly place yourself in the shoes of a user while drafting changes.
    - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
-       - At the first design review of each design sprint stories will be reviewed and prioritized by product and engineering. An engineering DRI will be assigned to each ticket and will help determine whether additional engineering research stories need to be written and pointed.
+   - At the first design review of each design sprint stories will be reviewed and prioritized by product and engineering. An engineering DRI will be assigned to each ticket and will help determine whether additional engineering research stories need to be written and pointed.
 
 Additionally:
 
