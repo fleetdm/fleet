@@ -7,6 +7,7 @@ import { IListSort } from "interfaces/list_options";
 import { HostPlatform } from "interfaces/platform";
 
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 
 import CertificatesTable from "./CertificatesTable";
@@ -65,10 +66,10 @@ const CertificatesCard = ({
     <Card
       className={baseClass}
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      paddingSize="xxlarge"
     >
-      <h2>Certificates</h2>
+      <CardHeader header="Certificates" />
       {renderContent()}
     </Card>
   );

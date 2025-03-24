@@ -68,7 +68,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
-	if payload.AutomaticInstall {
+	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
 		switch {
 		//
 		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.

@@ -78,9 +78,13 @@ After our engineer has updated code from the review, the approver can do a final
 
 ![Pr Approval](../website/assets/images/articles/pr-approval-2-933x483@2x.jpg)
 
+## GitOps mode in the UI
+Fleet supports locking down the UI with [GitOps mode](https://fleetdm.com/guides/articles/gitops-mode), which prevents manual updates to any features or
+settings configurable with GitOps.
+
 ## Conclusion
 
-By adopting GitOps for device management, your team's work becomes observable, reversible and repeatable while automating your device configurations. Instead of making changes manually and risking unintended consequences, you gain a reliable, auditable workflow where every modification is reviewed, approved, and tracked. 
+By adopting GitOps for device management, your team's work becomes observable, reversible and repeatable while automating your device configurations. Instead of making changes manually and risking unintended consequences, you gain a reliable, auditable workflow where every modification is reviewed, approved, and tracked.
 
 This approach reduces human error and fosters teamwork. Whether you're enforcing security policies, managing OS updates, or deploying configuration changes, GitOps ensures consistency and control helping you avoid those last-minute Friday afternoon mishaps. 😥
 

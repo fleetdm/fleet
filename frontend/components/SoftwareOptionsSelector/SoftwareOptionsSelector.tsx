@@ -24,8 +24,11 @@ interface ISoftwareOptionsSelector {
   platform?: string;
   className?: string;
   isCustomPackage?: boolean;
+  /** Exe packages do not have ability to select automatic install */
+  isExePackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
+  disableOptions?: boolean;
 }
 
 const SoftwareOptionsSelector = ({
@@ -35,18 +38,38 @@ const SoftwareOptionsSelector = ({
   platform,
   className,
   isCustomPackage,
+  isExePackage,
   isEditingSoftware,
+  disableOptions = false,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
+  const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
+  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
-    platform === "ios" || platform === "ipados";
+    disableOptions || isPlatformIosOrIpados || isExePackage;
+
+  /** Tooltip only shows when enabled or for exe package */
+  const showAutomaticInstallTooltip =
+    !isAutomaticInstallDisabled || isExePackage;
+  const getAutomaticInstallTooltip = (): JSX.Element => {
+    if (isExePackage) {
+      return (
+        <>
+          Fleet can&apos;t create a policy to detect existing installations for
+          .exe packages. To automatically install an .exe, add a custom policy
+          and enable the install software automation on the <b>Policies</b>{" "}
+          page.
+        </>
+      );
+    }
+    return <>Automatically install only on hosts missing this software.</>;
+  };
 
   return (
     <div className="form-field">
       <div className="form-field__label">Options</div>
-      {isSelfServiceDisabled && (
+      {isPlatformIosOrIpados && (
         <p>
           Currently, self-service and automatic installation are not available
           for iOS and iPadOS. Manually install on the <b>Host details</b> page
@@ -68,9 +91,7 @@ const SoftwareOptionsSelector = ({
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
           tooltipContent={
-            !isAutomaticInstallDisabled && (
-              <>Automatically install only on hosts missing this software.</>
-            )
+            showAutomaticInstallTooltip && getAutomaticInstallTooltip()
           }
           disabled={isAutomaticInstallDisabled}
         >

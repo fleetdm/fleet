@@ -15,12 +15,6 @@
     flex-direction: column;
   }
   .card {
-    &__header {
-      font-size: $medium;
-      font-weight: $bold;
-      margin: 0 0 $pad-medium 0;
-    }
-
     .list {
       list-style: none;
       padding: 0;
