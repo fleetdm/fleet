@@ -404,8 +404,8 @@ func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service
 
 	transparencyURL := fleet.DefaultTransparencyURL
 	// See #27309
-	if isSecureFrame := os.Getenv("FLEET_ENABLE_SECUREFRAME_PARTNERSHIP"); isSecureFrame == "1" {
-		transparencyURL = "https://fleetdm.com/better?utm_source=secureframe"
+	if isSecureFrame := os.Getenv("FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME"); isSecureFrame == "true" {
+		transparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
 	}
 
 	// Fleet Premium license is required for custom transparency url
