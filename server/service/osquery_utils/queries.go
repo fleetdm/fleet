@@ -345,7 +345,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVersion = rows[0]["hardware_version"]
 			// ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
 			invalidHardwareSerial := rows[0]["hardware_serial"] == "-1" || invalidHardwareSerialRegexp.Match([]byte(rows[0]["hardware_serial"]))
-			if !invalidHardwareSerial {
+			if invalidHardwareSerial {
+				host.HardwareSerial = ""
+			} else {
 				host.HardwareSerial = rows[0]["hardware_serial"]
 			}
 			host.ComputerName = rows[0]["computer_name"]
