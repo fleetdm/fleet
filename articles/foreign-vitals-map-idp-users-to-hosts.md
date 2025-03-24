@@ -11,7 +11,13 @@ Fleet supports [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#micr
 
 ## Okta
 
-To connect Okta to Fleet, follow these steps:
+To map users from Okta to hosts in Fleet, do the following steps:
+
+- [Create application in Okta](#step-1-create-application-in-okta)
+- [Connect Okta to Fleet](#step-2-connect-okta-to-fleet)
+- [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+
+#### Step 1: Create application in Okta
 
 1. Head to Okta admin dashboard.
 2. In the main menu, select **Applications > Applications**, then select **Create App Integration**.
@@ -22,21 +28,24 @@ To connect Okta to Fleet, follow these steps:
 6. On the **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select the **General** tab in your newly created app and then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM** and select **Save**.
-9. Select the **Provisioning** tab and then, in **SCIM Connection**, select **Edit**.
-10. For the **SCIM connector base URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-11. For the **Unique identifier field for users**, enter `userName`.
-12. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
-13. For the **Authentication Mode**, select **HTTP Header**.
-14. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in Okta's **Authorization** field.
-15. Select the **Test Connector Configuration** button. You should see success message in Okta.
-16. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
-17. Back in Okta, select **Save**.
-18. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
-19. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes.
+
+#### Step 2: Connect Okta to Fleet
+
+1. Select the **Provisioning** tab and then, in **SCIM Connection**, select **Edit**.
+2. For the **SCIM connector base URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
+3. For the **Unique identifier field for users**, enter `userName`.
+4. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
+5. For the **Authentication Mode**, select **HTTP Header**.
+6. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in Okta's **Authorization** field.
+7. Select the **Test Connector Configuration** button. You should see success message in Okta.
+8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
+9. Back in Okta, select **Save**.
+10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
+11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping.png)
 
 
-### Assign users and groups to Fleet
+#### Step 3: Map users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
 
@@ -50,28 +59,41 @@ To send users and groups information to Fleet, you have to assign them to your n
 
 ## Microsoft Entra ID
 
-To connect Entra ID to Fleet, follow these steps:
+To map users from Entra ID to hosts in Fleet, do the following steps:
+
+- [Create enterprise application in Entra ID](#step-1-create-enterprise-application-in-entra-id)
+- [Connect Entra ID to Fleet](#step-2-connect-entra-id-to-fleet)
+- [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+
+#### Step 1: Create enterprise application in Entra ID
 
 1. Head to [Microsoft Entra](https://entra.microsoft.com/).
 2. In the main menu, select **Applications > Enterprise applications**. Then, select **+ New
    application** and **+Create your own application**.
-3. Add a friendly name for the app (e.g. Fleet SCIM), select **Integrate any other application you don't find in the gallery (Non-gallery)**, and select **Create**.
-4. From the side menu, select **Provisioning**.
-5. In **Get started with application provisioning** section, select **Connect your application**.
-6. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-7. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in the **Secret token** field.
-8. Select the **Test connection** button. You should see success message.
-9. Select **Create** and, after successful creation, you'll be redirected to the overview page.
-10. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
-11. Ensure that the attributes `displayName`, `members`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
+3. Add a friendly name for the app (e.g. Fleet SCIM), select **Integrate any other application you
+   don't find in the gallery (Non-gallery)**, and select **Create**.
+
+#### Step 2: Connect Entra ID to Fleet
+
+1. From the side menu, select **Provisioning**.
+2. In **Get started with application provisioning** section, select **Connect your application**.
+3. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
+4. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in the **Secret token** field.
+5. Select the **Test connection** button. You should see success message.
+6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
+
+#### Step 3: Map users and groups to hosts in Fleet
+
+1. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
+2. Ensure that the attributes `displayName`, `members`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet support only these attributes and they are required as well. Delete the rest of the attributes, select **Save**, and after it's
     saved, select close icon on the top right corner.
 ![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
-12. Select **Provision Microsoft Entra ID Users**.
-13. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon on the top right corner.
+3. Select **Provision Microsoft Entra ID Users**.
+4. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon on the top right corner.
 ![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
-14. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
-15. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
-16. From the side menu, select **Overview** and select **Start provisioning**.
+5. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
+6. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
+7. From the side menu, select **Overview** and select **Start provisioning**.
 
 Now, Microsoft Entra ID will send data to Fleet immediately. Future requests happen every 20-40 minutes. So, if you edit user information in Entra, it might take up to 40 minutes to see the change in Fleet.
 
@@ -86,13 +108,13 @@ Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standa
 
 ### Connect
 
-To map users from Google Workspace to hosts in Fleet, we will do the following steps:
+To map users from Google Workspace to hosts in Fleet, do the following steps:
 
-1. Add LDAP client in Google Admin console
-2. Add LDAP authentication certificate to authentik
-3. Add custom LDAP property mappings to authentik
-4. Configure LDAP connection in authentik
-5. Configure SCIM provider to map users to hosts in Fleet
+- [Add LDAP client in Google Admin console](#step-1-add-ldap-client-in-google-admin-console)
+- [Add LDAP authentication certificate to authentik](#step-2-add-ldap-authentication-certificate-to-authentik)
+- [Add custom LDAP property mappings to authentik](#step-3-add-custom-ldap-property-mappings-to-authentik)
+- [Configure LDAP connection in authentik](#step-4-configure-ldap-connection-in-authentik)
+- [Map users and groups to hosts in Fleet](#step-5-map-users-to-hosts-in-fleet)
 
 #### Step 1: Add LDAP client in Google Admin console
 
