@@ -18,7 +18,7 @@ To connect Okta to Fleet, follow these steps:
 3. Select **SAML 2.0** option and select **Next**.
 4. On the **General Settings** page, add a friendly **App name** (e.g Fleet SCIM), and select **Next**.
 5. On the **SAML Settings** page, add any URL to the **Single sign-on URL** and **Audience URI (SP Entity ID)** fields, and select **Next**.
->Okta requires to setup SAML settings in order to setup SCIM integration. Since we don't need SSO, URL can be anything.
+> Okta requires us to setup SAML settings in order to setup a SCIM integration. Since we don't need SAML right now, you can set the URL to anything like "example.fleetdm.com".
 6. On the **Feedback** page, provide feedback if you want, and select **Finish**.
 7. Select the **General** tab in your newly created app and then select **Edit** in **App Settings**.
 8. For **Provisioning**, select **SCIM** and select **Save**.
