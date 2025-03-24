@@ -256,6 +256,6 @@ last name).
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2025-04-11">
-<meta name="articleTitle" value="Map end user information from identity provider (IdP) to host">
+<meta name="articleTitle" value="Foreign vitals: map IdP users to hosts">
 <meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img.png">
 <meta name="category" value="guides">
