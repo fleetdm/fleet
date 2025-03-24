@@ -44,7 +44,7 @@ To send users and groups information to Fleet, you have to assign them to your n
 2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
 ![Okta group rule](../website/assets/images/articles/okta-scim-group-rules.png)
 3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
-4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Then, select **Done**. Now all users that you assigned to the  "Fleet human-device mapping" group will be provisioned to Fleet. It may take a while if you have many users.
+4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Then, select **Done**. Now all users that you assigned to the  "Fleet human-device mapping" group will be provisioned to Fleet.
 5. On the same page, select **Push Groups** tab. Then, select **Push Groups > Find groups by name** and add all groups that you assigned to "Fleet human-device mapping" group previously (make sure that **Push group memberships immediately** is selected). All groups will be provisioned in Fleet, and Fleet will map those groups to users.
 
 
