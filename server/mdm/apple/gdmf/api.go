@@ -117,7 +117,8 @@ func createClient() *http.Client {
 	certPool.AddCert(rootcert.AppleRootCA)
 	return fleethttp.NewClient(
 		fleethttp.WithTLSClientConfig(&tls.Config{
-			RootCAs: certPool,
+			RootCAs:    certPool,
+			MinVersion: tls.VersionTLS12,
 		}),
 		fleethttp.WithTimeout(10*time.Second),
 	)
