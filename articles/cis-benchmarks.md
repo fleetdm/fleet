@@ -59,7 +59,6 @@ All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 
 
 # convert.cis.policy.queries.yml @2024 Fleet Device Management
-# Brock Walters (brock@fleetdm.com)
 
 
 
