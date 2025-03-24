@@ -12,6 +12,7 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 	if payload.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "missing required argument")
 	}
+	// explicitly removed check for "https" scheme
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}

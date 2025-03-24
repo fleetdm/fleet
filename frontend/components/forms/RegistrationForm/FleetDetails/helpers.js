@@ -1,4 +1,4 @@
-import { size, startsWith } from "lodash";
+import { size } from "lodash";
 
 const validate = (formData) => {
   const errors = {};
@@ -7,6 +7,8 @@ const validate = (formData) => {
   if (!fleetWebAddress) {
     errors.server_url = "Fleet web address must be completed";
   }
+
+  // explicitly removed check for "https" scheme
 
   const valid = !size(errors);
 
