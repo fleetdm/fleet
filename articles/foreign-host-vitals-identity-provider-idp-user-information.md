@@ -27,7 +27,7 @@ To connect Okta to Fleet, follow these steps:
 11. For the **Unique identifier field for users**, enter `userName`.
 12. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
 13. For the **Authentication Mode**, select **HTTP Header**.
-14. Create Fleet API-only user with maintainer permissions, copy API token for that user, and paste it to Okta, in **Authorization** field.
+14. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in Okta's **Authorization** field.
 15. Select the **Test Connector Configuration** button. You should see success message in Okta.
 16. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
 17. Back in Okta, select **Save**.
