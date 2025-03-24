@@ -211,6 +211,7 @@ When building a React-controlled form:
 React.FormEvent<HTMLFormElement>` argument and, critically, calls `evt.preventDefault()` in its
 body. This prevents the HTML `form`'s default submit behavior from interfering with our custom
 handler's logic.
+- This handler should do nothing if the form is in an invalid state, preventing submission by all means.
 - Assign that handler to the `form`'s `onSubmit` property (*not* the submit button's `onClick`)
 
 ### Data validation
