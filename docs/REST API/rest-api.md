@@ -2640,12 +2640,6 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "Fedora Linux",
       "description": "All Fedora hosts",
       "label_type": "builtin"
-    },
-    {
-      "id": 16,
-      "name": "Android",
-      "description": "All Android hosts",
-      "label_type": "builtin"
     }
   ],
   "platforms": [
@@ -2676,11 +2670,8 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     {
       "platform": "windows",
       "hosts_count": 12044
-    },
-    {
-      "platform": "Android",
-      "hosts_count": 200
     }
+
   ]
 }
 ```
@@ -2799,6 +2790,27 @@ Returns the information of the specified host.
         "shell": "/bin/zsh"
       }
     ],
+    "end_users" [
+      {
+        "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
+        "idp_email": "anna@acme.com",
+        "idp_full_name": "Anna Chao",
+        "idp_groups": [
+          "Product",
+          "Designers"
+        ],
+        "other_emails": [
+          {
+            "email": "anna@example.com",
+            "source": "google_chrome_profiles"
+          },
+          {
+            "email": "anna@example.com",
+            "source": "custom"
+          }
+        ]
+      }
+    ],
     "labels": [
       {
         "created_at": "2021-08-19T02:02:17Z",
@@ -2844,7 +2856,15 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -2854,17 +2874,51 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
       },
       {
-        "id": 1,
+        "id": 4,
         "name": "SomeQuery",
         "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
+      },
+      {
+        "id": 5,
+        "name": "Install zoom.us.app",
+        "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';",
+        "description": "ZoomInstallerIT.pkg version 6.3.11.50104 is installed when the host doesn't have any version of it installed.",
+        "resolution": "",
+        "platform": "darwin",
+        "response": "fail",
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": null,
+        "author_name": "Fleet",
+        "author_email": "",
+        "team_id": 274,
+        "fleet_maintained": true,      
       }
     ],
     "software": [
@@ -3086,7 +3140,8 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "fleet_maintained": false
       }
     ],
     "software": [
@@ -3515,100 +3570,6 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Get human-device mapping
-
-Returns the end user's email(s) they use to log in to their Identity Provider (IdP) and Google Chrome profile.
-
-Also returns the custom email that's set via the `PUT /api/v1/fleet/hosts/:id/device_mapping` endpoint (docs [here](#update-custom-human-device-mapping))
-
-Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
-
-`GET /api/v1/fleet/hosts/:id/device_mapping`
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id         | integer           | path | **Required**. The host's `id`.                                                |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/1/device_mapping`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1,
-  "device_mapping": [
-    {
-      "email": "user@example.com",
-      "source": "mdm_idp_accounts"
-    },
-    {
-      "email": "user@example.com",
-      "source": "google_chrome_profiles"
-    },
-    {
-      "email": "user@example.com",
-      "source": "custom"
-    }
-  ]
-}
-```
-
----
-
-### Update custom human-device mapping
-
-`PUT /api/v1/fleet/hosts/:id/device_mapping`
-
-Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id         | integer           | path | **Required**. The host's `id`.                                                |
-| email      | string            | body | **Required**. The custom email.                                               |
-
-#### Example
-
-`PUT /api/v1/fleet/hosts/1/device_mapping`
-
-##### Request body
-
-```json
-{
-  "email": "user@example.com"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1,
-  "device_mapping": [
-    {
-      "email": "user@example.com",
-      "source": "mdm_idp_accounts"
-    },
-    {
-      "email": "user@example.com",
-      "source": "google_chrome_profiles"
-    },
-    {
-      "email": "user@example.com",
-      "source": "custom"
-    }
-  ]
-}
-```
 
 ### Get host's device health report
 
@@ -6405,7 +6366,8 @@ The possible `status` values for Windows hosts are documented in Microsoft's doc
       "hostname": "mycomputer",
       "payload": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPg0KPHBsaXN0IHZlcnNpb249IjEuMCI+DQo8ZGljdD4NCg0KCTxrZXk+UGF5bG9hZERlc2NyaXB0aW9uPC9rZXk+DQoJPHN0cmluZz5UaGlzIHByb2ZpbGUgY29uZmlndXJhdGlvbiBpcyBkZXNpZ25lZCB0byBhcHBseSB0aGUgQ0lTIEJlbmNobWFyayBmb3IgbWFjT1MgMTAuMTQgKHYyLjAuMCksIDEwLjE1ICh2Mi4wLjApLCAxMS4wICh2Mi4wLjApLCBhbmQgMTIuMCAodjEuMC4wKTwvc3RyaW5nPg0KCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+DQoJPHN0cmluZz5EaXNhYmxlIEJsdWV0b290aCBzaGFyaW5nPC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkRW5hYmxlZDwva2V5Pg0KCTx0cnVlLz4NCgk8a2V5PlBheWxvYWRJZGVudGlmaWVyPC9rZXk+DQoJPHN0cmluZz5jaXMubWFjT1NCZW5jaG1hcmsuc2VjdGlvbjIuQmx1ZXRvb3RoU2hhcmluZzwvc3RyaW5nPg0KCTxrZXk+UGF5bG9hZFNjb3BlPC9rZXk+DQoJPHN0cmluZz5TeXN0ZW08L3N0cmluZz4NCgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+DQoJPHN0cmluZz5Db25maWd1cmF0aW9uPC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkVVVJRDwva2V5Pg0KCTxzdHJpbmc+NUNFQkQ3MTItMjhFQi00MzJCLTg0QzctQUEyOEE1QTM4M0Q4PC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkVmVyc2lvbjwva2V5Pg0KCTxpbnRlZ2VyPjE8L2ludGVnZXI+DQogICAgPGtleT5QYXlsb2FkUmVtb3ZhbERpc2FsbG93ZWQ8L2tleT4NCiAgICA8dHJ1ZS8+DQoJPGtleT5QYXlsb2FkQ29udGVudDwva2V5Pg0KCTxhcnJheT4NCgkJPGRpY3Q+DQoJCQk8a2V5PlBheWxvYWRDb250ZW50PC9rZXk+DQoJCQk8ZGljdD4NCgkJCQk8a2V5PmNvbS5hcHBsZS5CbHVldG9vdGg8L2tleT4NCgkJCQk8ZGljdD4NCgkJCQkJPGtleT5Gb3JjZWQ8L2tleT4NCgkJCQkJPGFycmF5Pg0KCQkJCQkJPGRpY3Q+DQoJCQkJCQkJPGtleT5tY3hfcHJlZmVyZW5jZV9zZXR0aW5nczwva2V5Pg0KCQkJCQkJCTxkaWN0Pg0KCQkJCQkJCQk8a2V5PlByZWZLZXlTZXJ2aWNlc0VuYWJsZWQ8L2tleT4NCgkJCQkJCQkJPGZhbHNlLz4NCgkJCQkJCQk8L2RpY3Q+DQoJCQkJCQk8L2RpY3Q+DQoJCQkJCTwvYXJyYXk+DQoJCQkJPC9kaWN0Pg0KCQkJPC9kaWN0Pg0KCQkJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4NCgkJCTxzdHJpbmc+RGlzYWJsZXMgQmx1ZXRvb3RoIFNoYXJpbmc8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+DQoJCQk8c3RyaW5nPkN1c3RvbTwvc3RyaW5nPg0KCQkJPGtleT5QYXlsb2FkRW5hYmxlZDwva2V5Pg0KCQkJPHRydWUvPg0KCQkJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5Pg0KCQkJPHN0cmluZz4wMjQwREQxQy03MERDLTQ3NjYtOTAxOC0wNDMyMkJGRUVBRDE8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZFR5cGU8L2tleT4NCgkJCTxzdHJpbmc+Y29tLmFwcGxlLk1hbmFnZWRDbGllbnQucHJlZmVyZW5jZXM8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4NCgkJCTxzdHJpbmc+MDI0MEREMUMtNzBEQy00NzY2LTkwMTgtMDQzMjJCRkVFQUQxPC9zdHJpbmc+DQoJCQk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+DQoJCQk8aW50ZWdlcj4xPC9pbnRlZ2VyPg0KCQk8L2RpY3Q+DQoJPC9hcnJheT4NCjwvZGljdD4NCjwvcGxpc3Q+",
       "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPg0KPHBsaXN0IHZlcnNpb249IjEuMCI+DQo8ZGljdD4NCiAgICA8a2V5PkNvbW1hbmRVVUlEPC9rZXk+DQogICAgPHN0cmluZz4wMDAxX0luc3RhbGxQcm9maWxlPC9zdHJpbmc+DQogICAgPGtleT5TdGF0dXM8L2tleT4NCiAgICA8c3RyaW5nPkFja25vd2xlZGdlZDwvc3RyaW5nPg0KICAgIDxrZXk+VURJRDwva2V5Pg0KICAgIDxzdHJpbmc+MDAwMDgwMjAtMDAwOTE1MDgzQzgwMDEyRTwvc3RyaW5nPg0KPC9kaWN0Pg0KPC9wbGlzdD4="
-    }
+    },
+      "details": ""
   ]
 }
 ```
@@ -6469,7 +6431,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
-- [Get Android Enterprise](#get-android-enterprise)
+- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6586,13 +6548,11 @@ None.
 ]
 ```
 
-### Get Android Enterprise
+### Get identity provider (IdP) details
 
-> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
 
-Get info about Android Enterprise that's connected to Fleet.
-
-`GET /api/v1/fleet/android_enterprise`
+`GET /api/v1/fleet/scim`
 
 #### Parameters
 
@@ -6600,16 +6560,19 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/android_enterprise`
+`GET /api/v1/fleet/scim`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-
 {
-  "android_enterprise_id": "LC0445szuv"
+  "last_request": {
+    "requested_at": "2025-03-11T02:02:17Z",
+    "status": "success",
+    "details": "",
+  }
 }
 ```
 
@@ -6621,8 +6584,8 @@ None.
 - [List team policies](#list-team-policies)
 - [Count policies](#count-policies)
 - [Count team policies](#count-team-policies)
-- [Get policy](#get-policy)
-- [Get team policy](#get-team-policy)
+- [Get policy by ID](#get-policy-by-id)
+- [Get team policy by ID](#get-team-policy-by-id)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
 - [Delete policies](#delete-policies)
@@ -6679,7 +6642,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6697,7 +6661,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6750,7 +6715,8 @@ _Available in Fleet Premium_
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6773,7 +6739,8 @@ _Available in Fleet Premium_
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
         "id": 234
-      }
+      },
+      "fleet_maintained": false
     },
     {
       "id": 3,
@@ -6796,7 +6763,8 @@ _Available in Fleet Premium_
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
-      }
+      },
+      "fleet_maintained": false
     }
   ],
   "inherited_policies": [
@@ -6816,7 +6784,8 @@ _Available in Fleet Premium_
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6849,7 +6818,8 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6867,7 +6837,8 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 136,
@@ -6885,7 +6856,8 @@ _Available in Fleet Premium_
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6948,7 +6920,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get policy
+### Get policy by ID
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -6991,7 +6963,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy
+### Get team policy by ID
 
 _Available in Fleet Premium_
 
@@ -8970,11 +8942,22 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-        "automatic_install_policies": [
+        "policies": [
           {
             "id": 343,
-            "name": "[Install software] Firefox.app",
-          }
+            "name": "Custom policy",
+            "fleet_maintained": false
+          },
+          {
+            "id": 344,
+            "name": "Install Firefox.app",
+            "fleet_maintained": true
+          },
+          {
+            "id": 345,
+            "name": "Patch Firefox.app",
+            "fleet_maintained": true
+          },
         ],
       },
       "app_store_app": null,
@@ -9256,10 +9239,11 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
+          "fleet_maintained": false
         }
       ],
       "status": {
@@ -9322,10 +9306,11 @@ Returns information about the specified software. By default, `versions` are sor
       "created_at": "2024-04-01T14:22:58Z",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
+          "fleet_maintained": false
         } 
       ],
       "status": {
@@ -9333,12 +9318,6 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       },
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Logic.app",
-        }
-      ],
     },
     "source": "apps",
     "browser": "",
@@ -9496,7 +9475,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -9563,10 +9542,12 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
+| minimum_version | string | form | Currently, the only valid option is `"current"`. Trigger a software install on all hosts running an older version. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+Changes to any field other than `self_service` will cancel pending installs and uninstalls. Changes to `software` (the package) will reset `installed` and `failed` counts.
 
 #### Example
 
@@ -9698,7 +9679,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
-| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Only supported for macOS apps. Trigger a software install on all hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 
@@ -9784,10 +9765,11 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 17
       }
     ],
-    "automatic_install_policies": [
+    "policies": [
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
+        "fleet_maintained": false
       } 
     ],
     "status": {
@@ -9911,7 +9893,7 @@ Add Fleet-maintained app so it's available for install.
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10031,7 +10013,7 @@ _Available in Fleet Premium._
 
 Get the results of a Fleet-maintained app or custom package install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an App Store app install or uninstall, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
