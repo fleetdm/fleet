@@ -2,9 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"net/url"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,14 +25,14 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 }
 
 func validateServerURL(urlString string) error {
-	serverURL, err := url.Parse(urlString)
-	if err != nil {
-		return err
-	}
+	// serverURL, err := url.Parse(urlString)
+	// if err != nil {
+	// 	return err
+	// }
 
-	if serverURL.Scheme != "https" && !strings.Contains(serverURL.Host, "localhost") {
-		return errors.New("url scheme must be https")
-	}
+	// if serverURL.Scheme != "https" && !strings.Contains(serverURL.Host, "localhost") {
+	// 	return errors.New("url scheme must be https")
+	// }
 
 	return nil
 }
