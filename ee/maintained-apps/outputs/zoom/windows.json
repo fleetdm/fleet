@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.4.62047",
+      "version": "6.4.62735",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{0DDC55F3-E24B-40CC-A90D-B1E89C5DB035}';"
+        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{43DB520C-E8B3-426E-BA7C-38AA044FDDBF}';"
       },
-      "installer_url": "https://zoom.us/client/6.4.0.62047/ZoomInstallerFull.msi?archType=x64",
+      "installer_url": "https://zoom.us/client/6.4.2.62735/ZoomInstallerFull.msi?archType=x64",
       "unique_identifier": "Zoom",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "04ad1a7fbe543517acad73f61be3f1e75560351f55f0e8d18069931b04c16df0"
+      "sha256": "3c71e714725c9f07cf73369af5756d1ff12b5ae4e4fa0ebfd33485d28156c911"
     }
   ],
   "refs": {
