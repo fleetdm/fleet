@@ -31,14 +31,14 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 		{
 			name: "com.apple.MCX payload, no FDE options",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType: FleetFileVaultOptionsPayloadType,
+				PayloadType: FleetCustomSettingsPayloadType,
 			}),
 			contains: false,
 		},
 		{
 			name: "com.apple.MCX payload with all FDE options",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:           FleetFileVaultOptionsPayloadType,
+				PayloadType:           FleetCustomSettingsPayloadType,
 				DestroyFVKeyOnStandby: ptr.Bool(true),
 				DontAllowFDEDisable:   ptr.Bool(true),
 				DontAllowFDEEnable:    ptr.Bool(true),
@@ -48,7 +48,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 		{
 			name: "contains dontAllowFDEDisable",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:         FleetFileVaultOptionsPayloadType,
+				PayloadType:         FleetCustomSettingsPayloadType,
 				DontAllowFDEDisable: ptr.Bool(false),
 			}),
 			contains: true,
@@ -56,7 +56,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 		{
 			name: "contains dontAllowFDEEnable",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:        FleetFileVaultOptionsPayloadType,
+				PayloadType:        FleetCustomSettingsPayloadType,
 				DontAllowFDEEnable: ptr.Bool(false),
 			}),
 			contains: true,
@@ -64,7 +64,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 		{
 			name: "contains DestroyFVKeyOnStandby",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:           FleetFileVaultOptionsPayloadType,
+				PayloadType:           FleetCustomSettingsPayloadType,
 				DestroyFVKeyOnStandby: ptr.Bool(false),
 			}),
 			contains: true,

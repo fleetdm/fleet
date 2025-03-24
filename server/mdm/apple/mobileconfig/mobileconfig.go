@@ -20,7 +20,7 @@ const (
 	// used by Fleet to configure FileVault and FileVault Escrow.
 	FleetFileVaultPayloadIdentifier        = "com.fleetdm.fleet.mdm.filevault"
 	FleetFileVaultPayloadType              = "com.apple.MCX.FileVault2"
-	FleetFileVaultOptionsPayloadType       = "com.apple.MCX"
+	FleetCustomSettingsPayloadType         = "com.apple.MCX"
 	FleetRecoveryKeyEscrowPayloadType      = "com.apple.security.FDERecoveryKeyEscrow"
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include FileVault settings."
 
@@ -66,7 +66,7 @@ func FleetPayloadTypes() map[string]struct{} {
 	return map[string]struct{}{
 		FleetRecoveryKeyEscrowPayloadType:        {},
 		FleetFileVaultPayloadType:                {},
-		FleetFileVaultOptionsPayloadType:         {},
+		FleetCustomSettingsPayloadType:           {},
 		"com.apple.security.FDERecoveryRedirect": {}, // no longer supported in macOS 10.13 and later
 	}
 }
@@ -255,7 +255,7 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 			switch t {
 			case FleetFileVaultPayloadType, FleetRecoveryKeyEscrowPayloadType:
 				return errors.New(DiskEncryptionProfileRestrictionErrMsg)
-			case FleetFileVaultOptionsPayloadType:
+			case FleetCustomSettingsPayloadType:
 				contains, err := ContainsFDEVileVaultOptionsPayload(*mc)
 				if err != nil {
 					return fmt.Errorf("checking for FDEVileVaultOptions payload: %w", err)

@@ -22,7 +22,7 @@ func ContainsFDEVileVaultOptionsPayload(contents []byte) (bool, error) {
 		return false, err
 	}
 	for _, p := range prof.PayloadContent {
-		if p.PayloadType == FleetFileVaultOptionsPayloadType && (p.DontAllowFDEDisable != nil || p.DontAllowFDEEnable != nil || p.DestroyFVKeyOnStandby != nil) {
+		if p.PayloadType == FleetCustomSettingsPayloadType && (p.DontAllowFDEDisable != nil || p.DontAllowFDEEnable != nil || p.DestroyFVKeyOnStandby != nil) {
 			return true, nil
 		}
 	}
