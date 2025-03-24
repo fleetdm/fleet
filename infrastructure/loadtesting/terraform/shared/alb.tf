@@ -138,7 +138,7 @@ resource "aws_alb" "main" {
   #checkov:skip=CKV_AWS_150:don't like it
 
   access_logs {
-    bucket  = module.athena-s3-bucket.s3_bucket_id
+    bucket  = module.s3_bucket_for_logs.s3_bucket_id
     prefix  = "alb-logs"
     enabled = true
   }
