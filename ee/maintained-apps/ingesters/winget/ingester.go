@@ -21,7 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
+func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
 	level.Info(logger).Log("msg", "starting winget app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
@@ -44,6 +44,9 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 	}
 
 	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
 
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
 		if err != nil {
@@ -71,11 +74,16 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.NewWithData(ctx, "missing package identifier for app", map[string]any{"file_name": f.Name()})
 		}
 
+		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
+			continue
+		}
+
 		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
+			level.Warn(logger).Log("msg", "failed to ingest app", "err", err, "name", input.Name)
+			continue
 		}
 
 		manifestApps = append(manifestApps, outApp)
@@ -131,12 +139,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		i.ghClientOpts,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the ")
+		return nil, ctxerr.Wrap(ctx, err, "downloading file contents for installer manifest")
 	}
 
 	contents, err := fileContents.GetContent()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest file contents")
+		return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
 	}
 
 	var m installerManifest
@@ -167,8 +175,26 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	var out maintained_apps.FMAManifestApp
 
-	// TODO: handle non-machine scope (aka .exe installers)
-	var installScript, uninstallScript, installerURL, sha256 string
+	var installScript, uninstallScript string
+
+	// if we have a provided install script, use that
+	if input.InstallScriptPath != "" {
+		scriptBytes, err := os.ReadFile(input.InstallScriptPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided install script file")
+		}
+
+		installScript = string(scriptBytes)
+	}
+
+	if input.UninstallScriptPath != "" {
+		scriptBytes, err := os.ReadFile(input.UninstallScriptPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided uninstall script file")
+		}
+
+		uninstallScript = string(scriptBytes)
+	}
 
 	// Some data is present on the top-level object, so try to grab that first
 	if m.InstallerType == installerTypeMSI || m.Scope == machineScope {
@@ -176,37 +202,89 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		uninstallScript = file.GetUninstallScript(m.InstallerType)
 	}
 
+	installersByArch := map[string]map[string]*installer{
+		arch64Bit: make(map[string]*installer),
+		arch32Bit: make(map[string]*installer),
+	}
+
 	// Walk through the installers and get any data we missed
 	for _, installer := range m.Installers {
-		if (installer.Scope == machineScope || m.Scope == machineScope || (installer.Scope == "" && m.Scope == "")) &&
-			installer.Architecture == arch64Bit {
-			// Use the first machine scoped installer
-			installerURL = installer.InstallerURL
-			sha256 = installer.InstallerSha256
-			installerType := installer.InstallerType
-			if installerType == "" || installerType == installerTypeWix {
-				// try to get it from the URL
-				// TODO: this may not work in all situations
-				// TODO: also, "wix" might always mean an MSI installer, in which case we should
-				// just use that
-				installerType = strings.Trim(filepath.Ext(installerURL), ".")
-			}
-			if installScript == "" {
-				installScript = file.GetInstallScript(installerType)
-			}
-			if uninstallScript == "" {
-				uninstallScript = file.GetUninstallScript(installerType)
-			}
-
-			break
+		if installer.Architecture != arch32Bit && installer.Architecture != arch64Bit {
+			// we don't care about arm or other architectures
+			continue
 		}
+
+		// get the installer type
+		installerType := m.InstallerType
+		if installerType == "" || installerType == installerTypeWix {
+			installerType = installer.InstallerType
+		}
+
+		if installerType == "" || installerType == installerTypeWix {
+			// try to get it from the URL
+			// TODO: this may not work in all situations
+			// TODO: also, "wix" might always mean an MSI installer, in which case we should
+			// just use that
+			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
+		}
+
+		if installerType == installerTypeMSIX {
+			// skip MSIX for now
+			continue
+		}
+
+		// get the installer scope
+		scope := m.Scope
+		if scope == "" {
+			scope = installer.Scope
+			if scope == "" {
+				if installerType == installerTypeMSI {
+					scope = machineScope
+				}
+			}
+		}
+		fmt.Printf("scope: %v\n", scope)
+		fmt.Printf("installerType: %v\n", installerType)
+
+		installersByArch[installer.Architecture][scope] = &installer
+
+	}
+
+	selectedScope := machineScope
+	inst, ok := installersByArch[arch64Bit][machineScope]
+	if !ok {
+		inst, ok = installersByArch[arch64Bit][userScope]
+		selectedScope = userScope
+	}
+	fmt.Printf("selectedScope: %v\n", selectedScope)
+
+	if inst == nil {
+		return nil, ctxerr.New(ctx, "no suitable installer found for app")
+	}
+
+	if selectedScope == machineScope {
+		if installScript == "" {
+			installScript = file.GetInstallScript(installerTypeMSI)
+		}
+		if uninstallScript == "" {
+			uninstallScript = file.GetUninstallScript(installerTypeMSI)
+		}
+
+	}
+
+	if installScript == "" {
+		return nil, ctxerr.New(ctx, "no install script found for app, aborting")
+	}
+
+	if uninstallScript == "" {
+		return nil, ctxerr.New(ctx, "no uninstall script found for app, aborting")
 	}
 
 	out.Name = input.Name
 	out.Slug = input.Slug
-	out.InstallerURL = installerURL
+	out.InstallerURL = inst.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
-	out.SHA256 = strings.ToLower(sha256) // maintain consistency with darwin outputs SHAs
+	out.SHA256 = strings.ToLower(inst.InstallerSha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
 	out.Queries = maintained_apps.FMAQueries{
 		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
@@ -224,8 +302,10 @@ type inputApp struct {
 	Slug string `json:"slug"`
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
-	PackageIdentifier string `json:"package_identifier"`
-	UniqueIdentifier  string `json:"unique_identifier"`
+	PackageIdentifier   string `json:"package_identifier"`
+	UniqueIdentifier    string `json:"unique_identifier"`
+	InstallScriptPath   string `json:"install_script_path"`
+	UninstallScriptPath string `json:"uninstall_script_path"`
 }
 
 type installerManifest struct {
@@ -285,8 +365,11 @@ type localeManifest struct {
 }
 
 const (
-	machineScope     = "machine"
-	installerTypeMSI = "msi"
-	installerTypeWix = "wix"
-	arch64Bit        = "x64"
+	machineScope      = "machine"
+	userScope         = "user"
+	installerTypeMSI  = "msi"
+	installerTypeMSIX = "msix"
+	installerTypeWix  = "wix"
+	arch64Bit         = "x64"
+	arch32Bit         = "x86"
 )

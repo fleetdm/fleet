@@ -34,15 +34,13 @@ func main() {
 	}
 
 	for p, i := range ingesters {
-		apps, err := i(ctx, logger, p)
+		apps, err := i(ctx, logger, p, *slugPtr)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
 		}
 
 		for _, app := range apps {
-			if slugPtr != nil && *slugPtr != "" && app.Slug != *slugPtr {
-				continue
-			}
+
 			if app.IsEmpty() {
 				level.Info(logger).Log("msg", "skipping manifest update due to empty output", "slug", app.Slug)
 				continue
