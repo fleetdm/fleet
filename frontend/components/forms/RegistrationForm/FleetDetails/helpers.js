@@ -8,10 +8,6 @@ const validate = (formData) => {
     errors.server_url = "Fleet web address must be completed";
   }
 
-  if (fleetWebAddress && !startsWith(fleetWebAddress, "https://")) {
-    errors.server_url = "Fleet web address must start with https://";
-  }
-
   const valid = !size(errors);
 
   return { valid, errors };
