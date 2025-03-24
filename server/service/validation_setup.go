@@ -18,7 +18,7 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 	} else {
 		serverURLString = cleanupURL(payload.ServerSettings.ServerURL)
 	}
-	if err := validateServerURL(serverURLString); err != nil {
+	if err := ValidateServerURL(serverURLString); err != nil {
 		invalid.Append("server_url", err.Error())
 	}
 	if invalid.HasErrors() {
@@ -27,15 +27,21 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 	return mw.Service.NewAppConfig(ctx, payload)
 }
 
-func validateServerURL(urlString string) error {
+func ValidateServerURL(urlString string) error {
 	serverURL, err := url.Parse(urlString)
 	if err != nil {
 		return err
 	}
 
-	if !(serverURL.Scheme == "https" || serverURL.Scheme == "http") && !strings.Contains(serverURL.Host, "localhost") {
-		return errors.New("url must use https, http, or localhost")
+	if serverURL.Scheme == "https" || serverURL.Scheme == "http" {
+		if serverURL.Host == "" {
+			return errors.New(fleet.InvalidServerURLMsg)
+		}
+	} else {
+		// invalid scheme, permit only localhost URLs
+		if !strings.Contains(serverURL.Host, "localhost") {
+			return errors.New(fleet.InvalidServerURLMsg)
+		}
 	}
-
 	return nil
 }
