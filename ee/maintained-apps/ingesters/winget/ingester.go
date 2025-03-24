@@ -168,21 +168,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	var out maintained_apps.FMAManifestApp
 
 	// TODO: handle non-machine scope (aka .exe installers)
-	var installScript, uninstallScript, installerURL, productCode, sha256 string
+	var installScript, uninstallScript, installerURL, sha256 string
 
 	// Some data is present on the top-level object, so try to grab that first
 	if m.InstallerType == installerTypeMSI || m.Scope == machineScope {
-		productCode = m.ProductCode
 		installScript = file.GetInstallScript(m.InstallerType)
 		uninstallScript = file.GetUninstallScript(m.InstallerType)
-	}
-
-	if productCode == "" {
-		for _, afe := range m.AppsAndFeaturesEntries {
-			if afe.ProductCode != "" {
-				productCode = afe.ProductCode
-			}
-		}
 	}
 
 	// Walk through the installers and get any data we missed
@@ -206,9 +197,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			if uninstallScript == "" {
 				uninstallScript = file.GetUninstallScript(installerType)
 			}
-			if productCode == "" {
-				productCode = installer.ProductCode
-			}
+
 			break
 		}
 	}
