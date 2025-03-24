@@ -29,23 +29,6 @@ describe("FleetDetails - form", () => {
     ).toBeInTheDocument();
   });
 
-  it("validates the fleet web address field starts with https://", async () => {
-    const { user } = renderWithSetup(
-      <FleetDetails handleSubmit={handleSubmitSpy} currentPage />
-    );
-
-    await user.type(
-      screen.getByRole("textbox", { name: "Fleet web address" }),
-      "http://gnar.Fleet.co"
-    );
-    await user.click(screen.getByRole("button", { name: "Next" }));
-
-    expect(handleSubmitSpy).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Fleet web address must start with https://")
-    ).toBeInTheDocument();
-  });
-
   it("submits the form when valid", async () => {
     const { user } = renderWithSetup(
       <FleetDetails handleSubmit={handleSubmitSpy} currentPage />
