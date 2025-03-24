@@ -24,7 +24,7 @@ To connect Okta to Fleet, follow these steps:
 8. For **Provisioning**, select **SCIM** and select **Save**.
 9. Select the **Provisioning** tab and then, in **SCIM Connection**, select **Edit**.
 10. For the **SCIM connector base URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-11. In **Unique identifier field for users**, enter `userName`.
+11. For the **Unique identifier field for users**, enter `userName`.
 12. For **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
 13. For **Authentication Mode** select **HTTP Header**.
 14. Create Fleet API-only user with maintainer permissions, copy API token for that user, and paste it to Okta, in **Authorization** field.
