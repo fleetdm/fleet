@@ -132,7 +132,7 @@ release_fleetd_to_edge () {
     BRANCH_NAME="release-fleetd-v$VERSION"
     ORBIT_TAG="orbit-v$VERSION"
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
-        prompt "A PR will be created to for the release of fleetd $VERSION, and a tag will be pushed to trigger a Github Action to build desktop and orbit."
+        prompt "A PR will be created for the release of fleetd $VERSION, and a tag will be pushed to trigger a Github Action to build desktop and orbit."
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
         make changelog-orbit version="$VERSION"
