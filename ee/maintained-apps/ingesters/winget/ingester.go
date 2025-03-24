@@ -156,9 +156,18 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		uninstallScript = file.GetUninstallScript(m.InstallerType)
 	}
 
+	if productCode == "" {
+		for _, afe := range m.AppsAndFeaturesEntries {
+			if afe.ProductCode != "" {
+				productCode = afe.ProductCode
+			}
+		}
+	}
+
 	// Walk through the installers and get any data we missed
 	for _, installer := range m.Installers {
-		if (installer.Scope == machineScope || m.Scope == machineScope) && installer.Architecture == arch64Bit {
+		if (installer.Scope == machineScope || m.Scope == machineScope || (installer.Scope == "" && m.Scope == "")) &&
+			installer.Architecture == arch64Bit {
 			// Use the first machine scoped installer
 			installerURL = installer.InstallerURL
 			sha256 = installer.InstallerSha256
