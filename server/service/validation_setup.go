@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
+	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -9,12 +12,30 @@ import (
 
 func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfig) (*fleet.AppConfig, error) {
 	invalid := &fleet.InvalidArgumentError{}
+	var serverURLString string
 	if payload.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "missing required argument")
+	} else {
+		serverURLString = cleanupURL(payload.ServerSettings.ServerURL)
 	}
-	// explicitly removed check for "https" scheme
+	if err := validateServerURL(serverURLString); err != nil {
+		invalid.Append("server_url", err.Error())
+	}
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 	return mw.Service.NewAppConfig(ctx, payload)
+}
+
+func validateServerURL(urlString string) error {
+	serverURL, err := url.Parse(urlString)
+	if err != nil {
+		return err
+	}
+
+	if !(serverURL.Scheme == "https" || serverURL.Scheme == "http") && !strings.Contains(serverURL.Host, "localhost") {
+		return errors.New("url must use https, http, or localhost")
+	}
+
+	return nil
 }

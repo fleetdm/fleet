@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
@@ -12,6 +13,9 @@ interface IWebAddressFormData {
   serverURL: string;
 }
 
+interface IWebAddressFormErrors {
+  server_url?: string | null;
+}
 const baseClass = "app-config-form";
 
 const WebAddress = ({
@@ -27,10 +31,28 @@ const WebAddress = ({
 
   const { serverURL } = formData;
 
+  const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
   const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
+    setFormErrors({});
   };
 
+  const validateForm = () => {
+    const errors: IWebAddressFormErrors = {};
+    if (!serverURL) {
+      errors.server_url = "Fleet server URL must be present";
+    } else if (
+      !validUrl({
+        url: serverURL,
+        protocols: ["http", "https"],
+        allowAnyLocalHost: true,
+      })
+    ) {
+      errors.server_url = `${serverURL} is not a valid URL`;
+    }
+
+    setFormErrors(errors);
+  };
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -60,6 +82,8 @@ const WebAddress = ({
             name="serverURL"
             value={serverURL}
             parseTarget
+            onBlur={validateForm}
+            error={formErrors.server_url}
             tooltip="The base URL of this instance for use in Fleet links."
             disabled={gitOpsModeEnabled}
           />
@@ -69,7 +93,7 @@ const WebAddress = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={disableChildren}
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}
               >
