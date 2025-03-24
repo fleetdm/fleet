@@ -1,4 +1,4 @@
-# Foreign host vitals: identity provider (IdP) user information
+# Foreign vitals: map IdP users to hosts
 
 ![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img.png)
 
@@ -256,6 +256,6 @@ last name).
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2025-04-11">
-<meta name="articleTitle" value="Add user information from identity provider (IdP) to host">
+<meta name="articleTitle" value="Map end user information from identity provider (IdP) to host">
 <meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img.png">
 <meta name="category" value="guides">
