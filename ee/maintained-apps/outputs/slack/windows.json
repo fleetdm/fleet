@@ -3,7 +3,7 @@
     {
       "version": "4.43.43",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{ADFF5A02-F068-4ED2-95C0-023E3239211F}.msq';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.';"
       },
       "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.43.43/slack-standalone-4.43.43.0.msi",
       "unique_identifier": "Slack",

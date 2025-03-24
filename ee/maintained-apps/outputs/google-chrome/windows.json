@@ -3,7 +3,7 @@
     {
       "version": "134.0.6998.166",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{A2BD50B5-55A7-3021-8538-71E1DB64F06F}';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
       "unique_identifier": "Google Chrome",
