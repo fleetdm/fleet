@@ -19,6 +19,23 @@ interface IWebAddressFormErrors {
 }
 const baseClass = "app-config-form";
 
+const validateFormData = ({ serverURL }: IWebAddressFormData) => {
+  const errors: IWebAddressFormErrors = {};
+  if (!serverURL) {
+    errors.server_url = "Fleet server URL must be present";
+  } else if (
+    !validUrl({
+      url: serverURL,
+      protocols: ["http", "https"],
+      allowAnyLocalHost: true,
+    })
+  ) {
+    errors.server_url = `${serverURL} is not a valid URL`;
+  }
+
+  return errors;
+};
+
 const WebAddress = ({
   appConfig,
   handleSubmit,
@@ -33,33 +50,36 @@ const WebAddress = ({
   const { serverURL } = formData;
 
   const [formErrors, setFormErrors] = useState<IWebAddressFormErrors>({});
+
   const onInputChange = ({ name, value }: IFormField) => {
-    setFormData({ ...formData, [name]: value });
-    setFormErrors({});
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    const newErrs = validateFormData(newFormData);
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      // @ts-ignore
+      if (newErrs[k]) {
+        // @ts-ignore
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
   };
 
-  const validateForm = () => {
-    const errors: IWebAddressFormErrors = {};
-    if (!serverURL) {
-      errors.server_url = "Fleet server URL must be present";
-    } else if (
-      !validUrl({
-        url: serverURL,
-        protocols: ["http", "https"],
-        allowAnyLocalHost: true,
-      })
-    ) {
-      errors.server_url = `${serverURL} is not a valid URL`;
-    }
-
-    setFormErrors(errors);
+  const onInputBlur = () => {
+    setFormErrors(validateFormData(formData));
   };
 
-  const formInvalid = !!size(formErrors);
-
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    if (formInvalid) return;
+    // return null if there are errors
+    const errs = validateFormData(formData);
+    if (size(errs)) {
+      setFormErrors(errs);
+      return;
+    }
 
     // Formatting of API not UI
     const formDataToSubmit = {
@@ -87,7 +107,7 @@ const WebAddress = ({
             name="serverURL"
             value={serverURL}
             parseTarget
-            onBlur={validateForm}
+            onBlur={onInputBlur}
             error={formErrors.server_url}
             tooltip="The base URL of this instance for use in Fleet links."
             disabled={gitOpsModeEnabled}
@@ -98,7 +118,7 @@ const WebAddress = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={formInvalid || disableChildren}
+                disabled={!!size(formErrors) || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}
               >
