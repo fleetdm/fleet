@@ -142,6 +142,7 @@ release_fleetd_to_edge () {
         git commit -m "Release fleetd $VERSION"
         git tag "$ORBIT_TAG"
         git push origin "$BRANCH_NAME" --follow-tags
+        # Create a new PR with the changelog.
         gh pr create -f -B main -t "Release fleetd $VERSION"
         popd
     fi
