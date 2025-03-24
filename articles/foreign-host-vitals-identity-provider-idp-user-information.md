@@ -70,7 +70,7 @@ To connect Entra ID to Fleet, follow these steps:
 13. Ensure that the attributes `userName`, `givenName`, `familyName`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon on the top right corner.
 ![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
 14. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
-15. Select the users and groups that you want to add to Fleet and then select **Assign**. 
+15. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
 16. From the side menu, select **Overview** and select **Start provisioning**.
 
 Now, Microsoft Entra ID will send data to Fleet immediately. Future requests happen every 20-40 minutes. So, if you edit user information in Entra, it might take up to 40 minutes to see the change in Fleet.
