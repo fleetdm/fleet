@@ -234,7 +234,7 @@ To map users from Google Workspace to hosts in Fleet, we will do the following s
 10. After few minutes, you should see users mapped to hosts in Fleet.
 
 
-## Verify connection in Fleet
+## Verify connection
 
 After following steps above, you should be able to see latest requests from Okta to Fleet if you
 navigate to **Settings > Integrations > Identity Provider (IdP)**. 
