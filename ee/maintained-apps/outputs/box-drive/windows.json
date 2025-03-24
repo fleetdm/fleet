@@ -3,7 +3,7 @@
     {
       "version": "2.43.205",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{023DC454-39E5-46FD-8F1B-DF6F344AAADB}';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';"
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.43.205.msi",
       "unique_identifier": "Box Drive",

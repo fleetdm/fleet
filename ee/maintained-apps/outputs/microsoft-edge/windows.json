@@ -3,7 +3,7 @@
     {
       "version": "134.0.3124.83",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{9E9A969E-A8B8-3F59-83D6-68A9B0E0366A}';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';"
       },
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/f9137856-3c6a-4a53-8a62-6c3b539149b0/MicrosoftEdgeEnterpriseX64.msi",
       "unique_identifier": "Microsoft Edge",
