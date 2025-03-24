@@ -242,7 +242,7 @@ navigate to **Settings > Integrations > Identity Provider (IdP)**.
 To verify that user information is added to a hosts, go to the host that has IdP email assigned, and
 verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
 
-### Troubleshoot errors
+### Troubleshooting
 
 If you find that information from IdP (e.g full name or groups) is missing on the host, and host has
 IdP email assigned to it, follow steps below to resolve.
