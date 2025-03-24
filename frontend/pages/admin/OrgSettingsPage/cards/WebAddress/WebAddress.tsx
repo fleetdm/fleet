@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { size } from "lodash";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -53,8 +54,12 @@ const WebAddress = ({
 
     setFormErrors(errors);
   };
+
+  const formInvalid = !!size(formErrors);
+
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+    if (formInvalid) return;
 
     // Formatting of API not UI
     const formDataToSubmit = {
@@ -93,7 +98,7 @@ const WebAddress = ({
               <Button
                 type="submit"
                 variant="brand"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                disabled={formInvalid || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}
               >
