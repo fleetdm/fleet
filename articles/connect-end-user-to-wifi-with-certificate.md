@@ -12,7 +12,7 @@ profile.
 ### Step 1: Create service user in DigiCert
 
 1. Head to [Digicert One](https://one.digicert.com/).
-2. Follow instructions here, to create service user, and save service user API token.
+2. Follow instructions [here](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html), to create service user, and save service user API token.
 > Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
 > when creating service user.
 
