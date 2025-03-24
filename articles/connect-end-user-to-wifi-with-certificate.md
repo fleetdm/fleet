@@ -1,22 +1,23 @@
 # Connect end users to Wi-Fi with a certificate (from DigiCert, SCEP, or NDES) 
 
-Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) introduces support for helping your end users connect to Wi-Fi by adding your SCEP server. Fleet currently supports Microsoft's Network Device Enrollment Service (NDES) as a SCEP server.
+Fleet [v4.66.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.66.0) introduces support for helping your end users connect to Wi-Fi by adding your certificate authority to issue certificates for Wi-Fi authentication. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
-This guide will walk you through configuring and using NDES with Fleet acting as a SCEP proxy.
+This guide will walk you through configuring certificate authority and delivering configuration profile.
 
 ## Prerequisites
 
 * Fleet Premium with admin permissions.
-* Fleet [v4.59.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) or greater.
+* Fleet [v4.66.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.59.0) or greater.
 * Apple MDM enabled.
-* A Windows Server with AD CS (Active Directory Certificate Services) and NDES installed and configured, including the certificate templates for the certificates you want to enroll for.
+* NDES: A Windows Server with AD CS (Active Directory Certificate Services) and NDES installed and configured, including the certificate templates for the certificates you want to enroll for.
   * The default password cache size for NDES is five passwords. Increase this value to account for the number of devices you expect to enroll simultaneously, including devices that may be offline and need to enroll when they come online.
 
-## Step-by-step instructions
+## Microsoft NDES
 
-### 1. Add SCEP in Fleet
+### 1. Connect Fleet to NDES
 
-Go to the Fleet web interface, navigate to `Settings`, go to the `Integrations` tab, and click `Mobile device management (MDM)`. Scroll down to `Simple Certificate Enrollment Protocol (SCEP)` and click `Add SCEP`.
+1. Go to the Fleet, navigate to **Settings**, select **Integrations** tab, and select **Certificates**.
+2. Select **Add CA** button, and select **Microsoft NDES** from the dropdown on the top.
 
 ![Add SCEP](../website/assets/images/articles/add-scep.png)
 
