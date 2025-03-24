@@ -38,8 +38,9 @@ func ValidateServerURL(urlString string) error {
 			return errors.New(fleet.InvalidServerURLMsg)
 		}
 	} else {
+		// serverURL.Host doesn't contain the path in this case
 		// invalid scheme, permit only localhost URLs
-		if !strings.Contains(serverURL.Host, "localhost") {
+		if !strings.Contains(serverURL.Path, "localhost") {
 			return errors.New(fleet.InvalidServerURLMsg)
 		}
 	}
