@@ -6850,7 +6850,8 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.False(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	assert.Zero(t, acResp.ActivityExpirySettings.ActivityExpiryWindow)
 	assert.False(t, acResp.ServerSettings.AIFeaturesDisabled)
-	assert.Zero(t, acResp.UIGitOpsMode)
+	assert.False(t, acResp.UIGitOpsMode.GitopsModeEnabled)
+	assert.Zero(t, acResp.UIGitOpsMode.RepositoryURL)
 
 	// set the apple BM terms expired flag, and the enabled and configured flags,
 	// we'll check again at the end of this test to make sure they weren't
