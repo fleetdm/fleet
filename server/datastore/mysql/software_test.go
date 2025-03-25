@@ -72,7 +72,7 @@ func TestSoftware(t *testing.T) {
 		// {"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		// {"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		// {"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
-		// {"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
+		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
 		// {"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		// {"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 	}
@@ -3500,25 +3500,19 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}
 
 	compareResults := func(expected map[string]fleet.HostSoftwareWithInstaller, got []*fleet.HostSoftwareWithInstaller, expectAsc bool, expectOmitted ...string) {
-		gotToString := func() string {
+		mismatchToString := func() string {
 			var builder strings.Builder
+			builder.WriteString("Expected:\n")
+			for _, e := range expected {
+				builder.WriteString(fmt.Sprintf("%+v\n", e))
+			}
 			builder.WriteString("Got:\n")
 			for _, g := range got {
 				builder.WriteString(fmt.Sprintf("%+v\n", g))
 			}
 			return builder.String()
 		}
-		expectedToString := func() string {
-			var builder strings.Builder
-			builder.WriteString("Expected:\n")
-			for _, g := range expected {
-				builder.WriteString(fmt.Sprintf("%+v\n", g))
-			}
-			return builder.String()
-		}
-		fmt.Printf(gotToString())
-		fmt.Printf(expectedToString())
-		require.Len(t, got, len(expected)-len(expectOmitted), gotToString())
+		require.Len(t, got, len(expected)-len(expectOmitted), mismatchToString())
 		prev := ""
 		for _, g := range got {
 
@@ -3901,10 +3895,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	}
 	expected[i6.Name+i6.Source] = i6
 
-	DumpTable(t, ds.writer(ctx), "host_software")
-	DumpTable(t, ds.writer(ctx), "software")
-	DumpTable(t, ds.writer(ctx), "software_titles")
-	DumpTable(t, ds.writer(ctx), "software_installers")
 	// request without available software
 	opts.IncludeAvailableForInstall = false
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
@@ -3939,7 +3929,46 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request with available software only (attempted to install and never attempted to install)
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
-	expectedAvailableOnly[i0.Name+i0.Source] = i0
+	// expectedAvailableOnly[i0.Name+i0.Source] = i0 <- this has an status of "installed" how is it available?
+	// 	*github.com/fleetdm/fleet/v4/server/fleet.SoftwarePackageOrApp {
+	// 	AppStoreID: "",
+	// 	Name: "installer-1.pkg",
+	// 	AutomaticInstallPolicies: []github.com/fleetdm/fleet/v4/server/fleet.AutomaticInstallPolicy len: 0, cap: 0, nil,
+	// 	Version: "v1.0.0",
+	// 	Platform: "darwin",
+	// 	SelfService: *true,
+	// 	IconURL: *string nil,
+	// 	LastInstall: *github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareInstall {
+	// 		InstallUUID: "0a93f402-84ee-46eb-a707-a6084731bd3b",
+	// 		CommandUUID: "",
+	// 		InstalledAt: (*time.Time)(0x140009bc1e0),},
+	// 	LastUninstall: *github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareUninstall nil,
+	// 	PackageURL: *string nil,
+	// 	InstallDuringSetup: *bool nil,}
+	// (dlv) p sw[1].Status
+	// ("*github.com/fleetdm/fleet/v4/server/fleet.SoftwareInstallerStatus")(0x14000a8c480)
+	// *"installed"
+	// (dlv) p sw[1]
+	// ("*github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareWithInstaller")(0x140000fe540)
+	// *github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareWithInstaller {
+	// 	ID: 9,
+	// 	Name: "i0",
+	// 	Source: "apps",
+	// 	Status: *"installed",
+	// 	InstalledVersions: []*github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareInstalledVersion len: 0, cap: 0, nil,
+	// 	SoftwarePackage: *github.com/fleetdm/fleet/v4/server/fleet.SoftwarePackageOrApp {
+	// 		AppStoreID: "",
+	// 		Name: "installer-1.pkg",
+	// 		AutomaticInstallPolicies: []github.com/fleetdm/fleet/v4/server/fleet.AutomaticInstallPolicy len: 0, cap: 0, nil,
+	// 		Version: "v1.0.0",
+	// 		Platform: "darwin",
+	// 		SelfService: *true,
+	// 		IconURL: *string nil,
+	// 		LastInstall: *(*"github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareInstall")(0x140009bc1c0),
+	// 		LastUninstall: *github.com/fleetdm/fleet/v4/server/fleet.HostSoftwareUninstall nil,
+	// 		PackageURL: *string nil,
+	// 		InstallDuringSetup: *bool nil,},
+	// 	AppStoreApp: *github.com/fleetdm/fleet/v4/server/fleet.SoftwarePackageOrApp nil,}
 	expectedAvailableOnly[i1.Name+i1.Source] = i1
 	expectedAvailableOnly[i2.Name+i2.Source] = i2
 	expectedAvailableOnly[i4.Name+i4.Source] = i4
@@ -4337,6 +4366,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 10},
 		},
 	}
+	DumpTable(t, ds.writer(ctx), "host_software")
+	DumpTable(t, ds.writer(ctx), "software")
+	DumpTable(t, ds.writer(ctx), "software_titles")
+	DumpTable(t, ds.writer(ctx), "software_installers")
+	DumpTable(t, ds.writer(ctx), "host_software_installs")
+	DumpTable(t, ds.writer(ctx), "upcoming_activities")
+	DumpTable(t, ds.writer(ctx), "vpp_apps")
+	DumpTable(t, ds.writer(ctx), "vpp_apps_teams")
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			// always include metadata
