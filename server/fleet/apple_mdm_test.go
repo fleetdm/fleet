@@ -118,7 +118,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 		},
 		{
 			testName:     "FileVault2Screened",
-			payloadTypes: []string{"com.apple.MCX.FileVault2"},
+			payloadTypes: []string{"com.apple.security.firewall", "com.apple.MCX.FileVault2"},
 			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
@@ -160,6 +160,9 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
+			}
+			if len(c.shouldFail) == 0 {
+				require.NoError(t, err)
 			}
 		})
 	}
