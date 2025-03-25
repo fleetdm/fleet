@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_.
 
-CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
+CIS Benchmarks represent the consensus-based effort of cybersecurity experts to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
 Fleet has implemented native support for CIS Benchmarks for the following platforms:
@@ -14,7 +14,9 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 
-These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is no configuration profile or Group Policy Object (GPO) in place to enforce the setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
+These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can used as the basis for managing security compliance and remediation in Fleet.
+
+For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
 
 ```sql
 SELECT 1 WHERE 
@@ -38,7 +40,7 @@ SELECT 1 WHERE
         );  
 ```
 
-Two things are being evaluated in this policy:
+This policy is evaluating 2 attributes:
 
 1. Is FileVault currently enabled?
 2. Is there a profile in place that prevents FileVault from being disabled?
@@ -47,9 +49,9 @@ If either of these conditions fails, the host is considered to be failing the po
 
 ## How to add CIS Benchmarks
 
-All CIS policies are stored under our restricted licensed folder `ee/cis/`.
+All CIS policies are stored under our restricted licensed folder `ee/cis/`. To easily convert the [CIS benchmarks YAML raw file](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml) to a YAML array format compatible with Fleet GitOps, follow these steps:
 
-1. Install [yq](https://github.com/mikefarah/yq) if you you don't have it already.
+1. Install [yq](https://github.com/mikefarah/yq) if you don't have it already. (yq is a command-line YAML, JSON and XML processor.)
 2. Run this Shell script to transform the policies into [Fleet YAML]([https://fleetdm.com/docs/configuration/yaml-files](https://fleetdm.com/docs/configuration/yaml-files#policies)):
 
 ```
@@ -57,9 +59,7 @@ All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 #shellcheck disable=SC2207
 
 
-
 # convert.cis.policy.queries.yml @2024 Fleet Device Management
-
 
 
 # CIS queries as written here:
@@ -70,15 +70,12 @@ All CIS policies are stored under our restricted licensed folder `ee/cis/`.
 #    https://fleetdm.com/docs/configuration/yaml-files#separate-file
 
 
-
-
 # get CIS queries raw file from Fleet repo
 cisfile='https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml'
 cispath='/private/tmp/cis.yml'
-cisspfl='/private/tmp/cis.gitops.yml'
+# cisspfl='/private/tmp/cis.gitops.yml'
 
 /usr/bin/curl -X GET -LSs "$cisfile" -o "$cispath"
-
 
 
 # create CIS benchmark array
@@ -104,7 +101,7 @@ done
 # /usr/bin/sed -n "/$i/,/^----+/p" "$sqlfile"
 ```
 
-3. Copy/paste the CIS policies you want into your YAML file and run GitOps.
+3. THe converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
 
 If you're using `fleetctl apply`, you can apply the policies to a specific team use the `--policies-team` flag:
 ```sh
