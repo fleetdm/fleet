@@ -76,9 +76,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>dontAllowFDEDisable</key>
 			<true/>
 			<key>PayloadIdentifier</key>
-			<string>` + mobileconfig.FleetFileVaultOptionsPayloadType + `.62024f29-105E-497A-A724-1D5BA4D9E854</string>
+			<string>` + mobileconfig.FleetCustomSettingsPayloadType + `.62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadType</key>
-			<string>` + mobileconfig.FleetFileVaultOptionsPayloadType + `</string>
+			<string>` + mobileconfig.FleetCustomSettingsPayloadType + `</string>
 			<key>PayloadUUID</key>
 			<string>62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadVersion</key>
