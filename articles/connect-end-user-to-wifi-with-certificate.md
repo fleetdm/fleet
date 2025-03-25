@@ -14,7 +14,7 @@ To install certificates from DigiCert to hosts, do the following steps:
 - [Create service user in DigiCert](#step-1-create-service-user-in-digicert)
 - [Create certificate profile in DigiCert](#step-2-create-certificate-profile-in-digicert)
 - [Connect Fleet to DigiCert](#step-3-connect-fleet-to-digicert)
-- [Add a PKCS12 configuration profile to Fleet](#step-4-add-pkcs12-configuration-profile-to-fleet)
+- [Add a PKCS12 configuration profile to Fleet](#step-4-add-pkcs-12-configuration-profile-to-fleet)
 
 ### Step 1: Create service user in DigiCert
 
