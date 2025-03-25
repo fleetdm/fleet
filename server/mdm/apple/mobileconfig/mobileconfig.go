@@ -256,7 +256,7 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 			case FleetFileVaultPayloadType, FleetRecoveryKeyEscrowPayloadType:
 				return errors.New(DiskEncryptionProfileRestrictionErrMsg)
 			case FleetCustomSettingsPayloadType:
-				contains, err := ContainsFDEVileVaultOptionsPayload(*mc)
+				contains, err := ContainsFDEFileVaultOptionsPayload(*mc)
 				if err != nil {
 					return fmt.Errorf("checking for FDEVileVaultOptions payload: %w", err)
 				}
