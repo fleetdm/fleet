@@ -749,6 +749,8 @@ The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned
 
 `mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
 
+To get config directly from the database, include custom HTTP header `x-no-cache: true` in your request.
+
 `GET /api/v1/fleet/config`
 
 #### Parameters
