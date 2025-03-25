@@ -128,13 +128,6 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
-      "name": "Notion",
-      "slug": "notion/windows",
-      "platform": "windows",
-      "unique_identifier": "",
-      "description": ""
-    },
-    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",

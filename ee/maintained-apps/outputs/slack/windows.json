@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.43.43",
+      "version": "4.43.49",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{ADFF5A02-F068-4ED2-95C0-023E3239211F}.msq';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.';"
       },
-      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.43.43/slack-standalone-4.43.43.0.msi",
+      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.43.49/slack-standalone-4.43.49.0.msi",
       "unique_identifier": "Slack",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "1e436ef83a0366fdbc00533e0ee8a213cfff5c3ecdfc68a79b078f143b52ff4b"
+      "sha256": "1701ba7e85c104835259a231bf2a7ada8fe23163145648683213d41a7d8f508a"
     }
   ],
   "refs": {

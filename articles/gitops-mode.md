@@ -8,12 +8,10 @@ GitOps mode helps avoid this by presenting the user from saving or editing the q
 
 ![](../website/assets/images/articles/gitops-mode-disables-saving-queries.png)
 
-
 ## Enabling
 To turn GitOps mode on or off, navigate to **Settings** > **Integrations** > **Change management**:
 
 ![](../website/assets/images/articles/enabling-gitops-mode.gif)
-
 
 ## Still available
 
@@ -23,9 +21,8 @@ GitOps mode prevents the UI user from editing [GitOps-configurable features](htt
 - Add and edit labels
 - Run live queries
 
-
 ## More
-****<!-- TODO - update to link to Allen's article, uncomment -->
+<!-- TODO - update to link to Allen's article, uncomment -->
 <!-- - [Why use GitOps to configure Fleet?](https://www.example.com) -->
 - [Preventing Mistakes with GitOps](https://fleetdm.com/guides/articles/preventing-mistakes-with-gitops)
 
@@ -34,4 +31,4 @@ GitOps mode prevents the UI user from editing [GitOps-configurable features](htt
 <meta name="authorGitHubUsername" value="jacobshandling">
 <meta name="publishedOn" value="2025-03-21">
 <meta name="category" value="guides">
-<meta name="description" value="Use GitOps mode to prevent UI users from updating GitOps-managed **features**">
+<meta name="description" value="Help users avoid unexpected changes by preventing manual updates of GitOps-configurable features">
