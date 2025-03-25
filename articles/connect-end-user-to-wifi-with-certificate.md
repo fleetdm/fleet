@@ -1,4 +1,4 @@
-# Connect end users to Wi-Fi with a certificate (from DigiCert, SCEP, or NDES) 
+# Connect end users to Wi-Fi with a certificate (from DigiCert, NDES, or custom SCEP)
 
 _Available in Fleet Premium_
 
@@ -8,6 +8,13 @@ This guide will walk you through configuring certificate authority and deliverin
 profile.
 
 ## DigiCert
+
+To install certificates from DigiCert to hosts, do the following steps:
+
+- [Create service user in DigiCert](#step-1-create-service-user-in-digicert)
+- [Create certificate profile in DigiCert](#step-2-create-certificate-profile-in-digicert)
+- [Connect Fleet to DigiCert](#step-3-connect-fleet-to-digicert)
+- [Add a PKCS12 configuration profile to Fleet](#step-4-add-pkcs12-configuration-profile-to-fleet)
 
 ### Step 1: Create service user in DigiCert
 
@@ -51,13 +58,18 @@ profile.
 7. For **CN**, **UPN**, and **Certificate seat ID**, you can use fixed values or one of the [Fleet's
    host
    variables](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
-8. Select **Add CA**, and your CA should appear in the list.
+8. Select **Add CA**, and your DigiCert certificate authority (CA) should appear in the list.
 
-### Step 4: Create a configuration profile
+### Step 4: Add PKCS12 configuration profile to Fleet
 
-Add a cofniguration profile to Fleet, that includes the PKCS12 payload. In the profile, you will need to set `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` as the `Password` and `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` as the `Data`.
+[Add a cofniguration profile](https://fleetdm.com/guides/custom-os-settings) to Fleet, that includes the PKCS12 payload. In the profile, you will need to set `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` as the `Password` and `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` as the `Data`.
 
-Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`)
+Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect
+Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name
+will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and
+`FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`).
+
+When sending the profile to hosts, Fleet will replace the variables variables with the proper values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
 
 Example configuration profile:
 
@@ -101,6 +113,11 @@ Example configuration profile:
 
 ## Microsoft NDES
 
+To install certificates from Microsoft NDES to hosts, do the following steps:
+
+- [Connect Fleet to NDES](#step-1-connect-fleet-to-ndes)
+- [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet)
+
 ### Step 1: Connect Fleet to NDES
 
 1. Go to the Fleet, navigate to **Settings**, select **Integrations** tab, and select **Certificates**.
@@ -108,16 +125,25 @@ Example configuration profile:
 3. Add **SCEP URL** that accepts the SCEP protocol.
 4. Add **Admin URL** and associated **Username** and **Password** to get the one-time challenge
    password for SCEP enrollment.
+5. Select **Add CA**, and your NDES certificate authority (CA) should appear in the list.
+
 
 Note:
 * The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/` respectively. These path suffixes are the default paths for NDES on Windows Server 2022 and should only be changed if you have customized the paths on your server.
 * When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
 
-### Step 2: Create a SCEP configuration profile
+### Step 2: Add SCEP configuration profile to Fleet
 
-Create a configuration profile in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`.
+[Add a configuration profile](https://fleetdm.com/guides/custom-os-settings) in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`.
 
 Adjust the `Subject` values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
+
+When sending the profile to hosts, Fleet will replace the variables variables with the proper
+values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
+
+![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
+
+> Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
 
 Example configuration profile:
 
@@ -183,17 +209,110 @@ Example configuration profile:
 </plist>
 ```
 
-Upload the profile to Fleet in **Controls** > **OS Settings** > **Custom settings**.
+## Custom SCEP server
 
-When sending the profile to hosts, Fleet will replace the `$FLEET_VAR_NDES_SCEP_CHALLENGE`, `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` variables with the proper values.Any errors will appear as a **Failed** status in the host's **OS settings**.
+To install certificates from Microsoft NDES to hosts, do the following steps:
 
-![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
+- [Connect Fleet to custom SCEP server](#step-1-connect-fleet-to-custom-scep-server)
+- [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet2)
 
-> Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
+### Step 1: Connect Fleet to custom SCEP server
 
-### How does it work?
+1. Go to the Fleet, navigate to **Settings**, select **Integrations** tab, and select **Certificates**.
+2. Select **Add CA** button, and select **Custom** from the dropdown on the top.
+3. Add **Name** for your certificate authority. It's best to use all caps, beacuse it will be used
+   as variable name in configuration profile and name it based on your use case (e.g.
+   WIFI_AUTHENTICATION).
+4. Add **SCEP URL** that accepts the SCEP protocol.
+5. Add **Challenge** password to authenticate Fleet with your SCEP server.
+6. Select **Add CA**, and your custom SCEP certificate authority (CA) should appear in the list.
 
-The SCEP proxy in Fleet acts as a middleman between the device and the NDES server. When a device requests a certificate, the SCEP proxy forwards the request to the NDES server, retrieves the certificate, and sends it back to the device. In addition, the SCEP proxy:
+### Step 2: Add SCEP configuration profile to Fleet
+
+[Add a configuration profile](https://fleetdm.com/guides/custom-os-settings) in Fleet that includes
+the SCEP payload. In the profile, you will need to set `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`
+as the `Challenge` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>` as the `URL`.
+
+Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect
+Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name
+will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and
+`FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`).
+
+Adjust the `Subject` values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
+
+When sending the profile to hosts, Fleet will replace the variables variables with the proper
+values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
+
+Example configuration profile:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+       <dict>
+          <key>PayloadContent</key>
+          <dict>
+             <key>Challenge</key>
+             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</string>
+             <key>Key Type</key>
+             <string>RSA</string>
+             <key>Key Usage</key>
+             <integer>5</integer>
+             <key>Keysize</key>
+             <integer>2048</integer>
+             <key>Subject</key>
+                    <array>
+                        <array>
+                          <array>
+                            <string>CN</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+                          </array>
+                        </array>
+                        <array>
+                          <array>
+                            <string>OU</string>
+                            <string>FLEET DEVICE MANAGEMENT</string>
+                          </array>
+                        </array>
+                    </array>
+             <key>URL</key>
+             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</string>
+          </dict>
+          <key>PayloadDisplayName</key>
+          <string>WIFI SCEP</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.security.scep.9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+          <key>PayloadType</key>
+          <string>com.apple.security.scep</string>
+          <key>PayloadUUID</key>
+          <string>9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+       </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>SCEP proxy cert</string>
+    <key>PayloadIdentifier</key>
+    <string>Fleet.WiFi</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>4CD1BD65-1D2C-4E9E-9E18-9BCD400CDEDC</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>
+```
+
+## How does Fleet SCEP proxy works (NDES and custom SCEP)
+
+The SCEP proxy in Fleet acts as a middleman between the device and the NDES or custom SCEP server.
+When a device requests a certificate, the Fleet's SCEP proxy forwards the request to the NDES or
+custom SCEP server, retrieves the certificate, and sends it back to the device. In addition, the
+SCEP proxy:
 
 - Retrieves the one-time challenge password from the NDES server.
   The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface.
