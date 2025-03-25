@@ -208,7 +208,7 @@ func TestElasticStack(t *testing.T) {
 			fnIndex := strings.Index(c.causeStackContains[0], "TestElasticStack")
 			require.GreaterOrEqual(t, fnIndex, 0)
 			// fnName := strings.TrimSpace(c.causeStackContains[0][fnIndex:])
-			// require.Equal(t, fnName, apmErr.Culprit)
+			require.Regexp(t, c.causeStackContains[0][fnIndex:], apmErr.Culprit)
 
 			// the APM stack should match the cause stack (i.e. APM should have
 			// grabbed the stacktrace that we provided). If it didn't, it would have
@@ -275,8 +275,8 @@ func TestSentryStack(t *testing.T) {
 				return errFn(func() error { return func() error { return New(ctx, "new") }() })
 			},
 			causeStackContains: []string{
-				"\\.TestSentryStack\\.func4.1.1",
-				"\\.TestSentryStack\\.func4.1",
+				"\\.TestSentryStack\\.func4(\\.\\d){2}",
+				"\\.TestSentryStack\\.func4\\.\\d",
 				"\\.TestSentryStack\\.func1", // errFn
 			},
 		},
@@ -293,9 +293,9 @@ func TestSentryStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"\\.TestSentryStack\\.func5.1.1.1",
-				"\\.TestSentryStack\\.func5.1.1",
-				"\\.TestSentryStack\\.func5.1",
+				"\\.TestSentryStack\\.func5(\\.\\d){3}",
+				"\\.TestSentryStack\\.func5(\\.\\d){2}",
+				"\\.TestSentryStack\\.func5\\.\\d",
 				"\\.TestSentryStack\\.func1", // errFn
 			},
 		},
@@ -312,9 +312,9 @@ func TestSentryStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"\\.TestSentryStack\\.func6.1.1.1",
-				"\\.TestSentryStack\\.func6.1.1",
-				"\\.TestSentryStack\\.func6.1",
+				"\\.TestSentryStack\\.func6(\\.\\d){3}",
+				"\\.TestSentryStack\\.func6(\\.\\d){2}",
+				"\\.TestSentryStack\\.func6\\.\\d",
 				"\\.TestSentryStack\\.func1", // errFn
 			},
 			leafStackContains: []string{
