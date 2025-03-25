@@ -980,6 +980,13 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
+				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
