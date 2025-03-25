@@ -883,7 +883,6 @@ module.exports.routes = {
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
   // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
   'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
-  'GET /learn-more-about/os-update-past-date-deadline': 'https://fleetdm.com/guides/enforce-os-updates#past-or-current-date-as-the-deadline-on-apple-hosts',
 
   // Sitemap
   // =============================================================================================================
