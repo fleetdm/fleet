@@ -3,6 +3,7 @@ import React from "react";
 import { IPackStats } from "interfaces/host";
 import TableContainer from "components/TableContainer";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 import {
   Accordion,
@@ -72,12 +73,12 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
     <></>
   ) : (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Packs</p>
+      <CardHeader header="Packs" />
       <Accordion allowMultipleExpanded allowZeroExpanded>
         {packsAccordion}
       </Accordion>

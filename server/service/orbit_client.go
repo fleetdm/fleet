@@ -421,9 +421,12 @@ func (oc *OrbitClient) SaveInstallerResult(payload *fleet.HostSoftwareInstallRes
 	return nil
 }
 
-func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string) (string, error) {
+func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirectory string, progressFunc func(n int)) (string, error) {
 	verb, path := "POST", "/api/fleet/orbit/software_install/package?alt=media"
-	resp := FileResponse{DestPath: downloadDirectory}
+	resp := FileResponse{
+		DestPath:     downloadDirectory,
+		ProgressFunc: progressFunc,
+	}
 	if err := oc.authenticatedRequest(verb, path, &orbitDownloadSoftwareInstallerRequest{
 		InstallerID: installerID,
 	}, &resp); err != nil {
@@ -432,8 +435,13 @@ func (oc *OrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDirec
 	return resp.GetFilePath(), nil
 }
 
-func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDirectory string) (string, error) {
-	resp := FileResponse{DestPath: downloadDirectory, DestFile: filename, SkipMediaType: true}
+func (oc *OrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDirectory string, progressFunc func(int)) (string, error) {
+	resp := FileResponse{
+		DestPath:      downloadDirectory,
+		DestFile:      filename,
+		SkipMediaType: true,
+		ProgressFunc:  progressFunc,
+	}
 	if err := oc.requestWithExternal("GET", url, nil, &resp, true); err != nil {
 		return "", err
 	}

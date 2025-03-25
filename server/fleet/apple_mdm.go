@@ -667,7 +667,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	var rawDecl MDMAppleRawDeclaration
 	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't add. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
 	}
 
 	return &rawDecl, nil

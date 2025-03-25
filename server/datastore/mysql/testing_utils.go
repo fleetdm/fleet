@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -514,6 +515,15 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 	}
 	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
+	syncML := generateDummyWindowsProfile(uuid)
+	checksum := md5.Sum(syncML)
+	return fleet.MDMWindowsProfileContents{
+		SyncML:   syncML,
+		Checksum: checksum[:],
+	}
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {

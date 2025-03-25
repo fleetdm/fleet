@@ -9,6 +9,13 @@
       "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
+      "name": "1Password",
+      "slug": "1password/windows",
+      "platform": "windows",
+      "unique_identifier": "1Password",
+      "description": "Password manager that keeps all passwords secure behind one password"
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -20,6 +27,13 @@
       "slug": "box-drive/darwin",
       "platform": "darwin",
       "unique_identifier": "com.box.desktop",
+      "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
+      "name": "Box Drive",
+      "slug": "box-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Box Drive",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
@@ -65,10 +79,24 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Google Chrome",
+      "slug": "google-chrome/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.edgemac",
+      "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
+    },
+    {
+      "name": "Microsoft Edge",
+      "slug": "microsoft-edge/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Edge",
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
@@ -121,6 +149,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
+      "name": "Slack",
+      "slug": "slack/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
+      "description": "Slack is a team communication and collaboration software for modern workplaces"
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -146,6 +181,13 @@
       "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom",
+      "slug": "zoom/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]

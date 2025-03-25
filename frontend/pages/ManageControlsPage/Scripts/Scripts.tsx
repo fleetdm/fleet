@@ -15,13 +15,12 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
+import Pagination from "components/Pagination";
 import UploadList from "../components/UploadList";
 import DeleteScriptModal from "./components/DeleteScriptModal";
 import EditScriptModal from "./components/EditScriptModal";
-import ScriptDetailsModal from "./components/ScriptDetailsModal";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
-import ScriptListPagination from "./components/ScriptListPagination";
 import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
@@ -145,9 +144,12 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
             />
           )}
         />
-        <ScriptListPagination
-          meta={meta}
-          isLoading={isLoading}
+        <Pagination
+          disablePrev={isLoading || !meta?.has_previous_results}
+          disableNext={isLoading || !meta?.has_next_results}
+          hidePagination={
+            !isLoading && !meta?.has_previous_results && !meta?.has_next_results
+          }
           onPrevPage={onPrevPage}
           onNextPage={onNextPage}
         />

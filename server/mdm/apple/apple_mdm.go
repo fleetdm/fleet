@@ -335,7 +335,7 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 			if errors.As(err, &httpErr) {
 				// We can count on this working because of how the godep.HTTPerror Error() method
 				// formats its output.
-				return ctxerr.Errorf(ctx, "Couldn't upload. %s", string(httpErr.Body))
+				return ctxerr.Errorf(ctx, "Couldn't add. %s", string(httpErr.Body))
 			}
 
 			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")
@@ -1203,7 +1203,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	start := time.Now()
 	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
 	if len(devices) == 0 {
 		return nil

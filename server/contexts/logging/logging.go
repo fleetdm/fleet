@@ -37,6 +37,15 @@ func WithStartTime(ctx context.Context) context.Context {
 	return ctx
 }
 
+// StartTime returns the start time of the context (if set).
+func StartTime(ctx context.Context) (time.Time, bool) {
+	v, ok := ctx.Value(loggingKey).(*LoggingContext)
+	if !ok {
+		return time.Time{}, false
+	}
+	return v.StartTime, ok
+}
+
 // WithErr returns a context with logging.Err set as the error provided
 func WithErr(ctx context.Context, err ...error) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {

@@ -1,0 +1,19 @@
+.card-header {
+  margin: 0 0 $pad-large;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
+
+  &__header {
+    font-size: $medium;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__subheader {
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
+    font-weight: $regular;
+    margin: 0;
+  }
+}

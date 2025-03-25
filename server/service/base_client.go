@@ -204,6 +204,7 @@ type FileResponse struct {
 	DestFile      string
 	destFilePath  string
 	SkipMediaType bool
+	ProgressFunc  func(n int)
 }
 
 func (f *FileResponse) Handle(resp *http.Response) error {
@@ -230,7 +231,15 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 	defer destFile.Close()
 
-	_, err = io.Copy(destFile, resp.Body)
+	var respBodyReader io.Reader = resp.Body
+	if f.ProgressFunc != nil {
+		respBodyReader = &progressReader{
+			Reader:       respBodyReader,
+			progressFunc: f.ProgressFunc,
+		}
+	}
+
+	_, err = io.Copy(destFile, respBodyReader)
 	if err != nil {
 		return fmt.Errorf("copying from http stream to file: %w", err)
 	}
@@ -244,4 +253,15 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 
 func (f *FileResponse) GetFilePath() string {
 	return f.destFilePath
+}
+
+type progressReader struct {
+	io.Reader
+	progressFunc func(n int)
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.Reader.Read(p)
+	pr.progressFunc(n)
+	return n, err
 }

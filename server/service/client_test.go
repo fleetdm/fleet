@@ -794,6 +794,9 @@ func TestGitOpsErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &spec.GitOps{}
 			config.OrgSettings = make(map[string]interface{})
+			// Signal that we don't want to send any labels.
+			// This avoids this test attempting to make a request to the GetLabels endpoint.
+			config.Labels = make([]*fleet.LabelSpec, 0)
 			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
@@ -801,5 +804,4 @@ func TestGitOpsErrors(t *testing.T) {
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
-
 }
