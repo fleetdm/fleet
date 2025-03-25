@@ -2,6 +2,8 @@ import { size } from "lodash";
 
 import validUrl from "components/forms/validators/valid_url";
 
+import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
+
 const validate = (formData) => {
   const errors = {};
   const { server_url: fleetWebAddress } = formData;
@@ -12,11 +14,10 @@ const validate = (formData) => {
     !validUrl({
       url: fleetWebAddress,
       protocols: ["http", "https"],
-      allowAnyLocalHost: true,
+      allowLocalHost: true,
     })
   ) {
-    errors.server_url =
-      "Fleet web address must be a valid https, http, or localhost URL";
+    errors.server_url = INVALID_SERVER_URL_MESSAGE;
   }
 
   const valid = !size(errors);

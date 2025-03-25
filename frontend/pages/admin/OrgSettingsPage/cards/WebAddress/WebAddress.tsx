@@ -8,6 +8,8 @@ import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
+
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 interface IWebAddressFormData {
@@ -27,10 +29,10 @@ const validateFormData = ({ serverURL }: IWebAddressFormData) => {
     !validUrl({
       url: serverURL,
       protocols: ["http", "https"],
-      allowAnyLocalHost: true,
+      allowLocalHost: true,
     })
   ) {
-    errors.server_url = `${serverURL} is not a valid URL`;
+    errors.server_url = INVALID_SERVER_URL_MESSAGE;
   }
 
   return errors;
