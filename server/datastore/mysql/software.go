@@ -2251,6 +2251,311 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
+type hostSoftware struct {
+	fleet.HostSoftwareWithInstaller
+
+	LastInstallInstalledAt         *time.Time `db:"last_install_installed_at"`
+	LastInstallInstallUUID         *string    `db:"last_install_install_uuid"`
+	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
+	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
+
+	LastOpenedAt        *time.Time `db:"last_opened_at"`
+	BundleIdentifier    *string    `db:"bundle_identifier"`
+	Version             *string    `db:"version"`
+	SoftwareID          *uint      `db:"software_id"`
+	SoftwareSource      *string    `db:"software_source"`
+	VulnerabilitiesList *string    `db:"vulnerabilities_list"`
+	InstallerID         *uint      `db:"installer_id"`
+	PackageSelfService  *bool      `db:"package_self_service"`
+	PackageName         *string    `db:"package_name"`
+	PackageVersion      *string    `db:"package_version"`
+	VPPAppSelfService   *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID        *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion       *string    `db:"vpp_app_version"`
+	VPPAppIconURL       *string    `db:"vpp_app_icon_url"`
+}
+
+func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	installedSoftwareStmt := `
+		SELECT
+			software_titles.id AS id,
+			host_software.software_id AS software_id,
+			host_software.last_opened_at,
+			NULL AS status
+		FROM 
+			host_software
+		INNER JOIN
+			software ON host_software.software_id = software.id
+		INNER JOIN
+			software_titles ON software.title_id = software_titles.id
+		WHERE
+			host_software.host_id = :host_id
+	`
+	installedSoftwareStmt, args, err := sqlx.Named(installedSoftwareStmt, map[string]any{
+		"host_id": hostID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for host installed software")
+	}
+
+	installedSoftwareStmt = ds.reader(ctx).Rebind(installedSoftwareStmt)
+	var hostInstalledSoftware []*hostSoftware
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hostInstalledSoftware, installedSoftwareStmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return hostInstalledSoftware, nil
+}
+
+func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	softwareInstallsStmt := `
+        WITH upcoming_software_install AS (
+            SELECT
+                ua.execution_id AS last_install_install_uuid,
+                ua.created_at AS last_install_installed_at,
+                siua.software_installer_id AS installer_id,
+                'pending_install' AS status
+            FROM
+                upcoming_activities ua
+            INNER JOIN
+                software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+            LEFT JOIN (
+                upcoming_activities ua2
+                INNER JOIN software_install_upcoming_activities siua2 ON ua2.id = siua2.upcoming_activity_id
+            ) ON ua.host_id = ua2.host_id AND
+                siua.software_installer_id = siua2.software_installer_id AND
+                ua.activity_type = ua2.activity_type AND
+                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+            WHERE
+                ua.host_id = :host_id AND
+                ua.activity_type = 'software_install' AND
+                ua2.id IS NULL
+        ),
+        last_software_install AS (
+            SELECT
+                hsi.execution_id AS last_install_install_uuid,
+                hsi.created_at AS last_install_installed_at,
+                hsi.software_installer_id AS installer_id,
+                hsi.status AS status
+            FROM
+                host_software_installs hsi
+            LEFT JOIN
+                host_software_installs hsi2 ON hsi.host_id = hsi2.host_id AND
+                    hsi.software_installer_id = hsi2.software_installer_id AND
+                    hsi.uninstall = hsi2.uninstall AND
+                    hsi2.removed = 0 AND
+                    hsi2.host_deleted_at IS NULL AND
+                    (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+            WHERE
+                hsi.host_id = :host_id AND
+                hsi.removed = 0 AND
+                hsi.uninstall = 0 AND
+                hsi.host_deleted_at IS NULL AND
+                hsi2.id IS NULL AND
+                NOT EXISTS (
+                    SELECT 1
+                    FROM
+                        upcoming_activities ua
+                    INNER JOIN
+                        software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+                    WHERE
+                        ua.host_id = hsi.host_id AND
+                        siua.software_installer_id = hsi.software_installer_id AND
+                        ua.activity_type = 'software_install'
+                )
+        )
+        SELECT
+			software_installers.title_id AS id,
+			lsia.*
+		FROM
+			(SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install) AS lsia
+		INNER JOIN
+			software_installers ON lsia.installer_id = software_installers.id
+		INNER JOIN
+			software_titles ON software_installers.title_id = software_titles.id
+    `
+	softwareInstallsStmt, args, err := sqlx.Named(softwareInstallsStmt, map[string]any{
+		"host_id": hostID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for host software installs")
+	}
+	var softwareInstalls []*hostSoftware
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return softwareInstalls, nil
+}
+
+func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	softwareUninstallsStmt := `
+        WITH upcoming_software_uninstall AS (
+            SELECT
+                ua.execution_id AS last_uninstall_script_execution_id,
+                ua.created_at AS last_uninstall_uninstalled_at,
+                siua.software_installer_id AS installer_id,
+                'pending_uninstall' AS status
+            FROM
+                upcoming_activities ua
+            INNER JOIN
+                software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+            LEFT JOIN (
+                upcoming_activities ua2
+                INNER JOIN software_install_upcoming_activities siua2 ON ua2.id = siua2.upcoming_activity_id
+            ) ON ua.host_id = ua2.host_id AND
+                siua.software_installer_id = siua2.software_installer_id AND
+                ua.activity_type = ua2.activity_type AND
+                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+            WHERE
+                ua.host_id = :host_id AND
+                ua.activity_type = 'software_uninstall' AND
+                ua2.id IS NULL
+        ),
+        last_software_uninstall AS (
+            SELECT
+                hsi.execution_id AS last_uninstall_script_execution_id,
+                hsi.created_at AS last_uninstall_uninstalled_at,
+                hsi.software_installer_id AS installer_id,
+                hsi.status AS status
+            FROM
+                host_software_installs hsi
+            LEFT JOIN
+                host_software_installs hsi2 ON hsi.host_id = hsi2.host_id AND
+                    hsi.software_installer_id = hsi2.software_installer_id AND
+                    hsi.uninstall = hsi2.uninstall AND
+                    hsi2.removed = 0 AND
+                    hsi2.host_deleted_at IS NULL AND
+                    (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
+            WHERE
+                hsi.host_id = :host_id AND
+                hsi.removed = 0 AND
+                hsi.uninstall = 1 AND
+                hsi.host_deleted_at IS NULL AND
+                hsi2.id IS NULL AND
+                NOT EXISTS (
+                    SELECT 1
+                    FROM
+                        upcoming_activities ua
+                    INNER JOIN
+                        software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+                    WHERE
+                        ua.host_id = hsi.host_id AND
+                        siua.software_installer_id = hsi.software_installer_id AND
+                        ua.activity_type = 'software_uninstall'
+                )
+        )
+        SELECT
+			software_installers.title_id AS id,
+			lsua.*
+		FROM
+            (SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall) AS lsua
+		INNER JOIN
+			software_installers ON lsua.installer_id = software_installers.id
+		INNER JOIN
+			software_titles ON software_installers.title_id = software_titles.id
+    `
+	softwareUninstallsStmt, args, err := sqlx.Named(softwareUninstallsStmt, map[string]any{
+		"host_id": hostID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for host software uninstalls")
+	}
+	var softwareUninstalls []*hostSoftware
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return softwareUninstalls, nil
+}
+
+func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+	vppInstallsStmt := fmt.Sprintf(`
+        WITH upcoming_vpp_install AS (
+            SELECT
+                ua.execution_id AS last_install_install_uuid,
+                ua.created_at AS last_install_installed_at,
+                vaua.adam_id AS vpp_app_adam_id,
+                'pending_install' AS status
+            FROM
+                upcoming_activities ua
+            INNER JOIN
+                vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+            LEFT JOIN (
+                upcoming_activities ua2
+                INNER JOIN vpp_app_upcoming_activities vaua2 ON ua2.id = vaua2.upcoming_activity_id
+            ) ON ua.host_id = ua2.host_id AND
+                vaua.adam_id = vaua2.adam_id AND
+                vaua.platform = vaua2.platform AND
+                ua.activity_type = ua2.activity_type AND
+                (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+            WHERE
+                ua.host_id = :host_id AND
+                ua.activity_type = 'vpp_app_install' AND
+                ua2.id IS NULL
+        ),
+        last_vpp_install AS (
+            SELECT
+                hvsi.command_uuid AS last_install_install_uuid,
+                hvsi.created_at AS last_install_installed_at,
+                hvsi.adam_id AS vpp_app_adam_id,
+                %s
+            FROM
+                host_vpp_software_installs hvsi
+            LEFT JOIN
+                nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+            LEFT JOIN
+                host_vpp_software_installs hvsi2 ON hvsi.host_id = hvsi2.host_id AND
+                    hvsi.adam_id = hvsi2.adam_id AND
+                    hvsi.platform = hvsi2.platform AND
+                    hvsi2.removed = 0 AND
+                    (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+            WHERE
+                hvsi.host_id = :host_id AND
+                hvsi.removed = 0 AND
+                hvsi2.id IS NULL AND
+                NOT EXISTS (
+                    SELECT 1
+                    FROM
+                        upcoming_activities ua
+                    INNER JOIN
+                        vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+                    WHERE
+                        ua.host_id = hvsi.host_id AND
+                        vaua.adam_id = hvsi.adam_id AND
+                        vaua.platform = hvsi.platform AND
+                        ua.activity_type = 'vpp_app_install'
+                )
+        )
+        SELECT
+			*
+		FROM
+            (SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install) AS lvia
+    `, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"))
+	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
+		"host_id":                   hostID,
+		"software_status_installed": fleet.SoftwareInstalled,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"software_status_failed":    fleet.SoftwareInstallFailed,
+		"software_status_pending":   fleet.SoftwareInstallPending,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for host vpp installs")
+	}
+	var vppInstalls []*hostSoftware
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vppInstalls, vppInstallsStmt, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return vppInstalls, nil
+}
+
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
 		return nil, nil, fleet.NewInvalidArgumentError(
@@ -2258,458 +2563,97 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		)
 	}
 
-	var onlySelfServiceClause string
-	if opts.SelfServiceOnly {
-		onlySelfServiceClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) ) `
+	var globalOrTeamID uint
+	if host.TeamID != nil {
+		globalOrTeamID = *host.TeamID
 	}
-
-	var excludeVPPAppsClause string
-	if !opts.IsMDMEnrolled {
-		excludeVPPAppsClause = ` AND vat.id IS NULL `
+	namedArgs := map[string]any{
+		"host_id":                   host.ID,
+		"host_platform":             host.FleetPlatform(),
+		"global_or_team_id":         globalOrTeamID,
+		"is_mdm_enrolled":           opts.IsMDMEnrolled,
+		"host_label_updated_at":     host.LabelUpdatedAt,
+		"avail":                     opts.OnlyAvailableForInstall,
+		"self_service":              opts.SelfServiceOnly,
+		"min_cvss":                  opts.MinimumCVSS,
+		"max_cvss":                  opts.MaximumCVSS,
+		"host_compatible_platforms": fleet.HostLinuxOSs,
+		"vpp_apps_platforms":        fleet.VPPAppsPlatforms,
+		"known_exploit":             1,
 	}
+	bySoftwareTitleID := make(map[uint]*hostSoftware)
+	bySoftwareID := make(map[uint]*hostSoftware)
 
-	var vulnerableLastSoftwareInstallJoins,
-		vulnerableLastSoftwareUninstallJoins,
-		vulnerableLastVppInstall,
-		onlyVulnerableJoin,
-		vulnerabilityFiltersClause,
-		cveMetaJoin string
-	var hasCVEFilters bool
-
-	if opts.VulnerableOnly {
-		// we don't currently do any vulnerability scanning on upcoming software/vpp installs/uninstalls
-		// so we don't need to join to software_cve for
-		// upcoming_software_install, upcoming_software_uninstall, upcoming_vpp_install
-		vulnerableLastSoftwareInstallJoins = `
-	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
-    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
-    INNER JOIN software ON software.title_id = software_titles.id
-    INNER JOIN software_cve ON software_cve.software_id = software.id
-		`
-		vulnerableLastSoftwareUninstallJoins = `
-	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
-    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
-    INNER JOIN software ON software.title_id = software_titles.id
-    INNER JOIN software_cve ON software_cve.software_id = software.id
-		`
-		vulnerableLastVppInstall = `
-    INNER JOIN vpp_apps va ON va.adam_id = hvsi.adam_id
-               AND va.platform = hvsi.platform
-    INNER JOIN software_titles ON software_titles.id = va.title_id
-    INNER JOIN software ON software.title_id = software_titles.id
-    INNER JOIN software_cve ON software_cve.software_id = software.id
-		`
-		onlyVulnerableJoin = `
-INNER JOIN software_cve ON software_cve.software_id = s.id
-		`
-		cveMetaJoin = "INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
-
-		if opts.KnownExploit {
-			vulnerabilityFiltersClause += " AND cve_meta.cisa_known_exploit = 1"
-			hasCVEFilters = true
-		}
-		if opts.MinimumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cve_meta.cvss_score >= :min_cvss"
-			hasCVEFilters = true
-		}
-		if opts.MaximumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cve_meta.cvss_score <= :max_cvss"
-			hasCVEFilters = true
-		}
-
-		// Only join CVE table if there are filters
-		if hasCVEFilters {
-			onlyVulnerableJoin += cveMetaJoin
-			vulnerableLastSoftwareInstallJoins += cveMetaJoin
-			vulnerableLastSoftwareUninstallJoins += cveMetaJoin
-			vulnerableLastVppInstall += cveMetaJoin
+	hostInstalledSoftware, err := hostInstalledSoftware(ds, ctx, host.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, s := range hostInstalledSoftware {
+		bySoftwareTitleID[s.ID] = s
+		if s.SoftwareID != nil {
+			bySoftwareID[*s.SoftwareID] = s
 		}
 	}
 
-	softwareIsInstalledOnHostClause := fmt.Sprintf(`
-			EXISTS (
-				SELECT 1
-				FROM
-					host_software hs
-				INNER JOIN
-					software s ON hs.software_id = s.id
-					%s -- onlyVulnerableJoin (includes software_cve and potentially cve_meta)
-				WHERE
-					hs.host_id = :host_id AND
-					s.title_id = st.id
-					%s
-			) OR `, onlyVulnerableJoin, vulnerabilityFiltersClause)
-
-	status := fmt.Sprintf(`COALESCE(%s, %s)`, `
-	CASE
-		WHEN lsia.created_at IS NULL AND lsua.created_at IS NULL THEN NULL
-		WHEN lsia.created_at IS NULL THEN lsua.status
-		WHEN lsua.created_at IS NULL THEN lsia.status
-		WHEN lsia.created_at > lsua.created_at THEN lsia.status
-		ELSE lsua.status
-	END
-	`, "lvia.status")
-
-	if opts.OnlyAvailableForInstall {
-		// Get software that has a package/VPP installer but was not installed with Fleet
-		softwareIsInstalledOnHostClause = fmt.Sprintf(` %s IS NULL AND (si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s`, status,
-			softwareIsInstalledOnHostClause)
+	hostSoftwareInstalls, err := hostSoftwareInstalls(ds, ctx, host.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, s := range hostSoftwareInstalls {
+		if _, ok := bySoftwareTitleID[s.ID]; !ok {
+			bySoftwareTitleID[s.ID] = s
+		} else {
+			bySoftwareTitleID[s.ID].LastInstallInstalledAt = s.LastInstallInstalledAt
+			bySoftwareTitleID[s.ID].LastInstallInstallUUID = s.LastInstallInstallUUID
+		}
 	}
 
-	// this statement lists only the software that is reported as installed on
-	// the host or has been attempted to be installed on the host.
-	// Latest row is found using a groupwise maximum with left join,
-	// more efficient than MAX/GROUP BY: https://stackoverflow.com/a/23285814
-	stmtInstalled := fmt.Sprintf(`
--- select most recent upcoming software install
-WITH upcoming_software_install AS (
-	SELECT
-		ua.execution_id,
-		ua.host_id,
-		ua.created_at,
-		siua.software_installer_id,
-		'pending_install' as status
-	FROM
-		upcoming_activities ua
-		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN software_install_upcoming_activities siua2
-				ON ua2.id = siua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			siua.software_installer_id = siua2.software_installer_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.host_id = :host_id AND
-		ua.activity_type = 'software_install' AND
-		ua2.id IS NULL
-),
-upcoming_software_uninstall AS (
-	SELECT
-		ua.execution_id,
-		ua.host_id,
-		ua.created_at,
-		siua.software_installer_id,
-		'pending_uninstall' as status
-	FROM
-		upcoming_activities ua
-		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN software_install_upcoming_activities siua2
-				ON ua2.id = siua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			siua.software_installer_id = siua2.software_installer_id AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.host_id = :host_id AND
-		ua.activity_type = 'software_uninstall' AND
-		ua2.id IS NULL
-),
-last_software_install AS (
-	SELECT
-		hsi.execution_id,
-		hsi.host_id,
-		hsi.created_at,
-		hsi.software_installer_id,
-		hsi.status
-	FROM
-		host_software_installs hsi
-		%s
-		LEFT JOIN host_software_installs hsi2
-			ON hsi.host_id = hsi2.host_id AND
-				 hsi.software_installer_id = hsi2.software_installer_id AND
-				 hsi.uninstall = hsi2.uninstall AND
-				 hsi2.removed = 0 AND
-				 hsi2.host_deleted_at IS NULL AND
-				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
-	WHERE
-		hsi.host_id = :host_id AND
-		hsi.removed = 0 AND
-		hsi.uninstall = 0 AND
-		hsi.host_deleted_at IS NULL AND
-		hsi2.id IS NULL AND
-		NOT EXISTS (
-			SELECT 1
-			FROM
-				upcoming_activities ua
-				INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-			WHERE
-				ua.host_id = hsi.host_id AND
-				siua.software_installer_id = hsi.software_installer_id AND
-				ua.activity_type = 'software_install'
-		)
-		%s
-),
-last_software_uninstall AS (
-	SELECT
-		hsi.execution_id,
-		hsi.host_id,
-		hsi.created_at,
-		hsi.software_installer_id,
-		hsi.status
-	FROM
-		host_software_installs hsi
-		%s
-		LEFT JOIN host_software_installs hsi2
-			ON hsi.host_id = hsi2.host_id AND
-				 hsi.software_installer_id = hsi2.software_installer_id AND
-				 hsi.uninstall = hsi2.uninstall AND
-				 hsi2.removed = 0 AND
-				 hsi2.host_deleted_at IS NULL AND
-				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
-	WHERE
-		hsi.host_id = :host_id AND
-		hsi.removed = 0 AND
-		hsi.uninstall = 1 AND
-		hsi.host_deleted_at IS NULL AND
-		hsi2.id IS NULL AND
-		NOT EXISTS (
-			SELECT 1
-			FROM
-				upcoming_activities ua
-				INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-			WHERE
-				ua.host_id = hsi.host_id AND
-				siua.software_installer_id = hsi.software_installer_id AND
-				ua.activity_type = 'software_uninstall'
-		)
-		%s
-),
-upcoming_vpp_install AS (
-	SELECT
-		ua.execution_id,
-		ua.host_id,
-		ua.created_at,
-		vaua.adam_id,
-		vaua.platform,
-		'pending_install' as status
-	FROM
-		upcoming_activities ua
-		INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-		LEFT JOIN (
-			upcoming_activities ua2
-			INNER JOIN vpp_app_upcoming_activities vaua2
-				ON ua2.id = vaua2.upcoming_activity_id
-		) ON ua.host_id = ua2.host_id AND
-			vaua.adam_id = vaua2.adam_id AND
-			vaua.platform = vaua2.platform AND
-			ua.activity_type = ua2.activity_type AND
-			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
-	WHERE
-		ua.host_id = :host_id AND
-		ua.activity_type = 'vpp_app_install' AND
-		ua2.id IS NULL
-),
-last_vpp_install AS (
-	SELECT
-		hvsi.command_uuid as execution_id,
-		hvsi.host_id,
-		hvsi.created_at,
-		hvsi.adam_id,
-		hvsi.platform,
-		%s
-	FROM
-		host_vpp_software_installs hvsi
-		%s
-		LEFT JOIN nano_command_results ncr
-			ON ncr.command_uuid = hvsi.command_uuid
-		LEFT JOIN host_vpp_software_installs hvsi2
-			ON hvsi.host_id = hvsi2.host_id AND
-				 hvsi.adam_id = hvsi2.adam_id AND
-				 hvsi.platform = hvsi2.platform AND
-				 hvsi2.removed = 0 AND
-				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
-	WHERE
-		hvsi.host_id = :host_id AND
-		hvsi.removed = 0 AND
-		hvsi2.id IS NULL AND
-		NOT EXISTS (
-			SELECT 1
-			FROM
-				upcoming_activities ua
-				INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			WHERE
-				ua.host_id = hvsi.host_id AND
-				vaua.adam_id = hvsi.adam_id AND
-				vaua.platform = hvsi.platform AND
-				ua.activity_type = 'vpp_app_install'
-		)
-		%s
-)
-		SELECT
+	hostSoftwareUninstalls, err := hostSoftwareUninstalls(ds, ctx, host.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, s := range hostSoftwareUninstalls {
+		if _, ok := bySoftwareTitleID[s.ID]; !ok {
+			bySoftwareTitleID[s.ID] = s
+		} else {
+			// if there is an uninstall, we should update the status, should we check the time? Is it possible for an uninstall to happen before an install?
+			bySoftwareTitleID[s.ID].Status = s.Status
+			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
+			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
+		}
+	}
+
+	hostVPPInstalls, err := hostVPPInstalls(ds, ctx, host.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	byVPPAdamID := make(map[string]*hostSoftware)
+	for _, s := range hostVPPInstalls {
+		if s.VPPAppAdamID != nil {
+			byVPPAdamID[*s.VPPAppAdamID] = s
+		}
+	}
+
+	var stmtAvailable string
+
+	if (opts.OnlyAvailableForInstall && !opts.VulnerableOnly) || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
+		if fleet.IsLinux(host.Platform) {
+			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
+		} else {
+			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
+		}
+		stmtAvailable = `
+			SELECT
 			st.id,
 			st.name,
 			st.source,
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
-			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
-			vap.platform as vpp_app_platform,
-			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
-			COALESCE(lsia.created_at, lvia.created_at) as last_install_installed_at,
-			COALESCE(lsia.execution_id, lvia.execution_id) as last_install_install_uuid,
-			lsua.created_at as last_uninstall_uninstalled_at,
-			lsua.execution_id as last_uninstall_script_execution_id,
-			-- get either the software installer status or the vpp app status
-			%s as status
-		FROM
-			software_titles st
-		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN -- get the latest install
-			( SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install ) AS lsia -- latest_software_install_attempt
-				ON si.id = lsia.software_installer_id
-		LEFT OUTER JOIN -- get the latest uninstall
-			( SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall ) AS lsua -- latest_software_uninstall_attempt
-				ON si.id = lsua.software_installer_id
-		LEFT OUTER JOIN
-			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
-		LEFT OUTER JOIN
-			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
-		LEFT OUTER JOIN -- get the latest vpp install
-			( SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install ) AS lvia -- latest_vpp_install_attempt
-				ON vat.adam_id = lvia.adam_id
-		LEFT OUTER JOIN
-			host_script_results hsr ON hsr.host_id = :host_id AND hsr.execution_id = lsua.execution_id
-		WHERE
-			-- software is installed on host or software un/install has been attempted
-			-- on host (via installer or VPP app). If only available for install is
-			-- requested, then the software installed on host clause is empty.
-			( %s lsia.host_id IS NOT NULL OR lsua.host_id IS NOT NULL OR lvia.host_id IS NOT NULL )
-			AND
-		    -- label membership check
-			(
-			CASE WHEN ((si.ID IS NOT NULL AND lsua.created_at > lsia.created_at AND hsr.exit_code = 0) OR (:avail OR :self_service)) THEN (
-			 	-- do the label membership check for software installers and VPP apps
-					EXISTS (
-
-					SELECT 1 FROM (
-
-						-- no labels
-						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
-						WHERE NOT EXISTS (
-							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
-						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
-
-						UNION
-
-						-- include any
-						SELECT
-							COUNT(*) AS count_installer_labels,
-							COUNT(lm.label_id) AS count_host_labels,
-							0 as count_host_updated_after_labels
-						FROM
-							software_installer_labels sil
-							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
-							AND lm.host_id = :host_id
-						WHERE
-							sil.software_installer_id = si.id
-							AND sil.exclude = 0
-						HAVING
-							count_installer_labels > 0 AND count_host_labels > 0
-
-						UNION
-
-						-- exclude any, ignore software that depends on labels created
-						-- _after_ the label_updated_at timestamp of the host (because
-						-- we don't have results for that label yet, the host may or may
-						-- not be a member).
-						SELECT
-							COUNT(*) AS count_installer_labels,
-							COUNT(lm.label_id) AS count_host_labels,
-							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
-						FROM
-							software_installer_labels sil
-							LEFT OUTER JOIN labels lbl
-								ON lbl.id = sil.label_id
-							LEFT OUTER JOIN label_membership lm
-								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
-						WHERE
-							sil.software_installer_id = si.id
-							AND sil.exclude = 1
-						HAVING
-							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
-
-						UNION
-
-						-- vpp include any
-						SELECT
-							COUNT(*) AS count_installer_labels,
-							COUNT(lm.label_id) AS count_host_labels,
-							0 as count_host_updated_after_labels
-						FROM
-							vpp_app_team_labels vatl
-							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-							AND lm.host_id = :host_id
-						WHERE
-							vatl.vpp_app_team_id = vat.id
-							AND vatl.exclude = 0
-						HAVING
-							count_installer_labels > 0 AND count_host_labels > 0
-
-						UNION
-
-						-- vpp exclude any
-						SELECT
-							COUNT(*) AS count_installer_labels,
-							COUNT(lm.label_id) AS count_host_labels,
-							SUM(CASE
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
-							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
-							ELSE 0 END) as count_host_updated_after_labels
-						FROM
-							vpp_app_team_labels vatl
-							LEFT OUTER JOIN labels lbl
-								ON lbl.id = vatl.label_id
-							LEFT OUTER JOIN label_membership lm
-								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
-						WHERE
-							vatl.vpp_app_team_id = vat.id
-							AND vatl.exclude = 1
-						HAVING
-							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
-
-						) t
-				)) ELSE true END
-			)
-
-			%s
-`,
-		vulnerableLastSoftwareInstallJoins,
-		vulnerabilityFiltersClause,
-		vulnerableLastSoftwareUninstallJoins,
-		vulnerabilityFiltersClause,
-		vppAppHostStatusNamedQuery("hvsi", "ncr", "status"),
-		vulnerableLastVppInstall,
-		vulnerabilityFiltersClause,
-		status,
-		softwareIsInstalledOnHostClause,
-		onlySelfServiceClause,
-	)
-
-	// this statement lists only the software that has never been installed nor
-	// attempted to be installed on the host, but that is available to be
-	// installed on the host's platform.
-	// Cannot scan available software for vulnerabilities
-	stmtAvailable := fmt.Sprintf(`
-		SELECT
-			st.id,
-			st.name,
-			st.source,
-			si.self_service as package_self_service,
-			si.filename as package_name,
-			si.version as package_version,
-			si.platform as package_platform,
-			vat.self_service as vpp_app_self_service,
-			vat.adam_id as vpp_app_adam_id,
-			vap.latest_version as vpp_app_version,
-			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
@@ -2877,301 +2821,511 @@ last_vpp_install AS (
 						) t
 					)
 			)
-			%s %s
-`, onlySelfServiceClause, excludeVPPAppsClause)
-
-	// this is the top-level SELECT of fields from the UNION of the sub-selects
-	// (stmtAvailable and stmtInstalled).
-	const selectColNames = `
-	SELECT
-		id,
-		name,
-		source,
-		package_self_service,
-		package_name,
-		package_version,
-		package_platform,
-		vpp_app_self_service,
-		vpp_app_adam_id,
-		vpp_app_version,
-		vpp_app_platform,
-		vpp_app_icon_url,
-		last_install_installed_at,
-		last_install_install_uuid,
-		last_uninstall_uninstalled_at,
-		last_uninstall_script_execution_id,
-		status
-`
-
-	var globalOrTeamID uint
-	if host.TeamID != nil {
-		globalOrTeamID = *host.TeamID
-	}
-	namedArgs := map[string]any{
-		"host_id":                   host.ID,
-		"host_platform":             host.FleetPlatform(),
-		"software_status_failed":    fleet.SoftwareInstallFailed,
-		"software_status_pending":   fleet.SoftwareInstallPending,
-		"software_status_installed": fleet.SoftwareInstalled,
-		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
-		"mdm_status_error":          fleet.MDMAppleStatusError,
-		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-		"global_or_team_id":         globalOrTeamID,
-		"is_mdm_enrolled":           opts.IsMDMEnrolled,
-		"host_label_updated_at":     host.LabelUpdatedAt,
-		"avail":                     opts.OnlyAvailableForInstall,
-		"self_service":              opts.SelfServiceOnly,
-		"min_cvss":                  opts.MinimumCVSS,
-		"max_cvss":                  opts.MaximumCVSS,
-	}
-
-	stmt := stmtInstalled
-	// We currently don't scan only available software for vulnerabilities
-	if (opts.OnlyAvailableForInstall && !opts.VulnerableOnly) || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
-		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
-		if fleet.IsLinux(host.Platform) {
-			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
-		} else {
-			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
-		}
-		stmt += ` UNION ` + stmtAvailable
-	}
-
-	// must resolve the named bindings here, before adding the searchLike which
-	// uses standard placeholders.
-	stmt, args, err := sqlx.Named(stmt, namedArgs)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
-	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
-	}
-
-	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
-
-	if opts.ListOptions.MatchQuery != "" {
-		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
-		stmt, args = searchLike(stmt, args, opts.ListOptions.MatchQuery, "name")
-	}
-
-	// build the count statement before adding pagination constraints
-	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
-	stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
-
-	// perform a second query to grab the titleCount
-	var titleCount uint
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleCount, countStmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "get host software count")
-	}
-
-	type hostSoftware struct {
-		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt         *time.Time `db:"last_install_installed_at"`
-		LastInstallInstallUUID         *string    `db:"last_install_install_uuid"`
-		LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
-		LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
-		PackageSelfService             *bool      `db:"package_self_service"`
-		PackageName                    *string    `db:"package_name"`
-		PackageVersion                 *string    `db:"package_version"`
-		PackagePlatform                *string    `db:"package_platform"`
-		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
-		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
-		VPPAppVersion                  *string    `db:"vpp_app_version"`
-		VPPAppPlatform                 *string    `db:"vpp_app_platform"`
-		VPPAppIconURL                  *string    `db:"vpp_app_icon_url"`
-	}
-	var hostSoftwareList []*hostSoftware
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
-	}
-
-	// collect the title ids to get the versions, vulnerabilities and installed
-	// paths for each software in the list.
-	titleIDs := make([]uint, 0, len(hostSoftwareList))
-	byTitleID := make(map[uint]*hostSoftware, len(hostSoftwareList))
-	for _, hs := range hostSoftwareList {
-
-		// promote the package name and version to the proper destination fields
-		if hs.PackageName != nil {
-			var version string
-			if hs.PackageVersion != nil {
-				version = *hs.PackageVersion
-			}
-			var platform string
-			if hs.PackagePlatform != nil {
-				platform = *hs.PackagePlatform
-			}
-			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:        *hs.PackageName,
-				Version:     version,
-				Platform:    platform,
-				SelfService: hs.PackageSelfService,
-			}
-
-			// promote the last install info to the proper destination fields
-			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
-				hs.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
-					InstallUUID: *hs.LastInstallInstallUUID,
-				}
-				if hs.LastInstallInstalledAt != nil {
-					hs.SoftwarePackage.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
-				}
-			}
-
-			// promote the last uninstall info to the proper destination fields
-			if hs.LastUninstallScriptExecutionID != nil && *hs.LastUninstallScriptExecutionID != "" {
-				hs.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
-					ExecutionID: *hs.LastUninstallScriptExecutionID,
-				}
-				if hs.LastUninstallUninstalledAt != nil {
-					hs.SoftwarePackage.LastUninstall.UninstalledAt = *hs.LastUninstallUninstalledAt
-				}
-			}
+		`
+		if opts.SelfServiceOnly {
+			stmtAvailable = stmtAvailable + "\nAND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) )"
 		}
 
-		// promote the VPP app id and version to the proper destination fields
-		if hs.VPPAppAdamID != nil {
-			var version string
-			if hs.VPPAppVersion != nil {
-				version = *hs.VPPAppVersion
-			}
-			var platform string
-			if hs.VPPAppPlatform != nil {
-				platform = *hs.VPPAppPlatform
-			}
-			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
-				AppStoreID:  *hs.VPPAppAdamID,
-				Version:     version,
-				Platform:    platform,
-				SelfService: hs.VPPAppSelfService,
-				IconURL:     hs.VPPAppIconURL,
-			}
-
-			// promote the last install info to the proper destination fields
-			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
-				hs.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
-					CommandUUID: *hs.LastInstallInstallUUID,
-				}
-				if hs.LastInstallInstalledAt != nil {
-					hs.AppStoreApp.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
-				}
-			}
+		if !opts.IsMDMEnrolled {
+			stmtAvailable = stmtAvailable + "\nAND vat.id IS NULL"
 		}
 
-		titleIDs = append(titleIDs, hs.ID)
-		byTitleID[hs.ID] = hs
-	}
-
-	if len(titleIDs) > 0 {
-		// get the software versions installed on that host
-		const versionStmt = `
-		SELECT
-			st.id as software_title_id,
-			s.id as software_id,
-			s.version,
-			s.bundle_identifier,
-			s.source,
-			hs.last_opened_at
-		FROM
-			software s
-		INNER JOIN
-			software_titles st ON s.title_id = st.id
-		INNER JOIN
-			host_software hs ON s.id = hs.software_id AND hs.host_id = ?
-		WHERE
-			st.id IN (?)
-`
-		var installedVersions []*fleet.HostSoftwareInstalledVersion
-		stmt, args, err := sqlx.In(versionStmt, host.ID, titleIDs)
+		stmtAvailable, args, err := sqlx.Named(stmtAvailable, namedArgs)
 		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list versions")
+			return nil, nil, err
 		}
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installedVersions, stmt, args...); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "list software versions")
-		}
-
-		// store the installed versions with the proper software entry and collect
-		// the software ids.
-		softwareIDs := make([]uint, 0, len(installedVersions))
-		bySoftwareID := make(map[uint]*fleet.HostSoftwareInstalledVersion, len(hostSoftwareList))
-		for _, ver := range installedVersions {
-			hs := byTitleID[ver.SoftwareTitleID]
-			hs.InstalledVersions = append(hs.InstalledVersions, ver)
-			softwareIDs = append(softwareIDs, ver.SoftwareID)
-			bySoftwareID[ver.SoftwareID] = ver
+		stmtAvailable, args, err = sqlx.In(stmtAvailable, args...)
+		if err != nil {
+			return nil, nil, err
 		}
 
-		if len(softwareIDs) > 0 {
-			const cveStmt = `
-			SELECT
-				sc.software_id,
-				sc.cve
-			FROM
-				software_cve sc
-			WHERE
-				sc.software_id IN (?)
-			ORDER BY
-				software_id, cve
-	`
-			type softwareCVE struct {
-				SoftwareID uint   `db:"software_id"`
-				CVE        string `db:"cve"`
+		stmtAvailable = ds.reader(ctx).Rebind(stmtAvailable)
+		var availableSoftwareTitles []*hostSoftware
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &availableSoftwareTitles, stmtAvailable, args...)
+		if err != nil {
+			return nil, nil, err
+		}
+		tempBySoftwareTitleID := make(map[uint]*hostSoftware, len(availableSoftwareTitles))
+		if opts.OnlyAvailableForInstall {
+			// drop in uninstalls as available
+			for _, s := range hostSoftwareUninstalls {
+				tempBySoftwareTitleID[s.ID] = s
 			}
-			var softwareCVEs []softwareCVE
-			stmt, args, err = sqlx.In(cveStmt, softwareIDs)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list cves")
-			}
-			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareCVEs, stmt, args...); err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "list software cves")
-			}
-
-			// store the CVEs with the proper software entry
-			for _, cve := range softwareCVEs {
-				ver := bySoftwareID[cve.SoftwareID]
-				ver.Vulnerabilities = append(ver.Vulnerabilities, cve.CVE)
-			}
-
-			const pathsStmt = `
-			SELECT
-				hsip.software_id,
-				hsip.installed_path,
-				hsip.team_identifier
-			FROM
-				host_software_installed_paths hsip
-			WHERE
-				hsip.host_id = ? AND
-				hsip.software_id IN (?)
-			ORDER BY
-				software_id, installed_path
-	`
-			type installedPath struct {
-				SoftwareID     uint   `db:"software_id"`
-				InstalledPath  string `db:"installed_path"`
-				TeamIdentifier string `db:"team_identifier"`
-			}
-			var installedPaths []installedPath
-			stmt, args, err = sqlx.In(pathsStmt, host.ID, softwareIDs)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list installed paths")
-			}
-			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &installedPaths, stmt, args...); err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "list software installed paths")
-			}
-
-			// store the installed paths with the proper software entry
-			for _, path := range installedPaths {
-				ver := bySoftwareID[path.SoftwareID]
-				ver.InstalledPaths = append(ver.InstalledPaths, path.InstalledPath)
-				if ver.Source == "apps" {
-					ver.SignatureInformation = append(ver.SignatureInformation, fleet.PathSignatureInformation{
-						InstalledPath:  path.InstalledPath,
-						TeamIdentifier: path.TeamIdentifier,
-					})
+			// anything pending or failed is also "available"
+			for _, s := range hostSoftwareInstalls {
+				if *s.Status == "pending_install" || *s.Status == "failed_install" || *s.Status == "pending_uninstall" {
+					tempBySoftwareTitleID[s.ID] = s
 				}
 			}
 		}
+		for _, s := range availableSoftwareTitles {
+			// Ensure not to overwrite the records from software installs and software uninstalls
+			if _, ok := bySoftwareTitleID[s.ID]; !ok {
+				if opts.OnlyAvailableForInstall {
+					tempBySoftwareTitleID[s.ID] = s
+				} else {
+					bySoftwareTitleID[s.ID] = s
+				}
+			}
+		}
+		// Clear out all the previous software titles as we are only filtering for available software
+		if opts.OnlyAvailableForInstall {
+			bySoftwareTitleID = tempBySoftwareTitleID
+		}
+	}
+
+	var softwareTitleIds []uint
+	for softwareTitleID := range bySoftwareTitleID {
+		softwareTitleIds = append(softwareTitleIds, softwareTitleID)
+	}
+
+	var softwareIDs []uint
+	for softwareID := range bySoftwareID {
+		softwareIDs = append(softwareIDs, softwareID)
+	}
+
+	var vppAdamIDs []string
+	for key := range byVPPAdamID {
+		vppAdamIDs = append(vppAdamIDs, key)
+	}
+
+	var titleCount uint
+	var hostSoftwareList []*hostSoftware
+	if len(softwareTitleIds) > 0 || len(vppAdamIDs) > 0 {
+		var args []interface{}
+		var stmt string
+		var softwareTitleStatment string
+		var vppAdamStatment string
+
+		matchClause := ""
+		matchArgs := []interface{}{}
+		if opts.ListOptions.MatchQuery != "" {
+			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name", "software_cve.cve")
+		}
+
+		var softwareOnlySelfServiceClause string
+		var vppOnlySelfServiceClause string
+		if opts.SelfServiceOnly {
+			softwareOnlySelfServiceClause = ` AND software_installers.self_service = 1 `
+			if opts.IsMDMEnrolled {
+				vppOnlySelfServiceClause = ` OR ( vpp_apps_teams.self_service = 1 AND true ) `
+			} else {
+				vppOnlySelfServiceClause = ` OR ( vpp_apps_teams.self_service = 1 AND false ) `
+			}
+		}
+
+		var cveMetaFilter string
+		var hasCVEFilters bool
+		var cveNamedArgs []interface{}
+		if opts.KnownExploit {
+			cveMetaFilter += " AND cve_meta.cisa_known_exploit = :known_exploit"
+			hasCVEFilters = true
+		}
+		if opts.MinimumCVSS > 0 {
+			cveMetaFilter += " AND cve_meta.cvss_score >= :min_cvss"
+			hasCVEFilters = true
+		}
+		if opts.MaximumCVSS > 0 {
+			cveMetaFilter += " AND cve_meta.cvss_score <= :max_cvss"
+			hasCVEFilters = true
+		}
+		if hasCVEFilters {
+			cveMetaFilter, cveNamedArgs, err = sqlx.Named(cveMetaFilter, namedArgs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for cve filters")
+			}
+		}
+
+		if len(softwareTitleIds) > 0 {
+			var vulnerableJoin string
+
+			if opts.VulnerableOnly {
+				vulnerableJoin = `INNER JOIN software_cve ON software_cve.software_id = software.id `
+				cveMetaJoin := `INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve `
+
+				// Only join CVE table if there are filters
+				if hasCVEFilters {
+					vulnerableJoin += cveMetaJoin
+				}
+			} else {
+				vulnerableJoin = `LEFT JOIN software_cve ON software_cve.software_id = software.id`
+			}
+
+			installedSoftwareJoinsCondition := ""
+			if len(softwareIDs) > 0 {
+				installedSoftwareJoinsCondition = `AND software.id IN (?)`
+			}
+
+			softwareTitleStatment = `
+			-- SELECT for software
+			%s
+			FROM
+				software_titles
+			LEFT JOIN
+				software_installers ON software_titles.id = software_installers.title_id 
+				AND software_installers.global_or_team_id = :global_or_team_id
+			LEFT JOIN
+				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
+			` + vulnerableJoin + `
+			WHERE
+				software_titles.id IN (?)
+				AND true
+			%s
+			` + softwareOnlySelfServiceClause + `
+			-- GROUP by for software
+			%s
+			`
+
+			var softwareTitleArgs []interface{}
+			if len(softwareIDs) > 0 {
+				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareIDs, softwareTitleIds)
+			} else {
+				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareTitleIds)
+			}
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for software titles")
+			}
+			softwareTitleStatment, softwareTitleArgsNamedArgs, err := sqlx.Named(softwareTitleStatment, namedArgs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for software titles")
+			}
+			softwareTitleStatment = strings.Replace(softwareTitleStatment, "AND true", matchClause, -1)
+			args = append(args, softwareTitleArgsNamedArgs...)
+			args = append(args, softwareTitleArgs...)
+			if len(matchArgs) > 0 {
+				args = append(args, matchArgs...)
+			}
+			if len(cveNamedArgs) > 0 {
+				args = append(args, cveNamedArgs...)
+			}
+			stmt = stmt + softwareTitleStatment
+		}
+		if len(vppAdamIDs) > 0 {
+			var vulnerableJoin string
+
+			if opts.VulnerableOnly {
+				vulnerableJoin = `
+					INNER JOIN
+						software ON software.title_id = software_titles.id
+					INNER JOIN
+						software_cve ON software_cve.software_id = software.id
+				`
+				cveMetaJoin := `INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve `
+
+				// Only join CVE table if there are filters
+				if hasCVEFilters {
+					vulnerableJoin += cveMetaJoin
+				}
+			} else {
+				vulnerableJoin = `
+					LEFT JOIN
+						software ON software.title_id = software_titles.id
+					LEFT JOIN
+						software_cve ON software_cve.software_id = software.id
+				`
+			}
+
+			vppAdamStatment = `
+			UNION
+			-- SELECT for vpp apps
+			%s
+			FROM
+				software_titles
+			LEFT JOIN
+				software_installers ON software_titles.id = software_installers.title_id
+				AND software_installers.global_or_team_id = :global_or_team_id
+			INNER JOIN
+				vpp_apps ON software_titles.id = vpp_apps.title_id AND vpp_apps.platform = :host_platform
+			INNER JOIN
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+			` + vulnerableJoin + `
+			WHERE
+				vpp_apps_teams.adam_id IN (?) 
+				AND true
+			%s
+			` + vppOnlySelfServiceClause + `
+			-- GROUP BY for vpp apps
+			%s
+			`
+
+			vppAdamStatment, vppAdamArgs, err := sqlx.In(vppAdamStatment, vppAdamIDs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for vpp titles")
+			}
+			vppAdamStatment, vppAdamArgsNamedArgs, err := sqlx.Named(vppAdamStatment, namedArgs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for vpp titles")
+			}
+			vppAdamStatment = strings.Replace(vppAdamStatment, "AND true", matchClause, -1)
+			args = append(args, vppAdamArgsNamedArgs...)
+			args = append(args, vppAdamArgs...)
+			if len(matchArgs) > 0 {
+				args = append(args, matchArgs...)
+			}
+			if len(cveNamedArgs) > 0 {
+				args = append(args, cveNamedArgs...)
+			}
+			stmt = stmt + vppAdamStatment
+		}
+
+		var countStmt string
+		if len(softwareTitleIds) > 0 && len(vppAdamIDs) > 0 {
+			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, cveMetaFilter, `GROUP BY software_titles.id`, `SELECT software_titles.id`, cveMetaFilter, `GROUP BY software_titles.id`)
+		} else {
+			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, cveMetaFilter, `GROUP BY software_titles.id`)
+		}
+		countStmt = ds.reader(ctx).Rebind(countStmt)
+		if err := sqlx.GetContext(
+			ctx,
+			ds.reader(ctx),
+			&titleCount,
+			fmt.Sprintf("SELECT COUNT(id) FROM (%s) AS combined_results", countStmt),
+			args...,
+		); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get host software count")
+		}
+
+		var replacements []any
+		if len(softwareTitleIds) > 0 {
+			replacements = append(replacements,
+				// For software installers
+				`
+				SELECT
+					software_titles.id,
+					software_titles.name,
+					software_titles.source AS source,
+					software_installers.self_service AS package_self_service,
+					software_installers.filename AS package_name,
+					software_installers.version AS package_version,
+					software.id AS software_id,
+					software.source AS software_source,
+					software.version AS version,
+					software.bundle_identifier AS bundle_identifier,
+					NULL AS vpp_app_self_service,
+					NULL AS vpp_app_adam_id,
+					NULL AS vpp_app_version,
+					NULL AS vpp_app_icon_url,
+					NULL AS last_install_installed_at,
+					NULL AS last_install_install_uuid,
+					NULL AS last_uninstall_uninstalled_at,
+					NULL AS last_uninstall_script_execution_id,
+					GROUP_CONCAT(software_cve.cve) AS vulnerabilities_list
+			`, cveMetaFilter, `
+				GROUP BY
+					software_titles.id,
+					software_titles.name,
+					software_titles.source,
+					software_installers.self_service,
+					software_installers.filename,
+					software_installers.version,
+					software.id,
+					software.source,
+					software.version,
+					software.bundle_identifier
+			`)
+		}
+		if len(vppAdamIDs) > 0 {
+			replacements = append(replacements,
+				// For vpp apps
+				`
+				SELECT
+					software_titles.id,
+					software_titles.name,
+					software_titles.source AS source,
+					software_installers.self_service AS package_self_service,
+					software_installers.filename AS package_name,
+					software_installers.version AS package_version,
+					NULL AS software_id,
+					NULL AS software_source,
+					NULL AS version,
+					NULL AS bundle_identifier,
+					vpp_apps_teams.self_service AS vpp_app_self_service,
+					vpp_apps_teams.adam_id AS vpp_app_adam_id,
+					vpp_apps.latest_version AS vpp_app_version,
+					NULLIF(vpp_apps.icon_url, '') AS vpp_app_icon_url,
+					NULL AS last_install_installed_at,
+					NULL As last_install_install_uuid,
+					NULL AS last_uninstall_uninstalled_at,
+					NULL AS last_uninstall_script_execution_id,
+					GROUP_CONCAT(software_cve.cve) AS vulnerabilities_list
+			`, cveMetaFilter, `
+				GROUP BY
+					software_titles.id,
+					software_titles.name,
+					software_titles.source,
+					software_installers.self_service,
+					software_installers.filename,
+					software_installers.version,
+					vpp_apps_teams.self_service,
+					vpp_apps_teams.adam_id,
+					vpp_apps.latest_version,
+					vpp_apps.icon_url
+			`)
+		}
+		stmt = fmt.Sprintf(stmt, replacements...)
+		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
+		// stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
+		orderKey := sanitizeColumn(opts.ListOptions.OrderKey)
+		if orderKey != "" {
+			direction := "ASC"
+			if opts.ListOptions.OrderDirection == fleet.OrderDescending {
+				direction = "DESC"
+			}
+
+			stmt = fmt.Sprintf("%s ORDER BY %s %s", stmt, orderKey, direction)
+			if opts.ListOptions.TestSecondaryOrderKey != "" {
+				direction := "ASC"
+				if opts.ListOptions.TestSecondaryOrderDirection == fleet.OrderDescending {
+					direction = "DESC"
+				}
+				stmt += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.ListOptions.TestSecondaryOrderKey), direction)
+			}
+		}
+
+		stmt = ds.reader(ctx).Rebind(stmt)
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
+
+		// collect install paths by software.id
+		installedPaths, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "Could not get software installed paths")
+		}
+		installedPathBySoftwareId := make(map[uint][]string)
+		for _, ip := range installedPaths {
+			installedPathBySoftwareId[ip.SoftwareID] = append(installedPathBySoftwareId[ip.SoftwareID], ip.InstalledPath)
+		}
+
+		// Group by software titles because multiple versions are returned and appends them to InstalledVersions
+		indexOfSoftwareTitle := make(map[uint]uint)
+		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
+		for _, softwareTitleRecord := range hostSoftwareList {
+			softwareTitle, softwareTitleFound := bySoftwareTitleID[softwareTitleRecord.ID]
+
+			if !softwareTitleFound {
+				VPPTitle, VPPFound := byVPPAdamID[*softwareTitleRecord.VPPAppAdamID]
+
+				if !VPPFound {
+					// This should never happen
+					return nil, nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("Software title or vpp app not found for `%s`", softwareTitleRecord.Name))
+				}
+				softwareTitle = VPPTitle
+			}
+
+			version := &fleet.HostSoftwareInstalledVersion{}
+			if softwareTitleRecord.SoftwareID != nil {
+				// Find software from bySoftwareID, indicating the version is installed on host
+				if software, ok := bySoftwareID[*softwareTitleRecord.SoftwareID]; ok {
+					// Find installed path
+					paths, _ := installedPathBySoftwareId[*softwareTitleRecord.SoftwareID]
+					version.Version = *softwareTitleRecord.Version
+					version.Source = *softwareTitleRecord.SoftwareSource
+					version.BundleIdentifier = *softwareTitleRecord.BundleIdentifier
+					version.LastOpenedAt = software.LastOpenedAt
+					version.InstalledPaths = paths
+
+					if softwareTitleRecord.VulnerabilitiesList != nil {
+						rawVulnerabilities := strings.Split(*softwareTitleRecord.VulnerabilitiesList, ",")
+						for i := range rawVulnerabilities {
+							rawVulnerabilities[i] = strings.TrimSpace(rawVulnerabilities[i])
+						}
+						version.Vulnerabilities = rawVulnerabilities
+					}
+				}
+			}
+
+			// If we have seen the software title already, then we just need to add an installed version to the InstalledVersions list
+			if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+				// Combine the software version, source, and bundle identifier of the current `s` with the existing record
+				deduplicatedList[storedIndex].InstalledVersions = append(
+					deduplicatedList[storedIndex].InstalledVersions,
+					version,
+				)
+			} else {
+				if version.Version != "" {
+					softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
+				}
+				// Merge the data of `software title` into `softwareTitleRecord`
+				// We should try to move as much of these attributes into the `stmt` query
+				softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
+				softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
+				softwareTitleRecord.InstallerID = softwareTitle.InstallerID
+				softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
+				softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
+				if softwareTitle.PackageSelfService != nil {
+					softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
+				}
+				if softwareTitle.VPPAppSelfService != nil {
+					softwareTitleRecord.VPPAppSelfService = softwareTitle.VPPAppSelfService
+				}
+				softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
+				softwareTitleRecord.VPPAppVersion = softwareTitle.VPPAppVersion
+
+				// promote the package name and version to the proper destination fields
+				if softwareTitleRecord.PackageName != nil {
+					var version string
+					if softwareTitleRecord.PackageVersion != nil {
+						version = *softwareTitleRecord.PackageVersion
+					}
+					softwareTitleRecord.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+						Name:        *softwareTitleRecord.PackageName,
+						Version:     version,
+						SelfService: softwareTitleRecord.PackageSelfService,
+					}
+
+					// promote the last install info to the proper destination fields
+					if softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+						softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+							InstallUUID: *softwareTitle.LastInstallInstallUUID,
+						}
+						if softwareTitle.LastInstallInstalledAt != nil {
+							softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+						}
+					}
+
+					// promote the last uninstall info to the proper destination fields
+					if softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
+						softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+							ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
+						}
+						if softwareTitle.LastUninstallUninstalledAt != nil {
+							softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
+						}
+					}
+				}
+
+				// promote the VPP app id and version to the proper destination fields
+				if softwareTitleRecord.VPPAppAdamID != nil {
+					var version string
+					if softwareTitleRecord.VPPAppVersion != nil {
+						version = *softwareTitleRecord.VPPAppVersion
+					}
+					softwareTitleRecord.AppStoreApp = &fleet.SoftwarePackageOrApp{
+						AppStoreID:  *softwareTitleRecord.VPPAppAdamID,
+						Version:     version,
+						SelfService: softwareTitleRecord.VPPAppSelfService,
+						IconURL:     softwareTitleRecord.VPPAppIconURL,
+					}
+
+					// promote the last install info to the proper destination fields
+					if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
+						softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+							CommandUUID: *softwareTitleRecord.LastInstallInstallUUID,
+						}
+						if softwareTitleRecord.LastInstallInstalledAt != nil {
+							softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
+						}
+					}
+				}
+
+				// Add the current `softwareTitleRecord`s to the de-duplicated list
+				indexOfSoftwareTitle[softwareTitleRecord.ID] = uint(len(deduplicatedList))
+				deduplicatedList = append(deduplicatedList, softwareTitleRecord)
+			}
+		}
+		// Replace the original list with the de-duplicated list
+		hostSoftwareList = deduplicatedList
 	}
 
 	perPage := opts.ListOptions.PerPage
@@ -3184,9 +3338,19 @@ last_vpp_install AS (
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
-		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
+		startIndex := int((opts.ListOptions.Page) * perPage)
+		endIndex := startIndex + int(perPage)
+
+		if endIndex > len(hostSoftwareList) {
+			endIndex = len(hostSoftwareList)
+		}
+
+		metaData.HasNextResults = endIndex < len(hostSoftwareList)
+
+		if startIndex < len(hostSoftwareList) {
+			hostSoftwareList = hostSoftwareList[startIndex:endIndex]
+		} else {
+			hostSoftwareList = nil // No results for the current page
 		}
 	}
 
