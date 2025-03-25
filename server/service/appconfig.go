@@ -168,10 +168,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
 	}
 
-	if appConfig.UIGitOpsMode == nil {
-		appConfig.UIGitOpsMode = &fleet.UIGitOpsModeConfig{}
-	}
-
 	features := appConfig.Features
 	response := appConfigResponse{
 		AppConfig: fleet.AppConfig{
