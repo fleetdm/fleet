@@ -48,10 +48,6 @@ If you set a past date (ex. yesterday) as the deadline, the end user will immedi
 
 For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv).
 
-### iOS and iPadOS
-
-
-
 ### Windows
 
 End users are encouraged to update Windows via the native Windows dialog.
