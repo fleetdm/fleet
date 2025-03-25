@@ -572,7 +572,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
 	}
-	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
+	if appConfig.UIGitOpsMode.GitopsModeEnabled || newAppConfig.UIGitOpsMode.GitopsModeEnabled {
+		appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
+	}
 
 	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
 		// generate the activity
