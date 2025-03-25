@@ -2645,76 +2645,189 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		stmtAvailable = `
 			SELECT
-				NULLIF(host_software.software_id, 0) AS software_id,
-				software_titles.id,
-				software_titles.name,
-				software_titles.source,
-				software_installers.id AS installer_id,
-				software_installers.self_service AS package_self_service,
-				software_installers.filename AS package_name,
-				software_installers.version AS package_version,
-				vpp_apps_teams.self_service AS vpp_app_self_service,
-				vpp_apps_teams.adam_id AS vpp_app_adam_id,
-				vpp_apps.latest_version AS vpp_app_version,
-				NULLIF(vpp_apps.icon_url, '') AS vpp_app_icon_url,
-				NULL AS last_install_installed_at,
-				NULL AS last_install_install_uuid,
-				NULL AS last_uninstall_uninstalled_at,
-				NULL AS last_uninstall_script_execution_id,
-				NULL AS status
-			FROM
-				software_titles
-			LEFT JOIN
-				software_installers ON software_titles.id = software_installers.title_id
-				AND software_installers.platform IN (:host_compatible_platforms)
-				AND software_installers.global_or_team_id = :global_or_team_id
-			LEFT JOIN
-				vpp_apps ON software_titles.id = vpp_apps.title_id
-				AND vpp_apps.platform = :host_platform
-			LEFT JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id
-				AND vpp_apps.platform = vpp_apps_teams.platform
-				AND vpp_apps_teams.global_or_team_id = :global_or_team_id
-			LEFT JOIN
-				host_software ON host_software.host_id = :host_id
-				AND host_software.software_id = software_titles.id
-			LEFT JOIN
-				host_software_installs ON host_software_installs.host_id = :host_id
-				AND host_software_installs.software_installer_id = software_installers.id
-				AND host_software_installs.removed = 0
-			LEFT JOIN
-				upcoming_activities AS ua_si ON ua_si.host_id = :host_id
-				AND ua_si.activity_type = 'software_install'
-			LEFT JOIN
-				software_install_upcoming_activities AS siua ON siua.upcoming_activity_id = ua_si.id
-				AND siua.software_installer_id = software_installers.id
-			LEFT JOIN
-				upcoming_activities AS ua_su ON ua_su.host_id = :host_id
-				AND ua_su.activity_type = 'software_uninstall'
-			LEFT JOIN
-				software_install_upcoming_activities AS suua ON suua.upcoming_activity_id = ua_su.id
-				AND suua.software_installer_id = software_installers.id
-			LEFT JOIN
-				host_vpp_software_installs ON host_vpp_software_installs.host_id = :host_id
-				AND host_vpp_software_installs.adam_id = vpp_apps_teams.adam_id
-				AND host_vpp_software_installs.removed = 0
-			LEFT JOIN
-				upcoming_activities AS ua_vpp ON ua_vpp.host_id = :host_id
-				AND ua_vpp.activity_type = 'vpp_app_install'
-			LEFT JOIN
-				vpp_app_upcoming_activities AS vaua ON vaua.upcoming_activity_id = ua_vpp.id
-				AND vaua.adam_id = vpp_apps_teams.adam_id
-			WHERE
-				host_software.software_id IS NULL
-				AND host_software_installs.software_installer_id IS NULL
-				AND siua.software_installer_id IS NULL
-				AND suua.software_installer_id IS NULL
-				AND host_vpp_software_installs.adam_id IS NULL
-				AND vaua.adam_id IS NULL
-				AND (software_installers.id IS NOT NULL OR vpp_apps_teams.platform = :host_platform)
+			st.id,
+			st.name,
+			st.source,
+			si.self_service as package_self_service,
+			si.filename as package_name,
+			si.version as package_version,
+			vat.self_service as vpp_app_self_service,
+			vat.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
+			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
+			NULL as last_install_installed_at,
+			NULL as last_install_install_uuid,
+			NULL as last_uninstall_uninstalled_at,
+			NULL as last_uninstall_script_execution_id,
+			NULL as status
+		FROM
+			software_titles st
+		LEFT OUTER JOIN
+			-- filter out software that is not available for install on the host's platform
+			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			-- include VPP apps only if the host is on a supported platform
+			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
+		LEFT OUTER JOIN
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		WHERE
+			-- software is not installed on host (but is available in host's team)
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_software hs
+				INNER JOIN
+					software s ON hs.software_id = s.id
+				WHERE
+					hs.host_id = :host_id AND
+					s.title_id = st.id
+			) AND
+			-- sofware install has not been attempted on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_software_installs hsi
+				WHERE
+					hsi.host_id = :host_id AND
+					hsi.software_installer_id = si.id AND
+					hsi.removed = 0
+			) AND
+			-- sofware install/uninstall is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN
+						software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type IN ('software_install', 'software_uninstall') AND
+					siua.software_installer_id = si.id
+			) AND
+			-- VPP install has not been attempted on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_vpp_software_installs hvsi
+				WHERE
+					hvsi.host_id = :host_id AND
+					hvsi.adam_id = vat.adam_id AND
+					hvsi.removed = 0
+			) AND
+			-- VPP install is not upcoming on host
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					upcoming_activities ua
+					INNER JOIN
+						vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+				WHERE
+					ua.host_id = :host_id AND
+					ua.activity_type = 'vpp_app_install' AND
+					vaua.adam_id = vat.adam_id
+			) AND
+			-- either the software installer or the vpp app exists for the host's team
+			( si.id IS NOT NULL OR vat.platform = :host_platform ) AND
+			-- label membership check
+			(
+			 	-- do the label membership check for software installers and VPP apps
+					EXISTS (
+
+					SELECT 1 FROM (
+
+						-- no labels
+						SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+						WHERE NOT EXISTS (
+							SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id
+						) AND NOT EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id)
+
+						UNION
+
+						-- include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- exclude any, ignore software that depends on labels created
+						-- _after_ the label_updated_at timestamp of the host (because
+						-- we don't have results for that label yet, the host may or may
+						-- not be a member).
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE WHEN lbl.created_at IS NOT NULL AND :host_label_updated_at >= lbl.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							software_installer_labels sil
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = sil.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = sil.label_id AND lm.host_id = :host_id
+						WHERE
+							sil.software_installer_id = si.id
+							AND sil.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+						UNION
+
+						-- vpp include any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							0 as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+							AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 0
+						HAVING
+							count_installer_labels > 0 AND count_host_labels > 0
+
+						UNION
+
+						-- vpp exclude any
+						SELECT
+							COUNT(*) AS count_installer_labels,
+							COUNT(lm.label_id) AS count_host_labels,
+							SUM(CASE
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND :host_label_updated_at >= lbl.created_at THEN 1
+							WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
+							ELSE 0 END) as count_host_updated_after_labels
+						FROM
+							vpp_app_team_labels vatl
+							LEFT OUTER JOIN labels lbl
+								ON lbl.id = vatl.label_id
+							LEFT OUTER JOIN label_membership lm
+								ON lm.label_id = vatl.label_id AND lm.host_id = :host_id
+						WHERE
+							vatl.vpp_app_team_id = vat.id
+							AND vatl.exclude = 1
+						HAVING
+							count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+						) t
+					)
+			)
 		`
+		if opts.SelfServiceOnly {
+			stmtAvailable = stmtAvailable + "\nAND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) )"
+		}
+
 		if !opts.IsMDMEnrolled {
-			stmtAvailable = stmtAvailable + "\nAND vpp_apps_teams.id IS NULL"
+			stmtAvailable = stmtAvailable + "\nAND vat.id IS NULL"
 		}
 
 		stmtAvailable, args, err := sqlx.Named(stmtAvailable, namedArgs)
@@ -2819,7 +2932,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if hasCVEFilters {
 			cveMetaFilter, cveNamedArgs, err = sqlx.Named(cveMetaFilter, namedArgs)
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for cve filters")
 			}
 		}
 
@@ -2870,11 +2983,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareTitleIds)
 			}
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
+				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for software titles")
 			}
 			softwareTitleStatment, softwareTitleArgsNamedArgs, err := sqlx.Named(softwareTitleStatment, namedArgs)
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for software titles")
 			}
 			softwareTitleStatment = strings.Replace(softwareTitleStatment, "AND true", matchClause, -1)
 			args = append(args, softwareTitleArgsNamedArgs...)
@@ -2937,11 +3050,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			vppAdamStatment, vppAdamArgs, err := sqlx.In(vppAdamStatment, vppAdamIDs)
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
+				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for vpp titles")
 			}
 			vppAdamStatment, vppAdamArgsNamedArgs, err := sqlx.Named(vppAdamStatment, namedArgs)
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for vpp titles")
 			}
 			vppAdamStatment = strings.Replace(vppAdamStatment, "AND true", matchClause, -1)
 			args = append(args, vppAdamArgsNamedArgs...)
