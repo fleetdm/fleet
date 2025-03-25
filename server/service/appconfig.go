@@ -419,7 +419,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		invalid.Append("server_url", "Fleet server URL must be present")
 	} else {
 		if err := ValidateServerURL(appConfig.ServerSettings.ServerURL); err != nil {
-			invalid.Append("server_url", err.Error())
+			invalid.Append("server_url", "Couldn't update settings: "+err.Error())
 		}
 	}
 

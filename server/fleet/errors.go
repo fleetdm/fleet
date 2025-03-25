@@ -629,7 +629,7 @@ const (
 	InvalidLabelSpecifiedErrMsg = "Invalid label name(s):"
 
 	// Config
-	InvalidServerURLMsg = "Server URL must use https or http scheme with valid host, or localhost."
+	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

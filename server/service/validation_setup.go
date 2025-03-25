@@ -32,26 +32,14 @@ func ValidateServerURL(urlString string) error {
 
 	// no valid scheme provided
 	if !(strings.HasPrefix(urlString, "http://") || strings.HasPrefix(urlString, "https://")) {
-		// left-append valid scheme to leverage `url.Parse`
-		parsed, err := url.Parse("https://" + urlString)
-		if err != nil {
-			return err
-		}
-		// "localhost" only acceptable host if no valid scheme (protocol) provided.
-		// Hostname() will pull out the substring directly after the left-appended scheme, excluding
-		// port. This has the added benefit of catching an invalid scheme provided (e.g. ftp) and will correctly invalidate
-		if parsed.Hostname() != "localhost" {
-			return errors.New(fleet.InvalidServerURLMsg)
-		}
-		return nil
+		return errors.New(fleet.InvalidServerURLMsg)
 	}
 
-	// valid scheme provided
+	// valid scheme provided - require host
 	parsed, err := url.Parse(urlString)
 	if err != nil {
 		return err
 	}
-	// host required with scheme if provided
 	if parsed.Host == "" {
 		return errors.New(fleet.InvalidServerURLMsg)
 	}
