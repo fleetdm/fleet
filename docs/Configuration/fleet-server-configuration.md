@@ -2775,9 +2775,9 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 
 ## Partnerships
 
-### paternerships_enable_secureframe
+### partnerships_enable_secureframe
 
-When enabled, end user's who select Fleet Desktop > About Fleet will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
+When enabled, end user's who select **Fleet Desktop > About Fleet** will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
 
 - Default value: `false`
 - Environment variable: `FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME`
