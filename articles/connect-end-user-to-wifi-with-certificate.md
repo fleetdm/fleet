@@ -145,8 +145,6 @@ values. Any errors will appear as a **Failed** status on the host details page, 
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
 
-> Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
-
 #### Example configuration profile
 
 ```xml
