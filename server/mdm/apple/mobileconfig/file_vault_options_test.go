@@ -76,7 +76,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ContainsFDEVileVaultOptionsPayload([]byte(tc.in))
+			result, err := ContainsFDEFileVaultOptionsPayload([]byte(tc.in))
 			require.NoError(t, err)
 			assert.Equal(t, tc.contains, result)
 		})
