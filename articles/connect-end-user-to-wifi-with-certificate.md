@@ -7,11 +7,11 @@ Fleet [v4.66.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.66.0) int
 This guide will walk you through configuring certificate authority and delivering configuration
 profile.
 
-## Digicert
+## DigiCert
 
 ### Step 1: Create service user in DigiCert
 
-1. Head to [Digicert One](https://one.digicert.com/).
+1. Head to [DigiCert One](https://one.digicert.com/).
 2. Follow instructions [here](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html), to create service user, and save service user API token.
 > Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
 > when creating service user.
@@ -55,7 +55,49 @@ profile.
 
 ### Step 4: Create a configuration profile
 
-...
+Add a cofniguration profile to Fleet, that includes the PKCS12 payload. In the profile, you will need to set `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` as the `Password` and `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` as the `Data`.
+
+Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`)
+
+Example configuration profile:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>Password</key>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_CA_NAME</string>
+                <key>PayloadContent</key>
+                <data>$FLEET_VAR_DIGICERT_DATA_CA_NAME</data>
+                <key>PayloadDisplayName</key>
+                <string>CertificatePKCS12</string>
+                <key>PayloadIdentifier</key>
+                <string>com.fleetdm.pkcs12</string>
+                <key>PayloadType</key>
+                <string>com.apple.security.pkcs12</string>
+                <key>PayloadUUID</key>
+                <string>ee86cfcb-2409-42c2-9394-1f8113412e04</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>DigiCert profile</string>
+        <key>PayloadIdentifier</key>
+        <string>TopPayloadIdentifier</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>TopPayloadUUID</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>
+```
 
 ## Microsoft NDES
 
