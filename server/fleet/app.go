@@ -927,6 +927,9 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 func (c *AppConfig) ApplyDefaults() {
 	c.Features.ApplyDefaults()
 	c.WebhookSettings.Interval.Duration = 24 * time.Hour
+	if c.UIGitOpsMode == nil {
+		c.UIGitOpsMode = &UIGitOpsModeConfig{}
+	}
 }
 
 // EnableStrictDecoding enables strict decoding of the AppConfig struct.
