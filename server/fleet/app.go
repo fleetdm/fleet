@@ -745,7 +745,10 @@ func (c *AppConfig) Copy() *AppConfig {
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
 
-	// UIGitOpsMode: nothing needs cloning
+	if c.UIGitOpsMode != nil {
+		uiGitOpsMode := *c.UIGitOpsMode
+		clone.UIGitOpsMode = &uiGitOpsMode
+	}
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
