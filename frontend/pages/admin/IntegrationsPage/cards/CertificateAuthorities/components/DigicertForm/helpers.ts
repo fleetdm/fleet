@@ -16,26 +16,26 @@ export interface IDigicertFormValidation {
   certificateSeatId?: { isValid: boolean };
 }
 
-type IMessageFunc = (formData: IDigicertFormData) => string;
+type IMessageFunc = <T>(formData: T) => string;
 type IValidationMessage = string | IMessageFunc;
 type IFormValidationKey = keyof Omit<IDigicertFormValidation, "isValid">;
 
-interface IValidation {
+type IValidation<T extends Record<string, any>> = {
   name: string;
-  isValid: (formData: IDigicertFormData) => boolean;
+  isValid: (formData: T) => boolean;
   message?: IValidationMessage;
-}
+};
 
-type IFormValidations = Record<
-  IFormValidationKey,
-  { validations: IValidation[] }
+type IFormValidations<T extends Record<string, any>> = Record<
+  keyof T,
+  { validations: IValidation<T>[] }
 >;
 
 export const generateFormValidations = (
   digicertIntegrations: ICertificatesIntegrationDigicert[],
   isEditing: boolean
 ) => {
-  const FORM_VALIDATIONS: IFormValidations = {
+  const FORM_VALIDATIONS: IFormValidations<IDigicertFormData> = {
     name: {
       validations: [
         {
@@ -127,10 +127,7 @@ export const generateFormValidations = (
   return FORM_VALIDATIONS;
 };
 
-const getErrorMessage = (
-  formData: IDigicertFormData,
-  message?: IValidationMessage
-) => {
+const getErrorMessage = <T>(formData: T, message?: IValidationMessage) => {
   if (message === undefined || typeof message === "string") {
     return message;
   }
@@ -165,4 +162,48 @@ export const validateFormData = (
   });
 
   return formValidation;
+};
+
+type IFieldValidation = {
+  isValid: boolean;
+  message?: string;
+};
+
+type IFormValidations2<T extends Record<string, any>> = {
+  [K in keyof T]?: { validations: IValidation<T>[] };
+};
+type IValidationResult<T extends Record<string, any>> = {
+  isValid: boolean;
+} & {
+  [K in keyof T]?: IFieldValidation;
+};
+
+export const useFormValidation = <T extends Record<string, any>>(
+  validationConfig: IFormValidations2<T>
+) => {
+  const validateFormData2 = (formData: T) => {
+    const formValidation: IValidationResult<T> = {
+      isValid: true,
+    } as IValidationResult<T>;
+
+    Object.keys(validationConfig).forEach((key) => {
+      const objKey = key as keyof typeof validationConfig;
+      const failedValidation = validationConfig[objKey]?.validations.find(
+        (validation) => !validation.isValid(formData)
+      );
+      if (!failedValidation) {
+        (formValidation[objKey] as IFieldValidation) = {
+          isValid: true,
+        };
+      } else {
+        formValidation.isValid = false;
+        (formValidation[objKey] as IFieldValidation) = {
+          isValid: false,
+          message: getErrorMessage(formData, failedValidation.message),
+        };
+      }
+    });
+    return formValidation;
+  };
+  return { validateFormData2 };
 };

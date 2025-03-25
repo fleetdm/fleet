@@ -11,6 +11,7 @@ import {
   validateFormData,
   IDigicertFormValidation,
   generateFormValidations,
+  useFormValidation,
 } from "./helpers";
 
 const baseClass = "digicert-form";
@@ -54,6 +55,7 @@ const DigicertForm = ({
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(
     () => validateFormData(formData, validations)
   );
+  useFormValidation<IDigicertFormData>(validations);
 
   const {
     name,
