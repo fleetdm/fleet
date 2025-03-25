@@ -71,6 +71,8 @@ will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and
 
 When sending the profile to hosts, Fleet will replace the variables variables with the proper values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
 
+When the profile with the DigiCert certificate is resent on the host details page in **OS settings**, Fleet will get a new certificate from DigiCert and create a new seat, which will take 1 license. If you want to revoke a license used by a seat that was created when the initial certificate was issued, go to [Trust Lifcycle Manager > Account > Seats](https://demo.one.digicert.com/mpki/account/seats) and remove the respective seat.
+
 #### Example configuration profile
 
 ```xml
