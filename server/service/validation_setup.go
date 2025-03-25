@@ -29,18 +29,23 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 
 func ValidateServerURL(urlString string) error {
 	// TODO - implement more robust URL validation here
-	var parsed *url.URL
+
+	// no valid scheme provided
 	if !(strings.HasPrefix(urlString, "http://") || strings.HasPrefix(urlString, "https://")) {
 		parsed, err := url.Parse("https://" + urlString)
 		if err != nil {
 			return err
 		}
-		// localhost only acceptable host if no schem (protocol) provided
-		if parsed.Host != "localhost" {
+		// localhost only acceptable host if no schem (protocol) provided. .Host will include port (e.g.
+		// 8080), so we check for "localhost" prefix
+		// by checking for prefix, we also invalidate unsupported schemes like "ftp://"
+		if !strings.HasPrefix(parsed.Host, "localhost") {
 			return errors.New(fleet.InvalidServerURLMsg)
 		}
+		return nil
 	}
 
+	// scheme provided
 	parsed, err := url.Parse(urlString)
 	if err != nil {
 		return err
