@@ -343,11 +343,11 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			// ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
-			invalidHardwareSerial := rows[0]["hardware_serial"] == "-1" || invalidHardwareSerialRegexp.Match([]byte(rows[0]["hardware_serial"]))
-			if invalidHardwareSerial {
+			if invalidHardwareSerialRegexp.Match([]byte(rows[0]["hardware_serial"])) {
+				// If the serial number is a default (uninitialize) value, set to empty
 				host.HardwareSerial = ""
-			} else {
+			} else if rows[0]["hardware_serial"] != "-1" {
+				// ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
 				host.HardwareSerial = rows[0]["hardware_serial"]
 			}
 			host.ComputerName = rows[0]["computer_name"]
