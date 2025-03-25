@@ -1,6 +1,8 @@
 package gdmf
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
 )
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
@@ -106,7 +109,20 @@ func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
 // use.
-var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
+var client = createClient()
+
+func createClient() *http.Client {
+	// Create TLS config with Apple Root CA certificate.
+	certPool := x509.NewCertPool()
+	certPool.AddCert(rootcert.AppleRootCA)
+	return fleethttp.NewClient(
+		fleethttp.WithTLSClientConfig(&tls.Config{
+			RootCAs:    certPool,
+			MinVersion: tls.VersionTLS12,
+		}),
+		fleethttp.WithTimeout(10*time.Second),
+	)
+}
 
 // GetAssetMetadata retrieves the asset metadata from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
