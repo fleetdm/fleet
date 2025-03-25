@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/url"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -33,16 +32,12 @@ func ValidateServerURL(urlString string) error {
 		return err
 	}
 
-	if serverURL.Scheme == "https" || serverURL.Scheme == "http" {
-		if serverURL.Host == "" {
-			return errors.New(fleet.InvalidServerURLMsg)
-		}
-	} else {
-		// serverURL.Host doesn't contain the path in this case
-		// invalid scheme, permit only localhost URLs
-		if !strings.Contains(serverURL.Path, "localhost") {
-			return errors.New(fleet.InvalidServerURLMsg)
-		}
+	// scheme present, or "localhost" host. When no scheme, `url.Parse` incorreclty parses "localhost"
+	// as the scheme - obviously "localhost" not a scheme
+	// Since "localhost" host is the only case we want to allow no included scheme, for now, this
+	// works for us:
+	if !(serverURL.Scheme == "https" || serverURL.Scheme == "http" || serverURL.Scheme == "localhost") {
+		return errors.New(fleet.InvalidServerURLMsg)
 	}
 	return nil
 }
