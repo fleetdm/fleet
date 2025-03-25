@@ -28,6 +28,7 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 }
 
 func ValidateServerURL(urlString string) error {
+	// TODO - implement more robust URL validation here
 	var parsed *url.URL
 	if !(strings.HasPrefix(urlString, "http://") || strings.HasPrefix(urlString, "https://")) {
 		parsed, err := url.Parse("https://" + urlString)
