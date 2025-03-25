@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -27,17 +28,26 @@ func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.A
 }
 
 func ValidateServerURL(urlString string) error {
-	serverURL, err := url.Parse(urlString)
+	var parsed *url.URL
+	if !(strings.HasPrefix(urlString, "http://") || strings.HasPrefix(urlString, "https://")) {
+		parsed, err := url.Parse("https://" + urlString)
+		if err != nil {
+			return err
+		}
+		// localhost only acceptable host if no schem (protocol) provided
+		if parsed.Host != "localhost" {
+			return errors.New(fleet.InvalidServerURLMsg)
+		}
+	}
+
+	parsed, err := url.Parse(urlString)
 	if err != nil {
 		return err
 	}
-
-	// scheme present, or "localhost" host. When no scheme, `url.Parse` incorreclty parses "localhost"
-	// as the scheme - obviously "localhost" not a scheme
-	// Since "localhost" host is the only case we want to allow no included scheme, for now, this
-	// works for us:
-	if !(serverURL.Scheme == "https" || serverURL.Scheme == "http" || serverURL.Scheme == "localhost") {
+	// host required with scheme if provided
+	if parsed.Host == "" {
 		return errors.New(fleet.InvalidServerURLMsg)
 	}
+
 	return nil
 }
