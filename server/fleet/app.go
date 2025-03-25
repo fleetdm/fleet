@@ -746,8 +746,8 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.UIGitOpsMode != nil {
-		uiGitOpsMode := *c.UIGitOpsMode
-		clone.UIGitOpsMode = &uiGitOpsMode
+		clone.UIGitOpsMode = new(UIGitOpsModeConfig)
+		*clone.UIGitOpsMode = *c.UIGitOpsMode
 	}
 
 	if c.YaraRules != nil {
