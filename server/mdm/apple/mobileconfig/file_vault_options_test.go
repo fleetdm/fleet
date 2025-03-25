@@ -36,6 +36,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 			contains: false,
 		},
 		{
+			// Add all the FileVault options to the custom settings payload
 			name: "com.apple.MCX payload with all FDE options",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
 				PayloadType:           FleetCustomSettingsPayloadType,
@@ -46,6 +47,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 			contains: true,
 		},
 		{
+			// Only add the dontAllowFDEDisable property to the custom settings payload
 			name: "contains dontAllowFDEDisable",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
 				PayloadType:         FleetCustomSettingsPayloadType,
@@ -54,6 +56,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 			contains: true,
 		},
 		{
+			// Only add the dontAllowFDEEnable property to the custom settings payload
 			name: "contains dontAllowFDEEnable",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
 				PayloadType:        FleetCustomSettingsPayloadType,
@@ -62,6 +65,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 			contains: true,
 		},
 		{
+			// Only add the DestroyFVKeyOnStandby property to the custom settings payload
 			name: "contains DestroyFVKeyOnStandby",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
 				PayloadType:           FleetCustomSettingsPayloadType,
