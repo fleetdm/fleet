@@ -7629,9 +7629,12 @@ func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) 
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 	}
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, ids, 0)
 
 	// delete the darwin and ios hosts
-	err := ds.DeleteHost(ctx, hosts[0].ID)
+	err = ds.DeleteHost(ctx, hosts[0].ID)
 	require.NoError(t, err)
 	err = ds.DeleteHost(ctx, hosts[1].ID)
 	require.NoError(t, err)
@@ -7658,4 +7661,10 @@ func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) 
 		require.Error(t, err)
 		require.True(t, errors.Is(err, sql.ErrNoRows))
 	}
+
+	// list returns only 1 because it ignores macOS
+	ids, err = ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	require.ElementsMatch(t, []string{hosts[1].UUID}, ids)
 }

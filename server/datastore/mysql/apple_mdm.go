@@ -5932,3 +5932,26 @@ WHERE
 	}
 	return &res, nil
 }
+
+func (ds *Datastore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
+	const stmt = `
+SELECT
+	d.id
+FROM
+	nano_devices d
+	JOIN nano_enrollments e ON d.id = e.device_id
+	LEFT OUTER JOIN hosts h ON h.uuid = d.id
+WHERE
+	e.type = 'Device' AND
+	e.enabled = 1 AND
+	d.platform IN ('ios', 'ipados') AND
+	h.id IS NULL
+LIMIT ?
+`
+
+	var res []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, limit); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm apple enrolled but deleted iDevices")
+	}
+	return res, nil
+}

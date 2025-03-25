@@ -1505,6 +1505,11 @@ type Datastore interface {
 	// been deleted from Fleet.
 	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
 
+	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
+	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
+	// but deleted from Fleet.
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

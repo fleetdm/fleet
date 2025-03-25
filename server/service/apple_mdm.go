@@ -3592,10 +3592,6 @@ func SendPushesToPendingDevices(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-	// TODO(iosrevive): (optional), if we want to go out of our way to re-create
-	// the deleted iDevices ASAP, we could include them in the list of hosts to
-	// send a push to, so that they checkin early (it can be arbitrarily long
-	// without a push notification).
 	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")
