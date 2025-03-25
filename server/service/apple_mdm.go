@@ -3133,7 +3133,7 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if cmdResult.Status == "Idle" {
 		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
-		// beeen deleted from Fleet (no host entry) will still send checkin
+		// been deleted from Fleet (no host entry) will still send checkin
 		// requests from time to time. Those should be Idle requests without a
 		// CommandUUID. As stated in tickets #22941 and #22391, Fleet iDevices
 		// should be re-created when they checkin with MDM.
