@@ -578,9 +578,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 
-		appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
+		gitopsIUWasEnabled := oldAppConfig.UIGitOpsMode != nil && oldAppConfig.UIGitOpsMode.GitopsModeEnabled
 
-		if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
+		if gitopsIUWasEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
 			// generate the activity
 			var act fleet.ActivityDetails
 			if gme {
