@@ -21,15 +21,17 @@ In the next 3 months, Fleet will ship...
 **IT**
 
 - 🛡️ Integration with Microsoft compliance tools
+- 👨‍💻 50 more Fleet-maintained apps for macOS & Windows (each) and first 20 for Linux
+- 📅 Patch apps when end users are free
 - ⬇️ Downloadable agents (fleetd)
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - ⏳ See upcoming and past MDM command history
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
-- 📅 Patch apps when end users are free
 - 🤖 AI-generated osquery queries
 - 👻 Fleet for configuration management (ala Puppet)
+- 📉 Report for time-to-fix (aka "timeframes") for top vulnerabilities
 
 Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
