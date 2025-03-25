@@ -71,7 +71,7 @@ will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and
 
 When sending the profile to hosts, Fleet will replace the variables variables with the proper values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
 
-Example configuration profile:
+#### Example configuration profile
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -145,7 +145,7 @@ values. Any errors will appear as a **Failed** status on the host details page, 
 
 > Note: If the uploaded profile is signed, Fleet will replace the variables and invalidate the signature.
 
-Example configuration profile:
+#### Example configuration profile
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -243,7 +243,7 @@ Adjust the `Subject` values according to your organization's needs. You may set 
 When sending the profile to hosts, Fleet will replace the variables variables with the proper
 values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
 
-Example configuration profile:
+#### Example configuration profile
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -321,14 +321,17 @@ SCEP proxy:
 - Resend the profile to the device if the one-time challenge password has expired.
   - If the device has been offline and the one-time challenge password is more than 60 minutes old, the SCEP proxy assumes the password has expired and will resend the profile to the device with a new one-time challenge password.
 
-The issued certificate will appear in the System Keychain on macOS. During the profile installation, the OS generates several temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc).
+The issued certificate will appear in the System Keychain on macOS. During the profile installation,
+the OS generates several temporary certificates needed for the SCEP protocol. These certificates may
+be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed
+and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc)
 
 ### Assumptions and limitations
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
 * Certificate renewal is coming soon.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 
-<meta name="articleTitle" value="Connect end users to Wi-Fi with a certificate (from DigiCert, SCEP, or NDES)">
+<meta name="articleTitle" value="Connect end users to Wi-Fi with a certificate (from DigiCert, NDES, or custom SCEP)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
