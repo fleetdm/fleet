@@ -46,7 +46,7 @@ func ValidateServerURL(urlString string) error {
 		return nil
 	}
 
-	// scheme provided
+	// valid scheme provided
 	parsed, err := url.Parse(urlString)
 	if err != nil {
 		return err
