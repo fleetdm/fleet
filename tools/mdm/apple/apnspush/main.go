@@ -82,7 +82,7 @@ func main() {
 	}
 
 	pushProviderFactory := buford.NewPushProviderFactory(buford.WithNewClient(func(cert *tls.Certificate) (*http.Client, error) {
-		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+		return fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{ // nolint:gosec // complains about TLS min version too low
 			Certificates: []tls.Certificate{*cert},
 		})), nil
 	}))
