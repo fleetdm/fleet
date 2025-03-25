@@ -15310,7 +15310,18 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 0)
 
-	// do an MDM sync, will re-create the host and move it to its enrollment team
+	// run the reviver cron job, will send a push notification to the deleted host
+	var recordedPushes []*mdm.Push
+	s.pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		recordedPushes = pushes
+		return mockSuccessfulPush(ctx, pushes)
+	}
+	err := apple_mdm.IOSiPadOSRevive(context.Background(), s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 1)
+
+	// do an MDM sync (as the host would when triggered by the notification),
+	// will re-create the host and move it to its enrollment team
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd) // no command to process
