@@ -53,6 +53,10 @@ minimum version, it will be required to update to the latest [available version]
 
 The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource for obtaining a list of publicly available updates, upgrades, and Rapid Security Responses. Make sure to use versions available in GDMF; otherwise, the update will not be scheduled.
 
+### Past or current date as the deadline on Apple hosts
+
+If you set a past deadline date as the deadline, it will prompt an immediate notification for the end user to install the update, or automatic installation will start in one hour. Similarly, if you set the current date as the deadline, end users will experience the same behavior if it is still before 12 PM (end user local time).
+
 ### Windows
 
 End users are encouraged to update Windows via the native Windows dialog.
