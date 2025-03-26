@@ -9815,20 +9815,23 @@ List available Fleet-maintained apps.
     {
       "id": 1,
       "name": "1Password",
-      "version": "8.10.40",
+      "slug": "1password/darwin",
       "platform": "darwin"
+      "version": "8.10.40",
     },
     {
       "id": 2,
       "name": "Adobe Acrobat Reader",
-      "version": "24.002.21005",
+      "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin"
+      "version": "24.002.21005",
     },
     {
       "id": 3,
       "name": "Box Drive",
-      "version": "2.39.179",
+      "slug": "box-drive/darwin",
       "platform": "darwin"
+      "version": "2.39.179",
     },
   ],
   "meta": {
@@ -9864,6 +9867,7 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
+    "slug": "1password/darwin",
     "name": "1Password",
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
