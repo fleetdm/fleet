@@ -1,11 +1,14 @@
-# Connect end users to Wi-Fi with a certificate (from DigiCert, NDES, or custom SCEP)
+# Connect end users to Wi-Fi or VPN with a certificate (from DigiCert, NDES, or custom SCEP)
 
 _Available in Fleet Premium_
 
-Fleet [v4.66.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.66.0) introduces support for helping your end users connect to Wi-Fi by adding your certificate authority to issue certificates for Wi-Fi authentication. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Fleet can help your end users connect to Wi-Fi or VPN by adding your certificate authority to issue
+certificates. Fleet currently supports
+[DigiCert](https://www.digicert.com/digicert-one), [Microsoft
+NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview),
+and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
-This guide will walk you through configuring certificate authority and delivering configuration
-profile.
+This guide will walk you through configuring your certificate authority and delivering certificates.
 
 ## DigiCert
 
@@ -18,7 +21,7 @@ To install certificates from DigiCert to hosts, do the following steps:
 
 ### Step 1: Create service user in DigiCert
 
-1. Head to [DigiCert One](https://one.digicert.com/).
+1. Head to [DigiCert One](https://one.digicert.com/)
 2. Follow instructions [here](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html), to create service user, and save service user API token.
 > Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
 > when creating service user.
@@ -62,7 +65,7 @@ To install certificates from DigiCert to hosts, do the following steps:
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
-[Add a cofniguration profile](https://fleetdm.com/guides/custom-os-settings) to Fleet, that includes the PKCS12 payload. In the profile, you will need to set `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` as the `Password` and `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` as the `Data`.
+[Add a configuration profile](https://fleetdm.com/guides/custom-os-settings) to Fleet, that includes the PKCS12 payload. In the profile, you will need to set `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` as the `Password` and `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` as the `Data`.
 
 Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect
 Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name
