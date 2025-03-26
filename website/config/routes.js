@@ -17,6 +17,7 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
+      showHeaderCTA: true,
     }
   },
 
@@ -262,6 +263,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Sign up',
       pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
@@ -270,6 +272,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Log in',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
@@ -427,7 +430,8 @@ module.exports.routes = {
     action: 'view-transparency',
     locals: {
       pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
-      pageTitleForMeta: 'Better with Fleet'
+      pageTitleForMeta: 'Better with Fleet',
+      hideStartCTA: true,
     }
   },
 
@@ -452,7 +456,7 @@ module.exports.routes = {
   'GET /app-library': {
     action: 'view-app-library',
     locals: {
-      pageTitleForMeta: 'App library',
+      pageTitleForMeta: 'Software',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
     }
   },
@@ -473,6 +477,15 @@ module.exports.routes = {
     action: 'query-generator/view-query-generator',
     locals: {
       showAdminLinks: true,
+    }
+  },
+
+  'GET /os-settings': {
+    action: 'view-os-settings',
+    locals: {
+      currentSection: 'documentation',
+      pageTitleForMeta: 'OS settings',
+      pageDescriptionForMeta: 'Generate OS settings in CSP, .mobileconfig, and DDM format',
     }
   },
 
@@ -550,7 +563,7 @@ module.exports.routes = {
   'GET /handbook/company/senior-software-backend-engineer': 'https://www.linkedin.com/posts/mikermcneil_in-addition-to-our-product-quality-specialist-activity-7067711903166279680-6CMH',
   'GET /handbook/business-operations/ceo-handbook': '/handbook/ceo',
   'GET /handbook/business-operations/people-operations': '/handbook/company/communications#hiring',
-  'GET /handbook/marketing': '/handbook/demand/',
+  'GET /handbook/demand': '/handbook/marketing/',
   'GET /handbook/customers': '/handbook/sales/',
   'GET /handbook/product': '/handbook/product-design',
   'GET /handbook/business-operations': '/handbook/finance',
@@ -563,7 +576,7 @@ module.exports.routes = {
   'GET /docs/deploy': '/docs/deploy/introduction',
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
-  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts#install-fleetd',
   'GET /docs/using-fleet/fleetd': '/docs/using-fleet/enroll-hosts',
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
@@ -805,6 +818,7 @@ module.exports.routes = {
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
+  'GET /learn-more-about/tarball-archives': 'https://fleetdm.com/guides/deploy-software-packages',
   'GET /learn-more-about/reinstall-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/abm-apps': 'https://business.apple.com/#/main/appsandbooks',
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
@@ -860,6 +874,15 @@ module.exports.routes = {
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
   'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
+  'GET /learn-more-about/yaml-setup-experience-software': '/docs/configuration/yaml-files#software',
+  'GET /learn-more-about/policy-templates': '/policies',
+  'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
+  'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
+  'GET /learn-more-about/certificates-query': '/tables/certificates',
+  'GET /learn-more-about/gitops': 'https://github.com/fleetdm/fleet-gitops/',
+  'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
+  // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
+  'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
 
   // Sitemap
   // =============================================================================================================
@@ -903,6 +926,7 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
+  'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
   'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
@@ -940,4 +964,5 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
+  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
 };

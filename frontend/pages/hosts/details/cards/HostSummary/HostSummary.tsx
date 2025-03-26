@@ -12,6 +12,7 @@ import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import { IAppleDeviceUpdates } from "interfaces/config";
 import {
   DiskEncryptionSupportedPlatform,
+  isAndroid,
   isDiskEncryptionSupportedLinuxPlatform,
   isOsSettingsDisplayPlatform,
   platformSupportsDiskEncryption,
@@ -211,10 +212,15 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
+  const isAndroidHost = isAndroid(platform);
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
+    if (isAndroidHost) {
+      return null;
+    }
+
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip;
@@ -340,7 +346,7 @@ const HostSummary = ({
   };
 
   const renderOperatingSystemSummary = () => {
-    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
       return (
         <DataSet title="Operating system" value={summaryData.os_version} />
@@ -384,12 +390,12 @@ const HostSummary = ({
   };
 
   const renderAgentSummary = () => {
-    if (isChromeHost) {
-      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    if (isIosOrIpadosHost || isAndroidHost) {
+      return null;
     }
 
-    if (isIosOrIpadosHost) {
-      return null;
+    if (isChromeHost) {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
     }
 
     if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
@@ -495,11 +501,11 @@ const HostSummary = ({
     return (
       <Card
         borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
         includeShadow
-        largePadding
         className={`${baseClass}-card`}
       >
-        {!isIosOrIpadosHost && (
+        {!isIosOrIpadosHost && !isAndroidHost && (
           <DataSet
             title="Status"
             value={
@@ -515,6 +521,7 @@ const HostSummary = ({
         )}
         {summaryData.issues?.total_issues_count > 0 &&
           !isIosOrIpadosHost &&
+          !isAndroidHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
@@ -532,17 +539,19 @@ const HostSummary = ({
               }
             />
           )}
-        {bootstrapPackageData?.status && !isIosOrIpadosHost && (
-          <DataSet
-            title="Bootstrap package"
-            value={
-              <BootstrapPackageIndicator
-                status={bootstrapPackageData.status}
-                onClick={toggleBootstrapPackageModal}
-              />
-            }
-          />
-        )}
+        {bootstrapPackageData?.status &&
+          !isIosOrIpadosHost &&
+          !isAndroidHost && (
+            <DataSet
+              title="Bootstrap package"
+              value={
+                <BootstrapPackageIndicator
+                  status={bootstrapPackageData.status}
+                  onClick={toggleBootstrapPackageModal}
+                />
+              }
+            />
+          )}
         {!isChromeHost && renderDiskSpaceSummary()}
         {renderDiskEncryptionSummary()}
         {!isIosOrIpadosHost && (
@@ -555,7 +564,7 @@ const HostSummary = ({
           <DataSet title="Processor type" value={summaryData.cpu_type} />
         )}
         {renderOperatingSystemSummary()}
-        {!isIosOrIpadosHost && renderAgentSummary()}
+        {renderAgentSummary()}
         {isPremiumTier &&
           // TODO - refactor normalizeEmptyValues pattern
           !!summaryData.maintenance_window &&

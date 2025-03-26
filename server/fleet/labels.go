@@ -104,6 +104,7 @@ func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
 type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
+	AuthorID            *uint               `json:"author_id" db:"author_id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
@@ -160,6 +161,7 @@ const (
 	BuiltinLabelIOS             = "iOS"
 	BuiltinLabelIPadOS          = "iPadOS"
 	BuiltinLabelFedoraLinux     = "Fedora Linux"
+	BuiltinLabelNameAndroid     = "Android"
 )
 
 // ReservedLabelNames returns a map of label name strings
@@ -178,6 +180,7 @@ func ReservedLabelNames() map[string]struct{} {
 		BuiltinLabelIOS:             {},
 		BuiltinLabelIPadOS:          {},
 		BuiltinLabelFedoraLinux:     {},
+		BuiltinLabelNameAndroid:     {},
 	}
 }
 
@@ -197,8 +200,8 @@ func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []stri
 
 // LabelIdent is a simple struct to hold the ID and Name of a label
 type LabelIdent struct {
-	LabelID   uint
-	LabelName string
+	LabelID   uint   `json:"id"`
+	LabelName string `json:"name"`
 }
 
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
@@ -220,4 +223,36 @@ const (
 type LabelIdentsWithScope struct {
 	LabelScope LabelScope
 	ByName     map[string]LabelIdent
+}
+
+// Equal returns whether or not 2 LabelIdentsWithScope pointers point to equivalent values.
+func (l *LabelIdentsWithScope) Equal(other *LabelIdentsWithScope) bool {
+	if l == nil || other == nil {
+		return l == other
+	}
+
+	if l.LabelScope != other.LabelScope {
+		return false
+	}
+
+	if l.ByName == nil && other.ByName == nil {
+		return true
+	}
+
+	if len(l.ByName) != len(other.ByName) {
+		return false
+	}
+
+	for k, v := range l.ByName {
+		otherV, ok := other.ByName[k]
+		if !ok {
+			return false
+		}
+
+		if v != otherV {
+			return false
+		}
+	}
+
+	return true
 }

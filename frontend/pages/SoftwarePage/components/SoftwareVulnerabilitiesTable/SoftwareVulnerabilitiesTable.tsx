@@ -13,7 +13,7 @@ import { AppContext } from "context/app";
 import { ISoftwareVulnerability } from "interfaces/software";
 import { CONTACT_FLEET_LINK, GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { DisplayPlatform } from "interfaces/platform";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
@@ -92,18 +92,18 @@ const SoftwareVulnerabilitiesTable = ({
   const classNames = classnames(baseClass, className);
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      vulnerability: row.original.cve,
-      team_id: teamIdForApi,
-    };
+    if (row.original.cve) {
+      const cveName = row.original.cve.toString();
 
-    const path = hostsBySoftwareParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-          hostsBySoftwareParams
-        )}`
-      : PATHS.MANAGE_HOSTS;
+      const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
+        {
+          team_id: teamIdForApi,
+        }
+      );
 
-    router.push(path);
+      router.push(softwareVulnerabilityDetailsPath);
+    }
   };
 
   const tableHeaders = useMemo(

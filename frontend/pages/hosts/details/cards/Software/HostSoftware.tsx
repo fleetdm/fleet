@@ -12,15 +12,28 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase } from "utilities/url";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
 
+import {
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getSoftwareFilterFromQueryParams,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
@@ -35,7 +48,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  platform?: HostPlatform;
+  platform: HostPlatform;
   softwareUpdatedAt?: string;
   hostCanWriteSoftware: boolean;
   router: InjectedRouter;
@@ -61,6 +74,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   vulnerable?: string;
+  exploit?: string;
+  min_cvss_score?: string;
+  max_cvss_score?: string;
   available_for_install?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
@@ -70,7 +86,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
-  const vulnerable = queryParams.vulnerable === "true";
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
   const availableForInstall = queryParams.available_for_install === "true";
 
   return {
@@ -79,7 +97,10 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
-    vulnerable,
+    vulnerable: softwareVulnFilters.vulnerable,
+    min_cvss_score: softwareVulnFilters.minCvssScore,
+    max_cvss_score: softwareVulnFilters.maxCvssScore,
+    exploit: softwareVulnFilters.exploit,
     available_for_install: availableForInstall,
   };
 };
@@ -100,19 +121,25 @@ const HostSoftware = ({
   hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const vulnFilterAndNotSupported =
-    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isPremiumTier,
   } = useContext(AppContext);
+
+  const isUnsupported =
+    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
+  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
   // disables install/uninstall actions after click
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
     number | null
   >(null);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
 
   const {
     data: hostSoftwareRes,
@@ -139,8 +166,7 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled:
-        isSoftwareEnabled && !isMyDevicePage && !vulnFilterAndNotSupported,
+      enabled: isSoftwareEnabled && !isMyDevicePage && !isUnsupported,
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -223,6 +249,64 @@ const HostSoftware = ({
     [id, renderFlash, refetchSoftware]
   );
 
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
+
+  /**  Compares vuln filters to current vuln query params */
+  const determineVulnFilterChange = useCallback(
+    (vulnFilters: ISoftwareVulnFiltersParams) => {
+      const changedEntry = Object.entries(vulnFilters).find(([key, val]) => {
+        switch (key) {
+          case "vulnerable":
+          case "exploit": {
+            // Normalize values: undefined → false, then compare
+            const current = queryParams[key] ?? false;
+            const incoming = val ?? false;
+            return incoming !== current;
+          }
+          case "minCvssScore":
+            return val !== queryParams.min_cvss_score;
+          case "maxCvssScore":
+            return val !== queryParams.max_cvss_score;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [queryParams]
+  );
+
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+    const newQueryParams = {
+      query: queryParams.query,
+      orderDirection: queryParams.order_direction,
+      orderKey: queryParams.order_key,
+      perPage: queryParams.per_page,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
+    // We want to determine which query param has changed in order to
+    // reset the page index to 0 if any other param has changed.
+    const changedParam = determineVulnFilterChange(vulnFilters);
+
+    // Update the route only if a change is detected
+    if (changedParam) {
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          routeTemplate: "",
+          queryParams: convertParamsToSnakeCase(newQueryParams),
+        })
+      );
+    }
+
+    toggleSoftwareFiltersModal();
+  };
+
   const onSelectAction = useCallback(
     (software: IHostSoftware, action: string) => {
       switch (action) {
@@ -245,6 +329,11 @@ const HostSoftware = ({
       uninstallHostSoftwarePackage,
     ]
   );
+
+  const getHostSoftwareFilterFromQueryParams = useCallback(() => {
+    const { available_for_install } = queryParams;
+    return available_for_install ? "installableSoftware" : "allSoftware";
+  }, [queryParams]);
 
   const tableConfig = useMemo(() => {
     return isMyDevicePage
@@ -279,17 +368,6 @@ const HostSoftware = ({
 
   const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
-  const getHostSoftwareFilterFromQueryParams = () => {
-    const { vulnerable, available_for_install } = queryParams;
-    if (available_for_install) {
-      return "installableSoftware";
-    }
-    if (vulnerable) {
-      return "vulnerableSoftware";
-    }
-    return "allSoftware";
-  };
-
   const renderHostSoftware = () => {
     if (isLoading) {
       return <Spinner />;
@@ -306,19 +384,7 @@ const HostSoftware = ({
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
-            // this could be cleaner, however, we are going to revert this commit anyway once vulns are
-            // supported for iPad/iPhone, by the end of next sprint
-            data={
-              vulnFilterAndNotSupported
-                ? ({
-                    count: 0,
-                    meta: {
-                      has_next_results: false,
-                      has_previous_results: false,
-                    },
-                  } as IGetHostSoftwareResponse)
-                : data
-            } // eshould be mpty for iPad/iPhone since API call is disabled, but to be sure to trigger empty state
+            data={data}
             platform={platform}
             router={router}
             tableConfig={tableConfig}
@@ -328,10 +394,20 @@ const HostSoftware = ({
             page={queryParams.page}
             pagePath={pathname}
             hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
             onShowSoftwareDetails={onShowSoftwareDetails}
+          />
+        )}
+        {showSoftwareFiltersModal && (
+          <SoftwareFiltersModal
+            onExit={toggleSoftwareFiltersModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </>
@@ -340,17 +416,17 @@ const HostSoftware = ({
 
   return (
     <Card
+      className={baseClass}
       borderRadiusSize="xxlarge"
-      paddingSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      className={`${baseClass} ${isMyDevicePage ? "device-software" : ""}`}
     >
-      <div className={`card-header`}>Software</div>
-      {isMyDevicePage && (
-        <div className={`card-subheader`}>
-          Software installed on your device.
-        </div>
-      )}
+      <CardHeader
+        header="Software"
+        subheader={
+          isMyDevicePage ? "Software installed on your device." : undefined
+        }
+      />
       {renderHostSoftware()}
     </Card>
   );

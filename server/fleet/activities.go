@@ -12,6 +12,42 @@ type ContextKey string
 // ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
 const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
 
+type Activity struct {
+	CreateTimestamp
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
+	ActorFullName  *string          `json:"actor_full_name,omitempty" db:"name"`
+	ActorID        *uint            `json:"actor_id,omitempty" db:"user_id"`
+	ActorGravatar  *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
+	ActorEmail     *string          `json:"actor_email,omitempty" db:"user_email"`
+	Type           string           `json:"type" db:"activity_type"`
+	Details        *json.RawMessage `json:"details" db:"details"`
+	Streamed       *bool            `json:"-" db:"streamed"`
+	FleetInitiated bool             `json:"fleet_initiated" db:"fleet_initiated"`
+}
+
+// AuthzType implement AuthzTyper to be able to verify access to activities
+func (*Activity) AuthzType() string {
+	return "activity"
+}
+
+// UpcomingActivity is the augmented activity type used to return the list of
+// upcoming (pending) activities for a host.
+type UpcomingActivity struct {
+	Activity
+
+	Cancellable bool `json:"cancellable" db:"cancellable"`
+}
+
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedPack{},
@@ -71,6 +107,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledMacosDiskEncryption{},
 	ActivityTypeDisabledMacosDiskEncryption{},
 
+	ActivityTypeEnabledGitOpsMode{},
+	ActivityTypeDisabledGitOpsMode{},
+
 	ActivityTypeAddedBootstrapPackage{},
 	ActivityTypeDeletedBootstrapPackage{},
 
@@ -79,6 +118,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeEnabledWindowsMDM{},
 	ActivityTypeDisabledWindowsMDM{},
+	ActivityTypeEnabledAndroidMDM{},
+	ActivityTypeDisabledAndroidMDM{},
 	ActivityTypeEnabledWindowsMDMMigration{},
 	ActivityTypeDisabledWindowsMDMMigration{},
 
@@ -111,10 +152,17 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedAppStoreApp{},
 	ActivityDeletedAppStoreApp{},
 	ActivityInstalledAppStoreApp{},
+	ActivityEditedAppStoreApp{},
 
 	ActivityAddedNDESSCEPProxy{},
 	ActivityDeletedNDESSCEPProxy{},
 	ActivityEditedNDESSCEPProxy{},
+	ActivityAddedCustomSCEPProxy{},
+	ActivityDeletedCustomSCEPProxy{},
+	ActivityEditedCustomSCEPProxy{},
+	ActivityAddedDigiCert{},
+	ActivityDeletedDigiCert{},
+	ActivityEditedDigiCert{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -586,33 +634,6 @@ func (a ActivityTypeUserAddedBySSO) ActivityName() string {
 func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when new users are added via SSO JIT provisioning`,
 		`This activity does not contain any detail fields.`, ""
-}
-
-type Activity struct {
-	CreateTimestamp
-
-	// ID is the activity id in the activities table, it is omitted for upcoming
-	// activities as those are "virtual activities" generated from entries in
-	// queues (e.g. pending host_script_results).
-	ID uint `json:"id,omitempty" db:"id"`
-
-	// UUID is the activity UUID for the upcoming activities, as identified in
-	// the relevant queue (e.g. pending host_script_results). It is omitted for
-	// past activities as those are "real activities" with an activity id.
-	UUID string `json:"uuid,omitempty" db:"uuid"`
-
-	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
-	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
-	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
-	Type          string           `json:"type" db:"activity_type"`
-	Details       *json.RawMessage `json:"details" db:"details"`
-	Streamed      *bool            `json:"-" db:"streamed"`
-}
-
-// AuthzType implement AuthzTyper to be able to verify access to activities
-func (*Activity) AuthzType() string {
-	return "activity"
 }
 
 type ActivityTypeUserLoggedIn struct {
@@ -1142,6 +1163,26 @@ func (a ActivityTypeDisabledMacosDiskEncryption) Documentation() (activity, deta
 }`
 }
 
+type ActivityTypeEnabledGitOpsMode struct{}
+
+func (a ActivityTypeEnabledGitOpsMode) ActivityName() string {
+	return "enabled_gitops_mode"
+}
+
+func (a ActivityTypeEnabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user enables GitOps mode.`, `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledGitOpsMode struct{}
+
+func (a ActivityTypeDisabledGitOpsMode) ActivityName() string {
+	return "disabled_gitops_mode"
+}
+
+func (a ActivityTypeDisabledGitOpsMode) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user disables GitOps mode.`, `This activity does not contain any detail fields.`, ``
+}
+
 type ActivityTypeAddedBootstrapPackage struct {
 	BootstrapPackageName string  `json:"bootstrap_package_name"`
 	TeamID               *uint   `json:"team_id"`
@@ -1322,6 +1363,28 @@ func (a ActivityTypeAddedScript) ActivityName() string {
 
 func (a ActivityTypeAddedScript) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a script is added to a team (or no team).`,
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeUpdatedScript struct {
+	ScriptName string  `json:"script_name"`
+	TeamID     *uint   `json:"team_id"`
+	TeamName   *string `json:"team_name"`
+}
+
+func (a ActivityTypeUpdatedScript) ActivityName() string {
+	return "updated_script"
+}
+
+func (a ActivityTypeUpdatedScript) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a script is updated.`,
 		`This activity contains the following fields:
 - "script_name": Name of the script.
 - "team_id": The ID of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
@@ -1623,7 +1686,7 @@ func (a ActivityTypeInstalledSoftware) WasFromAutomation() bool {
 }
 
 func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a software is installed on a host.`,
+	return `Generated when a Fleet-maintained app or custom package is installed on a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1664,7 +1727,7 @@ func (a ActivityTypeUninstalledSoftware) HostIDs() []uint {
 }
 
 func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a software is uninstalled on a host.`,
+	return `Generated when a Fleet-maintained app or custom package is uninstalled on a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1700,7 +1763,7 @@ func (a ActivityTypeAddedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet-maintained app or custom package is added to Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
@@ -1744,7 +1807,7 @@ func (a ActivityTypeEditedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is updated in Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet-maintained app or custom package is edited in Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer as of this update (including if unchanged).
 - "team_name": Name of the team on which this software was updated.` + " `null` " + `if it was updated on no team.
@@ -1787,7 +1850,7 @@ func (a ActivityTypeDeletedSoftware) ActivityName() string {
 }
 
 func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
-	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
+	return `Generated when a Fleet maintained app or custom package is deleted from Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
@@ -1925,13 +1988,15 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle   string              `json:"software_title"`
-	SoftwareTitleId uint                `json:"software_title_id"`
-	AppStoreID      string              `json:"app_store_id"`
-	TeamName        *string             `json:"team_name"`
-	TeamID          *uint               `json:"team_id"`
-	Platform        AppleDevicePlatform `json:"platform"`
-	SelfService     bool                `json:"self_service"`
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwareTitleId  uint                    `json:"software_title_id"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1946,23 +2011,37 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
-- "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
+- "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
   "software_title": "Logic Pro",
   "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle string              `json:"software_title"`
-	AppStoreID    string              `json:"app_store_id"`
-	TeamName      *string             `json:"team_name"`
-	TeamID        *uint               `json:"team_id"`
-	Platform      AppleDevicePlatform `json:"platform"`
+	SoftwareTitle    string                  `json:"software_title"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1975,12 +2054,24 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
 - "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
-- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.`, `{
+- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array`, `{
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
@@ -2010,15 +2101,15 @@ func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
 
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
-- host_id: ID of the host on which the app was installed.
-- self_service: App installation was initiated by device owner.
-- host_display_name: Display name of the host.
-- software_title: Name of the App Store app.
-- app_store_id: ID of the app on the Apple App Store.
-- command_uuid: UUID of the MDM command used to install the app.
-- policy_id: ID of the policy whose failure triggered the install. Null if no associated policy.
-- policy_name: Name of the policy whose failure triggered the install. Null if no associated policy.
-`, `{
+- "host_id": ID of the host on which the app was installed.
+- "self_service": App installation was initiated by device owner.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "status": Status of the App Store app installation.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.`, `{
   "host_id": 42,
   "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
@@ -2027,6 +2118,53 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro"
+}`
+}
+
+type ActivityEditedAppStoreApp struct {
+	SoftwareTitle    string                  `json:"software_title"`
+	SoftwareTitleID  uint                    `json:"software_title_id"`
+	AppStoreID       string                  `json:"app_store_id"`
+	TeamName         *string                 `json:"team_name"`
+	TeamID           *uint                   `json:"team_id"`
+	Platform         AppleDevicePlatform     `json:"platform"`
+	SelfService      bool                    `json:"self_service"`
+	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
+}
+
+func (a ActivityEditedAppStoreApp) ActivityName() string {
+	return "edited_app_store_app"
+}
+
+func (a ActivityEditedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when an App Store app is updated in Fleet.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "software_title_id": ID of the updated app's software title.
+- "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
+- "self_service": App installation can be initiated by device owner.
+- "team_name": Name of the team on which this App Store app was updated, or ` + "`null`" + ` if it was updated on no team.
+- "team_id": ID of the team on which this App Store app was updated, or ` + "`null`" + `if it was updated on no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.`, `{
+  "software_title": "Logic Pro",
+  "software_title_id": 123,
+  "app_store_id": "1234567",
+  "platform": "darwin",
+  "self_service": true,
+  "team_name": "Workstations",
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }`
 }
 
@@ -2058,4 +2196,108 @@ func (a ActivityEditedNDESSCEPProxy) ActivityName() string {
 
 func (a ActivityEditedNDESSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when NDES SCEP proxy configuration is edited in Fleet.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityAddedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedCustomSCEPProxy) ActivityName() string {
+	return "added_custom_scep_proxy"
+}
+
+func (a ActivityAddedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityDeletedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedCustomSCEPProxy) ActivityName() string {
+	return "deleted_custom_scep_proxy"
+}
+
+func (a ActivityDeletedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityEditedCustomSCEPProxy struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedCustomSCEPProxy) ActivityName() string {
+	return "edited_custom_scep_proxy"
+}
+
+func (a ActivityEditedCustomSCEPProxy) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when SCEP certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SCEP_WIFI"
+}`
+}
+
+type ActivityAddedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedDigiCert) ActivityName() string {
+	return "added_digicert"
+}
+
+func (a ActivityAddedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityDeletedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedDigiCert) ActivityName() string {
+	return "deleted_digicert"
+}
+
+func (a ActivityDeletedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityEditedDigiCert struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedDigiCert) ActivityName() string {
+	return "edited_digicert"
+}
+
+func (a ActivityEditedDigiCert) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when DigiCert certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityTypeEnabledAndroidMDM struct{}
+
+func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
+func (a ActivityTypeEnabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a user turns on MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeDisabledAndroidMDM struct{}
+
+func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
+func (a ActivityTypeDisabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when a user turns off MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
 }

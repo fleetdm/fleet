@@ -50,6 +50,12 @@ export enum ActivityType {
   AddedNdesScepProxy = "added_ndes_scep_proxy",
   DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
   EditedNdesScepProxy = "edited_ndes_scep_proxy",
+  AddedDigicert = "added_digicert",
+  DeletedDigicert = "deleted_digicert",
+  EditedDigicert = "edited_digicert",
+  AddedCustomScepProxy = "added_custom_scep_proxy",
+  DeletedCustomScepProxy = "deleted_custom_scep_proxy",
+  EditedCustomScepProxy = "edited_custom_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -70,10 +76,13 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledGitOpsMode = "enabled_gitops_mode",
+  DisabledGitOpsMode = "disabled_gitops_mode",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   AddedScript = "added_script",
+  UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",
@@ -92,6 +101,7 @@ export enum ActivityType {
   EnabledVpp = "enabled_vpp",
   DisabledVpp = "disabled_vpp",
   AddedAppStoreApp = "added_app_store_app",
+  EditedAppStoreApp = "edited_app_store_app",
   DeletedAppStoreApp = "deleted_app_store_app",
   InstalledAppStoreApp = "installed_app_store_app",
   EnabledActivityAutomations = "enabled_activity_automations",
@@ -99,6 +109,8 @@ export enum ActivityType {
   DisabledActivityAutomations = "disabled_activity_automations",
   CanceledScript = "canceled_script",
   CanceledSoftwareInstall = "canceled_software_install",
+  EnabledAndroidMdm = "enabled_android_mdm",
+  DisabledAndroidMdm = "disabled_android_mdm",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -127,6 +139,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 

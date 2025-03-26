@@ -28,7 +28,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- Insert the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
 
 ## Context
-- Product designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
+- Product Designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
   
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
@@ -39,11 +39,12 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ## Changes
 
 ### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Make sure  wireframes show the UI down to 320px (min screen width). Put "No changes" if there are no changes to the user interface. -->
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Make sure  wireframes show the UI down to 768px (min screen width). Put "No changes" if there are no changes to the user interface. -->
 - [ ] CLI (fleetctl) usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Put "No changes" if there are no changes to the CLI. -->
 - [ ] YAML changes: TODO <!-- Specify changes in the YAML files doc page as a PR to the reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] REST API changes: TODO <!-- Specify changes in the the REST API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
 - [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Put "No changes" if there are no changes necessary. -->
+- [ ] GitOps mode changes: TODO <!-- Specify UI changes for read-only GitOps mode. Put "No changes" if there are no changes necessary. -->
 - [ ] Activity changes: TODO <!-- Specify changes to the Audit log page in the contributor docs. Put "No changes" if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes in the Manage access doc page as a PR to the reference docs release branch. If doc changes aren't necessary, explicitly mention no changes to the doc page. Put "No changes" if there are no permissions changes. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify changes in pricing-features-table.yml as a PR to reference docs release branch. Specify "Fleet Free" and/or "Fleet Premium" if there are no changes to the pricing page necessary. -->
@@ -55,6 +56,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 
 ### Engineering
 - [ ] Test plan is finalized
+- [ ] Contributor API changes: TODO <!-- Specify changes in the the Contributor API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
@@ -70,9 +72,9 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->
 
 ### Test plan
-<!-- 
-Add detailed manual testing steps for all affected user roles.
--->
+<!-- Add detailed manual testing steps for all affected user roles. -->
+
+> Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
 
 1. Step 1
 2. Step 2

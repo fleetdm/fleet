@@ -253,7 +253,10 @@ type HostSoftwareTitleListOptions struct {
 	// the host.
 	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
-	VulnerableOnly bool `query:"vulnerable,optional"`
+	VulnerableOnly bool    `query:"vulnerable,optional"`
+	KnownExploit   bool    `query:"exploit,optional"`
+	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
 	IsMDMEnrolled bool
@@ -440,9 +443,11 @@ func SoftwareFromOsqueryRow(
 }
 
 type VPPBatchPayload struct {
-	AppStoreID         string `json:"app_store_id"`
-	SelfService        bool   `json:"self_service"`
-	InstallDuringSetup *bool  `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	AppStoreID         string   `json:"app_store_id"`
+	SelfService        bool     `json:"self_service"`
+	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string `json:"labels_include_any"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -450,4 +455,6 @@ type VPPBatchPayloadWithPlatform struct {
 	SelfService        bool                `json:"self_service"`
 	Platform           AppleDevicePlatform `json:"platform"`
 	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string            `json:"labels_include_any"`
 }

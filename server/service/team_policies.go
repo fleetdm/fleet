@@ -38,9 +38,9 @@ type teamPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r teamPolicyResponse) error() error { return r.Err }
+func (r teamPolicyResponse) Error() error { return r.Err }
 
-func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
 		QueryID:               req.QueryID,
@@ -185,9 +185,9 @@ type listTeamPoliciesResponse struct {
 	Err               error           `json:"error,omitempty"`
 }
 
-func (r listTeamPoliciesResponse) error() error { return r.Err }
+func (r listTeamPoliciesResponse) Error() error { return r.Err }
 
-func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listTeamPoliciesRequest)
 
 	inheritedListOptions := fleet.ListOptions{
@@ -264,9 +264,9 @@ type countTeamPoliciesResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countTeamPoliciesResponse) error() error { return r.Err }
+func (r countTeamPoliciesResponse) Error() error { return r.Err }
 
-func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countTeamPoliciesRequest)
 	resp, err := svc.CountTeamPolicies(ctx, req.TeamID, req.ListOptions.MatchQuery, req.MergeInherited)
 	if err != nil {
@@ -311,9 +311,9 @@ type getTeamPolicyByIDResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r getTeamPolicyByIDResponse) error() error { return r.Err }
+func (r getTeamPolicyByIDResponse) Error() error { return r.Err }
 
-func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getTeamPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamPolicyByIDRequest)
 	teamPolicy, err := svc.GetTeamPolicyByIDQueries(ctx, req.TeamID, req.PolicyID)
 	if err != nil {
@@ -360,9 +360,9 @@ type deleteTeamPoliciesResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r deleteTeamPoliciesResponse) error() error { return r.Err }
+func (r deleteTeamPoliciesResponse) Error() error { return r.Err }
 
-func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteTeamPoliciesRequest)
 	resp, err := svc.DeleteTeamPolicies(ctx, req.TeamID, req.IDs)
 	if err != nil {
@@ -443,9 +443,9 @@ type modifyTeamPolicyResponse struct {
 	Err    error         `json:"error,omitempty"`
 }
 
-func (r modifyTeamPolicyResponse) error() error { return r.Err }
+func (r modifyTeamPolicyResponse) Error() error { return r.Err }
 
-func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamPolicyRequest)
 	resp, err := svc.ModifyTeamPolicy(ctx, req.TeamID, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
@@ -597,7 +597,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 
 	if teamID == nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: "software_title_id cannot be set on global policies",
+			Message: "Software title ID cannot be set on global policies",
 		})
 	}
 
@@ -605,7 +605,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message: fmt.Sprintf("software_title_id %d on team_id %d not found", *softwareTitleID, *teamID),
+				Message: fmt.Sprintf("Software title with ID %d does not belong to team ID %d", *softwareTitleID, *teamID),
 			})
 		}
 		return nil, nil, ctxerr.Wrap(ctx, err, "software title by id")
@@ -614,7 +614,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 		if softwareTitle.AppStoreApp.Platform != fleet.MacOSPlatform {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf(
-					"software_title_id %d on team_id %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
+					"Software title with ID %d on team ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
 					*softwareTitleID,
 					*teamID,
 				),
@@ -625,7 +625,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 	}
 	if softwareTitle.SoftwarePackage == nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message: fmt.Sprintf("software_title_id %d on team_id %d does not have associated package", *softwareTitleID, *teamID),
+			Message: fmt.Sprintf("Software title with ID %d on team ID %d does not have an associated package", *softwareTitleID, *teamID),
 		})
 	}
 

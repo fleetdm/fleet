@@ -21,7 +21,7 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable
 import { IOSVersionsResponse } from "services/entities/operating_systems";
 
 import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 import { SelectedPlatform } from "interfaces/platform";
 
@@ -162,14 +162,10 @@ const SoftwareOSTable = ({
   }, [data, router, teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      os_version_id: row.original.os_version_id,
-      team_id: teamId,
-    };
-
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
-    )}`;
+    const path = getPathWithQueryParams(
+      PATHS.SOFTWARE_OS_DETAILS(Number(row.original.os_version_id)),
+      { team_id: teamId }
+    );
 
     router.push(path);
   };

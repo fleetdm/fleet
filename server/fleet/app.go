@@ -207,10 +207,18 @@ type MDM struct {
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
+	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
+	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type UIGitOpsModeConfig struct {
+	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
+	RepositoryURL     string `json:"repository_url"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -342,12 +350,23 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
+func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return s.CustomSettings
+}
+
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
 }
+
+type WithMDMProfileSpecs interface {
+	GetMDMProfileSpecs() []MDMProfileSpec
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = MacOSSettings{}
 
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
@@ -428,6 +447,33 @@ type MacOSSetup struct {
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+}
+
+func (mos *MacOSSetup) SetDefaultsIfNeeded() {
+	if mos == nil {
+		return
+	}
+	if !mos.BootstrapPackage.Valid {
+		mos.BootstrapPackage = optjson.SetString("")
+	}
+	if !mos.MacOSSetupAssistant.Valid {
+		mos.MacOSSetupAssistant = optjson.SetString("")
+	}
+	if !mos.EnableReleaseDeviceManually.Valid {
+		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.Script.Valid {
+		mos.Script = optjson.SetString("")
+	}
+	if !mos.Software.Valid {
+		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+}
+
+func NewMacOSSetupWithDefaults() *MacOSSetup {
+	mos := &MacOSSetup{}
+	mos.SetDefaultsIfNeeded()
+	return mos
 }
 
 // MacOSSetupSoftware represents a VPP app or a software package to install
@@ -513,6 +559,8 @@ type AppConfig struct {
 	Integrations    Integrations    `json:"integrations"`
 
 	MDM MDM `json:"mdm"`
+
+	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -635,6 +683,16 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
+	if len(c.Integrations.DigiCert.Value) > 0 {
+		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
+		copy(digicert, c.Integrations.DigiCert.Value)
+		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	}
+	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
+		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
@@ -686,6 +744,8 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
+
+	// UIGitOpsMode: nothing needs cloning
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
@@ -1146,6 +1206,9 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+	// NoCache indicates that cached_mysql calls should be bypassed on the server.
+	// This is needed where related data was just updated and we need that latest data from the DB.
+	NoCache bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1178,6 +1241,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	if o.DryRun {
 		query.Set("dry_run", "true")
 	}
+	if o.NoCache {
+		query.Set("no_cache", "true")
+	}
 	return query.Encode()
 }
 
@@ -1191,6 +1257,13 @@ type EnrollSecret struct {
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
 	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+}
+
+func (e *EnrollSecret) GetTeamID() *uint {
+	if e == nil {
+		return nil
+	}
+	return e.TeamID
 }
 
 func (e *EnrollSecret) AuthzType() string {
@@ -1390,6 +1463,13 @@ type WindowsSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }
+
+func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = WindowsSettings{}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

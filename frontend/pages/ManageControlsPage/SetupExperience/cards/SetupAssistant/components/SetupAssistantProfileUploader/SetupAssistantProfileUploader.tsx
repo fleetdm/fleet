@@ -42,7 +42,7 @@ const SetupAssistantProfileUploader = ({
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
       let errComponent = <>{errMessage}</>;
-      if (errMessage.includes("Couldn't upload")) {
+      if (errMessage.includes("Couldn't add")) {
         errComponent = (
           <>
             {errMessage}.{" "}
@@ -51,8 +51,6 @@ const SetupAssistantProfileUploader = ({
               text="Learn more"
               className={`${baseClass}__new-tab`}
               newTab
-              color="core-fleet-black"
-              iconColor="core-fleet-white"
             />
           </>
         );

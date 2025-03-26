@@ -61,8 +61,8 @@ allow {
 # Team admin, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  # If role is admin, gitops, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -329,27 +329,37 @@ allow {
 # Labels
 ##
 
-# Global admins, maintainers, observer_plus and observers can read labels.
+# Global admins, maintainers, observer_plus, observers and gitops can read labels.
 allow {
   object.type == "label"
-	subject.global_role == [admin, maintainer, observer_plus, observer][_]
+	subject.global_role == [admin, maintainer, observer_plus, observer, gitops][_]
   action == read
 }
 
-# Team admins, maintainers, observer_plus and observers can read labels.
+# Team admins, maintainers, observer_plus, observers and gitops can read labels.
 allow {
 	object.type == "label"
   # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
 	action == read
 }
 
-# Only global admins, maintainers and gitops can write labels
+# Global admins, maintainers and gitops can write labels
 allow {
   object.type == "label"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
+
+
+# Team admins and maintainers can write labels
+allow {
+  object.type == "label"
+  # If role is admin, maintainer or gitops on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  action == write
+}
+
 
 ##
 # Queries
@@ -633,6 +643,13 @@ allow {
   object.type == "software_inventory"
   subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == read
+}
+
+# Only global admins can modify software inventory (specifically software title names)
+allow {
+  object.type == "software_inventory"
+  subject.global_role == admin
+  action == write
 }
 
 # Team admins, maintainers, observers and observer_plus can read all software in their teams.
@@ -1018,4 +1035,14 @@ allow {
   object.type == "secret_variable"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
+}
+
+##
+# Android
+##
+# Global admins can connect enterprise.
+allow {
+  object.type == "android_enterprise"
+  subject.global_role == admin
+  action == [read, write][_]
 }

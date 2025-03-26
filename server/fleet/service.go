@@ -37,7 +37,7 @@ type EnterpriseOverrides struct {
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
-	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
+	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
 type OsqueryService interface {
@@ -435,6 +435,13 @@ type Service interface {
 	// the specified host.
 	ListHostSoftware(ctx context.Context, hostID uint, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
+	// UpdateSoftwareName updates the name of a software title if the title is uniquely identified by bundle ID
+	// rather than by name
+	UpdateSoftwareName(ctx context.Context, titleID uint, name string) error
+
+	// ListHostCertificates lists the certificates installed on the specified host.
+	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
@@ -587,7 +594,7 @@ type Service interface {
 	// host. Those are activities that are queued or scheduled to run on the host
 	// but haven't run yet. It also returns the total (unpaginated) count of upcoming
 	// activities.
-	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
@@ -657,7 +664,7 @@ type Service interface {
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
 	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
-	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, selfService bool, policyID *uint) (string, error)
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 
 	// UninstallSoftwareTitle uninstalls a software title in the given host.
 	UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
@@ -685,6 +692,7 @@ type Service interface {
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*VPPAppStoreApp, error)
 
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
@@ -740,12 +748,6 @@ type Service interface {
 	// Geolocation
 
 	LookupGeoIP(ctx context.Context, ip string) *GeoLocation
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// Installers
-
-	GetInstaller(ctx context.Context, installer Installer) (io.ReadCloser, int64, error)
-	CheckInstallerExistence(ctx context.Context, installer Installer) error
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Software Installers
@@ -1071,7 +1073,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool,
+		assumeEnabled *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1122,6 +1124,9 @@ type Service interface {
 	// NewScript creates a new (saved) script with its content provided by the
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
+
+	// UpdateScript updates a saved script with the contents of io.Reader r
+	UpdateScript(ctx context.Context, scriptID uint, r io.Reader) (*Script, error)
 
 	// DeleteScript deletes an existing (saved) script.
 	DeleteScript(ctx context.Context, scriptID uint) error
@@ -1181,11 +1186,11 @@ type Service interface {
 	// Fleet-maintained apps
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
-	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (uint, error)
-	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
+	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny, labelsExcludeAny []string) (uint, error)
+	// ListFleetMaintainedApps lists Fleet-maintained apps, including associated software title for supplied team ID (if any)
 	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
-	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
-	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
+	// GetFleetMaintainedApp returns a Fleet-maintained app by ID, including associated software title for supplied team ID (if any)
+	GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows

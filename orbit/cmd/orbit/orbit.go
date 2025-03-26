@@ -524,7 +524,6 @@ func main() {
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
-		checkAccessToNewTUF := false
 		if opt.ServerURL == update.OldFleetTUFURL {
 			//
 			// This only gets executed on orbit 1.38.0+
@@ -532,20 +531,7 @@ func main() {
 			// (fleetd instances packaged before the migration,
 			// built by fleetctl previous to v4.63.0).
 			//
-
-			if ok := update.HasAccessToNewTUFServer(opt); ok {
-				// orbit 1.38.0+ will use the new TUF server if it has access to the new TUF repository.
-				opt.ServerURL = update.DefaultURL
-			} else {
-				// orbit 1.38.0+ will use the old TUF server and old metadata path if it does not have access
-				// to the new TUF repository. During its execution (update.Runner) it will exit once it finds
-				// out it can access the new TUF server.
-				localStore, err = filestore.New(filepath.Join(c.String("root-dir"), update.OldMetadataFileName))
-				if err != nil {
-					log.Fatal().Err(err).Msg("create local old metadata store")
-				}
-				checkAccessToNewTUF = true
-			}
+			opt.ServerURL = update.DefaultURL
 		}
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
@@ -614,7 +600,6 @@ func main() {
 				CheckInterval:              c.Duration("update-interval"),
 				Targets:                    targets,
 				SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
-				CheckAccessToNewTUF:        checkAccessToNewTUF,
 			})
 			if err != nil {
 				return err
@@ -813,6 +798,12 @@ func main() {
 				osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
 				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 			)
+		}
+
+		if runtime.GOOS == "windows" {
+			if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
+				options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
+			}
 		}
 
 		var certPath string
@@ -1594,14 +1585,6 @@ func newDesktopRunner(
 func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
-	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-
-	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
-		!errors.Is(err, platform.ErrProcessNotFound) &&
-		!errors.Is(err, platform.ErrComChannelNotFound) {
-		log.Error().Err(err).Msg("desktop early terminate")
-	}
-
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -1639,14 +1622,25 @@ func (d *desktopRunner) Execute() error {
 			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
 			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
 			// for more details.
-			loggedInGui, err := user.IsUserLoggedInViaGui()
+			loggedInUser, err := user.UserLoggedInViaGui()
 			if err != nil {
 				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
 				return true
 			}
 
-			if !loggedInGui {
+			if loggedInUser == nil {
 				return true
+			}
+
+			if *loggedInUser != "" {
+				opts = append(opts, execuser.WithUser(*loggedInUser))
+			}
+
+			log.Info().Msg("killing any pre-existing fleet-desktop instances")
+			if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+				!errors.Is(err, platform.ErrProcessNotFound) &&
+				!errors.Is(err, platform.ErrComChannelNotFound) {
+				log.Error().Err(err).Msg("desktop early terminate")
 			}
 
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
@@ -1665,8 +1659,8 @@ func (d *desktopRunner) Execute() error {
 
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
-		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
-			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
+		if done := retry(15*time.Second, true, d.interruptCh, func() bool {
+			switch _, err := platform.GetProcessesByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
 			case errors.Is(err, platform.ErrProcessNotFound):

@@ -8,7 +8,7 @@ To use automatic enrollment (aka zero-touch) features on Windows, follow instruc
 
 To migrate Windows hosts from your current MDM solution to Fleet, follow the instructions [here](#automatic-windows-mdm-migration). 
 
-## Manual enrollment
+## Turn on Windows MDM
 
 ### Step 1: Generate your certificate and key
 
@@ -21,7 +21,6 @@ How to generate a certificate and key:
 2. Create a certificate: `openssl req -x509 -new -nodes -key fleet-mdm-win-wstep.key -sha256 -days 3652 -out fleet-mdm-win-wstep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet.'`.
 
 > Note: The default `openssl` binary installed on macOS is actually `LibreSSL`, which doesn't support the `--traditional` flag. To successfully generate these files, make sure you're using `OpenSSL` and not `LibreSSL`. You can check what your `openssl` command points to by running `openssl version`.
-
 
 ### Step 2: Configure Fleet with your certificate and key
 
@@ -42,9 +41,11 @@ Restart the Fleet server.
 
 3. Select **Turn on**.
 
-### Step 4: Test manual enrollment
+## Manual enrollment
 
 With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+
+> Windows [tamper protection](https://learn.microsoft.com/en-us/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection) is disabled on a host when MDM is turned on.
 
 ## Automatic enrollment
 
@@ -54,9 +55,7 @@ To automatically enroll Windows workstations when they’re first unboxed and se
 
 After you connect Fleet to Microsoft Entra ID, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
-
-Each end user who automatically enrolls needs a [Microsoft license](https://learn.microsoft.com/en-us/mem/intune/fundamentals/licenses.)
+In order to connect Fleet to Microsoft Entra ID, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. Each end user who automatically enrolls needs at least a [Microsoft Entra P1 license](https://www.microsoft.com/en-us/security/business/microsoft-entra-pricing). If they already have an [E3 or E5 license](https://www.microsoft.com/en-us/microsoft-365/enterprise/microsoft365-plans-and-pricing) then you're good to go.
 
 ### Step 1: Buy Microsoft licenses
 
@@ -170,6 +169,13 @@ Follow the [steps above](#manual-enrollment) to turn on Windows MDM in Fleet.
 Once the automatic migration is enabled, Fleet sends a notification to each host to tell it to migrate. This process usually takes a few minutes at most.
 
 You can track migration progress in Fleet. Learn how [here](https://fleetdm.com/guides/mdm-migration#check-migration-progress).
+
+## Turn off Windows MDM
+
+1. Turn off MDM for each host, by running [this script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/turn-off-mdm.ps1) on all your Windows hosts.
+2. Head to **Settings > Integrations > MDM**.
+3. In the **Mobile device management (MDM)** section, select **Edit** next to "Windows MDM turned on."
+4. Switch **Windows MDM on** to **Windows MDM off** and select **Save**.
 
 <meta name="articleTitle" value="Windows MDM setup">
 <meta name="authorFullName" value="Noah Talerman">

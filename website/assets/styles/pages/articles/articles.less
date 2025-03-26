@@ -32,7 +32,6 @@
   }
   [purpose='category-title'] {
     padding-bottom: 40px;
-    margin-right: 25px;
     p {
       margin-bottom: 0px;
     }
@@ -60,7 +59,10 @@
     font-style: normal;
     font-weight: 400;
     line-height: 21px;
+    text-decoration: none;
     width: 168px;
+    margin-right: 8px;
+    height: 37px;
     img {
       width: 16px;
       height: 16px;
@@ -199,7 +201,79 @@
     }
   }
 
+  [purpose='article-row'] {
+    padding: 24px 0px;
+    border-bottom: 1px solid #E2E4EA;
+    cursor: pointer;
+    text-decoration: none;
+    color: unset;
+    [purpose='animated-arrow'] {
+      margin-left: 32px;
+      stroke-width: 2px;
+      height: 12px;
+      width: 12px;
+      fill: none;
+      // stroke: #FF5C83; « Note: this is overridden by the arrow-color prop;
+    }
+    [purpose='arrow-line'] {
+      opacity: 0;
+      transition: opacity 10ms ease-out;
+    }
+    [purpose='chevron'] {
+      transition: transform 200ms ease-out;
+    }
+    &:hover {
+      text-decoration: none;
+      [purpose='button-text'] {
+        color: @core-fleet-black;
+      }
+      [purpose='arrow-line'] {
+        opacity: 1;
+        transition: opacity 300ms ease-out;
+      }
+      [purpose='chevron'] {
+        transform: translateX(5px);
+      }
+    }
+    [purpose='publish-date'] {
+      font-size: 12px;
+      padding-top: 8px;
+      [parasails-component='js-timestamp'] {
+        font-size: 12px;
+      }
+    }
+  }
 
+  [purpose='article-link'] {
+    color: unset;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+  [purpose='article-name'] {
+    margin-bottom: 0px;
+    text-decoration: none;
+    color: #192147;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 24px;
+  }
+  [purpose='article-description'] {
+      color: #515774;
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px; /* 150% */
+      p {
+        margin-top: 8px;
+        margin-bottom: 8px;
+
+      }
+  }
   [purpose='articles'] {
     width: 100%;
     max-width: 100%;
@@ -355,9 +429,6 @@
     [purpose='page-container'] {
       padding: 64px 32px;
     }
-    [purpose='category-title'] {
-      margin-right: 20px;
-    }
     [purpose='guide-card'] {
       max-width: unset;
     }
@@ -400,7 +471,13 @@
         width: 100%;
       }
     }
+    [purpose='changelog-button'] {
+      margin-left: 0px;
+      margin-bottom: 16px;
+      width: 100%;
+    }
     [purpose='category-title'] {
+      margin-right: 0px;
       p {
         margin-bottom: 16px;
       }

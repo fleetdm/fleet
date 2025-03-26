@@ -1,6 +1,10 @@
 .data-set {
   font-size: $x-small;
-  min-width: max-content;
+
+  &__horizontal {
+    display: flex;
+    gap: $pad-small;
+  }
 
   // ff only
   @-moz-document url-prefix() {

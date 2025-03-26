@@ -215,19 +215,28 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
+
+					// Check labels
+					require.Len(t, gitops.Labels, 2)
+					assert.Equal(t, "Global label numero uno", gitops.Labels[0].Name)
+					assert.Equal(t, "Global label numero dos", gitops.Labels[1].Name)
+					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
+					require.Len(t, gitops.Labels[1].Hosts, 2)
+					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
+					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+
 				}
 
 				// Check controls
-				_, ok := gitops.Controls.MacOSSettings.(map[string]interface{})
+				_, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 				assert.True(t, ok, "macos_settings not found")
-				_, ok = gitops.Controls.WindowsSettings.(map[string]interface{})
+				_, ok = gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
-				_, ok = gitops.Controls.MacOSSetup.(map[string]interface{})
-				assert.True(t, ok, "macos_setup not found")
+				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
 				_, ok = gitops.Controls.MacOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "macos_updates not found")
 				_, ok = gitops.Controls.IOSUpdates.(map[string]interface{})
@@ -845,7 +854,7 @@ func TestGitOpsPaths(t *testing.T) {
 				assert.ErrorContains(t, err, "failed to unmarshal")
 
 				// Test a nested path -- bad
-				tmpFileBad, err = os.CreateTemp(t.TempDir(), "*bad.yml")
+				tmpFileBad, err = os.CreateTemp(filepath.Dir(mainTmpFile.Name()), "*bad.yml")
 				require.NoError(t, err)
 				if test.isArray {
 					_, err = tmpFileBad.WriteString(fmt.Sprintf("- path: %s\n", tmpFile.Name()))

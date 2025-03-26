@@ -13,34 +13,34 @@
           <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
             <div class="form-group">
               <label for="email-address">Work email *</label>
-              <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
+              <input tabindex="1" class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
               <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
             </div>
             <div v-show="formData.emailAddress || showFullForm">
               <div class="form-group">
                 <label for="password">Choose a password *</label>
-                <input class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
+                <input tabindex="2" class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
                 <div class="invalid-feedback" v-if="formErrors.password === 'minLength'">Password too short.</div>
                 <div class="invalid-feedback" v-if="formErrors.password === 'required'">Please enter a password.</div>
                 <p class="mt-2 small"> Minimum length is 8 characters</p>
               </div>
               <div class="form-group">
                 <label for="organization">Organization *</label>
-                <input class="form-control" id="organization" type="text"  :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">
+                <input tabindex="3" class="form-control" id="organization" type="text"  :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">
                 <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
               </div>
               <div class="row">
                 <div class="col-12 col-sm-6 pr-sm-2">
                   <div class="form-group">
                     <label for="first-name">First name *</label>
-                    <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
+                    <input tabindex="4" class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
                     <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
                   </div>
                 </div>
                 <div class="col-12 col-sm-6 pl-sm-2">
                   <div class="form-group">
                     <label for="last-name">Last name *</label>
-                    <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
+                    <input tabindex="5" class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
                     <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
                   </div>
                 </div>
@@ -54,8 +54,8 @@
             </cloud-error>
             <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
             <p class="small">By signing up you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
-            <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
-            <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
+            <ajax-button tabindex="6" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
+            <ajax-button tabindex="7" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
           </ajax-form>
         </div>
       </div>

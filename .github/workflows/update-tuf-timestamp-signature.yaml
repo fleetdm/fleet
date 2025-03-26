@@ -1,0 +1,90 @@
+# This workflow update the timestamp of the TUF repository at https://updates.fleetdm.com
+name: Update TUF timestamp signature
+
+on:
+  schedule:
+    - cron: "0 13 * * TUE" # Every Tuesday at 1 PM UTC
+  workflow_dispatch: # Manual
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  updates-update-timestamp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Install rclone
+        run: sudo apt install rclone
+
+      - name: Configure rclone
+        env:
+          CLOUDFLARE_UPDATES_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_UPDATES_ACCESS_KEY_ID }}
+          CLOUDFLARE_UPDATES_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_UPDATES_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_UPDATES_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_UPDATES_ACCOUNT_ID }}
+        run: |
+          mkdir -p ~/.config/rclone
+          cat << EOF > ~/.config/rclone/rclone.conf
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = $CLOUDFLARE_UPDATES_ACCESS_KEY_ID
+          secret_access_key = $CLOUDFLARE_UPDATES_SECRET_ACCESS_KEY
+          region = auto
+          endpoint = https://$CLOUDFLARE_UPDATES_ACCOUNT_ID.r2.cloudflarestorage.com
+          acl = private
+          EOF
+
+      - name: Pull metadata files
+        run: |
+          mkdir -p keys repository staged
+          rclone copy r2://updates-staging/timestamp.json ./repository/
+          rclone copy r2://updates-staging/snapshot.json ./repository/
+          rclone copy r2://updates-staging/targets.json ./repository/
+          rclone copy r2://updates-staging/root.json ./repository/
+          cat ./repository/timestamp.json
+
+      - name: Update timestamp
+        env:
+          BASE64_ENCRYPTED_UPDATES_TIMESTAMP_KEY_CONTENTS: ${{ secrets.BASE64_ENCRYPTED_UPDATES_TIMESTAMP_KEY }}
+          FLEET_TIMESTAMP_PASSPHRASE: ${{ secrets.UPDATES_TIMESTAMP_PASSPHRASE }}
+        run: |
+          echo "$BASE64_ENCRYPTED_UPDATES_TIMESTAMP_KEY_CONTENTS" | base64 -d > ./keys/timestamp.json
+          fleetctl updates timestamp --path .
+
+      - name: Push timestamp.json
+        run: |
+          cat ./repository/timestamp.json
+          rclone copy ./repository/timestamp.json r2://updates-staging/
+
+      - name: Take a nap until staging cache clears
+        run: |
+          sleep 120
+
+      - name: Smoke test staging environment
+        run: |
+          fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --update-url=https://updates-staging.fleetdm.com
+
+      - name: Promote staging to production
+        run: |
+          rclone copy r2://updates-staging/timestamp.json r2://updates/
+
+      - name: Take a nap until production cache clears
+        run: |
+          sleep 120
+
+      - name: Smoke test production environment
+        run: |
+          fleetctl package --type deb --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop

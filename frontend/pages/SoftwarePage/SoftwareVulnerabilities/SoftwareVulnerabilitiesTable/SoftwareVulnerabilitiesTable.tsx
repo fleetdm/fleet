@@ -28,7 +28,7 @@ import {
   IVulnerabilitiesResponse,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
@@ -185,16 +185,18 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsByVulnerabilityParams = {
-      vulnerability: row.original.cve,
-      team_id: teamId,
-    };
+    if (row.original.cve) {
+      const cveName = row.original.cve.toString();
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsByVulnerabilityParams
-    )}`;
+      const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
+        {
+          team_id: teamId,
+        }
+      );
 
-    router.push(path);
+      router.push(softwareVulnerabilityDetailsPath);
+    }
   };
 
   const renderVulnerabilityCount = () => {
@@ -256,7 +258,7 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={vulnerabilitiesTableHeaders}
         data={data?.vulnerabilities || []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}

@@ -30,7 +30,7 @@
       <div v-if="selectedContent === 'mdm'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForMdm) {%>
-            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" no-icon>
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -58,7 +58,7 @@
       <div v-if="selectedContent === 'it'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForObservability) {%>
-            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" no-icon>
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
@@ -86,7 +86,7 @@
       <div v-if="selectedContent === 'security'">
         <div purpose="testimonials-container" class="card-columns">
           <% for(let testimonial of testimonialsForSoftwareManagement) {%>
-            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" >
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" class="card" no-icon>
               <% if(testimonial.quoteImageFilename){ %>
                 <div purpose="logo" class="mb-4">
                   <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>

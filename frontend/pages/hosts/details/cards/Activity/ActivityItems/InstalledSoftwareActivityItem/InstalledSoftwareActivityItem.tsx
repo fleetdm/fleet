@@ -9,6 +9,7 @@ import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityCo
 const baseClass = "installed-software-activity-item";
 
 const InstalledSoftwareActivityItem = ({
+  tab,
   activity,
   onShowDetails,
   hideCancel,
@@ -21,8 +22,14 @@ const InstalledSoftwareActivityItem = ({
   const actorDisplayName = self_service ? (
     <span>End user</span>
   ) : (
-    <b>{actorName}</b>
+    <b>{actorName ?? "Fleet"}</b>
   );
+
+  let installedSoftwarePrefix = getInstallStatusPredicate(status);
+  if (tab !== "past" && activity.fleet_initiated) {
+    installedSoftwarePrefix =
+      status === "pending_uninstall" ? "will uninstall" : "will install";
+  }
 
   return (
     <ActivityItem
@@ -31,8 +38,8 @@ const InstalledSoftwareActivityItem = ({
       hideCancel={hideCancel}
       onShowDetails={onShowDetails}
     >
-      <>{actorDisplayName}</> {getInstallStatusPredicate(status)} <b>{title}</b>{" "}
-      on this host {self_service && "(self-service)"}.{" "}
+      <>{actorDisplayName}</> {installedSoftwarePrefix} <b>{title}</b> on this
+      host{self_service && " (self-service)"}.{" "}
     </ActivityItem>
   );
 };

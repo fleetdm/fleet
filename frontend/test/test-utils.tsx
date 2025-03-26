@@ -36,8 +36,17 @@ export const renderWithAppContext = (
   );
 };
 
+// recursively make all fields in T optional
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
 interface IContextOptions {
-  app?: Partial<IAppContext>;
+  // DeepPartial allows inclusion of only fields needed for testing, even if such a partial type
+  // is not acceptable in actual application code
+  app?: DeepPartial<IAppContext>;
   notification?: Partial<INotificationContext>;
   policy?: Partial<IPolicyContext>;
   query?: Partial<IQueryContext>;
@@ -145,7 +154,6 @@ export const createCustomRenderer = (renderOptions?: ICustomRenderOptions) => {
  * This is a convenince method that calls the render method from `@testing-library/react` and also
  * sets up the also `user-events`library and adds the user object to the returned object.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const renderWithSetup = (component: JSX.Element) => {
   return {
     user: userEvent.setup(),

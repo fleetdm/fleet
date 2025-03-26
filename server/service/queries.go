@@ -27,9 +27,9 @@ type getQueryResponse struct {
 	Err   error        `json:"error,omitempty"`
 }
 
-func (r getQueryResponse) error() error { return r.Err }
+func (r getQueryResponse) Error() error { return r.Err }
 
-func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getQueryRequest)
 	query, err := svc.GetQuery(ctx, req.ID)
 	if err != nil {
@@ -71,9 +71,9 @@ type listQueriesResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r listQueriesResponse) error() error { return r.Err }
+func (r listQueriesResponse) Error() error { return r.Err }
 
-func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listQueriesRequest)
 
 	var teamID *uint
@@ -162,9 +162,9 @@ type getQueryReportResponse struct {
 	Err           error                      `json:"error,omitempty"`
 }
 
-func (r getQueryReportResponse) error() error { return r.Err }
+func (r getQueryReportResponse) Error() error { return r.Err }
 
-func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getQueryReportRequest)
 	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID, req.TeamID)
 	if err != nil {
@@ -252,9 +252,9 @@ type createQueryResponse struct {
 	Err   error        `json:"error,omitempty"`
 }
 
-func (r createQueryResponse) error() error { return r.Err }
+func (r createQueryResponse) Error() error { return r.Err }
 
-func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createQueryRequest)
 	query, err := svc.NewQuery(ctx, req.QueryPayload)
 	if err != nil {
@@ -317,6 +317,13 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if p.DiscardData != nil {
 		query.DiscardData = *p.DiscardData
 	}
+	if len(p.LabelsIncludeAny) > 0 {
+		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
+		}
+		query.LabelsIncludeAny = labelIdents
+	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
@@ -360,9 +367,9 @@ type modifyQueryResponse struct {
 	Err   error        `json:"error,omitempty"`
 }
 
-func (r modifyQueryResponse) error() error { return r.Err }
+func (r modifyQueryResponse) Error() error { return r.Err }
 
-func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyQueryRequest)
 	query, err := svc.ModifyQuery(ctx, req.ID, req.QueryPayload)
 	if err != nil {
@@ -440,6 +447,16 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		}
 		query.DiscardData = *p.DiscardData
 	}
+	if p.LabelsIncludeAny != nil {
+		// Users submitting an empty array of labels will still
+		// initiate LabelsIncludeAny. It will only be nil if it was
+		// not included in the request (not modified)
+		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
+		}
+		query.LabelsIncludeAny = labelIdents
+	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
@@ -486,9 +503,9 @@ type deleteQueryResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteQueryResponse) error() error { return r.Err }
+func (r deleteQueryResponse) Error() error { return r.Err }
 
-func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteQueryRequest)
 	var teamID *uint
 	if req.TeamID != 0 {
@@ -540,9 +557,9 @@ type deleteQueryByIDResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteQueryByIDResponse) error() error { return r.Err }
+func (r deleteQueryByIDResponse) Error() error { return r.Err }
 
-func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteQueryByIDRequest)
 	err := svc.DeleteQueryByID(ctx, req.ID)
 	if err != nil {
@@ -591,9 +608,9 @@ type deleteQueriesResponse struct {
 	Err     error `json:"error,omitempty"`
 }
 
-func (r deleteQueriesResponse) error() error { return r.Err }
+func (r deleteQueriesResponse) Error() error { return r.Err }
 
-func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteQueriesRequest)
 	deleted, err := svc.DeleteQueries(ctx, req.IDs)
 	if err != nil {
@@ -644,9 +661,9 @@ type applyQuerySpecsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyQuerySpecsResponse) error() error { return r.Err }
+func (r applyQuerySpecsResponse) Error() error { return r.Err }
 
-func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyQuerySpecsRequest)
 	err := svc.ApplyQuerySpecs(ctx, req.Specs)
 	if err != nil {
@@ -735,6 +752,23 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 	if logging == "" {
 		logging = fleet.LoggingSnapshot
 	}
+	// Find labels by name
+	var queryLabels []fleet.LabelIdent
+	if len(spec.LabelsIncludeAny) > 0 {
+		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get labels by name")
+		}
+		for labelName := range labelsMap {
+			queryLabels = append(queryLabels, fleet.LabelIdent{LabelName: labelName, LabelID: labelsMap[labelName].ID})
+		}
+		// Make sure that all labels were found
+		for _, label := range spec.LabelsIncludeAny {
+			if _, ok := labelsMap[label]; !ok {
+				return nil, ctxerr.New(ctx, "label not found")
+			}
+		}
+	}
 	return &fleet.Query{
 		Name:        spec.Name,
 		Description: spec.Description,
@@ -748,6 +782,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		AutomationsEnabled: spec.AutomationsEnabled,
 		Logging:            logging,
 		DiscardData:        spec.DiscardData,
+		LabelsIncludeAny:   queryLabels,
 	}, nil
 }
 
@@ -764,9 +799,9 @@ type getQuerySpecsRequest struct {
 	TeamID uint `url:"team_id,optional"`
 }
 
-func (r getQuerySpecsResponse) error() error { return r.Err }
+func (r getQuerySpecsResponse) Error() error { return r.Err }
 
-func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getQuerySpecsRequest)
 	var teamID *uint
 	if req.TeamID != 0 {
@@ -806,6 +841,10 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		}
 		teamName = team.Name
 	}
+	labelsAny := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelsAny = append(labelsAny, label.LabelName)
+	}
 	return &fleet.QuerySpec{
 		Name:        query.Name,
 		Description: query.Description,
@@ -819,6 +858,7 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		AutomationsEnabled: query.AutomationsEnabled,
 		Logging:            query.Logging,
 		DiscardData:        query.DiscardData,
+		LabelsIncludeAny:   labelsAny,
 	}, nil
 }
 
@@ -836,9 +876,9 @@ type getQuerySpecRequest struct {
 	TeamID uint   `query:"team_id,optional"`
 }
 
-func (r getQuerySpecResponse) error() error { return r.Err }
+func (r getQuerySpecResponse) Error() error { return r.Err }
 
-func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getQuerySpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getQuerySpecRequest)
 	var teamID *uint
 	if req.TeamID != 0 {

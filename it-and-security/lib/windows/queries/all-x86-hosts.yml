@@ -1,7 +1,9 @@
-apiVersion: v1
-kind: query
-spec:
-  name: All ARM hosts
+- name: All x86 hosts
+  automations_enabled: false
+  description: Collects all x86-based hosts.
+  discard_data: false
+  interval: 300
+  logging: snapshot
+  observer_can_run: true
+  platform: windows
   query: SELECT * FROM os_version WHERE arch NOT LIKE 'ARM%';
-  platform: "windows"
-  

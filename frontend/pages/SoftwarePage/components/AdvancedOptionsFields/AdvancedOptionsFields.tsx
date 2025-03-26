@@ -2,7 +2,7 @@ import React, { ReactNode } from "react";
 import classnames from "classnames";
 
 import Editor from "components/Editor";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -52,15 +52,15 @@ const AdvancedOptionsFields = ({
 
     return (
       <Button variant="text-icon" onClick={onClickShowSchema}>
+        Schema
         <Icon name="info" size="small" />
-        <span>Show schema</span>
       </Button>
     );
   };
 
   return (
     <div className={classNames}>
-      <FleetAce
+      <SQLEditor
         className="form-field"
         focus
         error={errors.preInstallQuery}

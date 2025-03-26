@@ -32,13 +32,12 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
 - I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's always ok to interrupt and tell me to my face, or send me a direct message.
 -->
 
-
 > If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
 
 ## Contact the CEO
 
-**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
 
 
 ## CEO responsibilities
@@ -189,26 +188,19 @@ If the consultant is international, you will also provide:
 
 At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
 
-> Are you a new fleetie joining the Digital Experience team?  For Loom recordings demonstrating how to make offers, hire, onboard, and more please see [this classified Google Doc](https://docs.google.com/document/d/1fimxQguPOtK-2YLAVjWRNCYqs5TszAHJslhtT_23Ly0/edit).
-
 
 ### Hiring restrictions
 
-**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevents us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevent us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
 
 **Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 
-## Interviewing
+### Communicating with applicants 
 
-> TODO: Rewrite this section for the hiring manager as our audience.
+At Fleet, we use [LinkedIn](https://www.linkedin.com/company/fleetdm) to communicate with future team members. Allowing potential candidates to apply via LinkedIn direct message lets community members quickly introduce themselves and apply while providing the maximum amount of async data to the hiring manager. Community members will often inquire about positions that aren't currently being hired for. We [track all applicants](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) in the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and respond within one business day. 
 
-We're glad you're interested in joining the team! 
-Here are some of the things you can anticipate throughout this process:
-  - We will reply by email within one business day from the time when the application arrives.
-  - You may receive a rejection email (Bummer, consider applying again in the future).
-  - You may receive an invitation to "book with us."
-If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
+> Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet? [Add their info to the spreadsheet](https://fleetdm.com/handbook/digital-experience#track-a-fleet-applicant) and leave a Google Doc comment at-mentioning the hiring manager or [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team). 
 
 Department-specific interviewing instructions:
 - [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
@@ -320,7 +312,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 1. **Create a copy of the "Why hire?"**: Create a copy of the ["Why hire?" template](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/copy?) and complete all TODOs on the "🧑‍🚀 Candidate details" tab.
 
-2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in the "Why hire?" template.  Be respectful and keep these calls very short.
 
 3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
@@ -339,16 +331,11 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
      ```
     *CEO interview request:*
     Hi @Savannah Friend, the following candidate is ready for a CEO interview. cc: @Sam Pfluger
-    - Name: TODO
-    - Position: TODO
-    - LinkedIn: TODO
-    - Email: TODO
     - Single doc URL: TODO
      ```
      
 5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Digital Experience via Google Drive.
-   - _Share_ this single document with the Head of Digital Experience via email.
-   - When the Head of Digital Experience receives this shared doc in their email with the compiled feedback about the candidate, they will understand that to mean that it is time for Fleet to make an offer to the candidate.
+   - At-mention the Head of Digital Experience in the hiring channel for the open position and confirm that you would like to make an offer to a particular candidate. Be sure to include the single document URL in your message.
 
 
 ### Making an offer
@@ -357,16 +344,33 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
 
 <!-- For future use: some ready-to-go language around rebencharking compensation for cost of living: https://github.com/fleetdm/fleet/pulls/13499 -->
 
-1. **Prepare the "exit scenarios" spreadsheet:** 🌐 Head of Digital Experience [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
+1. **Review the candidate's row in the ["🧑‍🚀 Fleeties" spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to be sure there are no dangling TODOs. Read the column headers and precisely follow the instructions about how to format the data. Verify the new team member's row in "🧑‍🚀 Fleeties" includes: 
+  - **Start date** _(The new fleetie's first day, YYYY-MM-DD)_
+  - **LinkedIn** _(If available)_
+  - **GitHub username** _(If available)_
+  - **Location** _(Derive this from LinkedIn if possible)_
+  - Add the new team member's GitHub username _(Username of 2FA-enabled GitHub account)_
+
+2. Review the [¶¶ 🥧 Equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) to be sure the candidate's compensation and all included notes are correct. 
+  - **OTE**: _("On-target earnings", i.e. anticipated total annual cash compensation)_
+  - **Equity**: _(Stock options)_
+  - **Notes**: _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
+  - **Personal email**: _(Use the personal email they're replying from, e.g. `@gmail.com`)_
+
+3. **Prepare the "exit scenarios" spreadsheet**: 🌐 Head of Digital Experience [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
+
      > _**Note:** Don't play with numbers in the exit scenarios spreadsheet. The revision history is visible to the candidate, and they might misunderstand._
 
-2. **Prepare offer:** 🌐 Head of Digital Experience [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
+    - Move the candidate's exit scenarios sheet to the top level of the ["¶¶ People operations" folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=drive_link) in Google Drive.
+    - Share "Editor" access of the candidate's exit scenarios spreadsheet with them via their personal email. **BE SURE UNCHECK THE "Notify people" box. 
+
+4. **Prepare offer**: 🌐 Head of Digital Experience [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
 
-3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
+5. **Draft email**: 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Head of Digital Experience
    - Subject: "Full time?"
@@ -375,16 +379,30 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
      - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
      - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
 
-4. **Send offer:** 🐈‍⬛ CEO reviews and sends the offer to the candidate:
+6. **Send offer**: 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
 
-5. **Process the offer response** The Head of Digital Experience will process the offer response by either creating a new ["Teammate pre-onboarding" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) and following the steps if the offer is accepted or notifying the stakeholders that the offer was not accepted and we should continue the search. 
+7. **Process the offer response**: The Head of Digital Experience will process the offer response by either creating a new ["Teammate pre-onboarding" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) and following the steps if the offer is accepted or notifying the stakeholders that the offer was not accepted and we should continue the search. 
+
+8. **If the offer is accepted**: The Head of Digital Experience will:
+  - Review the [¶¶ 🥧 Equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) to be sure the new team member's compensation and all included notes are correct.
+  - _Send a reply_ (ccing DigExp team) welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
+
+     ```
+     \o/  It's official!
+     
+     Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP. 
+     
+     Thanks, and welcome to the team!
+     Sam
+     
+     ```
 
 
 ### After an offer is accepted
 
-The Head of Digital Experience will then follow the steps in the ["Teammate pre-onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
+The Digital Experience team will then follow the steps in the ["Teammate pre-onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 
 ## Create a 30-60-90 day plan
@@ -438,7 +456,7 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 From time to time, someone's job title changes. The hiring manager can use the following steps to change someone's position:
 1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of Digital Experience.
 2. At-mention the Head of Digital Experience in the new channel with any context regarding the title change. Share any related documents with the Head of Digital Experience and the CEO.
-3. After getting approval from the [Head of People](https://fleetdm.com/handbook/digital-experience#team), the Digital Experience team will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/digital-experience#change-a-fleeties-job-title).
+3. After getting approval from the [Head of People](https://fleetdm.com/handbook/digital-experience#team), the Digital Experience team will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/digital-experience#change-a-fleeties-role).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1e59ac8f-26d8-4f2f-9ff4-2e303753c910">
 
@@ -452,7 +470,12 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
 
 
+#### Stubs
 
+The following stubs are included only to make links backward compatible.
+
+##### Interviewing
+Please see 📖[handbook/company/leadership#communicating-with-applicants](https://fleetdm.com/handbook/company/leadership#communicating-with-applicants).
 
 
 <meta name="maintainedBy" value="mikermcneil">

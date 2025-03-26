@@ -3,12 +3,15 @@ import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import { noop } from "lodash";
 
+import paths from "router/paths";
+import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
-import { createHostsByPolicyPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 
 import {
@@ -60,13 +63,14 @@ const Policies = ({
     (row: IHostPoliciesRowProps) => {
       const { id: policyId, response: policyResponse } = row.original;
 
-      const viewAllHostPath = createHostsByPolicyPath(
-        policyId,
-        policyResponse === "pass"
-          ? PolicyResponse.PASSING
-          : PolicyResponse.FAILING,
-        currentTeamId
-      );
+      const viewAllHostPath = getPathWithQueryParams(paths.MANAGE_HOSTS, {
+        policy_id: policyId,
+        policy_response:
+          policyResponse === "pass"
+            ? PolicyResponse.PASSING
+            : PolicyResponse.FAILING,
+        team_id: currentTeamId,
+      });
 
       router.push(viewAllHostPath);
     },
@@ -82,6 +86,20 @@ const Policies = ({
             <>
               Interested in detecting device health issues on{" "}
               {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
+    if (isAndroid(hostPlatform)) {
+      return (
+        <EmptyTable
+          header={<>Policies are not supported for this host</>}
+          info={
+            <>
+              Interested in detecting device health issues on Android hosts?{" "}
               <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
             </>
           }
@@ -135,12 +153,12 @@ const Policies = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Policies</p>
+      <CardHeader header="Policies" />
       {renderHostPolicies()}
     </Card>
   );

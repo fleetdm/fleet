@@ -11,10 +11,8 @@ import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import Pagination from "components/Pagination";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
@@ -25,6 +23,7 @@ import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import VppDetailsModal from "./components/VPPDetailsModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -63,6 +62,7 @@ const ActivityFeed = ({
     softwareDetails,
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -140,6 +140,11 @@ const ActivityFeed = ({
       case ActivityType.DeletedSoftware:
         setSoftwareDetails({ ...details });
         break;
+      case ActivityType.AddedAppStoreApp:
+      case ActivityType.EditedAppStoreApp:
+      case ActivityType.DeletedAppStoreApp:
+        setVppDetails({ ...details });
+        break;
       default:
         break;
     }
@@ -194,28 +199,17 @@ const ActivityFeed = ({
       )}
       {!errorActivities &&
         (!isEmpty(activities) || (isEmpty(activities) && pageIndex > 0)) && (
-          <div className={`${baseClass}__pagination`}>
-            <Button
-              disabled={isFetchingActivities || !meta?.has_previous_results}
-              onClick={onLoadPrevious}
-              variant="unstyled"
-              className={`${baseClass}__load-activities-button`}
-            >
-              <>
-                <FleetIcon name="chevronleft" /> Previous
-              </>
-            </Button>
-            <Button
-              disabled={isFetchingActivities || !meta?.has_next_results}
-              onClick={onLoadNext}
-              variant="unstyled"
-              className={`${baseClass}__load-activities-button`}
-            >
-              <>
-                Next <FleetIcon name="chevronright" />
-              </>
-            </Button>
-          </div>
+          <Pagination
+            disablePrev={isFetchingActivities || !meta?.has_previous_results}
+            disableNext={isFetchingActivities || !meta?.has_next_results}
+            hidePagination={
+              !isFetchingActivities &&
+              !meta?.has_previous_results &&
+              !meta?.has_next_results
+            }
+            onPrevPage={onLoadPrevious}
+            onNextPage={onLoadNext}
+          />
         )}
       {showShowQueryModal && (
         <ShowQueryModal
@@ -258,6 +252,12 @@ const ActivityFeed = ({
         <SoftwareDetailsModal
           details={softwareDetails}
           onCancel={() => setSoftwareDetails(null)}
+        />
+      )}
+      {vppDetails && (
+        <VppDetailsModal
+          details={vppDetails}
+          onCancel={() => setVppDetails(null)}
         />
       )}
     </div>

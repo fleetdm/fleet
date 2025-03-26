@@ -40,7 +40,7 @@ CREATE TABLE wstep_certificates (
 
 	PRIMARY KEY (serial),
 	FOREIGN KEY (serial) REFERENCES wstep_serials (serial)
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ CREATE TABLE wstep_cert_auth_associations (
 	updated_at     timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 	PRIMARY KEY (id, sha256)
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return err
 	}

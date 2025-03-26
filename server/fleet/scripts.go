@@ -97,15 +97,17 @@ type HostScriptExecution struct {
 // SetLastExecution updates the LastExecution field of the HostScriptDetail if the provided details
 // are more recent than the current LastExecution. It returns true if the LastExecution was updated.
 func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
-	if hsrID == nil || executionID == nil || executedAt == nil {
+	if executionID == nil || executedAt == nil {
 		// no new execution, nothing to do
 		return false
 	}
 
 	newHSE := &HostScriptExecution{
-		HSRID:       *hsrID,
 		ExecutionID: *executionID,
 		ExecutedAt:  *executedAt,
+	}
+	if hsrID != nil {
+		newHSE.HSRID = *hsrID
 	}
 	switch {
 	case exitCode == nil:
@@ -152,6 +154,16 @@ type HostScriptRequestPayload struct {
 	// SetupExperienceScriptID is the ID of the setup experience script related to this request
 	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
+}
+
+// Priority returns the priority to assign to this activity in the upcoming
+// activities queue. It is the default priority except when the script is part
+// of the setup experience flow.
+func (r HostScriptRequestPayload) Priority() int {
+	if r.SetupExperienceScriptID != nil {
+		return 100
+	}
+	return 0
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
@@ -317,8 +329,8 @@ const (
 
 // anchored, so that it matches to the end of the line
 var (
-	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
 )
 
 // ValidateShebang validates if we support a script, and whether we
@@ -327,7 +339,7 @@ func ValidateShebang(s string) (directExecute bool, err error) {
 	if strings.HasPrefix(s, "#!") {
 		// read the first line in a portable way
 		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
+		// if a hashbang is present, it can only be `(/usr)/bin/sh`, `(/usr)/bin/bash`, `(/usr)/bin/zsh` for now
 		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
 			return false, ErrUnsupportedInterpreter
 		}

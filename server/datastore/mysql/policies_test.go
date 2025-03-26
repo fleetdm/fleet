@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -308,7 +309,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 
 	// create a pending software install request
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, false, &policy2.ID)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
 	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
@@ -900,7 +901,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// create a pending software install request
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, false, &policy2.ID)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
 	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
@@ -2151,7 +2152,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	}, false, false,
 	)
 	require.Error(t, err)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.True(t, errors.As(err, &nfe))
 
 	payload := fleet.PolicyPayload{
@@ -4429,6 +4430,22 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team2.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithVPPs)
+
+	// create another team1 app, this time with an automatic policy
+	team1App3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp3", Platform: fleet.MacOSPlatform}, AddAutoInstallPolicy: true},
+	}, &team1.ID)
+	require.NoError(t, err)
+
+	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, automaticPolicies, 1)
+
+	policyWithVPP, err := ds.Policy(ctx, automaticPolicies[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, *policyWithVPP.VPPAppsTeamsID, team1App3.VPPAppTeam.AppTeamID)
+	require.Equal(t, `SELECT 1 FROM apps WHERE bundle_identifier = 'com.app.vpp3';`, policyWithVPP.Query)
 }
 
 func testTeamPoliciesWithScript(t *testing.T, ds *Datastore) {
@@ -4832,7 +4849,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.Error(t, err)
-	var notFoundErr *notFoundError
+	var notFoundErr *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &notFoundErr)
 
 	// Set "Team policy 1" to a VPP app on team2.
@@ -5678,6 +5695,17 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		require.Equal(t, expected[got.ID], got)
 	}
 
+	// performance test for 50_000 title ids, ensure batching works
+	megaTitleIDs := make([]uint, 0, 50_000)
+	megaTitleIDs = append(megaTitleIDs, *installer3.TitleID)
+	for i := uint(0); i < (50_000 - 2); i++ {
+		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
+	}
+	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, nil)
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
 	// "No team" titles should not have any policies when filtering by team 1
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(1))
 	require.NoError(t, err)
@@ -5690,15 +5718,17 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
 	require.NoError(t, err)
+	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create a regular policy
 	policy1 := newTestPolicy(t, ds, user1, "policy 1"+t.Name(), "darwin", &team1.ID)
 
 	// create an automatic install policy
 	policy2 := newTestPolicy(t, ds, user1, "policy 2"+t.Name(), "darwin", &team1.ID)
+	policy3 := newTestPolicy(t, ds, user1, "policy 3"+t.Name(), "darwin", &team1.ID)
+
 	installer, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-
 	installer1ID, _, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
@@ -5716,6 +5746,18 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	policy2.SoftwareInstallerID = ptr.Uint(installer1ID)
 	err = ds.SavePolicy(context.Background(), policy2, false, false)
+	require.NoError(t, err)
+
+	team1App, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.appy",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_app", Platform: fleet.MacOSPlatform}},
+	}, &team1.ID)
+	require.NoError(t, err)
+	team1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, team1App.TitleID)
+	require.NoError(t, err)
+
+	policy3.VPPAppsTeamsID = ptr.Uint(team1Meta.VPPAppsTeamsID)
+	err = ds.SavePolicy(context.Background(), policy3, false, false)
 	require.NoError(t, err)
 
 	// create a host
@@ -5737,29 +5779,48 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
 		policy1.ID: ptr.Bool(true),
 		policy2.ID: ptr.Bool(false), // software isn't installed on host, so Fleet should install it
+		policy3.ID: ptr.Bool(false), // software isn't installed on host, so Fleet should install it
 	}, time.Now(), false)
 	require.NoError(t, err)
 
 	hostPolicies, err := ds.ListPoliciesForHost(ctx, host)
 	require.NoError(t, err)
-	require.Len(t, hostPolicies, 2)
+	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
 		return hostPolicies[i].ID < hostPolicies[j].ID
 	})
 	require.Equal(t, hostPolicies[0].Response, "pass")
 	require.Equal(t, hostPolicies[1].Response, "fail")
+	require.Equal(t, hostPolicies[2].Response, "fail")
 
-	// clear status for automatic install policy
-	err = ds.ClearAutoInstallPolicyStatusForHosts(ctx, installer1ID, []uint{host.ID})
+	// clear status for the installer automatic install policy
+	err = ds.ClearSoftwareInstallerAutoInstallPolicyStatusForHosts(ctx, installer1ID, []uint{host.ID})
 	require.NoError(t, err)
 
 	// the status should be NULL for the automatic install policy but not the "regular" one
 	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
 	require.NoError(t, err)
-	require.Len(t, hostPolicies, 2)
+	require.Len(t, hostPolicies, 3)
 	sort.Slice(hostPolicies, func(i, j int) bool {
 		return hostPolicies[i].ID < hostPolicies[j].ID
 	})
 	require.Equal(t, hostPolicies[0].Response, "pass")
 	require.Empty(t, hostPolicies[1].Response)
+	// policy for VPP app should still be "fail"
+	require.Equal(t, hostPolicies[2].Response, "fail")
+
+	// clear status for the vpp app automatic install policy
+	err = ds.ClearVPPAppAutoInstallPolicyStatusForHosts(ctx, team1Meta.VPPAppsTeamsID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// the status should be NULL for the automatic install policy but not the "regular" one
+	hostPolicies, err = ds.ListPoliciesForHost(ctx, host)
+	require.NoError(t, err)
+	require.Len(t, hostPolicies, 3)
+	sort.Slice(hostPolicies, func(i, j int) bool {
+		return hostPolicies[i].ID < hostPolicies[j].ID
+	})
+	require.Equal(t, hostPolicies[0].Response, "pass")
+	require.Empty(t, hostPolicies[1].Response)
+	require.Empty(t, hostPolicies[2].Response)
 }

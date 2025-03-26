@@ -1350,6 +1350,11 @@ func TestGetQueries(t *testing.T) {
 					Query:          "select 2;",
 					Saved:          true, // ListQueries always returns the saved ones.
 					ObserverCanRun: false,
+					DiscardData:    true,
+					LabelsIncludeAny: []fleet.LabelIdent{
+						{LabelName: "label1", LabelID: 1},
+						{LabelName: "label2", LabelID: 2},
+					},
 				},
 				{
 					ID:                 14,
@@ -1400,6 +1405,8 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           | automations_enabled: false     |
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: false            |
 +--------+-------------+-----------+-----------+--------------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                    |
 |        |             |           |           |                                |
@@ -1410,6 +1417,14 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           | automations_enabled: false     |
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: true             |
+|        |             |           |           |                                |
+|        |             |           |           | labels_include_any:            |
+|        |             |           |           |                                |
+|        |             |           |           |   - label1                     |
+|        |             |           |           |                                |
+|        |             |           |           |   - label2                     |
 +--------+-------------+-----------+-----------+--------------------------------+
 | query4 | some desc 4 | select 4; | All teams | interval: 60                   |
 |        |             |           |           |                                |
@@ -1421,6 +1436,8 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
 |        |             |           |           | differential_ignore_removals   |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: false            |
 +--------+-------------+-----------+-----------+--------------------------------+
 `
 
@@ -1445,8 +1462,11 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
-  discard_data: false
+  discard_data: true
   interval: 0
+  labels_include_any:
+  - label1
+  - label2
   logging: ""
   min_osquery_version: ""
   name: query2
@@ -1471,7 +1491,7 @@ spec:
   team: ""
 `
 	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":true,"labels_include_any":["label1","label2"]}}
 {"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals","discard_data":false}}
 `
 
@@ -1487,6 +1507,8 @@ spec:
 |        |             |           |        | automations_enabled: false |
 |        |             |           |        |                            |
 |        |             |           |        | logging: snapshot          |
+|        |             |           |        |                            |
+|        |             |           |        | discard_data: false        |
 +--------+-------------+-----------+--------+----------------------------+
 `
 
@@ -1715,6 +1737,8 @@ func TestGetQueriesAsObserver(t *testing.T) {
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 			expectedYaml := `---
@@ -1773,6 +1797,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1783,6 +1809,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query3 | some desc 3 | select 3; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1793,6 +1821,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 	expectedYaml := `---
@@ -1910,6 +1940,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1920,6 +1952,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))

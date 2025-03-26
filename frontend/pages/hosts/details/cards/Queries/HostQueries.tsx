@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo } from "react";
 
+import { isAndroid } from "interfaces/platform";
 import { IQueryStats } from "interfaces/query_stats";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -67,6 +69,20 @@ const HostQueries = ({
             <>
               Interested in querying{" "}
               {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
+    if (isAndroid(hostPlatform)) {
+      return (
+        <EmptyTable
+          header="Queries are not supported for this host"
+          info={
+            <>
+              Interested in querying Android hosts?{" "}
               <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
             </>
           }
@@ -141,12 +157,12 @@ const HostQueries = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Queries</p>
+      <CardHeader header="Queries" />
       {renderHostQueries()}
     </Card>
   );

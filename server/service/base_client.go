@@ -49,6 +49,10 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			msg: extractServerErrorText(response.Body),
 		}
 	case http.StatusUnauthorized:
+		errText := extractServerErrorText(response.Body)
+		if strings.Contains(errText, "password reset required") {
+			return ErrPasswordResetRequired
+		}
 		return ErrUnauthenticated
 	case http.StatusPaymentRequired:
 		return ErrMissingLicense
@@ -79,9 +83,9 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 			if err := json.Unmarshal(b, &responseDest); err != nil {
 				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, b)
 			}
-			if e, ok := responseDest.(errorer); ok {
-				if e.error() != nil {
-					return fmt.Errorf("%s %s error: %w", verb, path, e.error())
+			if e, ok := responseDest.(fleet.Errorer); ok {
+				if e.Error() != nil {
+					return fmt.Errorf("%s %s error: %w", verb, path, e.Error())
 				}
 			}
 		}
@@ -196,18 +200,26 @@ type bodyHandler interface {
 }
 
 type FileResponse struct {
-	DestPath     string
-	DestFile     string
-	destFilePath string
+	DestPath      string
+	DestFile      string
+	destFilePath  string
+	SkipMediaType bool
+	ProgressFunc  func(n int)
 }
 
 func (f *FileResponse) Handle(resp *http.Response) error {
-	_, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
-	if err != nil {
-		return fmt.Errorf("parsing media type from response header: %w", err)
+	var filename string
+	if !f.SkipMediaType {
+		_, params, err := mime.ParseMediaType(resp.Header.Get("Content-Disposition"))
+		if err != nil {
+			return fmt.Errorf("parsing media type from response header: %w", err)
+		}
+		filename = params["filename"]
 	}
 
-	filename := params["filename"]
+	if filename == "" {
+		filename = f.DestFile
+	}
 	if filename == "" {
 		filename = uuid.NewString()
 	}
@@ -219,7 +231,15 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 	}
 	defer destFile.Close()
 
-	_, err = io.Copy(destFile, resp.Body)
+	var respBodyReader io.Reader = resp.Body
+	if f.ProgressFunc != nil {
+		respBodyReader = &progressReader{
+			Reader:       respBodyReader,
+			progressFunc: f.ProgressFunc,
+		}
+	}
+
+	_, err = io.Copy(destFile, respBodyReader)
 	if err != nil {
 		return fmt.Errorf("copying from http stream to file: %w", err)
 	}
@@ -233,4 +253,15 @@ func (f *FileResponse) Handle(resp *http.Response) error {
 
 func (f *FileResponse) GetFilePath() string {
 	return f.destFilePath
+}
+
+type progressReader struct {
+	io.Reader
+	progressFunc func(n int)
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.Reader.Read(p)
+	pr.progressFunc(n)
+	return n, err
 }

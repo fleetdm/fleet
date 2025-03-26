@@ -15,12 +15,6 @@
     flex-direction: column;
   }
   .card {
-    &__header {
-      font-size: $medium;
-      font-weight: $bold;
-      margin: 0 0 $pad-medium 0;
-    }
-
     .list {
       list-style: none;
       padding: 0;
@@ -71,24 +65,15 @@
     }
   }
 
-  &__tabs-wrapper {
+  &__tab-nav {
     background-color: $ui-off-white;
     width: 100%;
 
     // direct descendant of selector allows us to only change the first level of
     // tab styling and not change the tabs inside the cards.
     > .react-tabs > .react-tabs__tab-list {
-      .react-tabs__tab {
-        padding: 6px 0px 16px 0px;
-        margin-right: $pad-xxlarge;
-      }
       .react-tabs__tab--selected {
         background-color: $ui-off-white;
-
-        // When tabbing through the app
-        &:focus-visible {
-          background-color: $ui-vibrant-blue-10;
-        }
       }
     }
   }
@@ -160,6 +145,6 @@
 
 // we dont need the margin on the host details page as we are not using grid css
 // for the spacing.
-.host-details__tabs-wrapper .card {
+.host-details__tab-nav .card {
   margin-top: 0;
 }

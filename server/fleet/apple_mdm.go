@@ -22,7 +22,6 @@ type MDMAppleCommandIssuer interface {
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
-	InstallApplication(ctx context.Context, hostUUIDs []string, uuid string, adamID string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
@@ -293,6 +292,9 @@ type HostMDMCertificateProfile struct {
 	ProfileUUID          string             `db:"profile_uuid"`
 	Status               *MDMDeliveryStatus `db:"status"`
 	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+	NotValidAfter        *time.Time         `db:"not_valid_after"`
+	Type                 CAConfigAssetType  `db:"type"`
+	CAName               string             `db:"ca_name"`
 }
 
 type HostMDMProfileDetail string
@@ -665,7 +667,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	var rawDecl MDMAppleRawDeclaration
 	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't add. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
 	}
 
 	return &rawDecl, nil
@@ -841,7 +843,7 @@ type MDMAppleDeclarationValidity string
 const (
 	MDMAppleDeclarationValid   MDMAppleDeclarationValidity = "valid"
 	MDMAppleDeclarationInvalid MDMAppleDeclarationValidity = "invalid"
-	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "valid"
+	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "unknown"
 )
 
 // MDMAppleDDMStatusDeclaration represents a processed declaration for the client.
@@ -974,4 +976,18 @@ type MDMBulkUpsertManagedCertificatePayload struct {
 	ProfileUUID          string
 	HostUUID             string
 	ChallengeRetrievedAt *time.Time
+	NotValidAfter        *time.Time
+	Type                 CAConfigAssetType
+	CAName               string
+}
+
+// MDMAppleEnrolledDeviceInfo represents the information of a device enrolled
+// in Apple MDM. Used by the MDM flow to re-create an iDevice that has been
+// deleted from the hosts table but is still MDM-enrolled.
+type MDMAppleEnrolledDeviceInfo struct {
+	ID           string `db:"id"`
+	SerialNumber string `db:"serial_number"`
+	Authenticate string `db:"authenticate"`
+	Platform     string `db:"platform"`
+	EnrollTeamID *uint  `db:"enroll_team_id"`
 }

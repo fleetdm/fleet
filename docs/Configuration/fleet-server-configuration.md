@@ -327,7 +327,7 @@ cluster is unstable and reorganizing the data. With this configuration option
 set to true, those (typically short and transient) redirection errors can be
 handled transparently instead of ending in an error.
 
-- Default value: false
+- Default value: true
 - Environment variable: `FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS`
 - Config file format:
   ```yaml
@@ -604,6 +604,19 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_force_h2c
+
+Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
+is serving TLS, this setting is ignored if TLS is enabled. This configuration might be required if Fleet is hosted in certain
+cloud providers that have limitations on their API gateways, such as GCP Cloud Run.
+- Default value: false
+- Environment variable: FLEET_SERVER_FORCE_H2C
+- Config file format:
+  ```yaml
+  server:
+    force_h2c: true
+  ```
+
 ### server_private_key
 
 This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
@@ -692,6 +705,8 @@ If set to `false`, stats are still collected for live queries.
 
 ## License
 
+*Available in Fleet Premium.*
+
 ### license_key
 
 The license key provided to Fleet customers which provides access to Fleet Premium features.
@@ -703,6 +718,8 @@ The license key provided to Fleet customers which provides access to Fleet Premi
   license:
     key: foobar
   ```
+
+> Wondering where to get a license key?  You can [grab a license](https://fleetdm.com/new-license) or if you have questions, [schedule a demo](https://fleetdm.com/contact).
 
 ## Session
 
@@ -1029,7 +1046,7 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ## External activity audit logging
 
-> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
@@ -1974,6 +1991,8 @@ for the email address specified in the Source parameter of SendRawEmail.
 
 ### s3_software_installers_bucket
 
+*Available in Fleet Premium.*
+
 Name of the S3 bucket for storing software and bootstrap package.
 
 - Default value: none
@@ -1986,6 +2005,8 @@ Name of the S3 bucket for storing software and bootstrap package.
 
 ### s3_software_installers_prefix
 
+*Available in Fleet Premium.*
+
 Prefix to prepend to software.
 
 - Default value: none
@@ -1997,6 +2018,8 @@ Prefix to prepend to software.
   ```
 
 ### s3_software_installers_access_key_id
+
+*Available in Fleet Premium.*
 
 AWS access key ID to use for S3 authentication.
 
@@ -2015,6 +2038,8 @@ The IAM identity used in this context must be allowed to perform the following a
 
 ### s3_software_installers_secret_access_key
 
+*Available in Fleet Premium.*
+
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
@@ -2027,6 +2052,8 @@ AWS secret access key to use for S3 authentication.
 
 ### s3_software_installers_sts_assume_role_arn
 
+*Available in Fleet Premium.*
+
 AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
@@ -2038,6 +2065,8 @@ AWS STS role ARN to use for S3 authentication.
   ```
 
 ### s3_software_installers_sts_external_id
+
+*Available in Fleet Premium.*
 
 AWS STS External ID to use for S3 authentication. This is typically used in
 conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
@@ -2052,6 +2081,8 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 
 ### s3_software_installers_endpoint_url
 
+*Available in Fleet Premium.*
+
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
@@ -2064,6 +2095,8 @@ or running S3 locally with localstack. Leave this blank to use the default S3 se
   ```
 
 ### s3_software_installers_force_s3_path_style
+
+*Available in Fleet Premium.*
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2082,6 +2115,8 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 
 ### s3_software_installers_region
 
+*Available in Fleet Premium.*
+
 AWS S3 Region. Leave blank to enable region discovery.
 
 Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
@@ -2092,6 +2127,51 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
   ```yaml
   s3:
     software_installers_region: us-east-1
+  ```
+
+### s3_software_installers_cloudfront_url
+
+*Available in Fleet Premium.*
+
+CloudFront URL. Leave blank if you don't use CloudFront distribution.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_cloudfront_url: https://jkl8dxv87sdh.cloudfront.net
+  ```
+
+### s3_software_installers_cloudfront_url_signing_public_key_id
+
+*Available in Fleet Premium.*
+
+Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PUBLIC_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_cloudfront_url_signing_public_key_id: K1HFGXOMBB6TFF
+  ```
+
+### s3_software_installers_cloudfront_url_signing_private_key
+
+*Available in Fleet Premium.*
+
+Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PRIVATE_KEY`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_cloudfront_url_signing_private_key: |
+      ------BEGIN BEGIN RSA PRIVATE KEY-----
+      3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
+      7473e62c7aed...
   ```
 
 ### s3_carves_bucket

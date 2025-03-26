@@ -1,10 +1,4 @@
-import React, {
-  useContext,
-  useCallback,
-  useEffect,
-  useState,
-  useMemo,
-} from "react";
+import React, { useContext, useCallback, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { pick } from "lodash";
@@ -13,7 +7,10 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
+import { DEFAULT_QUERY } from "utilities/constants";
 import { getPerformanceImpactDescription } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+
 import {
   isQueryablePlatform,
   QueryablePlatform,
@@ -28,7 +25,7 @@ import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
-import { DEFAULT_QUERY } from "utilities/constants";
+
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -163,19 +160,11 @@ const ManageQueriesPage = ({
   const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
 
   const queriesAvailableToAutomate =
-    (teamIdForApi
+    (teamIdForApi !== API_ALL_TEAMS_ID
       ? enhancedQueries?.filter(
           (query: IEnhancedQuery) => query.team_id === currentTeamId
         )
       : enhancedQueries) ?? [];
-
-  const onlyInheritedQueries = useMemo(() => {
-    if (teamIdForApi === API_ALL_TEAMS_ID) {
-      // global scope
-      return false;
-    }
-    return !enhancedQueries?.some((query) => query.team_id === teamIdForApi);
-  }, [teamIdForApi, enhancedQueries]);
 
   const automatedQueryIds = queriesAvailableToAutomate
     .filter((query) => query.automations_enabled)
@@ -195,7 +184,9 @@ const ManageQueriesPage = ({
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
-    router.push(PATHS.NEW_QUERY(currentTeamId));
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_QUERY, { team_id: currentTeamId })
+    );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
   const toggleDeleteQueryModal = useCallback(() => {
@@ -280,9 +271,8 @@ const ManageQueriesPage = ({
         queries={enhancedQueries || []}
         totalQueriesCount={queriesResponse?.count}
         hasNextResults={!!queriesResponse?.meta.has_next_results}
-        onlyInheritedQueries={onlyInheritedQueries}
+        curTeamScopeQueriesPresent={!!queriesAvailableToAutomate.length}
         isLoading={isLoadingQueries || isFetchingQueries}
-        onCreateQueryClick={onCreateQueryClick}
         onDeleteQueryClick={onDeleteQueryClick}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
@@ -291,6 +281,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={location.query}
         currentTeamId={teamIdForApi}
+        isPremiumTier={isPremiumTier}
       />
     );
   };
@@ -381,13 +372,6 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
-  const hideQueryActions =
-    // there are no filters and no returned queries, indicating there are no global/team queries at all
-    !(!!location.query.query || !!location.query.platform) &&
-    !queriesResponse?.count &&
-    // the user has permission
-    (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus);
-
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -398,17 +382,18 @@ const ManageQueriesPage = ({
             </div>
           </div>
 
-          {!hideQueryActions && (
+          {canCustomQuery && (
             <div className={`${baseClass}__action-button-container`}>
-              {(isGlobalAdmin || isTeamAdmin) && !onlyInheritedQueries && (
-                <Button
-                  onClick={onManageAutomationsClick}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                >
-                  Manage automations
-                </Button>
-              )}
+              {(isGlobalAdmin || isTeamAdmin) &&
+                !!queriesAvailableToAutomate.length && (
+                  <Button
+                    onClick={onManageAutomationsClick}
+                    className={`${baseClass}__manage-automations button`}
+                    variant="inverse"
+                  >
+                    Manage automations
+                  </Button>
+                )}
               {canCustomQuery && (
                 <Button
                   variant="brand"

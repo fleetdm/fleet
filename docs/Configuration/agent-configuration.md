@@ -1,6 +1,6 @@
 # Agent configuration
 
-Agent configuration (agent options) updates the settings of the [Fleet agent (fleed)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
+Agent configuration (agent options) updates the settings of the [Fleet agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
 
 You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
 
@@ -53,24 +53,12 @@ config:
 To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
 ```
-osquery > SELECT name, value, description FROM osquery; 
+osquery > SELECT name, default_value, value, description FROM osquery_flags; 
 ```
 
-You can also run this query to verify that the latest settings have been applied to your hosts.
+Running the interactive osquery shell loads a standalone instance of osquery, with a default configuration rather than the one set in agent options. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the query as a live query in Fleet.
 
-> If you revoked an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
-
-How to rotate enroll secrets:
-
-1. Check which hosts need a new enroll secret by running the following query: `SELECT * FROM orbit_info WHERE enrolled = false`.
-
-> The hosts that don't have Fleetd installed will return an error because the `orbit_info` table doesn't exist. You can safely ignore these errors.
-
-2. In Fleet, head to the Hosts page and select **Add hosts** to find the fleetctl package command with an active enroll secret.
-
-3. Copy and run the fleetctl package command to create a new package. Distribute this package to the hosts that returned results in step 1.
-
-4. Done!
+> If you revoke an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
 #### Advanced
 
@@ -84,7 +72,7 @@ fleetctl apply --force -f config.yaml
 
 In the `decorators` key, you can specify queries to include additional information in your osquery results logs.
 
-- `load` is are queries you want to update values when the configuration loads.
+- `load` are queries you want to update values when the configuration loads.
 - `always` are queries to update every time a scheduled query is run.
 - `interval` are queries you want to update on a schedule.
 
@@ -285,7 +273,7 @@ You can use Fleet to query local SQLite databases as tables. For more informatio
 
 ## script_execution_timeout
 
-The `script_execution_timeout` allows you to change the default script execution timeout (default: `300`, maximum: `3600`).
+The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `3600`).
 
 #### Example
 

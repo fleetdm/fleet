@@ -653,7 +653,7 @@ func TestHostAuth(t *testing.T) {
 	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
-	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -664,6 +664,9 @@ func TestHostAuth(t *testing.T) {
 	}
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
+	}
+	ds.ListHostCertificatesFunc = func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
 	}
 
 	testCases := []struct {
@@ -811,6 +814,11 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, _, err = svc.ListHostSoftware(ctx, 2, fleet.HostSoftwareTitleListOptions{})
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.ListHostCertificates(ctx, 1, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+			_, _, err = svc.ListHostCertificates(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}

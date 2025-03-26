@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import classnames from "classnames";
 
 import Icon from "components/Icon";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 interface IHostLinkProps {
   queryParams?: QueryParams;
@@ -18,7 +18,7 @@ interface IHostLinkProps {
   customText?: string;
   /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
-  // don't actually create a link, useful when click is handled by an ancestor
+  /** Don't actually create a link, useful when click is handled by an ancestor */
   noLink?: boolean;
 }
 
@@ -36,6 +36,7 @@ const ViewAllHostsLink = ({
   noLink = false,
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsLinkClass = classnames(baseClass, className, {
+    [`${baseClass}__condensed`]: condensed,
     "row-hover-link": rowHover,
   });
 
@@ -43,15 +44,22 @@ const ViewAllHostsLink = ({
     ? PATHS.MANAGE_HOSTS_LABEL(platformLabelId)
     : PATHS.MANAGE_HOSTS;
 
-  const path = queryParams
-    ? `${endpoint}?${buildQueryStringFromParams(queryParams)}`
-    : endpoint;
+  const path = getPathWithQueryParams(endpoint, queryParams);
 
   return (
     <Link
       className={viewAllHostsLinkClass}
       to={noLink ? "" : path}
-      title="host-link"
+      onClick={(e) => {
+        if (!noLink) {
+          e.stopPropagation(); // Allows for link to have different onClick behavior than the row's onClick behavior
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.stopPropagation(); // Allows for link to be keyboard accessible in a clickable row
+        }
+      }}
     >
       {!condensed && (
         <span

@@ -24,9 +24,9 @@ type putSetupExperienceSoftwareResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r putSetupExperienceSoftwareResponse) error() error { return r.Err }
+func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
-func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putSetupExperienceSoftwareRequest)
 
 	err := svc.SetSetupExperienceSoftware(ctx, req.TeamID, req.TitleIDs)
@@ -57,9 +57,9 @@ type getSetupExperienceSoftwareResponse struct {
 	Err            error                           `json:"error,omitempty"`
 }
 
-func (r getSetupExperienceSoftwareResponse) error() error { return r.Err }
+func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
-func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
 
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, req.TeamID, req.ListOptions)
@@ -88,9 +88,9 @@ type getSetupExperienceScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getSetupExperienceScriptResponse) error() error { return r.Err }
+func (r getSetupExperienceScriptResponse) Error() error { return r.Err }
 
-func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceScriptRequest)
 	downloadRequested := req.Alt == "media"
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
@@ -158,9 +158,9 @@ type setSetupExperienceScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r setSetupExperienceScriptResponse) error() error { return r.Err }
+func (r setSetupExperienceScriptResponse) Error() error { return r.Err }
 
-func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*setSetupExperienceScriptRequest)
 
 	scriptFile, err := req.Script.Open()
@@ -192,11 +192,11 @@ type deleteSetupExperienceScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteSetupExperienceScriptResponse) error() error { return r.Err }
+func (r deleteSetupExperienceScriptResponse) Error() error { return r.Err }
 
 // func (r deleteSetupExperienceScriptResponse) Status() int  { return http.StatusNoContent }
 
-func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSetupExperienceScriptRequest)
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
 	// // use it in the auth layer where team_id=0 is not allowed?
