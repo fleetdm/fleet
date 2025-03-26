@@ -790,22 +790,22 @@ team_settings:
 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(noTeamFile.Name(), []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
 	require.NoError(t, err)
 	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()})
 
-	// the custom setting is not scoped by label anymore
+	// the installer is not scoped by label anymore
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
 	require.NoError(t, err)
 	require.NotNil(t, meta.TitleID)
 	require.Equal(t, noTeamTitleID, *meta.TitleID)
 	require.Len(t, meta.LabelsExcludeAny, 0)
-	//TODO: require.Len(t, meta.LabelsIncludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAny, 0)
 
 	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
 	require.NoError(t, err)
@@ -814,162 +814,3 @@ team_settings:
 	require.Len(t, meta.LabelsExcludeAny, 0)
 	require.Len(t, meta.LabelsIncludeAny, 0)
 }
-
-// // TestUnsetVPPAppLabels tests the removal of labels associated with a VPP app
-// // via gitops.
-// func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetVPPAppLabels() {
-// 	t := s.T()
-// 	ctx := context.Background()
-//
-// 	user := s.createGitOpsUser(t)
-// 	fleetctlConfig := s.createFleetctlConfig(t, user)
-// 	lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
-// 	require.NoError(t, err)
-// 	require.NotZero(t, lbl.ID)
-//
-// 	const (
-// 		globalTemplate = `
-// agent_options:
-// controls:
-// org_settings:
-//   server_settings:
-//     server_url: $FLEET_URL
-//   org_info:
-//     org_name: Fleet
-//   secrets:
-//   mdm:
-//     volume_purchasing_program:
-//     - location: Jungle
-//       teams:
-//       - "All teams"
-// policies:
-// queries:
-// `
-//
-// 		noTeamTemplate = `name: No team
-// controls:
-// policies:
-// software:
-//   app_store_apps:
-//     - app_store_id: '1'
-// %s
-// `
-// 		withLabelsExcludeAny = `
-//       labels_exclude_any:
-//         - Label1
-// `
-// 		emptyLabelsExcludeAny = `
-//       labels_exclude_any:
-// `
-// 		teamTemplate = `
-// controls:
-// software:
-//   app_store_apps:
-//     - app_store_id: '1'
-// %s
-// queries:
-// policies:
-// agent_options:
-// name: %s
-// team_settings:
-//   secrets: [{"secret":"enroll_secret"}]
-// `
-// 		withLabelsIncludeAny = `
-//       labels_include_any:
-//         - Label1
-// `
-// 	)
-//
-// 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-// 	require.NoError(t, err)
-// 	_, err = globalFile.WriteString(globalTemplate)
-// 	require.NoError(t, err)
-// 	err = globalFile.Close()
-// 	require.NoError(t, err)
-//
-// 	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-// 	require.NoError(t, err)
-// 	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, withLabelsExcludeAny))
-// 	require.NoError(t, err)
-// 	err = noTeamFile.Close()
-// 	require.NoError(t, err)
-// 	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
-// 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
-// 	require.NoError(t, err)
-//
-// 	teamName := uuid.NewString()
-// 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-// 	require.NoError(t, err)
-// 	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, withLabelsIncludeAny, teamName))
-// 	require.NoError(t, err)
-// 	err = teamFile.Close()
-// 	require.NoError(t, err)
-//
-// 	// Set the required environment variables
-// 	t.Setenv("FLEET_URL", s.server.URL)
-// 	test.CreateInsertGlobalVPPToken(t, s.ds)
-// 	createFakeITunesAndVPPServices(t)
-//
-// 	// Apply configs
-// 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"})
-// 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()})
-//
-// 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-// 		mysql.DumpTable(t, q, "vpp_tokens")
-// 		mysql.DumpTable(t, q, "vpp_token_teams")
-// 		return nil
-// 	})
-//
-// 	// get the team ID
-// 	team, err := s.ds.TeamByName(ctx, teamName)
-// 	require.NoError(t, err)
-//
-// 	// the app is scoped by the label for no team
-// 	titles, _, _, err := s.ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)}, fleet.TeamFilter{User: test.UserAdmin})
-// 	require.NoError(t, err)
-// 	require.Len(t, titles, 1)
-// 	require.NotNil(t, titles[0].SoftwarePackage)
-// 	noTeamTitleID := titles[0].ID
-// 	meta, err := s.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID)
-// 	require.NoError(t, err)
-// 	require.Len(t, meta.LabelsExcludeAny, 1)
-// 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
-//
-// 	// the app is scoped by the label for team
-// 	titles, _, _, err = s.ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, fleet.TeamFilter{User: test.UserAdmin})
-// 	require.NoError(t, err)
-// 	require.Len(t, titles, 1)
-// 	require.NotNil(t, titles[0].SoftwarePackage)
-// 	teamTitleID := titles[0].ID
-// 	meta, err = s.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID)
-// 	require.NoError(t, err)
-// 	require.Len(t, meta.LabelsIncludeAny, 1)
-// 	require.Equal(t, "Label1", meta.LabelsIncludeAny[0].LabelName)
-//
-// 	/*
-// 		// remove the label conditions
-// 		err = os.WriteFile(noTeamFile.Name(), []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
-// 		require.NoError(t, err)
-// 		err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
-// 		require.NoError(t, err)
-//
-// 		// Apply configs
-// 		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-// 		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
-//
-// 		// the custom setting is not scoped by label anymore
-// 		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
-// 		require.NoError(t, err)
-// 		require.NotNil(t, meta.TitleID)
-// 		require.Equal(t, noTeamTitleID, *meta.TitleID)
-// 		require.Len(t, meta.LabelsExcludeAny, 0)
-// 		//TODO: require.Len(t, meta.LabelsIncludeAny, 0)
-//
-// 		meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
-// 		require.NoError(t, err)
-// 		require.NotNil(t, meta.TitleID)
-// 		require.Equal(t, teamTitleID, *meta.TitleID)
-// 		require.Len(t, meta.LabelsExcludeAny, 0)
-// 		require.Len(t, meta.LabelsIncludeAny, 0)
-// 	*/
-// }
