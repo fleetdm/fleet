@@ -351,6 +351,8 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
 	applyAndExpect := func(
 		newAppleSet []*fleet.MDMAppleConfigProfile,
 		newWindowsSet []*fleet.MDMWindowsConfigProfile,
@@ -361,7 +363,6 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		wantAppleDecl []*fleet.MDMAppleDeclaration,
 		wantUpdates fleet.MDMProfilesUpdates,
 	) {
-		ctx := context.Background()
 		updates, err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet, newAppleDeclSet)
 		require.NoError(t, err)
 		expectAppleProfiles(t, ds, tmID, wantApple)
@@ -545,6 +546,53 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 	// Test Case 8: Clear profiles for a specific team
 	applyAndExpect(nil, nil, nil, ptr.Uint(1), nil, nil, nil,
 		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+	)
+
+	// create some labels to test batch-setting label-scoped declarations
+	lblExcl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-label-1", Query: "select 1"})
+	require.NoError(t, err)
+	lblExcl2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-label-2", Query: "select 2"})
+	require.NoError(t, err)
+	lblInclAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-label-3", Query: "select 3"})
+	require.NoError(t, err)
+	lblInclAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-label-4", Query: "select 4"})
+	require.NoError(t, err)
+	lblInclAll, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-label-5", Query: "select 5"})
+	require.NoError(t, err)
+	lblInclAll2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-label-6", Query: "select 6"})
+	require.NoError(t, err)
+
+	// we only care about declarations here, as batch-setting labels for profiles
+	// is tested elsewhere.
+	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
+		declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
+		declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
+	}, nil,
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
+			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
+		},
+		// this removed the apple and windows profiles for no team, so updated is true
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+	)
+
+	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
+		declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
+		declForTest("D2", "D2", "foo"),
+	}, nil,
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
+			declForTest("D2", "D2", "foo"),
+		},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true},
+	)
+	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
+		declForTest("D1", "D1", "foo"),
+	}, nil,
+		nil, nil, []*fleet.MDMAppleDeclaration{
+			declForTest("D1", "D1", "foo"),
+		},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true},
 	)
 }
 
