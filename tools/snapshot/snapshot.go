@@ -94,6 +94,7 @@ func restore(homedir string) error {
 	// Walk the ~/.fleet/snapshots directory if it exists.
 	dirEntries, err := os.ReadDir(snapshotsDir)
 	var snapshots []Snapshot
+	var lastSnapshotName []byte
 	for _, entry := range dirEntries {
 		if entry.IsDir() {
 			// Ensure there's a db backup file.
@@ -108,20 +109,42 @@ func restore(homedir string) error {
 				Path: dbBackupFile,
 			}
 			snapshots = append(snapshots, snapshot)
+		} else if entry.Name() == "last_snapshot" {
+			// If the entry is the "last_snapshot" file, read its contents
+			lastSnapshotPath := filepath.Join(snapshotsDir, entry.Name())
+			lastSnapshotName, err = os.ReadFile(lastSnapshotPath)
+			if err != nil {
+				fmt.Printf("Error reading last snapshot file (%s): %v\n", lastSnapshotPath, err)
+				return err
+			}
+			fmt.Println("Last snapshot: " + string(lastSnapshotName))
+		}
+	}
+
+	// If lastSnapshotName is not empty, find its index in the snapshots list.
+	var lastSnapshotIndex int
+	if len(lastSnapshotName) > 0 {
+		for i, snapshot := range snapshots {
+			if snapshot.Name == string(lastSnapshotName) {
+				lastSnapshotIndex = i
+				break
+			}
 		}
 	}
 
 	// Set up and run the "Select snapshot" UI.
 	templates := &promptui.SelectTemplates{
-		Label:    "{{ .Name }}",
-		Active:   "> {{ .Name }} ({{ .Date }})",
-		Inactive: "{{ .Name }} ({{ .Date }})",
-		Selected: "{{ .Name }} ({{ .Date }})",
+		Label:    "  {{ .Name }}",
+		Active:   "• {{ .Name }} ({{ .Date }})",
+		Inactive: "  {{ .Name }} ({{ .Date }})",
+		Selected: "  {{ .Name }} ({{ .Date }})",
 	}
 	prompt := promptui.Select{
 		Label:     "Select snapshot to restore",
 		Items:     snapshots,
 		Templates: templates,
+		Size:      10,
+		CursorPos: lastSnapshotIndex,
 	}
 	index, _, err := prompt.Run()
 	if err != nil {
@@ -144,6 +167,12 @@ func restore(homedir string) error {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return err
+	}
+
+	// Write the selected snapshot name to the "last_snapshot" file.
+	err = os.WriteFile(filepath.Join(snapshotsDir, "last_snapshot"), []byte(snapshots[index].Name), 0o644)
+	if err != nil {
+		fmt.Printf("Error writing last snapshot file: %v\n", err)
 	}
 
 	return nil
@@ -227,6 +256,12 @@ func snapshot(homedir string) error {
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return err
+	}
+
+	// Write the selected snapshot name to the "last_snapshot" file.
+	err = os.WriteFile(filepath.Join(snapshotsDir, "last_snapshot"), []byte(result), 0o644)
+	if err != nil {
+		fmt.Printf("Error writing last snapshot file: %v\n", err)
 	}
 
 	return nil
