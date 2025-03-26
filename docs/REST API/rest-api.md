@@ -9941,21 +9941,19 @@ List available Fleet-maintained apps.
     {
       "id": 1,
       "name": "1Password",
-      "slug": "1password/darwin",
+      "platform": "darwin"
+      "software_title_id": 3
+    },
+    {
+      "id": 2,
+      "name": "1Password",
+      "platform": "windows"
       "platform": "darwin",
       "software_title_id": 1
     },
     {
-      "id": 2,
-      "name": "Adobe Acrobat Reader",
-      "slug": "adobe-acrobat-reader/darwin",
-      "platform": "darwin",
-      "software_title_id": null
-    },
-    {
       "id": 3,
-      "name": "Box Drive",
-      "slug": "box-drive/darwin",
+      "name": "Adobe Acrobat Reader",
       "platform": "darwin",
       "software_title_id": null
     },
