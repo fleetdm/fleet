@@ -1731,7 +1731,11 @@ INSERT INTO
 			cp.LabelsExcludeAny[i].Exclude = true
 			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
-		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "windows"); err != nil {
+		var profsWithoutLabel []string
+		if len(labels) == 0 {
+			profsWithoutLabel = append(profsWithoutLabel, profileUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
 
@@ -1948,6 +1952,7 @@ ON DUPLICATE KEY UPDATE
 	// between macOS and Windows, but at the time of this
 	// implementation we're under tight time constraints.
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	var profsWithoutLabel []string
 	if len(incomingNames) > 0 {
 		var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
@@ -1971,30 +1976,37 @@ ON DUPLICATE KEY UPDATE
 				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
 			}
 
+			var profHasLabel bool
 			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsIncludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
+			}
+			if !profHasLabel {
+				profsWithoutLabel = append(profsWithoutLabel, newlyInsertedProf.ProfileUUID)
 			}
 		}
 	}
 
 	// insert/delete the label associations
 	var updatedLabels bool
-	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,
+	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, profsWithoutLabel,
 		"windows"); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)

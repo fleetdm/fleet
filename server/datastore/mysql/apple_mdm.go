@@ -99,7 +99,11 @@ INSERT INTO
 			cp.LabelsExcludeAny[i].RequireAll = false
 			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
-		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "darwin"); err != nil {
+		var profWithoutLabels []string
+		if len(labels) == 0 {
+			profWithoutLabels = append(profWithoutLabels, profUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
@@ -1837,6 +1841,7 @@ ON DUPLICATE KEY UPDATE
 	// between macOS and Windows, but at the time of this
 	// implementation we're under tight time constraints.
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	var profsWithoutLabels []string
 	if len(incomingIdents) > 0 {
 		var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
@@ -1860,33 +1865,37 @@ ON DUPLICATE KEY UPDATE
 				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
 			}
 
+			var profHasLabel bool
 			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsIncludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
+			}
+			if !profHasLabel {
+				profsWithoutLabels = append(profsWithoutLabels, newlyInsertedProf.ProfileUUID)
 			}
 		}
 	}
 
-	// FIXME: At what point are we deleting label associations for existing profiles (e.g. if the user
-	// removes all labels from a profile in gitops, shouldn't we remove the old associations)?
-
 	// insert label associations
 	var updatedLabels bool
-	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,
+	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, profsWithoutLabels,
 		"darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)

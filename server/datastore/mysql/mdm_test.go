@@ -6125,14 +6125,14 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 	wantOtherWin := []fleet.ConfigurationProfileLabel{
 		{ProfileUUID: otherWinProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
 	}
-	updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, "windows")
+	updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, nil, "windows")
 	require.NoError(t, err)
 	assert.True(t, updatedDB)
 	// make it an "exclude" label on the other macos profile
 	wantOtherMac := []fleet.ConfigurationProfileLabel{
 		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID, Exclude: true},
 	}
-	updatedDB, err = batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, "darwin")
+	updatedDB, err = batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, nil, "darwin")
 	require.NoError(t, err)
 	assert.True(t, updatedDB)
 
@@ -6167,7 +6167,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		t.Run("empty input "+platform, func(t *testing.T) {
 			want := []fleet.ConfigurationProfileLabel{}
 			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, want, platform)
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, want, nil, platform)
 				require.NoError(t, err)
 				assert.False(t, updatedDB)
 				return err
@@ -6184,7 +6184,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}
 			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
 				require.NoError(t, err)
 				assert.True(t, updatedDB)
 				return err
@@ -6200,7 +6200,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID, Exclude: true},
 			}
 			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
 				require.NoError(t, err)
 				assert.True(t, updatedDB)
 				return err
@@ -6218,7 +6218,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			}
 
 			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, platform)
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, nil, platform)
 				return err
 			})
 			require.Error(t, err)
@@ -6230,7 +6230,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: 12345},
 			}
 			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, platform)
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, nil, platform)
 				return err
 			})
 			require.Error(t, err)
@@ -6240,7 +6240,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: "xyz", LabelID: 1235},
 			}
 			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, platform)
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, nil, platform)
 				return err
 			})
 			require.Error(t, err)
@@ -6262,7 +6262,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID, Exclude: true},
 			}
 			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
 				require.NoError(t, err)
 				assert.True(t, updatedDB)
 				return err
@@ -6276,7 +6276,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}
 			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
 				require.NoError(t, err)
 				assert.True(t, updatedDB)
 				return err
@@ -6296,6 +6296,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				ctx,
 				tx,
 				[]fleet.ConfigurationProfileLabel{{}},
+				nil,
 				"unsupported",
 			)
 			return err
