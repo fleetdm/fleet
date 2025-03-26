@@ -662,12 +662,12 @@ team_settings:
 	profs, _, err = s.ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
-	//TODO: require.Len(t, profs[0].LabelsIncludeAny, 0)
+	require.Len(t, profs[0].LabelsIncludeAny, 0)
 
 	profs, _, err = s.ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
-	//TODO: require.Len(t, profs[0].LabelsIncludeAll, 0)
+	require.Len(t, profs[0].LabelsIncludeAll, 0)
 }
 
 // TestUnsetSoftwareInstallerLabels tests the removal of labels associated with a
