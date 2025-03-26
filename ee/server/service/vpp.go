@@ -102,7 +102,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if len(payloads) > 0 {
 		token, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
-			fmt.Println(">>>> get VPP token by team ", teamID)
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 		}
 
