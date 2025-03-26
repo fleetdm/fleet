@@ -47,6 +47,9 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling config")
 	}
+
+	info.InitializePointers()
+
 	return info, nil
 }
 
