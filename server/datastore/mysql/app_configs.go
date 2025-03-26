@@ -38,7 +38,10 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 		return nil, ctxerr.Wrap(ctx, err, "selecting app config")
 	}
 	if err == sql.ErrNoRows {
-		return &fleet.AppConfig{}, nil
+		newAppConfig := &fleet.AppConfig{}
+		newAppConfig.ApplyDefaults()
+		newAppConfig.InitializePointers()
+		return newAppConfig, nil
 	}
 
 	info.ApplyDefaults()

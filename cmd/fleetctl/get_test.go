@@ -615,6 +615,7 @@ func TestGetConfig(t *testing.T) {
 					GracePeriodDays: optjson.SetInt(3),
 				},
 			},
+			UIGitOpsMode: &fleet.UIGitOpsModeConfig{},
 		}, nil
 	}
 
