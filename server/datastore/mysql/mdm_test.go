@@ -6125,14 +6125,14 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 	wantOtherWin := []fleet.ConfigurationProfileLabel{
 		{ProfileUUID: otherWinProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
 	}
-	updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, nil, "windows")
+	updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, []string{windowsProfile.ProfileUUID}, "windows")
 	require.NoError(t, err)
 	assert.True(t, updatedDB)
 	// make it an "exclude" label on the other macos profile
 	wantOtherMac := []fleet.ConfigurationProfileLabel{
 		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID, Exclude: true},
 	}
-	updatedDB, err = batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, nil, "darwin")
+	updatedDB, err = batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, []string{macOSProfile.ProfileUUID}, "darwin")
 	require.NoError(t, err)
 	assert.True(t, updatedDB)
 
@@ -6284,9 +6284,29 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			expectLabels(t, uuid, platform, profileLabels)
 
+			// batch apply again this time without any label
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, nil, []string{uuid}, platform)
+				require.NoError(t, err)
+				assert.True(t, updatedDB)
+				return err
+			})
+			require.NoError(t, err)
+			expectLabels(t, uuid, platform, nil)
+
 			// does not change other profiles
 			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
 			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+
+			// batch apply again with no change returns false
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				updatedDB, err := batchSetProfileLabelAssociationsDB(ctx, tx, nil, []string{uuid}, platform)
+				require.NoError(t, err)
+				assert.False(t, updatedDB)
+				return err
+			})
+			require.NoError(t, err)
+			expectLabels(t, uuid, platform, nil)
 		})
 	}
 

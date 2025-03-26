@@ -1143,6 +1143,8 @@ func expectAppleDeclarations(
 		require.Equal(t, wantD.Name, gotD.Name)
 		require.Equal(t, wantD.Identifier, gotD.Identifier)
 		require.Equal(t, wantD.LabelsIncludeAll, gotD.LabelsIncludeAll)
+		require.Equal(t, wantD.LabelsIncludeAny, gotD.LabelsIncludeAny)
+		require.Equal(t, wantD.LabelsExcludeAny, gotD.LabelsExcludeAny)
 	}
 	return m
 }
