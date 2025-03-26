@@ -1282,6 +1282,12 @@ type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured boo
 
 type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
 
+type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
+
+type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
+
+type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.ScimUser, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3172,6 +3178,15 @@ type DataStore struct {
 
 	UpdateAndroidHostFunc        UpdateAndroidHostFunc
 	UpdateAndroidHostFuncInvoked bool
+
+	CreateScimUserFunc        CreateScimUserFunc
+	CreateScimUserFuncInvoked bool
+
+	ScimUserByIDFunc        ScimUserByIDFunc
+	ScimUserByIDFuncInvoked bool
+
+	ScimUserByUserNameFunc        ScimUserByUserNameFunc
+	ScimUserByUserNameFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7584,4 +7599,25 @@ func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHo
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
+}
+
+func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {
+	s.mu.Lock()
+	s.CreateScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateScimUserFunc(ctx, user)
+}
+
+func (s *DataStore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) ScimUserByUserName(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByUserNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByUserNameFunc(ctx, userName)
 }
