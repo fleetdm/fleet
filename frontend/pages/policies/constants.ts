@@ -370,7 +370,7 @@ export const DEFAULT_POLICIES: IPolicyNew[] = [
   {
     key: 29,
     query:
-      "SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND name='DisableGuestAccount' AND value='1' LIMIT 1;",
+      "SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND name='DisableGuestAccount' AND value='1' LIMIT 1;",
     name: "Guest account disabled (macOS)",
     description:
       "Use of the guest account could allow unauthorized users to access the system, potentially leading to unauthorized access to sensitive data and security breaches.",
