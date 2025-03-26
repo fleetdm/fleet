@@ -12,7 +12,10 @@ type FDEFileVaultOptionsPayload struct {
 	DontAllowFDEEnable    *bool  `plist:"dontAllowFDEEnable"`
 }
 
-func ContainsFDEVileVaultOptionsPayload(contents []byte) (bool, error) {
+// ContainsFDEFileVaultOptionsPayload returns true if the payload contains any FileVault options.
+// https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions
+// Fleet users are not allowed to upload such payloads because Fleet fully manages disk encryption (FileVault).
+func ContainsFDEFileVaultOptionsPayload(contents []byte) (bool, error) {
 	if len(contents) == 0 {
 		return false, nil
 	}
