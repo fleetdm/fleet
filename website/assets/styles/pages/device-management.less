@@ -169,7 +169,7 @@
     margin-top: 32px;
   }
   [purpose='comparison-table-header'] {
-    font-size: 14px;
+    font-size: 16px;
     color: @core-fleet-black;
     div {
       padding: 12px 24px;
@@ -1070,6 +1070,16 @@
           p {
             margin-bottom: 0px;
           }
+        }
+      }
+    }
+    [purpose='comparison-section'] {
+      [purpose='button-row'] {
+        flex-direction: column;
+        [purpose='cta-button'] {
+          width: 100%;
+          margin-bottom: 16px;
+          margin-right: 0;
         }
       }
     }
