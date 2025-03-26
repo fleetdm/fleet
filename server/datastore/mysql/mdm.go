@@ -1153,13 +1153,11 @@ func batchSetProfileLabelAssociationsDB(
 
 	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, selectOrDeleteBuilder.String(), platformPrefix)
 
-	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	profUUIDs := make([]string, 0, len(setProfileUUIDs)+len(profileUUIDsWithoutLabels))
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
-	for _, profWithoutLbl := range profileUUIDsWithoutLabels {
-		profUUIDs = append(profUUIDs, profWithoutLbl)
-	}
+	profUUIDs = append(profUUIDs, profileUUIDsWithoutLabels...)
 	deleteArgs := deleteParams
 	deleteArgs = append(deleteArgs, profUUIDs)
 

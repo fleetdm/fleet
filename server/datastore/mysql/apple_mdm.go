@@ -4668,13 +4668,11 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 
 	deleteStmt = fmt.Sprintf(deleteStmt, selectOrDeleteBuilder.String())
 
-	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	profUUIDs := make([]string, 0, len(setProfileUUIDs)+len(declUUIDsWithoutLabels))
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
-	for _, declWithoutLbl := range declUUIDsWithoutLabels {
-		profUUIDs = append(profUUIDs, declWithoutLbl)
-	}
+	profUUIDs = append(profUUIDs, declUUIDsWithoutLabels...)
 	deleteArgs := deleteParams
 	deleteArgs = append(deleteArgs, profUUIDs)
 
