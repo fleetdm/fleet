@@ -54,4 +54,4 @@ Now, your encryption status will update to "verified" in Fleet Desktop, meaning 
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-11-25">
 <meta name="description" value="Instructions for end users to encrypt Linux devices enrolled in Fleet.">
-<meta name="keywords" content="Linux MDM, Linux device management, open source MDM, Linux management, Linux disk encryption, Linux key escrow" />
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management, Linux disk encryption, Linux key escrow" />
