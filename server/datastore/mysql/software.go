@@ -2272,6 +2272,7 @@ type hostSoftware struct {
 	VPPAppSelfService   *bool      `db:"vpp_app_self_service"`
 	VPPAppAdamID        *string    `db:"vpp_app_adam_id"`
 	VPPAppVersion       *string    `db:"vpp_app_version"`
+	VPPAppPlatform      *string    `db:"vpp_app_platform"`
 	VPPAppIconURL       *string    `db:"vpp_app_icon_url"`
 }
 
@@ -2472,7 +2473,15 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 	return softwareUninstalls, nil
 }
 
-func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
+func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
+	var selfServiceFilter string
+	if selfServiceOnly {
+		if isMDMEnrolled {
+			selfServiceFilter = "(vat.self_service = 1 AND TRUE) AND "
+		} else {
+			selfServiceFilter = "(vat.self_service = 1 AND FALSE) AND "
+		}
+	}
 	vppInstallsStmt := fmt.Sprintf(`
         WITH upcoming_vpp_install AS (
             SELECT
@@ -2492,7 +2501,10 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSo
                 vaua.platform = vaua2.platform AND
                 ua.activity_type = ua2.activity_type AND
                 (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+			LEFT JOIN
+				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             WHERE
+				%s
                 ua.host_id = :host_id AND
                 ua.activity_type = 'vpp_app_install' AND
                 ua2.id IS NULL
@@ -2513,10 +2525,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSo
                     hvsi.platform = hvsi2.platform AND
                     hvsi2.removed = 0 AND
                     (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+			LEFT JOIN
+				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             WHERE
                 hvsi.host_id = :host_id AND
                 hvsi.removed = 0 AND
                 hvsi2.id IS NULL AND
+				%s
                 NOT EXISTS (
                     SELECT 1
                     FROM
@@ -2534,9 +2549,10 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSo
 			*
 		FROM
             (SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install) AS lvia
-    `, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"))
+    `, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
 	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
 		"host_id":                   hostID,
+		"global_or_team_id":         globalOrTeamID,
 		"software_status_installed": fleet.SoftwareInstalled,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
@@ -2623,7 +2639,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	hostVPPInstalls, err := hostVPPInstalls(ds, ctx, host.ID)
+	hostVPPInstalls, err := hostVPPInstalls(ds, ctx, host.ID, globalOrTeamID, opts.SelfServiceOnly, opts.IsMDMEnrolled)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2654,6 +2670,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
@@ -2846,6 +2863,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, err
 		}
 		tempBySoftwareTitleID := make(map[uint]*hostSoftware, len(availableSoftwareTitles))
+		tmpByVPPAdamID := make(map[string]*hostSoftware, len(byVPPAdamID))
 		if opts.OnlyAvailableForInstall {
 			// drop in uninstalls as available
 			for _, s := range hostSoftwareUninstalls {
@@ -2857,20 +2875,38 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					tempBySoftwareTitleID[s.ID] = s
 				}
 			}
+			// vpp apps pending to install or failed are also "available"
+			for _, s := range hostVPPInstalls {
+				if *s.Status == "pending_install" || *s.Status == "failed_install" {
+					tmpByVPPAdamID[*s.VPPAppAdamID] = s
+				}
+			}
 		}
 		for _, s := range availableSoftwareTitles {
-			// Ensure not to overwrite the records from software installs and software uninstalls
-			if _, ok := bySoftwareTitleID[s.ID]; !ok {
-				if opts.OnlyAvailableForInstall {
-					tempBySoftwareTitleID[s.ID] = s
-				} else {
-					bySoftwareTitleID[s.ID] = s
+			// If it's a VPP app
+			if s.VPPAppAdamID != nil {
+				if _, ok := byVPPAdamID[*s.VPPAppAdamID]; !ok {
+					if opts.OnlyAvailableForInstall {
+						tmpByVPPAdamID[*s.VPPAppAdamID] = s
+					} else {
+						byVPPAdamID[*s.VPPAppAdamID] = s
+					}
+				}
+			} else {
+				// Ensure not to overwrite the records from software installs and software uninstalls
+				if _, ok := bySoftwareTitleID[s.ID]; !ok {
+					if opts.OnlyAvailableForInstall {
+						tempBySoftwareTitleID[s.ID] = s
+					} else {
+						bySoftwareTitleID[s.ID] = s
+					}
 				}
 			}
 		}
 		// Clear out all the previous software titles as we are only filtering for available software
 		if opts.OnlyAvailableForInstall {
 			bySoftwareTitleID = tempBySoftwareTitleID
+			byVPPAdamID = tmpByVPPAdamID
 		}
 	}
 
@@ -3104,6 +3140,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL AS vpp_app_self_service,
 					NULL AS vpp_app_adam_id,
 					NULL AS vpp_app_version,
+					NULL AS vpp_app_platform,
 					NULL AS vpp_app_icon_url,
 					NULL AS last_install_installed_at,
 					NULL AS last_install_install_uuid,
@@ -3142,6 +3179,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					vpp_apps_teams.self_service AS vpp_app_self_service,
 					vpp_apps_teams.adam_id AS vpp_app_adam_id,
 					vpp_apps.latest_version AS vpp_app_version,
+					vpp_apps.platform as vpp_app_platform,
 					NULLIF(vpp_apps.icon_url, '') AS vpp_app_icon_url,
 					NULL AS last_install_installed_at,
 					NULL As last_install_install_uuid,
@@ -3159,6 +3197,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					vpp_apps_teams.self_service,
 					vpp_apps_teams.adam_id,
 					vpp_apps.latest_version,
+					vpp_apps.platform,
 					vpp_apps.icon_url
 			`)
 		}
@@ -3306,6 +3345,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						Version:     version,
 						SelfService: softwareTitleRecord.VPPAppSelfService,
 						IconURL:     softwareTitleRecord.VPPAppIconURL,
+					}
+					if softwareTitleRecord.VPPAppPlatform != nil {
+						softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform
 					}
 
 					// promote the last install info to the proper destination fields
