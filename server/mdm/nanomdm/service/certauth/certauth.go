@@ -115,9 +115,12 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 	}
 	logger := ctxlog.Logger(r.Context, s.logger)
 	hash := HashCert(r.Certificate)
+	logger.Info("msg", "associate new enrollment", "hash", hash, "id", r.ID)
+
 	if hasHash, err := s.storage.HasCertHash(r, hash); err != nil {
 		return err
 	} else if hasHash {
+		logger.Info("msg", "store has cert hash", "id", r.ID, "hash", hash)
 		if !s.allowDup {
 			// test to see if we're using the same cert for an
 			// enrollment. the only way this should happen is if
@@ -126,6 +129,7 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 			if isAssoc, err := s.storage.IsCertHashAssociated(r, hash); err != nil {
 				return err
 			} else if isAssoc {
+				logger.Info("msg", "cert hash is associated", "id", r.ID, "hash", hash)
 				return nil
 			}
 			logger.Info(
