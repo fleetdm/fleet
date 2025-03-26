@@ -119,20 +119,24 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
-serve up: TARGET_ARGS := --use-ip 
+serve up: TARGET_ARGS := --use-ip --no-save
 ifdef USE_IP
 serve up: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
 endif
 serve up:
 	$(call filter_args)
 	@if [[ "$(FORWARDED_ARGS)" != "" ]]; then \
-		echo "./build/fleet serve $(FORWARDED_ARGS)" > ~/.fleet/last-serve-invocation; \
-	fi; 
-	@if [[ -f ~/.fleet/last-serve-invocation ]]; then \
-		cat ~/.fleet/last-serve-invocation; \
-		$$(cat ~/.fleet/last-serve-invocation); \
+		if [[ "$(NO_SAVE)" != "true" ]]; then \
+			echo "./build/fleet serve $(FORWARDED_ARGS)" > ~/.fleet/last-serve-invocation; \
+		fi; \
+		./build/fleet serve $(FORWARDED_ARGS); \
 	else \
-		./build/fleet serve; \
+		if [[  -f ~/.fleet/last-serve-invocation ]]; then \
+			cat ~/.fleet/last-serve-invocation; \
+			$$(cat ~/.fleet/last-serve-invocation); \
+		else \
+			./build/fleet serve; \
+		fi; \
 	fi
 
 build/fleet: | .pre-build .pre-fleet
