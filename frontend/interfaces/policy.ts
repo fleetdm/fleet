@@ -108,6 +108,8 @@ export interface IPolicyFormData {
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
 }
 
 export interface IPolicyNew {

@@ -1,6 +1,10 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
+import { useQuery } from "react-query";
 import { size } from "lodash";
 import classNames from "classnames";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -16,6 +20,11 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import Icon from "components/Icon";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
@@ -77,9 +86,48 @@ const SaveNewPolicyModal = ({
     backendValidators
   );
 
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState({});
+
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
+    }
+  );
+
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
+
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
-  const disableSave = !platformSelector.isAnyPlatformSelected || disableForm;
+  const disableSave =
+    !platformSelector.isAnyPlatformSelected ||
+    disableForm ||
+    (selectedTargetType === "Custom" &&
+      !Object.entries(selectedLabels).some(([, value]) => {
+        return value;
+      }));
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -115,6 +163,20 @@ const SaveNewPolicyModal = ({
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
         critical: lastEditedQueryCritical,
+        labels_include_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsIncludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
+        labels_exclude_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsExcludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
       });
     }
   };
@@ -235,6 +297,24 @@ const SaveNewPolicyModal = ({
             disabled={disableForm}
           />
           {platformSelector.render()}
+          {isPremiumTier && (
+            <TargetLabelSelector
+              selectedTargetType={selectedTargetType}
+              selectedCustomTarget={selectedCustomTarget}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              onSelectCustomTarget={setSelectedCustomTarget}
+              selectedLabels={selectedLabels}
+              className={`${baseClass}__target`}
+              onSelectTargetType={setSelectedTargetType}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              customHelpText={
+                <span className="form-field__help-text">
+                  Query will target hosts that <b>have any</b> of these labels:
+                </span>
+              }
+            />
+          )}
           {isPremiumTier && (
             <div className="critical-checkbox-wrapper">
               <Checkbox
