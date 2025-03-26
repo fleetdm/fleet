@@ -161,4 +161,4 @@ Incorporating these steps into your CI/CD pipeline can streamline your deploymen
 <meta name="publishedOn" value="2024-03-06">
 <meta name="articleImageUrl" value="../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing-1600x900@2x.png">
 <meta name="description" value="This guide walks through the process of adding an Apple signing certificate to a Linux host.">
-<meta name="keywords" content="Linux MDM, Linux device management, open source MDM, Linux management" />
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />
