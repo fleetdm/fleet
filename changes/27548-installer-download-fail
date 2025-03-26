@@ -1,0 +1,1 @@
+- Fixed software installer download errors by extending the timeout for the download endpoints.
