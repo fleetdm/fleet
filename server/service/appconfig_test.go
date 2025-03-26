@@ -810,6 +810,25 @@ func TestTransparencyURL(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
 			}
+
+			expectedURL := fleet.DefaultTransparencyURL
+			expectedSecureframeURL := fleet.SecureframeTransparencyURL
+			if tt.expectedURL != "" {
+				expectedURL = tt.expectedURL
+				expectedSecureframeURL = tt.expectedURL
+			}
+
+			transparencyURL, err := svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedURL, transparencyURL)
+
+			cfg := config.TestConfig()
+			cfg.Partnerships.EnableSecureframe = true
+			svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+			transparencyURL, err = svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedSecureframeURL, transparencyURL)
 		})
 	}
 }
@@ -821,7 +840,8 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	cfg := config.TestConfig()
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	dsAppConfig := &fleet.AppConfig{
@@ -858,6 +878,19 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	ac, err := svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
+
+	// delivered URL should be the default one
+	transparencyUrl, err := svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DefaultTransparencyURL, transparencyUrl)
+
+	// delivered URL should be the Secureframe one if we have that config value set
+	cfg.Partnerships.EnableSecureframe = true
+	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	transparencyUrl, err = svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SecureframeTransparencyURL, transparencyUrl)
 
 	// setting transparency url fails
 	raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"})
