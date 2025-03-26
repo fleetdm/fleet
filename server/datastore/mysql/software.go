@@ -2842,11 +2842,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			)
 		`
 		if opts.SelfServiceOnly {
-			stmtAvailable = stmtAvailable + "\nAND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) )"
+			stmtAvailable += "\nAND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) )"
 		}
 
 		if !opts.IsMDMEnrolled {
-			stmtAvailable = stmtAvailable + "\nAND vat.id IS NULL"
+			stmtAvailable += "\nAND vat.id IS NULL"
 		}
 
 		stmtAvailable, args, err := sqlx.Named(stmtAvailable, namedArgs)
@@ -3035,7 +3035,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for software titles")
 			}
-			softwareTitleStatment = strings.Replace(softwareTitleStatment, "AND true", matchClause, -1)
+			softwareTitleStatment = strings.ReplaceAll(softwareTitleStatment, "AND true", matchClause)
 			args = append(args, softwareTitleArgsNamedArgs...)
 			args = append(args, softwareTitleArgs...)
 			if len(matchArgs) > 0 {
@@ -3044,7 +3044,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if len(cveNamedArgs) > 0 {
 				args = append(args, cveNamedArgs...)
 			}
-			stmt = stmt + softwareTitleStatment
+			stmt += softwareTitleStatment
 		}
 		if len(vppAdamIDs) > 0 {
 			var vulnerableJoin string
@@ -3071,8 +3071,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				`
 			}
 
-			vppAdamStatment = `
-			UNION
+			if len(softwareTitleIds) > 0 {
+				vppAdamStatment = ` UNION `
+			}
+
+			vppAdamStatment += `
 			-- SELECT for vpp apps
 			%s
 			FROM
@@ -3102,7 +3105,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for vpp titles")
 			}
-			vppAdamStatment = strings.Replace(vppAdamStatment, "AND true", matchClause, -1)
+			vppAdamStatment = strings.ReplaceAll(vppAdamStatment, "AND true", matchClause)
 			args = append(args, vppAdamArgsNamedArgs...)
 			args = append(args, vppAdamArgs...)
 			if len(matchArgs) > 0 {
@@ -3111,7 +3114,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if len(cveNamedArgs) > 0 {
 				args = append(args, cveNamedArgs...)
 			}
-			stmt = stmt + vppAdamStatment
+			stmt += vppAdamStatment
 		}
 
 		var countStmt string
@@ -3267,7 +3270,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				// Find software from bySoftwareID, indicating the version is installed on host
 				if software, ok := bySoftwareID[*softwareTitleRecord.SoftwareID]; ok {
 					// Find installed path
-					paths, _ := installedPathBySoftwareId[*softwareTitleRecord.SoftwareID]
+					paths := installedPathBySoftwareId[*softwareTitleRecord.SoftwareID]
 					version.Version = *softwareTitleRecord.Version
 					version.Source = *softwareTitleRecord.SoftwareSource
 					version.BundleIdentifier = *softwareTitleRecord.BundleIdentifier
@@ -3400,16 +3403,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
-		startIndex := int((opts.ListOptions.Page) * perPage)
-		endIndex := startIndex + int(perPage)
+		startIndex := (opts.ListOptions.Page) * perPage
+		endIndex := startIndex + perPage
 
-		if endIndex > len(hostSoftwareList) {
-			endIndex = len(hostSoftwareList)
+		if endIndex > uint(len(hostSoftwareList)) {
+			endIndex = uint(len(hostSoftwareList))
 		}
 
-		metaData.HasNextResults = endIndex < len(hostSoftwareList)
+		metaData.HasNextResults = endIndex < uint(len(hostSoftwareList))
 
-		if startIndex < len(hostSoftwareList) {
+		if startIndex < uint(len(hostSoftwareList)) {
 			hostSoftwareList = hostSoftwareList[startIndex:endIndex]
 		} else {
 			hostSoftwareList = nil // No results for the current page
