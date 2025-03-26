@@ -86,18 +86,6 @@ export const addGravatarUrlToResource = (resource: any): any => {
   };
 };
 
-export const createHostsByPolicyPath = (
-  policyId: number,
-  policyResponse: PolicyResponse,
-  teamId?: number | null
-) => {
-  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    policy_id: policyId,
-    policy_response: policyResponse,
-    team_id: teamId,
-  })}`;
-};
-
 /** Removes Apple OS Prefix from host.os_version. */
 export const removeOSPrefix = (version: string): string => {
   return version.replace(/^(macOS |iOS |iPadOS )/i, "");
@@ -639,6 +627,13 @@ export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
 
+// just a rename of hasLicenseExpired so that it can be used in other contexts.
+// TODO: change hasLicenseExpired instances to hasExpired
+/**
+ * determines if a date has expired. This will check against the current date and time.
+ */
+export const hasExpired = hasLicenseExpired;
+
 /**
  * determines if a date will expire within "x" number of days. If the date has
  * has already expired, this function will return false.
@@ -848,17 +843,6 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
   </span>
 );
 
-export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
-    const queryString = buildQueryStringFromParams({
-      host_id: hostId || undefined,
-      team_id: teamId,
-    });
-
-    return queryString && `?${queryString}`;
-  },
-};
-
 export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
@@ -917,7 +901,6 @@ export default {
   addGravatarUrlToResource,
   removeOSPrefix,
   compareVersions,
-  createHostsByPolicyPath,
   formatLabelResponse,
   formatFloatAsPercentage,
   formatSeverity,
@@ -956,5 +939,4 @@ export default {
   normalizeEmptyValues,
   wait,
   wrapFleetHelper,
-  TAGGED_TEMPLATES,
 };

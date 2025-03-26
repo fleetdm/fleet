@@ -50,6 +50,12 @@ export enum ActivityType {
   AddedNdesScepProxy = "added_ndes_scep_proxy",
   DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
   EditedNdesScepProxy = "edited_ndes_scep_proxy",
+  AddedDigicert = "added_digicert",
+  DeletedDigicert = "deleted_digicert",
+  EditedDigicert = "edited_digicert",
+  AddedCustomScepProxy = "added_custom_scep_proxy",
+  DeletedCustomScepProxy = "deleted_custom_scep_proxy",
+  EditedCustomScepProxy = "edited_custom_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -103,6 +109,8 @@ export enum ActivityType {
   DisabledActivityAutomations = "disabled_activity_automations",
   CanceledScript = "canceled_script",
   CanceledSoftwareInstall = "canceled_software_install",
+  EnabledAndroidMdm = "enabled_android_mdm",
+  DisabledAndroidMdm = "disabled_android_mdm",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */

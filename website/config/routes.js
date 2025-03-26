@@ -17,6 +17,7 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
+      showHeaderCTA: true,
     }
   },
 
@@ -262,6 +263,7 @@ module.exports.routes = {
     action: 'entrance/view-signup',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Sign up',
       pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
@@ -270,6 +272,7 @@ module.exports.routes = {
     action: 'entrance/view-login',
     locals: {
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Log in',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
@@ -452,7 +455,7 @@ module.exports.routes = {
   'GET /app-library': {
     action: 'view-app-library',
     locals: {
-      pageTitleForMeta: 'App library',
+      pageTitleForMeta: 'Software',
       pageDescriptionForMeta: 'Install Fleet-maintained apps on your hosts without the need for additional configuration. Activate self-service for your end users.',
     }
   },
@@ -572,7 +575,7 @@ module.exports.routes = {
   'GET /docs/deploy': '/docs/deploy/introduction',
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
-  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts#install-fleetd',
   'GET /docs/using-fleet/fleetd': '/docs/using-fleet/enroll-hosts',
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
@@ -684,6 +687,8 @@ module.exports.routes = {
   'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
   'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
+  'GET /guides/ndes-scep-proxy': '/guides/certificate-authorities',
+
 
   // Release note article redirects.
   'GET /releases/fleet-3.10.0': '/releases/fleet-3-10-0',
@@ -823,6 +828,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
+  'GET /learn-more-about/certificate-authorities': '/guides/certificate-authorities',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/macos-setup-experience#macos-setup-assistant',
@@ -869,7 +875,15 @@ module.exports.routes = {
   'GET /contribute-to/policies': 'https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml',
   'GET /learn-more-about/end-user-license-agreement': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
   'GET /learn-more-about/end-user-authentication': '/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula',
+  'GET /learn-more-about/yaml-setup-experience-software': '/docs/configuration/yaml-files#software',
   'GET /learn-more-about/policy-templates': '/policies',
+  'GET /learn-more-about/windows-mdm': '/guides/windows-mdm-setup',
+  'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
+  'GET /learn-more-about/certificates-query': '/tables/certificates',
+  'GET /learn-more-about/gitops': 'https://github.com/fleetdm/fleet-gitops/',
+  'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
+  // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
+  'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
 
   // Sitemap
   // =============================================================================================================
@@ -913,6 +927,7 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
+  'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
   'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗

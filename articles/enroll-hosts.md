@@ -47,16 +47,15 @@ To generate Fleet's agent (fleetd) in Fleet UI:
 2. Select the tab for your desired platform (e.g. macOS).
 3. A CLI command with all necessary flags to generate an install package will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
-### Enroll host to a specific team
+### Install fleetd
+
+You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd. 
+
+### Enroll hosts to a team
 
 With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
 To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enroll secret will be included in the generated command.
-
-### Enroll multiple hosts
-
-If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
-You can use your software management tool of choice to distribute Fleet's agent (fleetd) generated via the instructions above.
 
 ### Fleet Desktop
 

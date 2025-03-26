@@ -33,93 +33,116 @@ const (
 	NDESChallengeInvalidAfter     = 57 * time.Minute
 )
 
-// NDESTimeout is the timeout for NDES requests. It is exportable for testing.
-var NDESTimeout = ptr.Duration(30 * time.Second)
-
 type scepProxyService struct {
 	ds fleet.Datastore
 	// info logging is implemented in the service middleware layer.
 	debugLogger log.Logger
+	Timeout     *time.Duration
+}
+
+// NewSCEPProxyService creates a new scep proxy service
+func NewSCEPProxyService(ds fleet.Datastore, logger log.Logger, timeout *time.Duration) scepserver.ServiceWithIdentifier {
+	if timeout == nil {
+		timeout = ptr.Duration(30 * time.Second)
+	}
+	return &scepProxyService{
+		ds:          ds,
+		debugLogger: logger,
+		Timeout:     timeout,
+	}
 }
 
 // GetCACaps returns a list of SCEP options which are supported by the server.
 // It is a pass-through call to the SCEP server.
-func (svc *scepProxyService) GetCACaps(ctx context.Context) ([]byte, error) {
-	appConfig, err := svc.ds.AppConfig(ctx)
+func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) ([]byte, error) {
+	scepURL, err := svc.validateIdentifier(ctx, identifier, false)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, err
 	}
-	if !appConfig.Integrations.NDESSCEPProxy.Valid {
-		// Return error that implements kithttp.StatusCoder interface
-		return nil, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
-	}
-	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger, NDESTimeout)
+
+	client, err := scepclient.New(scepURL, svc.debugLogger, svc.Timeout)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
 	res, err := client.GetCACaps(ctx)
 	if err != nil {
-		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL)
+		return res, ctxerr.Wrapf(ctx, err, "Could not GetCACaps from SCEP server %s", scepURL)
 	}
 	return res, nil
 }
 
 // GetCACert returns the CA certificate(s) from SCEP server.
 // It is a pass-through call to the SCEP server.
-func (svc *scepProxyService) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
-	appConfig, err := svc.ds.AppConfig(ctx)
+func (svc *scepProxyService) GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error) {
+	scepURL, err := svc.validateIdentifier(ctx, identifier, false)
 	if err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, 0, err
 	}
-	if !appConfig.Integrations.NDESSCEPProxy.Valid {
-		// Return error that implements kithttp.StatusCoder interface
-		return nil, 0, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
-	}
-	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger, NDESTimeout)
+
+	client, err := scepclient.New(scepURL, svc.debugLogger, svc.Timeout)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
 	res, num, err := client.GetCACert(ctx, message)
 	if err != nil {
-		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL)
+		return res, num, ctxerr.Wrapf(ctx, err, "Could not GetCACert from SCEP server %s", scepURL)
 	}
 	return res, num, nil
 }
 
 func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, identifier string) ([]byte, error) {
-	appConfig, err := svc.ds.AppConfig(ctx)
+	// We only check for expired NDES challenge during this (the last) SCEP request to account for previous requests having large network delays
+	scepURL, err := svc.validateIdentifier(ctx, identifier, true)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting app config")
-	}
-	if !appConfig.Integrations.NDESSCEPProxy.Valid {
-		// Return error that implements kithttp.StatusCoder interface
-		return nil, &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
+		return nil, err
 	}
 
-	// Validate the identifier and challenge password expiration.
+	client, err := scepclient.New(scepURL, svc.debugLogger, svc.Timeout)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
+	}
+	res, err := client.PKIOperation(ctx, data)
+	if err != nil {
+		return res, ctxerr.Wrapf(ctx, err,
+			"Could not do PKIOperation on SCEP server %s", scepURL)
+	}
+	return res, nil
+}
+
+func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
+	error) {
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
 	parsedID, err := url.PathUnescape(identifier)
 	if err != nil {
 		// Should never happen since the identifier comes in as a path variable
-		return nil, ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
+		return "", ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
 	}
 	parsedIDs := strings.Split(parsedID, ",")
-	if len(parsedIDs) != 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
+	if len(parsedIDs) < 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, &scepserver.BadRequestError{Message: "invalid identifier in URL path"}
+		return "", &scepserver.BadRequestError{Message: "invalid identifier in URL path"}
 	}
 	hostUUID := parsedIDs[0]
 	profileUUID := parsedIDs[1]
+	caName := "NDES" // default
+	if len(parsedIDs) > 2 {
+		caName = parsedIDs[2]
+	}
 	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
-		return nil, &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
 			profileUUID)}
 	}
-	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID)
+	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting host MDM profile")
+		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
 	}
 	if profile == nil {
 		// Return error that implements kithttp.StatusCoder interface
-		return nil, &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
+		return "", &scepserver.BadRequestError{Message: "unknown identifier in URL path"}
 	}
 	if profile.Status == nil || *profile.Status != fleet.MDMDeliveryPending {
 		// This could happen if Fleet DB was updated before the profile was updated on the host.
@@ -128,53 +151,76 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 		if profile.Status != nil {
 			status = string(*profile.Status)
 		}
-		return nil, &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
+		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("profile status (%s) is not 'pending' for host:%s profile:%s", status,
 			hostUUID, profileUUID)}
 	}
-	if profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
-		// The challenge password was retrieved for this profile, and is now invalid.
-		// We need to resend the profile with a new challenge password.
-		// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
-		if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "resending host mdm profile")
+	var scepURL string
+	switch profile.Type {
+	case fleet.CAConfigNDES:
+		if !appConfig.Integrations.NDESSCEPProxy.Valid {
+			// Return error that implements kithttp.StatusCoder interface
+			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
-		return nil, &scepserver.BadRequestError{Message: "challenge password has expired"}
+		if checkChallenge && profile.ChallengeRetrievedAt != nil && profile.ChallengeRetrievedAt.Add(NDESChallengeInvalidAfter).Before(time.Now()) {
+			// The challenge password was retrieved for this profile, and is now invalid.
+			// We need to resend the profile with a new challenge password.
+			// Note: we don't actually know if it is invalid, and we can't get that exact feedback from SCEP server.
+			if err = svc.ds.ResendHostMDMProfile(ctx, hostUUID, profileUUID); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "resending host mdm profile")
+			}
+			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
+		}
+		scepURL = appConfig.Integrations.NDESSCEPProxy.Value.URL
+	case fleet.CAConfigCustomSCEPProxy:
+		if !appConfig.Integrations.CustomSCEPProxy.Valid {
+			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
+		}
+		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
+			if ca.Name == profile.CAName {
+				scepURL = ca.URL
+				break
+			}
+		}
 	}
-
-	client, err := scepclient.New(appConfig.Integrations.NDESSCEPProxy.Value.URL, svc.debugLogger, NDESTimeout)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
+	if scepURL == "" {
+		return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 	}
-	res, err := client.PKIOperation(ctx, data)
-	if err != nil {
-		return res, ctxerr.Wrapf(ctx, err,
-			"Could not do PKIOperation on SCEP server %s", appConfig.Integrations.NDESSCEPProxy.Value.URL)
-	}
-	return res, nil
+	return scepURL, nil
 }
 
-func (svc *scepProxyService) GetNextCACert(ctx context.Context) ([]byte, error) {
+func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 	// NDES on Windows Server 2022 does not support this, as advertised via GetCACaps
 	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
 }
 
-// NewSCEPProxyService creates a new scep proxy service
-func NewSCEPProxyService(ds fleet.Datastore, logger log.Logger) scepserver.ServiceWithIdentifier {
-	return &scepProxyService{
-		ds:          ds,
-		debugLogger: logger,
+type SCEPConfigService struct {
+	logger log.Logger
+	// Timeout is the timeout for SCEP requests.
+	Timeout *time.Duration
+}
+
+func NewSCEPConfigService(logger log.Logger, timeout *time.Duration) fleet.SCEPConfigService {
+	if timeout == nil {
+		timeout = ptr.Duration(30 * time.Second)
+	}
+	return &SCEPConfigService{
+		logger:  logger,
+		Timeout: timeout,
 	}
 }
 
-func ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
-	_, err := GetNDESSCEPChallenge(ctx, proxy)
+// Compile check that SCEPConfigService implements the interface.
+var _ fleet.SCEPConfigService = (*SCEPConfigService)(nil)
+
+func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
+	_, err := s.GetNDESSCEPChallenge(ctx, proxy)
 	return err
 }
 
-func GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
-	client := fleethttp.NewClient(fleethttp.WithTimeout(*NDESTimeout))
+	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))
 	client.Transport = ntlmssp.Negotiator{
 		RoundTripper: fleethttp.NewTransport(),
 	}
@@ -225,8 +271,8 @@ func GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegrat
 	return challenge, nil
 }
 
-func ValidateNDESSCEPURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration, logger log.Logger) error {
-	client, err := scepclient.New(proxy.URL, logger, NDESTimeout)
+func (s *SCEPConfigService) ValidateSCEPURL(ctx context.Context, url string) error {
+	client, err := scepclient.New(url, s.logger, s.Timeout)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating SCEP client; invalid SCEP URL; please correct and try again")
 	}

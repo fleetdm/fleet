@@ -317,6 +317,13 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	if p.DiscardData != nil {
 		query.DiscardData = *p.DiscardData
 	}
+	if len(p.LabelsIncludeAny) > 0 {
+		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
+		}
+		query.LabelsIncludeAny = labelIdents
+	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
@@ -439,6 +446,16 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 			shouldDiscardQueryResults = true
 		}
 		query.DiscardData = *p.DiscardData
+	}
+	if p.LabelsIncludeAny != nil {
+		// Users submitting an empty array of labels will still
+		// initiate LabelsIncludeAny. It will only be nil if it was
+		// not included in the request (not modified)
+		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
+		}
+		query.LabelsIncludeAny = labelIdents
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
@@ -806,6 +823,10 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		}
 		teamName = team.Name
 	}
+	labelsAny := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelsAny = append(labelsAny, label.LabelName)
+	}
 	return &fleet.QuerySpec{
 		Name:        query.Name,
 		Description: query.Description,
@@ -819,6 +840,7 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		AutomationsEnabled: query.AutomationsEnabled,
 		Logging:            query.Logging,
 		DiscardData:        query.DiscardData,
+		LabelsIncludeAny:   labelsAny,
 	}, nil
 }
 

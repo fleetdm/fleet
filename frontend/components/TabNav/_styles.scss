@@ -1,0 +1,134 @@
+.tab-nav {
+  position: sticky;
+  top: 0;
+  background-color: $core-white;
+  z-index: 2;
+
+  .react-tabs {
+    &__tab-list {
+      display: inline-flex;
+      align-items: flex-start;
+      gap: $pad-xxlarge;
+      border-bottom: 1px solid $ui-fleet-black-10;
+      width: 100%;
+      height: 43px;
+    }
+    .tab-text {
+      display: flex; /* Ensure text and count are aligned horizontally */
+      align-items: center; /* Vertically align items */
+
+      .tab-text__text {
+        display: relative;
+
+        // Reserve space for bold text using a hidden pseudo-element
+        &::before {
+          content: attr(data-text); /* Same text as the visible one */
+          font-weight: bold; /* Mimic bold styling */
+          visibility: hidden; /* Keep it invisible */
+          position: absolute; /* Prevent it from affecting layout */
+        }
+      }
+    }
+
+    &__tab {
+      padding: 5px 0 $pad-medium;
+      font-size: $x-small;
+      border: none;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 21px;
+
+      &:focus {
+        box-shadow: none;
+        outline: 0;
+        &:after {
+          left: 0;
+          bottom: 0;
+        }
+      }
+
+      // focus-visible only highlights when tabbing not clicking
+      &:focus-visible {
+        .tab-text {
+          border-radius: $border-radius;
+          // Outline used instead of border not to shift component
+          outline: 1px solid $ui-vibrant-blue-25;
+          outline-offset: -1px;
+        }
+      }
+
+      // // Bolding text when the button is active causes a layout shift
+      // // so we add a hidden pseudo element with the same text string
+      &:before {
+        content: attr(data-text);
+        height: 0;
+        visibility: hidden;
+        overflow: hidden;
+        user-select: none;
+        pointer-events: none;
+        font-weight: $bold;
+      }
+
+      &--selected {
+        font-weight: $bold;
+
+        &::after {
+          content: "";
+          width: 100%;
+          height: 0;
+          border-bottom: 2px solid $core-vibrant-blue;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+      }
+
+      &:hover {
+        &::after {
+          content: "";
+          width: 100%;
+          height: 0;
+          border-bottom: 2px solid $core-vibrant-blue;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+      }
+
+      &--disabled {
+        cursor: not-allowed;
+
+        &:hover {
+          &::after {
+            content: "";
+            width: 100%;
+            height: 0;
+            border-bottom: 0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+          }
+        }
+      }
+
+      &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
+        bottom: -2px;
+      }
+    }
+    &__tab-panel {
+      .no-results-message {
+        margin-top: $pad-xxlarge;
+        font-size: $small;
+        font-weight: $bold;
+
+        span {
+          margin-top: $pad-medium;
+          font-size: $x-small;
+          font-weight: $regular;
+          display: block;
+        }
+      }
+    }
+  }
+}

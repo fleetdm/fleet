@@ -1,3 +1,4 @@
+// FUTURE: remove this policy once the query generator is public
 /**
  * has-query-generator-access
  *
@@ -10,7 +11,12 @@
  */
 module.exports = async function (req, res, proceed) {
 
-  // First, check whether the request comes from a logged-in user.
+  // First, check whether the query generator is open to the public by checking the enablePublicQueryGenerator config value.
+  // This is here to allow us to open the query generator to everyone after we internally QA it on the live website, without needing to redeploy the website.
+  if(sails.config.custom.enablePublicQueryGenerator){
+    return proceed();
+  }
+  // Then, check whether the request comes from a logged-in user.
   // > For more about where `req.me` comes from, check out this app's
   // > custom hook (`api/hooks/custom/index.js`).
   if (!req.me) {

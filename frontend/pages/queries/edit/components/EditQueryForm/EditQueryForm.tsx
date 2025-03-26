@@ -7,6 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
 import { pull, size } from "lodash";
 import classnames from "classnames";
@@ -26,7 +27,6 @@ import {
   addGravatarUrlToResource,
   getCustomDropdownOptions,
   secondsToDhms,
-  TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -35,7 +35,9 @@ import {
   LOGGING_TYPE_OPTIONS,
   INVALID_PLATFORMS_REASON,
   INVALID_PLATFORMS_FLASH_MESSAGE,
+  DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 
@@ -48,6 +50,10 @@ import {
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 
 import queryAPI from "services/entities/queries";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
@@ -65,6 +71,7 @@ import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TargetLabelSelector from "components/TargetLabelSelector";
 
 import SaveQueryModal from "../SaveQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -167,6 +174,7 @@ const EditQueryForm = ({
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
+    isPremiumTier,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -188,6 +196,38 @@ const EditQueryForm = ({
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
+  const [selectedTargetType, setSelectedTargetType] = useState("");
+  const [selectedLabels, setSelectedLabels] = useState({});
+
+  useEffect(() => {
+    setSelectedTargetType(
+      storedQuery?.labels_include_any?.length && isPremiumTier
+        ? "Custom"
+        : "All hosts"
+    );
+    setSelectedLabels(
+      storedQuery?.labels_include_any?.reduce((acc, label) => {
+        return {
+          ...acc,
+          [label.name]: true,
+        };
+      }, {}) || {}
+    );
+  }, [storedQuery]);
+
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
+    }
+  );
 
   const platformCompatibility = usePlatformCompatibility();
   const { setCompatiblePlatforms } = platformCompatibility;
@@ -262,6 +302,19 @@ const EditQueryForm = ({
     []
   );
 
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
+
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
       setLastEditedQueryFrequency(value);
@@ -325,26 +378,34 @@ const EditQueryForm = ({
 
     if (valid) {
       setIsSaveAsNewLoading(true);
+      const apiProps = {
+        description: lastEditedQueryDescription,
+        query: lastEditedQueryBody,
+        team_id: apiTeamIdForQuery,
+        observer_can_run: lastEditedQueryObserverCanRun,
+        interval: lastEditedQueryFrequency,
+        automations_enabled: lastEditedQueryAutomationsEnabled,
+        platform: lastEditedQueryPlatforms,
+        min_osquery_version: lastEditedQueryMinOsqueryVersion,
+        logging: lastEditedQueryLoggingType,
+        labels_include_any:
+          selectedTargetType === "Custom"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
+      };
       queryAPI
         .create({
           name: lastEditedQueryName,
-          description: lastEditedQueryDescription,
-          query: lastEditedQueryBody,
-          team_id: apiTeamIdForQuery,
-          observer_can_run: lastEditedQueryObserverCanRun,
-          interval: lastEditedQueryFrequency,
-          automations_enabled: lastEditedQueryAutomationsEnabled,
-          platform: lastEditedQueryPlatforms,
-          min_osquery_version: lastEditedQueryMinOsqueryVersion,
-          logging: lastEditedQueryLoggingType,
+          ...apiProps,
         })
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
           router.push(
-            PATHS.QUERY_DETAILS(
-              response.query.id,
-              response.query.team_id ?? undefined
-            )
+            getPathWithQueryParams(PATHS.QUERY_DETAILS(response.query.id), {
+              team_id: response.query.team_id,
+            })
           );
           renderFlash("success", `Successfully added query.`);
         })
@@ -354,19 +415,15 @@ const EditQueryForm = ({
             queryAPI
               .create({
                 name: `Copy of ${lastEditedQueryName}`,
-                description: lastEditedQueryDescription,
-                query: lastEditedQueryBody,
-                team_id: apiTeamIdForQuery,
-                observer_can_run: lastEditedQueryObserverCanRun,
-                interval: lastEditedQueryFrequency,
-                automations_enabled: lastEditedQueryAutomationsEnabled,
-                platform: lastEditedQueryPlatforms,
-                min_osquery_version: lastEditedQueryMinOsqueryVersion,
-                logging: lastEditedQueryLoggingType,
+                ...apiProps,
               })
               .then((response: { query: ISchedulableQuery }) => {
                 setIsSaveAsNewLoading(false);
-                router.push(PATHS.EDIT_QUERY(response.query.id));
+                router.push(
+                  getPathWithQueryParams(PATHS.EDIT_QUERY(response.query.id), {
+                    team_id: apiTeamIdForQuery,
+                  })
+                );
                 renderFlash(
                   "success",
                   `Successfully added query as "Copy of ${lastEditedQueryName}".`
@@ -436,6 +493,12 @@ const EditQueryForm = ({
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
           discard_data: lastEditedQueryDiscardData,
+          labels_include_any:
+            selectedTargetType === "Custom"
+              ? Object.entries(selectedLabels)
+                  .filter(([, selected]) => selected)
+                  .map(([labelName]) => labelName)
+              : [],
         });
       }
     }
@@ -470,8 +533,8 @@ const EditQueryForm = ({
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
+          Schema
           <Icon name="info" size="small" />
-          Show schema
         </>
       </Button>
     );
@@ -657,8 +720,10 @@ const EditQueryForm = ({
               variant="blue-green"
               onClick={() => {
                 router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId, apiTeamIdForQuery)
+                  getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                    host_id: hostId,
+                    team_id: apiTeamIdForQuery,
+                  })
                 );
               }}
               disabled={disabledLiveQuery}
@@ -730,7 +795,12 @@ const EditQueryForm = ({
   const renderEditableQueryForm = () => {
     // Save and save as new disabled for query name blank on existing query or sql errors
     const disableSaveFormErrors =
-      (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
+      (lastEditedQueryName === "" && !!lastEditedQueryId) ||
+      !!size(errors) ||
+      (selectedTargetType === "Custom" &&
+        !Object.entries(selectedLabels).some(([, value]) => {
+          return value;
+        }));
 
     return (
       <>
@@ -830,6 +900,22 @@ const EditQueryForm = ({
               >
                 Observers can run
               </Checkbox>
+              {isPremiumTier && (
+                <TargetLabelSelector
+                  selectedTargetType={selectedTargetType}
+                  selectedLabels={selectedLabels}
+                  className={`${baseClass}__target`}
+                  onSelectTargetType={setSelectedTargetType}
+                  onSelectLabel={onSelectLabel}
+                  labels={labels || []}
+                  customHelpText={
+                    <span className="form-field__help-text">
+                      Query will target hosts that <b>have any</b> of these
+                      labels:
+                    </span>
+                  }
+                />
+              )}
               <RevealButton
                 isShowing={showAdvancedOptions}
                 className="advanced-options-toggle"
@@ -941,8 +1027,10 @@ const EditQueryForm = ({
                     setEditingExistingQuery(true); // Persists edited query data through live query flow
                   }
                   router.push(
-                    PATHS.LIVE_QUERY(queryIdForEdit) +
-                      TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+                    getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
+                      host_id: hostId,
+                      team_id: currentTeamId,
+                    })
                   );
                 }}
                 disabled={disabledLiveQuery}
@@ -985,7 +1073,7 @@ const EditQueryForm = ({
     );
   };
 
-  if (isStoredQueryLoading) {
+  if (isStoredQueryLoading || isFetchingLabels) {
     return <Spinner />;
   }
 

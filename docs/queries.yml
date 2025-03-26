@@ -783,7 +783,7 @@ kind: built-in
 spec:
   name: Software (macOS)
   platform: darwin
-  description: Gathers information about software installed on a device running linux.
+  description: Gathers information about software installed on a device running macOS.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -791,88 +791,78 @@ spec:
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
       name AS name,
-      version AS version,
+      COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
+      bundle_identifier AS bundle_identifier,
       '' AS extension_id,
       '' AS browser,
-      'deb_packages' AS source,
-      '' AS release,
+      'apps' AS source,
       '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM deb_packages
-    WHERE status LIKE '% ok installed'
-    UNION
-    SELECT
-      package AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'portage_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM portage_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'rpm_packages' AS source,
-      release AS release,
-      vendor AS vendor,
-      arch AS arch,
-      '' AS installed_path
-    FROM rpm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'npm_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
+      last_opened_time AS last_opened_at,
       path AS installed_path
-    FROM npm_packages
+    FROM apps
     UNION
     SELECT
       name AS name,
       version AS version,
+      '' AS bundle_identifier,
       identifier AS extension_id,
       browser_type AS browser,
       'chrome_extensions' AS source,
-      '' AS release,
       '' AS vendor,
-      '' AS arch,
+      0 AS last_opened_at,
       path AS installed_path
     FROM cached_users CROSS JOIN chrome_extensions USING (uid)
     UNION
     SELECT
       name AS name,
       version AS version,
+      '' AS bundle_identifier,
       identifier AS extension_id,
       'firefox' AS browser,
       'firefox_addons' AS source,
-      '' AS release,
       '' AS vendor,
-      '' AS arch,
+      0 AS last_opened_at,
       path AS installed_path
     FROM cached_users CROSS JOIN firefox_addons USING (uid)
     UNION
     SELECT
-      name AS name,
+      name As name,
       version AS version,
+      '' AS bundle_identifier,
       '' AS extension_id,
       '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
+      'safari_extensions' AS source,
       '' AS vendor,
-      '' AS arch,
+      0 AS last_opened_at,
       path AS installed_path
-    FROM python_packages
+    FROM cached_users CROSS JOIN safari_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'homebrew_packages' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM homebrew_packages
+    WHERE type = 'formula'
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'homebrew_packages' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM homebrew_packages
+    WHERE type = 'cask'
+    AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
   bash: bash -c 'echo "name,version,extension_id,browser,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
   purpose: Informational
   tags: built-in

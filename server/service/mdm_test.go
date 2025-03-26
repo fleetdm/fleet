@@ -610,6 +610,9 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
 		return fleet.MDMLinuxDiskEncryptionSummary{}, nil
 	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		return false, nil
+	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
@@ -882,6 +885,9 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
 		require.Nil(t, teamID)
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
+	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		return true, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
@@ -1213,7 +1219,6 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
-		{"unsupported user-scoped profile", 0, `<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI></Target></Item></Replace>`, true, `The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
 		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML: processing instructions are not allowed."},
@@ -1225,7 +1230,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
-		{"team unsupported user-scoped profile", 1, `<Replace><Item><Target><LocURI>./User/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI></Target></Item></Replace>`, true, `The configuration profile can't be user scoped ("./User/"). <LocURI> must start with "./Device/" ("./Device/" can be omitted, it will default to device scope).`},
+
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
 	}
 

@@ -61,8 +61,8 @@ allow {
 # Team admin, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  # If role is admin, gitops, maintainer, observer_plus or observer on any team.
+  team_role(subject, subject.teams[_].id) == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -635,6 +635,13 @@ allow {
   action == read
 }
 
+# Only global admins can modify software inventory (specifically software title names)
+allow {
+  object.type == "software_inventory"
+  subject.global_role == admin
+  action == write
+}
+
 # Team admins, maintainers, observers and observer_plus can read all software in their teams.
 allow {
   not is_null(object.team_id)
@@ -1023,9 +1030,9 @@ allow {
 ##
 # Android
 ##
-# Global admins can connect enteprise.
+# Global admins can connect enterprise.
 allow {
   object.type == "android_enterprise"
   subject.global_role == admin
-  action == write
+  action == [read, write][_]
 }

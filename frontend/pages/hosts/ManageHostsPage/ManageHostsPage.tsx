@@ -149,13 +149,11 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    isSandboxMode,
     userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
-    setUserSettings,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -296,7 +294,9 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
+  const canAddNewLabels =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
@@ -1563,7 +1563,6 @@ const ManageHostsPage = ({
         variant: "text-icon",
         iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
-        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
@@ -1704,7 +1703,7 @@ const ManageHostsPage = ({
           <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode && canEnrollHosts && !hasErrors && (
+              {canEnrollHosts && !hasErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}

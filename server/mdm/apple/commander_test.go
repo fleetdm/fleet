@@ -16,10 +16,10 @@ import (
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	svcmock "github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/nanolib/log/stdlogfmt"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )

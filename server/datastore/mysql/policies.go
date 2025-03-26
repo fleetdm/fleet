@@ -181,11 +181,6 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	)
 }
 
-var (
-	errMismatchedInstallerTeam = &fleet.BadRequestError{Message: "software installer is associated with a different team"}
-	errMismatchedScriptTeam    = &fleet.BadRequestError{Message: "script is associated with a different team"}
-)
-
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
 	if softwareInstallerID != nil {
 		var softwareInstallerTeamID uint
@@ -193,11 +188,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A software installer with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Software installer with ID %d does not exist", *softwareInstallerID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying software installer")
 		} else if softwareInstallerTeamID != teamID {
-			return errMismatchedInstallerTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Software installer with ID %d does not belong to team ID %d", *softwareInstallerID, teamID),
+			})
 		}
 	}
 
@@ -207,11 +206,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A VPP app with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("VPP app with ID %d does not exist", *vppAppsTeamsID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying VPP app")
 		} else if vppAppTeamID != teamID {
-			return errMismatchedInstallerTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("VPP app with ID %d does not belong to team ID %d", *vppAppsTeamsID, teamID),
+			})
 		}
 	}
 
@@ -221,11 +224,15 @@ func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint,
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return &fleet.BadRequestError{Message: "A script with the supplied ID does not exist"}
+				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Script with ID %d does not exist", *scriptID),
+				})
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "querying script")
 		} else if scriptTeamID != teamID {
-			return errMismatchedScriptTeam
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Script with ID %d does not belong to team ID %d", *scriptID, teamID),
+			})
 		}
 	}
 
@@ -1808,7 +1815,7 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		return nil, nil
 	}
 
-	query := `
+	baseQuery := `
 	SELECT
 		p.id AS id,
 		p.name AS name,
@@ -1825,14 +1832,26 @@ func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 		tmID = *teamID
 	}
 
-	query, args, err := sqlx.In(query, softwareTitleIDs, softwareTitleIDs, tmID)
+	batchSize := 32000 // see https://github.com/fleetdm/fleet/issues/26753 on the math behind this number
+	var policies []fleet.AutomaticInstallPolicy
+	err := common_mysql.BatchProcessSimple(softwareTitleIDs, batchSize, func(softwareTitleIDsToProcess []uint) error {
+		query, args, err := sqlx.In(baseQuery, softwareTitleIDsToProcess, softwareTitleIDsToProcess, tmID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build select get policies by software id query")
+		}
+
+		var policyBatch []fleet.AutomaticInstallPolicy
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyBatch, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get policies by software installer id")
+		}
+
+		policies = append(policies, policyBatch...)
+
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build select get policies by software id query")
+		return nil, err
 	}
 
-	var policies []fleet.AutomaticInstallPolicy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies by software installer id")
-	}
 	return policies, nil
 }

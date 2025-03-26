@@ -21,8 +21,10 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -198,11 +200,15 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	scepConfig := &scep_mock.SCEPConfigService{}
+	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License:         license,
-			KeyValueStore:   newMemKeyValueStore(),
-			EnableSCEPProxy: true,
+			License:           license,
+			KeyValueStore:     newMemKeyValueStore(),
+			EnableSCEPProxy:   true,
+			SCEPConfigService: scepConfig,
 		},
 	)
 
@@ -233,7 +239,13 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			// Set a GitOps UI mode to verify that applying GitOps config won't overwrite it.
+			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://didsomeonesaygitops.biz",
+			},
+		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
@@ -325,6 +337,9 @@ software:
 	assert.Empty(t, enrolledSecrets)
 	assert.True(t, savedAppConfig.Integrations.NDESSCEPProxy.Valid)
 	assert.Equal(t, "https://ndes.example.com/scep", savedAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+	// GitOps should not overwrite GitOps UI Mode.
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
@@ -1350,13 +1365,17 @@ software:
 
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
-	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "must be the global config"))
+	require.NoError(t, err)
+
+	// No global file, only team file
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+	require.NoError(t, err)
 
 	// Global file specified multiple times
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+	fmt.Printf("err.Error(): %v\n", err.Error())
+	assert.Contains(t, err.Error(), "only one global config file may be provided")
 
 	// Duplicate secret
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
@@ -1623,14 +1642,18 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, global defines software, should fail.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFileBasic.Name(), "-f",
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFileBasic.Name(), "-f",
 			noTeamFileBasic.Name(),
-			"--dry-run"})
+			"--dry-run",
+		})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "'software' cannot be set on global file")
 		// Real run, global defines software, should fail.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFileBasic.Name()})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithSoftware.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFileBasic.Name(),
+		})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "'software' cannot be set on global file")
 	})
@@ -1653,13 +1676,17 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, both global and no-team.yml define controls.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithControls.Name(), "--dry-run"})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithControls.Name(), "--dry-run",
+		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
 		// Real run, both global and no-team.yml define controls.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithControls.Name()})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithControls.Name(),
+		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "'controls' cannot be set on both global config and on no-team.yml"))
 	})
@@ -1682,13 +1709,17 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, both global and no-team.yml defines policy with calendar events enabled.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFilePathPoliciesCalendar.Name(), "--dry-run"})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFilePathPoliciesCalendar.Name(), "--dry-run",
+		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on \"No team\" policies: \"Foobar\""), err.Error())
 		// Real run, both global and no-team.yml define controls.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFilePathPoliciesCalendar.Name()})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithControls.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFilePathPoliciesCalendar.Name(),
+		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "calendar events are not supported on \"No team\" policies: \"Foobar\""), err.Error())
 	})
@@ -1707,13 +1738,17 @@ software:
 		require.NoError(t, err)
 
 		// Dry run, controls should be defined somewhere, either in no-team.yml or global.
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithoutControls.Name(), "--dry-run"})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(), "--dry-run",
+		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "'controls' must be set on global config or no-team.yml"))
 		// Real run
-		_, err = runAppNoChecks([]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
-			noTeamFileWithoutControls.Name()})
+		_, err = runAppNoChecks([]string{
+			"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
+			noTeamFileWithoutControls.Name(),
+		})
 		require.Error(t, err)
 		assert.True(t, strings.Contains(err.Error(), "'controls' must be set on global config or no-team.yml"))
 	})
@@ -1725,15 +1760,19 @@ software:
 
 		// Dry run, global file without controls and software keys.
 		_ = runAppForTest(t,
-			[]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
+			[]string{
+				"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
 				noTeamFileBasic.Name(),
-				"--dry-run"})
+				"--dry-run",
+			})
 		assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 		// Real run, global file without controls and software keys.
 		_ = runAppForTest(t,
-			[]string{"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
-				noTeamFileBasic.Name()})
+			[]string{
+				"gitops", "-f", globalFileWithoutControlsAndSoftwareKeys.Name(), "-f", teamFileBasic.Name(), "-f",
+				noTeamFileBasic.Name(),
+			})
 		assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 		assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 		assert.Len(t, enrolledSecrets, 1)
@@ -1741,7 +1780,6 @@ software:
 		assert.Equal(t, teamName, savedTeam.Name)
 		require.Len(t, enrolledTeamSecrets, 1)
 		assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
-
 	})
 
 	t.Run("basic global and no-team.yml", func(t *testing.T) {
@@ -1907,7 +1945,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return 0, nil
 	}
 
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(testing_utils.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -2017,7 +2055,6 @@ software:
 		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
 	})
-
 }
 
 func TestGitOpsTeamSofwareInstallers(t *testing.T) {

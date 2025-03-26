@@ -189,7 +189,6 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
-			var installerStore fleet.InstallerStore
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -219,14 +218,6 @@ the way that the Fleet server works.
 				}
 			} else {
 				carveStore = ds
-			}
-
-			if config.Packaging.S3.Bucket != "" {
-				var err error
-				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
-				if err != nil {
-					initFatal(err, "initializing S3 installer store")
-				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -733,7 +724,6 @@ the way that the Fleet server works.
 				ssoSessionStore,
 				liveQueryStore,
 				carveStore,
-				installerStore,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -742,6 +732,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				eeservice.NewSCEPConfigService(logger, nil),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -750,6 +741,7 @@ the way that the Fleet server works.
 				ctx,
 				logger,
 				ds,
+				svc,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -1090,7 +1082,12 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
+					svc,
+					config.Server.URLPrefix,
+					ds,
+					logger,
+				)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
@@ -1167,7 +1164,7 @@ the way that the Fleet server works.
 
 			// SCEP proxy (for NDES, etc.)
 			if license.IsPremium() {
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
 			}
@@ -1234,6 +1231,15 @@ the way that the Fleet server works.
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
+
+				if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
+					// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+					}
+				}
+
 				apiHandler.ServeHTTP(rw, req)
 			})
 

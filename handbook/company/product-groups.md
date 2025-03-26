@@ -77,7 +77,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 | Quality Assurance                 | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
 | Developer                         | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://app.zenhub.com/workspaces/g-software-67685f6ff1830a000f347a73/board), and [GitHub label][(https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://app.zenhub.com/workspaces/g-software-67685f6ff1830a000f347a73/board), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
 
 ## Making changes
 
@@ -197,7 +197,7 @@ User stories are small and independently valuable.
 
 #### Defining "done"
 
-To successfully deliver a user story, the people working on it need to know what "done" means. 
+To successfully deliver a user story, the people working on it need to know what "done" means.
 
 Every user story has a product and engineering checklist that is completed before the user story is estimated. This populates the user story with the requirements, wireframes, and test plan necessary for the product group to effectively specify, estimate, implement, and test the change. The Product Designer is the DRI for completing the product checklist, and the Engineering Manager (EM) is the DRI for completing the engineering checklist.
 
@@ -230,26 +230,19 @@ These questions are helpful for the product team when considering what to priori
 
 Anyone in the product group can initiate an air guitar session.
 
-1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process. Air guitar issues are always intended to be designed right away. If they can't be, the requestor is notified via at-mention in the issue (that person is either the CSM or AE).
+1. [Create a new air guitar issue](https://github.com/fleetdm/fleet/issues/new?template=air-guitar.md). Air guitar issues are always intended to be designed right away. If they can't be, the Head of Product Design notifies the requestor (normally a CSM or AE) via at-mention in the issue.
 
 > An air guitar session may be used to design features that won't be shipped.
 
-2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
+2. If the air guitar is prioritized, it's assigned to a Product Designer who brings it through the [drafting process](https://fleetdm.com/handbook/company/product-groups#drafting). However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
-> An air guitar session may be needed before the next feature fest. In this case, the Product Designer will prioritize the user story.
+3. When the wireframes are approved, assign the requester to the issue, at-mention them to let them know that the wireframes are ready, remove the `:product` label, and add the appropriate label(s) to move the issue to the requester's board (`:help-customers` for CSMs and `#g-unicorns` for AEs). The requester (CSM or AE) will then bring the wireframes to a call with the customer or prospect to collect feedback. It's up to the requester to record feedback and add Gong snippets to the issue.
 
-3. Review: Conduct an air guitar meeting where the idea or feature is discussed. Involve roles like the product manager, designer, and a sampling of engineers to provide various perspectives.
+4. After feedback has been added to the issue, the requester adds the `:product` label and assigns the issue to the Head of Product Design to determine an outcome:
 
-4. Feedback: Collect internal feedback and iterate on the design. Optionally, conduct customer interviews or gather external feedback.
-
-5. Document: Summarize the learnings, decisions, and next steps in the user story issue.
-
-6. Decide: Assign the issue to the Head of Product Design to determine an outcome:
-  1. Move forward with the formal drafting process leading to engineering.
-  2. Keep it open for future consideration.
-  3. Discard if it is invalidated through the process.
-
-Air guitar sessions are timeboxed to ensure they are fast and focused. Documentation from this process may inform future user stories and can be invaluable when revisiting the idea at a later stage. While the air guitar process is exploratory in nature, it should be thorough enough to provide meaningful insights and data for future decision-making.
+  - Move forward with the formal drafting process leading to engineering.
+  - Keep it open for future consideration.
+  - Discard if it is invalidated through the process.
 
 
 ### Implementing
@@ -361,9 +354,9 @@ When a critical bug is identified, we will then follow the patch release process
 
 ## Feature fest
 
-To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis. 
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis.
 
-Features that meet a [criteria for prioritization](#criteria-for-prioritization) are prioritized at the 🎁🗣 Feature Fest meeting. 
+Features that meet a [criteria for prioritization](#criteria-for-prioritization) are prioritized at the 🎁🗣 Feature Fest meeting.
 
 Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact).
 
@@ -382,7 +375,7 @@ To prioritize a new feature, it must meet one of these criteria:
 2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
 3. Contributes to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1)
 4. High priority customer request (customer request, workflow blocking, etc.)
-5. Prospect request in an order form 
+5. Prospect request in an order form
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
@@ -476,16 +469,16 @@ Remove the “:reproduce” label, add the following labels:
 1. The relevant product group (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`). Make your best guess, and product design will change if necessary.
 3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
 2. The `:incoming` label indicates that it is a new bug to be triaged.
-3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release. 
+3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
 > **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 
 #### In product drafting
 
-After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. 
+After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated.
 
-It will stay in this state until product design closes the bug, assigns to a non-engineering team, or moves to the "Ready to estimate" column of the drafting board for engineering review and estimation. 
+It will stay in this state until product design closes the bug, assigns to a non-engineering team, or moves to the "Ready to estimate" column of the drafting board for engineering review and estimation.
 
 If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and product design follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
 
@@ -536,6 +529,8 @@ PRs should remain in draft until they are ready to be reviewed for final approva
 
 All PRs from the community are routed through the on-call developer. For code changes, if the on-call developer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an developer with the appropriate domain knowledge. It is the on-call developer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
 
+> There is a small script to help show community PRs and issues in [oncall/oncall.sh](https://github.com/fleetdm/fleet/blob/main/tools/oncall/oncall.sh)
+
 - **Customer success meetings**
 The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-success Slack channel requesting invitations to upcoming meetings.
 
@@ -564,7 +559,7 @@ How to escalate:
 
 ### Changing of the guard
 
-The on-call developer changes each week on Wednesday.
+The on-call developer changes each week on Mondays.
 
 A Slack reminder should notify the on-call of the handoff. Please do the following:
 
@@ -688,11 +683,11 @@ All participants are expected to review the user story and associated designs an
 
 Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) (HPD) and contributors (most often Product Designers) proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback. This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API. If the HPD can't make it, a Product Designer from a product group attends to give feedback.
 
-Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster. 
+Anyone at Fleet can attend as a shadow. Shadows are asked to leave feedback/comments in the agenda doc without interrupting the meeting. This helps the team iterate and move designs to ready for spec faster.
 
 > In addition to design reviews, Fleeties or community member can provide feedback asynchronously at any time by finding the GitHub issue (user story) associated with the designs and @ mentioning the assigned Product Designer in the comment section.
 
-Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  
+Product Designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.
 
 After the meeting, the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The contributor is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
 
@@ -709,7 +704,7 @@ Here are some tips for making this meeting effective:
 
 ### User story reviews
 
-User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and the each product group's Product Designer, Engineering Manager (EM), and Quality Assurance (QA) Engineer. During the call, the Product Designer presents all user stories that have completed product design in the past week and are in the "In review" column. The Product Designer is the DRI for completing all product checklist items before bringing to review.
+User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and each product group's Product Designer (PD), Engineering Manager (EM), and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "In review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
 
 The purpose of the review is to familiarize the EM and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 

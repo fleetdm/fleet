@@ -16165,7 +16165,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	expectedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
+	insertedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
+	var expectedApps []fleet.MaintainedApp
+	for _, app := range insertedApps {
+		app.Version = "" // we don't expect version to be returned in list view anymore
+		expectedApps = append(expectedApps, app)
+	}
 
 	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -16199,6 +16204,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		app.ID = 0
 		listAppsNoID = append(listAppsNoID, app)
 	}
+
 	slices.SortFunc(listAppsNoID, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
@@ -16228,7 +16234,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	var getMAResp getFleetMaintainedAppResponse
 	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
 	// TODO this will change when actual install scripts are created.
-	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID)
+	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
@@ -16309,13 +16315,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
 	require.Nil(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
-	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps)-1)
+	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
 	// Validate software installer fields
-	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)
+	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
 	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
+	require.Equal(t, mapp.TitleID, i.TitleID)
 	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
@@ -16393,12 +16400,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"team_id", "0",
 	)
 
-	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4)
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
 	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
@@ -16848,4 +16856,98 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
 	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
 	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
+}
+
+// test for #26668
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailure() {
+	t := s.T()
+
+	// upload an installer
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script",
+		PreInstallQuery:   "pre install query",
+		PostInstallScript: "post install script",
+		Filename:          "ruby.deb",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// create an orbit host
+	host := createOrbitEnrolledHost(t, "linux", "orbit-host", s.ds)
+	// create a software installation request, is immediately activated
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// should be listed in upcoming activities
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	swInstallExecID := listUpcomingAct.Activities[0].UUID
+
+	// add a script execution request, not activated yet
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo 'hello'"}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	// software install exec ID is returned in orbit notifications, but not script exec
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
+	require.Equal(t, []string{swInstallExecID}, orbitResp.Notifications.PendingSoftwareInstallerIDs)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// simulate a failed orbit download of the installer - it sends an empty
+	// result (i.e. no result)
+	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			InstallUUID: swInstallExecID,
+		},
+	}, http.StatusNoContent)
+
+	// software install exec ID is still returned in orbit notifications, but not script exec
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
+	require.Equal(t, []string{swInstallExecID}, orbitResp.Notifications.PendingSoftwareInstallerIDs)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// installer is still listed as first upcoming activity
+	listUpcomingAct = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 2)
+	require.Equal(t, swInstallExecID, listUpcomingAct.Activities[0].UUID)
+	scriptExecID := listUpcomingAct.Activities[1].UUID
+
+	// record an actual result for the installer
+	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			InstallUUID:           swInstallExecID,
+			InstallScriptExitCode: ptr.Int(0),
+			InstallScriptOutput:   ptr.String("hello"),
+		},
+	}, http.StatusNoContent)
+
+	// now the script exec ID is returned in notifications
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
+	require.Equal(t, []string{scriptExecID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+	require.Empty(t, orbitResp.Notifications.PendingSoftwareInstallerIDs)
+
+	// only script is now returned in upcoming
+	listUpcomingAct = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	require.Equal(t, scriptExecID, listUpcomingAct.Activities[0].UUID)
+
+	// past activity is created for the software install
+	wantAct := fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   "ruby",
+		SoftwarePackage: payload.Filename,
+		InstallUUID:     swInstallExecID,
+		Status:          string(fleet.SoftwareInstalled),
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }

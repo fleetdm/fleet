@@ -15,11 +15,11 @@ import (
 
 	"github.com/boltdb/bolt"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
-	"github.com/groob/plist"
 	apnsbuiltin "github.com/micromdm/micromdm/platform/apns/builtin"
 	"github.com/micromdm/micromdm/platform/device"
 	devicebuiltin "github.com/micromdm/micromdm/platform/device/builtin"
 	"github.com/micromdm/micromdm/platform/pubsub/inmem"
+	"github.com/micromdm/plist"
 	"go.etcd.io/bbolt"
 )
 

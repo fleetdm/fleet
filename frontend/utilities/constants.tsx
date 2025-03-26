@@ -3,7 +3,7 @@ import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IconNames } from "components/icons";
+import { ICampaign } from "interfaces/campaign";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -171,26 +171,34 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
 
 export const DEFAULT_CAMPAIGN = {
   created_at: "",
-  errors: [],
-  hosts: [],
-  hosts_count: {
-    total: 0,
-    successful: 0,
-    failed: 0,
-  },
-  id: 0,
-  query_id: 0,
-  query_results: [],
-  status: "",
+
   totals: {
     count: 0,
     missing_in_action: 0,
     offline: 0,
     online: 0,
   },
+
+  errors: [],
+  hosts: [],
+  uiHostCounts: {
+    total: 0,
+    successful: 0,
+    failed: 0,
+  },
+  queryResults: [],
+
+  status: "",
+  serverHostCounts: {
+    countOfHostsWithResults: 0,
+    countOfHostsWithNoResults: 0,
+  },
+
+  id: 0,
+  query_id: 0,
   updated_at: "",
   user_id: 0,
-};
+} as ICampaign;
 
 export const DEFAULT_CAMPAIGN_STATE = {
   observerShowSql: false,
@@ -215,6 +223,7 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "chrome",
   "iOS",
   "iPadOS",
+  "Android",
 ] as const;
 
 export type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
@@ -236,6 +245,8 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, DisplayPlatform> = {
   ChromeOS: "ChromeOS",
   ios: "iOS",
   ipados: "iPadOS",
+  android: "Android",
+  Android: "Android",
 } as const;
 
 // as returned by the TARGETS API; based on display_text
@@ -253,6 +264,7 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   chrome: "ChromeOS",
   iOS: "iOS",
   iPadOS: "iPadOS",
+  Android: "Android",
 } as const;
 
 export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
@@ -269,6 +281,7 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   chrome: "platform",
   iOS: "platform",
   iPadOS: "platform",
+  Android: "platform",
 } as const;
 
 // For some builtin labels, display different strings than what API returns
@@ -281,27 +294,19 @@ export const LABEL_DISPLAY_MAP: Partial<
   "MS Windows": "Windows",
 };
 
-export const PLATFORM_TYPE_ICONS: Record<
-  Extract<
-    PlatformLabelNameFromAPI,
-    "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
-  >,
-  IconNames
-> = {
+export const PLATFORM_TYPE_ICONS = {
   "All Linux": "linux",
   macOS: "darwin",
   "MS Windows": "windows",
   chrome: "chrome",
   iOS: "iOS",
   iPadOS: "iPadOS",
+  Android: "android",
 } as const;
 
 export const hasPlatformTypeIcon = (
   s: string
-): s is Extract<
-  PlatformLabelNameFromAPI,
-  "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
-> => {
+): s is Extract<PlatformLabelNameFromAPI, keyof typeof PLATFORM_TYPE_ICONS> => {
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
@@ -309,18 +314,13 @@ export type PlatformLabelOptions = DisplayPlatform | "All";
 
 export type PlatformValueOptions = Platform | "all";
 
-/** Scheduled queries do not support ChromeOS, iOS, or iPadOS */
-interface ISchedulePlatformDropdownOptions {
-  label: Exclude<PlatformLabelOptions, "ChromeOS" | "iOS" | "iPadOS">;
-  value: Exclude<PlatformValueOptions, "chrome" | "ios" | "ipados"> | "";
-}
-
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: ISchedulePlatformDropdownOptions[] = [
+/** Scheduled queries do not support ChromeOS, iOS, iPadOS, or Android */
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
-];
+] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, hostname, UUID, serial number, or private IP address";

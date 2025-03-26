@@ -382,6 +382,9 @@ module.exports.custom = {
     'qq.com',
   ],
 
+  // Zapier:
+  // zapierWebhookSecret: '…',
+
   // Contact form:
   // slackWebhookUrlForContactForm: '…',
 

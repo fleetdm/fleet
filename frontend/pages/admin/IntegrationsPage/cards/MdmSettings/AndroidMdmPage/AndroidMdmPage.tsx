@@ -1,4 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
@@ -21,17 +27,68 @@ import TurnOffAndroidMdmModal from "./components/TurnOffAndroidMdmModal";
 
 const baseClass = "android-mdm-page";
 
-const TurnOnAndroidMdm = () => {
+const POPUP_WIDTH = 885;
+const POPUP_HEIGHT = 600;
+
+interface ITurnOnAndroidMdmProps {
+  router: InjectedRouter;
+}
+
+const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  // TODO: figure out issue with aborting the SSE fetch when the window is closed
+  const newWindow = useRef<Window | null>(null);
+
   const [fetchingSignupUrl, setFetchingSignupUrl] = useState(false);
+  const [setupSse, setSetupSse] = useState(false);
+
+  const handleSSE = useCallback(
+    async (abortController: AbortController) => {
+      try {
+        await mdmAndroidAPI.startSSE(abortController.signal);
+        abortController.abort();
+        renderFlash("success", "Android MDM turned on successfully.", {
+          persistOnPageChange: true,
+        });
+        setSetupSse(false);
+        router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+      } catch {
+        renderFlash("error", "Couldn't turn on Android MDM. Please try again.");
+        setSetupSse(false);
+      }
+    },
+    [renderFlash, router]
+  );
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    if (setupSse) {
+      handleSSE(abortController);
+
+      return () => {
+        abortController.abort();
+      };
+    }
+  }, [setupSse, router, renderFlash, handleSSE]);
 
   const onConnectMdm = async () => {
     setFetchingSignupUrl(true);
     try {
       const res = await mdmAndroidAPI.getSignupUrl();
 
-      // TODO: set up SSE for successful android mdm turned on here.
-      window.open(res.android_enterprise_signup_url, "_blank");
+      // Calculate the center position
+      const left = window.screenX + (window.innerWidth - POPUP_WIDTH) / 2;
+      const top = window.screenY + (window.innerHeight - POPUP_HEIGHT) / 2;
+
+      // TODO: figure out issue with aborting the SSE fetch when the window is closed
+      newWindow.current = window.open(
+        res.android_enterprise_signup_url,
+        "_blank",
+        `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
+      );
+      setSetupSse(true);
     } catch (e) {
       renderFlash("error", "Couldn't connect. Please try again");
     }
@@ -61,7 +118,7 @@ interface ITurnOffAndroidMdmProps {
 
 const TurnOffAndroidMdm = ({ onClickTurnOff }: ITurnOffAndroidMdmProps) => {
   const { data, isLoading, isError } = useQuery(
-    ["androidEnterprise"],
+    ["android_enterprise"],
     () => mdmAndroidAPI.getAndroidEnterprise(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -112,9 +169,6 @@ interface IAndroidMdmPageProps {
 
 const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
   const { isAndroidMdmEnabledAndConfigured } = useContext(AppContext);
-
-  const { renderFlash } = useContext(NotificationContext);
-
   const [showTurnOffMdmModal, setShowTurnOffMdmModal] = useState(false);
 
   return (
@@ -128,7 +182,7 @@ const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
 
       <div className={`${baseClass}__content`}>
         {!isAndroidMdmEnabledAndConfigured ? (
-          <TurnOnAndroidMdm />
+          <TurnOnAndroidMdm router={router} />
         ) : (
           <TurnOffAndroidMdm
             onClickTurnOff={() => setShowTurnOffMdmModal(true)}

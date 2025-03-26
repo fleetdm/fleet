@@ -108,7 +108,7 @@ const ChangeManagement = () => {
       refetchConfig();
     } catch (e) {
       const message = getErrorReason(e);
-      renderFlash("error", message || "Failed ot update settings");
+      renderFlash("error", message || "Failed to update settings");
       setIsUpdating(false);
     }
   };

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/bzip2"
 	cryptorand "crypto/rand"
+	"crypto/sha1" // nolint:gosec
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -44,7 +46,7 @@ var (
 	//go:embed *.tmpl
 	templatesFS embed.FS
 
-	//go:embed macos_vulnerable.software
+	//go:embed macos_vulnerable-software.json.bz2
 	macOSVulnerableSoftwareFS embed.FS
 
 	//go:embed vscode_extensions_vulnerable.software
@@ -66,23 +68,22 @@ var (
 )
 
 func loadMacOSVulnerableSoftware() {
-	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable.software")
+	bz2, err := macOSVulnerableSoftwareFS.Open("macos_vulnerable-software.json.bz2")
 	if err != nil {
-		log.Fatal("reading vulnerable macOS software file: ", err)
+		log.Fatal("open vulnerable macOS software file: ", err)
 	}
-	lines := bytes.Split(macOSVulnerableSoftwareData, []byte("\n"))
-	for _, line := range lines {
-		parts := bytes.Split(line, []byte("##"))
-		if len(parts) < 2 {
-			log.Println("skipping", string(line))
-			continue
-		}
-		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
-			Name:    strings.TrimSpace(string(parts[0])),
-			Version: strings.TrimSpace(string(parts[1])),
-			Source:  "apps",
-		})
+
+	type vulnerableSoftware struct {
+		Software []fleet.Software `json:"software"`
 	}
+
+	var vs vulnerableSoftware
+	if err := json.NewDecoder(bzip2.NewReader(bz2)).Decode(&vs); err != nil { //nolint:gosec
+		log.Fatal("unmarshaling vulnerable macOS software: ", err)
+	}
+
+	macosVulnerableSoftware = vs.Software
+
 	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
 }
 
@@ -287,7 +288,11 @@ type agent struct {
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 
-	scheduledQueryData *sync.Map
+	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
+	// because we read and write the field itself (not data in the map) from
+	// different goroutines (the write is in a.config).
+	scheduledQueryMapMutex sync.RWMutex
+	scheduledQueryData     *sync.Map
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -295,6 +300,13 @@ type agent struct {
 	// increase indefinitely (we sacrifice accuracy of logs but that's
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
+
+	// cache of certificates returned by this agent. Note that this requires
+	// a mutex even though only used in a.processQuery, that's because both
+	// the runLoop and the live query goroutines may call DistributedWrite
+	// (which calls processQuery).
+	certificatesMutex sync.RWMutex
+	certificatesCache []map[string]string
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -563,7 +575,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		// would be that the query lastRun does not get
 		// updated and cause the query to run more times than
 		// expected.
+		a.scheduledQueryMapMutex.RLock()
 		queryData := a.scheduledQueryData
+		a.scheduledQueryMapMutex.RUnlock()
 		queryData.Range(func(key, value any) bool {
 			queryName := key.(string)
 			query := value.(scheduledQuery)
@@ -1318,7 +1332,10 @@ func (a *agent) config() error {
 
 	existingLastRunData := make(map[string]int64)
 
-	a.scheduledQueryData.Range(func(key, value any) bool {
+	a.scheduledQueryMapMutex.RLock()
+	queryData := a.scheduledQueryData
+	a.scheduledQueryMapMutex.RUnlock()
+	queryData.Range(func(key, value any) bool {
 		existingLastRunData[key.(string)] = value.(scheduledQuery).lastRun
 
 		return true
@@ -1360,7 +1377,9 @@ func (a *agent) config() error {
 		}
 	}
 
+	a.scheduledQueryMapMutex.Lock()
 	a.scheduledQueryData = newScheduledQueryData
+	a.scheduledQueryMapMutex.Unlock()
 
 	return nil
 }
@@ -1417,6 +1436,7 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
+	// Common Software
 	var lastOpenedCount int
 	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
@@ -1439,6 +1459,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 		})
 		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
 	}
+
+	// Unique Software
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -1460,25 +1482,56 @@ func (a *agent) softwareMacOS() []map[string]string {
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
-	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
-	for i := 0; i < len(randomVulnerableSoftware); i++ {
-		sw := macosVulnerableSoftware[rand.Intn(len(macosVulnerableSoftware))]
+
+	// Vulnerable Software
+	var vCount int
+	if a.softwareCount.vulnerable < 0 {
+		vCount = len(macosVulnerableSoftware)
+	} else {
+		vCount = a.softwareCount.vulnerable
+	}
+
+	vulnerableSoftware := make([]map[string]string, 0, vCount)
+	randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+	var softwareLimit int
+
+	switch {
+	case a.softwareCount.vulnerable < 0: // Sequential assignment
+		softwareLimit = len(macosVulnerableSoftware)
+	case a.softwareCount.vulnerable == 0: // No vulnerable software
+		softwareLimit = 0
+	default: // Random assignment
+		softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
+	}
+
+	for i := range softwareLimit {
+		var sw fleet.Software
+
+		if a.softwareCount.vulnerable < 0 {
+			sw = macosVulnerableSoftware[i]
+		} else {
+			sw = macosVulnerableSoftware[randomIndices[i]]
+		}
+
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
-		randomVulnerableSoftware[i] = map[string]string{
+
+		vulnerableSoftware = append(vulnerableSoftware, map[string]string{
 			"name":              sw.Name,
 			"version":           sw.Version,
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
 			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
-		}
+		})
 	}
+
+	// Combine all software
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
-	software = append(software, randomVulnerableSoftware...)
+	software = append(software, vulnerableSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
 		return true
@@ -1486,6 +1539,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
+
 	return software
 }
 
@@ -1657,7 +1711,11 @@ func (a *agent) runPolicy(query string) []map[string]string {
 
 func (a *agent) randomQueryStats() []map[string]string {
 	var stats []map[string]string
-	a.scheduledQueryData.Range(func(key, value any) bool {
+	a.scheduledQueryMapMutex.RLock()
+	queryData := a.scheduledQueryData
+	a.scheduledQueryMapMutex.RUnlock()
+
+	queryData.Range(func(key, value any) bool {
 		queryName := key.(string)
 
 		stats = append(stats, map[string]string{
@@ -1845,6 +1903,50 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 		{"path": "/etc", "encrypted": "0"},
 		{"path": "/tmp", "encrypted": "0"},
 	}
+}
+
+func (a *agent) certificates() []map[string]string {
+	a.certificatesMutex.RLock()
+	cache := a.certificatesCache
+	a.certificatesMutex.RUnlock()
+
+	// 90% of the time certificates do not change
+	if rand.Intn(100) < 90 && len(cache) > 0 {
+		return cache
+	}
+
+	// between 2 and 10 certificates (probably impossible to have 0, quick check
+	// on dogfood gives between 4-7)
+	count := rand.Intn(9) + 2
+
+	const day = 24 * time.Hour
+	results := make([]map[string]string, count)
+	for i := range count {
+		m := make(map[string]string, 12)
+		m["ca"] = fmt.Sprint(rand.Intn(2))
+		m["common_name"] = uuid.NewString()
+		m["issuer"] = fmt.Sprintf("/C=US/O=Issuer %d Inc./CN=Issuer %d Common Name", i, i)
+		m["subject"] = fmt.Sprintf("/C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name", i, i, i)
+		m["key_algorithm"] = "rsaEncryption"
+		m["key_strength"] = "2048"
+		m["key_usage"] = "Data Encipherment, Key Encipherment, Digital Signature"
+		m["serial"] = uuid.NewString()
+		m["signing_algorithm"] = "sha256WithRSAEncryption"
+		// generate so that it may be expired
+		m["not_valid_after"] = fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix())
+		// notBefore is always in the past (1-10 days in the past)
+		m["not_valid_before"] = fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix())
+		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
+		hash := hex.EncodeToString(rawHash[:])
+		m["sha1"] = hash
+
+		results[i] = m
+	}
+
+	a.certificatesMutex.Lock()
+	a.certificatesCache = results
+	a.certificatesMutex.Unlock()
+	return results
 }
 
 func (a *agent) orbitInfo() []map[string]string {
@@ -2165,6 +2267,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			return true, nil, &statusNotOK, nil, nil
 		}
 		return true, a.orbitInfo(), &statusOK, nil, nil
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"certificates_darwin"):
+		// NOTE: feels exaggerated to fail osquery 50% of the time but this is how
+		// most other osquery queries are handled.
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.certificates()
+		}
+		return true, results, &ss, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
@@ -2499,7 +2609,9 @@ func main() {
 		// report software to Fleet, so the initial reads/inserts can be expensive).
 		linuxUniqueSoftwareTitle = flag.Bool("linux_unique_software_title", false, "Make name of software items on linux hosts unique. WARNING: This will generate massive amounts of titles which is not realistic but serves to test performance of software ingestion when processing large number of titles.")
 
-		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
+		// This flag can be used to set the number of vulnerable software items reported by each host picked randomly from the
+		// list of vulnerable software.  Use -1 to load all vulnerable software.
+		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet.  Use -1 to load all vulnerable software.")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
 		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")

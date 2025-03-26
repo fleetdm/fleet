@@ -1,25 +1,11 @@
-import React, { KeyboardEvent } from "react";
+import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 import { noop } from "lodash";
 
 import AutoSizeInputField from ".";
+import { IAutoSizeInputFieldProps } from "./AutoSizeInputField";
 
 import "../../../../index.scss";
-
-interface IAutoSizeInputFieldProps {
-  name: string;
-  placeholder: string;
-  value: string;
-  inputClassName?: string;
-  maxLength: number;
-  hasError?: boolean;
-  isDisabled?: boolean;
-  isFocused?: boolean;
-  onFocus: () => void;
-  onBlur: () => void;
-  onChange: (newSelectedValue: string) => void;
-  onKeyPress: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
-}
 
 export default {
   component: AutoSizeInputField,

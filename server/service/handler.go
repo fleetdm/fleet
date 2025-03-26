@@ -8,10 +8,10 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -24,8 +24,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -41,17 +43,6 @@ import (
 
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 )
-
-func logRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
-	return func(ctx context.Context, w http.ResponseWriter) context.Context {
-		logCtx, ok := logging.FromContext(ctx)
-		if !ok {
-			return ctx
-		}
-		logCtx.Log(ctx, logger)
-		return ctx
-	}
-}
 
 func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.ResponseWriter) context.Context {
 	return func(ctx context.Context, w http.ResponseWriter) context.Context {
@@ -103,7 +94,7 @@ func MakeHandler(
 		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			logRequestEnd(logger),
+			log.LogRequestEnd(logger),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -352,6 +343,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token", getSoftwareInstallerTokenEndpoint,
 		getSoftwareInstallerRequest{})
 	ue.POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/name", updateSoftwareNameEndpoint, updateSoftwareNameRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
 	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
 	ue.GET("/api/_version_/fleet/software/install/{install_uuid}/results", getSoftwareInstallResultsEndpoint,
@@ -375,7 +367,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Fleet-maintained apps
 	ue.POST("/api/_version_/fleet/software/fleet_maintained_apps", addFleetMaintainedAppEndpoint, addFleetMaintainedAppRequest{})
-	ue.PATCH("/api/_version_/fleet/software/fleet_maintained_apps", editFleetMaintainedAppEndpoint, editFleetMaintainedAppRequest{})
 	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsEndpoint, listFleetMaintainedAppsRequest{})
 	ue.GET("/api/_version_/fleet/software/fleet_maintained_apps/{app_id}", getFleetMaintainedApp, getFleetMaintainedAppRequest{})
 
@@ -407,6 +398,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
 	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, removeLabelsFromHostRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/certificates", listHostCertificatesEndpoint, listHostCertificatesRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/summary/mdm", getHostMDMSummary, getHostMDMSummaryRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", getHostMDM, getHostMDMRequest{})
@@ -436,9 +428,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/queries/run_by_names", createDistributedQueryCampaignByIdentifierEndpoint, createDistributedQueryCampaignByIdentifierRequest{})
 
 	ue.GET("/api/_version_/fleet/activities", listActivitiesEndpoint, listActivitiesRequest{})
-
-	ue.POST("/api/_version_/fleet/download_installer/{kind}", getInstallerEndpoint, getInstallerRequest{})
-	ue.HEAD("/api/_version_/fleet/download_installer/{kind}", checkInstallerEndpoint, checkInstallerRequest{})
 
 	ue.GET("/api/_version_/fleet/packs/{id:[0-9]+}/scheduled", getScheduledQueriesInPackEndpoint, getScheduledQueriesInPackRequest{})
 	ue.EndingAtVersion("v1").POST("/api/_version_/fleet/schedule", scheduleQueryEndpoint, scheduleQueryRequest{})
@@ -808,6 +797,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("install_self_service", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_certificates", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
 
 	// mdm-related endpoints available via device authentication
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
@@ -968,7 +960,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	}
 
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
-		POST("/api/_version_/fleet/login", loginEndpoint, loginRequest{})
+		POST("/api/_version_/fleet/login", loginEndpoint, endpoints.LoginRequest{})
 	ne.WithCustomMiddleware(limiter.Limit("mfa", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/sessions", sessionCreateEndpoint, sessionCreateRequest{})
 
@@ -1125,10 +1117,12 @@ func RegisterSCEPProxy(
 	rootMux *http.ServeMux,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
+	timeout *time.Duration,
 ) error {
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
+		timeout,
 	)
 	scepLogger := kitlog.With(logger, "component", "http-scep-proxy")
 	e := scepserver.MakeServerEndpointsWithIdentifier(scepService)

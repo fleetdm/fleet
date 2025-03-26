@@ -10,7 +10,8 @@ import {
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
@@ -101,11 +102,11 @@ const InstallerStatusCount = ({
   teamId,
 }: IInstallerStatusCountProps) => {
   const displayData = STATUS_DISPLAY_OPTIONS[status];
-  const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+  const linkUrl = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
     software_title_id: softwareId,
     software_status: status,
     team_id: teamId,
-  })}`;
+  });
 
   return (
     <DataSet
@@ -146,6 +147,10 @@ const SoftwareActionsDropdown = ({
   onDeleteClick,
   onEditSoftwareClick,
 }: IActionsDropdownProps) => {
+  const config = useContext(AppContext).config;
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    config?.gitops || {};
+
   const onSelect = (action: string) => {
     switch (action) {
       case "download":
@@ -162,18 +167,49 @@ const SoftwareActionsDropdown = ({
     }
   };
 
+  let options =
+    installerType === "package"
+      ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
+      : [...APP_STORE_APP_DROPDOWN_OPTIONS];
+
+  if (gitOpsModeEnabled) {
+    const tooltipContent = (
+      <>
+        {repoURL && (
+          <>
+            Manage in{" "}
+            <CustomLink
+              newTab
+              text="YAML"
+              variant="tooltip-link"
+              url={repoURL}
+            />
+            <br />
+          </>
+        )}
+        (GitOps mode enabled)
+      </>
+    );
+    options = options.map((option) => {
+      if (option.value === "edit" || option.value === "delete") {
+        return {
+          ...option,
+          disabled: true,
+          tooltipContent,
+        };
+      }
+      return option;
+    });
+  }
+
   return (
     <div className={`${baseClass}__actions`}>
       <ActionsDropdown
         className={`${baseClass}__software-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        options={
-          installerType === "package"
-            ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
-            : [...APP_STORE_APP_DROPDOWN_OPTIONS]
-        }
         menuAlign="right"
+        options={options}
       />
     </div>
   );
@@ -214,13 +250,13 @@ const SoftwareInstallerCard = ({
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
     : "vpp";
-
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
+
   const { renderFlash } = useContext(NotificationContext);
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
@@ -307,22 +343,31 @@ const SoftwareInstallerCard = ({
             addedTimestamp={addedTimestamp}
           />
           <div className={`${baseClass}__tags-wrapper`}>
-            {(!softwareInstaller?.automatic_install_policies ||
-              softwareInstaller?.automatic_install_policies.length > 0) && (
+            {Array.isArray(softwareInstaller.automatic_install_policies) &&
+              softwareInstaller.automatic_install_policies.length > 0 && (
+                <TooltipWrapper
+                  showArrow
+                  position="top"
+                  tipContent="Click to see policy that triggers automatic install."
+                  underline={false}
+                >
+                  <Tag
+                    icon="refresh"
+                    text="Automatic install"
+                    onClick={() => setShowAutomaticInstallModal(true)}
+                  />
+                </TooltipWrapper>
+              )}
+            {isSelfService && (
               <TooltipWrapper
                 showArrow
                 position="top"
-                tipContent="Click to see policy that triggers automatic install."
+                tipContent={SELF_SERVICE_TOOLTIP}
                 underline={false}
               >
-                <Tag
-                  icon="refresh"
-                  text="Automatic install"
-                  onClick={() => setShowAutomaticInstallModal(true)}
-                />
+                <Tag icon="user" text="Self-service" />
               </TooltipWrapper>
             )}
-            {isSelfService && <Tag icon="user" text="Self-service" />}
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>

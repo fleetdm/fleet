@@ -51,6 +51,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/godbus/dbus/v5 v5.1.0
+	github.com/gofrs/flock v0.12.1
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
@@ -62,7 +63,6 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
-	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/hillu/go-ntdll v0.0.0-20220801201350-0d23f057ef1f
@@ -78,6 +78,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
+	github.com/micromdm/plist v0.2.1
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
@@ -127,16 +128,16 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.31.0
 	go.opentelemetry.io/otel/sdk v1.31.0
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/image v0.18.0
 	golang.org/x/mod v0.19.0
-	golang.org/x/net v0.33.0
+	golang.org/x/net v0.36.0
 	golang.org/x/oauth2 v0.22.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.28.0
-	golang.org/x/term v0.27.0
-	golang.org/x/text v0.21.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/sys v0.30.0
+	golang.org/x/term v0.29.0
+	golang.org/x/text v0.22.0
 	golang.org/x/tools v0.23.0
 	google.golang.org/api v0.178.0
 	google.golang.org/grpc v1.67.1
@@ -210,6 +211,7 @@ require (
 	github.com/goreleaser/chglog v0.1.2 // indirect
 	github.com/goreleaser/fileglob v1.2.0 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
