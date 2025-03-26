@@ -134,6 +134,8 @@ type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pa
 
 type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec) error
 
+type ApplyLabelSpecsWithAuthorFunc func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error
+
 type GetLabelSpecsFunc func(ctx context.Context) ([]*fleet.LabelSpec, error)
 
 type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
@@ -948,7 +950,7 @@ type HardDeleteMDMConfigAssetFunc func(ctx context.Context, assetName fleet.MDMA
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error
 
-type GetAllCAConfigAssetsFunc func(ctx context.Context) (map[string]fleet.CAConfigAsset, error)
+type GetAllCAConfigAssetsByTypeFunc func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error)
 
 type GetCAConfigAssetFunc func(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error)
 
@@ -991,6 +993,10 @@ type GetABMTokenCountFunc func(ctx context.Context) (int, error)
 type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
 type ClearMDMUpcomingActivitiesDBFunc func(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
+
+type GetMDMAppleEnrolledDeviceDeletedFromFleetFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error)
+
+type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1048,7 +1054,7 @@ type ListMDMWindowsProfilesToRemoveFunc func(ctx context.Context) ([]*fleet.MDMW
 
 type BulkUpsertMDMWindowsHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
-type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+type GetMDMWindowsProfilesContentsFunc func(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error)
 
 type BulkDeleteMDMWindowsHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMWindowsProfilePayload) error
 
@@ -1228,13 +1234,13 @@ type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID 
 
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
-type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint) (*fleet.MaintainedApp, error)
+type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error
 
-type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error)
+type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string, caName string) (*fleet.HostMDMCertificateProfile, error)
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
@@ -1444,6 +1450,9 @@ type DataStore struct {
 
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
+
+	ApplyLabelSpecsWithAuthorFunc        ApplyLabelSpecsWithAuthorFunc
+	ApplyLabelSpecsWithAuthorFuncInvoked bool
 
 	GetLabelSpecsFunc        GetLabelSpecsFunc
 	GetLabelSpecsFuncInvoked bool
@@ -2666,8 +2675,8 @@ type DataStore struct {
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
 
-	GetAllCAConfigAssetsFunc        GetAllCAConfigAssetsFunc
-	GetAllCAConfigAssetsFuncInvoked bool
+	GetAllCAConfigAssetsByTypeFunc        GetAllCAConfigAssetsByTypeFunc
+	GetAllCAConfigAssetsByTypeFuncInvoked bool
 
 	GetCAConfigAssetFunc        GetCAConfigAssetFunc
 	GetCAConfigAssetFuncInvoked bool
@@ -2731,6 +2740,12 @@ type DataStore struct {
 
 	ClearMDMUpcomingActivitiesDBFunc        ClearMDMUpcomingActivitiesDBFunc
 	ClearMDMUpcomingActivitiesDBFuncInvoked bool
+
+	GetMDMAppleEnrolledDeviceDeletedFromFleetFunc        GetMDMAppleEnrolledDeviceDeletedFromFleetFunc
+	GetMDMAppleEnrolledDeviceDeletedFromFleetFuncInvoked bool
+
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc        ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -3551,6 +3566,13 @@ func (s *DataStore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	s.ApplyLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ApplyLabelSpecsFunc(ctx, specs)
+}
+
+func (s *DataStore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
+	s.mu.Lock()
+	s.ApplyLabelSpecsWithAuthorFuncInvoked = true
+	s.mu.Unlock()
+	return s.ApplyLabelSpecsWithAuthorFunc(ctx, specs, authorId)
 }
 
 func (s *DataStore) GetLabelSpecs(ctx context.Context) ([]*fleet.LabelSpec, error) {
@@ -6402,11 +6424,11 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets, tx)
 }
 
-func (s *DataStore) GetAllCAConfigAssets(ctx context.Context) (map[string]fleet.CAConfigAsset, error) {
+func (s *DataStore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
 	s.mu.Lock()
-	s.GetAllCAConfigAssetsFuncInvoked = true
+	s.GetAllCAConfigAssetsByTypeFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAllCAConfigAssetsFunc(ctx)
+	return s.GetAllCAConfigAssetsByTypeFunc(ctx, assetType)
 }
 
 func (s *DataStore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
@@ -6554,6 +6576,20 @@ func (s *DataStore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.Ex
 	s.ClearMDMUpcomingActivitiesDBFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearMDMUpcomingActivitiesDBFunc(ctx, tx, hostUUID)
+}
+
+func (s *DataStore) GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
+	s.mu.Lock()
+	s.GetMDMAppleEnrolledDeviceDeletedFromFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleEnrolledDeviceDeletedFromFleetFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc(ctx, limit)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
@@ -6752,7 +6788,7 @@ func (s *DataStore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payloa
 	return s.BulkUpsertMDMWindowsHostProfilesFunc(ctx, payload)
 }
 
-func (s *DataStore) GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error) {
+func (s *DataStore) GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 	s.mu.Lock()
 	s.GetMDMWindowsProfilesContentsFuncInvoked = true
 	s.mu.Unlock()
@@ -7382,11 +7418,11 @@ func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID
 	return s.ListAvailableFleetMaintainedAppsFunc(ctx, teamID, opt)
 }
 
-func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
+func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 	s.mu.Lock()
 	s.GetMaintainedAppByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMaintainedAppByIDFunc(ctx, appID)
+	return s.GetMaintainedAppByIDFunc(ctx, appID, teamID)
 }
 
 func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
@@ -7403,11 +7439,11 @@ func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payloa
 	return s.BulkUpsertMDMManagedCertificatesFunc(ctx, payload)
 }
 
-func (s *DataStore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*fleet.HostMDMCertificateProfile, error) {
+func (s *DataStore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*fleet.HostMDMCertificateProfile, error) {
 	s.mu.Lock()
 	s.GetHostMDMCertificateProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostMDMCertificateProfileFunc(ctx, hostUUID, profileUUID)
+	return s.GetHostMDMCertificateProfileFunc(ctx, hostUUID, profileUUID, caName)
 }
 
 func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {

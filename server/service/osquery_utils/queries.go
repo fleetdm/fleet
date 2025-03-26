@@ -1089,7 +1089,9 @@ FROM chocolatey_packages
 }
 
 // In osquery versions < 5.16.0 use the original python_packages query, as the cross join on
-// users is not supported
+// users is not supported. We're *not* using VERSION_COMPARE() here and below because that function
+// doesn't exist in osquery version < 5.11.0, causing discovery queries to fail for those versions.
+// See #27126 for more information.
 var softwarePythonPackages = DetailQuery{
 	Description: "Prior to osquery version 5.16.0, the python_packages table did not search user directories.",
 	Query: `

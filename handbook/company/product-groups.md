@@ -403,7 +403,7 @@ If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add a link from the original request to the user story, notify the requester, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add a link from the original request to the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
@@ -500,9 +500,7 @@ Oncall engineers do not need to actively monitor Slack channels, except when cal
 
 ### The developer on-call rotation
 
-See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) for the engineers in the rotation.
-
-Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
+See [the internal Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1831267053#gid=1831267053) for the engineers in the rotation.
 
 New developers are added to the on-call rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible.
 
@@ -511,10 +509,15 @@ New developers are added to the on-call rotation by their manager after they hav
 
 ### Developer on-call responsibilities
 
-- **Second-line response**
-The on-call developer is a second-line responder to questions raised by customers and community members.
+**First-line response**
+- Community pull requests.
 
-The on-call developer is responsible for the first response to community pull requests.
+All PRs from the community are routed through the on-call developer. Follow the proces to [review a community pull request](https://fleetdm.com/handbook/engineering#review-a-community-pull-request).
+
+> There is a small script to help show community PRs and issues in [oncall/oncall.sh](https://github.com/fleetdm/fleet/blob/main/tools/oncall/oncall.sh).
+
+- **Second-line response**
+- Customer and community support.
 
 Customer Support Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. The Customer Success group is responsible for the first response to messages in private customer Slack channels.
 
@@ -522,24 +525,19 @@ We respond within 1-hour (during business hours) for interactions and ask the on
 
 > Response SLAs help us measure and guarantee the responsiveness that a customer [can expect](https://fleetdm.com/handbook/company#values) from Fleet.  But SLAs aside, when a Fleet customer has an emergency or other time-sensitive situation ongoing, it is Fleet's priority to help them find them a solution quickly.
 
-- **PR reviews**
-PRs from Fleeties are reviewed by auto-assignment of codeowners, or by selecting the group or reviewer manually.
-
-PRs should remain in draft until they are ready to be reviewed for final approval, this means the feature is complete with tests already added. This helps keep our active list of PRs relevant and focused. It is ok and encouraged to request feedback while a PR is in draft to engage the team.
-
-All PRs from the community are routed through the on-call developer. For code changes, if the on-call developer has the knowledge and confidence to review, they should do so. Otherwise, they should request a review from an developer with the appropriate domain knowledge. It is the on-call developer's responsibility to monitor community PRs and make sure that they are moved forward (either by review with feedback or merge).
-
-> There is a small script to help show community PRs and issues in [oncall/oncall.sh](https://github.com/fleetdm/fleet/blob/main/tools/oncall/oncall.sh)
-
 - **Customer success meetings**
-The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the #g-customer-success Slack channel requesting invitations to upcoming meetings.
+The on-call developer is encouraged to attend some of the customer success meetings during the week. Post a message to the :help-customers Slack channel requesting invitations to upcoming meetings.
 
 This has a dual purpose of providing more context for how our customers use Fleet. The developer should actively participate and provide input where appropriate (if not sure, please ask your manager or organizer of the call).
 
 - **Documentation for contributors**
 Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
 
-The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week. Our goal is to 1, ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected. And 2, improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22).
+The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week. 
+
+Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
+
+See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22).
 
 - **Engineering alerts**
 The on-call developer is responsible for triaging new alerts in the #help-engineering Slack channel, such as failing unit tests. If the on-call developer has the ability to make the fix, they should do so. Otherwise, they should request help from the appropriate team. Filing a bug is also an option if the issue is not urgent.
@@ -554,8 +552,7 @@ How to escalate:
 
 1. Spend 30 minutes digging into the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and/or documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)). Even if you don't know the codebase (or even the programming language), you can sometimes find good answers this way. At the least, you'll become more familiar with each project. Try searching the code for relevant keywords, or filenames.
 
-2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@lukeheath` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Luke will work with you to craft an appropriate answer or find another team member who can help.
-
+2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A) tagging the relevant product group and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Luke will work with you to craft an appropriate answer or find another team member who can help.
 
 ### Changing of the guard
 
@@ -745,7 +742,7 @@ The Account Executive (AE) schedules this meeting before Fleet commits to one or
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attatched to the promise(s), then we're not ready for this call.
 
-**Participants:** AE, SC, and Head of Product Design.  (+ temporarily: CRO)
+**Participants:** AE, SC, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
 
 **Agenda:**
 - Discuss new promises from an order form with promises

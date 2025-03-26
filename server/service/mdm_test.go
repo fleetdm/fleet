@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"database/sql"
 	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/jmoiron/sqlx"
@@ -610,6 +613,9 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
 		return fleet.MDMLinuxDiskEncryptionSummary{}, nil
 	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		return false, nil
+	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
@@ -882,6 +888,9 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 	ds.GetLinuxDiskEncryptionSummaryFunc = func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
 		require.Nil(t, teamID)
 		return fleet.MDMLinuxDiskEncryptionSummary{Verified: 1, ActionRequired: 2, Failed: 3}, nil
+	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		return true, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
@@ -1210,7 +1219,9 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
-		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"BitLocker profile", 0,
+			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
+			syncml.DiskEncryptionProfileRestrictionErrMsg},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
@@ -1222,7 +1233,9 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
-		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
+		{"team BitLocker profile", 1,
+			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
+			syncml.DiskEncryptionProfileRestrictionErrMsg},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
@@ -1535,7 +1548,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			[]fleet.MDMProfileBatchPayload{
 				{
-					Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+					Name: "foo", Contents: []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1549,7 +1562,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 						<key>PayloadIdentifier</key>
 						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
 						<key>PayloadType</key>
-						<string>com.apple.MCX.FileVault2</string>
+						<string>%s</string>
 						<key>PayloadUUID</key>
 						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
 						<key>PayloadVersion</key>
@@ -1567,10 +1580,10 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<key>PayloadVersion</key>
 				<integer>1</integer>
 			</dict>
-			</plist>`),
+			</plist>`, mobileconfig.FleetFileVaultPayloadType)),
 				},
 			},
-			"unsupported PayloadType(s)",
+			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			"unsupported Apple config profile Fleet variable",
@@ -1619,7 +1632,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, nil)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, nil, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -2169,7 +2182,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	authCtx := test.UserContext(ctx, test.UserAdmin)
 
-	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true))
+	err := svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, profiles, false, false, ptr.Bool(true), false)
 	require.NoError(t, err)
 
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["MIncAll"])

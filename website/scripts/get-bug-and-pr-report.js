@@ -151,9 +151,6 @@ module.exports = {
           } else if (issue.labels.some(label => label.name === '~released bug')) {
             allBugsWithReleasedLabel.push(issue);
             daysSinceReleasedBugsWereOpened.push(timeOpenInDays);
-          } else {
-            // If not labeled as a released or unreleased bug, log a warning.
-            sails.log.warn('Issue #'+issue.number+' is labeled as a bug but is not labeled as released or unreleased.');
           }
 
         }

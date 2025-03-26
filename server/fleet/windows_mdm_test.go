@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -65,7 +66,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "Custom configuration profiles can't include BitLocker settings.",
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			name: "Reserved LocURI with implicit ./Device prefix",
@@ -78,7 +79,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "Custom configuration profiles can't include BitLocker settings.",
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			name: "XML with Multiple Replace Elements",
@@ -121,7 +122,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: "Custom configuration profiles can't include BitLocker settings",
+			wantErr: syncml.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
 			name: "XML with Mixed Replace and Add",
@@ -411,7 +412,9 @@ func TestValidateUserProvided(t *testing.T) {
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 				  <!-- this is a comment -->
+				  <!-- this is another comment -->
 				  <Replace>
+				  <!-- this is a comment inside replace -->
 				    <Target>
 				      <LocURI>Custom/URI</LocURI>
 				    </Target>
@@ -419,6 +422,23 @@ func TestValidateUserProvided(t *testing.T) {
 				`),
 			},
 			wantErr: "",
+		},
+		{
+			name: "XML with top level comment followed by invalid element",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <!-- this is a comment -->
+				  <!-- this is another comment -->
+				  <LocURI>Custom/URI</LocURI>
+				  <Replace>
+				  <!-- this is a comment inside replace -->
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements after comments",
 		},
 		{
 			name: "XML with nested root element in data",

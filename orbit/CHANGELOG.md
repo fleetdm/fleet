@@ -1,4 +1,4 @@
-## Orbit 1.40.0 (Mar 11, 2025)
+## Orbit 1.40.1 (Mar 14, 2025)
 
 * Fixed LUKS key escrow in non-English system locales.
 

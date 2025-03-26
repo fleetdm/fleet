@@ -181,6 +181,8 @@ type Datastore interface {
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
+	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
+	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
 	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
 	// GetLabelSpec returns the spec for the named label.
@@ -1438,8 +1440,8 @@ type Datastore interface {
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
-	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
 	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
@@ -1497,6 +1499,16 @@ type Datastore interface {
 	// when it turns on again, e.g. after removing the enrollment profile - it may
 	// not necessarily report as "turned off" in that scenario).
 	ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
+
+	// GetMDMAppleEnrolledDeviceDeletedFromFleet returns the information of a
+	// device that is still enrolled in Fleet MDM but the corresponding host has
+	// been deleted from Fleet.
+	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+
+	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
+	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
+	// but deleted from Fleet.
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -1615,7 +1627,7 @@ type Datastore interface {
 
 	// GetMDMWindowsProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
 
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
@@ -1944,12 +1956,15 @@ type Datastore interface {
 	// Fleet-maintained apps
 	//
 
-	// ListAvailableFleetMaintainedApps returns a list of
-	// Fleet-maintained apps available to a specific team (or the full list of apps if no team is specified)
+	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
-	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
-	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
+	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
+	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
@@ -1963,7 +1978,7 @@ type Datastore interface {
 
 	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
 	// nil is returned if the profile is not found.
-	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*HostMDMCertificateProfile, error)
+	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error

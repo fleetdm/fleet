@@ -1,4 +1,7 @@
+import { ICertificatesIntegrationDigicert } from "interfaces/integration";
+
 import valid_url from "components/forms/validators/valid_url";
+
 import { IDigicertFormData } from "./DigicertForm";
 
 // TODO: create a validator abstraction for this and the other form validation files
@@ -23,86 +26,105 @@ interface IValidation {
   message?: IValidationMessage;
 }
 
-const FORM_VALIDATIONS: Record<
+type IFormValidations = Record<
   IFormValidationKey,
   { validations: IValidation[] }
-> = {
-  name: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: IDigicertFormData) => {
-          return formData.name.length > 0;
+>;
+
+export const generateFormValidations = (
+  digicertIntegrations: ICertificatesIntegrationDigicert[],
+  isEditing: boolean
+) => {
+  const FORM_VALIDATIONS: IFormValidations = {
+    name: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: IDigicertFormData) => {
+            return formData.name.length > 0;
+          },
         },
-      },
-      {
-        name: "invalidCharacters",
-        isValid: (formData: IDigicertFormData) => {
-          return /^[a-zA-Z0-9_]+$/.test(formData.name);
+        {
+          name: "invalidCharacters",
+          isValid: (formData: IDigicertFormData) => {
+            return /^[a-zA-Z0-9_]+$/.test(formData.name);
+          },
+          message:
+            "Invalid characters. Only letters, numbers and underscores allowed.",
         },
-        message:
-          "Inalid characters. Only letters, numbers and underscores allowed.",
-      },
-    ],
-  },
-  url: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: IDigicertFormData) => {
-          return formData.url.length > 0;
+        {
+          name: "unique",
+          isValid: (formData: IDigicertFormData) => {
+            return (
+              isEditing ||
+              digicertIntegrations.find(
+                (cert) => cert.name === formData.name
+              ) === undefined
+            );
+          },
+          message: "Name is already used by another DigiCert CA.",
         },
-      },
-      {
-        name: "validUrl",
-        isValid: (formData: IDigicertFormData) => {
-          return valid_url({ url: formData.url });
+      ],
+    },
+    url: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: IDigicertFormData) => {
+            return formData.url.length > 0;
+          },
         },
-        message: (formData: IDigicertFormData) =>
-          `${formData.url} is not a valid URL`,
-      },
-    ],
-  },
-  apiToken: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: IDigicertFormData) => {
-          return formData.apiToken.length > 0;
+        {
+          name: "validUrl",
+          isValid: (formData: IDigicertFormData) => {
+            return valid_url({ url: formData.url });
+          },
+          message: "Must be a valid URL.",
         },
-      },
-    ],
-  },
-  profileId: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: IDigicertFormData) => {
-          return formData.profileId.length > 0;
+      ],
+    },
+    apiToken: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: IDigicertFormData) => {
+            return formData.apiToken.length > 0;
+          },
         },
-      },
-    ],
-  },
-  commonName: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: IDigicertFormData) => {
-          return formData.commonName.length > 0;
+      ],
+    },
+    profileId: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: IDigicertFormData) => {
+            return formData.profileId.length > 0;
+          },
         },
-      },
-    ],
-  },
-  certificateSeatId: {
-    validations: [
-      {
-        name: "required",
-        isValid: (formData: IDigicertFormData) => {
-          return formData.certificateSeatId.length > 0;
+      ],
+    },
+    commonName: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: IDigicertFormData) => {
+            return formData.commonName.length > 0;
+          },
         },
-      },
-    ],
-  },
+      ],
+    },
+    certificateSeatId: {
+      validations: [
+        {
+          name: "required",
+          isValid: (formData: IDigicertFormData) => {
+            return formData.certificateSeatId.length > 0;
+          },
+        },
+      ],
+    },
+  };
+  return FORM_VALIDATIONS;
 };
 
 const getErrorMessage = (
@@ -115,15 +137,17 @@ const getErrorMessage = (
   return message(formData);
 };
 
-// eslint-disable-next-line import/prefer-default-export
-export const validateFormData = (formData: IDigicertFormData) => {
+export const validateFormData = (
+  formData: IDigicertFormData,
+  validationConfig: IFormValidations
+) => {
   const formValidation: IDigicertFormValidation = {
     isValid: true,
   };
 
-  Object.keys(FORM_VALIDATIONS).forEach((key) => {
-    const objKey = key as keyof typeof FORM_VALIDATIONS;
-    const failedValidation = FORM_VALIDATIONS[objKey].validations.find(
+  Object.keys(validationConfig).forEach((key) => {
+    const objKey = key as keyof typeof validationConfig;
+    const failedValidation = validationConfig[objKey].validations.find(
       (validation) => !validation.isValid(formData)
     );
 

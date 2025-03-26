@@ -63,7 +63,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingesting app")
+			return nil, ctxerr.Wrap(ctx, err, "ingesting homebrew app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
@@ -144,6 +144,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
 	out.Slug = app.Slug
+	if len(app.PreUninstallScripts) != 0 {
+		cask.PreUninstallScripts = app.PreUninstallScripts
+	}
+
+	if len(app.PostUninstallScripts) != 0 {
+		cask.PostUninstallScripts = app.PostUninstallScripts
+	}
+
 	out.UninstallScript = uninstallScriptForApp(&cask)
 	installScript, err := installScriptForApp(app, &cask)
 	if err != nil {
@@ -166,8 +174,10 @@ type inputApp struct {
 	UniqueIdentifier string `json:"unique_identifier"`
 	// InstallerFormat is the installer format used for installing this app.
 	InstallerFormat string `json:"installer_format"`
-
-	Slug string `json:"slug"`
+	// Slug is an identifier that combines the app's token and the target OS.
+	Slug                 string   `json:"slug"`
+	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
+	PostUninstallScripts []string `json:"post_uninstall_scripts"`
 }
 
 type brewCask struct {

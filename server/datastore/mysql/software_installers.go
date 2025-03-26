@@ -210,7 +210,7 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email,
-	fleet_library_app_id
+	fleet_maintained_app_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
 
 		args := []interface{}{
@@ -231,7 +231,7 @@ INSERT INTO software_installers (
 			payload.UserID,
 			payload.UserID,
 			payload.UserID,
-			payload.FleetLibraryAppID,
+			payload.FleetMaintainedAppID,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -252,10 +252,12 @@ INSERT INTO software_installers (
 
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
-			// Not using apps.json as all queries there are identical to the auto-generated one based on bundle ID.
-			// Will need to be revised to work with FMAv2 and probably Windows.
-			if payload.FleetLibraryAppID != nil && payload.Platform == "darwin" {
-				installerMetadata = automatic_policy.MacInstallerMetadata{Title: payload.Title, BundleIdentifier: payload.BundleIdentifier}
+			if payload.AutomaticInstallQuery != "" {
+				installerMetadata = automatic_policy.FMAInstallerMetadata{
+					Title:    payload.Title,
+					Platform: payload.Platform,
+					Query:    payload.AutomaticInstallQuery,
+				}
 			} else {
 				installerMetadata = automatic_policy.FullInstallerMetadata{
 					Title:            payload.Title,
@@ -569,7 +571,7 @@ SELECT
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
 	si.platform,
-	si.fleet_library_app_id
+	si.fleet_maintained_app_id
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
@@ -607,6 +609,7 @@ SELECT
   si.filename,
   si.extension,
   si.version,
+  si.platform,
   si.install_script_content_id,
   si.pre_install_query,
   si.post_install_script_content_id,

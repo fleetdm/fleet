@@ -508,7 +508,7 @@ WHERE
 }
 
 func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
-	profileUUID string,
+	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
 	stmt := `
 	SELECT
@@ -516,15 +516,17 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		hmap.profile_uuid,
 		hmap.status,
 		hmmc.challenge_retrieved_at,
-		hmmc.not_valid_after
+		hmmc.not_valid_after,
+		hmmc.type,
+		hmmc.ca_name
 	FROM
 		host_mdm_apple_profiles hmap
-	LEFT JOIN host_mdm_managed_certificates hmmc
+	JOIN host_mdm_managed_certificates hmmc
 		ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid
 	WHERE
-		hmap.host_uuid = ? AND hmap.profile_uuid = ?`
+		hmmc.host_uuid = ? AND hmmc.profile_uuid = ? AND hmmc.ca_name = ?`
 	var profile fleet.HostMDMCertificateProfile
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, hostUUID, profileUUID, caName); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -932,6 +934,14 @@ func updateMDMAppleHostDB(
 
 	if _, err := tx.ExecContext(ctx, updateStmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
+	}
+
+	mdmHost.ID = hostID
+
+	// load the enrolled team id for that host, will be needed later in the
+	// HostActionReset lifecycle
+	if err := sqlx.GetContext(ctx, tx, &mdmHost.TeamID, `SELECT team_id FROM hosts WHERE id = ?`, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "load host team id")
 	}
 
 	// clear any host_mdm_actions following re-enrollment here
@@ -4112,7 +4122,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		var host fleet.Host
 		err := sqlx.GetContext(
 			ctx, tx, &host,
-			`SELECT id, platform FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
+			`SELECT id, platform, team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
@@ -4165,6 +4175,14 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration value")
+		}
+		_, err = tx.ExecContext(
+			ctx,
+			`UPDATE nano_devices SET platform = ?, enroll_team_id = ? WHERE id = ?`,
+			host.Platform, host.TeamID, hostUUID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting platform and enroll_team_id")
 		}
 
 		return nil
@@ -5813,12 +5831,16 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
               host_uuid,
               profile_uuid,
               challenge_retrieved_at,
-	          not_valid_after
+	          not_valid_after,
+			  type,
+			  ca_name
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
               challenge_retrieved_at = VALUES(challenge_retrieved_at),
-			  not_valid_after = VALUES(not_valid_after)`,
+			  not_valid_after = VALUES(not_valid_after),
+			  type = VALUES(type),
+			  ca_name = VALUES(ca_name)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -5827,8 +5849,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter}
+		valuePart := "(?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter, p.Type, p.CAName}
 		return valuePart, args
 	}
 
@@ -5880,4 +5902,56 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
+	const stmt = `
+SELECT
+	d.id,
+	COALESCE(d.serial_number, '') as serial_number,
+	d.authenticate,
+	d.platform,
+	d.enroll_team_id
+FROM
+	nano_devices d
+	JOIN nano_enrollments e ON d.id = e.device_id
+	LEFT OUTER JOIN hosts h ON h.uuid = d.id
+WHERE
+	e.type = 'Device' AND
+	e.enabled = 1 AND
+	d.id = ? AND
+	h.id IS NULL
+`
+
+	var res fleet.MDMAppleEnrolledDeviceInfo
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("NanoDevice").WithName(hostUUID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple enrolled device info")
+	}
+	return &res, nil
+}
+
+func (ds *Datastore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
+	const stmt = `
+SELECT
+	d.id
+FROM
+	nano_devices d
+	JOIN nano_enrollments e ON d.id = e.device_id
+	LEFT OUTER JOIN hosts h ON h.uuid = d.id
+WHERE
+	e.type = 'Device' AND
+	e.enabled = 1 AND
+	d.platform IN ('ios', 'ipados') AND
+	h.id IS NULL
+LIMIT ?
+`
+
+	var res []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, limit); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list mdm apple enrolled but deleted iDevices")
+	}
+	return res, nil
 }

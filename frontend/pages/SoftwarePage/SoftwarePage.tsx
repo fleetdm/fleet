@@ -394,7 +394,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                To manage automations select &ldquo;All teams&rdquo;.
+                Select &ldquo;All teams&rdquo; to manage automations.
               </div>
             }
             disableTooltip={isAllTeamsSelected}
@@ -412,9 +412,25 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </TooltipWrapper>
         )}
         {canAddSoftware && (
-          <Button onClick={onAddSoftware} variant="brand">
-            <span>Add software</span>
-          </Button>
+          <TooltipWrapper
+            underline={false}
+            tipContent={
+              <div className={`${baseClass}__header__tooltip`}>
+                Select a team to add software.
+              </div>
+            }
+            disableTooltip={!isAllTeamsSelected}
+            position="top"
+            showArrow
+          >
+            <Button
+              onClick={onAddSoftware}
+              variant="brand"
+              disabled={isAllTeamsSelected}
+            >
+              <span>Add software</span>
+            </Button>
+          </TooltipWrapper>
         )}
       </div>
     );

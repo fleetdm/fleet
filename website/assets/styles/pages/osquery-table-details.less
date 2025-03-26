@@ -303,7 +303,7 @@
       height: 0px;
       position: absolute;
       right: 0;
-      top: 40px;
+      top: 14px;
     }
     pre {
       width: 100%;
@@ -475,6 +475,7 @@
     width: 100%;
     margin-bottom: 16px;
     margin-top: 16px;
+    overflow: hidden;
     p {
       color: var(--text-text-brand, #192147);
       margin-top: 0px;
@@ -608,7 +609,7 @@
     [purpose='schema-table'] {
       padding-top: 16px;
       [purpose='platform-logos'] {
-        top: 53px;
+        top: 32px;
       }
       [purpose='description-column'] {
         word-break: break-word;
@@ -644,6 +645,11 @@
       border-right: none;
       margin-right: 0px;
       border-bottom: 1px solid @core-vibrant-blue-15;
+    }
+    [purpose='schema-table'] {
+      [purpose='platform-logos'] {
+        top: 32px;
+      }
     }
   }
 
@@ -691,7 +697,7 @@
         height: 24px;
         position: absolute;
         right: 0;
-        top: 95px;
+        top: 75px;
       }
       table {
         td:nth-child(3) {

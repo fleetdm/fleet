@@ -132,11 +132,13 @@ controls:
     - path: ../lib/macos/scripts/mdm-migration.sh
     - path: ../lib/macos/scripts/system-maintenance.sh
     - path: ../lib/macos/scripts/santa-block-script.sh
-    - path: ../lib/windows/scripts/remove-fleetd.ps1
+    - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
+    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -159,6 +161,7 @@ software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
     - path: ../lib/macos/software/santa.yml # Santa for macOS
+    - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -167,7 +170,7 @@ software:
     - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
     - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
-    - path: ../lib/macos/software/1password.yml # 1Password for macOS
+    - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
       - app_store_id: '803453959' # Slack Desktop

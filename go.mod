@@ -52,7 +52,7 @@ require (
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/gofrs/flock v0.12.1
-	github.com/golang-jwt/jwt/v4 v4.5.1
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.6.0
@@ -63,7 +63,6 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
-	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/hillu/go-ntdll v0.0.0-20220801201350-0d23f057ef1f
@@ -79,6 +78,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
+	github.com/micromdm/plist v0.2.1
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
@@ -211,6 +211,7 @@ require (
 	github.com/goreleaser/chglog v0.1.2 // indirect
 	github.com/goreleaser/fileglob v1.2.0 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
