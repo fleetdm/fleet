@@ -67,7 +67,7 @@ const teamFMATitlesJoin = `
 			) team_titles ON (
 				team_titles.bundle_identifier != '' AND team_titles.bundle_identifier = fma.unique_identifier
 			) OR (
-				team_titles.bundle_identifier = '' AND team_titles.name = fma.name
+				(team_titles.bundle_identifier IS NULL OR team_titles.bundle_identifier = '') AND team_titles.name = fma.name
 			)`
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
