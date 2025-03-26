@@ -174,7 +174,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	var out maintained_apps.FMAManifestApp
-
+	var selectedInstaller *installer
 	var installScript, uninstallScript string
 
 	// if we have a provided install script, use that
@@ -196,44 +196,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		uninstallScript = string(scriptBytes)
 	}
 
-	// Some data is present on the top-level object, so try to grab that first
-	if m.InstallerType == installerTypeMSI || m.Scope == machineScope {
-		installScript = file.GetInstallScript(m.InstallerType)
-		uninstallScript = file.GetUninstallScript(m.InstallerType)
-	}
-
-	installersByArch := map[string]map[string]*installer{
-		arch64Bit: make(map[string]*installer),
-		arch32Bit: make(map[string]*installer),
-	}
-
-	// Walk through the installers and get any data we missed
 	for _, installer := range m.Installers {
-		if installer.Architecture != arch32Bit && installer.Architecture != arch64Bit {
-			// we don't care about arm or other architectures
-			continue
-		}
-
-		// get the installer type
 		installerType := m.InstallerType
-		if installerType == "" || installerType == installerTypeWix {
+		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
 		}
 
-		if installerType == "" || installerType == installerTypeWix {
+		if installerType == "" || isVendorType(installerType) {
 			// try to get it from the URL
-			// TODO: this may not work in all situations
-			// TODO: also, "wix" might always mean an MSI installer, in which case we should
-			// just use that
 			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
 		}
 
-		if installerType == installerTypeMSIX {
-			// skip MSIX for now
-			continue
-		}
-
-		// get the installer scope
 		scope := m.Scope
 		if scope == "" {
 			scope = installer.Scope
@@ -243,26 +216,26 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 				}
 			}
 		}
-		fmt.Printf("scope: %v\n", scope)
-		fmt.Printf("installerType: %v\n", installerType)
 
-		installersByArch[installer.Architecture][scope] = &installer
+		if !isFileType(installerType) && scope == machineScope {
+			// assume we're an MSI
+			installerType = installerTypeMSI
+		}
+
+		if installer.Architecture == input.InstallerArch &&
+			scope == input.InstallerScope &&
+			installerType == input.InstallerType {
+			selectedInstaller = &installer
+			break
+		}
 
 	}
 
-	selectedScope := machineScope
-	inst, ok := installersByArch[arch64Bit][machineScope]
-	if !ok {
-		inst, ok = installersByArch[arch64Bit][userScope]
-		selectedScope = userScope
-	}
-	fmt.Printf("selectedScope: %v\n", selectedScope)
-
-	if inst == nil {
-		return nil, ctxerr.New(ctx, "no suitable installer found for app")
+	if selectedInstaller == nil {
+		return nil, ctxerr.New(ctx, "failed to find installer for app")
 	}
 
-	if selectedScope == machineScope {
+	if input.InstallerType == installerTypeMSI && input.InstallerScope == machineScope {
 		if installScript == "" {
 			installScript = file.GetInstallScript(installerTypeMSI)
 		}
@@ -282,9 +255,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	out.Name = input.Name
 	out.Slug = input.Slug
-	out.InstallerURL = inst.InstallerURL
+	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
-	out.SHA256 = strings.ToLower(inst.InstallerSha256) // maintain consistency with darwin outputs SHAs
+	out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
 	out.Queries = maintained_apps.FMAQueries{
 		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
@@ -297,6 +270,30 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	return &out, nil
 }
 
+// these are installer types that correspond to software vendors, not the actual installer type
+// (like exe or msi).
+var vendorTypes = map[string]struct{}{
+	installerTypeWix:      {},
+	installerTypeNullSoft: {},
+	installerTypeInno:     {},
+}
+
+func isVendorType(installerType string) bool {
+	_, ok := vendorTypes[installerType]
+	return ok
+}
+
+var fileTypes = map[string]struct{}{
+	installerTypeMSI:  {},
+	installerTypeMSIX: {},
+	installerTypeExe:  {},
+}
+
+func isFileType(installerType string) bool {
+	_, ok := fileTypes[installerType]
+	return ok
+}
+
 type inputApp struct {
 	Name string `json:"name"`
 	Slug string `json:"slug"`
@@ -306,6 +303,9 @@ type inputApp struct {
 	UniqueIdentifier    string `json:"unique_identifier"`
 	InstallScriptPath   string `json:"install_script_path"`
 	UninstallScriptPath string `json:"uninstall_script_path"`
+	InstallerArch       string `json:"installer_arch"`
+	InstallerType       string `json:"installer_type"`
+	InstallerScope      string `json:"installer_scope"`
 }
 
 type installerManifest struct {
@@ -365,11 +365,14 @@ type localeManifest struct {
 }
 
 const (
-	machineScope      = "machine"
-	userScope         = "user"
-	installerTypeMSI  = "msi"
-	installerTypeMSIX = "msix"
-	installerTypeWix  = "wix"
-	arch64Bit         = "x64"
-	arch32Bit         = "x86"
+	machineScope          = "machine"
+	userScope             = "user"
+	installerTypeMSI      = "msi"
+	installerTypeMSIX     = "msix"
+	installerTypeExe      = "exe"
+	installerTypeWix      = "wix"
+	installerTypeNullSoft = "nullsoft"
+	installerTypeInno     = "inno"
+	arch64Bit             = "x64"
+	arch32Bit             = "x86"
 )

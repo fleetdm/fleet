@@ -44,11 +44,25 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Brave",
+      "slug": "brave-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Brave",
+      "description": ""
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Cloudflare WARP",
+      "slug": "cloudflare-warp/windows",
+      "platform": "windows",
+      "unique_identifier": "Cloudflare WARP",
+      "description": ""
     },
     {
       "name": "Docker Desktop",
@@ -114,6 +128,13 @@
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
+      "name": "Microsoft Teams",
+      "slug": "microsoft-teams/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Teams",
+      "description": ""
+    },
+    {
       "name": "Microsoft Word",
       "slug": "microsoft-word/darwin",
       "platform": "darwin",
@@ -142,6 +163,13 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
+      "name": "Postman",
+      "slug": "postman/windows",
+      "platform": "windows",
+      "unique_identifier": "Postman",
+      "description": ""
+    },
+    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
@@ -168,6 +196,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.VSCode",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Microsoft Visual Studio Code",
+      "slug": "visual-studio-code/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
+      "description": ""
     },
     {
       "name": "WhatsApp",

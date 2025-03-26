@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "134.0.6998.166",
+      "version": "134.0.6998.178",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
@@ -9,7 +9,7 @@
       "unique_identifier": "Google Chrome",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "fc2c3889c0ab1119c4e49fdbd66f795ff7cbcbe8e3b5a1b6598b62a001faf876"
+      "sha256": "f636f77521781ba03c39d8be3e2ecdba828f1eee12cc0fee00509d6ae960c59b"
     }
   ],
   "refs": {
