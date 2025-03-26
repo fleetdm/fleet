@@ -2867,39 +2867,47 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		tempBySoftwareTitleID := make(map[uint]*hostSoftware, len(availableSoftwareTitles))
 		tmpByVPPAdamID := make(map[string]*hostSoftware, len(byVPPAdamID))
 		if opts.OnlyAvailableForInstall {
-			// drop in uninstalls as available
+			// drop in anything that has been installed or uninstalled as it can be installed again regardless of status
 			for _, s := range hostSoftwareUninstalls {
 				tempBySoftwareTitleID[s.ID] = s
 			}
-			// anything pending or failed is also "available"
 			for _, s := range hostSoftwareInstalls {
-				if *s.Status == "pending_install" || *s.Status == "failed_install" || *s.Status == "pending_uninstall" {
-					tempBySoftwareTitleID[s.ID] = s
-				}
+				tempBySoftwareTitleID[s.ID] = s
 			}
-			// vpp apps pending to install or failed are also "available"
 			for _, s := range hostVPPInstalls {
-				if *s.Status == "pending_install" || *s.Status == "failed_install" {
-					tmpByVPPAdamID[*s.VPPAppAdamID] = s
-				}
+				tmpByVPPAdamID[*s.VPPAppAdamID] = s
 			}
 		}
 		for _, s := range availableSoftwareTitles {
 			// If it's a VPP app
 			if s.VPPAppAdamID != nil {
-				if _, ok := byVPPAdamID[*s.VPPAppAdamID]; !ok {
-					if opts.OnlyAvailableForInstall {
+				existingVPP, found := byVPPAdamID[*s.VPPAppAdamID]
+
+				if opts.OnlyAvailableForInstall {
+					if !found {
 						tmpByVPPAdamID[*s.VPPAppAdamID] = s
 					} else {
+						tmpByVPPAdamID[*s.VPPAppAdamID] = existingVPP
+					}
+				} else {
+					// Don't overwrite the existing vpp record we found earlier
+					if !found {
 						byVPPAdamID[*s.VPPAppAdamID] = s
 					}
 				}
+
 			} else {
-				// Ensure not to overwrite the records from software installs and software uninstalls
-				if _, ok := bySoftwareTitleID[s.ID]; !ok {
-					if opts.OnlyAvailableForInstall {
+				existingSoftware, found := bySoftwareTitleID[s.ID]
+
+				if opts.OnlyAvailableForInstall {
+					if !found {
 						tempBySoftwareTitleID[s.ID] = s
 					} else {
+						tempBySoftwareTitleID[s.ID] = existingSoftware
+					}
+				} else {
+					// Don't overwrite the records from software installs and software uninstalls
+					if !found {
 						bySoftwareTitleID[s.ID] = s
 					}
 				}

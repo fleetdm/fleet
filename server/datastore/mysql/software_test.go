@@ -3506,6 +3506,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			for _, g := range got {
 				builder.WriteString(fmt.Sprintf("%+v\n", g))
 			}
+			builder.WriteString("Expected:\n")
+			for _, e := range expected {
+				builder.WriteString(fmt.Sprintf("%+v\n", e))
+			}
 			return builder.String()
 		}
 		require.Len(t, got, len(expected)-len(expectOmitted), gotToString())
@@ -3926,6 +3930,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request with available software only (attempted to install and never attempted to install)
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
+	// Although this is already installed, we ignore the status on the host because we can "reinstall" it
+	// if there is a compatible software package available for the host
 	expectedAvailableOnly[i0.Name+i0.Source] = i0
 	expectedAvailableOnly[i1.Name+i1.Source] = i1
 	expectedAvailableOnly[i2.Name+i2.Source] = i2
