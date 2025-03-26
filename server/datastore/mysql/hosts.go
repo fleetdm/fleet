@@ -5266,7 +5266,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
       h.id,
       h.team_id,
       h.osquery_host_id,
-      h.node_key,
+      COALESCE(h.node_key, '') AS node_key,
       h.hostname,
       h.uuid,
       h.hardware_serial,
