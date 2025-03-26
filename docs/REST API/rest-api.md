@@ -6606,8 +6606,8 @@ None.
 - [List team policies](#list-team-policies)
 - [Count policies](#count-policies)
 - [Count team policies](#count-team-policies)
-- [Get policy](#get-policy)
-- [Get team policy](#get-team-policy)
+- [Get policy by ID](#get-policy-by-id)
+- [Get team policy by ID](#get-team-policy-by-id)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
 - [Delete policies](#delete-policies)
@@ -6933,7 +6933,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get policy
+### Get policy by ID
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -6976,7 +6976,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy
+### Get team policy by ID
 
 _Available in Fleet Premium_
 
@@ -9464,7 +9464,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Linux hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts.
 
 
 `POST /api/v1/fleet/software/package`
@@ -9475,7 +9475,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
-| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs [default install script](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
+| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
+| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
