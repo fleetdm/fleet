@@ -67,4 +67,4 @@ Fleet stands out as an ideal choice for Linux device management, offering flexib
 <meta name="publishedOn" value="2024-12-03">
 <meta name="articleImageUrl" value="../website/assets/images/articles/sysadmin-diaries-1600x900@2x.png">
 <meta name="description" value="This guide explores how Fleet empowers Linux MDM.">
-<meta name="keywords" content="Linux MDM, Linux device management, open source MDM, Linux management" />
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />
