@@ -2075,6 +2075,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+			UIGitOpsMode:   &fleet.UIGitOpsModeConfig{},
 		}
 		if premium {
 			mockStore.appConfig.ServerSettings.EnableAnalytics = true
