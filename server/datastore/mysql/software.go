@@ -2268,6 +2268,7 @@ type hostSoftware struct {
 	InstallerID         *uint      `db:"installer_id"`
 	PackageSelfService  *bool      `db:"package_self_service"`
 	PackageName         *string    `db:"package_name"`
+	PackagePlatform     *string    `db:"package_platform"`
 	PackageVersion      *string    `db:"package_version"`
 	VPPAppSelfService   *bool      `db:"vpp_app_self_service"`
 	VPPAppAdamID        *string    `db:"vpp_app_adam_id"`
@@ -2670,6 +2671,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			si.platform as package_platform,
 			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
@@ -3303,13 +3305,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 				// promote the package name and version to the proper destination fields
 				if softwareTitleRecord.PackageName != nil {
-					var version string
+					var version,
+						platform string
 					if softwareTitleRecord.PackageVersion != nil {
 						version = *softwareTitleRecord.PackageVersion
+					}
+					if softwareTitleRecord.PackagePlatform != nil {
+						platform = *softwareTitleRecord.PackagePlatform
 					}
 					softwareTitleRecord.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 						Name:        *softwareTitleRecord.PackageName,
 						Version:     version,
+						Platform:    platform,
 						SelfService: softwareTitleRecord.PackageSelfService,
 					}
 
@@ -3336,13 +3343,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 				// promote the VPP app id and version to the proper destination fields
 				if softwareTitleRecord.VPPAppAdamID != nil {
-					var version string
+					var version,
+						platform string
 					if softwareTitleRecord.VPPAppVersion != nil {
 						version = *softwareTitleRecord.VPPAppVersion
+					}
+					if softwareTitleRecord.VPPAppPlatform != nil {
+						platform = *softwareTitleRecord.VPPAppPlatform
 					}
 					softwareTitleRecord.AppStoreApp = &fleet.SoftwarePackageOrApp{
 						AppStoreID:  *softwareTitleRecord.VPPAppAdamID,
 						Version:     version,
+						Platform:    platform,
 						SelfService: softwareTitleRecord.VPPAppSelfService,
 						IconURL:     softwareTitleRecord.VPPAppIconURL,
 					}
