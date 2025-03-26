@@ -59,6 +59,13 @@ LDFLAGS_VERSION = "\
 	-X github.com/fleetdm/fleet/v4/server/version.buildUser=${USER} \
 	-X github.com/fleetdm/fleet/v4/server/version.goVersion=${GOVERSION}"
 
+# Macro to allow targets to filter out their own arguments from the arguments
+# passed to the final command.
+define filter_args
+$(eval FORWARDED_ARGS := $(filter-out $(TARGET_ARGS), $(CLI_ARGS)))
+$(eval FORWARDED_ARGS := $(FORWARDED_ARGS) $(EXTRA_CLI_ARGS))
+endef
+
 all: build
 
 
@@ -111,6 +118,26 @@ fdm:
 		echo "Linking to /usr/local/bin/fdm..."; \
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
+
+serve up: TARGET_ARGS := --use-ip 
+ifdef USE_IP
+serve up: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
+endif
+serve up:
+	$(call filter_args)
+	@if [[ "$(FORWARDED_ARGS)" != "" ]]; then \
+		echo "./build/fleet serve $(FORWARDED_ARGS)" > ~/.fleet/last-serve-invocation; \
+	fi; 
+	@if [[ -f ~/.fleet/last-serve-invocation ]]; then \
+		cat ~/.fleet/last-serve-invocation; \
+		$$(cat ~/.fleet/last-serve-invocation); \
+	else \
+		./build/fleet serve; \
+	fi
+
+build/fleet: | .pre-build .pre-fleet
+	@ make .prefix
+	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
@@ -501,7 +528,7 @@ db-restore:
 
 # Interactive snapshot / restore
 SNAPSHOT_BINARY = ./build/snapshot
-snapshot: $(SNAPSHOT_BINARY)
+snap snapshot: $(SNAPSHOT_BINARY)
 	@ $(SNAPSHOT_BINARY) snapshot
 $(SNAPSHOT_BINARY): tools/snapshot/*.go
 	cd tools/snapshot && go build -o ../../build/snapshot
@@ -683,3 +710,4 @@ include ./tools/makefile-support/helpsystem-targets
 
 foo:
 	@echo $(MAKECMDGOALS)
+
