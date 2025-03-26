@@ -119,10 +119,17 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
-serve up: TARGET_ARGS := --use-ip --no-save
+serve up: TARGET_ARGS := --use-ip --no-save --show
 ifdef USE_IP
 serve up: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
 endif
+ifdef SHOW
+serve up:
+	@SAVED_ARGS=$$(cat ~/.fleet/last-serve-invocation); \
+	if [[ $$? -eq 0 ]]; then \
+		echo "$$SAVED_ARGS"; \
+	fi
+else
 serve up:
 	$(call filter_args)
 	@if [[ "$(FORWARDED_ARGS)" != "" ]]; then \
@@ -138,6 +145,7 @@ serve up:
 			./build/fleet serve; \
 		fi; \
 	fi
+endif
 
 build/fleet: | .pre-build .pre-fleet
 	@ make .prefix
