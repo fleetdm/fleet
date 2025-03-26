@@ -93,4 +93,4 @@ If you’re managing an enterprise environment, you will likely have a deploymen
 <meta name="publishedOn" value="2022-03-19">
 <meta name="articleTitle" value="How to install osquery and enroll Linux devices into Fleet">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover-1600x900@2x.jpg">
-<meta name="keywords" content="Linux MDM, Linux device management, open source MDM, Linux management" />
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />
