@@ -193,6 +193,13 @@ const TableContainer = <T,>({
     }
   }, [pageIndex, isClientSidePagination]);
 
+  // serversidePageIndex must update pageIndex anytime it's changed or else it causes bugs (e.g. bug of filter dd not reverting table to page 0)
+  useEffect(() => {
+    if (!isClientSidePagination) {
+      setPageIndex(serversidePageIndex);
+    }
+  }, [serversidePageIndex, isClientSidePagination]);
+
   const prevPageIndex = useRef(0);
 
   const wrapperClasses = classnames(baseClass, className);

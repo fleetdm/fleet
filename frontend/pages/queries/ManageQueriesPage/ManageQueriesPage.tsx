@@ -123,9 +123,6 @@ const ManageQueriesPage = ({
     tableQueryDataForApi,
     setTableQueryDataForApi,
   ] = useState<ITableQueryData>();
-  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
-  // this prop.
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -147,7 +144,7 @@ const ManageQueriesPage = ({
       {
         scope: "queries",
         teamId: teamIdForApi,
-        page: tableQueryDataForApi?.pageIndex,
+        page: curPageFromURL,
         perPage: DEFAULT_PAGE_SIZE,
         // a search match query, not a Fleet Query
         query: location.query.query,
@@ -190,31 +187,9 @@ const ManageQueriesPage = ({
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
   }, []);
 
-  // NOTE: used to reset page number to 0 when modifying filters
-  // NOTE: Solution reused from ManageHostPage.tsx
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [location, curPageFromURL]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    // this function encapsulates setting local page state to 0 and triggering the descendant
-    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
-    setTableQueryDataForApi(
-      (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
-    );
-    // change in state triggers effect in TableContainer (see comment above this state definition)
-    setResetPageIndex(true);
-  };
-
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      handleResetPageIndex();
     },
     [handleTeamChange]
   );
@@ -319,7 +294,6 @@ const ManageQueriesPage = ({
         queryParams={location.query}
         currentTeamId={teamIdForApi}
         isPremiumTier={isPremiumTier}
-        resetPageIndex={resetPageIndex}
       />
     );
   };

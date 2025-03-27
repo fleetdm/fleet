@@ -45,7 +45,6 @@ export interface IQueriesTableProps {
   };
   currentTeamId?: number;
   isPremiumTier?: boolean;
-  resetPageIndex?: boolean;
 }
 
 interface IRowProps extends Row {
@@ -96,7 +95,6 @@ const QueriesTable = ({
   queryParams,
   currentTeamId,
   isPremiumTier,
-  resetPageIndex,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
 
@@ -304,7 +302,6 @@ const QueriesTable = ({
           disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}
-          resetPageIndex={resetPageIndex}
         />
       </div>
     )
