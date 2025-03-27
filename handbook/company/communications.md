@@ -929,7 +929,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet benchmarks all team members based on the United States Dollar (USD) and if applicable, conversion rates at the time of offer for international fleeties.  Conversion rates and compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
 
 
 ### Relocating
