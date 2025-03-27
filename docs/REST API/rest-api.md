@@ -6513,7 +6513,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [List Apple Business Manager (ABM) tokens](#list-apple-business-manager-abm-tokens)
 - [List Volume Purchasing Program (VPP) tokens](#list-volume-purchasing-program-vpp-tokens)
-- [Get identity provider (IdP) details](#get-identity-provider-idp-details)
+- [Get Android Enterprise](#get-android-enterprise)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6630,11 +6630,11 @@ None.
 ]
 ```
 
-### Get identity provider (IdP) details
+### Get Android Enterprise
 
-Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-`GET /api/v1/fleet/scim`
+`GET /api/v1/fleet/android_enterprise`
 
 #### Parameters
 
@@ -6642,7 +6642,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/scim`
+`GET /api/v1/fleet/android_enterprise`
 
 ##### Default response
 
@@ -6650,11 +6650,7 @@ None.
 
 ```json
 {
-  "last_request": {
-    "requested_at": "2025-03-11T02:02:17Z",
-    "status": "success",
-    "details": "",
-  }
+"android_enterprise_id": "LC0445szuv"
 }
 ```
 
@@ -6666,8 +6662,8 @@ None.
 - [List team policies](#list-team-policies)
 - [Count policies](#count-policies)
 - [Count team policies](#count-team-policies)
-- [Get policy by ID](#get-policy-by-id)
-- [Get team policy by ID](#get-team-policy-by-id)
+- [Get policy](#get-policy)
+- [Get team policy](#get-team-policy)
 - [Add policy](#add-policy)
 - [Add team policy](#add-team-policy)
 - [Delete policies](#delete-policies)
@@ -7002,7 +6998,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get policy by ID
+### Get policy
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -7045,7 +7041,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get team policy by ID
+### Get team policy
 
 _Available in Fleet Premium_
 
