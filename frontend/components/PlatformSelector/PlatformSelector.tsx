@@ -112,7 +112,6 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        Policy runs on all hosts with these platforms.
         {renderInstallSoftwareHelpText()}
       </div>
     </div>

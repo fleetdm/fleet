@@ -632,7 +632,7 @@ const PolicyForm = ({
               </p>
             }
           >
-            Critical:
+            Critical
           </TooltipWrapper>
         </Checkbox>
       </div>
@@ -751,7 +751,7 @@ const PolicyForm = ({
                   Query will target hosts that <b>have any</b> of these labels:
                 </span>
               }
-              title={null}
+              suppressTitle
             />
           )}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}

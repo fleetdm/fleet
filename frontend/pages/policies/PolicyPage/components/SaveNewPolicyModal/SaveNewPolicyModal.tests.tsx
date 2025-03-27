@@ -123,7 +123,7 @@ describe("SaveNewPolicyModal", () => {
         expect(custom).toBeInTheDocument();
       });
       custom && (await userEvent.click(custom));
-      const saveButton = screen.getByRole("button", { name: "Save policy" });
+      const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeDisabled();
 
       const funButton = screen.getByLabelText("Fun");
@@ -151,9 +151,7 @@ describe("SaveNewPolicyModal", () => {
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
       await userEvent.click(screen.getByLabelText("Fun"));
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save policy" })
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onCreatePolicy.mock.calls[0][0].labels_include_any).toEqual([
         "Fun",
@@ -193,9 +191,7 @@ describe("SaveNewPolicyModal", () => {
       });
       await userEvent.click(excludeAnyOption as Element);
 
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save policy" })
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onCreatePolicy.mock.calls[0][0].labels_exclude_any).toEqual([
         "Fun",
@@ -217,9 +213,7 @@ describe("SaveNewPolicyModal", () => {
       // Set a name.
       await userEvent.type(screen.getByLabelText("Name"), "A Brand New Query!");
 
-      await userEvent.click(
-        screen.getByRole("button", { name: "Save policy" })
-      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(onCreatePolicy.mock.calls[0][0].labels_include_any).toEqual([]);
     });

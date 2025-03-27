@@ -296,6 +296,7 @@ const SaveNewPolicyModal = ({
                   Query will target hosts that <b>have any</b> of these labels:
                 </span>
               }
+              suppressTitle
             />
           )}
           {isPremiumTier && (
@@ -335,7 +336,7 @@ const SaveNewPolicyModal = ({
                 className="save-policy-loading"
                 isLoading={isUpdatingPolicy}
               >
-                Save policy
+                Save
               </Button>
               <ReactTooltip
                 className={`${baseClass}__button--modal-save-tooltip`}

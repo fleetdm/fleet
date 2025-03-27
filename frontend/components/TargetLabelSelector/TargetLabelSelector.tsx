@@ -180,7 +180,8 @@ interface ITargetLabelSelectorProps {
   onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
   disableOptions?: boolean;
-  title?: string | null;
+  title?: string;
+  suppressTitle?: boolean;
 }
 
 const TargetLabelSelector = ({
@@ -199,6 +200,7 @@ const TargetLabelSelector = ({
   onSelectLabel,
   disableOptions = false,
   title = "Target",
+  suppressTitle = false,
 }: ITargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
 
@@ -208,7 +210,7 @@ const TargetLabelSelector = ({
         selectedTarget={selectedTargetType}
         onSelect={onSelectTargetType}
         disableOptions={disableOptions}
-        title={title}
+        title={suppressTitle ? null : title}
       />
       {selectedTargetType === "Custom" && (
         <LabelChooser
