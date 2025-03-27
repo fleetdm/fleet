@@ -146,15 +146,18 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
-	if len(slugsToKeep) == 0 {
-		return nil
-	}
-
 	stmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
 
-	stmt, args, err := sqlx.In(stmt, slugsToKeep)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
+	var err error
+	var args []any
+	switch len(slugsToKeep) {
+	case 0:
+		stmt = `DELETE FROM fleet_maintained_apps`
+	default:
+		stmt, args, err = sqlx.In(stmt, slugsToKeep)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
+		}
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)

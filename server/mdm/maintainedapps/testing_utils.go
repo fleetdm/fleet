@@ -121,4 +121,14 @@ func SyncAndRemoveApps(t *testing.T, ds fleet.Datastore) {
 	for _, a := range modifiedApps {
 		require.NotEqual(t, removedApp.Slug, a.Slug)
 	}
+
+	// remove all apps from upstream.
+	appsFile.Apps = []appListing{}
+
+	err = Refresh(context.Background(), ds, log.NewNopLogger())
+	require.NoError(t, err)
+
+	modifiedApps, _, err = ds.ListAvailableFleetMaintainedApps(context.Background(), nil, fleet.ListOptions{})
+	require.ErrorIs(t, err, &fleet.NoMaintainedAppsInDatabaseError{})
+	require.Empty(t, modifiedApps)
 }
