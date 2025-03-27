@@ -326,7 +326,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
-	// Used to check the presence of fields in the incomign config
+	// Used to check the presence of fields in the incoming config
 	var newAppConfigRaw map[string]any
 	if err := json.Unmarshal(p, &newAppConfigRaw); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
