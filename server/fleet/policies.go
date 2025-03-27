@@ -186,6 +186,10 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string
 }
 
 // Verify verifies the policy payload is valid.
