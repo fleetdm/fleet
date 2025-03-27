@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
@@ -8,15 +8,15 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
 
+import { ILabelSummary } from "interfaces/label";
 import PolicyProvider from "context/policy";
 import SaveNewPolicyModal from "./SaveNewPolicyModal";
-import user from "interfaces/user";
 
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
 };
 
-const mockLabels = [
+const mockLabels: ILabelSummary[] = [
   {
     id: 1,
     name: "Fun",
@@ -36,8 +36,6 @@ const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
     labels: mockLabels,
   });
 });
-
-const mockQuery = createMockQuery();
 
 describe("SaveNewPolicyModal", () => {
   const defaultProps = {
@@ -60,6 +58,7 @@ describe("SaveNewPolicyModal", () => {
     isFetchingAutofillResolution: false,
     onClickAutofillDescription: jest.fn(),
     onClickAutofillResolution: jest.fn(),
+    labels: mockLabels,
   };
 
   it("should not show the target selector in the free tier", async () => {

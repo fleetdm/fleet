@@ -1,14 +1,13 @@
 import React, { useState, useContext, useEffect, useCallback } from "react";
-import { useQuery } from "react-query";
 import { size } from "lodash";
 import classNames from "classnames";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { ILabelSummary } from "interfaces/label";
 import { IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import useDeepEffect from "hooks/useDeepEffect";
@@ -19,12 +18,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import Icon from "components/Icon";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import labelsAPI, {
-  getCustomLabels,
-  ILabelsSummaryResponse,
-} from "services/entities/labels";
+import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
@@ -41,6 +36,7 @@ export interface ISaveNewPolicyModalProps {
   isFetchingAutofillResolution: boolean;
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
+  labels: ILabelSummary[];
 }
 
 const validatePolicyName = (name: string) => {
@@ -67,6 +63,7 @@ const SaveNewPolicyModal = ({
   isFetchingAutofillResolution,
   onClickAutofillDescription,
   onClickAutofillResolution,
+  labels,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const {
@@ -91,20 +88,6 @@ const SaveNewPolicyModal = ({
     "labelsIncludeAny"
   );
   const [selectedLabels, setSelectedLabels] = useState({});
-
-  const {
-    data: { labels } = { labels: [] },
-    isFetching: isFetchingLabels,
-  } = useQuery<ILabelsSummaryResponse, Error>(
-    ["custom_labels"],
-    () => labelsAPI.summary(),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
-      staleTime: 10000,
-      select: (res) => ({ labels: getCustomLabels(res.labels) }),
-    }
-  );
 
   const onSelectLabel = ({
     name: labelName,
