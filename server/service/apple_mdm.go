@@ -4121,6 +4121,7 @@ func preprocessProfileContents(
 			failed := false
 		fleetVarLoop:
 			for fleetVar := range fleetVars {
+				var err error
 				switch {
 				case fleetVar == FleetVarNDESSCEPChallenge:
 					if ndesConfig == nil {
@@ -4194,7 +4195,10 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 						continue
 					}
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP challenge")
+					}
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix)
 					ca, ok := customSCEPCAs[caName]
@@ -4206,7 +4210,10 @@ func preprocessProfileContents(
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
+					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:    hostUUID,
 						ProfileUUID: profUUID,
@@ -4292,9 +4299,15 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertDataPrefix, caName, hostContents,
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertDataPrefix, caName, hostContents,
 						base64.StdEncoding.EncodeToString(cert.PfxData))
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertPasswordPrefix, caName, hostContents, cert.Password)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert data")
+					}
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertPasswordPrefix, caName, hostContents, cert.Password)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
+					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:      hostUUID,
 						ProfileUUID:   profUUID,
@@ -4703,7 +4716,7 @@ func replaceFleetVariableInXML(regExp *regexp.Regexp, contents string, replaceme
 	return regExp.ReplaceAllString(contents, buf.String())
 }
 
-func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) string {
+func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {
 	// Escape XML characters since this replacement is intended for XML profile.
 	b := make([]byte, 0, len(replacement))
 	buf := bytes.NewBuffer(b)
@@ -4711,9 +4724,13 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 	_ = xml.EscapeText(buf, []byte(replacement))
 
 	// We are replacing an exact variable, which should be present in XML like: <something>$FLEET_VAR_OUR_VAR</something>
-	contents = strings.ReplaceAll(contents, fmt.Sprintf(">$FLEET_VAR_%s%s<", prefix, suffix), fmt.Sprintf(">%s<", buf.String()))
-	contents = strings.ReplaceAll(contents, fmt.Sprintf(">${FLEET_VAR_%s%s}<", prefix, suffix), fmt.Sprintf(">%s<", buf.String()))
-	return contents
+	// We strip the leading/trailing whitespace since our plist parser ignores spaces in plist data, but we don't want them to remain in XML
+	fleetVar := "FLEET_VAR_" + prefix + suffix
+	re, err := regexp.Compile(fmt.Sprintf(`>\s*((\$%s)|(\${%s}))\s*<`, fleetVar, fleetVar))
+	if err != nil {
+		return "", err
+	}
+	return re.ReplaceAllString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
 }
 
 func findFleetVariables(contents string) map[string]interface{} {
