@@ -1,5 +1,6 @@
 import React from "react";
 import classnames from "classnames";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "data-set";
 
@@ -8,6 +9,7 @@ interface IDataSetProps {
   value: React.ReactNode;
   orientation?: "horizontal" | "vertical";
   className?: string;
+  truncateWithTooltip?: boolean;
 }
 
 const DataSet = ({
@@ -15,6 +17,7 @@ const DataSet = ({
   value,
   orientation = "vertical",
   className,
+  truncateWithTooltip = false,
 }: IDataSetProps) => {
   const classNames = classnames(baseClass, className, {
     [`${baseClass}__horizontal`]: orientation === "horizontal",
@@ -26,7 +29,9 @@ const DataSet = ({
         {title}
         {orientation === "horizontal" && ":"}
       </dt>
-      <dd>{value}</dd>
+      <dd>
+        {truncateWithTooltip ? <TooltipTruncatedText value={value} /> : value}
+      </dd>
     </div>
   );
 };

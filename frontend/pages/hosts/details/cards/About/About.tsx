@@ -59,7 +59,8 @@ const About = ({
         <>
           <DataSet
             title="Serial number"
-            value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+            value={aboutData.hardware_serial}
+            truncateWithTooltip
           />
           <DataSet title="Hardware model" value={aboutData.hardware_model} />
         </>
@@ -77,7 +78,8 @@ const About = ({
         <DataSet title="Hardware model" value={aboutData.hardware_model} />
         <DataSet
           title="Serial number"
-          value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+          value={aboutData.hardware_serial}
+          truncateWithTooltip
         />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
         <DataSet
@@ -125,11 +127,8 @@ const About = ({
         />
         <DataSet
           title="MDM server URL"
-          value={
-            <TooltipTruncatedText
-              value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
-            />
-          }
+          value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+          truncateWithTooltip
         />
       </>
     );
