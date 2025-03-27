@@ -108,9 +108,6 @@ interface ITableContainerProps<T = any> {
    * rows of data are present. */
   renderTableHelpText?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
-  /** Use for serverside filtering: Set to true when filters change in URL
-   * bar and API call so TableContainer will reset its page state to 0  */
-  resetPageIndex?: boolean;
   disableTableHeader?: boolean;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
@@ -171,7 +168,6 @@ const TableContainer = <T,>({
   renderCount,
   renderTableHelpText,
   setExportRows,
-  resetPageIndex,
   disableTableHeader,
   persistSelectedRows,
   onClearSelection = noop,
