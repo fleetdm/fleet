@@ -1,80 +1,58 @@
-# Connect end users to Wi-Fi or VPN with a certificate (from DigiCert, NDES, or custom SCEP)
+# Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)
 
 _Available in Fleet Premium_
 
-Fleet can help your end users connect to Wi-Fi or VPN by adding your certificate authority to issue
-certificates. Fleet currently supports
-[DigiCert](https://www.digicert.com/digicert-one), [Microsoft
-NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview),
-and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
-This guide will walk you through configuring your certificate authority and delivering certificates.
 
 ## DigiCert
 
-To install certificates from DigiCert to hosts, do the following steps:
+To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the following steps:
 
 - [Create service user in DigiCert](#step-1-create-service-user-in-digicert)
 - [Create certificate profile in DigiCert](#step-2-create-certificate-profile-in-digicert)
 - [Connect Fleet to DigiCert](#step-3-connect-fleet-to-digicert)
-- [Add a PKCS12 configuration profile to Fleet](#step-4-add-pkcs-12-configuration-profile-to-fleet)
+- [Add PKCS #12 configuration profile to Fleet](#step-4-add-pkcs-12-configuration-profile-to-fleet)
 
 ### Step 1: Create service user in DigiCert
 
 1. Head to [DigiCert One](https://one.digicert.com/)
-2. Follow instructions [here](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html), to create service user, and save service user API token.
+2. Follow the instructions to create a service user [here](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html) and save the service user's API token.
 > Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
 > when creating service user.
 
 ### Step 2: Create certificate profile in DigiCert
 
-1. In DigiCert [Trust Lifcycle Manager](https://one.digicert.com/mpki/dashboard), select
-   **Policies > Certificate profiles** from the main menu, then select **Create profile from
-   template**, and select **Generic Device Certificate** from the list.
+1. In DigiCert [Trust Lifcycle Manager](https://one.digicert.com/mpki/dashboard), select **Policies > Certificate profiles** from the main menu. Then select **Create profile from template** and select **Generic Device Certificate** from the list.
 2. Add a friendly **Profile name** (e.g. "Fleet - Wi-Fi authentication").
 3. Select your **Business unit** and **Issuing CA**.
-4. Select **REST API** from **Enrollment method**, then select **3rd party app** from
-   **Authentication method** dropdown, and select **Next**.
-5. Configure certificate expiration as you wish.
-6. In **Subject DN and SAN fields** section, make sure to add **Common name** and **Other name
-   (UPN)**. For **Common name**, select **REST request** from **Source for the field's value**
-   dropdown, and check **Required**. For **Other name (UPN)**, select **REST Request**, and check
-   both **Required** and **Multiple** checkboxes.
-7. You can click **Next** and leave all default options until you get to the last step, where you
-   need to select service user created in first step from **Select Service User** dropdown, and
-   select **Create**
+4. Select **REST API** from **Enrollment method**. Then select **3rd party app** from the **Authentication method** dropdown and select **Next**.
+5. Configure the certificate expiration as you wish.
+6. In the **Subject DN and SAN fields** section, make sure to add **Common name** and **Other name (UPN)**. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. For **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**.
+7. Click **Next** and leave all default options. We'll come back to this later.
 
 ### Step 3: Connect Fleet to DigiCert
 
-1. Go to Fleet, navigate to **Settings**, select **Integrations** tab, and select
-   **Certificates**.
-2. Select **Add CA** button, and select **DigiCert** from the dropdown on the top.
-3. Add **Name** for your certificate authority. It's best to use all caps, beacuse it will be used
-   as variable name in configuration profile and name it based on your use case (e.g.
-   WIFI_AUTHENTICATION).
-4. Keep default **URL**, or adjust if you're using on-prem DigiCert One. URL should match the one
-   you use to login to your DigiCert One account.
-5. Paste **API token** from the **Step 1** section above.
-6. Paste **Profile GUID** of certificate profile created in the **Step 2** section above. To get
-   Profile GUID, go to [Certificate profiles](https://one.digicert.com/mpki/policies/profiles) page,
-   open your profile, and copy **GUID**.
-7. For **CN**, **UPN**, and **Certificate seat ID**, you can use fixed values or one of the [Fleet's
-   host
-   variables](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
-8. Select **Add CA**, and your DigiCert certificate authority (CA) should appear in the list.
+1. In Fleet, head to **Settings > Integrations > Certificates**.
+2. Select **Add CA** and then choose **DigiCert** in the dropdown.
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). We'll use this name later as variable name in a configuration profile.
+4. If you're using DigiCert One's cloud offering, keep the default **URL**. If you're using a self-hosted (on-prem) DigiCert One, update the URL to match the one you use to login to your DigiCert One.
+5. In **API token**, paste your DigiCert server user's API token (from step 1).
+6. In **Profile GUID**, paste your DigiCert One certificate profile GUID (from step 2). To get your profile GUID, in DigiCert, head to the [Certificate profiles](https://one.digicert.com/mpki/policies/profiles) page, open your profile, and copy **GUID**.
+7. In **CN**, **UPN**, and **Certificate seat ID**, you can use fixed values or one of the [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
+8. Select **Add CA**. Your DigiCert certificate authority (CA) should appear in your list of CAs in Fleet.
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
-[Add a configuration profile](https://fleetdm.com/guides/custom-os-settings) to Fleet, that includes the PKCS12 payload. In the profile, you will need to set `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` as the `Password` and `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>` as the `Data`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with a PKCS12 payload. In the profile, for `Password`, use `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`. For `Data`, use `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`.
 
-Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect
-Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name
-will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and
-`FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`).
+2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
-When sending the profile to hosts, Fleet will replace the variables variables with the proper values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
+3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
-When the profile with the DigiCert certificate is resent on the host details page in **OS settings**, Fleet will get a new certificate from DigiCert and create a new seat, which will take 1 license. If you want to revoke a license used by a seat that was created when the initial certificate was issued, go to [Trust Lifcycle Manager > Account > Seats](https://demo.one.digicert.com/mpki/account/seats) and remove the respective seat.
+When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+If you resend the profile (select **Resend** in **Host details > OS settings**), Fleet will get a new certificate and create a new seat in DigiCert, which will take 1 license. If you want to revoke a license, in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
 
 #### Example configuration profile
 
@@ -118,33 +96,30 @@ When the profile with the DigiCert certificate is resent on the host details pag
 
 ## Microsoft NDES
 
-To install certificates from Microsoft NDES to hosts, do the following steps:
+To connect end users to W-Fi or VPN with Microsoft NDES certificates, we'll do the following steps:
 
 - [Connect Fleet to NDES](#step-1-connect-fleet-to-ndes)
 - [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet)
 
 ### Step 1: Connect Fleet to NDES
 
-1. Go to the Fleet, navigate to **Settings**, select **Integrations** tab, and select **Certificates**.
-2. Select **Add CA** button, and select **Microsoft NDES** from the dropdown on the top.
-3. Add **SCEP URL** that accepts the SCEP protocol.
-4. Add **Admin URL** and associated **Username** and **Password** to get the one-time challenge
-   password for SCEP enrollment.
-5. Select **Add CA**, and your NDES certificate authority (CA) should appear in the list.
+1. In Fleet, head to **Settings > **Integrations > Certificates**.
+2. Select the **Add CA** button and select **Microsoft NDES** in the dropdown.
+3. Add your **SCEP URL**, **Admin URL**, and **Username** and **Password**.
+5. Select **Add CA**. Your NDES certificate authority (CA) should appear in the list in Fleet.
+The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/` respectively. These path suffixes are the default paths for NDES on Windows Server 2022 and should only be changed if you have customized the paths on your server.
 
-
-Note:
-* The example paths end with `/certsrv/mscep/mscep.dll` and `/certsrv/mscep_admin/` respectively. These path suffixes are the default paths for NDES on Windows Server 2022 and should only be changed if you have customized the paths on your server.
-* When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
+When saving the configuration, Fleet will attempt to connect to the SCEP server to verify the connection, including retrieving a one-time challenge password. This validation also occurs when adding a new SCEP configuration or updating an existing one via API and GitOps, including dry runs. Please ensure the NDES password cache size is large enough to accommodate this validation.
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-[Add a configuration profile](https://fleetdm.com/guides/custom-os-settings) in Fleet that includes the SCEP payload. In the profile, you will need to set `$FLEET_VAR_NDES_SCEP_CHALLENGE` as the `Challenge` and `$FLEET_VAR_NDES_SCEP_PROXY_URL` as the `URL`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 
-Adjust the `Subject` values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
+2. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with end user authentication enabled (learn more [here](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping)). You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
-When sending the profile to hosts, Fleet will replace the variables variables with the proper
-values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
+3. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
 
@@ -214,37 +189,30 @@ values. Any errors will appear as a **Failed** status on the host details page, 
 
 ## Custom SCEP server
 
-To install certificates from Microsoft NDES to hosts, do the following steps:
+To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the following steps:
 
 - [Connect Fleet to custom SCEP server](#step-1-connect-fleet-to-custom-scep-server)
 - [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet2)
 
 ### Step 1: Connect Fleet to custom SCEP server
 
-1. Go to the Fleet, navigate to **Settings**, select **Integrations** tab, and select **Certificates**.
-2. Select **Add CA** button, and select **Custom** from the dropdown on the top.
-3. Add **Name** for your certificate authority. It's best to use all caps, beacuse it will be used
-   as variable name in configuration profile and name it based on your use case (e.g.
-   WIFI_AUTHENTICATION).
-4. Add **SCEP URL** that accepts the SCEP protocol.
-5. Add **Challenge** password to authenticate Fleet with your SCEP server.
-6. Select **Add CA**, and your custom SCEP certificate authority (CA) should appear in the list.
+1. In Fleet, head to **Settings > **Integrations > Certificates**.
+2. Select the **Add CA** button and select **Custom** in the dropdown.
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). We'll use this name later as variable name in a configuration profile.
+4. Add your **SCEP URL** and **Challenge**.
+6. Select **Add CA**.  Your custom SCEP certificate authority (CA) should appear in the list in Fleet.
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-[Add a configuration profile](https://fleetdm.com/guides/custom-os-settings) in Fleet that includes
-the SCEP payload. In the profile, you will need to set `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`
-as the `Challenge` and `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>` as the `URL`.
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`.
 
-Replace `<CA_NAME>` part of the variable, with name that you used in the section above, to connect
-Fleet to DigiCert (e.g if name of the certificate authority is WIFI_AUTHENTICATION, variable name
-will be `$FLEET_VAR_DIGICERT_PASSWORD_WIFI_AUTHENTICATION` and
-`FLEET_VAR_DIGICERT_DATA_WIFI_AUTHENTICATION`).
+2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
-Adjust the `Subject` values according to your organization's needs. You may set `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if the hosts were enrolled into Fleet MDM using an IdP (Identity Provider). You can also use any of the [Apple profile variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0) to uniquely identify your device.
+3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with end user authentication enabled (learn more [here](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping)). You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
-When sending the profile to hosts, Fleet will replace the variables variables with the proper
-values. Any errors will appear as a **Failed** status on the host details page, in **OS settings**.
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
 #### Example configuration profile
 
