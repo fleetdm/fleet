@@ -76,7 +76,17 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		return ctxerr.Errorf(ctx, "apps list is an incompatible version")
 	}
 
+	currentFMASet, err := ds.ListAllFleetMaintainedApps(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing fleet maintained app slugs in refresh")
+	}
+
+	var appsToRemove []string
+	refreshedApps := make(map[string]struct{})
+
 	for _, app := range appsList.Apps {
+		refreshedApps[app.Slug] = struct{}{}
+
 		if app.UniqueIdentifier == "" {
 			app.UniqueIdentifier = app.Name
 		}
@@ -88,6 +98,19 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 			UniqueIdentifier: app.UniqueIdentifier,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
+		}
+	}
+
+	for _, a := range currentFMASet {
+		if _, ok := refreshedApps[a]; !ok {
+			appsToRemove = append(appsToRemove, a)
+		}
+	}
+
+	if len(appsToRemove) > 0 {
+		// remove apps that were removed upstream
+		if err := ds.DeleteFleetMaintainedAppsBySlugs(ctx, appsToRemove); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting removed maintained apps during refresh")
 		}
 	}
 

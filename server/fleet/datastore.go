@@ -1961,6 +1961,10 @@ type Datastore interface {
 	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
+	ListAllFleetMaintainedApps(ctx context.Context) ([]string, error)
+
+	DeleteFleetMaintainedAppsBySlugs(ctx context.Context, slugs []string) error
+
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.

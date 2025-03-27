@@ -149,7 +149,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet maintained apps")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
@@ -159,4 +159,36 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	}
 
 	return avail, meta, nil
+}
+
+func (ds *Datastore) ListAllFleetMaintainedApps(ctx context.Context) ([]string, error) {
+	stmt := `SELECT slug FROM fleet_maintained_apps`
+
+	var slugs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &slugs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing fleet maintained app slugs")
+	}
+
+	return slugs, nil
+}
+
+func (ds *Datastore) DeleteFleetMaintainedAppsBySlugs(ctx context.Context, slugs []string) error {
+	if len(slugs) == 0 {
+		return nil
+	}
+
+	stmt := `DELETE FROM fleet_maintained_apps WHERE slug IN (?)`
+
+	stmt, args, err := sqlx.In(stmt, slugs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building sqlx.In statement for deleting maintained apps by slug")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting maintained apps by slug")
+	}
+	fmt.Printf("slugs: %v\n", slugs)
+
+	return nil
 }
