@@ -243,7 +243,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryDataForApi?.pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -299,7 +299,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryDataForApi?.pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,

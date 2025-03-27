@@ -130,7 +130,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
-  defaultPageIndex,
+  defaultPageIndex = 0,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   defaultSelectedRows,
@@ -217,23 +217,23 @@ const TableContainer = <T,>({
     setSearchQuery(value.trim());
   };
 
-  const hasPageIndexChangedRef = useRef(false);
+  // const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
       if (!isClientSidePagination) {
         setPageIndex(newPage);
-        hasPageIndexChangedRef.current = true;
+        // hasPageIndexChangedRef.current = true;
       }
     },
-    [hasPageIndexChangedRef, isClientSidePagination]
+    [isClientSidePagination]
   );
 
   // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
-      onPaginationChange(0);
-    }
-  }, [resetPageIndex, pageIndex, isClientSidePagination]);
+  // useEffect(() => {
+  //   if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
+  //     onPaginationChange(0);
+  //   }
+  // }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -267,6 +267,7 @@ const TableContainer = <T,>({
     pageIndex,
     additionalQueries,
   ]);
+
   /** This is server side pagination. Clientside pagination is handled in
    * data table using react-table builtins */
   const renderServersidePagination = useCallback(() => {
@@ -277,8 +278,8 @@ const TableContainer = <T,>({
       <Pagination
         disablePrev={defaultPageIndex === 0}
         disableNext={disableNextPage || data.length < pageSize}
-        onPrevPage={() => onPaginationChange(pageIndex - 1)}
-        onNextPage={() => onPaginationChange(pageIndex + 1)}
+        onPrevPage={() => onPaginationChange(defaultPageIndex - 1)}
+        onNextPage={() => onPaginationChange(defaultPageIndex + 1)}
         hidePagination={
           (disableNextPage || data.length < pageSize) && defaultPageIndex === 0
         }
@@ -290,7 +291,6 @@ const TableContainer = <T,>({
     isClientSidePagination,
     disableNextPage,
     defaultPageIndex,
-    pageIndex,
     pageSize,
     onPaginationChange,
   ]);
