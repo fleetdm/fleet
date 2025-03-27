@@ -539,13 +539,30 @@ db-restore:
 
 
 # Interactive snapshot / restore
+.help-short--snap .help-short--snapshot:
+	@echo "Snapshot the database"
+.help-long--snap .help-long--snapshot:
+	@echo "Interactively take a snapshot of the present database state. Restore snapshots with \`$(TOOL_CMD) restore\`."	
+
 SNAPSHOT_BINARY = ./build/snapshot
 snap snapshot: $(SNAPSHOT_BINARY)
 	@ $(SNAPSHOT_BINARY) snapshot
 $(SNAPSHOT_BINARY): tools/snapshot/*.go
 	cd tools/snapshot && go build -o ../../build/snapshot
+
+.help-short--restore:
+	@echo "Restore a database snapshot"
+.help-long--restore:
+	@echo "Restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."	
+
+
 restore: $(SNAPSHOT_BINARY)
-	@ $(SNAPSHOT_BINARY) restore
+	@$(SNAPSHOT_BINARY) restore
+	@if [[ "$(PREP)" == "true" || "$(PREPARE)" == "true" ]]; then \
+		echo "Running migrations..."; \
+		./build/fleet prepare db --dev; \
+	fi
+	@echo Done!
 
 # Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
