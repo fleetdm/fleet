@@ -76,7 +76,7 @@ export const PlatformSelector = ({
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target:</span>
+      <span className={labelClasses}>Target</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}

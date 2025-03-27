@@ -558,7 +558,7 @@ const PolicyForm = ({
     if (isEditMode) {
       return (
         <div className={`form-field ${baseClass}__policy-resolve`}>
-          <div className="form-field__label">Resolve:</div>
+          <div className="form-field__label">Resolve</div>
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={16}
@@ -751,6 +751,7 @@ const PolicyForm = ({
                   Query will target hosts that <b>have any</b> of these labels:
                 </span>
               }
+              title={null}
             />
           )}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
