@@ -1290,6 +1290,10 @@ type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.S
 
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
 
+type DeleteScimUserFunc func(ctx context.Context, id uint) error
+
+type ListScimUsersFunc func(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3192,6 +3196,12 @@ type DataStore struct {
 
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
+
+	DeleteScimUserFunc        DeleteScimUserFunc
+	DeleteScimUserFuncInvoked bool
+
+	ListScimUsersFunc        ListScimUsersFunc
+	ListScimUsersFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7632,4 +7642,18 @@ func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) e
 	s.ReplaceScimUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceScimUserFunc(ctx, user)
+}
+
+func (s *DataStore) DeleteScimUser(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteScimUserFunc(ctx, id)
+}
+
+func (s *DataStore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error) {
+	s.mu.Lock()
+	s.ListScimUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListScimUsersFunc(ctx, opts)
 }

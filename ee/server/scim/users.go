@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
@@ -43,6 +43,29 @@ func NewUserHandler(ds fleet.Datastore) scim.ResourceHandler {
 var mu sync.RWMutex
 var users = make(map[uint]scim.Resource)
 
+// normalizeEmail
+// The local-part of a mailbox MUST BE treated as case sensitive.
+// Mailbox domains follow normal DNS rules and are hence not case sensitive.
+// https://datatracker.ietf.org/doc/html/rfc5321#section-2.4
+func normalizeEmail(email string) (string, error) {
+	email = removeWhitespace(email)
+	emailParts := strings.SplitN(email, "@", 2)
+	if len(emailParts) != 2 {
+		return "", fmt.Errorf("invalid email %s", email)
+	}
+	emailParts[1] = strings.ToLower(emailParts[1])
+	return strings.Join(emailParts, "@"), nil
+}
+
+func removeWhitespace(str string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, str)
+}
+
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	// Check for userName uniqueness
 	userName, err := getRequiredResource(attributes, userNameAttr)
@@ -58,15 +81,12 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 	if err != nil {
 		return scim.Resource{}, err
 	}
-	userID, err := u.ds.CreateScimUser(r.Context(), user)
+	user.ID, err = u.ds.CreateScimUser(r.Context(), user)
 	if err != nil {
 		return scim.Resource{}, err
 	}
 
-	return scim.Resource{
-		ID:         fmt.Sprintf("%d", userID),
-		Attributes: attributes,
-	}, nil
+	return createUserResource(user), nil
 }
 
 func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUser, error) {
@@ -106,6 +126,12 @@ func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUs
 		userEmail.Email, err = getRequiredResource(email, "value")
 		if err != nil {
 			return nil, err
+		}
+		// Service providers SHOULD canonicalize the value according to [RFC5321]
+		// https://datatracker.ietf.org/doc/html/rfc7643#section-4.1.2
+		userEmail.Email, err = normalizeEmail(userEmail.Email)
+		if err != nil {
+			return nil, errors.ScimErrorBadParams([]string{"value"})
 		}
 		userEmail.Type, err = getOptionalResource[string](email, "type")
 		if err != nil {
@@ -195,8 +221,12 @@ func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 		return scim.Resource{}, err
 	}
 
+	return createUserResource(user), nil
+}
+
+func createUserResource(user *fleet.ScimUser) scim.Resource {
 	userResource := scim.Resource{}
-	userResource.ID = id
+	userResource.ID = fmt.Sprintf("%d", user.ID)
 	if user.ExternalID != nil {
 		userResource.ExternalID = optional.NewString(*user.ExternalID)
 	}
@@ -228,18 +258,40 @@ func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 		}
 		userResource.Attributes[emailsAttr] = emails
 	}
-
-	return userResource, nil
+	return userResource
 }
 
 // GetAll
 // Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2
 //
+// Providers MUST decline to filter results if the specified filter operation is not recognized and return an HTTP 400 error with a
+// "scimType" error of "invalidFilter" and an appropriate human-readable response as per Section 3.12.  For example, if a client specified an
+// unsupported operator named 'regex', the service provider should specify an error response description identifying the client error,
+// e.g., 'The operator 'regex' is not supported.'
+//
 // If a SCIM service provider determines that too many results would be returned the server base URI, the server SHALL reject the request by
 // returning an HTTP response with HTTP status code 400 (Bad Request) and JSON attribute "scimType" set to "tooMany" (see Table 9).
+//
+// totalResults: The total number of results returned by the list or query operation.  The value may be larger than the number of
+// resources returned, such as when returning a single page (see Section 3.4.2.4) of results where multiple pages are available.
 func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
+	page := params.StartIndex
+	if page < 1 {
+		page = 1
+	}
+	count := params.Count
+	if count > maxResults {
+		return scim.Page{}, errors.ScimErrorTooMany
+	}
+	if count < 1 {
+		count = maxResults
+	}
 
+	opts := fleet.ScimUsersListOptions{
+		Page:    uint(page),  // nolint:gosec // ignore G115
+		PerPage: uint(count), // nolint:gosec // ignore G115
+	}
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
 		expr, err := filter.ParseAttrExp([]byte(resourceFilter))
@@ -247,62 +299,33 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 			return scim.Page{}, errors.ScimErrorInvalidFilter
 		}
 		if !strings.EqualFold(expr.AttributePath.String(), "userName") || expr.Operator != "eq" {
-			return scim.Page{}, errors.ScimErrorInvalidFilter
+			return scim.Page{}, nil
 		}
 		userName, ok := expr.CompareValue.(string)
 		if !ok {
-			return scim.Page{}, errors.ScimErrorInvalidFilter
+			return scim.Page{}, nil
 		}
 
 		// Decode URL-encoded characters in userName, which is required to pass Microsoft Entra ID SCIM Validator
 		userName, err = url.QueryUnescape(userName)
 		if err != nil {
-			return scim.Page{}, errors.ScimErrorInvalidFilter
+			return scim.Page{}, nil
 		}
-
-		for _, user := range users {
-			if user.Attributes["userName"] == userName {
-				return scim.Page{
-					TotalResults: 1,
-					Resources:    []scim.Resource{user},
-				}, nil
-			}
-		}
-		return scim.Page{}, nil
+		opts.UserNameFilter = &userName
+	}
+	users, totalResults, err := u.ds.ListScimUsers(r.Context(), opts)
+	if err != nil {
+		return scim.Page{}, err
 	}
 
-	mu.RLock()
-	defer mu.RUnlock()
-
-	// Convert users keys into a slice of uint
-	keys := make([]uint, 0, len(users))
-	for k := range users {
-		keys = append(keys, k)
-	}
-	// Sort the keys
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
-
-	startIndex := params.StartIndex - 1
-	if startIndex < 0 {
-		startIndex = 0
-	}
-	if startIndex >= len(keys) {
-		return scim.Page{}, nil
-	}
-	endIndex := startIndex + params.Count
-	if endIndex > len(keys) {
-		endIndex = len(keys)
-	}
-	keysToReturn := keys[startIndex:endIndex]
 	result := scim.Page{
-		TotalResults: endIndex - startIndex,
-		Resources:    make([]scim.Resource, 0, len(keysToReturn)),
+		TotalResults: int(totalResults), // nolint:gosec // ignore G115
+		Resources:    make([]scim.Resource, 0, len(users)),
 	}
-	for _, key := range keysToReturn {
-		result.Resources = append(result.Resources, users[key])
+	for _, user := range users {
+		result.Resources = append(result.Resources, createUserResource(&user))
 	}
+
 	return result, nil
 }
 
@@ -325,10 +348,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		return scim.Resource{}, err
 	}
 
-	return scim.Resource{
-		ID:         id,
-		Attributes: attributes,
-	}, nil
+	return createUserResource(user), nil
 }
 
 // Delete

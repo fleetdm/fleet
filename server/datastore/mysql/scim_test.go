@@ -22,6 +22,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"DeleteScimUser", testDeleteScimUser},
+		{"ListScimUsers", testListScimUsers},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -327,4 +328,166 @@ func testDeleteScimUser(t *testing.T, ds *Datastore) {
 	// Test deleting a non-existent user
 	err = ds.DeleteScimUser(context.Background(), 99999) // Non-existent ID
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testListScimUsers(t *testing.T, ds *Datastore) {
+	// Create test users with different attributes and emails
+	users := []fleet.ScimUser{
+		{
+			UserName:   "list-test-user1",
+			ExternalID: ptr.String("ext-list-123"),
+			GivenName:  ptr.String("List"),
+			FamilyName: ptr.String("User1"),
+			Active:     ptr.Bool(true),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "list.user1@example.com",
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+			},
+		},
+		{
+			UserName:   "list-test-user2",
+			ExternalID: ptr.String("ext-list-456"),
+			GivenName:  ptr.String("List"),
+			FamilyName: ptr.String("User2"),
+			Active:     ptr.Bool(true),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "list.user2@example.com",
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+				{
+					Email:   "personal.user2@example.com",
+					Primary: ptr.Bool(false),
+					Type:    ptr.String("home"),
+				},
+			},
+		},
+		{
+			UserName:   "different-user3",
+			ExternalID: ptr.String("ext-list-789"),
+			GivenName:  ptr.String("Different"),
+			FamilyName: ptr.String("User3"),
+			Active:     ptr.Bool(false),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "different.user3@example.com",
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+			},
+		},
+	}
+
+	// Create the users
+	for i := range users {
+		var err error
+		users[i].ID, err = ds.CreateScimUser(context.Background(), &users[i])
+		require.Nil(t, err)
+	}
+
+	// Test 1: List all users without filters
+	allUsers, totalResults, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:    1,
+		PerPage: 10,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, 3, len(allUsers))
+	assert.Equal(t, uint(3), totalResults)
+
+	// Verify that our test users are in the results
+	foundUsers := 0
+	for _, u := range allUsers {
+		for _, testUser := range users {
+			if u.ID == testUser.ID {
+				foundUsers++
+				break
+			}
+		}
+	}
+	assert.Equal(t, 3, foundUsers)
+
+	// Test 2: Pagination - first page with 2 items
+	page1Users, totalPage1, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:    1,
+		PerPage: 2,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(page1Users))
+	assert.Equal(t, uint(3), totalPage1) // Total should still be 3
+
+	// Test 3: Pagination - second page with 2 items
+	page2Users, totalPage2, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:    2,
+		PerPage: 2,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(page2Users))
+	assert.Equal(t, uint(3), totalPage2) // Total should still be 3
+
+	// Verify that page1 and page2 contain different users
+	for _, p1User := range page1Users {
+		for _, p2User := range page2Users {
+			assert.NotEqual(t, p1User.ID, p2User.ID, "Users should not appear on multiple pages")
+		}
+	}
+
+	// Test 4: Filter by username
+	listUsers, totalListUsers, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:           1,
+		PerPage:        10,
+		UserNameFilter: ptr.String("list-test-user2"),
+	})
+
+	require.Nil(t, err)
+	require.Len(t, listUsers, 1)
+	assert.Equal(t, uint(1), totalListUsers)
+	assert.Equal(t, "list-test-user2", listUsers[0].UserName)
+
+	// Test 5: Filter by email type and value
+	homeEmailUsers, totalHomeEmailUsers, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:             1,
+		PerPage:          10,
+		EmailTypeFilter:  ptr.String("home"),
+		EmailValueFilter: ptr.String("personal.user2@example.com"),
+	})
+	require.Nil(t, err)
+	require.Len(t, homeEmailUsers, 1)
+	assert.Equal(t, uint(1), totalHomeEmailUsers)
+	assert.Equal(t, users[1].ID, homeEmailUsers[0].ID)
+	assert.Equal(t, 2, len(homeEmailUsers[0].Emails))
+
+	// Test 6: Filter by email type and value - work emails
+	workEmailUsers, totalWorkEmailUsers, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:             1,
+		PerPage:          10,
+		EmailTypeFilter:  ptr.String("work"),
+		EmailValueFilter: ptr.String("different.user3@example.com"),
+	})
+	require.Nil(t, err)
+	assert.Len(t, workEmailUsers, 1)
+	assert.Equal(t, uint(1), totalWorkEmailUsers)
+
+	// Test 7: No results for non-matching filters
+	noUsers, totalNoUsers1, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:           1,
+		PerPage:        10,
+		UserNameFilter: ptr.String("nonexistent"),
+	})
+	require.Nil(t, err)
+	assert.Empty(t, noUsers)
+	assert.Equal(t, uint(0), totalNoUsers1)
+
+	noUsers, totalNoUsers2, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
+		Page:             1,
+		PerPage:          10,
+		EmailTypeFilter:  ptr.String("nonexistent"),
+		EmailValueFilter: ptr.String("nonexistent"),
+	})
+	require.Nil(t, err)
+	assert.Empty(t, noUsers)
+	assert.Equal(t, uint(0), totalNoUsers2)
 }

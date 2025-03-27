@@ -18,3 +18,20 @@ type ScimUserEmail struct {
 	Primary    *bool   `db:"primary"`
 	Type       *string `db:"type"`
 }
+
+type ScimUsersListOptions struct {
+	// Which page to return (must be positive integer)
+	Page uint
+	// How many results per page (must be positive integer)
+	PerPage uint
+
+	// UserNameFilter filters by userName -- max of 1 response is expected
+	// Cannot be used with other filters.
+	UserNameFilter *string
+
+	// EmailTypeFilter and EmailValueFilter are needed to support Entra ID filter: emails[type eq "work"].value eq "user@contoso.com"
+	// https://learn.microsoft.com/en-us/entra/identity/app-provisioning/use-scim-to-provision-users-and-groups#users
+	// Cannot be used with other filters.
+	EmailTypeFilter  *string
+	EmailValueFilter *string
+}

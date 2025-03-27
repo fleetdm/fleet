@@ -12,6 +12,10 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+const (
+	maxResults = 1000
+)
+
 func RegisterSCIM(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
@@ -19,9 +23,10 @@ func RegisterSCIM(
 ) error {
 	config := scim.ServiceProviderConfig{
 		// TODO: DocumentationURI and Authentication scheme
+		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
 		SupportFiltering: true,
 		SupportPatch:     true,
-		MaxResults:       1000,
+		MaxResults:       maxResults,
 	}
 
 	// The common attributes are id, externalId, and meta.

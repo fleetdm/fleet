@@ -2022,6 +2022,8 @@ type Datastore interface {
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 	// DeleteScimUser deletes a SCIM user from the database
 	DeleteScimUser(ctx context.Context, id uint) error
+	// ListScimUsers retrieves a list of SCIM users with optional filtering
+	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 }
 
 type AndroidDatastore interface {

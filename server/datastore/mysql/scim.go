@@ -214,6 +214,106 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 	})
 }
 
+// ListScimUsers retrieves a list of SCIM users with optional filtering
+func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error) {
+	// Default pagination values if not provided
+	if opts.Page == 0 {
+		opts.Page = 1
+	}
+	if opts.PerPage == 0 {
+		opts.PerPage = 100
+	}
+
+	// Calculate offset for pagination
+	offset := (opts.Page - 1) * opts.PerPage
+
+	// Build the base query
+	baseQuery := `
+		SELECT DISTINCT
+			id, external_id, user_name, given_name, family_name, active
+		FROM scim_users
+	`
+
+	// Add joins and where clauses based on filters
+	var whereClause string
+	var params []interface{}
+
+	if opts.UserNameFilter != nil {
+		// Filter by username
+		whereClause = " WHERE scim_users.user_name = ?"
+		params = append(params, *opts.UserNameFilter)
+	} else if opts.EmailTypeFilter != nil && opts.EmailValueFilter != nil {
+		// Filter by email type and value
+		baseQuery += " LEFT JOIN scim_user_emails ON scim_users.id = scim_user_emails.scim_user_id"
+		whereClause = " WHERE scim_user_emails.type = ? AND scim_user_emails.email = ?"
+		params = append(params, *opts.EmailTypeFilter, *opts.EmailValueFilter)
+	}
+
+	// First, get the total count without pagination
+	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + whereClause + ") AS filtered_users"
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalResults, countQuery, params...)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "count total scim users")
+	}
+
+	// Add pagination to the main query
+	query := baseQuery + whereClause + " ORDER BY scim_users.id LIMIT ? OFFSET ?"
+	params = append(params, opts.PerPage, offset)
+
+	// Execute the query
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, params...)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "list scim users")
+	}
+
+	// Process the results
+	userIDs := make([]uint, 0, len(users))
+	userMap := make(map[uint]*fleet.ScimUser, len(users))
+
+	for i, user := range users {
+		userIDs = append(userIDs, user.ID)
+		userMap[user.ID] = &users[i]
+	}
+
+	// If no users found, return empty slice
+	if len(users) == 0 {
+		return users, totalResults, nil
+	}
+
+	// Fetch emails for all users in a single query
+	emailQuery, args, err := sqlx.In(`
+		SELECT
+			scim_user_id, email, `+"`primary`"+`, type
+		FROM scim_user_emails
+		WHERE scim_user_id IN (?)
+		ORDER BY email ASC
+	`, userIDs)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "prepare emails query")
+	}
+
+	// Convert query for the specific DB dialect
+	emailQuery = ds.reader(ctx).Rebind(emailQuery)
+
+	// Execute the email query
+	var allEmails []fleet.ScimUserEmail
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allEmails, emailQuery, args...); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, 0, ctxerr.Wrap(ctx, err, "select scim user emails")
+		}
+	}
+
+	// Associate emails with their users
+	for i := range allEmails {
+		email := allEmails[i]
+		if user, ok := userMap[email.ScimUserID]; ok {
+			user.Emails = append(user.Emails, email)
+		}
+	}
+
+	return users, totalResults, nil
+}
+
 // getScimUserEmails retrieves all emails for a SCIM user
 func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]fleet.ScimUserEmail, error) {
 	const query = `
