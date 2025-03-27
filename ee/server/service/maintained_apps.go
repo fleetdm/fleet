@@ -126,7 +126,7 @@ func (svc *Service) AddFleetMaintainedApp(
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:         installerTFR,
-		Title:                 app.Name,
+		Title:                 appName,
 		UserID:                vc.UserID(),
 		TeamID:                teamID,
 		Version:               app.Version,
