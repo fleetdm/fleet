@@ -23,14 +23,14 @@ func Up_20220704101843(tx *sql.Tx) error {
 
 	}
 
-	var min int
-	var max int
+	var minVal int
+	var maxVal int
 
 	const selectStmt = `
 SELECT COALESCE(MIN(cve.id), 0) AS min_id, COALESCE(MAX(cve.id), 0) as max_id 
 FROM software_cve AS cve
 WHERE cve.software_id IS NULL;`
-	if err := tx.QueryRow(selectStmt).Scan(&min, &max); err != nil {
+	if err := tx.QueryRow(selectStmt).Scan(&minVal, &maxVal); err != nil {
 		return errors.Wrap(err, "selecting min,max id")
 	}
 
@@ -42,15 +42,15 @@ INNER JOIN software_cpe AS cpe ON cve.cpe_id = cpe.id
 SET cve.software_id = cpe.software_id 
 WHERE cve.software_id IS NULL AND cve.id >= ? AND cve.id < ?;`
 
-	if min != 0 || max != 0 {
-		fmt.Printf("Updating aprox %d records... \n", max-min)
+	if minVal != 0 || maxVal != 0 {
+		fmt.Printf("Updating aprox %d records... \n", maxVal-minVal)
 	}
 
-	start := min
+	start := minVal
 	for {
 		end := start + batchSize
-		if end >= max {
-			end = max + 1
+		if end >= maxVal {
+			end = maxVal + 1
 		}
 
 		_, err := tx.Exec(updateStmt, start, end)
@@ -59,7 +59,7 @@ WHERE cve.software_id IS NULL AND cve.id >= ? AND cve.id < ?;`
 		}
 
 		start += batchSize
-		if start >= max {
+		if start >= maxVal {
 			break
 		}
 	}
