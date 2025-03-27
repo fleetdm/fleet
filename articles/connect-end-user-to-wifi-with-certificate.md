@@ -312,9 +312,10 @@ values. Any errors will appear as a **Failed** status on the host details page, 
 
 ## How does Fleet SCEP proxy works (NDES and custom SCEP)
 
-The SCEP proxy in Fleet acts as a middleman between the device and the NDES or custom SCEP server.
-When a device requests a certificate, the Fleet's SCEP proxy forwards the request to the NDES or
-custom SCEP server, retrieves the certificate, and sends it back to the device. In addition, the
+Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or
+custom SCEP server, retrieves the certificate, and sends it back to the host. 
+
+In addition, Fleet does the following:
 SCEP proxy:
 
 - Retrieves the one-time challenge password from NDES. The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface. Retrieving passwords for many hosts at once may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
