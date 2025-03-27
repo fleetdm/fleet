@@ -6632,6 +6632,7 @@ None.
 ### Get Android Enterprise
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 Get info about Android Enterprise that's connected to Fleet.
 
 `GET /api/v1/fleet/android_enterprise`
