@@ -2679,8 +2679,8 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     },
     {
       "platform": "Android",
-      "hosts_count": 12044
-    },
+      "hosts_count": 200
+    }
   ]
 }
 ```
