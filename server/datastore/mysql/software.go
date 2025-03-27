@@ -3319,8 +3319,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, ctxerr.Wrap(ctx, err, "Could not get software installed paths")
 		}
 		installedPathBySoftwareId := make(map[uint][]string)
+		pathSignatureInformation := make(map[uint][]fleet.PathSignatureInformation)
 		for _, ip := range installedPaths {
 			installedPathBySoftwareId[ip.SoftwareID] = append(installedPathBySoftwareId[ip.SoftwareID], ip.InstalledPath)
+			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
+				InstalledPath:  ip.InstalledPath,
+				TeamIdentifier: ip.TeamIdentifier,
+			})
 		}
 
 		// Group by software titles because multiple versions are returned and appends them to InstalledVersions
@@ -3349,11 +3354,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				if software, ok := bySoftwareID[*softwareTitleRecord.SoftwareID]; ok {
 					// Find installed path
 					paths := installedPathBySoftwareId[*softwareTitleRecord.SoftwareID]
+					signatureInformation := pathSignatureInformation[*softwareTitleRecord.SoftwareID]
 					version.Version = *softwareTitleRecord.Version
 					version.Source = *softwareTitleRecord.SoftwareSource
 					version.BundleIdentifier = *softwareTitleRecord.BundleIdentifier
 					version.LastOpenedAt = software.LastOpenedAt
 					version.InstalledPaths = paths
+
+					if version.Source == "apps" {
+						version.SignatureInformation = signatureInformation
+					}
 
 					if softwareTitleRecord.VulnerabilitiesList != nil {
 						rawVulnerabilities := strings.Split(*softwareTitleRecord.VulnerabilitiesList, ",")
@@ -3389,7 +3399,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					}
 				}
 			} else {
-				if version.Version != "" {
+				if softwareTitleRecord.SoftwareID != nil {
 					softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
 				}
 
