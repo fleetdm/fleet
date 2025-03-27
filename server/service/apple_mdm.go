@@ -4724,7 +4724,8 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 	_ = xml.EscapeText(buf, []byte(replacement))
 
 	// We are replacing an exact variable, which should be present in XML like: <something>$FLEET_VAR_OUR_VAR</something>
-	// We strip the leading/trailing whitespace since our plist parser ignores spaces in plist data, but we don't want them to remain in XML
+	// We strip the leading/trailing whitespace since we don't want them to remain in XML
+	// Our plist parser ignores spaces in <data> type. We don't catch this issue at profile validation, so we handle it here.
 	fleetVar := "FLEET_VAR_" + prefix + suffix
 	re, err := regexp.Compile(fmt.Sprintf(`>\s*((\$%s)|(\${%s}))\s*<`, fleetVar, fleetVar))
 	if err != nil {
