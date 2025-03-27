@@ -133,6 +133,7 @@ controls:
     - path: ../lib/macos/scripts/system-maintenance.sh
     - path: ../lib/macos/scripts/santa-block-script.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
