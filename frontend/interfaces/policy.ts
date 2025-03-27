@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IScript } from "./script";
+import { ILabelPolicy } from "./label";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -44,6 +45,8 @@ export interface IPolicy {
   calendar_events_enabled: boolean;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  labels_include_any?: ILabelPolicy[];
+  labels_exclude_any?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;

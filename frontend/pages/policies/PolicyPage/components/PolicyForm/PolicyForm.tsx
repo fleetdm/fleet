@@ -112,11 +112,48 @@ const PolicyForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
 
-  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
-    "labelsIncludeAny"
+  // Note: The PolicyContext values should always be used for any mutable policy data such as query name
+  // The storedPolicy prop should only be used to access immutable metadata such as author id
+  const {
+    lastEditedQueryId,
+    lastEditedQueryName,
+    lastEditedQueryDescription,
+    lastEditedQueryBody,
+    lastEditedQueryResolution,
+    lastEditedQueryCritical,
+    lastEditedQueryPlatform,
+    lastEditedQueryLabelsIncludeAny,
+    lastEditedQueryLabelsExcludeAny,
+    defaultPolicy,
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
+    setLastEditedQueryPlatform,
+  } = useContext(PolicyContext);
+
+  const [selectedTargetType, setSelectedTargetType] = useState(
+    !lastEditedQueryLabelsIncludeAny.length &&
+      !lastEditedQueryLabelsExcludeAny.length
+      ? "All hosts"
+      : "Custom"
   );
-  const [selectedLabels, setSelectedLabels] = useState({});
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    lastEditedQueryLabelsExcludeAny.length
+      ? "labelsExcludeAny"
+      : "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState(
+    lastEditedQueryLabelsIncludeAny
+      .concat(lastEditedQueryLabelsExcludeAny)
+      .reduce((acc, label) => {
+        return {
+          ...acc,
+          [label.name]: true,
+        };
+      }, {}) || {}
+  );
 
   const onSelectLabel = ({
     name: labelName,
@@ -130,25 +167,6 @@ const PolicyForm = ({
       [labelName]: value,
     });
   };
-
-  // Note: The PolicyContext values should always be used for any mutable policy data such as query name
-  // The storedPolicy prop should only be used to access immutable metadata such as author id
-  const {
-    lastEditedQueryId,
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryBody,
-    lastEditedQueryResolution,
-    lastEditedQueryCritical,
-    lastEditedQueryPlatform,
-    defaultPolicy,
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryResolution,
-    setLastEditedQueryCritical,
-    setLastEditedQueryPlatform,
-  } = useContext(PolicyContext);
 
   const {
     currentUser,
@@ -676,6 +694,10 @@ const PolicyForm = ({
     const disableSaveFormErrors =
       (isEditMode && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
+      (selectedTargetType === "Custom" &&
+        !Object.entries(selectedLabels).some(([, value]) => {
+          return value;
+        })) ||
       !!size(errors);
 
     return (
