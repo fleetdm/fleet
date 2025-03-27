@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -73,12 +74,14 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		return ctxerr.Wrap(ctx, err, "unmarshal apps list")
 	}
 	if appsList.Version != 2 {
-		return ctxerr.Errorf(ctx, "apps list is an incompatible version")
+		return ctxerr.New(ctx, "apps list is an incompatible version")
 	}
 
-	currentFMASet, err := ds.ListAllFleetMaintainedApps(ctx)
+	currentFMASet, _, err := ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.ListOptions{})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing fleet maintained app slugs in refresh")
+		if !errors.Is(err, &fleet.NoMaintainedAppsInDatabaseError{}) {
+			return ctxerr.Wrap(ctx, err, "listing fleet maintained app slugs in refresh")
+		}
 	}
 
 	var appsToRemove []string
@@ -102,8 +105,8 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 	}
 
 	for _, a := range currentFMASet {
-		if _, ok := refreshedApps[a]; !ok {
-			appsToRemove = append(appsToRemove, a)
+		if _, ok := refreshedApps[a.Slug]; !ok {
+			appsToRemove = append(appsToRemove, a.Slug)
 		}
 	}
 

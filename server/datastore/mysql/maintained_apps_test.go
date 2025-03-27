@@ -22,6 +22,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
+		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 	}
 
 	for _, c := range cases {
@@ -424,4 +425,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
+}
+
+func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {
+	maintained_apps.SyncAndRemoveApps(t, ds)
 }

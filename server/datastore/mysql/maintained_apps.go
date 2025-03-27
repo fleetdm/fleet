@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -92,21 +91,6 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 	return &app, nil
 }
 
-// NoMaintainedAppsInDatabase is the error type for no Fleet Maintained Apps in the database
-type NoMaintainedAppsInDatabase struct {
-	fleet.ErrorWithUUID
-}
-
-// Error implements the error interface.
-func (e *NoMaintainedAppsInDatabase) Error() string {
-	return `Fleet was unable to ingest the maintained apps list. Run fleetctl trigger name=maintained_apps to try repopulating the apps list.`
-}
-
-// StatusCode implements the go-kit http StatusCoder interface.
-func (e *NoMaintainedAppsInDatabase) StatusCode() int {
-	return http.StatusNotFound
-}
-
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	stmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var args []any
@@ -141,7 +125,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		}
 
 		if totalCount == 0 {
-			return nil, nil, &NoMaintainedAppsInDatabase{}
+			return nil, nil, &fleet.NoMaintainedAppsInDatabaseError{}
 		}
 	}
 
@@ -161,17 +145,6 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	return avail, meta, nil
 }
 
-func (ds *Datastore) ListAllFleetMaintainedApps(ctx context.Context) ([]string, error) {
-	stmt := `SELECT slug FROM fleet_maintained_apps`
-
-	var slugs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &slugs, stmt); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing fleet maintained app slugs")
-	}
-
-	return slugs, nil
-}
-
 func (ds *Datastore) DeleteFleetMaintainedAppsBySlugs(ctx context.Context, slugs []string) error {
 	if len(slugs) == 0 {
 		return nil
@@ -188,7 +161,6 @@ func (ds *Datastore) DeleteFleetMaintainedAppsBySlugs(ctx context.Context, slugs
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting maintained apps by slug")
 	}
-	fmt.Printf("slugs: %v\n", slugs)
 
 	return nil
 }
