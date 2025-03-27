@@ -52,9 +52,9 @@ const CustomSCEPForm = ({
   const [
     formValidation,
     setFormValidation,
-  ] = useState<ICustomSCEPFormValidation>({
-    isValid: false,
-  });
+  ] = useState<ICustomSCEPFormValidation>(() =>
+    validateFormData(formData, validations)
+  );
 
   const { name, scepURL, challenge } = formData;
 
@@ -102,7 +102,6 @@ const CustomSCEPForm = ({
           value={challenge}
           onChange={onInputChange}
           parseTarget
-          placeholder="••••••••••••"
           helpText="Password to authenticate with a SCEP server."
         />
       </div>

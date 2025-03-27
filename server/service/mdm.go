@@ -30,8 +30,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
@@ -1406,9 +1408,14 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		SyncML: b,
 	}
 	if err := cp.ValidateUserProvided(); err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
+			return nil, ctxerr.Wrap(ctx,
+				&fleet.BadRequestError{Message: msg + " To control these settings use disk encryption endpoint."})
+		}
+
 		// this is not great, but since the validations are shared between the CLI
 		// and the API, we must make some changes to error message here.
-		msg := err.Error()
 		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
 			msg = strings.TrimSpace(msg[:ix])
 		}
@@ -1992,8 +1999,14 @@ func getAppleProfiles(
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
+			var iae *fleet.InvalidArgumentError
+			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
+				iae = fleet.NewInvalidArgumentError(prof.Name,
+					mobileconfig.DiskEncryptionProfileRestrictionErrMsg+` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`)
+			} else {
+				iae = fleet.NewInvalidArgumentError(prof.Name, err.Error())
+			}
+			return nil, nil, ctxerr.Wrap(ctx, iae)
 		}
 
 		if mdmProf.Name != prof.Name {
@@ -2086,8 +2099,12 @@ func getWindowsProfiles(
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
+			msg := err.Error()
+			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
+				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
+			}
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), err.Error()))
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))
 		}
 
 		profs[i] = mdmProf

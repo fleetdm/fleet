@@ -28,6 +28,7 @@ interface ISoftwareOptionsSelector {
   isExePackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
+  disableOptions?: boolean;
 }
 
 const SoftwareOptionsSelector = ({
@@ -39,14 +40,18 @@ const SoftwareOptionsSelector = ({
   isCustomPackage,
   isExePackage,
   isEditingSoftware,
+  disableOptions = false,
 }: ISoftwareOptionsSelector) => {
   const classNames = classnames(baseClass, className);
 
-  const isSelfServiceDisabled = platform === "ios" || platform === "ipados";
+  const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
+  const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
-    platform === "ios" || platform === "ipados" || isExePackage;
+    disableOptions || isPlatformIosOrIpados || isExePackage;
 
-  /** Tooltip for auto install is enabled or exe package */
+  /** Tooltip only shows when enabled or for exe package */
+  const showAutomaticInstallTooltip =
+    !isAutomaticInstallDisabled || isExePackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage) {
       return (
@@ -64,7 +69,7 @@ const SoftwareOptionsSelector = ({
   return (
     <div className="form-field">
       <div className="form-field__label">Options</div>
-      {isSelfServiceDisabled && (
+      {isPlatformIosOrIpados && (
         <p>
           Currently, self-service and automatic installation are not available
           for iOS and iPadOS. Manually install on the <b>Host details</b> page
@@ -86,8 +91,7 @@ const SoftwareOptionsSelector = ({
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
           tooltipContent={
-            (!isAutomaticInstallDisabled || isExePackage) &&
-            getAutomaticInstallTooltip()
+            showAutomaticInstallTooltip && getAutomaticInstallTooltip()
           }
           disabled={isAutomaticInstallDisabled}
         >

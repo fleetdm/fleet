@@ -2346,11 +2346,20 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 			mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -3203,8 +3212,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("foo.txt", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 
 	// Windows-reserved LocURI
-	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest, "Couldn't add. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest, "Couldn't add. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest,
+		syncml.DiskEncryptionProfileRestrictionErrMsg)
+	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest,
+		"Couldn't add. Custom configuration profiles can't include Windows updates settings.")
 
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
@@ -4298,13 +4309,22 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -4354,7 +4374,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -4573,12 +4593,21 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -4599,7 +4628,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		"N3":                              syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{

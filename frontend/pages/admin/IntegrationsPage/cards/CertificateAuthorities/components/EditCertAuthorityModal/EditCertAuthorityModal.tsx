@@ -15,6 +15,7 @@ import {
   generateDefaultFormData,
   getErrorMessage,
   getCertificateAuthorityType,
+  updateFormData,
 } from "./helpers";
 
 import DigicertForm from "../DigicertForm";
@@ -49,11 +50,7 @@ const EditCertAuthorityModal = ({
   const onChangeForm = (update: { name: string; value: string }) => {
     setFormData((prevFormData) => {
       if (!prevFormData) return prevFormData;
-
-      return {
-        ...prevFormData,
-        [update.name]: update.value,
-      };
+      return updateFormData(certAuthority, prevFormData, update);
     });
   };
 
