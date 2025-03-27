@@ -124,7 +124,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		Name:             "Maintained4",
 		Slug:             "maintained4",
 		Platform:         "windows",
-		UniqueIdentifier: "fleet.maintained4",
+		UniqueIdentifier: "Maintained4 (MSI)",
 	})
 	require.NoError(t, err)
 
@@ -297,7 +297,7 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	// add windows app
 	_, windowsTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "Maintained4",
+		Title:           maintained4.Name,
 		TeamID:          &team1.ID,
 		InstallScript:   "nothing",
 		Filename:        "foo.msi",
