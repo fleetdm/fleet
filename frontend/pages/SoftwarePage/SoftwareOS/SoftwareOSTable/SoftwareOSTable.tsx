@@ -257,7 +257,7 @@ const SoftwareOSTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        serversidePageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}

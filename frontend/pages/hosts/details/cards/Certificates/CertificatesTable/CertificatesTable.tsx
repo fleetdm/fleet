@@ -92,7 +92,7 @@ const CertificatesTable = ({
         <TableCount name="certificates" count={data.certificates.length} />
       )}
       pageSize={pageSize}
-      defaultPageIndex={page}
+      serversidePageIndex={page}
       defaultSortHeader={sortHeader}
       defaultSortDirection={sortDirection}
       onQueryChange={onQueryChange}

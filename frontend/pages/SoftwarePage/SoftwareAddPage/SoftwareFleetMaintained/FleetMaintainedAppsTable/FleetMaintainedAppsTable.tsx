@@ -182,7 +182,7 @@ const FleetMaintainedAppsTable = ({
       emptyComponent={EmptyFleetAppsTable}
       defaultSortHeader={orderKey}
       defaultSortDirection={orderDirection}
-      defaultPageIndex={currentPage}
+      serversidePageIndex={currentPage}
       defaultSearchQuery={query}
       manualSortBy
       pageSize={perPage}

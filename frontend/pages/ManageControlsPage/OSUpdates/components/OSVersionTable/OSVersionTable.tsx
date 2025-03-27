@@ -101,7 +101,7 @@ const OSVersionTable = ({
         isAllPagesSelected={false}
         defaultSortHeader={queryParams.order_key}
         defaultSortDirection={queryParams.order_direction}
-        defaultPageIndex={queryParams.page}
+        serversidePageIndex={queryParams.page}
         disableTableHeader
         disableCount
         pageSize={queryParams.per_page}

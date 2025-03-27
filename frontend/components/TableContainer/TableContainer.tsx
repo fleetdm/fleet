@@ -43,7 +43,7 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
-  defaultPageIndex?: number;
+  serversidePageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
   actionButton?: ITableContainerActionButtonProps;
@@ -130,7 +130,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
-  defaultPageIndex = 0,
+  serversidePageIndex = 0,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   defaultSelectedRows,
@@ -182,7 +182,7 @@ const TableContainer = <T,>({
     defaultSortDirection || ""
   );
   const [pageIndex, setPageIndex] = useState<number>(
-    defaultPageIndex || DEFAULT_PAGE_INDEX
+    serversidePageIndex || DEFAULT_PAGE_INDEX
   );
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
@@ -191,7 +191,7 @@ const TableContainer = <T,>({
     if (isClientSidePagination && pageIndex !== DEFAULT_PAGE_INDEX) {
       setPageIndex(DEFAULT_PAGE_INDEX);
     }
-  }, [defaultPageIndex, pageIndex, isClientSidePagination]);
+  }, [pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -217,23 +217,14 @@ const TableContainer = <T,>({
     setSearchQuery(value.trim());
   };
 
-  // const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
       if (!isClientSidePagination) {
         setPageIndex(newPage);
-        // hasPageIndexChangedRef.current = true;
       }
     },
     [isClientSidePagination]
   );
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  // useEffect(() => {
-  //   if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
-  //     onPaginationChange(0);
-  //   }
-  // }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -276,12 +267,13 @@ const TableContainer = <T,>({
     }
     return (
       <Pagination
-        disablePrev={defaultPageIndex === 0}
+        disablePrev={serversidePageIndex === 0}
         disableNext={disableNextPage || data.length < pageSize}
-        onPrevPage={() => onPaginationChange(defaultPageIndex - 1)}
-        onNextPage={() => onPaginationChange(defaultPageIndex + 1)}
+        onPrevPage={() => onPaginationChange(serversidePageIndex - 1)}
+        onNextPage={() => onPaginationChange(serversidePageIndex + 1)}
         hidePagination={
-          (disableNextPage || data.length < pageSize) && defaultPageIndex === 0
+          (disableNextPage || data.length < pageSize) &&
+          serversidePageIndex === 0
         }
       />
     );
@@ -290,7 +282,7 @@ const TableContainer = <T,>({
     disablePagination,
     isClientSidePagination,
     disableNextPage,
-    defaultPageIndex,
+    serversidePageIndex,
     pageSize,
     onPaginationChange,
   ]);
@@ -538,7 +530,7 @@ const TableContainer = <T,>({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
-                defaultPageIndex={defaultPageIndex}
+                defaultPageIndex={serversidePageIndex}
                 defaultSelectedRows={defaultSelectedRows}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
