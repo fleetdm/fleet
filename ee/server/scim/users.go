@@ -232,6 +232,12 @@ func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 	return userResource, nil
 }
 
+// GetAll
+// Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
+// https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2
+//
+// If a SCIM service provider determines that too many results would be returned the server base URI, the server SHALL reject the request by
+// returning an HTTP response with HTTP status code 400 (Bad Request) and JSON attribute "scimType" set to "tooMany" (see Table 9).
 func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
 
 	resourceFilter := r.URL.Query().Get("filter")
@@ -325,20 +331,27 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 	}, nil
 }
 
+// Delete
+// https://datatracker.ietf.org/doc/html/rfc7644#section-3.6
+// MUST return a 404 (Not Found) error code for all operations associated with the previously deleted resource
 func (u *UserHandler) Delete(r *http.Request, id string) error {
-	mu.Lock()
-	defer mu.Unlock()
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return fmt.Errorf("invalid user ID %s: %w", id, err)
+		return errors.ScimErrorResourceNotFound(id)
 	}
-	delete(users, uint(idUint))
+	err = u.ds.DeleteScimUser(r.Context(), uint(idUint))
+	switch {
+	case fleet.IsNotFound(err):
+		return errors.ScimErrorResourceNotFound(id)
+	case err != nil:
+		return err
+	}
 	return nil
 }
 
 // Patch
-// Per https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
-// we only support patching the "active" attribute
+// Okta only requires patching the "active" attribute:
+// https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	mu.Lock()
 	defer mu.Unlock()

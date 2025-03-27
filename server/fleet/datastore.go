@@ -2020,6 +2020,8 @@ type Datastore interface {
 	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	// DeleteScimUser deletes a SCIM user from the database
+	DeleteScimUser(ctx context.Context, id uint) error
 }
 
 type AndroidDatastore interface {

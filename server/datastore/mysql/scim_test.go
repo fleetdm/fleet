@@ -21,6 +21,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByID", testScimUserByID},
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ReplaceScimUser", testReplaceScimUser},
+		{"DeleteScimUser", testDeleteScimUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -286,5 +287,44 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 	}
 
 	err = ds.ReplaceScimUser(context.Background(), &nonExistentUser)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testDeleteScimUser(t *testing.T, ds *Datastore) {
+	// Create a test user
+	user := fleet.ScimUser{
+		UserName:   "delete-test-user",
+		ExternalID: ptr.String("ext-delete-123"),
+		GivenName:  ptr.String("Delete"),
+		FamilyName: ptr.String("User"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "delete.user@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+
+	var err error
+	user.ID, err = ds.CreateScimUser(context.Background(), &user)
+	require.Nil(t, err)
+
+	// Verify the user was created correctly
+	createdUser, err := ds.ScimUserByID(context.Background(), user.ID)
+	require.Nil(t, err)
+	assert.Equal(t, user.UserName, createdUser.UserName)
+
+	// Delete the user
+	err = ds.DeleteScimUser(context.Background(), user.ID)
+	require.Nil(t, err)
+
+	// Verify the user was deleted
+	_, err = ds.ScimUserByID(context.Background(), user.ID)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Test deleting a non-existent user
+	err = ds.DeleteScimUser(context.Background(), 99999) // Non-existent ID
 	assert.True(t, fleet.IsNotFound(err))
 }

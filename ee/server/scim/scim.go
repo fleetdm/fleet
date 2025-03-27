@@ -21,6 +21,7 @@ func RegisterSCIM(
 		// TODO: DocumentationURI and Authentication scheme
 		SupportFiltering: true,
 		SupportPatch:     true,
+		MaxResults:       1000,
 	}
 
 	// The common attributes are id, externalId, and meta.
