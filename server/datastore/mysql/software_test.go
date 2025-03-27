@@ -5718,11 +5718,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, scoped)
 
-	// TODO(JVE): dump labels table and check type
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		DumpTable(t, q, "labels")
-		return nil
-	})
 	// installer3 is not in scope yet, because label is "exclude any" and host doesn't have results
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
 	require.NoError(t, err)
