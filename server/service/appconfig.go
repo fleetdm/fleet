@@ -326,6 +326,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
+	// Used to check the presence of fields in the incomign config
+	var newAppConfigRaw map[string]any
+	if err := json.Unmarshal(p, &newAppConfigRaw); err != nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     "failed to decode app config",
+			InternalErr: err,
+		})
+	}
+
 	// default transparency URL is https://fleetdm.com/transparency so you are allowed to apply as long as it's not changing
 	if newAppConfig.FleetDesktop.TransparencyURL != "" && newAppConfig.FleetDesktop.TransparencyURL != fleet.DefaultTransparencyURL {
 		if !license.IsPremium() {
@@ -572,7 +581,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
 	}
-	if appConfig.UIGitOpsMode.GitopsModeEnabled || newAppConfig.UIGitOpsMode.GitopsModeEnabled {
+	if _, ok := newAppConfigRaw["gitops"].(fleet.UIGitOpsModeConfig); ok {
 		appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
 	}
 
