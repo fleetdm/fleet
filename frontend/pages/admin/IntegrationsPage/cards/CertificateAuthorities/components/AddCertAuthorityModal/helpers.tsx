@@ -92,5 +92,7 @@ export const getDisplayErrMessage = (err: unknown) => {
 };
 
 export const getErrorMessage = (err: unknown) => {
-  return `Couldn't add certificate authority. ${getDisplayErrMessage(err)}`;
+  return (
+    <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
+  );
 };
