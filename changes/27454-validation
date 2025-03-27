@@ -1,1 +1,1 @@
-- Accept any string for the Fleet web URL
+- Accept any "http://" or "https://" prefixed Fleet web URL
