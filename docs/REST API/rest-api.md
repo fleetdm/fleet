@@ -6650,6 +6650,7 @@ None.
 `Status: 200`
 
 ```json
+
 {
   "android_enterprise_id": "LC0445szuv"
 }
