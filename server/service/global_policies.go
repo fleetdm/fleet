@@ -25,13 +25,15 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID     *uint  `json:"query_id"`
-	Query       string `json:"query"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-	Platform    string `json:"platform"`
-	Critical    bool   `json:"critical" premium:"true"`
+	QueryID          *uint    `json:"query_id"`
+	Query            string   `json:"query"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
+	Resolution       string   `json:"resolution"`
+	Platform         string   `json:"platform"`
+	Critical         bool     `json:"critical" premium:"true"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
 }
 
 type globalPolicyResponse struct {
