@@ -13,6 +13,8 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
+  // Whether the Fleet instance is managed by FleetDM
+  managed_cloud: boolean;
 }
 
 export interface IEndUserAuthentication {
@@ -143,6 +145,10 @@ export interface IConfig {
     enable_sso_idp_login: boolean;
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
+  };
+  conditional_access: {
+    microsoft_entra_tenant_id: string;
+    microsoft_entra_connection_configured: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;

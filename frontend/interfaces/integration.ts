@@ -151,4 +151,5 @@ export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: ITeamCalendarSettings | null;
+  conditional_access_enabled?: boolean;
 }
