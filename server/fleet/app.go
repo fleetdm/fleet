@@ -922,6 +922,8 @@ func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	var ssoSettings SSOSettings
 	c.SSOSettings = &ssoSettings
 
+	c.UIGitOpsMode = &UIGitOpsModeConfig{}
+
 	c.Features.ApplyDefaultsForNewInstalls()
 
 	c.ApplyDefaults()
