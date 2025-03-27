@@ -77,6 +77,10 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 	}
 
 	for _, app := range appsList.Apps {
+		if app.UniqueIdentifier == "" {
+			app.UniqueIdentifier = app.Name
+		}
+
 		if _, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 			Name:             app.Name,
 			Slug:             app.Slug,
