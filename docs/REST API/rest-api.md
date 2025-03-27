@@ -2844,7 +2844,15 @@ Returns the information of the specified host.
         "resolution": "fix with these other steps...",
         "platform": "darwin",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
       },
       {
         "id": 3,
@@ -2854,17 +2862,51 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
       },
       {
-        "id": 1,
+        "id": 4,
         "name": "SomeQuery",
         "query": "SELECT * FROM foo;",
         "description": "this is a query",
         "resolution": "fix with these steps...",
         "platform": "windows,linux",
         "response": "pass",
-        "critical": false
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": 98,
+        "author_name": "User",
+        "author_email": "user@example.com",
+        "team_id": 274,
+        "fleet_maintained": false
+      },
+      {
+        "id": 5,
+        "name": "Install zoom.us.app",
+        "query": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';",
+        "description": "ZoomInstallerIT.pkg version 6.3.11.50104 is installed when the host doesn't have any version of it installed.",
+        "resolution": "",
+        "platform": "darwin",
+        "response": "fail",
+        "critical": false,
+        "calendar_events_enabled": false,
+        "created_at": "2025-02-05T23:34:46Z",
+        "updated_at": "2025-02-05T23:34:46Z",
+        "author_id": null,
+        "author_name": "Fleet",
+        "author_email": "",
+        "team_id": 274,
+        "fleet_maintained": true,      
       }
     ],
     "software": [
@@ -3086,7 +3128,8 @@ If `hostname` is specified when there is more than one host with the same hostna
         "created_at": "2022-09-02T18:52:19Z",
         "updated_at": "2022-09-02T18:52:19Z",
         "response": "fail",
-        "critical": false
+        "critical": false,
+        "fleet_maintained": false
       }
     ],
     "software": [
@@ -6679,7 +6722,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6697,7 +6741,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6750,7 +6795,8 @@ _Available in Fleet Premium_
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6773,7 +6819,8 @@ _Available in Fleet Premium_
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
         "id": 234
-      }
+      },
+      "fleet_maintained": false
     },
     {
       "id": 3,
@@ -6796,7 +6843,8 @@ _Available in Fleet Premium_
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
-      }
+      },
+      "fleet_maintained": false
     }
   ],
   "inherited_policies": [
@@ -6816,7 +6864,8 @@ _Available in Fleet Premium_
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -6849,7 +6898,8 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 2,
@@ -6867,7 +6917,8 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     },
     {
       "id": 136,
@@ -6885,7 +6936,8 @@ _Available in Fleet Premium_
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "fleet_maintained": false
     }
   ]
 }
@@ -8970,11 +9022,22 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-        "automatic_install_policies": [
+        "policies": [
           {
             "id": 343,
-            "name": "[Install software] Firefox.app",
-          }
+            "name": "Custom policy",
+            "fleet_maintained": false
+          },
+          {
+            "id": 344,
+            "name": "Install Firefox.app",
+            "fleet_maintained": true
+          },
+          {
+            "id": 345,
+            "name": "Patch Firefox.app",
+            "fleet_maintained": true
+          },
         ],
       },
       "app_store_app": null,
@@ -9256,10 +9319,11 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
+          "fleet_maintained": false
         }
       ],
       "status": {
@@ -9322,10 +9386,11 @@ Returns information about the specified software. By default, `versions` are sor
       "created_at": "2024-04-01T14:22:58Z",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
+          "fleet_maintained": false
         } 
       ],
       "status": {
@@ -9333,12 +9398,6 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       },
-      "automatic_install_policies": [
-        {
-          "id": 343,
-          "name": "[Install software] Logic.app",
-        }
-      ],
     },
     "source": "apps",
     "browser": "",
@@ -9496,7 +9555,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -9563,10 +9622,12 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
+| minimum_version | string | form | Currently, the only valid option is `"current"`. Trigger a software install on all hosts running an older version. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
-> Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
+Changes to any field other than `self_service` will cancel pending installs and uninstalls. Changes to `software` (the package) will reset `installed` and `failed` counts.
 
 #### Example
 
@@ -9698,7 +9759,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
-| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Only supported for macOS apps. Trigger a software install on all hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 
@@ -9784,10 +9845,11 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 17
       }
     ],
-    "automatic_install_policies": [
+    "policies": [
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
+        "fleet_maintained": false
       } 
     ],
     "status": {
@@ -9911,7 +9973,7 @@ Add Fleet-maintained app so it's available for install.
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | Currently, the only valid option is `"present"`. Trigger a software install on all hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10031,7 +10093,7 @@ _Available in Fleet Premium._
 
 Get the results of a Fleet-maintained app or custom package install. To get uninstall results, use the [List activities](#list-activities) and [Get script result](#get-script-result) API endpoints.
 
-To get the results of an App Store app install, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
+To get the results of an App Store app install or uninstall, use the [List MDM commands](#list-mdm-commands) and [Get MDM command results](#get-mdm-command-results) API endpoints. Fleet uses an MDM command to install App Store apps.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
