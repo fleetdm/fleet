@@ -1,0 +1,127 @@
+package scim
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/elimity-com/scim"
+	"github.com/elimity-com/scim/optional"
+	"github.com/elimity-com/scim/schema"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+)
+
+func RegisterSCIM(
+	mux *http.ServeMux,
+	logger kitlog.Logger,
+) error {
+	config := scim.ServiceProviderConfig{
+		// TODO: DocumentationURI and Authentication scheme
+		SupportFiltering: true,
+		SupportPatch:     true,
+	}
+
+	// The common attributes are id, externalId, and meta.
+	// In practice only meta.resourceType is required, while the other four (created, lastModified, location, and version) are not strictly required.
+	userSchema := schema.Schema{
+		ID:          "urn:ietf:params:scim:schemas:core:2.0:User",
+		Name:        optional.NewString("User"),
+		Description: optional.NewString("SCIM User"),
+		Attributes: []schema.CoreAttribute{
+			schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+				Name:       "userName",
+				Required:   true,
+				Uniqueness: schema.AttributeUniquenessServer(),
+			})),
+			schema.ComplexCoreAttribute(schema.ComplexParams{
+				Description: optional.NewString("The components of the user's real name. Providers MAY return just the full name as a single string in the formatted sub-attribute, or they MAY return just the individual component attributes using the other sub-attributes, or they MAY return both. If both variants are returned, they SHOULD be describing the same name, with the formatted name indicating how the component attributes should be combined."),
+				Name:        "name",
+				SubAttributes: []schema.SimpleParams{
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("The family name of the User, or last name in most Western languages (e.g., 'Jensen' given the full name 'Ms. Barbara J Jensen, III')."),
+						Name:        "familyName",
+					}),
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("The given name of the User, or first name in most Western languages (e.g., 'Barbara' given the full name 'Ms. Barbara J Jensen, III')."),
+						Name:        "givenName",
+					}),
+				},
+			}),
+			schema.ComplexCoreAttribute(schema.ComplexParams{
+				Description: optional.NewString("Email addresses for the user. The value SHOULD be canonicalized by the service provider, e.g., 'bjensen@example.com' instead of 'bjensen@EXAMPLE.COM'. Canonical type values of 'work', 'home', and 'other'."),
+				MultiValued: true,
+				Name:        "emails",
+				SubAttributes: []schema.SimpleParams{
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("Email addresses for the user. The value SHOULD be canonicalized by the service provider, e.g., 'bjensen@example.com' instead of 'bjensen@EXAMPLE.COM'. Canonical type values of 'work', 'home', and 'other'."),
+						Name:        "value",
+					}),
+					schema.SimpleStringParams(schema.StringParams{
+						CanonicalValues: []string{"work", "home", "other"},
+						Description:     optional.NewString("A label indicating the attribute's function, e.g., 'work' or 'home'."),
+						Name:            "type",
+					}),
+					schema.SimpleBooleanParams(schema.BooleanParams{
+						Description: optional.NewString("A Boolean value indicating the 'primary' or preferred attribute value for this attribute, e.g., the preferred mailing address or primary email address. The primary attribute value 'true' MUST appear no more than once."),
+						Name:        "primary",
+					}),
+				},
+			}),
+			schema.SimpleCoreAttribute(schema.SimpleBooleanParams(schema.BooleanParams{
+				Description: optional.NewString("A Boolean value indicating the User's administrative status."),
+				Name:        "active",
+			})),
+		},
+	}
+
+	var userResourceHandler scim.ResourceHandler = &UserHandler{}
+
+	resourceTypes := []scim.ResourceType{
+		{
+			ID:          optional.NewString("User"),
+			Name:        "User",
+			Endpoint:    "/Users",
+			Description: optional.NewString("User Account"),
+			Schema:      userSchema,
+			Handler:     userResourceHandler,
+		},
+	}
+
+	serverArgs := &scim.ServerArgs{
+		ServiceProviderConfig: &config,
+		ResourceTypes:         resourceTypes,
+	}
+
+	serverOpts := []scim.ServerOption{
+		scim.WithLogger(&MyLogger{Logger: logger}),
+	}
+
+	server, err := scim.NewServer(serverArgs, serverOpts...)
+	if err != nil {
+		return err
+	}
+
+	loggingMiddleware := func(next http.Handler) http.Handler {
+		fn := func(w http.ResponseWriter, r *http.Request) {
+			level.Info(logger).Log("url", r.URL.Path)
+			next.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(fn)
+	}
+
+	// TODO: Add authentication, proper logging, tracing, and Prometheus middleware
+	mux.Handle("/scim/v2/", loggingMiddleware(server))
+	return nil
+}
+
+type MyLogger struct {
+	kitlog.Logger
+}
+
+var _ scim.Logger = &MyLogger{}
+
+func (l *MyLogger) Error(args ...interface{}) {
+	level.Error(l.Logger).Log(
+		"error", fmt.Sprint(args...),
+	)
+}
