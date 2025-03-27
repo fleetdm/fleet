@@ -5,7 +5,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
-  { label: "Digicert", value: "digicert" },
+  { label: "DigiCert", value: "digicert" },
   {
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes",
