@@ -317,17 +317,13 @@ When a device requests a certificate, the Fleet's SCEP proxy forwards the reques
 custom SCEP server, retrieves the certificate, and sends it back to the device. In addition, the
 SCEP proxy:
 
-- Retrieves the one-time challenge password from the NDES server.
-  The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface.
-  Retrieving passwords for many devices may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
-  - Restarting the NDES service will clear the password cache and may cause outstanding SCEP profiles to fail.
-- Resend the profile to the device if the one-time challenge password has expired.
-  - If the device has been offline and the one-time challenge password is more than 60 minutes old, the SCEP proxy assumes the password has expired and will resend the profile to the device with a new one-time challenge password.
+- Retrieves the one-time challenge password from NDES. The NDES admin password is encrypted in Fleet's database by the [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key). It cannot be retrieved via the API or the web interface. Retrieving passwords for many hosts at once may cause a bottleneck. To avoid long wait times, we recommend a gradual rollout of SCEP profiles.
+  - Restarting NDES will clear the password cache and may cause outstanding SCEP profiles to fail.
+- Resends the configuration profile to the host if the one-time challenge password has expired.
+  - If the host has been offline and the one-time challenge password is more than 60 minutes old, Fleet assumes the password has expired and will resend the profile to the host with a new one-time challenge password.
 
-The issued certificate will appear in the System Keychain on macOS. During the profile installation,
-the OS generates several temporary certificates needed for the SCEP protocol. These certificates may
-be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed
-and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc)
+Certificates will appear in the System Keychain on macOS. During the profile installation,
+the OS generates several temporary certificates needed for the SCEP protocol. These certificates may be briefly visible in the Keychain Access app on macOS. The CA certificate must also be installed and marked as trusted on the device for the issued certificate to appear as trusted. The IT admin can send the CA certificate in a separate [CertificateRoot profile](https://developer.apple.com/documentation/devicemanagement/certificateroot?language=objc)
 
 ### Assumptions and limitations
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
