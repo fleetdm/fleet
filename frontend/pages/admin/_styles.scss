@@ -3,7 +3,9 @@
 .admin-wrapper {
   // we turn off overflow on the settings page as it seems to mess with our
   // header and navigation
-  overflow: visible;
+  @media (min-width: $break-sm){
+    overflow: visible;
+  }
 
   h1 {
     display: flex;

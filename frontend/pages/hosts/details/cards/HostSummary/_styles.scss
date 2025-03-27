@@ -22,10 +22,14 @@
   }
 
   &__last-fetched {
+    display: none;
     font-size: $xx-small;
     color: $core-fleet-black;
     margin: 0;
     margin-left: $pad-medium;
+    @media (min-width: $break-xs) {
+      display: block;
+    }
   }
 
   &__refetch {
@@ -90,8 +94,12 @@
 
     display: flex;
     gap: $pad-medium $pad-xxlarge;
-    padding: $pad-xxlarge;
+    padding: $pad-medium;
     flex-wrap: wrap;
+
+    @media(min-width: $break-sm) {
+      padding: $pad-xxlarge;
+    }
 
     // Properly vertically aligns host issue icon
     .host-issue {

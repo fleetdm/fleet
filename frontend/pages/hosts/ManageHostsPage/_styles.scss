@@ -8,6 +8,11 @@
       justify-content: flex-end;
       white-space: nowrap;
     }
+
+    @media (max-width: $break-sm) {
+      display: block;
+      height: auto;
+    }
   }
 
   .ace-fleet {
@@ -98,15 +103,37 @@
     padding-top: $pad-small;
 
     &__header-left {
+      display: flex;
+      @media (max-width: $break-sm) {
+          display: block;
+          height: auto;
+        }
       .controls {
         display: flex;
         align-items: center;
+        
+        @media (max-width: $break-sm) {
+          display: block;
+          height: auto;
+        }
 
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
           margin-left: $pad-medium;
           align-items: center;
+
+          @media (max-width: $break-sm) {
+            display: block;
+            height: auto;
+            margin-left: 0;
+            > div {
+              margin: 0 0 $pad-small 0;
+              .label-filter-select {
+                width: 100%;
+              }
+            }
+          }
 
           // Dropdown height matches search bar height
           .manage-hosts__status-filter {
@@ -123,7 +150,7 @@
     }
 
     // table header content responsive styles
-    @media (max-width: $table-controls-break) {
+    @media (max-width: $break-lg) {
       &__header {
         flex-direction: column;
       }
@@ -148,7 +175,6 @@
 
       &__header-left {
         order: 2;
-        display: flex;
         flex-direction: column;
         align-items: stretch;
 
@@ -161,7 +187,7 @@
           margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
-            display: flex;
+
             flex-direction: row;
             flex: 1;
 
@@ -224,7 +250,7 @@
   &__status-filter {
     width: 175px;
 
-    @media (min-width: $table-controls-break) {
+    @media (min-width: $break-lg) {
       width: 190px;
     }
 

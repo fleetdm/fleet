@@ -1,7 +1,8 @@
 .login-form {
   transition: opacity 300ms ease-in;
   opacity: 1;
-  width: 516px;
+  max-width: 516px;
+  width: 100%;
   align-self: center;
   border-radius: 10px;
   align-items: center;

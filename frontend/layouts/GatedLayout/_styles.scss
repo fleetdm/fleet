@@ -4,6 +4,10 @@
   align-items: center;
   justify-content: center;
 
+  @media (max-width: $break-sm){
+    padding: 1rem;
+  }
+
   .flash-message {
     border: 0;
   }

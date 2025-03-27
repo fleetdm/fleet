@@ -41,6 +41,7 @@
 
   &__padding-large {
     padding: $pad-large;
+    box-sizing: border-box;
   }
 
   &__padding-xlarge {

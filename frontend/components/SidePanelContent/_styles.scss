@@ -12,4 +12,8 @@
   .component__tooltip-wrapper__tip-text {
     max-width: 280px;
   }
+
+  @media (max-width: $break-sm) {
+    display: none;
+  }
 }

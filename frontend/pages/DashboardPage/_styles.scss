@@ -67,10 +67,21 @@
   &__section {
     margin-top: $pad-medium;
     width: 100%;
-    display: grid;
-    row-gap: $pad-medium;
+    display: block;
+    
+    .dashboard-info-card {
+      margin-bottom: $pad-medium;
+    }
 
-    @media screen and (min-width: $break-md) {
+    @media (min-width: $break-xs) {
+      display: grid;
+      row-gap: $pad-medium;
+      .dashboard-info-card {
+        margin-bottom: 0;
+      }
+    }
+
+    @media (min-width: $break-md) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       column-gap: $pad-medium;
 
@@ -86,10 +97,17 @@
     display: flex;
     flex-direction: column;
     margin-top: $pad-medium;
+
+    .platform-host-counts {
+      margin-bottom: $pad-medium;
+      @media (min-width: $break-xs) {
+        margin-bottom: 0;
+      }
+    }
   }
 
   // >= 320px 12 pt gap
-  @media (min-width: $break-mobile-xs) {
+  @media (min-width: $break-xs) {
     .dashboard-page__host-sections {
       gap: $pad-smedium;
     }

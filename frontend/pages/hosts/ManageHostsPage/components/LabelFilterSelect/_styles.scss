@@ -1,5 +1,5 @@
 .label-filter-select {
-  width: 300px;
+  max-width: 300px;
 
   svg {
     transition: transform 0.25s ease;
@@ -73,7 +73,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: $table-controls-break) {
+    @media (max-width: $break-lg) {
       width: auto;
     }
   }
@@ -163,7 +163,7 @@
   }
 }
 
-@media (min-width: $table-controls-break) {
+@media (min-width: $break-lg) {
   .label-filter-select {
     min-width: 220px;
 

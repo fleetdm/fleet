@@ -36,7 +36,7 @@
         height: 40px;
       }
 
-      @media (min-width: $table-controls-break) {
+      @media (min-width: $break-lg) {
         width: auto;
 
         .input-icon-field__input {
