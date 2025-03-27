@@ -181,6 +181,10 @@ var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<s
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// We assume that we already validated that payload.PackageIDs is not empty.
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
+	if len(payload.PackageIDs) == 0 {
+		// do nothing, this could be a FMA which won't include the installer when editing the scripts
+		return
+	}
 	var packageID string
 	switch payload.Extension {
 	case "dmg", "zip":

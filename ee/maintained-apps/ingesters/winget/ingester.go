@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -55,7 +56,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 
 		var input inputApp
 		if err := json.Unmarshal(fileBytes, &input); err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"file_name": f.Name()})
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal app input file: %s", f.Name())
 		}
 
 		if input.Slug == "" {
@@ -176,6 +177,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	var out maintained_apps.FMAManifestApp
 	var selectedInstaller *installer
 	var installScript, uninstallScript string
+	productCode := m.ProductCode
 
 	// if we have a provided install script, use that
 	if input.InstallScriptPath != "" {
@@ -253,6 +255,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, ctxerr.New(ctx, "no uninstall script found for app, aborting")
 	}
 
+	if productCode == "" {
+		productCode = selectedInstaller.ProductCode
+	}
+
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
@@ -263,11 +269,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
 	}
 	out.InstallScript = installScript
-	out.UninstallScript = uninstallScript
+	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(installScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(uninstallScript)
 
 	return &out, nil
+}
+
+var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+
+func preProcessUninstallScript(uninstallScript, productCode string) string {
+	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", productCode))
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
