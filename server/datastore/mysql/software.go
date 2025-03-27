@@ -2573,6 +2573,76 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	return vppInstalls, nil
 }
 
+// softwareTitleRecord is the base record, we will be modifying it and copying all data to it
+func promoteSoftwareTitlePackageName(softwareTitleRecord *hostSoftware, softwareTitle *hostSoftware) {
+	var version,
+		platform string
+	if softwareTitleRecord.PackageVersion != nil {
+		version = *softwareTitleRecord.PackageVersion
+	}
+	if softwareTitleRecord.PackagePlatform != nil {
+		platform = *softwareTitleRecord.PackagePlatform
+	}
+	softwareTitleRecord.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+		Name:        *softwareTitleRecord.PackageName,
+		Version:     version,
+		Platform:    platform,
+		SelfService: softwareTitleRecord.PackageSelfService,
+	}
+
+	// promote the last install info to the proper destination fields
+	if softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
+		softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+			InstallUUID: *softwareTitle.LastInstallInstallUUID,
+		}
+		if softwareTitle.LastInstallInstalledAt != nil {
+			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+		}
+	}
+
+	// promote the last uninstall info to the proper destination fields
+	if softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
+		softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+			ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
+		}
+		if softwareTitle.LastUninstallUninstalledAt != nil {
+			softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
+		}
+	}
+}
+
+// softwareTitleRecord is the base record, we will be modifying it
+func promoteSoftwareTitleVPPApp(softwareTitleRecord *hostSoftware) {
+	var version,
+		platform string
+	if softwareTitleRecord.VPPAppVersion != nil {
+		version = *softwareTitleRecord.VPPAppVersion
+	}
+	if softwareTitleRecord.VPPAppPlatform != nil {
+		platform = *softwareTitleRecord.VPPAppPlatform
+	}
+	softwareTitleRecord.AppStoreApp = &fleet.SoftwarePackageOrApp{
+		AppStoreID:  *softwareTitleRecord.VPPAppAdamID,
+		Version:     version,
+		Platform:    platform,
+		SelfService: softwareTitleRecord.VPPAppSelfService,
+		IconURL:     softwareTitleRecord.VPPAppIconURL,
+	}
+	if softwareTitleRecord.VPPAppPlatform != nil {
+		softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform
+	}
+
+	// promote the last install info to the proper destination fields
+	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
+		softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+			CommandUUID: *softwareTitleRecord.LastInstallInstallUUID,
+		}
+		if softwareTitleRecord.LastInstallInstalledAt != nil {
+			softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
+		}
+	}
+}
+
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
 		return nil, nil, fleet.NewInvalidArgumentError(
@@ -3259,9 +3329,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		for _, softwareTitleRecord := range hostSoftwareList {
 			softwareTitle, softwareTitleFound := bySoftwareTitleID[softwareTitleRecord.ID]
 
-			if !softwareTitleFound {
-				VPPTitle, VPPFound := byVPPAdamID[*softwareTitleRecord.VPPAppAdamID]
+			var VPPTitle *hostSoftware
+			var VPPFound bool
+			if softwareTitleRecord.VPPAppAdamID != nil {
+				VPPTitle, VPPFound = byVPPAdamID[*softwareTitleRecord.VPPAppAdamID]
+			}
 
+			if !softwareTitleFound {
 				if !VPPFound {
 					// This should never happen
 					return nil, nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("Software title or vpp app not found for `%s`", softwareTitleRecord.Name))
@@ -3298,10 +3372,27 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					deduplicatedList[storedIndex].InstalledVersions,
 					version,
 				)
+
+				// VPP app that has been installed on the host, found as a sofware title, but we need to copy over all the vpp associated data
+				if VPPTitle != nil {
+					if VPPTitle.VPPAppSelfService != nil {
+						deduplicatedList[storedIndex].VPPAppSelfService = VPPTitle.VPPAppSelfService
+					}
+					deduplicatedList[storedIndex].VPPAppAdamID = VPPTitle.VPPAppAdamID
+					deduplicatedList[storedIndex].VPPAppVersion = VPPTitle.VPPAppVersion
+					deduplicatedList[storedIndex].VPPAppPlatform = VPPTitle.VPPAppPlatform
+					deduplicatedList[storedIndex].VPPAppIconURL = VPPTitle.VPPAppIconURL
+
+					// promote the VPP app id and version to the proper destination fields
+					if deduplicatedList[storedIndex].VPPAppAdamID != nil {
+						promoteSoftwareTitleVPPApp(deduplicatedList[storedIndex])
+					}
+				}
 			} else {
 				if version.Version != "" {
 					softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
 				}
+
 				// Merge the data of `software title` into `softwareTitleRecord`
 				// We should try to move as much of these attributes into the `stmt` query
 				softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
@@ -3317,75 +3408,19 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				}
 				softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
 				softwareTitleRecord.VPPAppVersion = softwareTitle.VPPAppVersion
+				if softwareTitle.VPPAppPlatform != nil {
+					softwareTitleRecord.VPPAppPlatform = softwareTitle.VPPAppPlatform
+				}
+				softwareTitleRecord.VPPAppIconURL = softwareTitle.VPPAppIconURL
 
 				// promote the package name and version to the proper destination fields
 				if softwareTitleRecord.PackageName != nil {
-					var version,
-						platform string
-					if softwareTitleRecord.PackageVersion != nil {
-						version = *softwareTitleRecord.PackageVersion
-					}
-					if softwareTitleRecord.PackagePlatform != nil {
-						platform = *softwareTitleRecord.PackagePlatform
-					}
-					softwareTitleRecord.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-						Name:        *softwareTitleRecord.PackageName,
-						Version:     version,
-						Platform:    platform,
-						SelfService: softwareTitleRecord.PackageSelfService,
-					}
-
-					// promote the last install info to the proper destination fields
-					if softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
-						softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
-							InstallUUID: *softwareTitle.LastInstallInstallUUID,
-						}
-						if softwareTitle.LastInstallInstalledAt != nil {
-							softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
-						}
-					}
-
-					// promote the last uninstall info to the proper destination fields
-					if softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
-						softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
-							ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
-						}
-						if softwareTitle.LastUninstallUninstalledAt != nil {
-							softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
-						}
-					}
+					promoteSoftwareTitlePackageName(softwareTitleRecord, softwareTitle)
 				}
 
 				// promote the VPP app id and version to the proper destination fields
 				if softwareTitleRecord.VPPAppAdamID != nil {
-					var version,
-						platform string
-					if softwareTitleRecord.VPPAppVersion != nil {
-						version = *softwareTitleRecord.VPPAppVersion
-					}
-					if softwareTitleRecord.VPPAppPlatform != nil {
-						platform = *softwareTitleRecord.VPPAppPlatform
-					}
-					softwareTitleRecord.AppStoreApp = &fleet.SoftwarePackageOrApp{
-						AppStoreID:  *softwareTitleRecord.VPPAppAdamID,
-						Version:     version,
-						Platform:    platform,
-						SelfService: softwareTitleRecord.VPPAppSelfService,
-						IconURL:     softwareTitleRecord.VPPAppIconURL,
-					}
-					if softwareTitleRecord.VPPAppPlatform != nil {
-						softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform
-					}
-
-					// promote the last install info to the proper destination fields
-					if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
-						softwareTitleRecord.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
-							CommandUUID: *softwareTitleRecord.LastInstallInstallUUID,
-						}
-						if softwareTitleRecord.LastInstallInstalledAt != nil {
-							softwareTitleRecord.AppStoreApp.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
-						}
-					}
+					promoteSoftwareTitleVPPApp(softwareTitleRecord)
 				}
 
 				// Add the current `softwareTitleRecord`s to the de-duplicated list
