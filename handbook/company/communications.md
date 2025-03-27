@@ -652,12 +652,12 @@ See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#workin
 
 ## Spending company money
 
-As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
+As we continue to expand our company policies, we use [GitLab's open expense policy](https://handbook.gitlab.com/handbook/finance/spending-company-money/) as a guide for company spending.
 In brief, this means that as a Fleet team member, you may:
 * Spend company money like it is your own money.
 * [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).  Purchase what you need to do your job effectively.
 * Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
-For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
+For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://handbook.gitlab.com/handbook/finance/spending-company-money/).
 
 
 ### Brex
@@ -929,7 +929,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet benchmarks all team members based on the United States Dollar (USD) and if applicable, conversion rates at the time of offer for international fleeties.  Conversion rates and compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
 
 
 ### Relocating

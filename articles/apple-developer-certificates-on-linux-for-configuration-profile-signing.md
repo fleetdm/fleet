@@ -70,7 +70,7 @@ This command prompts you to authenticate with the target computer's credentials.
 9. After completing the upload, click "Continue" to download the certificate.
 
 ![After completing the upload, click Continue to download the
-certificate](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing2-734x383@2x.png
+certificate for Linux MDM configuration profile signing](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing2-734x383@2x.png
 "After completing the upload, click Continue to download the certificate")
 
 
@@ -161,3 +161,4 @@ Incorporating these steps into your CI/CD pipeline can streamline your deploymen
 <meta name="publishedOn" value="2024-03-06">
 <meta name="articleImageUrl" value="../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing-1600x900@2x.png">
 <meta name="description" value="This guide walks through the process of adding an Apple signing certificate to a Linux host.">
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />

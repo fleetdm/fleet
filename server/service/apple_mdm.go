@@ -3132,14 +3132,61 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if cmdResult.Status == "Idle" {
+		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
+		// been deleted from Fleet (no host entry) will still send checkin
+		// requests from time to time. Those should be Idle requests without a
+		// CommandUUID. As stated in tickets #22941 and #22391, Fleet iDevices
+		// should be re-created when they checkin with MDM.
+		deletedDevice, err := svc.ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(r.Context, cmdResult.UDID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(r.Context, err, "lookup enrolled but deleted device info")
+		}
+
+		// only re-create iPhone/iPad devices, macOS are recreated via the fleetd checkin
+		if deletedDevice != nil && (deletedDevice.Platform == "ios" || deletedDevice.Platform == "ipados") {
+			msg, err := mdm.DecodeCheckin([]byte(deletedDevice.Authenticate))
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "decode authenticate enrollment message to re-create a deleted host")
+			}
+			authMsg, ok := msg.(*mdm.Authenticate)
+			if !ok {
+				return nil, ctxerr.Errorf(r.Context, "authenticate enrollment message to re-create a deleted host is not of the expected type: %T", msg)
+			}
+
+			err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+				Action:         mdmlifecycle.HostActionReset,
+				Platform:       deletedDevice.Platform,
+				UUID:           deletedDevice.ID,
+				HardwareSerial: deletedDevice.SerialNumber,
+				HardwareModel:  authMsg.ProductName,
+			})
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "trigger mdm reset lifecycle to re-create a deleted host")
+			}
+
+			if deletedDevice.EnrollTeamID != nil {
+				host, err := svc.ds.HostLiteByIdentifier(r.Context, deletedDevice.ID)
+				if err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "load re-created host by identifier")
+				}
+				if err := svc.ds.AddHostsToTeam(r.Context, deletedDevice.EnrollTeamID, []uint{host.ID}); err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "transfer re-created host to enrollment team")
+				}
+			}
+		}
+
 		// macOS hosts are considered unlocked if they are online any time
 		// after they have been unlocked. If the host has been seen after a
 		// successful unlock, take the opportunity and update the value in the
 		// db as well.
 		//
 		// TODO: sanity check if this approach is still valid after we implement wipe
-		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+
+		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
+		if deletedDevice == nil {
+			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+			}
 		}
 
 		return nil, nil
@@ -3371,6 +3418,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	host.HardwareModel = productName
 	host.DetailUpdatedAt = time.Now()
 	host.RefetchRequested = false
+
 	if err := svc.ds.UpdateHost(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to update host")
 	}
