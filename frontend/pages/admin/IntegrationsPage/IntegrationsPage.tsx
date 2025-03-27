@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
+
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import SideNav from "../components/SideNav";
@@ -21,6 +24,13 @@ const IntegrationsPage = ({
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
+
+  if (!useContext(AppContext)?.config?.license.managed_cloud) {
+    navItems.splice(
+      navItems.findIndex((item) => item.urlSection === "conditional-access"),
+      1
+    );
+  }
 
   const CurrentCard = currentSection.Card;
 

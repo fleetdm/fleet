@@ -6,6 +6,7 @@ import MdmSettings from "./cards/MdmSettings";
 import Calendars from "./cards/Calendars";
 import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
+import ConditionalAccess from "./cards/ConditionalAccess";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -39,6 +40,12 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     urlSection: "certificates",
     path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
     Card: CertificateAuthorities,
+  },
+  {
+    title: "Conditional access",
+    urlSection: "conditional-access",
+    path: PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS,
+    Card: ConditionalAccess,
   },
 ];
 
