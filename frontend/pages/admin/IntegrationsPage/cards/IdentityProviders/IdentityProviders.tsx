@@ -1,8 +1,16 @@
 import React from "react";
+import { useQuery } from "react-query";
+
+import idpAPI from "services/entities/idp";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { internationalTimeFormat } from "utilities/helpers";
+import { dateAgo } from "utilities/date_format";
 
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
+import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import SectionCard from "../MdmSettings/components/SectionCard";
 
@@ -10,29 +18,32 @@ const baseClass = "identity-providers";
 
 const AddEndUserInfoCard = () => {
   return (
-    <div className={baseClass}>
-      <SectionHeader title="Identity provider (IdP)" />
-      <SectionCard
-        header="Add end user information to your hosts"
-        cta={
-          <CustomLink
-            text="Learn how"
-            newTab
-            url="https://fleetdm.com/learn-more-about/connect-idp"
-            className={`${baseClass}__learn-more-link`}
-          />
-        }
-      >
-        <p className={`${baseClass}__section-card-content`}>
-          To add end user information, connect Fleet to Okta, Entra ID, or
-          another identity provider (IdP).
-        </p>
-      </SectionCard>
-    </div>
+    <SectionCard
+      header="Add end user information to your hosts"
+      cta={
+        <CustomLink
+          text="Learn how"
+          newTab
+          url="https://fleetdm.com/learn-more-about/connect-idp"
+          className={`${baseClass}__learn-more-link`}
+        />
+      }
+    >
+      <p className={`${baseClass}__section-card-content`}>
+        To add end user information, connect Fleet to Okta, Entra ID, or another
+        identity provider (IdP).
+      </p>
+    </SectionCard>
   );
 };
 
-const RecievedEndUserInfoCard = () => {
+interface IRecievedEndUserInfoCardProps {
+  recievedAt: string;
+}
+
+const RecievedEndUserInfoCard = ({
+  recievedAt,
+}: IRecievedEndUserInfoCardProps) => {
   return (
     <SectionCard
       iconName="success"
@@ -48,11 +59,13 @@ const RecievedEndUserInfoCard = () => {
       <p className={`${baseClass}__section-card-content`}>
         Received end user information from your IdP{" "}
         <TooltipWrapper
-          tipContent="some date"
+          showArrow
+          position="top"
+          tipContent={internationalTimeFormat(new Date(recievedAt))}
           underline={false}
           className={`${baseClass}__recieved-tooltip`}
         >
-          (2 days ago)
+          ({dateAgo(recievedAt)})
         </TooltipWrapper>
         .
       </p>
@@ -60,7 +73,11 @@ const RecievedEndUserInfoCard = () => {
   );
 };
 
-const FailedEndUserInfoCard = () => {
+interface IFailedEndUserInfoCardProps {
+  recievedAt: string;
+}
+
+const FailedEndUserInfoCard = ({ recievedAt }: IFailedEndUserInfoCardProps) => {
   return (
     <SectionCard
       iconName="error"
@@ -75,21 +92,61 @@ const FailedEndUserInfoCard = () => {
     >
       <p className={`${baseClass}__section-card-content`}>
         <TooltipWrapper
+          showArrow
+          position="top"
           tipContent='Error: Missing required attributes. "userName", "givenName", and "familyName" are required. Please configure your identity provider to send required attributes to Fleet.'
           underline={false}
           className={`${baseClass}__recieved-tooltip`}
         >
-          Failed to receive end user information from your IdP (2 days ago).
+          Failed to receive end user information from your IdP (
+          {dateAgo(recievedAt)}).
         </TooltipWrapper>
       </p>
     </SectionCard>
   );
 };
 
-interface IIdentityProvidersProps {}
+const IdentityProviders = () => {
+  const { data, isLoading, isError } = useQuery(
+    ["scim_details"],
+    () => idpAPI.getSCIMDetails(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
-const IdentityProviders = ({}: IIdentityProvidersProps) => {
-  return <FailedEndUserInfoCard />;
+  const renderContent = () => {
+    if (isError) {
+      return <DataError />;
+    }
+
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (!data) return null;
+
+    if (data.last_request === null) {
+      return <AddEndUserInfoCard />;
+    } else if (data.last_request.status === "success") {
+      return (
+        <RecievedEndUserInfoCard recievedAt={data.last_request.requested_at} />
+      );
+    } else if (data.last_request.status === "failed") {
+      return (
+        <FailedEndUserInfoCard recievedAt={data.last_request.requested_at} />
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className={baseClass}>
+      <SectionHeader title="Identity provider (IdP)" />
+      {renderContent()}
+    </div>
+  );
 };
 
 export default IdentityProviders;
