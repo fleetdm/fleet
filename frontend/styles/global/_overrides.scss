@@ -1,0 +1,17 @@
+#app {
+    .main-content .react-tabs .react-tabs__tab-list {
+        @media (max-width: $break-xs) {
+            display: block;
+            height: auto;
+
+            .react-tabs__tab {
+                display: block;
+                padding-bottom: $pad-small;
+            }
+
+            &:before {
+                display: none;
+            }
+        }
+    }
+}
