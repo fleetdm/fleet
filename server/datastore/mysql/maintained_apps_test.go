@@ -295,9 +295,9 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, meta.TotalResults, 4)
 	require.Nil(t, apps[3].TitleID)
 
-	// add windows app
+	// add Windows app
 	_, windowsTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           maintained4.Name,
+		Title:           "Maintained4 (MSI)",
 		TeamID:          &team1.ID,
 		InstallScript:   "nothing",
 		Filename:        "foo.msi",
