@@ -103,7 +103,7 @@ describe("SaveNewPolicyModal", () => {
       mockServer.use(labelSummariesHandler);
     });
 
-    it("should show the target selector in All hosts target mode when the query has no labels", async () => {
+    it("should show the target selector in All hosts target mode when the policy has no labels", async () => {
       render(<SaveNewPolicyModal {...defaultProps} />);
       await waitFor(() => {
         expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("SaveNewPolicyModal", () => {
       expect(saveButton).toBeEnabled();
     });
 
-    it("should send labels when saving a new query in Custom target mode (include any)", async () => {
+    it("should send labels when saving a new policy in Custom target mode (include any)", async () => {
       const onCreatePolicy = jest.fn();
       const props = { ...defaultProps, onCreatePolicy };
       render(
@@ -146,7 +146,7 @@ describe("SaveNewPolicyModal", () => {
 
       // Set a name.
       const nameInput = screen.getByLabelText("Name");
-      await userEvent.type(nameInput, "A Brand New Query!");
+      await userEvent.type(nameInput, "A Brand New Policy!");
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
@@ -158,7 +158,7 @@ describe("SaveNewPolicyModal", () => {
       ]);
     });
 
-    it("should send labels when saving a new query in Custom target mode (exclude any)", async () => {
+    it("should send labels when saving a new policy in Custom target mode (exclude any)", async () => {
       const onCreatePolicy = jest.fn();
       const props = { ...defaultProps, onCreatePolicy };
       render(
@@ -172,7 +172,7 @@ describe("SaveNewPolicyModal", () => {
 
       // Set a name.
       const nameInput = screen.getByLabelText("Name");
-      await userEvent.type(nameInput, "A Brand New Query!");
+      await userEvent.type(nameInput, "A Brand New Policy!");
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
@@ -198,7 +198,7 @@ describe("SaveNewPolicyModal", () => {
       ]);
     });
 
-    it("should clear labels when saving a new query in All hosts target mode", async () => {
+    it("should clear labels when saving a new policy in All hosts target mode", async () => {
       const onCreatePolicy = jest.fn();
       const props = { ...defaultProps, onCreatePolicy };
       render(
@@ -211,7 +211,7 @@ describe("SaveNewPolicyModal", () => {
       });
 
       // Set a name.
-      await userEvent.type(screen.getByLabelText("Name"), "A Brand New Query!");
+      await userEvent.type(screen.getByLabelText("Name"), "A Brand New Policy!");
 
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
