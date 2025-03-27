@@ -75,6 +75,11 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil) //nolint:gosec // dismiss G115
 }
 
+func updatePolicyLabels(ctx context.Context, q sqlx.ExecerContext, policyID uint, includeAny, excludeAny []string) error {
+	const deleteLabelsStmt = `DELETE FROM `
+	return nil
+}
+
 func policiesChecksumComputedColumn() string {
 	// concatenate with separator \x00
 	return ` UNHEX(
