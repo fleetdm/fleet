@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -21,7 +22,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
+func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
 	level.Info(logger).Log("msg", "starting winget app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
@@ -44,6 +45,9 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 	}
 
 	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
 
 		fileBytes, err := os.ReadFile(path.Join(inputsPath, f.Name()))
 		if err != nil {
@@ -52,7 +56,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		var input inputApp
 		if err := json.Unmarshal(fileBytes, &input); err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "unmarshal app input file", map[string]any{"file_name": f.Name()})
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal app input file: %s", f.Name())
 		}
 
 		if input.Slug == "" {
@@ -71,11 +75,16 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.NewWithData(ctx, "missing package identifier for app", map[string]any{"file_name": f.Name()})
 		}
 
+		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
+			continue
+		}
+
 		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingesting winget app")
+			level.Warn(logger).Log("msg", "failed to ingest app", "err", err, "name", input.Name)
+			continue
 		}
 
 		manifestApps = append(manifestApps, outApp)
@@ -131,12 +140,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		i.ghClientOpts,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the ")
+		return nil, ctxerr.Wrap(ctx, err, "downloading file contents for installer manifest")
 	}
 
 	contents, err := fileContents.GetContent()
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest file contents")
+		return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
 	}
 
 	var m installerManifest
@@ -166,57 +175,135 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	var out maintained_apps.FMAManifestApp
+	var selectedInstaller *installer
+	var installScript, uninstallScript string
+	productCode := m.ProductCode
 
-	// TODO: handle non-machine scope (aka .exe installers)
-	var installScript, uninstallScript, installerURL, sha256 string
+	// if we have a provided install script, use that
+	if input.InstallScriptPath != "" {
+		scriptBytes, err := os.ReadFile(input.InstallScriptPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided install script file")
+		}
 
-	// Some data is present on the top-level object, so try to grab that first
-	if m.InstallerType == installerTypeMSI || m.Scope == machineScope {
-		installScript = file.GetInstallScript(m.InstallerType)
-		uninstallScript = file.GetUninstallScript(m.InstallerType)
+		installScript = string(scriptBytes)
 	}
 
-	// Walk through the installers and get any data we missed
-	for _, installer := range m.Installers {
-		if (installer.Scope == machineScope || m.Scope == machineScope || (installer.Scope == "" && m.Scope == "")) &&
-			installer.Architecture == arch64Bit {
-			// Use the first machine scoped installer
-			installerURL = installer.InstallerURL
-			sha256 = installer.InstallerSha256
-			installerType := installer.InstallerType
-			if installerType == "" || installerType == installerTypeWix {
-				// try to get it from the URL
-				// TODO: this may not work in all situations
-				// TODO: also, "wix" might always mean an MSI installer, in which case we should
-				// just use that
-				installerType = strings.Trim(filepath.Ext(installerURL), ".")
-			}
-			if installScript == "" {
-				installScript = file.GetInstallScript(installerType)
-			}
-			if uninstallScript == "" {
-				uninstallScript = file.GetUninstallScript(installerType)
-			}
+	if input.UninstallScriptPath != "" {
+		scriptBytes, err := os.ReadFile(input.UninstallScriptPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided uninstall script file")
+		}
 
+		uninstallScript = string(scriptBytes)
+	}
+
+	for _, installer := range m.Installers {
+		installerType := m.InstallerType
+		if installerType == "" || isVendorType(installerType) {
+			installerType = installer.InstallerType
+		}
+
+		if installerType == "" || isVendorType(installerType) {
+			// try to get it from the URL
+			installerType = strings.Trim(filepath.Ext(installer.InstallerURL), ".")
+		}
+
+		scope := m.Scope
+		if scope == "" {
+			scope = installer.Scope
+			if scope == "" {
+				if installerType == installerTypeMSI {
+					scope = machineScope
+				}
+			}
+		}
+
+		if !isFileType(installerType) && scope == machineScope {
+			// assume we're an MSI
+			installerType = installerTypeMSI
+		}
+
+		if installer.Architecture == input.InstallerArch &&
+			scope == input.InstallerScope &&
+			installerType == input.InstallerType {
+			selectedInstaller = &installer
 			break
 		}
+
+	}
+
+	if selectedInstaller == nil {
+		return nil, ctxerr.New(ctx, "failed to find installer for app")
+	}
+
+	if input.InstallerType == installerTypeMSI && input.InstallerScope == machineScope {
+		if installScript == "" {
+			installScript = file.GetInstallScript(installerTypeMSI)
+		}
+		if uninstallScript == "" {
+			uninstallScript = file.GetUninstallScript(installerTypeMSI)
+		}
+
+	}
+
+	if installScript == "" {
+		return nil, ctxerr.New(ctx, "no install script found for app, aborting")
+	}
+
+	if uninstallScript == "" {
+		return nil, ctxerr.New(ctx, "no uninstall script found for app, aborting")
+	}
+
+	if productCode == "" {
+		productCode = selectedInstaller.ProductCode
 	}
 
 	out.Name = input.Name
 	out.Slug = input.Slug
-	out.InstallerURL = installerURL
+	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
-	out.SHA256 = strings.ToLower(sha256) // maintain consistency with darwin outputs SHAs
+	out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
 	out.Queries = maintained_apps.FMAQueries{
 		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
 	}
 	out.InstallScript = installScript
-	out.UninstallScript = uninstallScript
+	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(installScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(uninstallScript)
 
 	return &out, nil
+}
+
+var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+
+func preProcessUninstallScript(uninstallScript, productCode string) string {
+	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", productCode))
+}
+
+// these are installer types that correspond to software vendors, not the actual installer type
+// (like exe or msi).
+var vendorTypes = map[string]struct{}{
+	installerTypeWix:      {},
+	installerTypeNullSoft: {},
+	installerTypeInno:     {},
+}
+
+func isVendorType(installerType string) bool {
+	_, ok := vendorTypes[installerType]
+	return ok
+}
+
+var fileTypes = map[string]struct{}{
+	installerTypeMSI:  {},
+	installerTypeMSIX: {},
+	installerTypeExe:  {},
+}
+
+func isFileType(installerType string) bool {
+	_, ok := fileTypes[installerType]
+	return ok
 }
 
 type inputApp struct {
@@ -224,8 +311,13 @@ type inputApp struct {
 	Slug string `json:"slug"`
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
-	PackageIdentifier string `json:"package_identifier"`
-	UniqueIdentifier  string `json:"unique_identifier"`
+	PackageIdentifier   string `json:"package_identifier"`
+	UniqueIdentifier    string `json:"unique_identifier"`
+	InstallScriptPath   string `json:"install_script_path"`
+	UninstallScriptPath string `json:"uninstall_script_path"`
+	InstallerArch       string `json:"installer_arch"`
+	InstallerType       string `json:"installer_type"`
+	InstallerScope      string `json:"installer_scope"`
 }
 
 type installerManifest struct {
@@ -285,8 +377,14 @@ type localeManifest struct {
 }
 
 const (
-	machineScope     = "machine"
-	installerTypeMSI = "msi"
-	installerTypeWix = "wix"
-	arch64Bit        = "x64"
+	machineScope          = "machine"
+	userScope             = "user"
+	installerTypeMSI      = "msi"
+	installerTypeMSIX     = "msix"
+	installerTypeExe      = "exe"
+	installerTypeWix      = "wix"
+	installerTypeNullSoft = "nullsoft"
+	installerTypeInno     = "inno"
+	arch64Bit             = "x64"
+	arch32Bit             = "x86"
 )
