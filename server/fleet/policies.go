@@ -48,6 +48,10 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID *uint
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -80,13 +84,18 @@ type NewTeamPolicyPayload struct {
 	SoftwareTitleID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string
 }
 
 var (
-	errPolicyEmptyName       = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery      = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet   = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform = errors.New("invalid policy platform")
+	errPolicyEmptyName         = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery        = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet     = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform   = errors.New("invalid policy platform")
+	errPolicyConflictingLabels = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
@@ -108,6 +117,9 @@ func (p PolicyPayload) Verify() error {
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
+	}
+	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
+		return errPolicyConflictingLabels
 	}
 	return nil
 }
