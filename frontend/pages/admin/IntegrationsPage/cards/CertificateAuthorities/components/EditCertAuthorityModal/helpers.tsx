@@ -10,6 +10,8 @@ import {
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 
 export const getCertificateAuthorityType = (
   certAuthority: ICertificateIntegration
@@ -57,7 +59,9 @@ export const updateFormData = (
   const newData = { ...prevFormData, [update.name]: update.value };
 
   // for some inputs that change we want to reset one of the other inputs
-  // and force users to re-enter it.
+  // and force users to re-enter it. we only want to clear these values if it
+  // has not been updated. The characters "********" is the value the API sends
+  // back so we check for that value to determine if its been changed or not.
   if (isDigicertCertIntegration(certAuthority)) {
     const formData = prevFormData as IDigicertFormData;
     if (
@@ -67,25 +71,23 @@ export const updateFormData = (
     ) {
       return {
         ...newData,
-        // we only want to clear the apiToken value if it has not been updated.
-        // The characters "********" is the value the API sends back for
-        // apiToken so we can check for that value to determine if its been
-        // changed or not.
         apiToken: formData.apiToken === "********" ? "" : formData.apiToken,
       };
     }
   } else if (isNDESCertIntegration(certAuthority)) {
+    const formData = prevFormData as INDESFormData;
     if (update.name === "adminURL" || update.name === "username") {
       return {
         ...newData,
-        password: "",
+        password: formData.password === "********" ? "" : formData.password,
       };
     }
   } else if (isCustomSCEPCertIntegration(certAuthority)) {
+    const formData = prevFormData as ICustomSCEPFormData;
     if (update.name === "name" || update.name === "scepURL") {
       return {
         ...newData,
-        challenge: "",
+        challenge: formData.challenge === "********" ? "" : formData.challenge,
       };
     }
   }
