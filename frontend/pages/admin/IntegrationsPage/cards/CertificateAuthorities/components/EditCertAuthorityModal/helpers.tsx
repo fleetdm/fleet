@@ -9,6 +9,7 @@ import {
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 
 export const getCertificateAuthorityType = (
   certAuthority: ICertificateIntegration
@@ -58,6 +59,7 @@ export const updateFormData = (
   // for some inputs that change we want to reset one of the other inputs
   // and force users to re-enter it.
   if (isDigicertCertIntegration(certAuthority)) {
+    const formData = prevFormData as IDigicertFormData;
     if (
       update.name === "name" ||
       update.name === "url" ||
@@ -65,7 +67,11 @@ export const updateFormData = (
     ) {
       return {
         ...newData,
-        apiToken: "",
+        // we only want to clear the apiToken value if it has not been updated.
+        // The characters "********" is the value the API sends back for
+        // apiToken so we can check for that value to determine if its been
+        // changed or not.
+        apiToken: formData.apiToken === "********" ? "" : formData.apiToken,
       };
     }
   } else if (isNDESCertIntegration(certAuthority)) {
