@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "134.0.6998.118",
+      "version": "134.0.6998.178",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{D58F65B8-E0D5-336F-BC2C-E54DEE8503F4}';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
       "unique_identifier": "Google Chrome",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "5910b9ba",
-      "sha256": "d7f97287f5b8c6743897a054150efae63a881baf1b0da6ea6dfb9b2be6d529fe"
+      "sha256": "f636f77521781ba03c39d8be3e2ecdba828f1eee12cc0fee00509d6ae960c59b"
     }
   ],
   "refs": {

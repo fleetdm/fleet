@@ -994,6 +994,10 @@ type GetABMTokenOrgNamesAssociatedWithTeamFunc func(ctx context.Context, teamID 
 
 type ClearMDMUpcomingActivitiesDBFunc func(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
+type GetMDMAppleEnrolledDeviceDeletedFromFleetFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error)
+
+type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2736,6 +2740,12 @@ type DataStore struct {
 
 	ClearMDMUpcomingActivitiesDBFunc        ClearMDMUpcomingActivitiesDBFunc
 	ClearMDMUpcomingActivitiesDBFuncInvoked bool
+
+	GetMDMAppleEnrolledDeviceDeletedFromFleetFunc        GetMDMAppleEnrolledDeviceDeletedFromFleetFunc
+	GetMDMAppleEnrolledDeviceDeletedFromFleetFuncInvoked bool
+
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc        ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -6566,6 +6576,20 @@ func (s *DataStore) ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.Ex
 	s.ClearMDMUpcomingActivitiesDBFuncInvoked = true
 	s.mu.Unlock()
 	return s.ClearMDMUpcomingActivitiesDBFunc(ctx, tx, hostUUID)
+}
+
+func (s *DataStore) GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*fleet.MDMAppleEnrolledDeviceInfo, error) {
+	s.mu.Lock()
+	s.GetMDMAppleEnrolledDeviceDeletedFromFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleEnrolledDeviceDeletedFromFleetFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error) {
+	s.mu.Lock()
+	s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc(ctx, limit)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

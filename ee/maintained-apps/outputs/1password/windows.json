@@ -3,7 +3,7 @@
     {
       "version": "8.10.64",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{DA39A6BE-3B6A-4D64-8B1D-EABFE806EF08}';"
+        "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'AgileBits Inc.';"
       },
       "installer_url": "https://downloads.1password.com/win/1PasswordSetup-8.10.64.msi",
       "unique_identifier": "1Password",

@@ -98,7 +98,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
 	)
 
-	_, contents, _, err := i.githubClient.Repositories.GetContents(ctx,
+	_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
 		"microsoft",
 		"winget-pkgs",
 		dirPath,
@@ -109,16 +109,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	// sort the list of directories in descending order
-	slices.SortFunc(contents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
+	slices.SortFunc(repoContents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
 	// this directory has the latest version data in it
-	latestVersionDir := contents[0]
+	latestVersionDir := repoContents[0]
 	if latestVersionDir.GetName() == "" {
 		return nil, ctxerr.New(ctx, "latest version for app not found")
 	}
 
 	// this is the path to the specific manifest file we need
-	filePath := path.Join(
+	installerManifestPath := path.Join(
 		dirPath,
 		latestVersionDir.GetName(),
 		fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
@@ -127,38 +127,59 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
 		"microsoft",
 		"winget-pkgs",
-		filePath,
+		installerManifestPath,
 		i.ghClientOpts,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the ")
 	}
 
-	manifestContents, err := fileContents.GetContent()
+	contents, err := fileContents.GetContent()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest file contents")
 	}
 
-	var m wingetManifest
-	if err := yaml.Unmarshal([]byte(manifestContents), &m); err != nil {
+	var m installerManifest
+	if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
+	}
+
+	localeManifestPath := path.Join(dirPath, latestVersionDir.GetName(), fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
+	fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
+		"microsoft",
+		"winget-pkgs",
+		localeManifestPath,
+		i.ghClientOpts,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
+	}
+
+	contents, err = fileContents.GetContent()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
+	}
+
+	var l localeManifest
+	if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
 	}
 
 	var out maintained_apps.FMAManifestApp
 
 	// TODO: handle non-machine scope (aka .exe installers)
-	var installScript, uninstallScript, installerURL, productCode, sha256 string
+	var installScript, uninstallScript, installerURL, sha256 string
 
 	// Some data is present on the top-level object, so try to grab that first
 	if m.InstallerType == installerTypeMSI || m.Scope == machineScope {
-		productCode = m.ProductCode
 		installScript = file.GetInstallScript(m.InstallerType)
 		uninstallScript = file.GetUninstallScript(m.InstallerType)
 	}
 
 	// Walk through the installers and get any data we missed
 	for _, installer := range m.Installers {
-		if (installer.Scope == machineScope || m.Scope == machineScope) && installer.Architecture == arch64Bit {
+		if (installer.Scope == machineScope || m.Scope == machineScope || (installer.Scope == "" && m.Scope == "")) &&
+			installer.Architecture == arch64Bit {
 			// Use the first machine scoped installer
 			installerURL = installer.InstallerURL
 			sha256 = installer.InstallerSha256
@@ -176,9 +197,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			if uninstallScript == "" {
 				uninstallScript = file.GetUninstallScript(installerType)
 			}
-			if productCode == "" {
-				productCode = installer.ProductCode
-			}
+
 			break
 		}
 	}
@@ -190,7 +209,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.SHA256 = strings.ToLower(sha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
 	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE identifying_number = '%s';", productCode),
+		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
 	}
 	out.InstallScript = installScript
 	out.UninstallScript = uninstallScript
@@ -209,17 +228,17 @@ type inputApp struct {
 	UniqueIdentifier  string `json:"unique_identifier"`
 }
 
-type wingetManifest struct {
+type installerManifest struct {
 	PackageIdentifier      string                   `yaml:"PackageIdentifier"`
 	PackageVersion         string                   `yaml:"PackageVersion"`
-	Installers             []wingetInstaller        `yaml:"Installers"`
+	Installers             []installer              `yaml:"Installers"`
 	InstallerType          string                   `yaml:"InstallerType"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
 	Scope                  string                   `yaml:"Scope"`
 }
 
-type wingetInstaller struct {
+type installer struct {
 	Architecture string `yaml:"Architecture"`
 	// InstallerType is the filetype of the installer. Either "exe" or "msi".
 	InstallerType          string                   `yaml:"InstallerType"`
@@ -240,6 +259,29 @@ type appsAndFeaturesEntries struct {
 	Publisher   string `yaml:"Publisher"`
 	ProductCode string `yaml:"ProductCode"`
 	UpgradeCode string `yaml:"UpgradeCode"`
+}
+
+type localeManifest struct {
+	PackageIdentifier   string   `yaml:"PackageIdentifier"`
+	PackageVersion      string   `yaml:"PackageVersion"`
+	PackageLocale       string   `yaml:"PackageLocale"`
+	Publisher           string   `yaml:"Publisher"`
+	PublisherURL        string   `yaml:"PublisherUrl"`
+	PublisherSupportURL string   `yaml:"PublisherSupportUrl"`
+	PrivacyURL          string   `yaml:"PrivacyUrl"`
+	Author              string   `yaml:"Author"`
+	PackageName         string   `yaml:"PackageName"`
+	PackageURL          string   `yaml:"PackageUrl"`
+	License             string   `yaml:"License"`
+	LicenseURL          string   `yaml:"LicenseUrl"`
+	Copyright           string   `yaml:"Copyright"`
+	CopyrightURL        string   `yaml:"CopyrightUrl"`
+	ShortDescription    string   `yaml:"ShortDescription"`
+	Description         string   `yaml:"Description"`
+	Tags                []string `yaml:"Tags"`
+	PurchaseURL         string   `yaml:"PurchaseUrl"`
+	ManifestType        string   `yaml:"ManifestType"`
+	ManifestVersion     string   `yaml:"ManifestVersion"`
 }
 
 const (

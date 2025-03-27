@@ -69,6 +69,7 @@ go.mod @fleetdm/go
 /docs/Contributing                              @fleetdm/go @fleetdm/frontend
 /docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/Contributing/Audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                    @edwardsb
 
