@@ -35,6 +35,7 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
 policies:
     - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+    - path: ../lib/macos/policies/test.yml
 queries:
 software:
   packages:
