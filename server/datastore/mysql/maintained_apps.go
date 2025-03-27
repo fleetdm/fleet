@@ -145,21 +145,21 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	return avail, meta, nil
 }
 
-func (ds *Datastore) DeleteFleetMaintainedAppsBySlugs(ctx context.Context, slugs []string) error {
-	if len(slugs) == 0 {
+func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
+	if len(slugsToKeep) == 0 {
 		return nil
 	}
 
-	stmt := `DELETE FROM fleet_maintained_apps WHERE slug IN (?)`
+	stmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
 
-	stmt, args, err := sqlx.In(stmt, slugs)
+	stmt, args, err := sqlx.In(stmt, slugsToKeep)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building sqlx.In statement for deleting maintained apps by slug")
+		return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting maintained apps by slug")
+		return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
 	}
 
 	return nil

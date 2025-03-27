@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -77,18 +76,10 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		return ctxerr.New(ctx, "apps list is an incompatible version")
 	}
 
-	currentFMASet, _, err := ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.ListOptions{})
-	if err != nil {
-		if !errors.Is(err, &fleet.NoMaintainedAppsInDatabaseError{}) {
-			return ctxerr.Wrap(ctx, err, "listing fleet maintained app slugs in refresh")
-		}
-	}
-
-	var appsToRemove []string
-	refreshedApps := make(map[string]struct{})
+	var gotApps []string
 
 	for _, app := range appsList.Apps {
-		refreshedApps[app.Slug] = struct{}{}
+		gotApps = append(gotApps, app.Slug)
 
 		if app.UniqueIdentifier == "" {
 			app.UniqueIdentifier = app.Name
@@ -104,17 +95,9 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		}
 	}
 
-	for _, a := range currentFMASet {
-		if _, ok := refreshedApps[a.Slug]; !ok {
-			appsToRemove = append(appsToRemove, a.Slug)
-		}
-	}
-
-	if len(appsToRemove) > 0 {
-		// remove apps that were removed upstream
-		if err := ds.DeleteFleetMaintainedAppsBySlugs(ctx, appsToRemove); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting removed maintained apps during refresh")
-		}
+	// remove apps that were removed upstream
+	if err := ds.ClearRemovedFleetMaintainedApps(ctx, gotApps); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear removed maintained apps during refresh")
 	}
 
 	return nil
