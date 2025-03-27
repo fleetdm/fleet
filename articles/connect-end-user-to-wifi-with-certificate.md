@@ -310,7 +310,7 @@ values. Any errors will appear as a **Failed** status on the host details page, 
 </plist>
 ```
 
-## How does Fleet SCEP proxy works (NDES and custom SCEP)
+## How the SCEP proxy works
 
 Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or
 custom SCEP server, retrieves the certificate, and sends it back to the host. 
