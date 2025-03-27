@@ -30,7 +30,7 @@ interface IPoliciesTableProps {
   sortHeader?: "name" | "failing_host_count";
   sortDirection?: "asc" | "desc";
   page: number;
-  resetPageIndex: boolean;
+  // resetPageIndex: boolean;
 }
 
 const PoliciesTable = ({
@@ -48,8 +48,8 @@ const PoliciesTable = ({
   sortHeader,
   sortDirection,
   page,
-  resetPageIndex,
-}: IPoliciesTableProps): JSX.Element => {
+}: // resetPageIndex,
+IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
   const emptyState: IEmptyTableProps = {
@@ -129,7 +129,7 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
-        resetPageIndex={resetPageIndex}
+        // resetPageIndex={resetPageIndex}
       />
     </div>
   );

@@ -130,7 +130,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
-  defaultPageIndex = DEFAULT_PAGE_INDEX,
+  defaultPageIndex,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   defaultSelectedRows,
@@ -181,13 +181,15 @@ const TableContainer = <T,>({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState<number>(defaultPageIndex);
+  const [pageIndex, setPageIndex] = useState<number>(
+    defaultPageIndex || DEFAULT_PAGE_INDEX
+  );
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {
-    if (isClientSidePagination && pageIndex !== defaultPageIndex) {
-      setPageIndex(defaultPageIndex);
+    if (isClientSidePagination && pageIndex !== DEFAULT_PAGE_INDEX) {
+      setPageIndex(DEFAULT_PAGE_INDEX);
     }
   }, [defaultPageIndex, pageIndex, isClientSidePagination]);
 
@@ -267,18 +269,18 @@ const TableContainer = <T,>({
   ]);
   /** This is server side pagination. Clientside pagination is handled in
    * data table using react-table builtins */
-  const renderPagination = useCallback(() => {
+  const renderServersidePagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
       return null;
     }
     return (
       <Pagination
-        disablePrev={pageIndex === 0}
+        disablePrev={defaultPageIndex === 0}
         disableNext={disableNextPage || data.length < pageSize}
         onPrevPage={() => onPaginationChange(pageIndex - 1)}
         onNextPage={() => onPaginationChange(pageIndex + 1)}
         hidePagination={
-          (disableNextPage || data.length < pageSize) && pageIndex === 0
+          (disableNextPage || data.length < pageSize) && defaultPageIndex === 0
         }
       />
     );
@@ -287,10 +289,10 @@ const TableContainer = <T,>({
     disablePagination,
     isClientSidePagination,
     disableNextPage,
+    defaultPageIndex,
     pageIndex,
     pageSize,
     onPaginationChange,
-    resetPageIndex,
   ]);
 
   const renderFilterActionButton = () => {
@@ -553,7 +555,9 @@ const TableContainer = <T,>({
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderTableHelpText={renderTableHelpText}
                 renderPagination={
-                  isClientSidePagination ? undefined : renderPagination
+                  isClientSidePagination
+                    ? undefined
+                    : renderServersidePagination
                 }
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
