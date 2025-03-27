@@ -9238,6 +9238,7 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "bundle_identifier": "crowdstrike.falcon.Agent",
+    "fleet_maintained": "true",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
