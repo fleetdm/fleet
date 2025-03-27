@@ -572,32 +572,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
-	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
-	if gme {
-		if !license.IsPremium() {
-			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
-		}
-		if rurl == "" {
-			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
-		}
-	}
-
-	if _, ok := newAppConfigRaw["gitops"].(fleet.UIGitOpsModeConfig); ok {
-		appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
-	}
-
-	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
-		// generate the activity
-		var act fleet.ActivityDetails
+	if _, ok := newAppConfigRaw["gitops"]; ok {
+		gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
 		if gme {
-			act = fleet.ActivityTypeEnabledGitOpsMode{}
-		} else {
-			act = fleet.ActivityTypeDisabledGitOpsMode{}
-		}
-		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+			if !license.IsPremium() {
+				return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
+			}
+			if rurl == "" {
+				return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
+			}
 		}
 
+		appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
+
+		if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
+			// generate the activity
+			var act fleet.ActivityDetails
+			if gme {
+				act = fleet.ActivityTypeEnabledGitOpsMode{}
+			} else {
+				act = fleet.ActivityTypeDisabledGitOpsMode{}
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+				return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+			}
+		}
 	}
 
 	if !license.IsPremium() {
