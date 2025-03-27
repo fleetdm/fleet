@@ -11,53 +11,228 @@ import (
 
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
+	"github.com/elimity-com/scim/optional"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/scim2/filter-parser/v2"
 )
 
+const (
+	// Common attributes: https://datatracker.ietf.org/doc/html/rfc7643#section-3.1
+	externalIdAttr = "externalId"
+
+	// User attributes: https://datatracker.ietf.org/doc/html/rfc7643#section-4.1
+	userNameAttr   = "userName"
+	nameAttr       = "name"
+	givenNameAttr  = "givenName"
+	familyNameAttr = "familyName"
+	activeAttr     = "active"
+	emailsAttr     = "emails"
+)
+
 type UserHandler struct {
+	ds fleet.Datastore
+}
+
+// Compile-time check
+var _ scim.ResourceHandler = &UserHandler{}
+
+func NewUserHandler(ds fleet.Datastore) scim.ResourceHandler {
+	return &UserHandler{ds: ds}
 }
 
 var mu sync.RWMutex
 var users = make(map[uint]scim.Resource)
-var nextId uint = 1
 
-func (u UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if _, ok := attributes["userName"]; !ok {
-		return scim.Resource{}, errors.ScimErrorInvalidValue
+func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
+	// Check for userName uniqueness
+	userName, err := getRequiredResource(attributes, userNameAttr)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
+	if !fleet.IsNotFound(err) {
+		return scim.Resource{}, errors.ScimErrorUniqueness
 	}
 
-	for _, user := range users {
-		if user.Attributes["userName"] == attributes["userName"] {
-			return scim.Resource{}, errors.ScimErrorUniqueness
-		}
+	user, err := createUserFromAttributes(attributes)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	userID, err := u.ds.CreateScimUser(r.Context(), user)
+	if err != nil {
+		return scim.Resource{}, err
 	}
 
-	users[nextId] = scim.Resource{
-		ID:         fmt.Sprintf("%d", nextId),
+	return scim.Resource{
+		ID:         fmt.Sprintf("%d", userID),
 		Attributes: attributes,
-	}
-	nextId++
-	return users[nextId-1], nil
+	}, nil
 }
 
-func (u UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
+func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUser, error) {
+	user := fleet.ScimUser{}
+	var err error
+	user.UserName, err = getRequiredResource(attributes, userNameAttr)
+	if err != nil {
+		return nil, err
+	}
+	user.ExternalID, err = getOptionalResource[string](attributes, externalIdAttr)
+	if err != nil {
+		return nil, err
+	}
+	user.Active, err = getOptionalResource[bool](attributes, activeAttr)
+	if err != nil {
+		return nil, err
+	}
+	name, err := getComplexResource(attributes, nameAttr)
+	if err != nil {
+		return nil, err
+	}
+	user.FamilyName, err = getOptionalResource[string](name, familyNameAttr)
+	if err != nil {
+		return nil, err
+	}
+	user.GivenName, err = getOptionalResource[string](name, givenNameAttr)
+	if err != nil {
+		return nil, err
+	}
+	emails, err := getComplexResourceSlice(attributes, emailsAttr)
+	if err != nil {
+		return nil, err
+	}
+	userEmails := make([]fleet.ScimUserEmail, 0, len(emails))
+	for _, email := range emails {
+		userEmail := fleet.ScimUserEmail{}
+		userEmail.Email, err = getRequiredResource(email, "value")
+		if err != nil {
+			return nil, err
+		}
+		userEmail.Type, err = getOptionalResource[string](email, "type")
+		if err != nil {
+			return nil, err
+		}
+		userEmail.Primary, err = getOptionalResource[bool](email, "primary")
+		if err != nil {
+			return nil, err
+		}
+		userEmails = append(userEmails, userEmail)
+	}
+	user.Emails = userEmails
+	return &user, nil
+}
 
-	mu.RLock()
-	defer mu.RUnlock()
+func getRequiredResource[T string](attributes scim.ResourceAttributes, key string) (T, error) {
+	var val T
+	valIntf, ok := attributes[key]
+	if !ok || valIntf == nil {
+		return val, errors.ScimErrorBadParams([]string{key})
+	}
+	val, ok = valIntf.(T)
+	if !ok {
+		return val, errors.ScimErrorBadParams([]string{key})
+	}
+	return val, nil
+}
+
+func getOptionalResource[T string | bool](attributes scim.ResourceAttributes, key string) (*T, error) {
+	var valPtr *T
+	valIntf, ok := attributes[key]
+	if ok && valIntf != nil {
+		val, ok := valIntf.(T)
+		if !ok {
+			return nil, errors.ScimErrorBadParams([]string{key})
+		}
+		valPtr = &val
+	}
+	return valPtr, nil
+}
+
+func getComplexResource(attributes scim.ResourceAttributes, key string) (map[string]interface{}, error) {
+	valIntf, ok := attributes[key]
+	if ok && valIntf != nil {
+		val, ok := valIntf.(map[string]interface{})
+		if !ok {
+			return nil, errors.ScimErrorBadParams([]string{key})
+		}
+		return val, nil
+	}
+	return nil, nil
+}
+
+func getComplexResourceSlice(attributes scim.ResourceAttributes, key string) ([]map[string]interface{}, error) {
+	valIntf, ok := attributes[key]
+	if ok && valIntf != nil {
+		valSliceIntf, ok := valIntf.([]interface{})
+		if !ok {
+			return nil, errors.ScimErrorBadParams([]string{key})
+		}
+		val := make([]map[string]interface{}, 0, len(valSliceIntf))
+		for _, v := range valSliceIntf {
+			valMap, ok := v.(map[string]interface{})
+			if !ok {
+				return nil, errors.ScimErrorBadParams([]string{key})
+			}
+			if len(valMap) > 0 {
+				val = append(val, valMap)
+			}
+		}
+		return val, nil
+	}
+	return nil, nil
+}
+
+func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	if user, ok := users[uint(idUint)]; ok {
-		return user, nil
+
+	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
+	switch {
+	case fleet.IsNotFound(err):
+		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+	case err != nil:
+		return scim.Resource{}, err
 	}
-	return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+
+	userResource := scim.Resource{}
+	userResource.ID = id
+	if user.ExternalID != nil {
+		userResource.ExternalID = optional.NewString(*user.ExternalID)
+	}
+	userResource.Attributes = scim.ResourceAttributes{}
+	if user.Active != nil {
+		userResource.Attributes[activeAttr] = *user.Active
+	}
+	if user.FamilyName != nil || user.GivenName != nil {
+		userResource.Attributes[nameAttr] = make(scim.ResourceAttributes)
+		if user.FamilyName != nil {
+			userResource.Attributes[nameAttr].(scim.ResourceAttributes)[familyNameAttr] = *user.FamilyName
+		}
+		if user.GivenName != nil {
+			userResource.Attributes[nameAttr].(scim.ResourceAttributes)[givenNameAttr] = *user.GivenName
+		}
+	}
+	if len(user.Emails) > 0 {
+		emails := make([]scim.ResourceAttributes, 0, len(user.Emails))
+		for _, email := range user.Emails {
+			emailResource := make(scim.ResourceAttributes)
+			emailResource["value"] = email.Email
+			if email.Type != nil {
+				emailResource["type"] = *email.Type
+			}
+			if email.Primary != nil {
+				emailResource["primary"] = *email.Primary
+			}
+			emails = append(emails, emailResource)
+		}
+		userResource.Attributes[emailsAttr] = emails
+	}
+
+	return userResource, nil
 }
 
-func (u UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
+func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
 
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
@@ -125,23 +300,32 @@ func (u UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sci
 	return result, nil
 }
 
-func (u UserHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
-	mu.Lock()
-	defer mu.Unlock()
+func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return scim.Resource{}, fmt.Errorf("invalid user ID %s: %w", id, err)
+		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	user, ok := users[uint(idUint)]
-	if !ok {
-		return scim.Resource{}, fmt.Errorf("user with ID %s not found", id)
+
+	user, err := createUserFromAttributes(attributes)
+	if err != nil {
+		return scim.Resource{}, err
 	}
-	user.Attributes = attributes
-	users[uint(idUint)] = user
-	return user, nil
+	user.ID = uint(idUint)
+	err = u.ds.ReplaceScimUser(r.Context(), user)
+	switch {
+	case fleet.IsNotFound(err):
+		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+	case err != nil:
+		return scim.Resource{}, err
+	}
+
+	return scim.Resource{
+		ID:         id,
+		Attributes: attributes,
+	}, nil
 }
 
-func (u UserHandler) Delete(r *http.Request, id string) error {
+func (u *UserHandler) Delete(r *http.Request, id string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	idUint, err := strconv.ParseUint(id, 10, 64)
@@ -155,7 +339,7 @@ func (u UserHandler) Delete(r *http.Request, id string) error {
 // Patch
 // Per https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
 // we only support patching the "active" attribute
-func (u UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
+func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	idUint, err := strconv.ParseUint(id, 10, 64)
@@ -170,7 +354,8 @@ func (u UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOp
 		if op.Op != "replace" {
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
-		if op.Path == nil {
+		switch {
+		case op.Path == nil:
 			newValues, ok := op.Value.(map[string]interface{})
 			if !ok {
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -187,14 +372,12 @@ func (u UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOp
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			user.Attributes["active"] = valBool
-		} else if op.Path.String() == "active" {
+		case op.Path.String() == "active":
 			user.Attributes["active"] = op.Value
-		} else {
+		default:
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 	}
 	users[uint(idUint)] = user
 	return user, nil
 }
-
-var _ scim.ResourceHandler = &UserHandler{}

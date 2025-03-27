@@ -1288,6 +1288,8 @@ type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error
 
 type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.ScimUser, error)
 
+type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3187,6 +3189,9 @@ type DataStore struct {
 
 	ScimUserByUserNameFunc        ScimUserByUserNameFunc
 	ScimUserByUserNameFuncInvoked bool
+
+	ReplaceScimUserFunc        ReplaceScimUserFunc
+	ReplaceScimUserFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7620,4 +7625,11 @@ func (s *DataStore) ScimUserByUserName(ctx context.Context, userName string) (*f
 	s.ScimUserByUserNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScimUserByUserNameFunc(ctx, userName)
+}
+
+func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
+	s.mu.Lock()
+	s.ReplaceScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceScimUserFunc(ctx, user)
 }

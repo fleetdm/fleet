@@ -7,12 +7,14 @@ import (
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/optional"
 	"github.com/elimity-com/scim/schema"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
 
 func RegisterSCIM(
 	mux *http.ServeMux,
+	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
 	config := scim.ServiceProviderConfig{
@@ -74,8 +76,6 @@ func RegisterSCIM(
 		},
 	}
 
-	var userResourceHandler scim.ResourceHandler = &UserHandler{}
-
 	resourceTypes := []scim.ResourceType{
 		{
 			ID:          optional.NewString("User"),
@@ -83,7 +83,7 @@ func RegisterSCIM(
 			Endpoint:    "/Users",
 			Description: optional.NewString("User Account"),
 			Schema:      userSchema,
-			Handler:     userResourceHandler,
+			Handler:     NewUserHandler(ds),
 		},
 	}
 
@@ -108,9 +108,9 @@ func RegisterSCIM(
 		}
 		return http.HandlerFunc(fn)
 	}
-
 	// TODO: Add authentication, proper logging, tracing, and Prometheus middleware
-	mux.Handle("/scim/v2/", loggingMiddleware(server))
+	mux.Handle("/api/v1/fleet/scim/", loggingMiddleware(http.StripPrefix("/api/v1/fleet/scim", server)))
+	mux.Handle("/api/latest/fleet/scim/", loggingMiddleware(http.StripPrefix("/api/latest/fleet/scim", server)))
 	return nil
 }
 

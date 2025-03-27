@@ -20,6 +20,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserCreate", testScimUserCreate},
 		{"ScimUserByID", testScimUserByID},
 		{"ScimUserByUserName", testScimUserByUserName},
+		{"ReplaceScimUser", testReplaceScimUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -200,4 +201,90 @@ func createTestScimUsers(t *testing.T, ds *Datastore) []*fleet.ScimUser {
 		users = append(users, &u)
 	}
 	return users
+}
+
+func testReplaceScimUser(t *testing.T, ds *Datastore) {
+	// Create a test user
+	user := fleet.ScimUser{
+		UserName:   "replace-test-user",
+		ExternalID: ptr.String("ext-replace-123"),
+		GivenName:  ptr.String("Original"),
+		FamilyName: ptr.String("User"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "original.user@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+
+	var err error
+	user.ID, err = ds.CreateScimUser(context.Background(), &user)
+	require.Nil(t, err)
+
+	// Verify the user was created correctly
+	createdUser, err := ds.ScimUserByID(context.Background(), user.ID)
+	require.Nil(t, err)
+	assert.Equal(t, user.UserName, createdUser.UserName)
+	assert.Equal(t, user.ExternalID, createdUser.ExternalID)
+	assert.Equal(t, user.GivenName, createdUser.GivenName)
+	assert.Equal(t, user.FamilyName, createdUser.FamilyName)
+	assert.Equal(t, user.Active, createdUser.Active)
+	assert.Equal(t, 1, len(createdUser.Emails))
+	assert.Equal(t, "original.user@example.com", createdUser.Emails[0].Email)
+
+	// Modify the user
+	updatedUser := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "replace-test-user",           // Same username
+		ExternalID: ptr.String("ext-replace-456"), // Changed external ID
+		GivenName:  ptr.String("Updated"),         // Changed given name
+		FamilyName: ptr.String("User"),            // Same family name
+		Active:     ptr.Bool(false),               // Changed active status
+		Emails: []fleet.ScimUserEmail{ // Changed emails
+			{
+				Email:   "updated.user@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+			{
+				Email:   "personal.user@example.com",
+				Primary: ptr.Bool(false),
+				Type:    ptr.String("home"),
+			},
+		},
+	}
+
+	// Replace the user
+	err = ds.ReplaceScimUser(context.Background(), &updatedUser)
+	require.Nil(t, err)
+
+	// Verify the user was updated correctly
+	replacedUser, err := ds.ScimUserByID(context.Background(), user.ID)
+	require.Nil(t, err)
+	assert.Equal(t, updatedUser.UserName, replacedUser.UserName)
+	assert.Equal(t, updatedUser.ExternalID, replacedUser.ExternalID)
+	assert.Equal(t, updatedUser.GivenName, replacedUser.GivenName)
+	assert.Equal(t, updatedUser.FamilyName, replacedUser.FamilyName)
+	assert.Equal(t, updatedUser.Active, replacedUser.Active)
+
+	// Verify emails were replaced
+	assert.Equal(t, 2, len(replacedUser.Emails))
+	assert.Equal(t, "personal.user@example.com", replacedUser.Emails[0].Email) // Alphabetical order
+	assert.Equal(t, "updated.user@example.com", replacedUser.Emails[1].Email)
+
+	// Test replacing a non-existent user
+	nonExistentUser := fleet.ScimUser{
+		ID:         99999, // Non-existent ID
+		UserName:   "non-existent",
+		ExternalID: ptr.String("ext-non-existent"),
+		GivenName:  ptr.String("Non"),
+		FamilyName: ptr.String("Existent"),
+		Active:     ptr.Bool(true),
+	}
+
+	err = ds.ReplaceScimUser(context.Background(), &nonExistentUser)
+	assert.True(t, fleet.IsNotFound(err))
 }

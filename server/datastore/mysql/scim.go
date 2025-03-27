@@ -118,6 +118,72 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 	return user, nil
 }
 
+// ReplaceScimUser replaces an existing SCIM user in the database
+func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Update the SCIM user
+		const updateUserQuery = `
+		UPDATE scim_users SET
+			external_id = ?,
+			user_name = ?,
+			given_name = ?,
+			family_name = ?,
+			active = ?
+		WHERE id = ?`
+		result, err := tx.ExecContext(
+			ctx,
+			updateUserQuery,
+			user.ExternalID,
+			user.UserName,
+			user.GivenName,
+			user.FamilyName,
+			user.Active,
+			user.ID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update scim user")
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for update scim user")
+		}
+		if rowsAffected == 0 {
+			return notFound("scim user").WithID(user.ID)
+		}
+
+		// Delete all existing email entries for the user
+		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
+		_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete scim user emails")
+		}
+
+		// Insert the user's emails if any
+		if len(user.Emails) > 0 {
+			const insertEmailQuery = `
+			INSERT INTO scim_user_emails (
+				scim_user_id, email, ` + "`primary`" + `, type
+			) VALUES (?, ?, ?, ?)`
+			for i := range user.Emails {
+				user.Emails[i].ScimUserID = user.ID
+				_, err = tx.ExecContext(
+					ctx,
+					insertEmailQuery,
+					user.Emails[i].ScimUserID,
+					user.Emails[i].Email,
+					user.Emails[i].Primary,
+					user.Emails[i].Type,
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "insert scim user email")
+				}
+			}
+		}
+		return nil
+	})
+}
+
 // getScimUserEmails retrieves all emails for a SCIM user
 func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]fleet.ScimUserEmail, error) {
 	const query = `

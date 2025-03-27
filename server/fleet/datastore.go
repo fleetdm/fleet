@@ -2018,6 +2018,8 @@ type Datastore interface {
 	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
 	// ScimUserByUserName retrieves a SCIM user by username
 	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
+	// ReplaceScimUser replaces an existing SCIM user in the database
+	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 }
 
 type AndroidDatastore interface {

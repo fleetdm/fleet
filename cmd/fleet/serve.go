@@ -1177,7 +1177,7 @@ the way that the Fleet server works.
 				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
-				if err = scim.RegisterSCIM(rootMux, logger); err != nil {
+				if err = scim.RegisterSCIM(rootMux, ds, logger); err != nil {
 					initFatal(err, "setup SCIM")
 				}
 			}
