@@ -112,6 +112,12 @@ const PolicyForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
 
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState({});
+
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
@@ -132,28 +138,6 @@ const PolicyForm = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
-
-  const [selectedTargetType, setSelectedTargetType] = useState(
-    !lastEditedQueryLabelsIncludeAny.length &&
-      !lastEditedQueryLabelsExcludeAny.length
-      ? "All hosts"
-      : "Custom"
-  );
-  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
-    lastEditedQueryLabelsExcludeAny.length
-      ? "labelsExcludeAny"
-      : "labelsIncludeAny"
-  );
-  const [selectedLabels, setSelectedLabels] = useState(
-    lastEditedQueryLabelsIncludeAny
-      .concat(lastEditedQueryLabelsExcludeAny)
-      .reduce((acc, label) => {
-        return {
-          ...acc,
-          [label.name]: true,
-        };
-      }, {}) || {}
-  );
 
   const onSelectLabel = ({
     name: labelName,
@@ -240,6 +224,30 @@ const PolicyForm = ({
   const isNewTemplatePolicy =
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
+
+  useEffect(() => {
+    setSelectedTargetType(
+      !lastEditedQueryLabelsIncludeAny.length &&
+        !lastEditedQueryLabelsExcludeAny.length
+        ? "All hosts"
+        : "Custom"
+    );
+    setSelectedCustomTarget(
+      lastEditedQueryLabelsExcludeAny.length
+        ? "labelsExcludeAny"
+        : "labelsIncludeAny"
+    );
+    setSelectedLabels(
+      lastEditedQueryLabelsIncludeAny
+        .concat(lastEditedQueryLabelsExcludeAny)
+        .reduce((acc, label) => {
+          return {
+            ...acc,
+            [label.name]: true,
+          };
+        }, {}) || {}
+    );
+  }, [lastEditedQueryLabelsIncludeAny, lastEditedQueryLabelsExcludeAny]);
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
