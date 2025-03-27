@@ -108,6 +108,9 @@ sequenceDiagram
 ```mermaid
 ---
 title: Partial class diagram
+config:
+  class:
+    hideEmptyMembersBox: true
 ---
 classDiagram
     direction LR

@@ -980,6 +980,13 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
+				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
@@ -1211,7 +1218,9 @@ the way that the Fleet server works.
 				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
 					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
 						"/fleet/software/titles/")) ||
-					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) {
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
+					(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||
+					(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
 					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
 					// For large software installers and bootstrap packages, the server time needs time to read the full
