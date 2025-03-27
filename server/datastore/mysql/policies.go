@@ -75,8 +75,107 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil) //nolint:gosec // dismiss G115
 }
 
-func updatePolicyLabels(ctx context.Context, q sqlx.ExecerContext, policyID uint, includeAny, excludeAny []string) error {
-	const deleteLabelsStmt = `DELETE FROM `
+func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Policy) error {
+	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
+	const insertLabelStmt = `
+		INSERT INTO policy_labels (
+			policy_id,
+			label_id,
+			exclude
+		)
+		SELECT ?, label_id, ?
+		FROM labels
+		WHERE name IN (?)
+	`
+
+	if len(policy.LabelsIncludeAny) > 0 && len(policy.LabelsExcludeAny) > 0 {
+		return ctxerr.New(ctx, "cannot have both labels_include_any and labels_exclude_any on a policy")
+	}
+
+	var labelNames []string
+
+	exclude := false
+	if len(policy.LabelsExcludeAny) > 0 {
+		exclude = true
+		labelNames = append(labelNames, policy.LabelsExcludeAny...)
+	} else {
+		labelNames = append(labelNames, policy.LabelsIncludeAny...)
+	}
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting old policy labels")
+		}
+
+		if len(policy.LabelsIncludeAny) == 0 && len(policy.LabelsExcludeAny) == 0 {
+			return nil
+		}
+
+		labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, labelNames)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "constructing policy label update query")
+		}
+
+		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating policy labels")
+		}
+
+		return nil
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating policy labels")
+	}
+
+	return nil
+}
+
+func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies []*fleet.Policy) error {
+	const sql = `
+		SELECT
+			pl.policy_id
+			pl.label_name
+			pl.exclude
+		FROM policy_labels pl
+		INNER JOIN labels l ON l.id = ql.label_id
+		WHERE pl.policy_id IN (?)
+	`
+
+	if len(policies) == 0 {
+		return nil
+	}
+
+	policyIDs := make([]uint, 0, len(policies))
+	policyMap := make(map[uint]*fleet.Policy, len(policies))
+
+	for _, policy := range policies {
+		policy.LabelsIncludeAny = nil
+		policy.LabelsExcludeAny = nil
+		policyIDs = append(policyIDs, policy.ID)
+		policyMap[policy.ID] = policy
+	}
+
+	stmt, args, err := sqlx.In(sql, policyIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to load policy labels")
+	}
+
+	rows := []struct {
+		PolicyID  uint   `db:"policy_id"`
+		LabelName string `db:"label_name"`
+		Exclude   bool   `db:"exclude"`
+	}{}
+
+	if err := sqlx.SelectContext(ctx, db, &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting policy labels")
+	}
+
+	for _, row := range rows {
+		if row.Exclude {
+			policyMap[row.PolicyID].LabelsExcludeAny = append(policyMap[row.PolicyID].LabelsExcludeAny, row.LabelName)
+		} else {
+			policyMap[row.PolicyID].LabelsIncludeAny = append(policyMap[row.PolicyID].LabelsIncludeAny, row.LabelName)
+		}
+	}
+
 	return nil
 }
 
@@ -125,6 +224,11 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policy")
 	}
+
+	if err := loadLabelsForPolicies(ctx, q, []*fleet.Policy{&policy}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "laoding policy labels")
+	}
+
 	return &policy, nil
 }
 

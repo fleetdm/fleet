@@ -242,6 +242,11 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
+	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	LabelsIncludeAny []string
+	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	LabelsExcludeAny []string
+
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
 	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
