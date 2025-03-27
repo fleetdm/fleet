@@ -1,0 +1,7 @@
+{
+  "name": "Cisco Jabber",
+  "slug": "cisco-jabber/darwin",
+  "unique_identifier": "com.cisco.Jabber",
+  "token": "cisco-jabber",
+  "installer_format": "pkg"
+}
