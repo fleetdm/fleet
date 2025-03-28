@@ -3,7 +3,7 @@
     {
       "version": "6.4.62735",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Zoom Workplace' AND publisher = 'Zoom';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Zoom Workplace (64-bit)' AND publisher = 'Zoom';"
       },
       "installer_url": "https://zoom.us/client/6.4.2.62735/ZoomInstallerFull.msi?archType=x64",
       "unique_identifier": "Zoom",
