@@ -25,7 +25,7 @@ type FMAManifestApp struct {
 	Version            string     `json:"version"`
 	Queries            FMAQueries `json:"queries"`
 	InstallerURL       string     `json:"installer_url"`
-	UniqueIdentifier   string     `json:"unique_identifier"`
+	UniqueIdentifier   string     `json:"unique_identifier,omitempty"`
 	InstallScriptRef   string     `json:"install_script_ref"`
 	UninstallScriptRef string     `json:"uninstall_script_ref"`
 	InstallScript      string     `json:"-"`

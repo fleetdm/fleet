@@ -54,6 +54,11 @@ func main() {
 }
 
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	if err := updateAppsListFile(ctx, app); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating apps list file")
+	}
+	app.UniqueIdentifier = "" // make sure we don't leak unique_identifier into individual app manifests
+
 	outFile := maintained_apps.FMAManifestFile{
 		Versions: []*maintained_apps.FMAManifestApp{app},
 		Refs:     map[string]string{app.UninstallScriptRef: app.UninstallScript, app.InstallScriptRef: app.InstallScript},
@@ -73,10 +78,6 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 	}
 	if err := os.WriteFile(path.Join(maintained_apps.OutputPath, fmt.Sprintf("%s.json", app.Slug)), outBytes, 0o644); err != nil {
 		return ctxerr.Wrap(ctx, err, "writing output json file")
-	}
-
-	if err := updateAppsListFile(ctx, app); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating apps list file")
 	}
 
 	return nil

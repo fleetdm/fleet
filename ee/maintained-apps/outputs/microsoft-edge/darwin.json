@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';"
       },
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/7697fb1f-03b9-4c5b-a21a-db2973b936d9/MicrosoftEdge-134.0.3124.95.pkg",
-      "unique_identifier": "com.microsoft.edgemac",
       "install_script_ref": "5875c250",
       "uninstall_script_ref": "3a3eb6a1",
       "sha256": "0384868c1c3d97d60ff5da6500e6b48a9a47cadf46a509a2c6598b6d916a6b91"

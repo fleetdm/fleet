@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';"
       },
       "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.1.861.0",
-      "unique_identifier": "Cloudflare WARP",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "304ea9a8",
       "sha256": "5d3d2fcca081de37a4ccfd8b29d7420cef852b6171973c4f047c96731e1dd566"

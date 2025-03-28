@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.teamviewer.TeamViewer';"
       },
       "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.64.3/TeamViewer.pkg",
-      "unique_identifier": "com.teamviewer.TeamViewer",
       "install_script_ref": "023a9594",
       "uninstall_script_ref": "00380452",
       "sha256": "e3af4d2ad87f9f88788dad56396455125bbeb8223d5816a3b2156096caf18792"
