@@ -69,6 +69,8 @@ const (
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
 	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
+
+	maxValueCharsInError = 100
 )
 
 const (
@@ -588,8 +590,8 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 						break
 					}
 					payloadContent := string(payload.PayloadContent)
-					if len(payloadContent) > 100 {
-						payloadContent = payloadContent[:100] + "..."
+					if len(payloadContent) > maxValueCharsInError {
+						payloadContent = payloadContent[:maxValueCharsInError] + "..."
 					}
 					return &fleet.BadRequestError{Message: "CA name mismatch between $" + passwordPrefix + ca + " and " +
 						payloadContent + " in PKCS12 payload."}
@@ -600,9 +602,8 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 	if len(foundCAs) < len(digiCertVars.CAs()) {
 		for _, ca := range digiCertVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variables $%s and $%s"+
-					" can only be present in a 'com.apple.security.pkcs12' payload and must match the Password and PayloadContent fields in the"+
-					" payload exactly.", passwordPrefix+ca, dataPrefix+ca)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively.",
+					passwordPrefix+ca, dataPrefix+ca)}
 			}
 		}
 	}
@@ -655,8 +656,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 						break
 					}
 					scepURL := payload.PayloadContent.URL
-					if len(scepURL) > 100 {
-						scepURL = scepURL[:100] + "..."
+					if len(scepURL) > maxValueCharsInError {
+						scepURL = scepURL[:maxValueCharsInError] + "..."
 					}
 					return &fleet.BadRequestError{Message: "CA name mismatch between $" + challengePrefix + ca + " and " +
 						scepURL + " in SCEP payload."}
@@ -667,9 +668,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variables $%s and $%s"+
-					" can only be present in a 'com.apple.security.scep' payload and must match the Challenge and URL fields in the"+
-					" payload exactly.", challengePrefix+ca, urlPrefix+ca)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.scep' payload under Challenge and URL, respectively.",
+					challengePrefix+ca, urlPrefix+ca)}
 			}
 		}
 	}
