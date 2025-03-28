@@ -43,6 +43,9 @@ policies:
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
     platform: darwin
     critical: false
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 #### Separate file
