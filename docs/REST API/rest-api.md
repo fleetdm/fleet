@@ -6540,7 +6540,7 @@ None.
 
 Get details about SCIM (System for Cross-domain Identity Management (SCIM)) integration with your identity provider (IdP).
 
-`GET /api/v1/fleet/scim`
+`GET /api/v1/fleet/scim/details`
 
 
 #### Parameters
@@ -6550,7 +6550,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/scim`
+`GET /api/v1/fleet/scim/details`
 
 
 ##### Default response
