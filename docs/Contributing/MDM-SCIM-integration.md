@@ -7,14 +7,47 @@
 - [SCIM: Protocol (RFC7644)](https://datatracker.ietf.org/doc/html/rfc7644)
 - [scim Go library](https://github.com/elimity-com/scim)
 
-### Okta integration
+## Okta integration
 
 - https://developer.okta.com/docs/guides/scim-provisioning-integration-prepare/main/
 
-### Entra ID integration
+### Testing Okta integration
+
+First, create at least one SCIM user:
+
+```
+POST https://localhost:8080/api/latest/fleet/scim/Users
+
+{
+    "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
+    "userName": "test.user@okta.local",
+    "name": {
+        "givenName": "Test",
+        "familyName": "User"
+    },
+    "emails": [{
+        "primary": true,
+        "value": "test.user@okta.local",
+        "type": "work"
+    }],
+    "active": true
+}
+```
+
+Run test using [Runscope](https://www.runscope.com/). See [instructions](https://developer.okta.com/docs/guides/scim-provisioning-integration-prepare/main/#test-your-scim-api).
+
+## Entra ID integration
 - [SCIM guide](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/use-scim-to-provision-users-and-groups)
 - [SCIM validator](https://scimvalidator.microsoft.com/)
   - Only test attributes that we implemented
+
+### Testing Entra ID integration
+
+Use [scimvalidator.microsoft.com](https://scimvalidator.microsoft.com/). Only test the attributes that we have implemented. To see our supported attributes, check the schema:
+
+```
+GET https://localhost:8080/api/latest/fleet/scim/Schemas
+```
 
 ## Authentication
 
@@ -40,9 +73,10 @@ erDiagram
         active *bool
     }
     SCIM_USER_EMAILS {
-        scim_user_id uint PK "FK"
-        type *string PK
-        email string PK "Index"
+        id uint PK
+        scim_user_id uint FK
+        type *string "Index"
+        email string "Index"
         primary *bool
     }
     SCIM_USER_GROUP {

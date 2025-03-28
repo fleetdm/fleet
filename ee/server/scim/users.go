@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"unicode"
 
 	"github.com/elimity-com/scim"
@@ -38,32 +37,6 @@ var _ scim.ResourceHandler = &UserHandler{}
 
 func NewUserHandler(ds fleet.Datastore) scim.ResourceHandler {
 	return &UserHandler{ds: ds}
-}
-
-var mu sync.RWMutex
-var users = make(map[uint]scim.Resource)
-
-// normalizeEmail
-// The local-part of a mailbox MUST BE treated as case sensitive.
-// Mailbox domains follow normal DNS rules and are hence not case sensitive.
-// https://datatracker.ietf.org/doc/html/rfc5321#section-2.4
-func normalizeEmail(email string) (string, error) {
-	email = removeWhitespace(email)
-	emailParts := strings.SplitN(email, "@", 2)
-	if len(emailParts) != 2 {
-		return "", fmt.Errorf("invalid email %s", email)
-	}
-	emailParts[1] = strings.ToLower(emailParts[1])
-	return strings.Join(emailParts, "@"), nil
-}
-
-func removeWhitespace(str string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsSpace(r) {
-			return -1
-		}
-		return r
-	}, str)
 }
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
@@ -231,6 +204,7 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		userResource.ExternalID = optional.NewString(*user.ExternalID)
 	}
 	userResource.Attributes = scim.ResourceAttributes{}
+	userResource.Attributes[userNameAttr] = user.UserName
 	if user.Active != nil {
 		userResource.Attributes[activeAttr] = *user.Active
 	}
@@ -423,4 +397,27 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	return createUserResource(user), nil
+}
+
+// normalizeEmail
+// The local-part of a mailbox MUST BE treated as case sensitive.
+// Mailbox domains follow normal DNS rules and are hence not case sensitive.
+// https://datatracker.ietf.org/doc/html/rfc5321#section-2.4
+func normalizeEmail(email string) (string, error) {
+	email = removeWhitespace(email)
+	emailParts := strings.SplitN(email, "@", 2)
+	if len(emailParts) != 2 {
+		return "", fmt.Errorf("invalid email %s", email)
+	}
+	emailParts[1] = strings.ToLower(emailParts[1])
+	return strings.Join(emailParts, "@"), nil
+}
+
+func removeWhitespace(str string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, str)
 }
