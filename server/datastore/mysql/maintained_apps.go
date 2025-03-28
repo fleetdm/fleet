@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -92,21 +91,6 @@ func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamI
 	return &app, nil
 }
 
-// NoMaintainedAppsInDatabase is the error type for no Fleet Maintained Apps in the database
-type NoMaintainedAppsInDatabase struct {
-	fleet.ErrorWithUUID
-}
-
-// Error implements the error interface.
-func (e *NoMaintainedAppsInDatabase) Error() string {
-	return `Fleet was unable to ingest the maintained apps list. Run fleetctl trigger name=maintained_apps to try repopulating the apps list.`
-}
-
-// StatusCode implements the go-kit http StatusCoder interface.
-func (e *NoMaintainedAppsInDatabase) StatusCode() int {
-	return http.StatusNotFound
-}
-
 func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	stmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
 	var args []any
@@ -141,7 +125,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 		}
 
 		if totalCount == 0 {
-			return nil, nil, &NoMaintainedAppsInDatabase{}
+			return nil, nil, &fleet.NoMaintainedAppsInDatabaseError{}
 		}
 	}
 
@@ -149,7 +133,7 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet maintained apps")
 	}
 
 	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
@@ -159,4 +143,27 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	}
 
 	return avail, meta, nil
+}
+
+func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
+	stmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
+
+	var err error
+	var args []any
+	switch len(slugsToKeep) {
+	case 0:
+		stmt = `DELETE FROM fleet_maintained_apps`
+	default:
+		stmt, args, err = sqlx.In(stmt, slugsToKeep)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
+		}
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
+	}
+
+	return nil
 }
