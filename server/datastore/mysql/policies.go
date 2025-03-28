@@ -95,7 +95,7 @@ func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Polic
 			label_id,
 			exclude
 		)
-		SELECT ?, label_id, ?
+		SELECT ?, id, ?
 		FROM labels
 		WHERE name IN (?)
 	`
@@ -115,7 +115,7 @@ func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Polic
 	}
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy); err != nil {
+		if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting old policy labels")
 		}
 
@@ -143,11 +143,11 @@ func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Polic
 func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies []*fleet.Policy) error {
 	const sql = `
 		SELECT
-			pl.policy_id
-			pl.label_name
+			pl.policy_id,
+			l.name AS label_name,
 			pl.exclude
 		FROM policy_labels pl
-		INNER JOIN labels l ON l.id = ql.label_id
+		INNER JOIN labels l ON l.id = pl.label_id
 		WHERE pl.policy_id IN (?)
 	`
 
@@ -646,6 +646,10 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
 
+	if err := loadLabelsForPolicies(ctx, q, policies); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
+	}
+
 	return policies, nil
 }
 
@@ -679,6 +683,10 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing inherited policies")
+	}
+
+	if err := loadLabelsForPolicies(ctx, q, policies); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
 
 	return policies, nil
@@ -934,6 +942,10 @@ func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, op
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing merged team policies")
+	}
+
+	if err := loadLabelsForPolicies(ctx, ds.reader(ctx), policies); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading policy labels")
 	}
 
 	return policies, nil

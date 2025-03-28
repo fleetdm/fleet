@@ -670,24 +670,32 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 }
 
 func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
-	require.NoError(t, err)
-
 	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+
 	gpol, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:        "existing-query-global-1",
-		Query:       "select 1;",
-		Description: "query1 desc",
-		Resolution:  "query1 resolution",
+		Name:             "existing-query-global-1",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsIncludeAny: []string{label1.Name, label2.Name},
 	})
 	require.NoError(t, err)
+	require.Equal(t, []string{label1.Name, label2.Name}, gpol.LabelsIncludeAny)
 
 	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, prevPolicies, 1)
+	require.Equal(t, []string{label1.Name, label2.Name}, prevPolicies[0].LabelsIncludeAny)
+	require.Equal(t, gpol, prevPolicies[0])
 
 	// team does not exist
 	_, err = ds.NewTeamPolicy(ctx, 99999999, &user1.ID, fleet.PolicyPayload{
