@@ -169,7 +169,7 @@
     margin-top: 32px;
   }
   [purpose='comparison-table-header'] {
-    font-size: 14px;
+    font-size: 16px;
     color: @core-fleet-black;
     div {
       padding: 12px 24px;
@@ -209,12 +209,14 @@
     justify-content: center;
     align-self: center;
     min-width: 200px;
+    padding: 12px 24px;
     p {
       font-size: 12px;
       margin-bottom: 0px;
     }
   }
   [purpose='fleet-column'] {
+    padding: 12px 24px 12px 44px;
     text-align: center;
     display: flex;
     justify-content: flex-start;
@@ -228,6 +230,7 @@
   }
   [purpose='feature-name'] {
     width: 100%;
+    padding: 12px 24px;
   }
   [purpose='table-new-badge'] {
     background-color: #0587FF;
@@ -252,7 +255,6 @@
         width: 12px;
       }
       div {
-        padding: 12px 24px;
         display: flex;
         align-items: center;
       }
@@ -1068,6 +1070,16 @@
           p {
             margin-bottom: 0px;
           }
+        }
+      }
+    }
+    [purpose='comparison-section'] {
+      [purpose='button-row'] {
+        flex-direction: column;
+        [purpose='cta-button'] {
+          width: 100%;
+          margin-bottom: 16px;
+          margin-right: 0;
         }
       }
     }

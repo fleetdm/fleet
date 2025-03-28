@@ -5,6 +5,8 @@ import { renderWithSetup } from "test/test-utils";
 
 import FleetDetails from "components/forms/RegistrationForm/FleetDetails";
 
+import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
+
 describe("FleetDetails - form", () => {
   const handleSubmitSpy = jest.fn();
   it("renders", () => {
@@ -29,24 +31,30 @@ describe("FleetDetails - form", () => {
     ).toBeInTheDocument();
   });
 
-  it("validates the fleet web address field starts with https://", async () => {
+  it("validates the Fleet server URL field starts with 'https://' or 'http://'", async () => {
     const { user } = renderWithSetup(
       <FleetDetails handleSubmit={handleSubmitSpy} currentPage />
     );
 
-    await user.type(
-      screen.getByRole("textbox", { name: "Fleet web address" }),
-      "http://gnar.Fleet.co"
-    );
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    const inputField = screen.getByRole("textbox", {
+      name: "Fleet web address",
+    });
+    const nextButton = screen.getByRole("button", { name: "Next" });
+
+    await user.type(inputField, "gnar.Fleet.co");
+    await user.click(nextButton);
 
     expect(handleSubmitSpy).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Fleet web address must start with https://")
-    ).toBeInTheDocument();
+    expect(screen.getByText(INVALID_SERVER_URL_MESSAGE)).toBeInTheDocument();
+
+    await user.type(inputField, "localhost:8080");
+    await user.click(nextButton);
+
+    expect(handleSubmitSpy).not.toHaveBeenCalled();
+    expect(screen.getByText(INVALID_SERVER_URL_MESSAGE)).toBeInTheDocument();
   });
 
-  it("submits the form when valid", async () => {
+  it("submits the form with valid https link", async () => {
     const { user } = renderWithSetup(
       <FleetDetails handleSubmit={handleSubmitSpy} currentPage />
     );
@@ -59,6 +67,21 @@ describe("FleetDetails - form", () => {
     // then
     expect(handleSubmitSpy).toHaveBeenCalledWith({
       server_url: "https://gnar.Fleet.co",
+    });
+  });
+  it("submits the form with valid http link", async () => {
+    const { user } = renderWithSetup(
+      <FleetDetails handleSubmit={handleSubmitSpy} currentPage />
+    );
+    // when
+    await user.type(
+      screen.getByRole("textbox", { name: "Fleet web address" }),
+      "http://localhost:8080"
+    );
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    // then
+    expect(handleSubmitSpy).toHaveBeenCalledWith({
+      server_url: "http://localhost:8080",
     });
   });
 });

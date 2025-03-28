@@ -7,6 +7,7 @@ import Calendars from "./cards/Calendars";
 import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
+import IdentityProviders from "./cards/IdentityProviders";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -34,12 +35,17 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
     Card: ChangeManagement,
   },
-  // TODO: digicert update: add this back when the feature is ready
   {
     title: "Certificates",
     urlSection: "certificates",
     path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
     Card: CertificateAuthorities,
+  },
+  {
+    title: "Identity provider (IdP)",
+    urlSection: "identity-provider",
+    path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
+    Card: IdentityProviders,
   },
   {
     title: "Conditional access",

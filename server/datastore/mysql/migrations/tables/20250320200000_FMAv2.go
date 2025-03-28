@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -107,6 +108,13 @@ ALTER TABLE fleet_maintained_apps
 	_, err = tx.Exec(`UPDATE fleet_maintained_apps SET slug = 'zoom/darwin', name = 'Zoom' WHERE slug = 'zoom-for-it-admins/darwin'`)
 	if err != nil {
 		return fmt.Errorf("failed to rename Zoom FMA: %w", err)
+	}
+
+	// Clear out scheduled runs for the maintained_apps cron. This will force the cron to run on
+	// next server start and sync the full maintained apps list, including Windows titles.
+	_, err = tx.Exec(`DELETE FROM cron_stats WHERE name = ? AND stats_type = ?`, fleet.CronMaintainedApps, fleet.CronStatsTypeScheduled)
+	if err != nil {
+		return fmt.Errorf("failed to clear past scheduled runs of maintained_apps from cron_stats table: %w", err)
 	}
 
 	return nil
