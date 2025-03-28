@@ -9,7 +9,6 @@ Open-source platform for IT and security teams with thousands of computers.  Des
 <a href="https://fleetdm.com/logos"><img src="https://github.com/fleetdm/fleet/assets/618009/f835ec29-1cb9-49ba-a0f3-395ffd9d5c9f" alt="A glass city in the clouds"/></a>
 
 
-
 ## What's it for?
 Organizations like Fastly and Gusto use Fleet for vulnerability reporting, detection engineering, device management (MDM), device health monitoring, posture-based access control, managing unused software licenses, and more.
 
