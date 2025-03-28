@@ -75,6 +75,9 @@
     align-items: center;
     gap: $pad-small;
     margin-top: 3px; // Fits button highlight during tabbing
+    @media (max-width: $break-sm) {
+      overflow: hidden;
+    }
 
     .input-icon-field {
       height: 40px; // Height 40px on table headers

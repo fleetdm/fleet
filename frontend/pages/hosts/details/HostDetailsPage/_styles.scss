@@ -1,8 +1,17 @@
 .host-details {
   // grid layout styles for the host details page
   &__details-panel {
-    display: grid;
-    gap: $pad-medium;
+    .card {
+      margin-bottom: $pad-medium;
+      box-sizing: border-box;
+    }
+    @media(min-width: $break-sm) {
+      display: grid;
+      gap: $pad-medium;
+      .card {
+        margin-bottom: 0;
+      }
+    }
   }
 
   @media screen and (min-width: $break-md) {

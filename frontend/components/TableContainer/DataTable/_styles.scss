@@ -15,6 +15,10 @@ $shadow-transition-width: 10px;
       flex-grow: 1;
       width: 100%;
 
+      @media (max-width: $break-sm) {
+        overflow: scroll;
+      }
+
       // Shadow
       background-image:
       /* Shadows */ linear-gradient(
@@ -242,6 +246,7 @@ $shadow-transition-width: 10px;
         height: 40px;
         padding: 0 $pad-large;
         max-width: 500px;
+        width: auto;
         word-wrap: break-word;
 
         &.actions__cell,

@@ -5,6 +5,7 @@
     align-items: center;
     margin: 96px auto; // 96px to top of div
     max-width: 500px; // standard empty state width
+    width: auto;
     gap: $pad-medium; // 16px between image, text, and buttons
   }
 
