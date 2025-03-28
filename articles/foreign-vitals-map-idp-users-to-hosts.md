@@ -147,16 +147,16 @@ To map users from Google Workspace to hosts in Fleet, do the following steps:
     ```
     return {
         "attributes": {
-            "ldap_uniq": ldap.get("objectSid"),
+            "ldap_uniq": list_flatten(ldap.get("objectSid")),
         },
     }
     ```
 
-- **Name**: Google LDAP objectSid > ldap_uniq  
+- **Name**: Google LDAP mail > username  
 - **Expression**:
     ```
     return {
-        "username": ldap.get("mail"),
+        "username": list_flatten(ldap.get("mail")),
     }
     ```
 
@@ -164,27 +164,27 @@ To map users from Google Workspace to hosts in Fleet, do the following steps:
 - **Expression**:
     ```
     return {
-        "email": ldap.get("mail"),
+        "email": list_flatten(ldap.get("mail")),
     }
     ```
 
-- **Name**: Google LDAP givenName > first_name
+- **Name**: Google LDAP givenName > givenName
 - **Expression**:
     ```
     return {
         "attributes": {
-            "first_name": ldap.get("givenName"),
+            "givenName": list_flatten(ldap.get("givenName")),
         },
     }
     ```
 
 
-- **Name**: Google LDAP sn > last_name
+- **Name**: Google LDAP sn > familyName
 - **Expression**:
     ```
     return {
         "attributes": {
-            "last_name": ldap.get("sn"),
+            "familyName": list_flatten(ldap.get("sn")),
         },
     }
     ```
@@ -193,32 +193,24 @@ To map users from Google Workspace to hosts in Fleet, do the following steps:
 - **Expression**:
     ```
     return {
-        "name": ldap.get("displayName")
+        "name": list_flatten(ldap.get("displayName")),
     }
     ```
 
-- **Name**: Google LDAP displayName > name
+- **Name**: Google LDAP displayName > name (group)
 - **Expression**:
     ```
     return {
-        "name": ldap.get("displayName")
+        "name": list_flatten(ldap.get("displayName")),
     }
     ```
 
-- **Name**: Google LDAP displayName to name (group)
-- **Expression**:
-    ```
-    return {
-        "name": ldap.get("displayName")
-    }
-    ```
-
-- **Name**: Google LDAP objectSid to ldap_uniq (group)
+- **Name**: Google LDAP objectSid > ldap_uniq (group)
 - **Expression**:
     ```
     return {
         "attributes": {
-            "ldap_uniq": ldap.get("objectSid"),
+            "ldap_uniq": list_flatten(ldap.get("objectSid")),
         },
     }
     ```
@@ -232,7 +224,7 @@ To map users from Google Workspace to hosts in Fleet, do the following steps:
 5. In the **Server URL** enter `ldap://ldap.google.com`. For more information refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
 6. For the **TLS client authentication certificate**, select your certificate created in 2nd section (Google LDAP certificate)
 7. For the **Bind CN**, enter the userneame that you saved in the first step. For **Bind Password**, enter the password you saved.
-8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dn=yourcompany,dn=com).
+8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dc=yourcompany,dc=com).
 9. For the **User Property Mappings,** remove all selected properties by clicking the "X" icon, and select all user properties that we created in the left box and select the ">" icon between boxes.
 ![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings.png)
 10. For the **Group Property Mappings**, remove all selected properties by clicking the "X" icon, and select all group properties that we created in the left box and select the ">" icon between boxes.
