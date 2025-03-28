@@ -1,4 +1,5 @@
 import React from "react";
+import { QueryParams } from "utilities/url";
 import { getErrorReason } from "interfaces/errors";
 import { trimEnd, upperFirst } from "lodash";
 
@@ -68,4 +69,13 @@ export const getUninstallErrorMessage = (e: unknown) => {
   }
 
   return DEFAULT_UNINSTALL_ERROR_MESSAGE;
+};
+
+// available_for_install string > boolean conversion in parseHostSoftwareQueryParams
+export const getHostSoftwareFilterFromQueryParams = (
+  queryParams: QueryParams
+) => {
+  const { available_for_install } = queryParams;
+
+  return available_for_install ? "installableSoftware" : "allSoftware";
 };
