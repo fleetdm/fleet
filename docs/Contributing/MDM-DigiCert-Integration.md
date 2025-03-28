@@ -13,6 +13,7 @@ _Notes:_
 ## Issues and limitations
 
 - CA name should be treated as a unique identifier and never changed once set. The profiles (and potential renewals) are tied to the CA name. To cleanly change the CA name, remove any profiles using the old CA name (which will remove the associated certificates from devices), change the CA name, upload new profiles using the new CA name.
+- Although you can have multiple PKCS12 payloads in a profile, each CA can only be used once per profile.
 
 ## Architecture diagrams
 
