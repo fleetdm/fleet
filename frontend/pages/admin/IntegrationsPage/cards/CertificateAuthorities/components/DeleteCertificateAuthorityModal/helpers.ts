@@ -188,7 +188,8 @@ export const useCertAuthorityDataGenerator = (
                   api_token: apiToken,
                   profile_id: profileId,
                   certificate_common_name: commonName,
-                  certificate_user_principal_names: [userPrincipalName],
+                  certificate_user_principal_names:
+                    userPrincipalName !== "" ? [userPrincipalName] : [],
                   certificate_seat_id: certificateSeatId,
                 };
               }
