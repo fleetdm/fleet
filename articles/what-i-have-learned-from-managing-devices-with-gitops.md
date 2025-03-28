@@ -75,7 +75,7 @@ Successful GitOps teams foster a continuous learning environment where failure i
 
 Breaking down silos between development, operations, and security teams is essential for GitOps success. Shared ownership of the GitOps workflow ensures that all perspectives are represented in the final configurations, leading to more robust and secure systems.
 
-# **GitOps mode in Fleet**
+## **GitOps mode in Fleet**
 
 The [introduction of GitOps mode in Fleet 4.65.0,](https://fleetdm.com/releases/fleet-4-65-0) represents a significant advancement in Fleet's enterprise readiness and GitOps capabilities. By allowing administrators to place the Fleet UI in read-only mode, the feature creates a clear separation between operational visibility and configuration management, ensuring all changes follow proper version control protocols through their git repository. This is particularly valuable in enterprise environments where configuration drift can lead to security vulnerabilities and compliance issues. This feature also solves the common problem of conflicting changes that occur when some team members modify settings through the UI while others manage configurations through configuration-as-code pipelines. By directing users to the git repository for changes, GitOps mode fosters better collaboration, maintains a single source of truth for configurations, and strengthens audit trails \- all critical requirements for mature security operations. This alignment with modern GitOps and change management practices demonstrates Fleet's evolution from a simple device management tool to an enterprise-grade platform that can integrate seamlessly with sophisticated IT governance frameworks.
 
@@ -103,4 +103,4 @@ Check out the [livestream replay for "GitOps: Infrastructure-as-code for managin
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-03-28">
-<meta name="description" value="What I have learned from managing devices with GitOps">
+<meta name="description" value="GitOps changes more than just technology.">
