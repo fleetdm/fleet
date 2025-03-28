@@ -88,6 +88,16 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 }
 
 func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Policy) error {
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return updatePolicyLabelsTx(ctx, tx, policy)
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "update policy label transaction")
+	}
+
+	return nil
+}
+
+func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet.Policy) error {
 	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
 	const insertLabelStmt = `
 		INSERT INTO policy_labels (
@@ -114,27 +124,21 @@ func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Polic
 		labelNames = append(labelNames, policy.LabelsIncludeAny...)
 	}
 
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy.ID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting old policy labels")
-		}
+	if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting old policy labels")
+	}
 
-		if len(policy.LabelsIncludeAny) == 0 && len(policy.LabelsExcludeAny) == 0 {
-			return nil
-		}
-
-		labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, labelNames)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "constructing policy label update query")
-		}
-
-		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "creating policy labels")
-		}
-
+	if len(policy.LabelsIncludeAny) == 0 && len(policy.LabelsExcludeAny) == 0 {
 		return nil
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating policy labels")
+	}
+
+	labelStmt, args, err := sqlx.In(insertLabelStmt, policy.ID, exclude, labelNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "constructing policy label update query")
+	}
+
+	if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating policy labels")
 	}
 
 	return nil
@@ -844,7 +848,19 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 }
 
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
-	return newTeamPolicy(ctx, ds.writer(ctx), teamID, authorID, args)
+	var newPolicy *fleet.Policy
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		p, err := newTeamPolicy(ctx, ds.writer(ctx), teamID, authorID, args)
+		if err != nil {
+			return err
+		}
+		newPolicy = p
+		return nil
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating new team policy")
+	}
+
+	return newPolicy, nil
 }
 
 func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -897,7 +913,19 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
 
-	return policyDB(ctx, db, uint(lastIdInt64), &teamID) //nolint:gosec // dismiss G115
+	policyID := uint(lastIdInt64) //nolint:gosec // dismiss G115
+
+	if err := updatePolicyLabelsTx(ctx, db, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			ID:               policyID,
+			LabelsIncludeAny: args.LabelsIncludeAny,
+			LabelsExcludeAny: args.LabelsExcludeAny,
+		},
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting policy labels")
+	}
+
+	return policyDB(ctx, db, policyID, &teamID)
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
