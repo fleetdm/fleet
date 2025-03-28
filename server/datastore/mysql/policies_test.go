@@ -691,6 +691,29 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, []string{label1.Name, label2.Name}, gpol.LabelsIncludeAny)
 
+	// Cannot create a policy with inclusive and exclusive labels set
+	gpol1, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:             "global-query-bad-both-labels",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsExcludeAny: []string{label1.Name},
+		LabelsIncludeAny: []string{label2.Name},
+	})
+	require.Error(t, err)
+	require.Nil(t, gpol1)
+
+	// Cannot create policy with invalid label set
+	gpol1, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:             "global-query-invalid-label",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsExcludeAny: []string{"invalid"},
+	})
+	require.Error(t, err)
+	require.Nil(t, gpol1)
+
 	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, prevPolicies, 1)

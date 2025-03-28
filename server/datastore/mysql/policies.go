@@ -36,6 +36,23 @@ var (
 var policySearchColumns = []string{"p.name"}
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
+	var newPolicy *fleet.Policy
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		p, err := newGlobalPolicy(ctx, tx, authorID, args)
+		if err != nil {
+			return err
+		}
+		newPolicy = p
+		return nil
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating new global policy")
+	}
+
+	return newPolicy, nil
+}
+
+func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.SoftwareInstallerID != nil {
 		return nil, ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "create policy")
 	}
@@ -43,7 +60,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		return nil, ctxerr.Wrap(ctx, errScriptIDOnGlobalPolicy, "create policy")
 	}
 	if args.QueryID != nil {
-		q, err := ds.Query(ctx, *args.QueryID)
+		q, err := query(ctx, db, *args.QueryID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "fetching query from id")
 		}
@@ -53,7 +70,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	}
 	// We must normalize the name for full Unicode support (Unicode equivalence).
 	nameUnicode := norm.NFC.String(args.Name)
-	res, err := ds.writer(ctx).ExecContext(ctx,
+	res, err := db.ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
@@ -74,7 +91,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	}
 	policyID := uint(lastIdInt64) //nolint:gosec // dismiss G115
 
-	if err := ds.updatePolicyLabels(ctx, &fleet.Policy{
+	if err := updatePolicyLabelsTx(ctx, db, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
 			ID:               policyID,
 			LabelsIncludeAny: args.LabelsIncludeAny,
@@ -84,7 +101,7 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		return nil, ctxerr.Wrap(ctx, err, "setting policy labels")
 	}
 
-	return policyDB(ctx, ds.writer(ctx), policyID, nil)
+	return policyDB(ctx, db, policyID, nil)
 }
 
 func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Policy) error {
