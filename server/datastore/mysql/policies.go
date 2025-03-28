@@ -294,6 +294,16 @@ func (ds *Datastore) PolicyLite(ctx context.Context, id uint) (*fleet.PolicyLite
 //
 // Currently, SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return savePolicy(ctx, tx, ds.logger, p, shouldRemoveAllPolicyMemberships, removePolicyStats)
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating policy")
+	}
+
+	return nil
+}
+
+func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error {
 	if p.TeamID == nil && p.SoftwareInstallerID != nil {
 		return ctxerr.Wrap(ctx, errSoftwareTitleIDOnGlobalPolicy, "save policy")
 	}
@@ -302,7 +312,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	}
 
 	if p.TeamID != nil {
-		if err := assertTeamMatches(ctx, ds.writer(ctx), *p.TeamID, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID); err != nil {
+		if err := assertTeamMatches(ctx, db, *p.TeamID, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID); err != nil {
 			return ctxerr.Wrap(ctx, err, "save policy")
 		}
 	}
@@ -314,7 +324,7 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, software_installer_id = ?, script_id = ?, vpp_apps_teams_id = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(
+	result, err := db.ExecContext(
 		ctx, updateStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.SoftwareInstallerID, p.ScriptID, p.VPPAppsTeamsID, p.ID,
 	)
 	if err != nil {
@@ -328,9 +338,14 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
+	if err := updatePolicyLabelsTx(ctx, db, p); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating policy labels")
+	}
+
 	return cleanupPolicy(
-		ctx, ds.reader(ctx), ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
+
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {

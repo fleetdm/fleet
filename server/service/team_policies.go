@@ -556,6 +556,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = &p.ScriptID.Value
 		}
 	}
+	if p.LabelsIncludeAny != nil {
+		policy.LabelsIncludeAny = p.LabelsIncludeAny
+	}
+	if p.LabelsExcludeAny != nil {
+		policy.LabelsExcludeAny = p.LabelsExcludeAny
+	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
 
