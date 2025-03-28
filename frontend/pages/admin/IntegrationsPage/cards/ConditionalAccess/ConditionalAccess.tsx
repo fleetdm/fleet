@@ -5,9 +5,15 @@ import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
 
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+
 import { AppContext } from "context/app";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import Button from "components/buttons/Button";
+import { size } from "lodash";
 
 const baseClass = "conditional-access";
 
@@ -84,7 +90,40 @@ const ConditionalAccess = (router: InjectedRouter) => {
   };
 
   const renderContent = () => {
-    // TODO
+    if (!formData[msetid]) {
+      return (
+        <form onSubmit={handleSubmit} autoComplete="off">
+          <InputField
+            label="Microsoft Entra tenant ID"
+            helpText={
+              <>
+                You can find this in your Microsoft Entra admin center.{" "}
+                <CustomLink
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/microsoft-entra-setup`}
+                  text="Learn more"
+                  newTab
+                />
+              </>
+            }
+            onChange={onInputChange}
+            name={msetid}
+            value={formData[msetid]}
+            parseTarget
+            onBlur={onInputBlur}
+            error={formErrors[msetid]}
+          />
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={!!size(formErrors)}
+            className="button-wrap"
+            isLoading={isUpdating}
+          >
+            Save
+          </Button>
+        </form>
+      );
+    }
     return null;
     // <form onSubmit={handleSubmit}>
     //   <Checkbox
