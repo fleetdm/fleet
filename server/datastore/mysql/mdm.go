@@ -1318,9 +1318,7 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	stmt := `
 	UPDATE nano_cert_auth_associations
 	SET renew_command_uuid = NULL
-	WHERE id = ?
-	ORDER BY created_at desc
-	LIMIT 1`
+	WHERE id = ?`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {
