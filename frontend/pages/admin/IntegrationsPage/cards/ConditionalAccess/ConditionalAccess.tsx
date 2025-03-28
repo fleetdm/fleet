@@ -1,4 +1,5 @@
 import React, { useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
 
 import { NotificationContext } from "context/notification";
 
@@ -6,6 +7,7 @@ import paths from "router/paths";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import { AppContext } from "context/app";
 
 const baseClass = "conditional-access";
 
@@ -18,8 +20,9 @@ const validate = (formData: IFormData) => {
   return errs;
 };
 
-const ConditionalAccess = () => {
+const ConditionalAccess = (router: InjectedRouter) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
 
   const [formData, setFormData] = useState<IConditionalAccessFormData>({});
   const [formErrors, setFormErrors] = useState<IConditionalAccessFormErrors>(
@@ -27,8 +30,12 @@ const ConditionalAccess = () => {
   );
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // TODO - push to router if not cloud-managed. Must do this down at this level since highe ones
-  // don't have access to config from context
+  // Redirect to /settings if not a cloud-managed Fleet instance. Must do this down at this level
+  // since it depends on config context
+  if (!config) return;
+  if (!config.license.managed_cloud) {
+    router.push(paths.ADMIN_SETTINGS);
+  }
 
   const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
