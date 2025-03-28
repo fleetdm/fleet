@@ -88,6 +88,7 @@ export const buildSoftwareFilterQueryParams = (
   }
 };
 
+// TODO: Consider parsing SoftwarePage query params to change from type string
 export const getSoftwareFilterFromQueryParams = (queryParams: QueryParams) => {
   const { available_for_install, self_service } = queryParams;
   switch (true) {
