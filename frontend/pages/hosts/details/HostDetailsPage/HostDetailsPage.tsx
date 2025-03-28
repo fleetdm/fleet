@@ -72,12 +72,13 @@ import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
+import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
-import UsersCard from "../cards/Users";
+import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
@@ -863,14 +864,18 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  host.platform = "windows";
+
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
+  const showUsersCard = true;
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
     [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
     [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
+    [`${baseClass}__details-panel--show-users`]: showUsersCard,
   });
 
   return (
@@ -932,6 +937,7 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
+              {showUsersCard && <UserCard />}
               {!isAndroidHost && (
                 <ActivityCard
                   activeTab={activeActivityTab}
@@ -970,7 +976,7 @@ const HostDetailsPage = ({
                 onLabelClick={onLabelClick}
               />
               {!isIosOrIpadosHost && !isAndroidHost && (
-                <UsersCard
+                <LocalUserAccountsCard
                   users={host?.users || []}
                   usersState={usersState}
                   isLoading={isLoadingHost}
