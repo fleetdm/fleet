@@ -1,6 +1,6 @@
 # 🦄 Go-To-Market groups
 
-This page covers the journey from prospect to customer and details what contributors need to know in order to make changes to the Go-To-Market (GTM) [philosophy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else), [strategy](https://fleetdm.com/handbook/company/go-to-market-groups#gtm-strategy), and actions at Fleet.
+This page covers the journey from prospect to customer and details what contributors need to know in order to make changes to the Go-To-Market (GTM) [philosophy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else), [strategy](https://fleetdm.com/handbook/company/go-to-market-groups#gtm-strategy), and [actions](https://fleetdm.com/handbook/company/go-to-market-groups#warm-up-actions) at Fleet.
 
 
 ## Why cross-functional GTM groups?
@@ -9,15 +9,15 @@ When communicating with future or current customers, hand offs [between departme
 
 
 > - Use this "🦄 Go-To-Market groups" page to write down philosophies and show how the different pieces of the GTM process fit together.
-> - Use the dedicated [departmental](https://fleetdm.com/handbook/company#org-chart) handbook pages for [🫧 Demand](https://fleetdm.com/handbook/marketing), [🌐 Digital Experience](https://fleetdm.com/handbook/digital-experience), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
+> - Use the dedicated departmental handbook pages for [🫧 Marketing](https://fleetdm.com/handbook/marketing), [🌐 Digital Experience](https://fleetdm.com/handbook/digital-experience), [🐋 Sales](https://fleetdm.com/handbook/sales), [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success), and [💸 Finance](https://fleetdm.com/handbook/finance) to keep track of specific responsibilities and recurring rituals designed to be read and used within those departments.
 
 
 ## Current GTM groups
 
 | GTM group                            | Goal _(value for customers and/or community)_ |
 |:-------------------------------------|:------------------------------------|
-| [🦄 Unicorns](https://fleetdm.com/handbook/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
-| [🌐 Buy online](https://fleetdm.com/handbook/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+| [🦄<br>Unicorns](https://fleetdm.com/handbook/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
+| [🌐<br>Buy<br>online](https://fleetdm.com/handbook/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
 
 
 ### 🦄 Unicorns
@@ -81,12 +81,12 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 ## GTM strategy
 
 At Fleet, our GTM strategy consists of:
-- [Outreach](https://fleetdm.com/handbook/go-to-market-groups#gtm-outreach)
-- [Processing intent signals](https://fleetdm.com/handbook/go-to-market-groups#processing-intent-signals)
-- [Research](https://fleetdm.com/handbook/go-to-market-groups#research)
-- [Warm-up actions](https://fleetdm.com/handbook/go-to-market-groups#warm-up-actions)
-- [Proof of Value (POV)](https://fleetdm.com/handbook/go-to-market-groups#proof-of-value-pov)
-- [Signatures](https://fleetdm.com/handbook/go-to-market-groups#signatures)
+- [Outreach](https://fleetdm.com/handbook/company/go-to-market-groups#gtm-outreach)
+- [Processing intent signals](https://fleetdm.com/handbook/company/go-to-market-groups#processing-intent-signals)
+- [Research](https://fleetdm.com/handbook/company/go-to-market-groups#research)
+- [Warm-up actions](https://fleetdm.com/handbook/company/go-to-market-groups#warm-up-actions)
+- [Proof of Value (POV)](https://fleetdm.com/handbook/company/go-to-market-groups#proof-of-value-pov)
+- [Signatures](https://fleetdm.com/handbook/company/go-to-market-groups#signatures)
 
 
 ### Competition
@@ -102,10 +102,6 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 
 ## GTM outreach 
 
-| DRI                                | Contributor(s)
-|:-----------------------------------|:------------------------------------------------------------|
-| 🫧 Head of Marketing               | [🫧 Head of Marketing](https://www.fleetdm.com/handbook/digital-experience#team) <br> [ADRs](https://www.fleetdm.com/handbook/digital-experience#team)
-
 Go-To-Market (GTM) strategy at Fleet is [always evolving](https://handbook.gitlab.com/handbook/values/#everything-is-in-draft), but the [philosophy behind the strategy](https://fleetdm.com/handbook/company/why-this-way#why-dont-we-sell-like-everyone-else) remains consistent. 
 
 When you reach out to a prospect or customer, make sure you're the right person:
@@ -116,7 +112,7 @@ When you reach out to a prospect or customer, make sure you're the right person:
 
 ### Programs
 
-Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/go-to-market-groups#video), and articles.
+Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through [events](https://fleetdm.com/handbook/company/go-to-market-groups#events), community support, [social media](https://fleetdm.com/handbook/company/go-to-market-groups#social-media), [ads](https://fleetdm.com/handbook/company/go-to-market-groups#ads), [video](https://fleetdm.com/handbook/company/go-to-market-groups#video), and articles.
 
 
 #### Social media
