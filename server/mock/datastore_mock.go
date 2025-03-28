@@ -1230,6 +1230,8 @@ type MaybeUpdateSetupExperienceVPPStatusFunc func(ctx context.Context, hostUUID 
 
 type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error)
 
+type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep []string) error
+
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
@@ -3090,6 +3092,9 @@ type DataStore struct {
 
 	ListAvailableFleetMaintainedAppsFunc        ListAvailableFleetMaintainedAppsFunc
 	ListAvailableFleetMaintainedAppsFuncInvoked bool
+
+	ClearRemovedFleetMaintainedAppsFunc        ClearRemovedFleetMaintainedAppsFunc
+	ClearRemovedFleetMaintainedAppsFuncInvoked bool
 
 	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
 	GetMaintainedAppByIDFuncInvoked bool
@@ -7392,6 +7397,13 @@ func (s *DataStore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID
 	s.ListAvailableFleetMaintainedAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListAvailableFleetMaintainedAppsFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
+	s.mu.Lock()
+	s.ClearRemovedFleetMaintainedAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearRemovedFleetMaintainedAppsFunc(ctx, slugsToKeep)
 }
 
 func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
