@@ -669,8 +669,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 		for _, ca := range customSCEPVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.scep' payload under Challenge and URL, respectively.",
-					challengePrefix+ca,
-					urlPrefix+ca)}
+					challengePrefix+ca, urlPrefix+ca)}
 			}
 		}
 	}
