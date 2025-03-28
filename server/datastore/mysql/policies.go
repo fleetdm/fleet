@@ -72,6 +72,13 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
+	if err := ds.updatePolicyLabels(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			ID: uint(lastIdInt64), LabelsIncludeAny: args.LabelsIncludeAny, LabelsExcludeAny: args.LabelsExcludeAny,
+		},
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "setting policy labels")
+	}
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil) //nolint:gosec // dismiss G115
 }
 
