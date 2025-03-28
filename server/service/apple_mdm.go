@@ -69,6 +69,8 @@ const (
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
 	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
+
+	maxValueCharsInError = 100
 )
 
 const (
@@ -533,11 +535,11 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				}
 			}
 			if !found {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles", k)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
 			if !ok {
 				// We limit CA variables to once per profile
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile", k)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
 			}
 		}
 	}
@@ -587,15 +589,23 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 						foundCAs = append(foundCAs, ca)
 						break
 					}
-					return &fleet.BadRequestError{Message: "CA name mismatch between $FLEET_VAR_DIGICERT_DATA_<ca_name> and $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> in PKCS12 profile"}
+					payloadContent := string(payload.PayloadContent)
+					if len(payloadContent) > maxValueCharsInError {
+						payloadContent = payloadContent[:maxValueCharsInError] + "..."
+					}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $" + passwordPrefix + ca + " and " +
+						payloadContent + " in PKCS12 payload."}
 				}
 			}
 		}
 	}
 	if len(foundCAs) < len(digiCertVars.CAs()) {
-		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> and $FLEET_VAR_DIGICERT_DATA_<ca_name>" +
-			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the" +
-			" profile exactly"}
+		for _, ca := range digiCertVars.CAs() {
+			if !slices.Contains(foundCAs, ca) {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively.",
+					passwordPrefix+ca, dataPrefix+ca)}
+			}
+		}
 	}
 	return nil
 }
@@ -645,16 +655,23 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 						foundCAs = append(foundCAs, ca)
 						break
 					}
-					return &fleet.BadRequestError{Message: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and" +
-						" $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile"}
+					scepURL := payload.PayloadContent.URL
+					if len(scepURL) > maxValueCharsInError {
+						scepURL = scepURL[:maxValueCharsInError] + "..."
+					}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $" + challengePrefix + ca + " and " +
+						scepURL + " in SCEP payload."}
 				}
 			}
 		}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
-		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name>" +
-			" can only be present in 'com.apple.security.scep' profiles and must match the Challenge and URL fields in the" +
-			" profile exactly"}
+		for _, ca := range customSCEPVars.CAs() {
+			if !slices.Contains(foundCAs, ca) {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.scep' payload under Challenge and URL, respectively.",
+					challengePrefix+ca, urlPrefix+ca)}
+			}
+		}
 	}
 	return nil
 }
