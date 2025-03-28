@@ -354,7 +354,7 @@ const SoftwareTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        serversidePageIndex={currentPage}
+        pageIndex={currentPage}
         defaultSearchQuery={query}
         manualSortBy
         pageSize={perPage}

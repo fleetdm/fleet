@@ -43,7 +43,8 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
-  serversidePageIndex?: number;
+  /**  When page index is externally managed like from the URL, this prop must be set to control currentPageIndex */
+  pageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
   actionButton?: ITableContainerActionButtonProps;
@@ -127,7 +128,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
-  serversidePageIndex = 0,
+  pageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   defaultSelectedRows,
@@ -177,26 +178,23 @@ const TableContainer = <T,>({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState<number>(
-    serversidePageIndex || DEFAULT_PAGE_INDEX
-  );
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(pageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {
-    if (isClientSidePagination && pageIndex !== DEFAULT_PAGE_INDEX) {
-      setPageIndex(DEFAULT_PAGE_INDEX);
+    if (isClientSidePagination && currentPageIndex !== DEFAULT_PAGE_INDEX) {
+      setCurrentPageIndex(DEFAULT_PAGE_INDEX);
     }
-  }, [pageIndex, isClientSidePagination]);
+  }, [currentPageIndex, isClientSidePagination]);
 
-  console.log("serversidePageIndex", serversidePageIndex);
-  // serversidePageIndex must update pageIndex anytime it's changed or else it causes bugs
+  // pageIndex must update currentPageIndex anytime it's changed or else it causes bugs
   // e.g. bug of filter dd not reverting table to page 0
   useEffect(() => {
     if (!isClientSidePagination) {
-      setPageIndex(serversidePageIndex);
+      setCurrentPageIndex(pageIndex);
     }
-  }, [serversidePageIndex, isClientSidePagination]);
+  }, [pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -225,7 +223,7 @@ const TableContainer = <T,>({
   const onPaginationChange = useCallback(
     (newPage: number) => {
       if (!isClientSidePagination) {
-        setPageIndex(newPage);
+        setCurrentPageIndex(newPage);
       }
     },
     [isClientSidePagination]
@@ -241,26 +239,26 @@ const TableContainer = <T,>({
       sortHeader,
       sortDirection,
       pageSize,
-      pageIndex,
+      pageIndex: currentPageIndex,
     };
 
-    if (prevPageIndex.current === pageIndex) {
-      setPageIndex(0);
+    if (prevPageIndex.current === currentPageIndex) {
+      setCurrentPageIndex(0);
     }
 
     // NOTE: used to reset page number to 0 when modifying filters
     const newPageIndex = onQueryChange(queryData);
     if (newPageIndex === 0) {
-      setPageIndex(0);
+      setCurrentPageIndex(0);
     }
 
-    prevPageIndex.current = pageIndex;
+    prevPageIndex.current = currentPageIndex;
   }, [
     searchQuery,
     sortHeader,
     sortDirection,
     pageSize,
-    pageIndex,
+    currentPageIndex,
     additionalQueries,
   ]);
 
@@ -272,13 +270,12 @@ const TableContainer = <T,>({
     }
     return (
       <Pagination
-        disablePrev={serversidePageIndex === 0}
+        disablePrev={pageIndex === 0}
         disableNext={disableNextPage || data.length < pageSize}
-        onPrevPage={() => onPaginationChange(serversidePageIndex - 1)}
-        onNextPage={() => onPaginationChange(serversidePageIndex + 1)}
+        onPrevPage={() => onPaginationChange(pageIndex - 1)}
+        onNextPage={() => onPaginationChange(pageIndex + 1)}
         hidePagination={
-          (disableNextPage || data.length < pageSize) &&
-          serversidePageIndex === 0
+          (disableNextPage || data.length < pageSize) && pageIndex === 0
         }
       />
     );
@@ -287,7 +284,7 @@ const TableContainer = <T,>({
     disablePagination,
     isClientSidePagination,
     disableNextPage,
-    serversidePageIndex,
+    pageIndex,
     pageSize,
     onPaginationChange,
   ]);
@@ -492,15 +489,15 @@ const TableContainer = <T,>({
           !isMultiColumnFilter &&
           !isLoading) ? (
           <>
-            <EmptyComponent pageIndex={pageIndex} />
+            <EmptyComponent pageIndex={currentPageIndex} />
             {/* This UI only shows if a user navigates to a table page with a URL page param that is outside the # of pages available */}
-            {pageIndex !== 0 && (
+            {currentPageIndex !== 0 && (
               <div className={`${baseClass}__empty-page`}>
                 <div className={`${baseClass}__previous-button`}>
                   <Pagination
                     disableNext
-                    onNextPage={() => onPaginationChange(pageIndex + 1)}
-                    onPrevPage={() => onPaginationChange(pageIndex - 1)}
+                    onNextPage={() => onPaginationChange(currentPageIndex + 1)}
+                    onPrevPage={() => onPaginationChange(currentPageIndex - 1)}
                   />
                 </div>
               </div>
@@ -511,7 +508,7 @@ const TableContainer = <T,>({
             {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
             {!isLoading && clientFilterCount === 0 && !isMultiColumnFilter && (
-              <EmptyComponent pageIndex={pageIndex} />
+              <EmptyComponent pageIndex={currentPageIndex} />
             )}
             <div
               className={
@@ -535,7 +532,7 @@ const TableContainer = <T,>({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
-                defaultPageIndex={serversidePageIndex}
+                defaultPageIndex={pageIndex}
                 defaultSelectedRows={defaultSelectedRows}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}

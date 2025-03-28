@@ -269,7 +269,7 @@ const SoftwareVulnerabilitiesTable = ({
         defaultSearchQuery={query}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        serversidePageIndex={currentPage}
+        pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}
