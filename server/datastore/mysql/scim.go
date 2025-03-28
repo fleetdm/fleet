@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -38,28 +39,7 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 		user.ID = uint(id) // nolint:gosec // dismiss G115
 		userID = user.ID
 
-		// Insert the user's emails if any
-		if len(user.Emails) > 0 {
-			const insertEmailQuery = `
-			INSERT INTO scim_user_emails (
-				scim_user_id, email, ` + "`primary`" + `, type
-			) VALUES (?, ?, ?, ?)`
-			for i := range user.Emails {
-				user.Emails[i].ScimUserID = user.ID
-				_, err = tx.ExecContext(
-					ctx,
-					insertEmailQuery,
-					user.Emails[i].ScimUserID,
-					user.Emails[i].Email,
-					user.Emails[i].Primary,
-					user.Emails[i].Type,
-				)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "insert scim user email")
-				}
-			}
-		}
-		return nil
+		return insertEmails(ctx, tx, user)
 	})
 	return userID, err
 }
@@ -152,36 +132,53 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			return notFound("scim user").WithID(user.ID)
 		}
 
-		// Delete all existing email entries for the user
+		// We assume that email is not blank/null.
+		// However, we do not assume that email/type are unique for a user. To keep the code simple, we:
+		// 1. Delete all existing emails
+		// 2. Insert all new emails
+		// This is less efficient and can be optimized if we notice a load on these tables in production.
+
 		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
 		_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete scim user emails")
 		}
 
-		// Insert the user's emails if any
-		if len(user.Emails) > 0 {
-			const insertEmailQuery = `
+		return insertEmails(ctx, tx, user)
+	})
+}
+
+func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser) error {
+	// Insert the user's emails in a single batch if any
+	if len(user.Emails) > 0 {
+		// Build the batch insert query
+		valueStrings := make([]string, 0, len(user.Emails))
+		valueArgs := make([]interface{}, 0, len(user.Emails)*4)
+
+		for i := range user.Emails {
+			user.Emails[i].ScimUserID = user.ID
+			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
+			valueArgs = append(valueArgs,
+				user.Emails[i].ScimUserID,
+				user.Emails[i].Email,
+				user.Emails[i].Primary,
+				user.Emails[i].Type,
+			)
+		}
+
+		// Construct the batch insert query
+		insertEmailQuery := `
 			INSERT INTO scim_user_emails (
 				scim_user_id, email, ` + "`primary`" + `, type
-			) VALUES (?, ?, ?, ?)`
-			for i := range user.Emails {
-				user.Emails[i].ScimUserID = user.ID
-				_, err = tx.ExecContext(
-					ctx,
-					insertEmailQuery,
-					user.Emails[i].ScimUserID,
-					user.Emails[i].Email,
-					user.Emails[i].Primary,
-					user.Emails[i].Type,
-				)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "insert scim user email")
-				}
-			}
+			) VALUES ` + strings.Join(valueStrings, ",")
+
+		// Execute the batch insert
+		_, err := tx.ExecContext(ctx, insertEmailQuery, valueArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert scim user emails")
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // DeleteScimUser deletes a SCIM user from the database
