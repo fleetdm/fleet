@@ -23,6 +23,13 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
+      "name": "Adobe Acrobat Reader",
+      "slug": "adobe-acrobat-reader/windows",
+      "platform": "windows",
+      "unique_identifier": "Adobe Acrobat Reader",
+      "description": ""
+    },
+    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
