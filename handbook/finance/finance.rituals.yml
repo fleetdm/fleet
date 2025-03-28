@@ -46,16 +46,7 @@
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-finance" ] # label to be applied to issue
     repo: "confidential" # The GitHub repo that issues will be created in
--
-  task: "Reconcile monthly recurring expenses" 
-  startedOn: "2024-02-28" 
-  frequency: "Monthly"
-  description: "Each month, update the inputs in “The numbers” spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend." 
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#reconcile-monthly-recurring-expenses"
-  dri: "ireedy" 
-  autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential"
+    
 -
   task: "Monthly accounting"
   startedOn: "2024-02-28" 
