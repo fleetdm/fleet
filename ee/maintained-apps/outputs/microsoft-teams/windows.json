@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft Corporation';"
       },
       "installer_url": "https://installer.teams.static.microsoft/production-windows-x64/25044.2208.3471.2155/MSTeams-x64.msix",
-      "unique_identifier": "Microsoft Teams",
       "install_script_ref": "5e34ae51",
       "uninstall_script_ref": "58bbaa4d",
       "sha256": "c4fb760089e9a2523c684f50c79987fc9eef21982438e18dbc50c3274a9438a8"

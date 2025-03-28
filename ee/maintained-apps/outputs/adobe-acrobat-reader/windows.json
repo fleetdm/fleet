@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Adobe Acrobat (64-bit)' AND publisher = 'Adobe';"
       },
       "installer_url": "https://ardownload2.adobe.com/pub/adobe/acrobat/win/AcrobatDC/2500120435/AcroRdrDCx642500120435_MUI.exe",
-      "unique_identifier": "Adobe Acrobat (64-bit)",
       "install_script_ref": "711949d2",
       "uninstall_script_ref": "9cd69460",
       "sha256": "e99032e377e7ab4489b338f8f050464a75c2d2ce570f6012533e914023903c3e"

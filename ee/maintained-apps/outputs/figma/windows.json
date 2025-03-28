@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Figma (Machine)' AND publisher = 'Figma Inc.';"
       },
       "installer_url": "https://desktop.figma.com/win/build/Figma-125.2.3.msi",
-      "unique_identifier": "Figma (Machine)",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "2f90014f",
       "sha256": "e99ff7ab5c100a78838102d651f34b335bb088e3fe0bbee267294bcc05011c7b"

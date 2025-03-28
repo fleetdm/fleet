@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation';"
       },
       "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/ddc367ed5c8936efe395cffeec279b04ffd7db78/VSCodeSetup-x64-1.98.2.exe",
-      "unique_identifier": "Microsoft Visual Studio Code",
       "install_script_ref": "49122823",
       "uninstall_script_ref": "e09509e2",
       "sha256": "2cfa385732dac31e82d94808af04f129f897aadd74b1967fb58035c8c615555e"

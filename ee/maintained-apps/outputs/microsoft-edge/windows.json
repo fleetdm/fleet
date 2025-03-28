@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Edge' AND publisher = 'Microsoft Corporation';"
       },
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/d112c788-ed95-4b00-bd8a-491f69788bc8/MicrosoftEdgeEnterpriseX64.msi",
-      "unique_identifier": "Microsoft Edge",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "9a7c1e76",
       "sha256": "40e549ad15dd23211074bef093caf7feb5025386501f438d5555d6d4f09af5ce"
