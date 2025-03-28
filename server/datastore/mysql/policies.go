@@ -137,8 +137,18 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 		return ctxerr.Wrap(ctx, err, "constructing policy label update query")
 	}
 
-	if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+	res, err := tx.ExecContext(ctx, labelStmt, args...)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating policy labels")
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing number of policy labels affected")
+	}
+
+	if rowsAffected != int64(len(labelNames)) {
+		return ctxerr.Errorf(ctx, "invalid label")
 	}
 
 	return nil
@@ -850,7 +860,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (policy *fleet.Policy, err error) {
 	var newPolicy *fleet.Policy
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		p, err := newTeamPolicy(ctx, ds.writer(ctx), teamID, authorID, args)
+		p, err := newTeamPolicy(ctx, tx, teamID, authorID, args)
 		if err != nil {
 			return err
 		}

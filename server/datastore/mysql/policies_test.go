@@ -712,6 +712,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Description:           "query1 desc",
 		Resolution:            "query1 resolution",
 		CalendarEventsEnabled: true,
+		LabelsExcludeAny:      []string{label1.Name, label2.Name},
 	})
 	require.NoError(t, err)
 
@@ -742,6 +743,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p.AuthorID)
 	assert.Equal(t, user1.ID, *p.AuthorID)
 	assert.True(t, p.CalendarEventsEnabled)
+	require.Equal(t, []string{label1.Name, label2.Name}, p.LabelsExcludeAny)
 
 	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -773,6 +775,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 resolution", *teamPolicies[0].Resolution)
 	require.NotNil(t, teamPolicies[0].AuthorID)
 	require.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
+	require.Equal(t, []string{label1.Name, label2.Name}, teamPolicies[0].LabelsExcludeAny)
 
 	require.Len(t, inherited1, 1)
 	require.Equal(t, gpol, inherited1[0])
@@ -797,6 +800,29 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Query:       "select 2;",
 		Description: "query2 other description",
 		Resolution:  "query2 other resolution",
+	})
+	require.Error(t, err)
+	require.Nil(t, p3)
+
+	// Can't create a policy with both include and excldue any labels
+	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-bothlabel",
+		Query:            "select 2;",
+		Description:      "query2 other description",
+		Resolution:       "query2 other resolution",
+		LabelsExcludeAny: []string{label1.Name},
+		LabelsIncludeAny: []string{label2.Name},
+	})
+	require.Error(t, err)
+	require.Nil(t, p3)
+
+	// Can't create a policy with a non-existant label
+	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-nolabel",
+		Query:            "select 2;",
+		Description:      "query2 other description",
+		Resolution:       "query2 other resolution",
+		LabelsExcludeAny: []string{"invalid"},
 	})
 	require.Error(t, err)
 	require.Nil(t, p3)
