@@ -3,7 +3,7 @@
     {
       "version": "11.38.5",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Postman' AND publisher = 'Postman';"
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Postman %' AND publisher = 'Postman';"
       },
       "installer_url": "https://dl.pstmn.io/download/version/11.38.5/windows_64",
       "install_script_ref": "9bdf51d7",

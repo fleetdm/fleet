@@ -275,8 +275,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.UniqueIdentifier != "" {
 		name = input.UniqueIdentifier
 	}
+	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
+	if input.FuzzyMatchName {
+		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
+	}
 	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", name, publisher),
+		Exists: fmt.Sprintf(existsTemplate, name, publisher),
 	}
 	out.InstallScript = installScript
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
@@ -331,6 +335,7 @@ type inputApp struct {
 	InstallerScope      string `json:"installer_scope"`
 	ProgramPublisher    string `json:"program_publisher"`
 	UninstallType       string `json:"uninstall_type"`
+	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
 }
 
 type installerManifest struct {
