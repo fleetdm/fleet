@@ -929,6 +929,17 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
   'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},
 
+
+  //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/android-proxy/create-android-enterprise': { action: 'android-proxy/create-android-enterprise', csrf: false},
+  'DELETE /api/v1/android-proxy/delete-one-android-enterprise': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
+  'POST /api/v1/android-proxy/create-android-enrollment-token': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
+  'POST /api/v1/android/:androidEnterpriseId/signup-url`': { action: 'android-proxy/create-android-signup-url', csrf: false},
+  'PATCH /api/v1/android/:androidEnterpriseId/configuration-profiles/:profileId': { action: 'android-proxy/modify-android-policies', csrf: false},
+
+
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //  ╩ ╩╩  ╩  ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝

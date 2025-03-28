@@ -13,6 +13,7 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
+  'android-proxy/*': true,
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
