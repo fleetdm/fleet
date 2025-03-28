@@ -277,7 +277,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
 	if input.FuzzyMatchName {
-		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s%%' AND publisher = '%s';"
+		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
 	}
 	out.Queries = maintained_apps.FMAQueries{
 		Exists: fmt.Sprintf(existsTemplate, name, publisher),
