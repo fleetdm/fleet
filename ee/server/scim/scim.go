@@ -159,6 +159,7 @@ func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, st
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/scim+json")
 	w.WriteHeader(scimErr.Status)
 	_, err = w.Write(raw)
 	if err != nil {
