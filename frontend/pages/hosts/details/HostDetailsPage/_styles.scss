@@ -33,8 +33,17 @@
         "labels labels";
     }
 
-    // We add the certs card to the grid layout on mac hosts
+    // We add the users and certs card to the grid layout on mac hosts
     &__details-panel--macos-grid.react-tabs__tab-panel--selected {
+      grid-template-areas:
+        "about user"
+        "activity agent-options"
+        "activity labels"
+        "local-user-accounts local-user-accounts"
+        "certs certs";
+    }
+
+    &__details-panel--show-users.react-tabs__tab-panel--selected {
       grid-template-areas:
         "about user"
         "activity agent-options"
