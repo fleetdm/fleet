@@ -14,7 +14,7 @@
         "about about"
         "activity agent-options"
         "activity labels"
-        "users users";
+        "local-user-accounts local-user-accounts";
     }
 
     // No agent options card for i(Pad)OS, so extend Labels card vertically.
@@ -36,15 +36,19 @@
     // We add the certs card to the grid layout on mac hosts
     &__details-panel--macos-grid.react-tabs__tab-panel--selected {
       grid-template-areas:
-        "about about"
+        "about user"
         "activity agent-options"
         "activity labels"
-        "users users"
+        "local-user-accounts local-user-accounts"
         "certs certs";
     }
 
     .about-card {
       grid-area: about;
+    }
+
+    .user-card {
+      grid-area: user;
     }
 
     .activity-card {
@@ -59,8 +63,8 @@
       grid-area: labels;
     }
 
-    .users-card {
-      grid-area: users;
+    .local-user-accounts-card {
+      grid-area: local-user-accounts;
     }
 
     .certificates-card {
