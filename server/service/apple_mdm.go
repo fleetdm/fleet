@@ -592,7 +592,7 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 						payloadContent = payloadContent[:100] + "..."
 					}
 					return &fleet.BadRequestError{Message: "CA name mismatch between $" + passwordPrefix + ca + " and " +
-						string(payload.PayloadContent) + " in PKCS12 payload."}
+						payloadContent + " in PKCS12 payload."}
 				}
 			}
 		}
@@ -658,8 +658,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 					if len(scepURL) > 100 {
 						scepURL = scepURL[:100] + "..."
 					}
-					return &fleet.BadRequestError{Message: "CA name mismatch between $" + challengePrefix + ca + " and " + scepURL + " in SCEP" +
-						" payload."}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $" + challengePrefix + ca + " and " +
+						scepURL + " in SCEP payload."}
 				}
 			}
 		}
