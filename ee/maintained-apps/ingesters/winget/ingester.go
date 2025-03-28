@@ -226,6 +226,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 		if installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
+			installer.InstallerLocale == input.InstallerLocale &&
 			installerType == input.InstallerType {
 			selectedInstaller = &installer
 			break
@@ -318,6 +319,7 @@ type inputApp struct {
 	InstallerArch       string `json:"installer_arch"`
 	InstallerType       string `json:"installer_type"`
 	InstallerScope      string `json:"installer_scope"`
+	InstallerLocale     string `json:"installer_locale"`
 }
 
 type installerManifest struct {
@@ -341,6 +343,7 @@ type installer struct {
 	InstallerSwitches      installerSwitches        `yaml:"InstallerSwitches,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
+	InstallerLocale        string                   `yaml:"InstallerLocale"`
 }
 type installerSwitches struct {
 	Silent             string `yaml:"Silent"`
