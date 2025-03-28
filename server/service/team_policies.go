@@ -20,17 +20,19 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                uint   `url:"team_id"`
-	QueryID               *uint  `json:"query_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
-	ScriptID              *uint  `json:"script_id"`
+	TeamID                uint     `url:"team_id"`
+	QueryID               *uint    `json:"query_id"`
+	Query                 string   `json:"query"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Resolution            string   `json:"resolution"`
+	Platform              string   `json:"platform"`
+	Critical              bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint    `json:"software_title_id"`
+	ScriptID              *uint    `json:"script_id"`
+	LabelsIncludeAny      []string `json:"labels_include_any"`
+	LabelsExcludeAny      []string `json:"labels_exclude_any"`
 }
 
 type teamPolicyResponse struct {
@@ -553,6 +555,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		} else {
 			policy.ScriptID = &p.ScriptID.Value
 		}
+	}
+	if p.LabelsIncludeAny != nil {
+		policy.LabelsIncludeAny = p.LabelsIncludeAny
+	}
+	if p.LabelsExcludeAny != nil {
+		policy.LabelsExcludeAny = p.LabelsExcludeAny
 	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)

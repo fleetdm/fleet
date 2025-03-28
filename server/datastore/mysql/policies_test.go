@@ -670,24 +670,55 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 }
 
 func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
-	require.NoError(t, err)
-
 	ctx := context.Background()
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+
 	gpol, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:        "existing-query-global-1",
-		Query:       "select 1;",
-		Description: "query1 desc",
-		Resolution:  "query1 resolution",
+		Name:             "existing-query-global-1",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsIncludeAny: []string{label1.Name, label2.Name},
 	})
 	require.NoError(t, err)
+	require.Equal(t, []string{label1.Name, label2.Name}, gpol.LabelsIncludeAny)
+
+	// Cannot create a policy with inclusive and exclusive labels set
+	gpol1, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:             "global-query-bad-both-labels",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsExcludeAny: []string{label1.Name},
+		LabelsIncludeAny: []string{label2.Name},
+	})
+	require.Error(t, err)
+	require.Nil(t, gpol1)
+
+	// Cannot create policy with invalid label set
+	gpol1, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:             "global-query-invalid-label",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsExcludeAny: []string{"invalid"},
+	})
+	require.Error(t, err)
+	require.Nil(t, gpol1)
 
 	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, prevPolicies, 1)
+	require.Equal(t, []string{label1.Name, label2.Name}, prevPolicies[0].LabelsIncludeAny)
+	require.Equal(t, gpol, prevPolicies[0])
 
 	// team does not exist
 	_, err = ds.NewTeamPolicy(ctx, 99999999, &user1.ID, fleet.PolicyPayload{
@@ -704,6 +735,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Description:           "query1 desc",
 		Resolution:            "query1 resolution",
 		CalendarEventsEnabled: true,
+		LabelsExcludeAny:      []string{label1.Name, label2.Name},
 	})
 	require.NoError(t, err)
 
@@ -734,6 +766,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p.AuthorID)
 	assert.Equal(t, user1.ID, *p.AuthorID)
 	assert.True(t, p.CalendarEventsEnabled)
+	require.Equal(t, []string{label1.Name, label2.Name}, p.LabelsExcludeAny)
 
 	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -765,6 +798,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 resolution", *teamPolicies[0].Resolution)
 	require.NotNil(t, teamPolicies[0].AuthorID)
 	require.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
+	require.Equal(t, []string{label1.Name, label2.Name}, teamPolicies[0].LabelsExcludeAny)
 
 	require.Len(t, inherited1, 1)
 	require.Equal(t, gpol, inherited1[0])
@@ -789,6 +823,29 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Query:       "select 2;",
 		Description: "query2 other description",
 		Resolution:  "query2 other resolution",
+	})
+	require.Error(t, err)
+	require.Nil(t, p3)
+
+	// Can't create a policy with both include and excldue any labels
+	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-bothlabel",
+		Query:            "select 2;",
+		Description:      "query2 other description",
+		Resolution:       "query2 other resolution",
+		LabelsExcludeAny: []string{label1.Name},
+		LabelsIncludeAny: []string{label2.Name},
+	})
+	require.Error(t, err)
+	require.Nil(t, p3)
+
+	// Can't create a policy with a non-existant label
+	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-nolabel",
+		Query:            "select 2;",
+		Description:      "query2 other description",
+		Resolution:       "query2 other resolution",
+		LabelsExcludeAny: []string{"invalid"},
 	})
 	require.Error(t, err)
 	require.Nil(t, p3)
