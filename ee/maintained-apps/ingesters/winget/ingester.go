@@ -265,13 +265,21 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
+	publisher := l.Publisher
+	if input.ProgramPublisher != "" {
+		publisher = input.ProgramPublisher
+	}
+	name := l.PackageName
+	if input.UniqueIdentifier != "" {
+		name = input.UniqueIdentifier
+	}
 	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
+		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", name, publisher),
 	}
 	out.InstallScript = installScript
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
-	out.InstallScriptRef = maintained_apps.GetScriptRef(installScript)
-	out.UninstallScriptRef = maintained_apps.GetScriptRef(uninstallScript)
+	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
+	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 
 	return &out, nil
 }
@@ -311,13 +319,15 @@ type inputApp struct {
 	Slug string `json:"slug"`
 	// PackageIdentifier is the identifier used by winget. It's composed of a vendor part (e.g.
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
-	PackageIdentifier   string `json:"package_identifier"`
+	PackageIdentifier string `json:"package_identifier"`
+	// The value matching programs.name for the primary app package in osquery
 	UniqueIdentifier    string `json:"unique_identifier"`
 	InstallScriptPath   string `json:"install_script_path"`
 	UninstallScriptPath string `json:"uninstall_script_path"`
 	InstallerArch       string `json:"installer_arch"`
 	InstallerType       string `json:"installer_type"`
 	InstallerScope      string `json:"installer_scope"`
+	ProgramPublisher    string `json:"program_publisher"`
 }
 
 type installerManifest struct {
