@@ -73,10 +73,14 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		return ctxerr.Wrap(ctx, err, "unmarshal apps list")
 	}
 	if appsList.Version != 2 {
-		return ctxerr.Errorf(ctx, "apps list is an incompatible version")
+		return ctxerr.New(ctx, "apps list is an incompatible version")
 	}
 
+	var gotApps []string
+
 	for _, app := range appsList.Apps {
+		gotApps = append(gotApps, app.Slug)
+
 		if app.UniqueIdentifier == "" {
 			app.UniqueIdentifier = app.Name
 		}
@@ -89,6 +93,11 @@ func Refresh(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) erro
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
+	}
+
+	// remove apps that were removed upstream
+	if err := ds.ClearRemovedFleetMaintainedApps(ctx, gotApps); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear removed maintained apps during refresh")
 	}
 
 	return nil

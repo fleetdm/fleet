@@ -33,7 +33,7 @@
       "name": "Box Drive",
       "slug": "box-drive/windows",
       "platform": "windows",
-      "unique_identifier": "Box Drive",
+      "unique_identifier": "Box",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
@@ -48,7 +48,7 @@
       "slug": "brave-browser/windows",
       "platform": "windows",
       "unique_identifier": "Brave",
-      "description": ""
+      "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
       "name": "Cloudflare WARP",
@@ -62,7 +62,7 @@
       "slug": "cloudflare-warp/windows",
       "platform": "windows",
       "unique_identifier": "Cloudflare WARP",
-      "description": ""
+      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
       "name": "Docker Desktop",
@@ -76,7 +76,7 @@
       "slug": "docker/windows",
       "platform": "windows",
       "unique_identifier": "Docker Desktop",
-      "description": ""
+      "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
       "name": "Figma",
@@ -89,8 +89,8 @@
       "name": "Figma",
       "slug": "figma/windows",
       "platform": "windows",
-      "unique_identifier": "Figma",
-      "description": ""
+      "unique_identifier": "Figma (Machine)",
+      "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
       "name": "Mozilla Firefox",
@@ -153,7 +153,7 @@
       "slug": "microsoft-teams/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Teams",
-      "description": ""
+      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
       "name": "Microsoft Word",
@@ -174,7 +174,7 @@
       "slug": "notion/windows",
       "platform": "windows",
       "unique_identifier": "Notion",
-      "description": ""
+      "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
       "name": "Postman",
@@ -188,7 +188,7 @@
       "slug": "postman/windows",
       "platform": "windows",
       "unique_identifier": "Postman",
-      "description": ""
+      "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
       "name": "Slack",
@@ -201,7 +201,7 @@
       "name": "Slack",
       "slug": "slack/windows",
       "platform": "windows",
-      "unique_identifier": "Slack",
+      "unique_identifier": "Slack (Machine - MSI)",
       "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
@@ -216,7 +216,7 @@
       "slug": "teamviewer/windows",
       "platform": "windows",
       "unique_identifier": "TeamViewer",
-      "description": ""
+      "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
       "name": "Microsoft Visual Studio Code",
@@ -230,7 +230,7 @@
       "slug": "visual-studio-code/windows",
       "platform": "windows",
       "unique_identifier": "Microsoft Visual Studio Code",
-      "description": ""
+      "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
       "name": "WhatsApp",
@@ -250,7 +250,7 @@
       "name": "Zoom",
       "slug": "zoom/windows",
       "platform": "windows",
-      "unique_identifier": "Zoom",
+      "unique_identifier": "Zoom Workplace (64-bit)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]

@@ -2,8 +2,9 @@
   "name": "Figma",
   "slug": "figma/windows",
   "package_identifier": "Figma.Figma",
-  "unique_identifier": "Figma",
+  "unique_identifier": "Figma (Machine)",
   "installer_arch": "x86",
   "installer_type": "msi",
-  "installer_scope": "machine"
+  "installer_scope": "machine",
+  "program_publisher": "Figma Inc."
 }
