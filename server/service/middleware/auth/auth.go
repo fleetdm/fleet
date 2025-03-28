@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
@@ -39,7 +40,7 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			return next(ctx, request)
 		}
 
-		// if not succesful, try again this time with errors
+		// if not successful, try again this time with errors
 		sessionKey, ok := token.FromContext(ctx)
 		if !ok {
 			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
@@ -66,4 +67,42 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 
 func UnauthenticatedRequest(_ fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 	return log.Logged(next)
+}
+
+func AuthenticatedUserMiddleware(svc fleet.Service, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// first check if already successfully set
+		if v, ok := viewer.FromContext(r.Context()); ok {
+			if v.User.IsAdminForcedPasswordReset() {
+				http.Error(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// if not successful, try again this time with errors
+		sessionKey, ok := token.FromContext(r.Context())
+		if !ok {
+			http.Error(w, fleet.NewAuthHeaderRequiredError("no auth token").Error(), http.StatusUnauthorized)
+			return
+		}
+
+		v, err := AuthViewer(r.Context(), string(sessionKey), svc)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		if v.User.IsAdminForcedPasswordReset() {
+			http.Error(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
+			return
+		}
+
+		ctx := viewer.NewContext(r.Context(), *v)
+		if ac, ok := authz.FromContext(r.Context()); ok {
+			ac.SetAuthnMethod(authz.AuthnUserToken)
+		}
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/scim2/filter-parser/v2"
 )
 
@@ -29,29 +31,33 @@ const (
 )
 
 type UserHandler struct {
-	ds fleet.Datastore
+	ds     fleet.Datastore
+	logger kitlog.Logger
 }
 
 // Compile-time check
 var _ scim.ResourceHandler = &UserHandler{}
 
-func NewUserHandler(ds fleet.Datastore) scim.ResourceHandler {
-	return &UserHandler{ds: ds}
+func NewUserHandler(ds fleet.Datastore, logger kitlog.Logger) scim.ResourceHandler {
+	return &UserHandler{ds: ds, logger: logger}
 }
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	// Check for userName uniqueness
 	userName, err := getRequiredResource[string](attributes, userNameAttr)
 	if err != nil {
+		level.Error(u.logger).Log("msg", "failed to get userName", "err", err)
 		return scim.Resource{}, err
 	}
 	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
 	if !fleet.IsNotFound(err) {
+		level.Info(u.logger).Log("msg", "user already exists", userNameAttr, userName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 	}
 
 	user, err := createUserFromAttributes(attributes)
 	if err != nil {
+		level.Error(u.logger).Log("msg", "failed to create user from attributes", userNameAttr, userName, "err", err)
 		return scim.Resource{}, err
 	}
 	user.ID, err = u.ds.CreateScimUser(r.Context(), user)
@@ -183,14 +189,17 @@ func getComplexResourceSlice(attributes scim.ResourceAttributes, key string) ([]
 func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
+		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
 	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
 	switch {
 	case fleet.IsNotFound(err):
+		level.Info(u.logger).Log("msg", "failed to find user", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
+		level.Error(u.logger).Log("msg", "failed to get user", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 
@@ -270,25 +279,30 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 	if resourceFilter != "" {
 		expr, err := filter.ParseAttrExp([]byte(resourceFilter))
 		if err != nil {
+			level.Error(u.logger).Log("msg", "failed to parse filter", "filter", resourceFilter, "err", err)
 			return scim.Page{}, errors.ScimErrorInvalidFilter
 		}
 		if !strings.EqualFold(expr.AttributePath.String(), "userName") || expr.Operator != "eq" {
+			level.Info(u.logger).Log("msg", "unsupported filter", "filter", resourceFilter)
 			return scim.Page{}, nil
 		}
 		userName, ok := expr.CompareValue.(string)
 		if !ok {
+			level.Error(u.logger).Log("msg", "unsupported value", "value", expr.CompareValue)
 			return scim.Page{}, nil
 		}
 
 		// Decode URL-encoded characters in userName, which is required to pass Microsoft Entra ID SCIM Validator
 		userName, err = url.QueryUnescape(userName)
 		if err != nil {
+			level.Error(u.logger).Log("msg", "failed to decode userName", "userName", userName, "err", err)
 			return scim.Page{}, nil
 		}
 		opts.UserNameFilter = &userName
 	}
 	users, totalResults, err := u.ds.ListScimUsers(r.Context(), opts)
 	if err != nil {
+		level.Error(u.logger).Log("msg", "failed to list users", "err", err)
 		return scim.Page{}, err
 	}
 
@@ -306,19 +320,23 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
+		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
 	user, err := createUserFromAttributes(attributes)
 	if err != nil {
+		level.Error(u.logger).Log("msg", "failed to create user from attributes", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 	user.ID = uint(idUint)
 	err = u.ds.ReplaceScimUser(r.Context(), user)
 	switch {
 	case fleet.IsNotFound(err):
+		level.Info(u.logger).Log("msg", "failed to find user to replace", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
+		level.Error(u.logger).Log("msg", "failed to replace user", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 
@@ -331,13 +349,16 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 func (u *UserHandler) Delete(r *http.Request, id string) error {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
+		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return errors.ScimErrorResourceNotFound(id)
 	}
 	err = u.ds.DeleteScimUser(r.Context(), uint(idUint))
 	switch {
 	case fleet.IsNotFound(err):
+		level.Info(u.logger).Log("msg", "failed to find user to delete", "id", id)
 		return errors.ScimErrorResourceNotFound(id)
 	case err != nil:
+		level.Error(u.logger).Log("msg", "failed to delete user", "id", id, "err", err)
 		return err
 	}
 	return nil
@@ -349,41 +370,50 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
+		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
 	switch {
 	case fleet.IsNotFound(err):
+		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
+		level.Error(u.logger).Log("msg", "failed to get user to patch", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 
 	for _, op := range operations {
 		if op.Op != "replace" {
+			level.Info(u.logger).Log("msg", "unsupported patch operation", "op", op.Op)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 		switch {
 		case op.Path == nil:
 			newValues, ok := op.Value.(map[string]interface{})
 			if !ok {
+				level.Info(u.logger).Log("msg", "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			if len(newValues) != 1 {
+				level.Info(u.logger).Log("msg", "too many patch values", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			active, err := getRequiredResource[bool](newValues, activeAttr)
 			if err != nil {
+				level.Info(u.logger).Log("msg", "failed to get active value", "value", op.Value)
 				return scim.Resource{}, err
 			}
 			user.Active = &active
 		case op.Path.String() == activeAttr:
 			active, ok := op.Value.(bool)
 			if !ok {
+				level.Error(u.logger).Log("msg", "unsupported 'active' patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			user.Active = &active
 		default:
+			level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 	}
@@ -391,8 +421,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	err = u.ds.ReplaceScimUser(r.Context(), user)
 	switch {
 	case fleet.IsNotFound(err):
+		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
+		level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 

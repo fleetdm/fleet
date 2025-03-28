@@ -8,6 +8,8 @@ import (
 	"github.com/elimity-com/scim/optional"
 	"github.com/elimity-com/scim/schema"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -19,6 +21,7 @@ const (
 func RegisterSCIM(
 	mux *http.ServeMux,
 	ds fleet.Datastore,
+	svc fleet.Service,
 	logger kitlog.Logger,
 ) error {
 	config := scim.ServiceProviderConfig{
@@ -82,6 +85,7 @@ func RegisterSCIM(
 		},
 	}
 
+	scimLogger := kitlog.With(logger, "component", "SCIM")
 	resourceTypes := []scim.ResourceType{
 		{
 			ID:          optional.NewString("User"),
@@ -89,7 +93,7 @@ func RegisterSCIM(
 			Endpoint:    "/Users",
 			Description: optional.NewString("User Account"),
 			Schema:      userSchema,
-			Handler:     NewUserHandler(ds),
+			Handler:     NewUserHandler(ds, scimLogger),
 		},
 	}
 
@@ -99,7 +103,7 @@ func RegisterSCIM(
 	}
 
 	serverOpts := []scim.ServerOption{
-		scim.WithLogger(&MyLogger{Logger: logger}),
+		scim.WithLogger(&scimErrorLogger{Logger: scimLogger}),
 	}
 
 	server, err := scim.NewServer(serverArgs, serverOpts...)
@@ -107,26 +111,28 @@ func RegisterSCIM(
 		return err
 	}
 
-	loggingMiddleware := func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			level.Info(logger).Log("url", r.URL.Path)
-			next.ServeHTTP(w, r)
-		}
-		return http.HandlerFunc(fn)
+	// TODO: Add APM/OpenTelemetry tracing and Prometheus middleware
+	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
+		handler := http.StripPrefix(prefix, server)
+		// authz
+		handler = auth.AuthenticatedUserMiddleware(svc, handler)
+		handler = log.LogResponseEndMiddleware(scimLogger, handler)
+		handler = auth.SetRequestsContextMiddleware(svc, handler)
+		return handler
 	}
-	// TODO: Add authentication, proper logging, tracing, and Prometheus middleware
-	mux.Handle("/api/v1/fleet/scim/", loggingMiddleware(http.StripPrefix("/api/v1/fleet/scim", server)))
-	mux.Handle("/api/latest/fleet/scim/", loggingMiddleware(http.StripPrefix("/api/latest/fleet/scim", server)))
+
+	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
+	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
 	return nil
 }
 
-type MyLogger struct {
+type scimErrorLogger struct {
 	kitlog.Logger
 }
 
-var _ scim.Logger = &MyLogger{}
+var _ scim.Logger = &scimErrorLogger{}
 
-func (l *MyLogger) Error(args ...interface{}) {
+func (l *scimErrorLogger) Error(args ...interface{}) {
 	level.Error(l.Logger).Log(
 		"error", fmt.Sprint(args...),
 	)
