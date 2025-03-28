@@ -11,6 +11,10 @@ type ScimUser struct {
 	Emails     []ScimUserEmail
 }
 
+func (su *ScimUser) AuthzType() string {
+	return "scim_user"
+}
+
 // ScimUserEmail represents an email address associated with a SCIM user
 type ScimUserEmail struct {
 	ScimUserID uint    `db:"scim_user_id"`

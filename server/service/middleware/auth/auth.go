@@ -69,12 +69,15 @@ func UnauthenticatedRequest(_ fleet.Service, next endpoint.Endpoint) endpoint.En
 	return log.Logged(next)
 }
 
-func AuthenticatedUserMiddleware(svc fleet.Service, next http.Handler) http.Handler {
+// errorHandler has the same signature as http.Error
+type errorHandler func(w http.ResponseWriter, detail string, status int)
+
+func AuthenticatedUserMiddleware(svc fleet.Service, errHandler errorHandler, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// first check if already successfully set
 		if v, ok := viewer.FromContext(r.Context()); ok {
 			if v.User.IsAdminForcedPasswordReset() {
-				http.Error(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
+				errHandler(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -84,18 +87,18 @@ func AuthenticatedUserMiddleware(svc fleet.Service, next http.Handler) http.Hand
 		// if not successful, try again this time with errors
 		sessionKey, ok := token.FromContext(r.Context())
 		if !ok {
-			http.Error(w, fleet.NewAuthHeaderRequiredError("no auth token").Error(), http.StatusUnauthorized)
+			errHandler(w, fleet.NewAuthHeaderRequiredError("no auth token").Error(), http.StatusUnauthorized)
 			return
 		}
 
 		v, err := AuthViewer(r.Context(), string(sessionKey), svc)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			errHandler(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
 		if v.User.IsAdminForcedPasswordReset() {
-			http.Error(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
+			errHandler(w, fleet.ErrPasswordResetRequired.Error(), http.StatusUnauthorized)
 			return
 		}
 

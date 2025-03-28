@@ -1,12 +1,15 @@
 package scim
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/elimity-com/scim"
+	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
 	"github.com/elimity-com/scim/schema"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -111,11 +114,19 @@ func RegisterSCIM(
 		return err
 	}
 
+	scimErrorHandler := func(w http.ResponseWriter, detail string, status int) {
+		errorHandler(w, scimLogger, detail, status)
+	}
+	authorizer, err := authz.NewAuthorizer()
+	if err != nil {
+		return err
+	}
+
 	// TODO: Add APM/OpenTelemetry tracing and Prometheus middleware
 	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
 		handler := http.StripPrefix(prefix, server)
-		// authz
-		handler = auth.AuthenticatedUserMiddleware(svc, handler)
+		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
+		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
@@ -124,6 +135,35 @@ func RegisterSCIM(
 	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
 	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
 	return nil
+}
+
+func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := authorizer.Authorize(r.Context(), &fleet.ScimUser{}, fleet.ActionWrite)
+		if err != nil {
+			errorHandler(w, logger, err.Error(), http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, status int) {
+	scimErr := errors.ScimError{
+		Status: status,
+		Detail: detail,
+	}
+	raw, err := json.Marshal(scimErr)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed marshaling scim error", "scimError", scimErr, "err", err)
+		return
+	}
+
+	w.WriteHeader(scimErr.Status)
+	_, err = w.Write(raw)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed writing response", "err", err)
+	}
 }
 
 type scimErrorLogger struct {
