@@ -265,8 +265,16 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
 	out.Version = m.PackageVersion
+	publisher := l.Publisher
+	if input.ProgramPublisher != "" {
+		publisher = input.ProgramPublisher
+	}
+	name := l.PackageName
+	if input.ProgramName != "" {
+		name = input.ProgramName
+	}
 	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", l.PackageName, l.Publisher),
+		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';", name, publisher),
 	}
 	out.InstallScript = installScript
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
@@ -318,6 +326,8 @@ type inputApp struct {
 	InstallerArch       string `json:"installer_arch"`
 	InstallerType       string `json:"installer_type"`
 	InstallerScope      string `json:"installer_scope"`
+	ProgramName         string `json:"program_name"`
+	ProgramPublisher    string `json:"program_publisher"`
 }
 
 type installerManifest struct {

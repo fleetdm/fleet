@@ -5,5 +5,6 @@
   "unique_identifier": "Slack",
   "installer_arch": "x64",
   "installer_type": "msi",
-  "installer_scope": "machine"
+  "installer_scope": "machine",
+  "program_name": "Slack (Machine - MSI)"
 }
