@@ -230,7 +230,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Build the base query
 	baseQuery := `
 		SELECT DISTINCT
-			id, external_id, user_name, given_name, family_name, active
+			scim_users.id, external_id, user_name, given_name, family_name, active
 		FROM scim_users
 	`
 

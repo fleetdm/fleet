@@ -68,7 +68,7 @@ func removeWhitespace(str string) string {
 
 func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	// Check for userName uniqueness
-	userName, err := getRequiredResource(attributes, userNameAttr)
+	userName, err := getRequiredResource[string](attributes, userNameAttr)
 	if err != nil {
 		return scim.Resource{}, err
 	}
@@ -92,7 +92,7 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUser, error) {
 	user := fleet.ScimUser{}
 	var err error
-	user.UserName, err = getRequiredResource(attributes, userNameAttr)
+	user.UserName, err = getRequiredResource[string](attributes, userNameAttr)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUs
 	userEmails := make([]fleet.ScimUserEmail, 0, len(emails))
 	for _, email := range emails {
 		userEmail := fleet.ScimUserEmail{}
-		userEmail.Email, err = getRequiredResource(email, "value")
+		userEmail.Email, err = getRequiredResource[string](email, "value")
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,7 @@ func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUs
 	return &user, nil
 }
 
-func getRequiredResource[T string](attributes scim.ResourceAttributes, key string) (T, error) {
+func getRequiredResource[T string | bool](attributes scim.ResourceAttributes, key string) (T, error) {
 	var val T
 	valIntf, ok := attributes[key]
 	if !ok || valIntf == nil {
@@ -373,16 +373,18 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 // Okta only requires patching the "active" attribute:
 // https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
-	mu.Lock()
-	defer mu.Unlock()
 	idUint, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return scim.Resource{}, fmt.Errorf("invalid user ID %s: %w", id, err)
+		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	user, ok := users[uint(idUint)]
-	if !ok {
-		return scim.Resource{}, fmt.Errorf("user with ID %s not found", id)
+	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
+	switch {
+	case fleet.IsNotFound(err):
+		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+	case err != nil:
+		return scim.Resource{}, err
 	}
+
 	for _, op := range operations {
 		if op.Op != "replace" {
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -396,21 +398,29 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			if len(newValues) != 1 {
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			var val interface{}
-			if val, ok = newValues["active"]; !ok {
+			active, err := getRequiredResource[bool](newValues, activeAttr)
+			if err != nil {
+				return scim.Resource{}, err
+			}
+			user.Active = &active
+		case op.Path.String() == activeAttr:
+			active, ok := op.Value.(bool)
+			if !ok {
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			var valBool bool
-			if valBool, ok = val.(bool); !ok {
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-			}
-			user.Attributes["active"] = valBool
-		case op.Path.String() == "active":
-			user.Attributes["active"] = op.Value
+			user.Active = &active
 		default:
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 	}
-	users[uint(idUint)] = user
-	return user, nil
+
+	err = u.ds.ReplaceScimUser(r.Context(), user)
+	switch {
+	case fleet.IsNotFound(err):
+		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+	case err != nil:
+		return scim.Resource{}, err
+	}
+
+	return createUserResource(user), nil
 }

@@ -626,7 +626,6 @@ CREATE TABLE `host_scim_user` (
   `host_id` int unsigned NOT NULL,
   `scim_user_id` int unsigned NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`host_id`,`scim_user_id`),
   KEY `fk_host_scim_scim_user_id` (`scim_user_id`),
   CONSTRAINT `fk_host_scim_scim_user_id` FOREIGN KEY (`scim_user_id`) REFERENCES `scim_users` (`id`) ON DELETE CASCADE
@@ -1767,6 +1766,8 @@ CREATE TABLE `scim_groups` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `external_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `display_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_scim_groups_external_id` (`external_id`),
   KEY `idx_scim_groups_display_name` (`display_name`)
@@ -1775,14 +1776,16 @@ CREATE TABLE `scim_groups` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `scim_user_emails` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `scim_user_id` int unsigned NOT NULL,
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `primary` tinyint(1) DEFAULT NULL,
   `type` varchar(31) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`scim_user_id`,`email`),
-  KEY `idx_scim_user_emails_email` (`email`),
+  PRIMARY KEY (`id`),
+  KEY `idx_scim_user_emails_email_type` (`type`,`email`),
+  KEY `fk_scim_user_emails_scim_user_id` (`scim_user_id`),
   CONSTRAINT `fk_scim_user_emails_scim_user_id` FOREIGN KEY (`scim_user_id`) REFERENCES `scim_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -1792,7 +1795,6 @@ CREATE TABLE `scim_user_group` (
   `scim_user_id` int unsigned NOT NULL,
   `group_id` int unsigned NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`scim_user_id`,`group_id`),
   KEY `fk_scim_user_group_group_id` (`group_id`),
   CONSTRAINT `fk_scim_user_group_group_id` FOREIGN KEY (`group_id`) REFERENCES `scim_groups` (`id`) ON DELETE CASCADE,
