@@ -374,7 +374,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			installScript = file.GetInstallScript(existingInstaller.Extension)
 		}
 		if installScript == "" {
-			return nil, ctxerr.New(ctx, fmt.Sprintf("install script must be provided for .%s packages", strings.ToLower(existingInstaller.Extension)))
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			}
 		}
 
 		if installScript != existingInstaller.InstallScript {
@@ -397,7 +399,9 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
 		}
 		if uninstallScript == "" {
-			return nil, ctxerr.New(ctx, fmt.Sprintf("uninstall script must be provided for .%s packages", strings.ToLower(existingInstaller.Extension)))
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			}
 		}
 
 		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
@@ -1415,14 +1419,18 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
 	if payload.InstallScript == "" {
-		return meta.Extension, ctxerr.New(ctx, fmt.Sprintf("install script must be provided for .%s packages", strings.ToLower(meta.Extension)))
+		return "", &fleet.BadRequestError{
+			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", strings.ToLower(payload.Extension)),
+		}
 	}
 
 	if payload.UninstallScript == "" {
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
 	}
 	if payload.UninstallScript == "" {
-		return meta.Extension, ctxerr.New(ctx, fmt.Sprintf("uninstall script must be provided for .%s packages", strings.ToLower(meta.Extension)))
+		return "", &fleet.BadRequestError{
+			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
+		}
 	}
 
 	if payload.BundleIdentifier != "" {
