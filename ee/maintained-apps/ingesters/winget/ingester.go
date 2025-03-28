@@ -270,8 +270,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 	out.InstallScript = installScript
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
-	out.InstallScriptRef = maintained_apps.GetScriptRef(installScript)
-	out.UninstallScriptRef = maintained_apps.GetScriptRef(uninstallScript)
+	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
+	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 
 	return &out, nil
 }
