@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Notion' AND publisher = 'Notion Labs, Inc';"
       },
       "installer_url": "https://desktop-release.notion-static.com/Notion%20Setup%204.7.1.exe",
-      "unique_identifier": "Notion",
       "install_script_ref": "8bc5996b",
       "uninstall_script_ref": "8ad20932",
       "sha256": "c37c5e9c3c6a91671c51d01930758fe01ef793c6dd99eba799d62ba540df1e2e"

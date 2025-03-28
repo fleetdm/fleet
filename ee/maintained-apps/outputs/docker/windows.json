@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.';"
       },
       "installer_url": "https://desktop.docker.com/win/main/amd64/184744/Docker%20Desktop%20Installer.exe",
-      "unique_identifier": "Docker Desktop",
       "install_script_ref": "f938db79",
       "uninstall_script_ref": "ba939f05",
       "sha256": "e832d4c2c99300436096b2e990220068e69ede845137a9dd63eff0a51e8a14e9"

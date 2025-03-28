@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = '1Password' AND publisher = 'AgileBits, Inc.';"
       },
       "installer_url": "https://downloads.1password.com/win/1PasswordSetup-8.10.68.msi",
-      "unique_identifier": "1Password",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "8eac6029",
       "sha256": "812a76a44145a63c5d1645fa9c9bbd5dd7e4e90b4efaccdb8f353c5be56688a6"

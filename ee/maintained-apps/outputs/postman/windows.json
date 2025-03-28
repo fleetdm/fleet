@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Postman' AND publisher = 'Postman';"
       },
       "installer_url": "https://dl.pstmn.io/download/version/11.38.5/windows_64",
-      "unique_identifier": "Postman",
       "install_script_ref": "9bdf51d7",
       "uninstall_script_ref": "c7fb08b5",
       "sha256": "37ed3a534ea46b1b7899b8b31299f8c015c59630d3cbb4b50df73fdf1d4d97e4"

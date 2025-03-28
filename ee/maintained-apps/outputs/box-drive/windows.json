@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';"
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.43.205.msi",
-      "unique_identifier": "Box",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "ec7343f2",
       "sha256": "5c2fbb3d3b88843f2a41d97ef6790c8b959a4a3e88216e57638c2d884b883ea3"

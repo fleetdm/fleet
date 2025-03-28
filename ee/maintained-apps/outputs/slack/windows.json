@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Slack (Machine - MSI)' AND publisher = 'Slack Technologies Inc.';"
       },
       "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.43.49/slack-standalone-4.43.49.0.msi",
-      "unique_identifier": "Slack (Machine - MSI)",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "aa5a0ed3",
       "sha256": "1701ba7e85c104835259a231bf2a7ada8fe23163145648683213d41a7d8f508a"

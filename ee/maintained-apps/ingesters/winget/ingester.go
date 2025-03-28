@@ -242,10 +242,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		if installScript == "" {
 			installScript = file.GetInstallScript(installerTypeMSI)
 		}
+	}
+
+	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
 		if uninstallScript == "" {
 			uninstallScript = file.GetUninstallScript(installerTypeMSI)
 		}
-
 	}
 
 	if installScript == "" {
@@ -330,6 +332,7 @@ type inputApp struct {
 	InstallerScope      string `json:"installer_scope"`
 	InstallerLocale     string `json:"installer_locale"`
 	ProgramPublisher    string `json:"program_publisher"`
+	UninstallType       string `json:"uninstall_type"`
 }
 
 type installerManifest struct {

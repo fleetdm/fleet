@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
-      "unique_identifier": "Google Chrome",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "d1f2e2e0",
       "sha256": "f636f77521781ba03c39d8be3e2ecdba828f1eee12cc0fee00509d6ae960c59b"
