@@ -567,21 +567,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
-	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
-	if gme {
+	gitopsModeEnabled, gitopsRepoURL := appConfig.UIGitOpsMode.GitopsModeEnabled, appConfig.UIGitOpsMode.RepositoryURL
+	if gitopsModeEnabled {
 		if !license.IsPremium() {
 			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
 		}
-		if rurl == "" {
+		if gitopsRepoURL == "" {
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
 	}
-	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
 
 	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
 		// generate the activity
 		var act fleet.ActivityDetails
-		if gme {
+		if gitopsModeEnabled {
 			act = fleet.ActivityTypeEnabledGitOpsMode{}
 		} else {
 			act = fleet.ActivityTypeDisabledGitOpsMode{}
