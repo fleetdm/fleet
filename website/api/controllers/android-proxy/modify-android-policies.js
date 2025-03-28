@@ -31,12 +31,37 @@ module.exports = {
   },
 
 
-  fn: async function ({androidEnterpriseId, profileId, fleetServerSecret}) {
+  fn: async function ({androidEnterpriseId, profileId, fleetServerSecret, policy}) {
+
+    // Authenticate this request
+    let thisAndroidEnterprise = await AndroidEnterprise.findOne({
+      fleetServerSecret: fleetServerSecret,
+      androidEnterpriseId: androidEnterpriseId,
+    });
+
+    // Return a 404 response if no records are found.
+    if(!thisAndroidEnterprise) {
+      return this.res.notFound();
+    }
+
+    let authorizationTokenForThisRequest = await sails.helpers.androidEnterprise.getAccessToken.with({
+      // TODO: this helper doesn't exist
+    });
 
 
-    //fleetdm.com/api/v1/android/:androidEnterpriseId/configuration-profiles/:profileId`
+    // Send a request to delete the Android enterprise.
+    let patchProfileResponse = await sails.helpers.http.sendHttpRequest.with({
+      method: 'PATCH',
+      url: `https://androidmanagement.googleapis.com/v1/enterprises/${androidEnterpriseId}/policies/${profileId}.`,
+      body: policy,
+      headers: {
+        Authorization: `Bearer ${authorizationTokenForThisRequest}`,
+      },
+    });
+
+
     // All done.
-    return;
+    return patchProfileResponse;// ?
 
   }
 
