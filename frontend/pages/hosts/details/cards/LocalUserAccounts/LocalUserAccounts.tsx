@@ -9,7 +9,7 @@ import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 
-import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
+import generateTableHeaders from "./LocalUserAccountsTable/LocalUserAccountsTableConfig";
 
 interface IUsersProps {
   users: IHostUser[];
@@ -19,19 +19,19 @@ interface IUsersProps {
   hostUsersEnabled?: boolean;
 }
 
-const baseClass = "users-card";
+const baseClass = "local-user-accounts-card";
 
-const Users = ({
+const LocalUserAccounts = ({
   users,
   usersState,
   isLoading,
   onUsersTableSearchChange,
   hostUsersEnabled,
 }: IUsersProps): JSX.Element => {
-  const tableHeaders = generateUsersTableHeaders();
+  const tableHeaders = generateTableHeaders();
 
   const renderUsersCount = useCallback(() => {
-    return <TableCount name="users" count={usersState.length} />;
+    return <TableCount name="items" count={usersState.length} />;
   }, [usersState.length]);
 
   if (!hostUsersEnabled) {
@@ -42,7 +42,7 @@ const Users = ({
         paddingSize="xlarge"
         includeShadow
       >
-        <CardHeader header="Users" />
+        <CardHeader header="Local user accounts" />
         <EmptyTable
           header="User collection has been disabled"
           info={
@@ -68,7 +68,7 @@ const Users = ({
       includeShadow
     >
       <>
-        <CardHeader header="Users" />
+        <CardHeader header="Local user accounts" />
         {users?.length ? (
           <TableContainer
             columnConfigs={tableHeaders}
@@ -76,7 +76,7 @@ const Users = ({
             isLoading={isLoading}
             defaultSortHeader="username"
             defaultSortDirection="asc"
-            inputPlaceHolder="Search users by username"
+            inputPlaceHolder="Search local user accounts by username"
             onQueryChange={onUsersTableSearchChange}
             emptyComponent={() => (
               <EmptyTable
@@ -103,4 +103,4 @@ const Users = ({
   );
 };
 
-export default Users;
+export default LocalUserAccounts;

@@ -31,7 +31,7 @@ interface IDataColumn {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateUsersTableHeaders = (): IDataColumn[] => {
+const generateTableHeaders = (): IDataColumn[] => {
   return [
     {
       title: "Username",
@@ -71,4 +71,4 @@ const generateUsersTableHeaders = (): IDataColumn[] => {
   ];
 };
 
-export default generateUsersTableHeaders;
+export default generateTableHeaders;
