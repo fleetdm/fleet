@@ -335,7 +335,7 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 			if errors.As(err, &httpErr) {
 				// We can count on this working because of how the godep.HTTPerror Error() method
 				// formats its output.
-				return ctxerr.Errorf(ctx, "Couldn't upload. %s", string(httpErr.Body))
+				return ctxerr.Errorf(ctx, "Couldn't add. %s", string(httpErr.Body))
 			}
 
 			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")
@@ -1203,7 +1203,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	start := time.Now()
 	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
 	if len(devices) == 0 {
 		return nil
@@ -1211,7 +1211,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
 	commandUUID := uuid.NewString()
 
-	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2*len(devices))
+	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
 	installedAppsUUIDs := make([]string, 0, len(devices))
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
@@ -1226,6 +1226,23 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+		}
+	}
+
+	certsListUUIDs := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchCertsCommandUUIDPrefix) {
+			certsListUUIDs = append(certsListUUIDs, device.UUID)
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      device.HostID,
+				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+			})
+		}
+	}
+	if len(certsListUUIDs) > 0 {
+		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
 		}
 	}
 
@@ -1285,4 +1302,34 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 	}
 
 	return profileBuf.Bytes(), nil
+}
+
+func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+		return nil
+	}
+
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 500)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to revive")
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, ids); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+	}
+	return nil
 }

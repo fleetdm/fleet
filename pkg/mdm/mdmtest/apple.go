@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -31,7 +32,7 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/smallstep/scep"
 )
@@ -737,6 +738,28 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 	}
 
 	return c.sendAndDecodeCommandResponse(payload)
+}
+
+func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, certTemplates []*x509.Certificate) (*mdm.Command, error) {
+	var certList []fleet.MDMAppleCertificateListItem
+	for _, cert := range certTemplates {
+		b, _, err := mysql.GenerateTestCertBytes(cert)
+		if err != nil {
+			return nil, err
+		}
+		certList = append(certList, fleet.MDMAppleCertificateListItem{
+			CommonName: cert.Subject.CommonName,
+			Data:       b,
+		})
+	}
+	cmd := map[string]any{
+		"CommandUUID":     cmdUUID,
+		"UDID":            udid,
+		"Status":          "Acknowledged",
+		"CertificateList": certList,
+	}
+
+	return c.sendAndDecodeCommandResponse(cmd)
 }
 
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {

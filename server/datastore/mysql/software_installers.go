@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -209,7 +210,7 @@ INSERT INTO software_installers (
 	user_id,
 	user_name,
 	user_email,
-	fleet_library_app_id
+	fleet_maintained_app_id
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?)`
 
 		args := []interface{}{
@@ -230,7 +231,7 @@ INSERT INTO software_installers (
 			payload.UserID,
 			payload.UserID,
 			payload.UserID,
-			payload.FleetLibraryAppID,
+			payload.FleetMaintainedAppID,
 		}
 
 		res, err := tx.ExecContext(ctx, stmt, args...)
@@ -250,7 +251,28 @@ INSERT INTO software_installers (
 		}
 
 		if payload.AutomaticInstall {
-			if err := ds.createAutomaticPolicy(ctx, tx, payload, installerID); err != nil {
+			var installerMetadata automatic_policy.InstallerMetadata
+			if payload.AutomaticInstallQuery != "" {
+				installerMetadata = automatic_policy.FMAInstallerMetadata{
+					Title:    payload.Title,
+					Platform: payload.Platform,
+					Query:    payload.AutomaticInstallQuery,
+				}
+			} else {
+				installerMetadata = automatic_policy.FullInstallerMetadata{
+					Title:            payload.Title,
+					Extension:        payload.Extension,
+					BundleIdentifier: payload.BundleIdentifier,
+					PackageIDs:       payload.PackageIDs,
+				}
+			}
+
+			generatedPolicyData, err := automatic_policy.Generate(installerMetadata)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+			}
+
+			if err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, payload.TeamID, ptr.Uint(installerID), nil); err != nil {
 				return ctxerr.Wrap(ctx, err, "create automatic policy")
 			}
 		}
@@ -263,21 +285,12 @@ INSERT INTO software_installers (
 	return installerID, titleID, nil
 }
 
-func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, payload *fleet.UploadSoftwareInstallerPayload, softwareInstallerID uint) error {
-	generatedPolicyData, err := automatic_policy.Generate(automatic_policy.InstallerMetadata{
-		Title:            payload.Title,
-		Extension:        payload.Extension,
-		BundleIdentifier: payload.BundleIdentifier,
-		PackageIDs:       payload.PackageIDs,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, policyData automatic_policy.PolicyData, teamID *uint, softwareInstallerID *uint, vppAppsTeamsID *uint) error {
+	tmID := fleet.PolicyNoTeamID
+	if teamID != nil {
+		tmID = *teamID
 	}
-	teamID := fleet.PolicyNoTeamID
-	if payload.TeamID != nil {
-		teamID = *payload.TeamID
-	}
-	availablePolicyName, err := getAvailablePolicyName(ctx, tx, teamID, generatedPolicyData.Name)
+	availablePolicyName, err := getAvailablePolicyName(ctx, tx, tmID, policyData.Name)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get available policy name")
 	}
@@ -285,12 +298,13 @@ func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtConte
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
 	}
-	if _, err := newTeamPolicy(ctx, tx, teamID, userID, fleet.PolicyPayload{
+	if _, err := newTeamPolicy(ctx, tx, tmID, userID, fleet.PolicyPayload{
 		Name:                availablePolicyName,
-		Query:               generatedPolicyData.Query,
-		Platform:            generatedPolicyData.Platform,
-		Description:         generatedPolicyData.Description,
-		SoftwareInstallerID: &softwareInstallerID,
+		Query:               policyData.Query,
+		Platform:            policyData.Platform,
+		Description:         policyData.Description,
+		SoftwareInstallerID: softwareInstallerID,
+		VPPAppsTeamsID:      vppAppsTeamsID,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create automatic policy query")
 	}
@@ -557,7 +571,7 @@ SELECT
 	si.uploaded_at,
 	COALESCE(st.name, '') AS software_title,
 	si.platform,
-	si.fleet_library_app_id
+	si.fleet_maintained_app_id
 FROM
 	software_installers si
 	LEFT OUTER JOIN software_titles st ON st.id = si.title_id
@@ -595,6 +609,7 @@ SELECT
   si.filename,
   si.extension,
   si.version,
+  si.platform,
   si.install_script_content_id,
   si.pre_install_query,
   si.post_install_script_content_id,

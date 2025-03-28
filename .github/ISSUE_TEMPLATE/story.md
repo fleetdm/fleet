@@ -28,7 +28,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- Insert the link to the feature request(s) that this story contributes to. Put "None" if it doesn't contribute to a request. For customer requests, add the `customer-xyz` label(s). -->
 
 ## Context
-- Product designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
+- Product Designer: _________________________ <!-- Who is the product designer to contact if folks have questions about the UI, CLI, or API changes? -->
   
 <!--
 What else should contributors [keep in mind](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) when working on this change?  (Optional.)
@@ -56,6 +56,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 
 ### Engineering
 - [ ] Test plan is finalized
+- [ ] Contributor API changes: TODO <!-- Specify changes in the the Contributor API doc page as a PR to reference docs release branch following the guidelines in the handbook here: https://fleetdm.com/handbook/product-design#drafting Put "No changes" if there are no changes necessary. -->
 - [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
@@ -71,9 +72,9 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - Risk description: TODO <!-- If the risk level is high, explain why. If low, remove. -->
 
 ### Test plan
-<!-- 
-Add detailed manual testing steps for all affected user roles.
--->
+<!-- Add detailed manual testing steps for all affected user roles. -->
+
+> Make sure to go through [the list](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/design-qa-considerations.md) and consider all events that might be related to this story, so we catch edge cases earlier.
 
 1. Step 1
 2. Step 2

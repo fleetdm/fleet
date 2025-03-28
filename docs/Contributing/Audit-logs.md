@@ -810,6 +810,18 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_gitops_mode
+
+Generated when a user enables GitOps mode.
+
+This activity does not contain any detail fields.
+
+## disabled_gitops_mode
+
+Generated when a user disables GitOps mode.
+
+This activity does not contain any detail fields.
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).
@@ -891,6 +903,18 @@ This activity does not contain any detail fields.
 ## disabled_windows_mdm
 
 Generated when a user turns off MDM features for all Windows hosts.
+
+This activity does not contain any detail fields.
+
+## enabled_android_mdm
+
+Generated when a user turns on MDM features for all Android hosts.
+
+This activity does not contain any detail fields.
+
+## disabled_android_mdm
+
+Generated when a user turns off MDM features for all Android hosts.
 
 This activity does not contain any detail fields.
 
@@ -1459,7 +1483,6 @@ This activity contains the following fields:
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 
-
 #### Example
 
 ```json
@@ -1531,6 +1554,96 @@ This activity does not contain any detail fields.
 Generated when NDES SCEP proxy configuration is edited in Fleet.
 
 This activity does not contain any detail fields.
+
+## added_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## deleted_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## edited_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## added_digicert
+
+Generated when DigiCert certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## deleted_digicert
+
+Generated when DigiCert certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## edited_digicert
+
+Generated when DigiCert certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
 
 ## enabled_activity_automations
 

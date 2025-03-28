@@ -2,6 +2,7 @@ import React from "react";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Card from "components/Card";
 
 import {
@@ -10,12 +11,14 @@ import {
   IDeviceUser,
   mapDeviceUsersForDisplay,
 } from "interfaces/host";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
   BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
+import CardHeader from "components/CardHeader";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -47,23 +50,35 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
-  const isIosOrIpadosHost =
-    aboutData.platform === "ios" || aboutData.platform === "ipados";
+  const isIosOrIpadosHost = isIPadOrIPhone(aboutData.platform);
+  const isAndroidHost = isAndroid(aboutData.platform);
 
   const renderHardwareSerialAndIPs = () => {
     if (isIosOrIpadosHost) {
       return (
         <>
-          <DataSet title="Serial number" value={aboutData.hardware_serial} />
+          <DataSet
+            title="Serial number"
+            value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+          />
           <DataSet title="Hardware model" value={aboutData.hardware_model} />
         </>
+      );
+    }
+
+    if (isAndroidHost) {
+      return (
+        <DataSet title="Hardware model" value={aboutData.hardware_model} />
       );
     }
 
     return (
       <>
         <DataSet title="Hardware model" value={aboutData.hardware_model} />
-        <DataSet title="Serial number" value={aboutData.hardware_serial} />
+        <DataSet
+          title="Serial number"
+          value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+        />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
         <DataSet
           title={
@@ -110,7 +125,11 @@ const About = ({
         />
         <DataSet
           title="MDM server URL"
-          value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+          value={
+            <TooltipTruncatedText
+              value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+            />
+          }
         />
       </>
     );
@@ -130,10 +149,12 @@ const About = ({
         displayPrimaryUser = email;
       } else {
         displayPrimaryUser = (
-          <>
+          <span className={`${baseClass}__device-mapping__primary-user`}>
             {email}{" "}
-            <span className="device-mapping__source">{`(${source})`}</span>
-          </>
+            <span
+              className={`${baseClass}__device-mapping__source`}
+            >{`(${source})`}</span>
+          </span>
         );
       }
     }
@@ -141,18 +162,26 @@ const About = ({
       <DataSet
         title="Used by"
         value={
-          newDeviceMapping.length > 1 ? (
-            <TooltipWrapper
-              tipContent={getDeviceUserTipContent(newDeviceMapping)}
-            >
-              {displayPrimaryUser}
-              <span className="device-mapping__more">{` +${
-                newDeviceMapping.length - 1
-              } more`}</span>
-            </TooltipWrapper>
-          ) : (
-            displayPrimaryUser
-          )
+          <div className={`${baseClass}__used-by`}>
+            {newDeviceMapping.length > 1 ? (
+              <>
+                <span className={`${baseClass}__multiple`}>
+                  <TooltipTruncatedText value={displayPrimaryUser} />
+                </span>
+                <TooltipWrapper
+                  tipContent={getDeviceUserTipContent(newDeviceMapping)}
+                >
+                  <span className="device-mapping__more">{` +${
+                    newDeviceMapping.length - 1
+                  } more`}</span>
+                </TooltipWrapper>
+              </>
+            ) : (
+              <span className={`${baseClass}__single`}>
+                <TooltipTruncatedText value={displayPrimaryUser} />
+              </span>
+            )}
+          </div>
         }
       />
     );
@@ -193,14 +222,16 @@ const About = ({
     );
   };
 
+  // TODO(android): confirm visible fields using actual android device data
+
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      paddingSize="large"
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">About</p>
+      <CardHeader header="About" />
       <div className="info-flex">
         <DataSet
           title="Added to Fleet"
@@ -210,7 +241,7 @@ const About = ({
             />
           }
         />
-        {!isIosOrIpadosHost && (
+        {!isIosOrIpadosHost && !isAndroidHost && (
           <DataSet
             title="Last restarted"
             value={

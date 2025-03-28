@@ -14,6 +14,8 @@ spec:
     enable_host_users: true
     enable_software_inventory: false
   integrations:
+    custom_scep_proxy: null
+    digicert: null
     google_calendar: null
     jira: null
     ndes_scep_proxy: null
@@ -175,3 +177,6 @@ spec:
       destination_url: ""
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
+  gitops:
+    gitops_mode_enabled: false
+    repository_url: ""

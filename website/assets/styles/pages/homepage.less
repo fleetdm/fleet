@@ -32,7 +32,6 @@
     line-height: 150%;
   }
   a {
-    color: @core-vibrant-blue;
     line-height: 150%;
   }
 
@@ -53,7 +52,6 @@
     padding-left: 32px;
     padding-bottom: 82px;
     max-width: 1200px;
-    height: 420px;
   }
   [purpose='ticker-container'] {
     overflow: hidden;
@@ -89,11 +87,17 @@
       max-width: 640px;
       margin-bottom: 16px;
       &.vm {
-        max-width: unset;
+        max-width: 420px;
+      }
+      &.eo-it {
+        max-width: 420px;
+      }
+      &.eo-security {
+        max-width: 438px;
       }
     }
     p {
-      max-width: 404px;
+      max-width: 412px;
       margin-bottom: 32px;
       font-size: 16px;
     }
@@ -915,7 +919,7 @@
     }
     [purpose='hero-background-image'] {
       // background-size: auto 400px;
-      background-position: calc(~'100% + -54%') center;
+      background-position: calc(~'100% + -56%') center;
     }
 
     [purpose='homepage-content'] {

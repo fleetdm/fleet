@@ -80,7 +80,7 @@ func TestAuthorizeAppConfig(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: config, action: read, allow: true},
 		{user: test.UserTeamObserverPlusTeam1, object: config, action: write, allow: false},
 
-		{user: test.UserTeamGitOpsTeam1, object: config, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: config, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: config, action: write, allow: false},
 	})
 }
@@ -474,13 +474,17 @@ func TestAuthorizeLabel(t *testing.T) {
 		{user: test.UserObserverPlus, object: label, action: read, allow: true},
 		{user: test.UserObserverPlus, object: label, action: write, allow: false},
 
-		// Global GitOps can write, but not read labels.
-		{user: test.UserGitOps, object: label, action: read, allow: false},
+		{user: test.UserGitOps, object: label, action: read, allow: true},
 		{user: test.UserGitOps, object: label, action: write, allow: true},
 
-		// Team GitOps cannot read or write labels.
-		{user: test.UserTeamGitOpsTeam1, object: label, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: label, action: read, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: label, action: write, allow: false},
+
+		{user: test.UserTeamAdminTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamAdminTeam1, object: label, action: write, allow: true},
+
+		{user: test.UserTeamMaintainerTeam1, object: label, action: read, allow: true},
+		{user: test.UserTeamMaintainerTeam1, object: label, action: write, allow: true},
 	})
 }
 

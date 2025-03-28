@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -355,6 +356,13 @@ func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]osCPEWithNVDMeta, 
 
 	for _, os := range oses {
 		for _, variant := range macosVariants {
+			versionParts := strings.Split(os.Version, ".")
+			if len(versionParts) == 2 {
+				// Vulncheck reports versions with all 3 parts, so pad with an extra 0 if we only
+				// have 2 parts (15.3 -> 15.3.0)
+				versionParts = append(versionParts, "0")
+				os.Version = strings.Join(versionParts, ".")
+			}
 			cpe := osCPEWithNVDMeta{
 				OperatingSystem: os,
 				meta: &wfn.Attributes{
@@ -544,6 +552,8 @@ func checkCVEs(
 	return foundSoftwareVulns, foundOSVulns, nil
 }
 
+var pythonVersionWithUpdate = regexp.MustCompile(`(alpha|beta|rc)(\d+)`)
+
 // expandCPEAliases will generate new *wfn.Attributes from the given cpeItem.
 // It returns a slice with the given cpeItem plus the generated *wfn.Attributes.
 //
@@ -588,6 +598,45 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
+	// Python pre-release versions can have the pre-release part in the version field or in the
+	// update field (the technically correct place). We generate the "correct" CPEs (with the
+	// pre-release part in the update field), so we have to create an alias here with the
+	// pre-release part in the version field to cover all the cases.
+	// e.g. Python 3.14.0 alpha2 can be represented as both:
+	// 1. cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*
+	// 2. cpe:2.3:a:python:python:3.14.0a2:*:*:*:*:windows:*:*
+	// We generate CPEs like 1, but in the feed (e.g. Vulncheck) it can also appear as 2.
+	// See https://github.com/fleetdm/fleet/issues/25882.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "python" &&
+			cpeItem.Product == "python" &&
+			cpeItem.Update != "" &&
+			pythonVersionWithUpdate.MatchString(cpeItem.Update) {
+
+			cpeItem2 := *cpeItem
+			for _, submatches := range pythonVersionWithUpdate.FindAllStringSubmatchIndex(cpeItem2.Update, -1) {
+				prefixBytes := []byte{}
+				numberBytes := []byte{}
+				prefixBytes = pythonVersionWithUpdate.ExpandString(prefixBytes, "${1}", cpeItem.Update, submatches)
+				numberBytes = pythonVersionWithUpdate.ExpandString(numberBytes, "${2}", cpeItem.Update, submatches)
+				var prefix string
+				switch prefixBytes[0] {
+				case 'a':
+					prefix = string(prefixBytes[0])
+				case 'b':
+					prefix = string(prefixBytes[0])
+				case 'r':
+					prefix = string(prefixBytes)
+				}
+
+				cpeItem2.Version = fmt.Sprintf("%s%s%s", cpeItem.Version, prefix, string(numberBytes))
+				cpeItem2.Update = ""
+			}
+
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
 	return cpeItems
 }
 
@@ -628,6 +677,11 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 	// - versionStartExcluding
 	// - versionEndExcluding
 	// - versionEndIncluding - not used in this function as we don't want to assume the resolved version
+
+	// Back slashes are added to the version string during parsing; remove them to ensure that the version
+	// comparison works correctly. See https://github.com/fleetdm/fleet/issues/25991.
+	hostSoftwareVersion := wfn.StripSlashes(hostSoftwareMeta.Version)
+
 	for _, rule := range cpeMatch {
 		if rule.VersionEndExcluding == "" {
 			continue
@@ -645,10 +699,11 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		}
 
 		// versionEnd is the version string that the vulnerable host software version must be less than
-		versionEnd, err := checkVersion(rule, hostSoftwareMeta.Version)
+		versionEnd, err := checkVersion(rule, hostSoftwareVersion)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking version")
 		}
+
 		if versionEnd != "" {
 			return versionEnd, nil
 		}

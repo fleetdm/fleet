@@ -6,7 +6,11 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
-import deviceUserAPI from "services/entities/device_user";
+
+import deviceUserAPI, {
+  IGetDeviceCertsRequestParams,
+  IGetDeviceCertificatesResponse,
+} from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   IDeviceMappingResponse,
@@ -14,22 +18,30 @@ import {
   IDeviceUserResponse,
   IHostDevice,
 } from "interfaces/host";
+import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
 import { IHostSoftware } from "interfaces/software";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
+import { isAppleDevice } from "interfaces/platform";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_ABOUT_DATA,
   HOST_SUMMARY_DATA,
@@ -55,6 +67,8 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import CertificatesCard from "../cards/Certificates";
 
 const baseClass = "device-user";
 
@@ -69,6 +83,9 @@ const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
+
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 interface IDeviceUserPageProps {
   location: {
@@ -118,6 +135,18 @@ const DeviceUserPage = ({
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
 
+  // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
+  const [sortCerts, setSortCerts] = useState<IListSort>({
+    ...CERTIFICATES_DEFAULT_SORT,
+  });
+
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
     () =>
@@ -145,8 +174,42 @@ const DeviceUserPage = ({
     }
   );
 
+  const {
+    data: deviceCertificates,
+    isLoading: isLoadingDeviceCertificates,
+    isError: isErrorDeviceCertificates,
+    refetch: refetchDeviceCertificates,
+  } = useQuery<
+    IGetDeviceCertificatesResponse,
+    Error,
+    IGetDeviceCertificatesResponse,
+    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
+  >(
+    [
+      {
+        scope: "device-certificates",
+        token: deviceAuthToken,
+        page: certificatePage,
+        per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        order_key: sortCerts.order_key,
+        order_direction: sortCerts.order_direction,
+      },
+    ],
+    ({ queryKey }) => deviceUserAPI.getDeviceCertificates(queryKey[0]),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!deviceUserAPI,
+      keepPreviousData: true,
+      staleTime: 15000,
+    }
+  );
+
   const refetchExtensions = () => {
     deviceMapping !== null && refetchDeviceMapping();
+    deviceCertificates && refetchDeviceCertificates();
   };
 
   const isRefetching = ({
@@ -241,6 +304,7 @@ const DeviceUserPage = ({
     self_service: hasSelfService = false,
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
+  const isAppleHost = isAppleDevice(host?.platform);
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -327,6 +391,10 @@ const DeviceUserPage = ({
     }
   };
 
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -354,7 +422,7 @@ const DeviceUserPage = ({
 
     return (
       <div className="core-wrapper">
-        {!host || isLoadingHost ? (
+        {!host || isLoadingHost || isLoadingDeviceCertificates ? (
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
@@ -390,34 +458,57 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+            <TabNav className={`${baseClass}__tab-nav`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}
               >
                 <TabList>
-                  <Tab>Details</Tab>
+                  <Tab>
+                    <TabText>Details</TabText>
+                  </Tab>
                   {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                    <Tab>Self-service</Tab>
+                    <Tab>
+                      <TabText>Self-service</TabText>
+                    </Tab>
                   )}
-                  {isSoftwareEnabled && <Tab>Software</Tab>}
+                  {isSoftwareEnabled && (
+                    <Tab>
+                      <TabText>Software</TabText>
+                    </Tab>
+                  )}
                   {isPremiumTier && (
                     <Tab>
-                      <div>
-                        {failingPoliciesCount > 0 && (
-                          <span className="count">{failingPoliciesCount}</span>
-                        )}
+                      <TabText count={failingPoliciesCount} isErrorCount>
                         Policies
-                      </div>
+                      </TabText>
                     </Tab>
                   )}
                 </TabList>
-                <TabPanel>
+                <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
                     aboutData={aboutData}
                     deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {isAppleHost && !!deviceCertificates?.certificates.length && (
+                    <CertificatesCard
+                      isMyDevicePage
+                      data={deviceCertificates}
+                      isError={isErrorDeviceCertificates}
+                      page={certificatePage}
+                      pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                      sortHeader={sortCerts.order_key}
+                      sortDirection={sortCerts.order_direction}
+                      hostPlatform={host.platform}
+                      onSelectCertificate={onSelectCertificate}
+                      onNextPage={() => setCertificatePage(certificatePage + 1)}
+                      onPreviousPage={() =>
+                        setCertificatePage(certificatePage - 1)
+                      }
+                      onSortChange={setSortCerts}
+                    />
+                  )}
                 </TabPanel>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
@@ -461,7 +552,7 @@ const DeviceUserPage = ({
                   </TabPanel>
                 )}
               </Tabs>
-            </TabsWrapper>
+            </TabNav>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal &&
               (host.dep_assigned_to_fleet ? (
@@ -518,6 +609,12 @@ const DeviceUserPage = ({
             hideInstallDetails
           />
         )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
+          />
+        )}
       </div>
     );
   };
@@ -533,7 +630,7 @@ const DeviceUserPage = ({
       />
       <nav className="site-nav-container">
         <div className="site-nav-content">
-          <ul className="site-nav-list">
+          <ul className="site-nav-left">
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">

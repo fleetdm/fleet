@@ -11,9 +11,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
-	stmt := `INSERT INTO android_enterprises (signup_name) VALUES ('')`
-	res, err := ds.Writer(ctx).ExecContext(ctx, stmt)
+func (ds *Datastore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
+	// android_enterprises user_id is only set when the row is created
+	stmt := `INSERT INTO android_enterprises (signup_name, user_id) VALUES ('', ?)`
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, userID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}
@@ -21,15 +22,28 @@ func (ds *Datastore) CreateEnterprise(ctx context.Context) (uint, error) {
 	return uint(id), nil // nolint:gosec // dismiss G115
 }
 
-func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.Enterprise, error) {
-	stmt := `SELECT id, signup_name, enterprise_id FROM android_enterprises WHERE id = ?`
-	var enterprise android.Enterprise
+func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
+	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token, user_id FROM android_enterprises WHERE id = ?`
+	var enterprise android.EnterpriseDetails
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, id)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, common_mysql.NotFound("Android enterprise").WithID(id)
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise by id")
+	}
+	return &enterprise, nil
+}
+
+func (ds *Datastore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token, user_id FROM android_enterprises WHERE signup_token = ?`
+	var enterprise android.EnterpriseDetails
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, signupToken)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, common_mysql.NotFound("Android enterprise")
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting enterprise by signup token")
 	}
 	return &enterprise, nil
 }
@@ -47,15 +61,18 @@ func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, er
 	return &enterprise, nil
 }
 
-func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.Enterprise) error {
+func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.EnterpriseDetails) error {
 	if enterprise == nil || enterprise.ID == 0 {
 		return errors.New("missing enterprise ID")
 	}
 	stmt := `UPDATE android_enterprises
     SET signup_name = ?,
-        enterprise_id = ?
+        enterprise_id = ?,
+        pubsub_topic_id = ?,
+        signup_token = ?
 	WHERE id = ?`
-	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.ID)
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, enterprise.SignupName, enterprise.EnterpriseID, enterprise.TopicID,
+		enterprise.SignupToken, enterprise.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting enterprise")
 	}
@@ -74,7 +91,7 @@ func (ds *Datastore) DeleteOtherEnterprises(ctx context.Context, id uint) error 
 	return nil
 }
 
-func (ds *Datastore) DeleteEnterprises(ctx context.Context) error {
+func (ds *Datastore) DeleteAllEnterprises(ctx context.Context) error {
 	stmt := `DELETE FROM android_enterprises`
 	_, err := ds.Writer(ctx).ExecContext(ctx, stmt)
 	if err != nil {

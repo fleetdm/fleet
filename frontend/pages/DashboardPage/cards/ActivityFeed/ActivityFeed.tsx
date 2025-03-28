@@ -11,10 +11,8 @@ import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import Pagination from "components/Pagination";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
@@ -201,28 +199,17 @@ const ActivityFeed = ({
       )}
       {!errorActivities &&
         (!isEmpty(activities) || (isEmpty(activities) && pageIndex > 0)) && (
-          <div className={`${baseClass}__pagination`}>
-            <Button
-              disabled={isFetchingActivities || !meta?.has_previous_results}
-              onClick={onLoadPrevious}
-              variant="unstyled"
-              className={`${baseClass}__load-activities-button`}
-            >
-              <>
-                <FleetIcon name="chevronleft" /> Previous
-              </>
-            </Button>
-            <Button
-              disabled={isFetchingActivities || !meta?.has_next_results}
-              onClick={onLoadNext}
-              variant="unstyled"
-              className={`${baseClass}__load-activities-button`}
-            >
-              <>
-                Next <FleetIcon name="chevronright" />
-              </>
-            </Button>
-          </div>
+          <Pagination
+            disablePrev={isFetchingActivities || !meta?.has_previous_results}
+            disableNext={isFetchingActivities || !meta?.has_next_results}
+            hidePagination={
+              !isFetchingActivities &&
+              !meta?.has_previous_results &&
+              !meta?.has_next_results
+            }
+            onPrevPage={onLoadPrevious}
+            onNextPage={onLoadNext}
+          />
         )}
       {showShowQueryModal && (
         <ShowQueryModal

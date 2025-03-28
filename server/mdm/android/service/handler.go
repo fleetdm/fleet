@@ -14,24 +14,27 @@ func GetRoutes(fleetSvc fleet.Service, svc android.Service) endpoint_utils.Handl
 	}
 }
 
+const pubSubPushPath = "/api/v1/fleet/android_enterprise/pubsub"
+
 func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Service, opts []kithttp.ServerOption) {
 
-	// user-authenticated endpoints
+	// //////////////////////////////////////////
+	// User-authenticated endpoints
 	ue := newUserAuthenticatedEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
 
-	ue.GET("/api/_version_/fleet/android_enterprise/signup_url", androidEnterpriseSignupEndpoint, nil)
-	ue.DELETE("/api/_version_/fleet/android_enterprise", androidDeleteEnterpriseEndpoint, nil)
+	ue.GET("/api/_version_/fleet/android_enterprise/signup_url", enterpriseSignupEndpoint, nil)
+	ue.GET("/api/_version_/fleet/android_enterprise", getEnterpriseEndpoint, nil)
+	ue.DELETE("/api/_version_/fleet/android_enterprise", deleteEnterpriseEndpoint, nil)
+	ue.GET("/api/_version_/fleet/android_enterprise/signup_sse", enterpriseSSE, nil)
 
-	ue.GET("/api/_version_/fleet/android_enterprise/{id:[0-9]+}/enrollment_token", androidEnrollmentTokenEndpoint,
-		androidEnrollmentTokenRequest{})
-
-	// unauthenticated endpoints
-	// They typically do one-time authentication by verifying that a valid secret token is provided with the request.
+	// //////////////////////////////////////////
+	// Unauthenticated endpoints
+	// These endpoints should do custom one-time authentication by verifying that a valid secret token is provided with the request.
 	ne := newNoAuthEndpointer(fleetSvc, svc, opts, r, apiVersions()...)
 
-	// Android management
-	ne.GET("/api/_version_/fleet/android_enterprise/{id:[0-9]+}/connect", androidEnterpriseSignupCallbackEndpoint,
-		androidEnterpriseSignupCallbackRequest{})
+	ne.GET("/api/_version_/fleet/android_enterprise/connect/{token}", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
+	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", enrollmentTokenEndpoint, enrollmentTokenRequest{})
+	ne.POST(pubSubPushPath, pubSubPushEndpoint, pubSubPushRequest{})
 
 }
 

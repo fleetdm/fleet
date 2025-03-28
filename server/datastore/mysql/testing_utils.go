@@ -2,18 +2,17 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 	"os/exec"
 	"path"
@@ -32,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -475,8 +475,12 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	}
 }
 
-func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
-	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...string) { //nolint: unused
+	colList := "*"
+	if len(cols) > 0 {
+		colList = strings.Join(cols, ", ")
+	}
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT %s FROM %s`, colList, tableName))
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -511,6 +515,15 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint
 	}
 	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
+	syncML := generateDummyWindowsProfile(uuid)
+	checksum := md5.Sum(syncML)
+	return fleet.MDMWindowsProfileContents{
+		SyncML:   syncML,
+		Checksum: checksum[:],
+	}
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {
@@ -642,7 +655,7 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 }
 
 func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
-	apnsCert, apnsKey, err := GenerateTestCertBytes()
+	apnsCert, apnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 
 	certPEM, keyPEM, tokenBytes, err := GenerateTestABMAssets(t)
@@ -673,7 +686,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
-	certPEM, keyPEM, err := GenerateTestCertBytes()
+	certPEM, keyPEM, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
@@ -712,32 +725,17 @@ func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	return certPEM, keyPEM, []byte(tokenBytes), nil
 }
 
-// TODO: move to mdmcrypto?
-func GenerateTestCertBytes() ([]byte, []byte, error) {
+func GenerateTestCertBytes(template *x509.Certificate) ([]byte, []byte, error) {
+	if template == nil {
+		return nil, nil, errors.New("template is nil")
+	}
+
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Test Org"},
-			ExtraNames: []pkix.AttributeTypeAndValue{
-				{
-					Type:  asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1},
-					Value: "com.apple.mgmt.Example",
-				},
-			},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	certBytes, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
 	if err != nil {
 		return nil, nil, err
 	}

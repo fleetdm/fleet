@@ -1,4 +1,32 @@
 .fleet-app-details-form {
+  container-type: inline-size;
+
+  &__form-frame {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+    align-self: stretch;
+
+    .card {
+      display: flex;
+      align-items: flex-start;
+
+      gap: 12px;
+      flex: 1 0 0;
+      align-self: stretch;
+    }
+  }
+
+  // Design spec that switches to stacked if the parent is < 990px, not including query side panel
+  @container (min-width: 926px) {
+    // 990px $break-md - 64px padding = 926px
+    // @container does not have access to variables outside their scope
+    &__form-frame {
+      flex-direction: row;
+    }
+  }
+
   &__advanced-options-section {
     display: flex;
     flex-direction: column;
@@ -10,10 +38,10 @@
     width: 100%;
   }
 
-  &__form-buttons {
+  &__action-buttons {
     display: flex;
-    flex-direction: row;
-    gap: $pad-large;
+    flex-direction: row-reverse;
+    gap: $pad-medium;
   }
 
   fieldset {
@@ -37,4 +65,9 @@
   .info-banner {
     margin-top: $pad-small;
   }
+
+  .form-fields--disabled {
+    @include disabled;
+  }
+  
 }

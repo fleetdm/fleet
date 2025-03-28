@@ -39,19 +39,12 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/groob/plist"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 )
 
 const DeviceInfoHeader = "x-apple-aspen-deviceinfo"
-
-// appleRootCert is https://www.apple.com/appleca/AppleIncRootCertificate.cer
-//
-//go:embed AppleIncRootCertificate.cer
-var appleRootCert []byte
-
-// appleRootCA is Apple's Root CA parsed to an *x509.Certificate
-var appleRootCA = newAppleCert(appleRootCert)
 
 // appleIphoneDeviceCA is the PEM data defined here converted to DER:
 // https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/profile-service/profile-service.html#//apple_ref/doc/uid/TP40009505-CH2-SW24
@@ -60,15 +53,7 @@ var appleRootCA = newAppleCert(appleRootCert)
 var appleIphoneDeviceCACert []byte
 
 // appleIphoneDeviceCA is Apple's Iphone Device CA parsed to an *x509.Certificate
-var appleIphoneDeviceCA = newAppleCert(appleIphoneDeviceCACert)
-
-func newAppleCert(crt []byte) *x509.Certificate {
-	cert, err := x509.ParseCertificate(crt)
-	if err != nil {
-		panic(fmt.Errorf("could not parse cert: %w", err))
-	}
-	return cert
-}
+var appleIphoneDeviceCA = rootcert.NewAppleCert(appleIphoneDeviceCACert)
 
 // verifyPKCS7SHA1RSA performs a manual SHA1withRSA verification, since it's deprecated in Go 1.18.
 // If verifyChain is true, the signer certificate and its chain of certificates is verified against Apple's Root CA.
@@ -106,10 +91,10 @@ func verifyPKCS7SHA1RSA(p7 *pkcs7.PKCS7, verifyChain bool) error {
 outer:
 	for {
 		// check if cert is signed by root
-		if bytes.Equal(cert.RawIssuer, appleRootCA.RawSubject) {
+		if bytes.Equal(cert.RawIssuer, rootcert.AppleRootCA.RawSubject) {
 			hashed := sha1.Sum(cert.RawTBSCertificate) // nolint:gosec
 			// check signature
-			if err := rsa.VerifyPKCS1v15(appleRootCA.PublicKey.(*rsa.PublicKey), crypto.SHA1, hashed[:], cert.Signature); err != nil {
+			if err := rsa.VerifyPKCS1v15(rootcert.AppleRootCA.PublicKey.(*rsa.PublicKey), crypto.SHA1, hashed[:], cert.Signature); err != nil {
 				return fmt.Errorf("could not verify root CA signature: %w", err)
 			}
 			return nil

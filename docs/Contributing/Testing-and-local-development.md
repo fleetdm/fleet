@@ -46,6 +46,8 @@
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
     - [Testing the end user flow for MDM migrations](#testing-the-end-user-flow-for-mdm-migrations)
+  - [Software packages](#software-packages)
+    - [Troubleshooting installation](#troubleshooting-installation)
 
 ## License key
 
@@ -280,7 +282,7 @@ Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface 
 Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
 - "SMTP server" to `localhost` on port `1026`
 - "Use SSL/TLS to connect (recommended)" to unchecked.
-- "Authentication type" to `Username and Password`
+- "Authentication type" to `Username and password`
 - "SMTP username" to `mailpit-username`
 - "SMTP password" to `mailpit-password`
 - "Auth method" to `Plain`
@@ -805,3 +807,12 @@ We have a few servers in `tools/mdm/migration` that you can use. Follow the inst
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="description" value="An overview of Fleet's full test suite and integration tests.">
+
+## Software packages
+
+### Troubleshooting installation
+
+- macOS: `sudo grep "runner=installer" /var/log/orbit/orbit.stderr.log`.
+- Ubuntu: `sudo grep "runner=installer" /var/log/syslog` (or using `journalctl` if `syslog` is not available).
+- Fedora: `sudo grep "runner=installer" /var/log/messages` (or using `journalctl` if `syslog` is not available).
+- Windows: `grep "runner=installer" C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log`

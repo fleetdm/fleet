@@ -125,7 +125,7 @@ const ActivityItem = ({
         className={`${baseClass}__details-wrapper`}
         onClick={onShowActivityDetails}
       >
-        <div className={"activity-details"}>
+        <div className="activity-details">
           <span className={`${baseClass}__details-topline`}>
             <span>{children}</span>
           </span>

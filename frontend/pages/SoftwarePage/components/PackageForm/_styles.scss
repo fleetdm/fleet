@@ -1,4 +1,31 @@
 .package-form {
+  container-type: inline-size;
+
+  &__form-frame {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+    align-self: stretch;
+
+    .card {
+      display: flex;
+      align-items: flex-start;
+
+      gap: 12px;
+      flex: 1 0 0;
+      align-self: stretch;
+    }
+  }
+
+  @container (min-width: 926px) {
+    // 990px $break-md - 64px padding = 926px
+    // @container does not have access to variables outside their scope
+    &__form-frame {
+      flex-direction: row;
+    }
+  }
+
   &__uploading-message {
     display: flex;
     align-items: center;
@@ -34,5 +61,17 @@
 
   .info-banner {
     margin-top: $pad-small;
+  }
+
+  &__form-fields {
+    &--gitops-disabled {
+      @include disabled;
+    }
+  }
+
+  &__action-buttons {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: $pad-large;
   }
 }

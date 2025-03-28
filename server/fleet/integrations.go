@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -353,6 +354,33 @@ type GoogleCalendarIntegration struct {
 	ApiKey map[string]string `json:"api_key_json"`
 }
 
+type DigiCertIntegration struct {
+	Name                          string   `json:"name"`
+	URL                           string   `json:"url"`
+	APIToken                      string   `json:"api_token"`
+	ProfileID                     string   `json:"profile_id"`
+	CertificateCommonName         string   `json:"certificate_common_name"`
+	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
+	CertificateSeatID             string   `json:"certificate_seat_id"`
+}
+
+func (d *DigiCertIntegration) Equals(other *DigiCertIntegration) bool {
+	return d.Name == other.Name &&
+		d.URL == other.URL &&
+		(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) &&
+		d.ProfileID == other.ProfileID &&
+		d.CertificateCommonName == other.CertificateCommonName &&
+		slices.Equal(d.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames) &&
+		d.CertificateSeatID == other.CertificateSeatID
+}
+
+func (d *DigiCertIntegration) NeedToVerify(other *DigiCertIntegration) bool {
+	return d.Name != other.Name ||
+		d.URL != other.URL ||
+		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
+		d.ProfileID != other.ProfileID
+}
+
 // NDESSCEPProxyIntegration configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyIntegration struct {
 	URL      string `json:"url"`
@@ -361,13 +389,33 @@ type NDESSCEPProxyIntegration struct {
 	Password string `json:"password"` // not stored here -- encrypted in DB
 }
 
+type SCEPConfigService interface {
+	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyIntegration) error
+	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyIntegration) (string, error)
+	ValidateSCEPURL(ctx context.Context, url string) error
+}
+
+type CustomSCEPProxyIntegration struct {
+	Name      string `json:"name"`
+	URL       string `json:"url"`
+	Challenge string `json:"challenge"`
+}
+
+func (s *CustomSCEPProxyIntegration) Equals(other *CustomSCEPProxyIntegration) bool {
+	return s.Name == other.Name &&
+		s.URL == other.URL &&
+		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira           []*JiraIntegration           `json:"jira"`
-	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
-	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+	Jira           []*JiraIntegration                 `json:"jira"`
+	Zendesk        []*ZendeskIntegration              `json:"zendesk"`
+	GoogleCalendar []*GoogleCalendarIntegration       `json:"google_calendar"`
+	DigiCert       optjson.Slice[DigiCertIntegration] `json:"digicert"`
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
-	NDESSCEPProxy optjson.Any[NDESSCEPProxyIntegration] `json:"ndes_scep_proxy"`
+	NDESSCEPProxy   optjson.Any[NDESSCEPProxyIntegration]     `json:"ndes_scep_proxy"`
+	CustomSCEPProxy optjson.Slice[CustomSCEPProxyIntegration] `json:"custom_scep_proxy"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

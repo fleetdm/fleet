@@ -68,7 +68,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
-	if payload.AutomaticInstall {
+	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
 		switch {
 		//
 		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.
@@ -181,6 +181,10 @@ var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<s
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// We assume that we already validated that payload.PackageIDs is not empty.
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
+	if len(payload.PackageIDs) == 0 {
+		// do nothing, this could be a FMA which won't include the installer when editing the scripts
+		return
+	}
 	var packageID string
 	switch payload.Extension {
 	case "dmg", "zip":
@@ -1409,11 +1413,15 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
 	}
 
-	source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+	if payload.BundleIdentifier != "" {
+		payload.Source = "apps"
+	} else {
+		source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
+		}
+		payload.Source = source
 	}
-	payload.Source = source
 
 	platform, err := fleet.SofwareInstallerPlatformFromExtension(meta.Extension)
 	if err != nil {

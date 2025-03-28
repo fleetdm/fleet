@@ -24,7 +24,8 @@ import sortUtils from "utilities/sort";
 
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
@@ -387,66 +388,69 @@ const TeamDetailsWrapper = ({
   return (
     <MainContent className={baseClass}>
       <>
-        <TabsWrapper>
-          {isGlobalAdmin ? (
-            <div className={`${baseClass}__header-links`}>
-              <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
-            </div>
-          ) : (
-            <></>
-          )}
-          <div className={`${baseClass}__team-header`}>
-            <div className={`${baseClass}__team-details`}>
-              {userTeams?.length === 1 ? (
-                <h1>{currentTeamDetails.name}</h1>
-              ) : (
-                <TeamsDropdown
-                  selectedTeamId={currentTeamId}
-                  currentUserTeams={userTeams || []}
-                  isDisabled={isLoadingTeams}
-                  includeAll={false}
-                  onChange={handleTeamChange}
-                />
-              )}
-              {!!hostsTotalDisplay && (
-                <span className={`${baseClass}__host-count`}>
-                  {hostsTotalDisplay}
-                </span>
-              )}
-            </div>
-            <ActionButtons
-              baseClass={baseClass}
-              actions={[
-                {
-                  type: "primary",
-                  label: "Add hosts",
-                  onClick: toggleAddHostsModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Manage enroll secrets",
-                  buttonVariant: "text-icon",
-                  iconSvg: "eye",
-                  onClick: toggleManageEnrollSecretsModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Rename team",
-                  buttonVariant: "text-icon",
-                  iconSvg: "pencil",
-                  onClick: toggleRenameTeamModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Delete team",
-                  buttonVariant: "text-icon",
-                  iconSvg: "trash",
-                  hideAction: !isGlobalAdmin,
-                  onClick: toggleDeleteTeamModal,
-                },
-              ]}
-            />
+        {isGlobalAdmin ? (
+          <div className={`${baseClass}__header-links`}>
+            <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
           </div>
+        ) : (
+          <></>
+        )}
+        <div className={`${baseClass}__team-header`}>
+          <div className={`${baseClass}__team-details`}>
+            {userTeams?.length === 1 ? (
+              <h1>{currentTeamDetails.name}</h1>
+            ) : (
+              <TeamsDropdown
+                selectedTeamId={currentTeamId}
+                currentUserTeams={userTeams || []}
+                isDisabled={isLoadingTeams}
+                includeAll={false}
+                onChange={handleTeamChange}
+              />
+            )}
+            {!!hostsTotalDisplay && (
+              <span className={`${baseClass}__host-count`}>
+                {hostsTotalDisplay}
+              </span>
+            )}
+          </div>
+          <ActionButtons
+            baseClass={baseClass}
+            actions={[
+              {
+                type: "primary",
+                label: "Add hosts",
+                onClick: toggleAddHostsModal,
+              },
+              {
+                type: "secondary",
+                label: "Manage enroll secrets",
+                buttonVariant: "text-icon",
+                iconSvg: "eye",
+                onClick: toggleManageEnrollSecretsModal,
+                gitOpsModeCompatible: true,
+              },
+              {
+                type: "secondary",
+                label: "Rename team",
+                buttonVariant: "text-icon",
+                iconSvg: "pencil",
+                onClick: toggleRenameTeamModal,
+                gitOpsModeCompatible: true,
+              },
+              {
+                type: "secondary",
+                label: "Delete team",
+                buttonVariant: "text-icon",
+                iconSvg: "trash",
+                hideAction: !isGlobalAdmin,
+                onClick: toggleDeleteTeamModal,
+                gitOpsModeCompatible: true,
+              },
+            ]}
+          />
+        </div>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(
               location.pathname,
@@ -460,13 +464,13 @@ const TeamDetailsWrapper = ({
                 // so we add a hidden pseudo element with the same text string
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showAddHostsModal && (
           <AddHostsModal
             currentTeamName={currentTeamName}

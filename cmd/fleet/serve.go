@@ -23,6 +23,7 @@ import (
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -189,7 +190,6 @@ the way that the Fleet server works.
 
 			var ds fleet.Datastore
 			var carveStore fleet.CarveStore
-			var installerStore fleet.InstallerStore
 
 			opts := []mysql.DBOption{mysql.Logger(logger), mysql.WithFleetConfig(&config)}
 			if config.MysqlReadReplica.Address != "" {
@@ -219,14 +219,6 @@ the way that the Fleet server works.
 				}
 			} else {
 				carveStore = ds
-			}
-
-			if config.Packaging.S3.Bucket != "" {
-				var err error
-				installerStore, err = s3.NewInstallerStore(config.Packaging.S3)
-				if err != nil {
-					initFatal(err, "initializing S3 installer store")
-				}
 			}
 
 			migrationStatus, err := ds.MigrationStatus(cmd.Context())
@@ -327,7 +319,6 @@ the way that the Fleet server works.
 			}
 			level.Info(logger).Log("component", "redis", "mode", redisPool.Mode())
 
-			unCachedDS := ds
 			ds = cached_mysql.New(ds)
 			var dsOpts []mysqlredis.Option
 			if license.DeviceCount > 0 && config.License.EnforceHostLimit {
@@ -734,7 +725,6 @@ the way that the Fleet server works.
 				ssoSessionStore,
 				liveQueryStore,
 				carveStore,
-				installerStore,
 				failingPolicySet,
 				geoIP,
 				redisWrapperDS,
@@ -743,6 +733,8 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				eeservice.NewSCEPConfigService(logger, nil),
+				digicert.NewService(digicert.WithLogger(logger)),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -750,8 +742,8 @@ the way that the Fleet server works.
 			androidSvc, err := android_service.NewService(
 				ctx,
 				logger,
-				mysql.NewAndroidDS(unCachedDS),
 				ds,
+				svc,
 			)
 			if err != nil {
 				initFatal(err, "initializing android service")
@@ -988,6 +980,13 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
+				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
@@ -1092,7 +1091,12 @@ the way that the Fleet server works.
 					frontendHandler = service.RedirectSetupToLogin(svc, logger, frontendHandler, config.Server.URLPrefix)
 				}
 
-				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(svc, config.Server.URLPrefix, logger)
+				endUserEnrollOTAHandler = service.ServeEndUserEnrollOTA(
+					svc,
+					config.Server.URLPrefix,
+					ds,
+					logger,
+				)
 			}
 
 			healthCheckers := make(map[string]health.Checker)
@@ -1169,7 +1173,7 @@ the way that the Fleet server works.
 
 			// SCEP proxy (for NDES, etc.)
 			if license.IsPremium() {
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
 			}
@@ -1207,14 +1211,22 @@ the way that the Fleet server works.
 					// add an additional 30 seconds to prevent race conditions where the
 					// request is terminated early.
 					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for script sync run",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 				}
 
 				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
 					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
 						"/fleet/software/titles/")) ||
-					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) {
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet_maintained_apps")) ||
+					(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||
+					(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
 					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
 					// For large software installers and bootstrap packages, the server time needs time to read the full
@@ -1223,7 +1235,12 @@ the way that the Fleet server works.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
 					// timeout be better?
 					if err := rc.SetReadDeadline(zeroTime); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint read timeout for software package upload",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 					// For large software installers, the server time needs time to store the
 					// installer to S3 (or the configured storage location) and write the response
@@ -1232,10 +1249,29 @@ the way that the Fleet server works.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
 					// timeout be better?
 					if err := rc.SetWriteDeadline(zeroTime); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for software package upload",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
+
+				if req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/android_enterprise/signup_sse") {
+					// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
+					rc := http.NewResponseController(rw)
+					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for android enterpriset setup",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
+					}
+				}
+
 				apiHandler.ServeHTTP(rw, req)
 			})
 

@@ -133,11 +133,6 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
             isVppOn={!noVppTokenUploaded}
             isPremiumTier={!!isPremiumTier}
           />
-          <ScepSection
-            router={router}
-            isScepOn={!noScepCredentials}
-            isPremiumTier={!!isPremiumTier}
-          />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
             <>
               <IdpSection />

@@ -33,6 +33,9 @@ env:
   TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
   TF_VAR_geolite2_license: ${{ secrets.MAXMIND_LICENSE }}
   TF_VAR_dogfood_sidecar_enroll_secret: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
+  TF_VAR_android_service_credentials: ${{ secrets.FLEET_DEV_ANDROID_SERVICE_CREDENTIALS }}
+  TF_VAR_cloudfront_public_key: ${{ secrets.CLOUDFRONT_SIGNING_PUBLIC_KEY }}
+  TF_VAR_cloudfront_private_key: ${{ secrets.CLOUDFRONT_SIGNING_PRIVATE_KEY }}
 
 permissions:
   id-token: write

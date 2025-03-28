@@ -21,8 +21,8 @@ To configure S3 and CloudFront in Fleet, use the [S3 server configuration option
 To enable CloudFront signed URLs, set the following options in your Fleet server configuration:
 
 - `s3_software_installers_cloudfront_url`: The base URL of your CloudFront distribution, such as `https://d1234567890.cloudfront.net`.
-- `s3_software_installers_cloudfront_key_pair_id`: The CloudFront signer's key pair ID, such as `K1HFGXOMBB6TFF`.
-- `s3_software_installers_cloudfront_private_key`: The CloudFront signer's private key, such as `-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAz...`.
+- `s3_software_installers_cloudfront_url_signing_public_key_id`: The CloudFront signer's key pair ID, such as `K1HFGXOMBB6TFF`.
+- `s3_software_installers_cloudfront_url_signing_private_key`: The CloudFront signer's private key, such as `-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAz...`.
 
 The `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PRIVATE_KEY` environment variable can be set from a file. On macOS, it requires [gnu-sed](https://formulae.brew.sh/formula/gnu-sed) (`gsed`) to replace newlines with `\n` characters.
 

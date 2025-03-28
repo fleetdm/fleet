@@ -207,6 +207,7 @@ $max-width: 2560px;
 
 @mixin copy-message {
   font-weight: $regular;
+  font-size: $x-small;
   vertical-align: top;
   background-color: $ui-light-grey;
   border: solid 1px #e2e4ea;
@@ -237,7 +238,7 @@ $max-width: 2560px;
   font-size: $xx-small;
   border-radius: 4px;
   box-sizing: border-box;
-  z-index: 99; // not more than the site nav
+  z-index: 100;
   line-height: 1.375;
   white-space: initial;
   p {

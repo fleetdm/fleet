@@ -130,6 +130,7 @@ Here are some tips for troubleshooting Gong:
 - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
 - If you need help using Gong, please check out [Gong Academy](https://academy.gong.io/).
 
+
 > ***Excluding calls from being recorded***
 >
 > For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
@@ -149,7 +150,7 @@ In some instances, you may need to record a call locally (i.e. save the recordin
 > 🍍🍍🍍 Why three times? This helps ensure that at least one of the "Pineapple" call-outs will be transcribed correctly. 🍍🍍🍍   
 
 Videos are transcribed, and this makes it easier to find required redactions during the editing process before [upload](https://fleetdm.com/handbook/demand#upload-to-youtube).
-  
+
 
 ## Meeting agendas
 
@@ -173,6 +174,7 @@ Our Zoom meetings are configured to let participants join before the host arrive
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. 
 
 > Need a Calendly account? Reach out to 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
+
 
 
 It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
@@ -372,6 +374,7 @@ Opinionated conventions help people work faster and spend less time figuring out
 
 Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
+
 _**Note:**_ There are only a few "special" labels that are exceptions to this rule:
 - `bug` A defect in the product.
 - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
@@ -379,6 +382,10 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
+
+
+> If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct you can preview the template and make sure each label name is in a separate box.  
+> <img width="1645" alt="Screenshot 2025-03-13 at 10 59 03" src="https://github.com/user-attachments/assets/37227cb8-335e-4237-afd9-4144b695ec63" />
 
 
 > ***Create an issue from a Slack***
@@ -474,8 +481,7 @@ When merging a PR to the master branch of the [Fleet repo](https://github.com/fl
 
 When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [website group](https://fleetdm.com/handbook/digital-experience) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
-
-### Editing a merged pull requests 
+### Editing a merged pull request
 
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
@@ -522,7 +528,7 @@ We leave large gaps between values to make future changes easier. For example, t
 When adding or reordering a page, try to leave as much room between values as possible. If you were adding a new page that would go between the two pages from the example above, you would add `<meta name="pageOrderInSection" value="150">` to the page.
 
 
-### Article meta tags:
+### Article meta tags
 
 We use `<meta>` tags in Markdown articles to set metadata information about the article on the Fleet website. The values of these tags determine where the article will live, and how the article will be displayed on the website.
 
@@ -572,7 +578,7 @@ After making your changes, save them and run `make generate-doc`. This will gene
 
 ## Spending company money
 
-As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
+As we continue to expand our company policies, we use [GitLab's open expense policy](https://handbook.gitlab.com/handbook/finance/spending-company-money/) as a guide for company spending.
 In brief, this means that as a Fleet team member, you may:
 - Spend company money like it is your own money.
 - [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).  Purchase what you need to do your job effectively.
@@ -783,7 +789,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 
 ### Compensation changes
 
-Fleet benchmarks all team members based on the United States Dollar (USD) and if applicable, conversion rates at the time of offer for international fleeties.  Conversion rates and compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of Digital Experience is responsible for the process to [update compensation](https://fleetdm.com/handbook/digital-experience#update-a-team-members-compensation). 
 
 
 ### Relocating

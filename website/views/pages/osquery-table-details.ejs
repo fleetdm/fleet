@@ -55,18 +55,29 @@
 
             <div purpose="table-container" class="d-flex flex-column">
               <div purpose="schema-table">
+                <div purpose="platform-logos" class="d-flex flex-row align-items-center justify-content-end">
+                    <% if(_.contains(tableToDisplay.platforms, 'darwin')){%>
+                      <img class="ml-3" style="height: 25px" src="/images/os-macos-dark-24x24@2x.png" alt="macOS logo">
+                    <%}%>
+                    <% if(_.contains(tableToDisplay.platforms, 'windows')){%>
+                     <img class="ml-3" style="height: 24px" src="/images/os-windows-dark-24x24@2x.png" alt="Windows logo">
+                    <%}%>
+                    <% if(_.contains(tableToDisplay.platforms, 'linux')){%>
+                      <img class="ml-3" style="height: 24px" src="/images/os-linux-dark-24x24@2x.png" alt="Linux logo">
+                    <% }%>
+                    <% if(_.contains(tableToDisplay.platforms, 'chrome')){%>
+                      <img class="ml-3" style="height: 25px" src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS logo">
+                    <%}%>
+                 </div>
                 <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, tableToDisplay.htmlId)))) %>
               </div>
 
               <div class="justify-self-end">
-                  <a :href="tableToDisplay.githubUrl" purpose="edit-button" target="_blank">Edit page<i class="fa fa-pencil"></i></a>
-                <div class="d-block justify-self-end" purpose="slack-cta">
-                  <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
+                  <a :href="tableToDisplay.githubUrl" purpose="edit-button" target="_blank" no-icon>Edit page<i class="fa fa-pencil"></i></a>
+                <div class="d-block justify-self-end" purpose="contact-cta">
+                  <h3 class="mb-3">Questions?</h3>
                   <div class="d-sm-flex">
-                    <a href="/slack" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
-                      <img style="height: 24px;" class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-                      Ask the community on Slack
-                    </a>
+                    <animated-arrow-button href="/contact">Ask us anything</animated-arrow-button>
                   </div>
                 </div>
               </div>

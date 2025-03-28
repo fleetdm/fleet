@@ -216,6 +216,11 @@ type MDM struct {
 	/////////////////////////////////////////////////////////////////
 }
 
+type UIGitOpsModeConfig struct {
+	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
+	RepositoryURL     string `json:"repository_url"`
+}
+
 func (c *AppConfig) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
@@ -555,6 +560,8 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
+	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+
 	// Scripts is a slice of script file paths.
 	//
 	// NOTE: These are only present here for informational purposes.
@@ -676,6 +683,16 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
+	if len(c.Integrations.DigiCert.Value) > 0 {
+		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
+		copy(digicert, c.Integrations.DigiCert.Value)
+		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	}
+	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
+		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
@@ -727,6 +744,8 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
+
+	// UIGitOpsMode: nothing needs cloning
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
@@ -1187,6 +1206,9 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+	// NoCache indicates that cached_mysql calls should be bypassed on the server.
+	// This is needed where related data was just updated and we need that latest data from the DB.
+	NoCache bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1219,6 +1241,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	if o.DryRun {
 		query.Set("dry_run", "true")
 	}
+	if o.NoCache {
+		query.Set("no_cache", "true")
+	}
 	return query.Encode()
 }
 
@@ -1232,6 +1257,13 @@ type EnrollSecret struct {
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
 	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+}
+
+func (e *EnrollSecret) GetTeamID() *uint {
+	if e == nil {
+		return nil
+	}
+	return e.TeamID
 }
 
 func (e *EnrollSecret) AuthzType() string {

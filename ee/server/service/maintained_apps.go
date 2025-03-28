@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -17,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
-// noCheckHash is used by homebrew to signal that a hash shouldn't be checked.
+// noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
 const noCheckHash = "no_check"
 
 func (svc *Service) AddFleetMaintainedApp(
@@ -25,7 +26,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	teamID *uint,
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
-	selfService bool,
+	selfService bool, automaticInstall bool,
 	labelsIncludeAny, labelsExcludeAny []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -57,56 +58,46 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
 
-	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
+	app, err = maintained_apps.Hydrate(ctx, app)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
+	}
+
 	// Download installer from the URL
-	timeout := maintainedapps.InstallerTimeout
+	timeout := maintained_apps.InstallerTimeout
 	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
-	installerTFR, filename, err := maintainedapps.DownloadInstaller(ctx, app.InstallerURL, client)
+	installerTFR, filename, err := maintained_apps.DownloadInstaller(ctx, app.InstallerURL, client)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "downloading app installer")
 	}
 	defer installerTFR.Close()
 
-	extension, err := maintainedapps.ExtensionForBundleIdentifier(app.BundleIdentifier)
-	if err != nil {
-		return 0, ctxerr.Errorf(ctx, "getting extension from bundle identifier %q", app.BundleIdentifier)
-	}
+	h := sha256.New()
+	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
+	gotHash := hex.EncodeToString(h.Sum(nil))
 
-	// Validate the bytes we got are what we expected, if homebrew supports
-	// it, the string "no_check" is a special token used to signal that the
-	// hash shouldn't be checked.
+	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {
-		h := sha256.New()
-		_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-		gotHash := hex.EncodeToString(h.Sum(nil))
-
 		if gotHash != app.SHA256 {
 			return 0, ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
 		}
-
-		if err := installerTFR.Rewind(); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
-		}
+	} else { // otherwise set the app hash to what we downloaded so storage writes correctly
+		app.SHA256 = gotHash
 	}
 
-	// Fall back to the filename if we weren't able to extract a filename from the installer response
-	if filename == "" {
-		filename = app.Name
+	if err := installerTFR.Rewind(); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
 	}
-
-	// The UI requires all filenames to have extensions. If we couldn't get
-	// one, use the extension we extracted prior
-	if filepath.Ext(filename) == "" {
-		filename = filename + "." + extension
-	}
+	extension := strings.TrimLeft(filepath.Ext(filename), ".")
 
 	installScript = file.Dos2UnixNewlines(installScript)
 	if installScript == "" {
@@ -118,25 +109,42 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
+	maintainedAppID := &app.ID
+	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
+		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {
+		maintainedAppID = nil // don't set app as maintained if scripts have been modified
+	}
+
+	// For platforms other than macOS, installer name has to match what we see in software inventory,
+	// so we have the UniqueIdentifier field to indicate what that should be (independent of the name we
+	// display when listing the FMA). For macOS, unique identifier is bundle name, and we use bundle
+	// identifier to link installers with inventory, so we set the name to the FMA's display name instead.
+	appName := app.UniqueIdentifier
+	if app.Platform == "darwin" || appName == "" {
+		appName = app.Name
+	}
+
 	payload := &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:     installerTFR,
-		Title:             app.Name,
-		UserID:            vc.UserID(),
-		TeamID:            teamID,
-		Version:           app.Version,
-		Filename:          filename,
-		Platform:          string(app.Platform),
-		Source:            "apps",
-		Extension:         extension,
-		BundleIdentifier:  app.BundleIdentifier,
-		StorageID:         app.SHA256,
-		FleetLibraryAppID: &app.ID,
-		PreInstallQuery:   preInstallQuery,
-		PostInstallScript: postInstallScript,
-		SelfService:       selfService,
-		InstallScript:     installScript,
-		UninstallScript:   uninstallScript,
-		ValidatedLabels:   validatedLabels,
+		InstallerFile:         installerTFR,
+		Title:                 appName,
+		UserID:                vc.UserID(),
+		TeamID:                teamID,
+		Version:               app.Version,
+		Filename:              filename,
+		Platform:              app.Platform,
+		Source:                app.Source(),
+		Extension:             extension,
+		BundleIdentifier:      app.BundleIdentifier(),
+		StorageID:             app.SHA256,
+		FleetMaintainedAppID:  maintainedAppID,
+		PreInstallQuery:       preInstallQuery,
+		PostInstallScript:     postInstallScript,
+		SelfService:           selfService,
+		InstallScript:         installScript,
+		UninstallScript:       uninstallScript,
+		ValidatedLabels:       validatedLabels,
+		AutomaticInstall:      automaticInstall,
+		AutomaticInstallQuery: app.AutomaticInstallQuery,
 	}
 
 	// Create record in software installers table
@@ -190,25 +198,32 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 		return nil, nil, authErr
 	}
 
+	opts.IncludeMetadata = true
 	avail, meta, err := svc.ds.ListAvailableFleetMaintainedApps(ctx, teamID, opts)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet managed apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "listing available fleet maintained apps")
 	}
 
 	return avail, meta, nil
 }
 
-func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	// Special case auth for maintained apps (vs. normal installers) as maintained apps are not scoped to a team;
-	// use SoftwareInstaller for authorization elsewhere.
-	if err := svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead); err != nil {
+func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+	var authErr error
+	// viewing the maintained app without showing team-specific info can be done by anyone who can view individual FMAs
+	if teamID == nil {
+		authErr = svc.authz.Authorize(ctx, &fleet.MaintainedApp{}, fleet.ActionRead)
+	} else { // viewing the maintained app when showing team-specific info requires access to that team
+		authErr = svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead)
+	}
+
+	if authErr != nil {
+		return nil, authErr
+	}
+
+	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
+	if err != nil {
 		return nil, err
 	}
 
-	app, err := svc.ds.GetMaintainedAppByID(ctx, appID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get fleet maintained app")
-	}
-
-	return app, nil
+	return maintained_apps.Hydrate(ctx, app)
 }

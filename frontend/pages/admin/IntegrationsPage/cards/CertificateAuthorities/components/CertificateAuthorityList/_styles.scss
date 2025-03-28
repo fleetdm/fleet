@@ -1,0 +1,9 @@
+.certificate-authority-list {
+  li .list-item__actions {
+    display: none;
+  }
+
+  li:hover .list-item__actions {
+    display: flex;
+  }
+}
