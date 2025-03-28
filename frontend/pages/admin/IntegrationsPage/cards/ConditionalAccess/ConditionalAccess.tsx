@@ -1,9 +1,9 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 
-import { NotificationContext } from "context/notification";
-
 import paths from "router/paths";
+
+import { NotificationContext } from "context/notification";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
@@ -11,12 +11,21 @@ import { AppContext } from "context/app";
 
 const baseClass = "conditional-access";
 
-interface IFormData {}
+const msetid = "microsoft_entra_tenant_id";
 
-interface IFormErrors {}
+interface IFormData {
+  [msetid]: string;
+}
+
+interface IFormErrors {
+  [msetid]?: string | null;
+}
 
 const validate = (formData: IFormData) => {
   const errs: IFormErrors = {};
+  if (!formData[msetid]) {
+    errs[msetid] = "Tenant ID must be present";
+  }
   return errs;
 };
 
@@ -24,10 +33,10 @@ const ConditionalAccess = (router: InjectedRouter) => {
   const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
 
-  const [formData, setFormData] = useState<IConditionalAccessFormData>({});
-  const [formErrors, setFormErrors] = useState<IConditionalAccessFormErrors>(
-    {}
-  );
+  const [formData, setFormData] = useState<IFormData>({
+    [msetid]: "",
+  });
+  const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Redirect to /settings if not a cloud-managed Fleet instance. Must do this down at this level
@@ -36,6 +45,9 @@ const ConditionalAccess = (router: InjectedRouter) => {
   if (!config.license.managed_cloud) {
     router.push(paths.ADMIN_SETTINGS);
   }
+
+  // TODO - actually call API
+  setFormData({ [msetid]: "12345" });
 
   const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
