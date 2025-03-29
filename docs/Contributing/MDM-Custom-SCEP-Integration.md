@@ -16,6 +16,7 @@ The Proxy URL inserted into the SCEP profile follows the following format: `<ser
 ## Issues and limitations
 
 - CA name should be treated as a unique identifier and never changed once set. The profiles (and potential renewals) are tied to the CA name. To cleanly change the CA name, remove any profiles using the old CA name (which will remove the associated certificates from devices), change the CA name, upload new profiles using the new CA name.
+- You can only have one SCEP payload in a profile. This is an Apple limitation.
 
 ## Architecture diagrams
 
