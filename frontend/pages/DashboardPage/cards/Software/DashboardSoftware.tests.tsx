@@ -70,6 +70,7 @@ describe("Dashboard software card", () => {
         software={allSwResponse}
         teamId={-1}
         router={createMockRouter()}
+        softwarePageIndex={0}
       />
     );
 
@@ -127,6 +128,7 @@ describe("Dashboard software card", () => {
         software={vulnSwResponse}
         teamId={-1}
         router={createMockRouter()}
+        softwarePageIndex={0}
       />
     );
 

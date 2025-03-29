@@ -498,6 +498,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareActionUrl(
         index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
+    setSoftwarePageIndex(0);
   };
 
   let refetchActivities = () => {
@@ -648,6 +649,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
         router={router}
+        softwarePageIndex={softwarePageIndex}
       />
     ),
   });

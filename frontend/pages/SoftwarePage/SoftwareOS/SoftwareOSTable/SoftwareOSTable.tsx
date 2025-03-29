@@ -43,7 +43,6 @@ interface ISoftwareOSTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
   platform?: SelectedPlatform;
 }
 
@@ -95,7 +94,6 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
   platform,
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
@@ -257,7 +255,7 @@ const SoftwareOSTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}
@@ -270,7 +268,6 @@ const SoftwareOSTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

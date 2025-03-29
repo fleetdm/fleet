@@ -65,11 +65,11 @@ describe("PaginatedList", () => {
     throw new Error("Invalid page number");
   };
 
-  const checkPaginationIsDisabled = () => {
-    const nextButton = screen.getByRole("button", { name: /next/i });
-    const previousButton = screen.getByRole("button", { name: /previous/i });
-    expect(nextButton).toBeDisabled();
-    expect(previousButton).toBeDisabled();
+  const checkPaginationIsHidden = () => {
+    const nextButton = screen.queryByText(/next/i);
+    const previousButton = screen.queryByText(/previous/i);
+    expect(nextButton).not.toBeInTheDocument();
+    expect(previousButton).not.toBeInTheDocument();
   };
 
   const waitForLoadingToFinish = async (container: HTMLElement) => {
@@ -98,7 +98,7 @@ describe("PaginatedList", () => {
       expect(checkboxes[index]).toHaveTextContent(item.name);
       expect(checkboxes[index]).not.toBeChecked();
     });
-    checkPaginationIsDisabled();
+    checkPaginationIsHidden();
   });
 
   it("Supports custom id and label properties", async () => {
@@ -124,7 +124,7 @@ describe("PaginatedList", () => {
       );
       expect(checkboxes[index]).not.toBeChecked();
     });
-    checkPaginationIsDisabled();
+    checkPaginationIsHidden();
   });
 
   it("Supports setting selected items based on a property", async () => {
@@ -149,7 +149,7 @@ describe("PaginatedList", () => {
         expect(checkboxes[index]).not.toBeChecked();
       }
     });
-    checkPaginationIsDisabled();
+    checkPaginationIsHidden();
   });
 
   it("Supports setting selected items based on a function", async () => {
@@ -174,7 +174,7 @@ describe("PaginatedList", () => {
         expect(checkboxes[index]).not.toBeChecked();
       }
     });
-    checkPaginationIsDisabled();
+    checkPaginationIsHidden();
   });
 
   it("Adds pagination when > page size items are returned (without fetchCount provided)", async () => {

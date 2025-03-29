@@ -77,7 +77,6 @@ interface ISoftwareTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
   onAddFiltersClick: () => void;
 }
 
@@ -98,7 +97,6 @@ const SoftwareTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
   onAddFiltersClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
@@ -356,7 +354,7 @@ const SoftwareTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         defaultSearchQuery={query}
         manualSortBy
         pageSize={perPage}
@@ -379,7 +377,6 @@ const SoftwareTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );
