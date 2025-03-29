@@ -1,1 +1,0 @@
-* Fixed a bug to ignore Windows hosts that are not enrolled in Fleet MDM for disk encryption statistics and filters.

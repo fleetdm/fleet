@@ -1,2 +1,0 @@
-- Updated Fleet to treat software installer download errors as a failure for that
-installation attempt, which prevents the software installation from remaining in "pending".

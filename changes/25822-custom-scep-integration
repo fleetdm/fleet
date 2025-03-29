@@ -1,1 +1,0 @@
-Added integration with a custom SCEP server. Fleet admins can now deploy certificates from their own SCEP server to their macOS devices via configuration profiles. The SCEP server will only see traffic from the Fleet server.
