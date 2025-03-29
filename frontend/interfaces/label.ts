@@ -34,6 +34,11 @@ export interface ILabelQuery {
   name: string;
 }
 
+export interface ILabelPolicy {
+  id: number;
+  name: string;
+}
+
 export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;

@@ -55,7 +55,15 @@ export default {
     const { GLOBAL_POLICIES } = endpoints;
     const path = `${GLOBAL_POLICIES}/${id}`;
 
-    return sendRequest("GET", path);
+    return sendRequest("GET", path).then((response) => {
+      return {
+        policy: {
+          ...response.policy,
+          labels_include_any: [{ id: 1, name: "Label Uno" }],
+          labels_exclude_any: [],
+        },
+      };
+    });
   },
   loadAll: (): Promise<ILoadAllPoliciesResponse> => {
     const { GLOBAL_POLICIES } = endpoints;
