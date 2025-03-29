@@ -1082,14 +1082,21 @@ func expectAppleDeclarations(
 		tmID = ptr.Uint(0)
 	}
 
-	var got []*fleet.MDMAppleDeclaration
+	ctx := context.Background()
+	var gotUUIDs []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		ctx := context.Background()
-		return sqlx.SelectContext(ctx, q, &got,
-			`SELECT declaration_uuid, team_id, identifier, name, raw_json, token, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
+		return sqlx.SelectContext(ctx, q, &gotUUIDs,
+			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ?`,
 			tmID)
 	})
 
+	// load each declaration, this will also load its labels
+	var got []*fleet.MDMAppleDeclaration
+	for _, declUUID := range gotUUIDs {
+		decl, err := ds.GetMDMAppleDeclaration(ctx, declUUID)
+		require.NoError(t, err)
+		got = append(got, decl)
+	}
 	// create map of expected declarations keyed by identifier
 	wantMap := make(map[string]*fleet.MDMAppleDeclaration, len(want))
 	for _, cp := range want {
@@ -1103,6 +1110,12 @@ func expectAppleDeclarations(
 			return nil, err
 		}
 		return json.Marshal(ifce)
+	}
+
+	jsonMustMarshal := func(v any) string {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return string(b)
 	}
 
 	// compare only the fields we care about, and build the resulting map of
@@ -1143,7 +1156,12 @@ func expectAppleDeclarations(
 
 		require.Equal(t, wantD.Name, gotD.Name)
 		require.Equal(t, wantD.Identifier, gotD.Identifier)
-		require.Equal(t, wantD.LabelsIncludeAll, gotD.LabelsIncludeAll)
+
+		// for labels, only care about ID and Name (the exclude, require all
+		// fields, etc. are reflected by the field that contains the label)
+		require.Equal(t, jsonMustMarshal(wantD.LabelsIncludeAll), jsonMustMarshal(gotD.LabelsIncludeAll))
+		require.Equal(t, jsonMustMarshal(wantD.LabelsIncludeAny), jsonMustMarshal(gotD.LabelsIncludeAny))
+		require.Equal(t, jsonMustMarshal(wantD.LabelsExcludeAny), jsonMustMarshal(gotD.LabelsExcludeAny))
 	}
 	return m
 }
@@ -1355,9 +1373,12 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		if strings.HasPrefix(l.Name, "exclude-") {
+		switch {
+		case strings.HasPrefix(l.Name, "exclude-"):
 			decl.LabelsExcludeAny = append(decl.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
-		} else {
+		case strings.HasPrefix(l.Name, "inclany-"):
+			decl.LabelsIncludeAny = append(decl.LabelsIncludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		default:
 			decl.LabelsIncludeAll = append(decl.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
 		}
 	}
