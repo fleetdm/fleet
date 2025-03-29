@@ -391,23 +391,34 @@ func (r transparencyURLResponse) HijackRender(ctx context.Context, w http.Respon
 func (r transparencyURLResponse) Error() error { return r.Err }
 
 func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	transparencyURL, err := svc.GetTransparencyURL(ctx)
+
+	return transparencyURLResponse{RedirectURL: transparencyURL, Err: err}, nil
+}
+
+func (svc *Service) GetTransparencyURL(ctx context.Context) (string, error) {
 	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
-		return transparencyURLResponse{Err: err}, nil
+		return "", err
 	}
 
 	license, err := svc.License(ctx)
 	if err != nil {
-		return transparencyURLResponse{Err: err}, nil
+		return "", err
 	}
 
 	transparencyURL := fleet.DefaultTransparencyURL
-	// Fleet Premium license is required for custom transparency url
+	// See #27309; overridden if on Fleet Premium and custom transparency URL is set
+	if svc.config.Partnerships.EnableSecureframe {
+		transparencyURL = fleet.SecureframeTransparencyURL
+	}
+
+	// Fleet Premium license is required for custom transparency URL
 	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 
-	return transparencyURLResponse{RedirectURL: transparencyURL}, nil
+	return transparencyURL, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

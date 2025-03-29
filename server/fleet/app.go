@@ -1126,6 +1126,9 @@ type FleetDesktopSettings struct {
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
+// SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
+const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
+
 type OrderDirection int
 
 const (
