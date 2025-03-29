@@ -64,7 +64,7 @@ jobs:
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this
           # version changes
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@a1d6c560de1a193a0c68ffed68cd5928ef39e884 # v1.61.0
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@8b37f14162043f908949f1b363d061dc9ba713c0 # v1.64.8
           make lint-go
 
       - name: Run cloner-check tool

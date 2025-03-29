@@ -734,9 +734,9 @@ func (a *agent) runOrbitLoop() {
 	// happens in the real world as there are delays that are not accounted by
 	// the way this simulation is arranged.
 	checkToken := func() {
-		min := 1
-		max := 5
-		numberOfRequests := rand.Intn(max-min+1) + min
+		minVal := 1
+		maxVal := 5
+		numberOfRequests := rand.Intn(maxVal-minVal+1) + minVal
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 

@@ -305,8 +305,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// Dry run
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return true, nil
 	}
@@ -318,8 +318,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run fails
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return false, nil
 	}
@@ -331,7 +331,7 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run with error
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return false, assert.AnError
 	}
 	err = svc.ApplyEnrollSecretSpec(
@@ -2288,7 +2288,6 @@ func TestAppConfigCAs(t *testing.T) {
 		assert.Equal(t, caStatusDeleted, status.customSCEPProxy["delete"])
 		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 3)
 	})
-
 }
 
 type configCASuite struct {

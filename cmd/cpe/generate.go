@@ -215,12 +215,12 @@ func addSHA256(path string) (string, error) {
 }
 
 // replaceLast replaces the last occurrence of string
-func replaceLast(s, old, new string) (string, error) {
-	i := strings.LastIndex(s, old)
+func replaceLast(s, oldVal, newVal string) (string, error) {
+	i := strings.LastIndex(s, oldVal)
 	if i == -1 {
-		return "", fmt.Errorf("substring:%v not found in string:%v", old, s)
+		return "", fmt.Errorf("substring:%v not found in string:%v", oldVal, s)
 	}
-	return s[:i] + new + s[i+len(old):], nil
+	return s[:i] + newVal + s[i+len(oldVal):], nil
 }
 
 func closeFile(file *os.File) {

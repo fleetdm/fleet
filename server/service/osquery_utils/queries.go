@@ -1434,12 +1434,12 @@ func generateBatteryHealth(row map[string]string, logger log.Logger) (string, in
 		return batteryStatusUnknown, count, fmt.Errorf("failed to parse designed capacity: %s", designedCapacity)
 	}
 
-	max, err := strconv.ParseInt(maxCapacity, 10, 64)
+	maxCapInt, err := strconv.ParseInt(maxCapacity, 10, 64)
 	if err != nil {
 		return batteryStatusUnknown, count, fmt.Errorf("failed to parse max capacity: %s", maxCapacity)
 	}
 
-	health := float64(max) / float64(designed) * 100
+	health := float64(maxCapInt) / float64(designed) * 100
 
 	if health < batteryDegradedThreshold {
 		return batteryStatusDegraded, count, nil

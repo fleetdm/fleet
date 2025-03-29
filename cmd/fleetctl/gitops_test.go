@@ -527,7 +527,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		enrolledTeamSecrets = newTeam.Secrets
 		return newTeam, nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -807,7 +807,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	var enrolledSecrets []*fleet.EnrollSecret
@@ -1029,7 +1029,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	const teamID = uint(123)
@@ -1338,7 +1338,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		Name:      teamName,
 	}
 
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1681,7 +1681,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		Name:      teamName,
 	}
 
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -2286,7 +2286,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
@@ -2521,7 +2521,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
@@ -3084,7 +3084,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {

@@ -428,7 +428,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 		ds.NewTeamFuncInvoked = false
 
 		// Dry run -- secret already used
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return false, nil
 		}
 		_, err := svc.ApplyTeamSpecs(
@@ -438,7 +438,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 		assert.ErrorContains(t, err, "is already being used")
 
 		// Normal dry run
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		_, err = svc.ApplyTeamSpecs(
