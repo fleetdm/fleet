@@ -155,6 +155,11 @@ func TestGetRawProfilePlatform(t *testing.T) {
 			expected: "windows",
 		},
 		{
+			name:     "Windows xml with comment",
+			input:    []byte("<!-- this is a comment -->"),
+			expected: "windows",
+		},
+		{
 			name:     "Whitespace before prefix",
 			input:    []byte("   <?xml version=\"1.0\"?>"),
 			expected: "darwin",
