@@ -286,7 +286,7 @@ func getPlatformsFromSupportedDevices(supportedDevices []string) map[fleet.Apple
 	for _, device := range supportedDevices {
 		// It is rare that a single app supports all platforms, but it is possible.
 		switch {
-		case strings.HasPrefix(device, "iPhone"):
+		case strings.HasPrefix(device, "iPhone"), strings.HasPrefix(device, "iPod"):
 			platforms[fleet.IOSPlatform] = struct{}{}
 		case strings.HasPrefix(device, "iPad"):
 			platforms[fleet.IPadOSPlatform] = struct{}{}
