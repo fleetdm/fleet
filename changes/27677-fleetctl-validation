@@ -1,1 +1,1 @@
-- fixed silent failure when passing an unexpected value (like a value to a boolean flag) to fleetctl
+- fixed silent failure when passing an unexpected value (like a value to a boolean flag) to `fleetctl package`
