@@ -3640,12 +3640,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				if softwareTitle.VPPAppSelfService != nil {
 					softwareTitleRecord.VPPAppSelfService = softwareTitle.VPPAppSelfService
 				}
-				softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
-				softwareTitleRecord.VPPAppVersion = softwareTitle.VPPAppVersion
+				if softwareTitle.VPPAppAdamID != nil {
+					softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
+				}
+				if softwareTitle.VPPAppVersion != nil {
+					softwareTitleRecord.VPPAppVersion = softwareTitle.VPPAppVersion
+				}
 				if softwareTitle.VPPAppPlatform != nil {
 					softwareTitleRecord.VPPAppPlatform = softwareTitle.VPPAppPlatform
 				}
-				softwareTitleRecord.VPPAppIconURL = softwareTitle.VPPAppIconURL
+				if softwareTitle.VPPAppIconURL != nil {
+					softwareTitleRecord.VPPAppIconURL = softwareTitle.VPPAppIconURL
+				}
 
 				// promote the package name and version to the proper destination fields
 				if softwareTitleRecord.PackageName != nil {
