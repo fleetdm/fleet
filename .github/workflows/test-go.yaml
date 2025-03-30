@@ -84,10 +84,11 @@ jobs:
         sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
         sudo update-ca-certificates
 
-    # It seems faster not to cache Go dependencies
+    # Go dependencies are cached by actions/setup-go
     - name: Install Go Dependencies
       run: make deps-go
 
+    # This step takes >20 seconds and should be skipped for jobs that don't need it. https://github.com/fleetdm/fleet/issues/27435
     - name: Install ZSH
       run: sudo apt update && sudo apt install -y zsh
 
@@ -313,7 +314,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
           egress-policy: audit
 

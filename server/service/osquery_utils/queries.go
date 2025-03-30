@@ -29,6 +29,10 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Some machines don't have a correctly set serial number, create a default ignore list
+// https://github.com/fleetdm/fleet/issues/25993
+var invalidHardwareSerialRegexp = regexp.MustCompile("(?i)(?:default|serial|string)")
+
 type DetailQuery struct {
 	// Description is an optional description of the query to be displayed in the
 	// Host Vitals documentation https://fleetdm.com/docs/using-fleet/understanding-host-vitals
@@ -339,7 +343,11 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+			if invalidHardwareSerialRegexp.Match([]byte(rows[0]["hardware_serial"])) {
+				// If the serial number is a default (uninitialize) value, set to empty
+				host.HardwareSerial = ""
+			} else if rows[0]["hardware_serial"] != "-1" {
+				// ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
 				host.HardwareSerial = rows[0]["hardware_serial"]
 			}
 			host.ComputerName = rows[0]["computer_name"]

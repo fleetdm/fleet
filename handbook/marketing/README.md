@@ -47,45 +47,12 @@ To propose an ad, or a change to an ad:
 
 ### Measure intent signals
 
-Intent signals help measure an individual's current level of engagement with the Fleet brand. Use the following steps to decide if:  
-
-(a) A contact and/or account needs to be created/updated. 
-
-(b) An account should be prioritized for [manual research](https://fleetdm.com/handbook/marketing#research-an-account).
-
-(c) An account/contact would benefit from a sales conversation.
-
-(in order of how worthwhile it is to spend time looking at the intent signal)
-
-1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs).
-2. Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point).
-3. Accounts that fleeties have suggested to go after in ABM maneuver sheet.
-4. [MacAdmins Slack traffic](https://macadmins.slack.com/archives/C0214NELAE7/p1722561481530559) in the #fleet AND #osquery channels (channel joins, posts, reactions, thread replies, thread reactions).
-5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/).
-6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties.
+To measure and process intent signals, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#process-intent-signals).  
 
 
 ### Research an account
 
-Follow these steps to research an account and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/marketing#measure-intent-signals).
-
-1. Create the account in SalesForce if it doesn't already exist.
-2. Update any incorrect, mistagged, or incomplete contacts already on the account and merge any duplicates that are found. Verify the following data is current for each existing contact:
-  - "Title"
-  - "Role"
-  - "Primary buying situation" 
-  - "LinkedIn"
-  - "Psychological stage" 
-  - "intent signals" 
-3. If you any reason that the account organization wouldn't benefit from a relationship with Fleet, change the "Type" to "Distraction" stop here. If you haven't disqualified the account at this point, update the "Marketing stage" to "Research-ready". 
-After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)":
-
-1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
-2. For "Contact source" for any new contacts, use "Manual research".
-3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect".
-4. Research and discover mutual connections between fleeties and Mac admin community members within those contacts to help determine fit.
-5. Check Snitcher activity for the account and the psystages of its contacts in Salesforce.
-6. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running".
+to research an account, follow the steps in the follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#research-an-account) and move it toward sales-readiness **after** discovering [relevant intent signals](https://fleetdm.com/handbook/marketing#measure-intent-signals).
 
 
 ### Promote a post on LinkedIn
@@ -122,17 +89,6 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
-
-
-### Respond to a "Contact us" submission
-
-1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
-2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
-5. Mark the Slack message as complete with the "✅" emoji.
-
-> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Book an event

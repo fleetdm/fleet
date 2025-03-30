@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';"
       },
       "installer_url": "https://ardownload2.adobe.com/pub/adobe/reader/mac/AcrobatDC/2500120432/AcroRdrDC_2500120432_MUI.dmg",
-      "unique_identifier": "com.adobe.Reader",
       "install_script_ref": "79f66713",
       "uninstall_script_ref": "6949c08e",
       "sha256": "7a668c506c4694bb4f481eb3f6f98f17ee28975366e9547bddbb407238d37718"
