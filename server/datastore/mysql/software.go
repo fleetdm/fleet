@@ -2259,6 +2259,7 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
+	ExitCode            *int       `db:"exit_code"`
 	LastOpenedAt        *time.Time `db:"last_opened_at"`
 	BundleIdentifier    *string    `db:"bundle_identifier"`
 	Version             *string    `db:"version"`
@@ -2368,6 +2369,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                 )
         )
         SELECT
+			software_installers.id AS installer_id,
 			software_installers.title_id AS id,
 			lsia.*
 		FROM
@@ -2450,7 +2452,9 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                 )
         )
         SELECT
+			software_installers.id AS installer_id,
 			software_installers.title_id AS id,
+			host_script_results.exit_code AS exit_code,
 			lsua.*
 		FROM
             (SELECT * FROM upcoming_software_uninstall UNION SELECT * FROM last_software_uninstall) AS lsua
@@ -2458,6 +2462,8 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 			software_installers ON lsua.installer_id = software_installers.id
 		INNER JOIN
 			software_titles ON software_installers.title_id = software_titles.id
+		LEFT OUTER JOIN
+			host_script_results ON host_script_results.host_id = :host_id AND host_script_results.execution_id = lsua.last_uninstall_script_execution_id
     `
 	softwareUninstallsStmt, args, err := sqlx.Named(softwareUninstallsStmt, map[string]any{
 		"host_id": hostID,
@@ -2472,6 +2478,129 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 	}
 
 	return softwareUninstalls, nil
+}
+
+func filterSoftwareInstallersByLabel(
+	ds *Datastore,
+	ctx context.Context,
+	host *fleet.Host,
+	bySoftwareTitleID map[uint]*hostSoftware,
+	onlyAvailableForInstall bool,
+	selfServiceOnly bool,
+) (map[uint]*hostSoftware, error) {
+	if len(bySoftwareTitleID) == 0 {
+		return bySoftwareTitleID, nil
+	}
+
+	filteredbySoftwareTitleID := make(map[uint]*hostSoftware, len(bySoftwareTitleID))
+	softwareInstallersIDsToCheck := make([]uint, 0, len(bySoftwareTitleID))
+
+	for _, st := range bySoftwareTitleID {
+		if (onlyAvailableForInstall || selfServiceOnly) || (st.LastUninstallUninstalledAt != nil && st.LastInstallInstalledAt != nil &&
+			st.LastUninstallUninstalledAt.After(*st.LastInstallInstalledAt) &&
+			st.ExitCode != nil && *st.ExitCode == 0) {
+			softwareInstallersIDsToCheck = append(softwareInstallersIDsToCheck, *st.InstallerID)
+		} else {
+			filteredbySoftwareTitleID[st.ID] = st
+		}
+	}
+
+	if len(softwareInstallersIDsToCheck) > 0 {
+		labelSqlFilter := `
+			SELECT
+				software_installers.id AS id,
+				software_installers.title_id AS title_id
+			FROM
+				software_installers
+			WHERE
+				software_installers.id IN (:software_installer_ids) AND
+				EXISTS (
+					SELECT 1 FROM (
+							-- no labels
+							SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
+							WHERE NOT EXISTS (
+								SELECT 1 FROM software_installer_labels WHERE software_installer_id = software_installers.id
+							)
+
+							UNION
+
+							-- include any
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(label_membership.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								software_installer_labels
+								LEFT OUTER JOIN label_membership ON label_membership.label_id = software_installer_labels.label_id
+								AND label_membership.host_id = :host_id
+							WHERE
+								software_installer_labels.software_installer_id = software_installers.id
+								AND software_installer_labels.exclude = 0
+							HAVING
+								count_installer_labels > 0 AND count_host_labels > 0
+
+							UNION
+
+							-- exclude any, ignore software that depends on labels created
+							-- _after_ the label_updated_at timestamp of the host (because
+							-- we don't have results for that label yet, the host may or may
+							-- not be a member).
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(label_membership.label_id) AS count_host_labels,
+								SUM(CASE WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
+							FROM
+								software_installer_labels
+								LEFT OUTER JOIN labels
+									ON labels.id = software_installer_labels.label_id
+								LEFT OUTER JOIN label_membership
+									ON label_membership.label_id = software_installer_labels.label_id AND label_membership.host_id = :host_id
+							WHERE
+								software_installer_labels.software_installer_id = software_installers.id
+								AND software_installer_labels.exclude = 1
+							HAVING
+								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+					) AS label_membership_check
+				)
+			`
+		labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
+			"host_id":                host.ID,
+			"host_label_updated_at":  host.LabelUpdatedAt,
+			"software_installer_ids": softwareInstallersIDsToCheck,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel building named query args")
+		}
+
+		labelSqlFilter, args, err = sqlx.In(labelSqlFilter, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel building in query args")
+		}
+
+		labelSqlFilter = ds.reader(ctx).Rebind(labelSqlFilter)
+
+		var validSoftwareInstallers []struct {
+			Id      uint `db:"id"`
+			TitleId uint `db:"title_id"`
+		}
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &validSoftwareInstallers, labelSqlFilter, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel executing query")
+		}
+
+		// go through the list of softwareInstallersIDsToCheck, if the id is in the result from the query, add it to the
+		// list of software installers to return
+		for _, sid := range softwareInstallersIDsToCheck {
+			for _, validSoftwareInstaller := range validSoftwareInstallers {
+				if validSoftwareInstaller.Id == sid {
+					filteredbySoftwareTitleID[validSoftwareInstaller.TitleId] = bySoftwareTitleID[validSoftwareInstaller.TitleId]
+					break
+				}
+			}
+		}
+	}
+
+	return filteredbySoftwareTitleID, nil
 }
 
 func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
@@ -2671,17 +2800,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
-	hostInstalledSoftware, err := hostInstalledSoftware(ds, ctx, host.ID)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, s := range hostInstalledSoftware {
-		bySoftwareTitleID[s.ID] = s
-		if s.SoftwareID != nil {
-			bySoftwareID[*s.SoftwareID] = s
-		}
-	}
-
 	hostSoftwareInstalls, err := hostSoftwareInstalls(ds, ctx, host.ID)
 	if err != nil {
 		return nil, nil, err
@@ -2707,6 +2825,48 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			bySoftwareTitleID[s.ID].Status = s.Status
 			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
 			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
+			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
+		}
+	}
+	originalLength := len(bySoftwareTitleID)
+	bySoftwareTitleID, err = filterSoftwareInstallersByLabel(
+		ds,
+		ctx,
+		host,
+		bySoftwareTitleID,
+		opts.OnlyAvailableForInstall,
+		opts.SelfServiceOnly,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(bySoftwareTitleID) != originalLength {
+		// we have removed some software installers, we need to remove the corresponding software
+		for index, s := range hostSoftwareInstalls {
+			if _, ok := bySoftwareTitleID[s.ID]; !ok {
+				hostSoftwareInstalls = append(hostSoftwareInstalls[:index], hostSoftwareInstalls[index+1:]...)
+			}
+		}
+		for index, s := range hostSoftwareUninstalls {
+			if _, ok := bySoftwareTitleID[s.ID]; !ok {
+				hostSoftwareUninstalls = append(hostSoftwareUninstalls[:index], hostSoftwareUninstalls[index+1:]...)
+			}
+		}
+	}
+
+	hostInstalledSoftware, err := hostInstalledSoftware(ds, ctx, host.ID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, s := range hostInstalledSoftware {
+		if _, ok := bySoftwareTitleID[s.ID]; !ok {
+			bySoftwareTitleID[s.ID] = s
+		} else {
+			bySoftwareTitleID[s.ID].LastOpenedAt = s.LastOpenedAt
+		}
+
+		if s.SoftwareID != nil {
+			bySoftwareID[*s.SoftwareID] = s
 		}
 	}
 
@@ -2730,6 +2890,38 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		} else {
 			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
 		}
+		sqlAvailable := `
+		SELECT
+			st.id AS id,
+			st.name AS name,
+			si.id AS installer_id,
+			si.platform AS installer_platform,
+			si.global_or_team_id AS installer_global_or_team_id
+		FROM
+			software_titles st
+		LEFT OUTER JOIN
+			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
+		`
+		var selectAvailable []struct {
+			ID                      uint    `db:"id"`
+			Name                    string  `db:"name"`
+			InstallerID             *uint   `db:"installer_id"`
+			InstallerPlatform       *string `db:"installer_platform"`
+			InstallerGlobalOrTeamID *uint   `db:"installer_global_or_team_id"`
+		}
+		sqlAvailable, args, err := sqlx.Named(sqlAvailable, namedArgs)
+		if err != nil {
+			return nil, nil, err
+		}
+		sqlAvailable, args, err = sqlx.In(sqlAvailable, args...)
+		if err != nil {
+			return nil, nil, err
+		}
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &selectAvailable, sqlAvailable, args...)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		stmtAvailable = `
 			SELECT
 			st.id,
@@ -3405,6 +3597,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 				// Merge the data of `software title` into `softwareTitleRecord`
 				// We should try to move as much of these attributes into the `stmt` query
+				softwareTitleRecord.Status = softwareTitle.Status
 				softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
 				softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
 				softwareTitleRecord.InstallerID = softwareTitle.InstallerID
