@@ -3583,6 +3583,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					version.BundleIdentifier = *softwareTitleRecord.BundleIdentifier
 					version.LastOpenedAt = software.LastOpenedAt
 					version.InstalledPaths = paths
+					version.SoftwareID = *softwareTitleRecord.SoftwareID
+					version.SoftwareTitleID = softwareTitleRecord.ID
 
 					if version.Source == "apps" {
 						version.SignatureInformation = signatureInformation
@@ -3622,7 +3624,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					}
 				}
 			} else {
-				if softwareTitleRecord.SoftwareID != nil {
+				// version.SoftwareTitleID is not set when the software is available for install only,
+				// and not installed on the host
+				if version.SoftwareTitleID != 0 {
 					softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
 				}
 
