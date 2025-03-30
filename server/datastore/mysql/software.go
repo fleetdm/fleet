@@ -2507,62 +2507,93 @@ func filterSoftwareInstallersByLabel(
 
 	if len(softwareInstallersIDsToCheck) > 0 {
 		labelSqlFilter := `
+			WITH no_labels AS (
+				SELECT
+					software_installers.id AS installer_id,
+					0 AS count_installer_labels,
+					0 AS count_host_labels,
+					0 AS count_host_updated_after_labels
+				FROM
+					software_installers
+				WHERE NOT EXISTS (
+					SELECT 1
+					FROM software_installer_labels
+					WHERE software_installer_labels.software_installer_id = software_installers.id
+				)
+			),
+			include_any AS (
+				SELECT
+					software_installers.id AS installer_id,
+					COUNT(*) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 AS count_host_updated_after_labels
+				FROM
+					software_installers
+				LEFT JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id
+				LEFT JOIN label_membership
+					ON label_membership.label_id = software_installer_labels.label_id
+					AND label_membership.host_id = :host_id
+				WHERE
+					software_installer_labels.exclude = 0
+				GROUP BY
+					software_installers.id
+				HAVING
+					COUNT(*) > 0 AND COUNT(label_membership.label_id) > 0
+			),
+			exclude_any AS (
+				SELECT
+					software_installers.id AS installer_id,
+					COUNT(*) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					SUM(
+						CASE
+							WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1
+							ELSE 0
+						END
+					) AS count_host_updated_after_labels
+				FROM
+					software_installers
+				LEFT JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id
+				LEFT JOIN labels
+					ON labels.id = software_installer_labels.label_id
+				LEFT JOIN label_membership
+					ON label_membership.label_id = software_installer_labels.label_id
+					AND label_membership.host_id = :host_id
+				WHERE
+					software_installer_labels.exclude = 1
+				GROUP BY
+					software_installers.id
+				HAVING
+					COUNT(*) > 0
+					AND COUNT(*) = SUM(
+						CASE
+							WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1
+							ELSE 0
+						END
+					)
+					AND COUNT(label_membership.label_id) = 0
+			)
 			SELECT
 				software_installers.id AS id,
 				software_installers.title_id AS title_id
 			FROM
 				software_installers
+			LEFT JOIN no_labels
+				ON no_labels.installer_id = software_installers.id
+			LEFT JOIN include_any
+				ON include_any.installer_id = software_installers.id
+			LEFT JOIN exclude_any
+				ON exclude_any.installer_id = software_installers.id
 			WHERE
-				software_installers.id IN (:software_installer_ids) AND
-				EXISTS (
-					SELECT 1 FROM (
-							-- no labels
-							SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
-							WHERE NOT EXISTS (
-								SELECT 1 FROM software_installer_labels WHERE software_installer_id = software_installers.id
-							)
-
-							UNION
-
-							-- include any
-							SELECT
-								COUNT(*) AS count_installer_labels,
-								COUNT(label_membership.label_id) AS count_host_labels,
-								0 as count_host_updated_after_labels
-							FROM
-								software_installer_labels
-								LEFT OUTER JOIN label_membership ON label_membership.label_id = software_installer_labels.label_id
-								AND label_membership.host_id = :host_id
-							WHERE
-								software_installer_labels.software_installer_id = software_installers.id
-								AND software_installer_labels.exclude = 0
-							HAVING
-								count_installer_labels > 0 AND count_host_labels > 0
-
-							UNION
-
-							-- exclude any, ignore software that depends on labels created
-							-- _after_ the label_updated_at timestamp of the host (because
-							-- we don't have results for that label yet, the host may or may
-							-- not be a member).
-							SELECT
-								COUNT(*) AS count_installer_labels,
-								COUNT(label_membership.label_id) AS count_host_labels,
-								SUM(CASE WHEN labels.created_at IS NOT NULL AND :host_label_updated_at >= labels.created_at THEN 1 ELSE 0 END) as count_host_updated_after_labels
-							FROM
-								software_installer_labels
-								LEFT OUTER JOIN labels
-									ON labels.id = software_installer_labels.label_id
-								LEFT OUTER JOIN label_membership
-									ON label_membership.label_id = software_installer_labels.label_id AND label_membership.host_id = :host_id
-							WHERE
-								software_installer_labels.software_installer_id = software_installers.id
-								AND software_installer_labels.exclude = 1
-							HAVING
-								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
-					) AS label_membership_check
+				software_installers.id IN (:software_installer_ids)
+				AND (
+					no_labels.installer_id IS NOT NULL
+					OR include_any.installer_id IS NOT NULL
+					OR exclude_any.installer_id IS NOT NULL
 				)
-			`
+		`
 		labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
 			"host_id":                host.ID,
 			"host_label_updated_at":  host.LabelUpdatedAt,
