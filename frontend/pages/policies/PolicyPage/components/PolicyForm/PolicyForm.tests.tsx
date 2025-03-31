@@ -345,11 +345,7 @@ describe("PolicyForm - component", () => {
       });
 
       it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-        render(
-          <PolicyProvider>
-            <PolicyForm {...defaultProps} />
-          </PolicyProvider>
-        );
+        render(<PolicyForm {...defaultProps} />);
         let allHosts;
         let custom;
         await waitFor(() => {
@@ -361,10 +357,6 @@ describe("PolicyForm - component", () => {
         custom && (await userEvent.click(custom));
         const saveButton = screen.getByRole("button", { name: "Save" });
         expect(saveButton).toBeDisabled();
-
-        // Must have at least one platform checked.
-        const linuxCheckbox = screen.getByRole("checkbox", { name: "Linux" });
-        await userEvent.click(linuxCheckbox);
 
         const funButton = screen.getByLabelText("Fun");
         expect(funButton).not.toBeChecked();
