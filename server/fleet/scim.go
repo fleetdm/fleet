@@ -23,11 +23,15 @@ type ScimUserEmail struct {
 	Type       *string `db:"type"`
 }
 
-type ScimUsersListOptions struct {
+type ScimListOptions struct {
 	// Which page to return (must be positive integer)
 	Page uint
 	// How many results per page (must be positive integer)
 	PerPage uint
+}
+
+type ScimUsersListOptions struct {
+	ScimListOptions
 
 	// UserNameFilter filters by userName -- max of 1 response is expected
 	// Cannot be used with other filters.

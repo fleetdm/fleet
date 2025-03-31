@@ -394,8 +394,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 1: List all users without filters
 	allUsers, totalResults, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:    1,
-		PerPage: 10,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 10,
+		},
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 3, len(allUsers))
@@ -415,8 +417,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 2: Pagination - first page with 2 items
 	page1Users, totalPage1, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:    1,
-		PerPage: 2,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 2,
+		},
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(page1Users))
@@ -424,8 +428,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 3: Pagination - second page with 2 items
 	page2Users, totalPage2, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:    2,
-		PerPage: 2,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    2,
+			PerPage: 2,
+		},
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(page2Users))
@@ -440,8 +446,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 4: Filter by username
 	listUsers, totalListUsers, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:           1,
-		PerPage:        10,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 10,
+		},
 		UserNameFilter: ptr.String("list-test-user2"),
 	})
 
@@ -452,8 +460,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 5: Filter by email type and value
 	homeEmailUsers, totalHomeEmailUsers, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:             1,
-		PerPage:          10,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 10,
+		},
 		EmailTypeFilter:  ptr.String("home"),
 		EmailValueFilter: ptr.String("personal.user2@example.com"),
 	})
@@ -465,8 +475,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 6: Filter by email type and value - work emails
 	workEmailUsers, totalWorkEmailUsers, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:             1,
-		PerPage:          10,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 10,
+		},
 		EmailTypeFilter:  ptr.String("work"),
 		EmailValueFilter: ptr.String("different.user3@example.com"),
 	})
@@ -476,8 +488,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 
 	// Test 7: No results for non-matching filters
 	noUsers, totalNoUsers1, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:           1,
-		PerPage:        10,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 10,
+		},
 		UserNameFilter: ptr.String("nonexistent"),
 	})
 	require.Nil(t, err)
@@ -485,8 +499,10 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), totalNoUsers1)
 
 	noUsers, totalNoUsers2, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
-		Page:             1,
-		PerPage:          10,
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    1,
+			PerPage: 10,
+		},
 		EmailTypeFilter:  ptr.String("nonexistent"),
 		EmailValueFilter: ptr.String("nonexistent"),
 	})

@@ -358,3 +358,30 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 	}
 	return emails, nil
 }
+
+func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup) (groupID uint, err error) {
+	// TODO: validate that group.displayName is not more than MaxScimFieldLength
+
+	// TODO
+	return 0, nil
+}
+
+func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGroup, error) {
+	// TODO
+	return nil, nil
+}
+
+func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup) error {
+	// TODO
+	return nil
+}
+
+func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
+	// TODO
+	return nil
+}
+
+func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
+	// TODO
+	return nil, 0, nil
+}

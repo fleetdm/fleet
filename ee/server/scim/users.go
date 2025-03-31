@@ -272,8 +272,10 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 	}
 
 	opts := fleet.ScimUsersListOptions{
-		Page:    uint(page),  // nolint:gosec // ignore G115
-		PerPage: uint(count), // nolint:gosec // ignore G115
+		ScimListOptions: fleet.ScimListOptions{
+			Page:    uint(page),  // nolint:gosec // ignore G115
+			PerPage: uint(count), // nolint:gosec // ignore G115
+		},
 	}
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
