@@ -152,7 +152,7 @@ const RunScriptModal = ({
               isLoading={runScriptRequested || isFetching}
               onQueryChange={onQueryChange}
               disableNextPage={!hostScriptResponse?.meta.has_next_results}
-              defaultPageIndex={page}
+              pageIndex={page}
               pageSize={10}
               disableCount
               disableTableHeader

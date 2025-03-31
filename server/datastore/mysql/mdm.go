@@ -1018,11 +1018,10 @@ func batchSetProfileLabelAssociationsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	profileLabels []fleet.ConfigurationProfileLabel,
+	profileUUIDsWithoutLabels []string,
 	platform string,
 ) (updatedDB bool, err error) {
-	if len(profileLabels) == 0 {
-		// FIXME: At what point are we deleting all labels for a profile (e.g., the user might
-		// remove all labels from an existing profile)?
+	if len(profileLabels)+len(profileUUIDsWithoutLabels) == 0 {
 		return false, nil
 	}
 
@@ -1050,6 +1049,13 @@ func batchSetProfileLabelAssociationsDB(
 	  %s_profile_uuid IN (?)
 	`
 
+	// used when only profileUUIDsWithoutLabels is provided, there are no
+	// labels to keep, delete all labels for profiles in this list.
+	deleteNoLabelStmt := `
+	  DELETE FROM mdm_configuration_profile_labels
+	  WHERE %s_profile_uuid IN (?)
+	`
+
 	upsertStmt := `
 	  INSERT INTO mdm_configuration_profile_labels
               (%s_profile_uuid, label_id, label_name, exclude, require_all)
@@ -1066,6 +1072,24 @@ func batchSetProfileLabelAssociationsDB(
 		WHERE (%s_profile_uuid, label_name) IN (%s)
 	`
 
+	if len(profileLabels) == 0 {
+		deleteNoLabelStmt = fmt.Sprintf(deleteNoLabelStmt, platformPrefix)
+		deleteNoLabelStmt, args, err := sqlx.In(deleteNoLabelStmt, profileUUIDsWithoutLabels)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for profiles without labels")
+		}
+
+		var result sql.Result
+		if result, err = tx.ExecContext(ctx, deleteNoLabelStmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "deleting labels for profiles without labels")
+		}
+		if result != nil {
+			rows, _ := result.RowsAffected()
+			updatedDB = rows > 0
+		}
+		return updatedDB, nil
+	}
+
 	var (
 		insertBuilder         strings.Builder
 		selectOrDeleteBuilder strings.Builder
@@ -1075,6 +1099,7 @@ func batchSetProfileLabelAssociationsDB(
 
 		setProfileUUIDs = make(map[string]struct{})
 	)
+
 	labelsToInsert := make(map[string]*fleet.ConfigurationProfileLabel, len(profileLabels))
 	for i, pl := range profileLabels {
 		labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &profileLabels[i]
@@ -1128,10 +1153,11 @@ func batchSetProfileLabelAssociationsDB(
 
 	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, selectOrDeleteBuilder.String(), platformPrefix)
 
-	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	profUUIDs := make([]string, 0, len(setProfileUUIDs)+len(profileUUIDsWithoutLabels))
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
+	profUUIDs = append(profUUIDs, profileUUIDsWithoutLabels...)
 	deleteArgs := deleteParams
 	deleteArgs = append(deleteArgs, profUUIDs)
 
@@ -1318,9 +1344,7 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	stmt := `
 	UPDATE nano_cert_auth_associations
 	SET renew_command_uuid = NULL
-	WHERE id = ?
-	ORDER BY created_at desc
-	LIMIT 1`
+	WHERE id = ?`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {

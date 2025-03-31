@@ -1001,7 +1001,7 @@ type Datastore interface {
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
-	IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
+	IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
@@ -1960,6 +1960,10 @@ type Datastore interface {
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
+
+	// ClearRemovedFleetMaintainedApps deletes all Fleet-maintained apps that are not in the given
+	// set of slugs.
+	ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error
 
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,

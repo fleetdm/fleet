@@ -47,7 +47,7 @@ prompt () {
 prompt "Please change 'const' to 'var' in orbit/pkg/update/update.go."
 
 echo "Uninstalling fleetd from macOS..."
-sudo orbit/tools/cleanup/cleanup_macos.sh
+sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 prompt "Please manually uninstall fleetd from $HOSTNAMES."
 
 OLD_TUF_PORT=8081
@@ -520,7 +520,7 @@ for pkgType in "${pkgTypes[@]}"; do
 done
 
 echo "Uninstalling fleetd package from macOS..."
-sudo ./orbit/tools/cleanup/cleanup_macos.sh
+sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 echo "Sleeping 60 seconds..."
 sleep 60
 echo "Installing fleetd package on macOS..."
@@ -644,7 +644,7 @@ for pkgType in "${pkgTypes[@]}"; do
 done
 
 echo "Uninstalling fleetd package from macOS..."
-sudo ./orbit/tools/cleanup/cleanup_macos.sh
+sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 echo "Sleeping 60 seconds..."
 sleep 60
 echo "Installing fleetd package on macOS..."

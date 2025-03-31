@@ -1,15 +1,14 @@
 {
   "versions": [
     {
-      "version": "6.4.1.51520",
+      "version": "6.4.3.52139",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos';"
       },
-      "installer_url": "https://cdn.zoom.us/prod/6.4.1.51520/ZoomInstallerIT.pkg",
-      "unique_identifier": "us.zoom.xos",
+      "installer_url": "https://cdn.zoom.us/prod/6.4.3.52139/ZoomInstallerIT.pkg",
       "install_script_ref": "2d889c52",
       "uninstall_script_ref": "b91fca4d",
-      "sha256": "86d7dbb34ed3ad62fad5c8f9d20ca027eca88e1a29e1e7fc5f9b4dfd7d1e6455"
+      "sha256": "d3bd37ea335d58c45161e96f3f6320015f9ac4dd3304133223862c2761d17d23"
     }
   ],
   "refs": {

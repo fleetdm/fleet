@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Word';"
       },
       "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_16.95.25030928_Installer.pkg",
-      "unique_identifier": "com.microsoft.Word",
       "install_script_ref": "dde086b0",
       "uninstall_script_ref": "24415163",
       "sha256": "71d647007d02faf9dd2c7911f91a1679cb3947b29203e381e0e2c88e05917446"
