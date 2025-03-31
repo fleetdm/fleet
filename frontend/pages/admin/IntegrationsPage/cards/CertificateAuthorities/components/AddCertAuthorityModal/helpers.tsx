@@ -42,7 +42,7 @@ const PRIVATE_KEY_NOT_CONFIGURED_ERROR = (
     Private key must be configured.{" "}
     <CustomLink
       text="Learn more"
-      url="https://learn-more-about/fleet-server-private-key"
+      url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
       newTab
       variant="flash-message-link"
     />
