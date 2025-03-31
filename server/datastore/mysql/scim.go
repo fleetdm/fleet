@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -11,8 +12,32 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// MaxScimFieldLength is the maximum length for SCIM user fields
+const MaxScimFieldLength = 255
+
+// validateScimUserFields checks if the user fields exceed the maximum allowed length
+func validateScimUserFields(user *fleet.ScimUser) error {
+	if user.ExternalID != nil && len(*user.ExternalID) > MaxScimFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", MaxScimFieldLength)
+	}
+	if len(user.UserName) > MaxScimFieldLength {
+		return fmt.Errorf("user_name exceeds maximum length of %d characters", MaxScimFieldLength)
+	}
+	if user.GivenName != nil && len(*user.GivenName) > MaxScimFieldLength {
+		return fmt.Errorf("given_name exceeds maximum length of %d characters", MaxScimFieldLength)
+	}
+	if user.FamilyName != nil && len(*user.FamilyName) > MaxScimFieldLength {
+		return fmt.Errorf("family_name exceeds maximum length of %d characters", MaxScimFieldLength)
+	}
+	return nil
+}
+
 // CreateScimUser creates a new SCIM user in the database
 func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {
+	if err := validateScimUserFields(user); err != nil {
+		return 0, err
+	}
+
 	var userID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertUserQuery = `
@@ -100,6 +125,10 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 
 // ReplaceScimUser replaces an existing SCIM user in the database
 func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
+	if err := validateScimUserFields(user); err != nil {
+		return err
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Update the SCIM user
 		const updateUserQuery = `

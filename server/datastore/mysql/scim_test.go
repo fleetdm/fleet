@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -18,9 +19,11 @@ func TestScim(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"ScimUserCreate", testScimUserCreate},
+		{"ScimUserCreateValidation", testScimUserCreateValidation},
 		{"ScimUserByID", testScimUserByID},
 		{"ScimUserByUserName", testScimUserByUserName},
 		{"ReplaceScimUser", testReplaceScimUser},
+		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
 		{"DeleteScimUser", testDeleteScimUser},
 		{"ListScimUsers", testListScimUsers},
 	}
@@ -490,4 +493,150 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Empty(t, noUsers)
 	assert.Equal(t, uint(0), totalNoUsers2)
+}
+
+func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
+	// Test validation for ExternalID
+	longString := strings.Repeat("a", MaxScimFieldLength+1) // String longer than MaxScimFieldLength
+
+	// Test ExternalID validation
+	userWithLongExternalID := fleet.ScimUser{
+		UserName:   "valid-username",
+		ExternalID: ptr.String(longString),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	_, err := ds.CreateScimUser(context.Background(), &userWithLongExternalID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "external_id exceeds maximum length")
+
+	// Test UserName validation
+	userWithLongUserName := fleet.ScimUser{
+		UserName:   longString,
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	_, err = ds.CreateScimUser(context.Background(), &userWithLongUserName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user_name exceeds maximum length")
+
+	// Test GivenName validation
+	userWithLongGivenName := fleet.ScimUser{
+		UserName:   "valid-username",
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String(longString),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	_, err = ds.CreateScimUser(context.Background(), &userWithLongGivenName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "given_name exceeds maximum length")
+
+	// Test FamilyName validation
+	userWithLongFamilyName := fleet.ScimUser{
+		UserName:   "valid-username",
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String(longString),
+		Active:     ptr.Bool(true),
+	}
+	_, err = ds.CreateScimUser(context.Background(), &userWithLongFamilyName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "family_name exceeds maximum length")
+
+	// Test with valid values
+	validUser := fleet.ScimUser{
+		UserName:   "valid-username",
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	_, err = ds.CreateScimUser(context.Background(), &validUser)
+	assert.NoError(t, err)
+}
+
+func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
+	// Create a valid user first
+	user := fleet.ScimUser{
+		UserName:   "replace-validation-user",
+		ExternalID: ptr.String("ext-replace-validation"),
+		GivenName:  ptr.String("Original"),
+		FamilyName: ptr.String("User"),
+		Active:     ptr.Bool(true),
+	}
+
+	var err error
+	user.ID, err = ds.CreateScimUser(context.Background(), &user)
+	require.NoError(t, err)
+
+	// Test validation for ExternalID
+	longString := strings.Repeat("a", MaxScimFieldLength+1) // String longer than MaxScimFieldLength
+
+	// Test ExternalID validation
+	userWithLongExternalID := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "valid-username",
+		ExternalID: ptr.String(longString),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	err = ds.ReplaceScimUser(context.Background(), &userWithLongExternalID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "external_id exceeds maximum length")
+
+	// Test UserName validation
+	userWithLongUserName := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   longString,
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	err = ds.ReplaceScimUser(context.Background(), &userWithLongUserName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "user_name exceeds maximum length")
+
+	// Test GivenName validation
+	userWithLongGivenName := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "valid-username",
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String(longString),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	err = ds.ReplaceScimUser(context.Background(), &userWithLongGivenName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "given_name exceeds maximum length")
+
+	// Test FamilyName validation
+	userWithLongFamilyName := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "valid-username",
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String(longString),
+		Active:     ptr.Bool(true),
+	}
+	err = ds.ReplaceScimUser(context.Background(), &userWithLongFamilyName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "family_name exceeds maximum length")
+
+	// Test with valid values
+	validUser := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "updated-username",
+		ExternalID: ptr.String("updated-external-id"),
+		GivenName:  ptr.String("Updated"),
+		FamilyName: ptr.String("Name"),
+		Active:     ptr.Bool(true),
+	}
+	err = ds.ReplaceScimUser(context.Background(), &validUser)
+	assert.NoError(t, err)
 }

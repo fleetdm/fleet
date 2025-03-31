@@ -39,3 +39,10 @@ type ScimUsersListOptions struct {
 	EmailTypeFilter  *string
 	EmailValueFilter *string
 }
+
+type ScimGroup struct {
+	ID          uint    `db:"id"`
+	ExternalID  *string `db:"external_id"`
+	DisplayName string  `db:"display_name"`
+	ScimUsers   []uint
+}
