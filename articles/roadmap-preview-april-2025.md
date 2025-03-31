@@ -11,7 +11,6 @@ The Fleet roadmap is set spring 2025. Watch the video above for a walkthrough, o
 In the next 3 months, Fleet will ship...
 
 For Security Engineers:
-
 - 📊 Vulnerability (CVE) graphs/visualizations
 - ⏰ Schedule and run scripts offline
 - 🔍 Filter hosts with custom host vitals (ala Sal)
@@ -19,7 +18,6 @@ For Security Engineers:
 - 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
 
 For IT Admins:
-
 - 🛡️ Integration with Microsoft compliance tools
 - 👨‍💻 50 more Fleet-maintained apps for macOS & Windows (each) and first 20 for Linux
 - 📅 Patch apps when end users are free
