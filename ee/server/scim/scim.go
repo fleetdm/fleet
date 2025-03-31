@@ -37,6 +37,7 @@ func RegisterSCIM(
 
 	// The common attributes are id, externalId, and meta.
 	// In practice only meta.resourceType is required, while the other four (created, lastModified, location, and version) are not strictly required.
+	// RFC: https://tools.ietf.org/html/rfc7643#section-4.1
 	userSchema := schema.Schema{
 		ID:          "urn:ietf:params:scim:schemas:core:2.0:User",
 		Name:        optional.NewString("User"),
@@ -107,6 +108,44 @@ func RegisterSCIM(
 		},
 	}
 
+	// RFC: https://tools.ietf.org/html/rfc7643#section-4.2
+	groupSchema := schema.Schema{
+		ID:          "urn:ietf:params:scim:schemas:core:2.0:Group",
+		Name:        optional.NewString("Group"),
+		Description: optional.NewString("SCIM Group"),
+		Attributes: []schema.CoreAttribute{
+			schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+				Description: optional.NewString("A human-readable name for the Group. REQUIRED."),
+				Name:        "displayName",
+				Required:    true,
+			})),
+			schema.ComplexCoreAttribute(schema.ComplexParams{
+				Description: optional.NewString("A list of members of the Group."),
+				MultiValued: true,
+				Name:        "members",
+				SubAttributes: []schema.SimpleParams{
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("Identifier of the member of this Group."),
+						Mutability:  schema.AttributeMutabilityImmutable(),
+						Name:        "value",
+					}),
+					schema.SimpleReferenceParams(schema.ReferenceParams{
+						Description:    optional.NewString("The URI corresponding to a SCIM resource that is a member of this Group."),
+						Mutability:     schema.AttributeMutabilityImmutable(),
+						Name:           "$ref",
+						ReferenceTypes: []schema.AttributeReferenceType{"User"},
+					}),
+					schema.SimpleStringParams(schema.StringParams{
+						CanonicalValues: []string{"User"},
+						Description:     optional.NewString("A label indicating the type of resource, e.g., 'User' or 'Group'."),
+						Mutability:      schema.AttributeMutabilityImmutable(),
+						Name:            "type",
+					}),
+				},
+			}),
+		},
+	}
+
 	scimLogger := kitlog.With(logger, "component", "SCIM")
 	resourceTypes := []scim.ResourceType{
 		{
@@ -116,6 +155,14 @@ func RegisterSCIM(
 			Description: optional.NewString("User Account"),
 			Schema:      userSchema,
 			Handler:     NewUserHandler(ds, scimLogger),
+		},
+		{
+			ID:          optional.NewString("Group"),
+			Name:        "Group",
+			Endpoint:    "/Groups",
+			Description: optional.NewString("Group"),
+			Schema:      groupSchema,
+			Handler:     NewGroupHandler(ds, scimLogger),
 		},
 	}
 
