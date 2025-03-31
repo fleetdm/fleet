@@ -9,15 +9,11 @@ on:
       - '.github/workflows/generate-desktop-targets.yml'
     tags:
       - "orbit-*" # For testing, use a pre-release tag like 'orbit-1.24.0-1'    
-  workflow_dispatch:
 
 defaults:
   run:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
-
-env:
-  FLEET_DESKTOP_VERSION_FALLBACK: 1.40.1
 
 permissions:
   contents: write
@@ -34,12 +30,8 @@ jobs:
       - name: Set FLEET_DESKTOP_VERSION
         id: set-version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/orbit-* ]]; then
-            VERSION="${${GITHUB_REF#refs/tags/orbit-}#v}"   # Strip 'orbit-v'
-          else
-            VERSION="${FLEET_DESKTOP_VERSION_FALLBACK}"
-          fi
-          echo "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          VERSION="${${GITHUB_REF#refs/tags/orbit-}#v}"   # Strip 'orbit-v'
+          "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
   
   desktop-macos:
     # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
