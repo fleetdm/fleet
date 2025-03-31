@@ -2932,37 +2932,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		} else {
 			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
 		}
-		sqlAvailable := `
-		SELECT
-			st.id AS id,
-			st.name AS name,
-			si.id AS installer_id,
-			si.platform AS installer_platform,
-			si.global_or_team_id AS installer_global_or_team_id
-		FROM
-			software_titles st
-		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
-		`
-		var selectAvailable []struct {
-			ID                      uint    `db:"id"`
-			Name                    string  `db:"name"`
-			InstallerID             *uint   `db:"installer_id"`
-			InstallerPlatform       *string `db:"installer_platform"`
-			InstallerGlobalOrTeamID *uint   `db:"installer_global_or_team_id"`
-		}
-		sqlAvailable, args, err := sqlx.Named(sqlAvailable, namedArgs)
-		if err != nil {
-			return nil, nil, err
-		}
-		sqlAvailable, args, err = sqlx.In(sqlAvailable, args...)
-		if err != nil {
-			return nil, nil, err
-		}
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &selectAvailable, sqlAvailable, args...)
-		if err != nil {
-			return nil, nil, err
-		}
 
 		stmtAvailable = `
 			SELECT
@@ -3595,12 +3564,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if len(softwareIDs) > 0 {
 			cveStmt := `
 				SELECT
-					sc.software_id,
-					sc.cve
+					software_id,
+					cve
 				FROM
-					software_cve sc
+					software_cve
 				WHERE
-					sc.software_id IN (?)
+					software_id IN (?)
 				ORDER BY
 					software_id, cve
 			`
