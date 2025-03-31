@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,6 +18,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -610,6 +611,11 @@ type FleetConfig struct {
 	Packaging        PackagingConfig
 	MDM              MDMConfig
 	Calendar         CalendarConfig
+	Partnerships     PartnershipsConfig
+}
+
+type PartnershipsConfig struct {
+	EnableSecureframe bool `yaml:"enable_secureframe"`
 }
 
 type MDMConfig struct {
@@ -1393,6 +1399,9 @@ func (man Manager) addConfigs() {
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
+
+	// Partnerships
+	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1666,6 +1675,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		Partnerships: PartnershipsConfig{
+			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
 		},
 	}
 
