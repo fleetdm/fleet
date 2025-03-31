@@ -369,7 +369,9 @@ describe("PolicyForm - component", () => {
         const funButton = screen.getByLabelText("Fun");
         expect(funButton).not.toBeChecked();
         await userEvent.click(funButton);
-        expect(saveButton).toBeEnabled();
+        await waitFor(() => {
+          expect(saveButton).toBeEnabled();
+        });
       });
 
       it("should send labels when saving a new query in Custom target mode (include any)", async () => {
