@@ -744,7 +744,7 @@ Generated when a user or Fleet resends the macOS configuration profiles to a hos
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "host_id": ID of the host te profile is resent to.
+- "host_id": ID of the host the profile is resent to.
 - "host_display_name": Display name of the host the profile is resent to.
 
 #### Example
