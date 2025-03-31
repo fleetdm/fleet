@@ -111,6 +111,10 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 
 const baseClass = "host-details";
 
+const defaultCardClass = `${baseClass}__card`;
+const fullWidthCardClass = `${baseClass}__card--full-width`;
+const doubleHeightCardClass = `${baseClass}__card--double-height`;
+
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
   location: {
@@ -864,18 +868,24 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  host.platform = "windows";
+  // host.platform = "windows";
 
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
-  const showUsersCard = true;
+
+  const showUsersCard = true; // TODO: really show and hide
+  const showActivityCard = !isAndroidHost;
+  const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showCertificatesCard =
+    (isIosOrIpadosHost || isDarwinHost) &&
+    !!hostCertificates?.certificates.length;
 
   const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
     [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
     [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
     [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
-    [`${baseClass}__details-panel--show-users`]: showUsersCard,
   });
 
   return (
@@ -932,14 +942,22 @@ const HostDetailsPage = ({
             </TabList>
             <TabPanel className={detailsPanelClass}>
               <AboutCard
+                className={
+                  showUsersCard ? defaultCardClass : fullWidthCardClass
+                }
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              {showUsersCard && <UserCard />}
-              {!isAndroidHost && (
+              {showUsersCard && <UserCard className={defaultCardClass} />}
+              {showActivityCard && (
                 <ActivityCard
+                  className={
+                    showAgentOptionsCard
+                      ? doubleHeightCardClass
+                      : defaultCardClass
+                  }
                   activeTab={activeActivityTab}
                   activities={
                     activeActivityTab === "past"
@@ -964,19 +982,26 @@ const HostDetailsPage = ({
                   onCancel={onCancelActivity}
                 />
               )}
-              {!isIosOrIpadosHost && !isAndroidHost && (
+              {showAgentOptionsCard && (
                 <AgentOptionsCard
+                  className={defaultCardClass}
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
                   isChromeOS={host?.platform === "chrome"}
                 />
               )}
               <LabelsCard
+                className={
+                  !showActivityCard && !showAgentOptionsCard
+                    ? fullWidthCardClass
+                    : defaultCardClass
+                }
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              {!isIosOrIpadosHost && !isAndroidHost && (
+              {showLocalUserAccountsCard && (
                 <LocalUserAccountsCard
+                  className={fullWidthCardClass}
                   users={host?.users || []}
                   usersState={usersState}
                   isLoading={isLoadingHost}
@@ -984,24 +1009,22 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
-              {(isIosOrIpadosHost || isDarwinHost) &&
-                !!hostCertificates?.certificates.length && (
-                  <CertificatesCard
-                    data={hostCertificates}
-                    hostPlatform={host.platform}
-                    onSelectCertificate={onSelectCertificate}
-                    isError={isErrorHostCertificates}
-                    page={certificatePage}
-                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
-                    onNextPage={() => setCertificatePage(certificatePage + 1)}
-                    onPreviousPage={() =>
-                      setCertificatePage(certificatePage - 1)
-                    }
-                    sortDirection={sortCerts.order_direction}
-                    sortHeader={sortCerts.order_key}
-                    onSortChange={setSortCerts}
-                  />
-                )}
+              {showCertificatesCard && (
+                <CertificatesCard
+                  className={fullWidthCardClass}
+                  data={hostCertificates}
+                  hostPlatform={host.platform}
+                  onSelectCertificate={onSelectCertificate}
+                  isError={isErrorHostCertificates}
+                  page={certificatePage}
+                  pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                  onNextPage={() => setCertificatePage(certificatePage + 1)}
+                  onPreviousPage={() => setCertificatePage(certificatePage - 1)}
+                  sortDirection={sortCerts.order_direction}
+                  sortHeader={sortCerts.order_key}
+                  onSortChange={setSortCerts}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard

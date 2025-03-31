@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -40,6 +41,7 @@ interface IAboutProps {
   deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
+  className?: string;
 }
 
 const baseClass = "about-card";
@@ -49,6 +51,7 @@ const About = ({
   deviceMapping,
   munki,
   mdm,
+  className,
 }: IAboutProps): JSX.Element => {
   const isIosOrIpadosHost = isIPadOrIPhone(aboutData.platform);
   const isAndroidHost = isAndroid(aboutData.platform);
@@ -224,9 +227,11 @@ const About = ({
 
   // TODO(android): confirm visible fields using actual android device data
 
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
-      className={baseClass}
+      className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       includeShadow

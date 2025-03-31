@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
@@ -23,6 +24,7 @@ interface ICertificatesProps {
   sortDirection: string;
   isError: boolean;
   isMyDevicePage?: boolean;
+  className?: string;
   onSelectCertificate: (certificate: IHostCertificate) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -38,6 +40,7 @@ const CertificatesCard = ({
   sortHeader,
   sortDirection,
   isMyDevicePage = false,
+  className,
   onSelectCertificate,
   onNextPage,
   onPreviousPage,
@@ -62,9 +65,11 @@ const CertificatesCard = ({
     );
   };
 
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
-      className={baseClass}
+      className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       includeShadow

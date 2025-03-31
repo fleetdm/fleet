@@ -1,4 +1,5 @@
 import React, { useCallback } from "react";
+import classnames from "classnames";
 
 import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
@@ -11,12 +12,13 @@ import CardHeader from "components/CardHeader";
 
 import generateTableHeaders from "./LocalUserAccountsTable/LocalUserAccountsTableConfig";
 
-interface IUsersProps {
+interface ILocalUserAccountsProps {
   users: IHostUser[];
   usersState: { username: string }[];
   isLoading: boolean;
   onUsersTableSearchChange: (queryData: ITableQueryData) => void;
   hostUsersEnabled?: boolean;
+  className?: string;
 }
 
 const baseClass = "local-user-accounts-card";
@@ -27,7 +29,8 @@ const LocalUserAccounts = ({
   isLoading,
   onUsersTableSearchChange,
   hostUsersEnabled,
-}: IUsersProps): JSX.Element => {
+  className,
+}: ILocalUserAccountsProps): JSX.Element => {
   const tableHeaders = generateTableHeaders();
 
   const renderUsersCount = useCallback(() => {
@@ -60,9 +63,11 @@ const LocalUserAccounts = ({
     );
   }
 
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
-      className={baseClass}
+      className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       includeShadow

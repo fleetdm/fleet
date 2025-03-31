@@ -1,15 +1,21 @@
+import React from "react";
+import classnames from "classnames";
+
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
-import React from "react";
 
 const baseClass = "user-card";
 
-interface IUserProps {}
+interface IUserProps {
+  className?: string;
+}
 
-const User = ({}: IUserProps) => {
+const User = ({ className }: IUserProps) => {
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
-      className={baseClass}
+      className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       includeShadow
