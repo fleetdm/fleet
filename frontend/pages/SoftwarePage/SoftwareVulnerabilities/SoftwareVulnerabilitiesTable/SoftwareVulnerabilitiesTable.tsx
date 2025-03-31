@@ -55,7 +55,6 @@ interface ISoftwareVulnerabilitiesTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilitiesTable = ({
@@ -71,7 +70,6 @@ const SoftwareVulnerabilitiesTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
@@ -271,7 +269,7 @@ const SoftwareVulnerabilitiesTable = ({
         defaultSearchQuery={query}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}
@@ -290,7 +288,6 @@ const SoftwareVulnerabilitiesTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );
