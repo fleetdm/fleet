@@ -211,7 +211,10 @@ describe("SaveNewPolicyModal", () => {
       });
 
       // Set a name.
-      await userEvent.type(screen.getByLabelText("Name"), "A Brand New Policy!");
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
 
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
