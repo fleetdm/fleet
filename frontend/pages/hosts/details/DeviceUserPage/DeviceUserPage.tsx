@@ -277,7 +277,7 @@ const DeviceUserPage = ({
             } else {
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                "We're having trouble fetching fresh vitals for this host. Please try again later."
               );
               setShowRefetchSpinner(false);
             }
