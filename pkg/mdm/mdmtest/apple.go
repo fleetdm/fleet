@@ -951,7 +951,7 @@ func RandUDID() string {
 
 type scepClient interface {
 	scepserver.Service
-	Supports(cap string) bool
+	Supports(capacity string) bool
 }
 
 func newSCEPClient(
