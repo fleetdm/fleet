@@ -738,6 +738,25 @@ This activity contains the following fields:
 }
 ```
 
+## resent_macos_profile
+
+Generated when a user or Fleet resends the macOS configuration profiles to a host.
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "host_id": ID of the host te profile is resent to.
+- "host_display_name": Display name of the host the profile is resent to.
+
+#### Example
+
+```json
+{
+  "profile_name": "SCEP certificate",
+  "host_id": 473,
+  "host_display_name": "Marko's MacBook Pro"
+}
+```
+
 ## changed_macos_setup_assistant
 
 Generated when a user sets the macOS setup assistant for a team (or no team).
@@ -1064,6 +1083,25 @@ This activity contains the following fields:
 {
   "team_id": 123,
   "team_name": "Workstations"
+}
+```
+
+## resent_windows_profile
+
+Generated when a user or Fleet resends the Windows configuration profiles to a host.
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "host_id": ID of the host te profile is resent to.
+- "host_display_name": Display name of the host the profile is resent to.
+
+#### Example
+
+```json
+{
+  "profile_name": "SCEP certificate",
+  "host_id": 395,
+  "host_display_name": "DESKTOP-50C646D9"
 }
 ```
 
