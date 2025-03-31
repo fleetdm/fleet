@@ -244,3 +244,32 @@ func (svc *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt
 
 	return svc.ds.ListHostPastActivities(ctx, hostID, opt)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Cancel host upcoming activity
+////////////////////////////////////////////////////////////////////////////////
+
+type cancelHostUpcomingActivityRequest struct {
+	HostID     uint   `url:"id"`
+	ActivityID string `url:"activity_id"`
+}
+
+type cancelHostUpcomingActivityResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r cancelHostUpcomingActivityResponse) Error() error { return r.Err }
+func (r cancelHostUpcomingActivityResponse) Status() int  { return http.StatusNoContent }
+
+func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*cancelHostUpcomingActivityRequest)
+	err := svc.CancelHostUpcomingActivity(ctx, req.HostID, req.ActivityID)
+	if err != nil {
+		return cancelHostUpcomingActivityResponse{Err: err}, nil
+	}
+	return cancelHostUpcomingActivityResponse{}, nil
+}
+
+func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+	panic("unimplemented")
+}
