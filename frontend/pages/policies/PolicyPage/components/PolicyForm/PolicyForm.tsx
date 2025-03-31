@@ -748,7 +748,8 @@ const PolicyForm = ({
               labels={labels || []}
               customHelpText={
                 <span className="form-field__help-text">
-                  Policy will target hosts on selected platforms that <b>have any</b> of these labels:
+                  Policy will target hosts on selected platforms that{" "}
+                  <b>have any</b> of these labels:
                 </span>
               }
               suppressTitle
