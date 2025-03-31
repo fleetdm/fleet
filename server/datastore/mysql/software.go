@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2259,23 +2260,33 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-	ExitCode            *int       `db:"exit_code"`
-	LastOpenedAt        *time.Time `db:"last_opened_at"`
-	BundleIdentifier    *string    `db:"bundle_identifier"`
-	Version             *string    `db:"version"`
-	SoftwareID          *uint      `db:"software_id"`
-	SoftwareSource      *string    `db:"software_source"`
-	VulnerabilitiesList *string    `db:"vulnerabilities_list"`
-	InstallerID         *uint      `db:"installer_id"`
-	PackageSelfService  *bool      `db:"package_self_service"`
-	PackageName         *string    `db:"package_name"`
-	PackagePlatform     *string    `db:"package_platform"`
-	PackageVersion      *string    `db:"package_version"`
-	VPPAppSelfService   *bool      `db:"vpp_app_self_service"`
-	VPPAppAdamID        *string    `db:"vpp_app_adam_id"`
-	VPPAppVersion       *string    `db:"vpp_app_version"`
-	VPPAppPlatform      *string    `db:"vpp_app_platform"`
-	VPPAppIconURL       *string    `db:"vpp_app_icon_url"`
+	ExitCode           *int       `db:"exit_code"`
+	LastOpenedAt       *time.Time `db:"last_opened_at"`
+	BundleIdentifier   *string    `db:"bundle_identifier"`
+	Version            *string    `db:"version"`
+	SoftwareID         *uint      `db:"software_id"`
+	SoftwareSource     *string    `db:"software_source"`
+	InstallerID        *uint      `db:"installer_id"`
+	PackageSelfService *bool      `db:"package_self_service"`
+	PackageName        *string    `db:"package_name"`
+	PackagePlatform    *string    `db:"package_platform"`
+	PackageVersion     *string    `db:"package_version"`
+	VPPAppSelfService  *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID       *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion      *string    `db:"vpp_app_version"`
+	VPPAppPlatform     *string    `db:"vpp_app_platform"`
+	VPPAppIconURL      *string    `db:"vpp_app_icon_url"`
+
+	VulnerabilitiesList   *string `db:"vulnerabilities_list"`
+	SoftwareIDList        *string `db:"software_id_list"`
+	SoftwareSourceList    *string `db:"software_source_list"`
+	VersionList           *string `db:"version_list"`
+	BundleIdentifierList  *string `db:"bundle_identifier_list"`
+	VPPAppSelfServiceList *string `db:"vpp_app_self_service_list"`
+	VPPAppAdamIDList      *string `db:"vpp_app_adam_id_list"`
+	VPPAppVersionList     *string `db:"vpp_app_version_list"`
+	VPPAppPlatformList    *string `db:"vpp_app_platform_list"`
+	VPPAppIconUrlList     *string `db:"vpp_app_icon_url_list"`
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
@@ -2370,7 +2381,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
         )
         SELECT
 			software_installers.id AS installer_id,
-			software_installers.title_id AS id,
+			software_titles.id AS id,
 			lsia.*
 		FROM
 			(SELECT * FROM upcoming_software_install UNION SELECT * FROM last_software_install) AS lsia
@@ -2453,7 +2464,7 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
         )
         SELECT
 			software_installers.id AS installer_id,
-			software_installers.title_id AS id,
+			software_titles.id AS id,
 			host_script_results.exit_code AS exit_code,
 			lsua.*
 		FROM
@@ -3239,7 +3250,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		matchClause := ""
 		matchArgs := []interface{}{}
 		if opts.ListOptions.MatchQuery != "" {
-			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name", "software_cve.cve")
+			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name")
 		}
 
 		var softwareOnlySelfServiceClause string
@@ -3255,17 +3266,19 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 		var cveMetaFilter string
 		var hasCVEFilters bool
+		var cveMatchClause string
 		var cveNamedArgs []interface{}
+		var cveMatchArgs []interface{}
 		if opts.KnownExploit {
-			cveMetaFilter += " AND cve_meta.cisa_known_exploit = :known_exploit"
+			cveMetaFilter += "\nAND cve_meta.cisa_known_exploit = :known_exploit"
 			hasCVEFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
-			cveMetaFilter += " AND cve_meta.cvss_score >= :min_cvss"
+			cveMetaFilter += "\nAND cve_meta.cvss_score >= :min_cvss"
 			hasCVEFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
-			cveMetaFilter += " AND cve_meta.cvss_score <= :max_cvss"
+			cveMetaFilter += "\nAND cve_meta.cvss_score <= :max_cvss"
 			hasCVEFilters = true
 		}
 		if hasCVEFilters {
@@ -3274,20 +3287,45 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for cve filters")
 			}
 		}
+		if opts.ListOptions.MatchQuery != "" {
+			cveMatchClause, cveMatchArgs = searchLike(cveMatchClause, cveMatchArgs, opts.ListOptions.MatchQuery, "software_cve.cve")
+		}
 
+		var softwareVulnerableJoin string
 		if len(softwareTitleIds) > 0 {
-			var vulnerableJoin string
+			if opts.VulnerableOnly || opts.ListOptions.MatchQuery != "" {
+				softwareVulnerableJoin += " AND ( "
+				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
+					softwareVulnerableJoin += `
+						NOT EXISTS (
+							SELECT 1
+							FROM 
+								software_cve
+							WHERE
+								software_cve.software_id = software.id
+						) OR
+					`
+				}
 
-			if opts.VulnerableOnly {
-				vulnerableJoin = `INNER JOIN software_cve ON software_cve.software_id = software.id `
-				cveMetaJoin := `INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve `
+				softwareVulnerableJoin += `
+				EXISTS (
+					SELECT 1
+					FROM
+						software_cve
+				`
+				cveMetaJoin := "\n INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
 
 				// Only join CVE table if there are filters
 				if hasCVEFilters {
-					vulnerableJoin += cveMetaJoin
+					softwareVulnerableJoin += cveMetaJoin
 				}
-			} else {
-				vulnerableJoin = `LEFT JOIN software_cve ON software_cve.software_id = software.id`
+				softwareVulnerableJoin += `
+					WHERE
+						software_cve.software_id = software.id
+				`
+				softwareVulnerableJoin += cveMetaFilter
+				softwareVulnerableJoin += "\n" + cveMatchClause
+				softwareVulnerableJoin += "\n))"
 			}
 
 			installedSoftwareJoinsCondition := ""
@@ -3305,11 +3343,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				AND software_installers.global_or_team_id = :global_or_team_id
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
-			` + vulnerableJoin + `
 			WHERE
 				software_titles.id IN (?)
-				AND true
 			%s
+				AND true
 			` + softwareOnlySelfServiceClause + `
 			-- GROUP by for software
 			%s
@@ -3331,37 +3368,58 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			softwareTitleStatment = strings.ReplaceAll(softwareTitleStatment, "AND true", matchClause)
 			args = append(args, softwareTitleArgsNamedArgs...)
 			args = append(args, softwareTitleArgs...)
-			if len(matchArgs) > 0 {
-				args = append(args, matchArgs...)
-			}
 			if len(cveNamedArgs) > 0 {
 				args = append(args, cveNamedArgs...)
 			}
+			if len(cveMatchArgs) > 0 {
+				args = append(args, cveMatchArgs...)
+			}
+			if len(matchArgs) > 0 {
+				args = append(args, matchArgs...)
+			}
 			stmt += softwareTitleStatment
 		}
-		if len(vppAdamIDs) > 0 {
-			var vulnerableJoin string
 
-			if opts.VulnerableOnly {
-				vulnerableJoin = `
-					INNER JOIN
-						software ON software.title_id = software_titles.id
-					INNER JOIN
+		var vppVulnerableJoin string
+		if len(vppAdamIDs) > 0 {
+			if opts.VulnerableOnly || opts.ListOptions.MatchQuery != "" {
+				vppVulnerableJoin += " AND ( "
+				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
+					vppVulnerableJoin += `
+						NOT EXISTS (
+							SELECT 1
+							FROM
+								software
+							INNER JOIN 
+								software_cve ON software_cve.software_id = software.id
+							WHERE
+								software.title_id = software_titles.id
+						) OR
+					`
+				}
+
+				vppVulnerableJoin += `
+				EXISTS (
+					SELECT 1
+					FROM
+						software
+					INNER JOIN 
 						software_cve ON software_cve.software_id = software.id
 				`
-				cveMetaJoin := `INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve `
+				cveMetaJoin := "\nINNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
 
 				// Only join CVE table if there are filters
 				if hasCVEFilters {
-					vulnerableJoin += cveMetaJoin
+					vppVulnerableJoin += cveMetaJoin
 				}
-			} else {
-				vulnerableJoin = `
-					LEFT JOIN
-						software ON software.title_id = software_titles.id
-					LEFT JOIN
-						software_cve ON software_cve.software_id = software.id
+
+				vppVulnerableJoin += `
+					WHERE
+						software.title_id = software_titles.id
 				`
+				vppVulnerableJoin += cveMetaFilter
+				vppVulnerableJoin += "\n" + cveMatchClause
+				vppVulnerableJoin += "\n))"
 			}
 
 			if len(softwareTitleIds) > 0 {
@@ -3380,11 +3438,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vpp_apps ON software_titles.id = vpp_apps.title_id AND vpp_apps.platform = :host_platform
 			INNER JOIN
 				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
-			` + vulnerableJoin + `
 			WHERE
-				vpp_apps_teams.adam_id IN (?) 
-				AND true
+				vpp_apps.adam_id IN (?) 
 			%s
+				AND true
 			` + vppOnlySelfServiceClause + `
 			-- GROUP BY for vpp apps
 			%s
@@ -3401,20 +3458,28 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vppAdamStatment = strings.ReplaceAll(vppAdamStatment, "AND true", matchClause)
 			args = append(args, vppAdamArgsNamedArgs...)
 			args = append(args, vppAdamArgs...)
-			if len(matchArgs) > 0 {
-				args = append(args, matchArgs...)
-			}
 			if len(cveNamedArgs) > 0 {
 				args = append(args, cveNamedArgs...)
+			}
+			if len(cveMatchArgs) > 0 {
+				args = append(args, cveMatchArgs...)
+			}
+			if len(matchArgs) > 0 {
+				args = append(args, matchArgs...)
 			}
 			stmt += vppAdamStatment
 		}
 
 		var countStmt string
 		if len(softwareTitleIds) > 0 && len(vppAdamIDs) > 0 {
-			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, cveMetaFilter, `GROUP BY software_titles.id`, `SELECT software_titles.id`, cveMetaFilter, `GROUP BY software_titles.id`)
+			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`, `SELECT software_titles.id`, vppVulnerableJoin, `GROUP BY software_titles.id`)
 		} else {
-			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, cveMetaFilter, `GROUP BY software_titles.id`)
+			if len(softwareTitleIds) > 0 {
+				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`)
+			}
+			if len(vppAdamIDs) > 0 {
+				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, vppVulnerableJoin, `GROUP BY software_titles.id`)
+			}
 		}
 		countStmt = ds.reader(ctx).Rebind(countStmt)
 		if err := sqlx.GetContext(
@@ -3436,37 +3501,30 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source AS source,
+					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
 					software_installers.version AS package_version,
 					software_installers.platform as package_platform,
-					software.id AS software_id,
-					software.source AS software_source,
-					software.version AS version,
-					software.bundle_identifier AS bundle_identifier,
-					NULL AS vpp_app_self_service,
-					NULL AS vpp_app_adam_id,
-					NULL AS vpp_app_version,
-					NULL AS vpp_app_platform,
-					NULL AS vpp_app_icon_url,
-					NULL AS last_install_installed_at,
-					NULL AS last_install_install_uuid,
-					NULL AS last_uninstall_uninstalled_at,
-					NULL AS last_uninstall_script_execution_id,
-					GROUP_CONCAT(software_cve.cve) AS vulnerabilities_list
-			`, cveMetaFilter, `
+					GROUP_CONCAT(software.id) AS software_id_list,
+					GROUP_CONCAT(software.source) AS software_source_list,
+					GROUP_CONCAT(software.version) AS version_list,
+					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,
+					NULL AS vpp_app_adam_id_list,
+					NULL AS vpp_app_version_list,
+					NULL AS vpp_app_platform_list,
+					NULL AS vpp_app_icon_url_list,
+					NULL AS vpp_app_self_service_list
+			`, softwareVulnerableJoin, `
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
 					software_titles.source,
+					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
 					software_installers.version,
-					software_installers.platform,
-					software.id,
-					software.source,
-					software.version,
-					software.bundle_identifier
+					software_installers.platform
 			`)
 		}
 		if len(vppAdamIDs) > 0 {
@@ -3477,59 +3535,35 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source AS source,
+					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
 					software_installers.version AS package_version,
 					software_installers.platform as package_platform,
-					NULL AS software_id,
-					NULL AS software_source,
-					NULL AS version,
-					NULL AS bundle_identifier,
-					vpp_apps_teams.self_service AS vpp_app_self_service,
-					vpp_apps_teams.adam_id AS vpp_app_adam_id,
-					vpp_apps.latest_version AS vpp_app_version,
-					vpp_apps.platform as vpp_app_platform,
-					NULLIF(vpp_apps.icon_url, '') AS vpp_app_icon_url,
-					NULL AS last_install_installed_at,
-					NULL As last_install_install_uuid,
-					NULL AS last_uninstall_uninstalled_at,
-					NULL AS last_uninstall_script_execution_id,
-					GROUP_CONCAT(software_cve.cve) AS vulnerabilities_list
-			`, cveMetaFilter, `
+					NULL AS software_id_list,
+					NULL AS software_source_list,
+					NULL AS version_list,
+					NULL AS bundle_identifier_list,
+					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
+					GROUP_CONCAT(vpp_apps.latest_version) AS vpp_app_version_list,
+					GROUP_CONCAT(vpp_apps.platform) as vpp_app_platform_list,
+					GROUP_CONCAT(vpp_apps.icon_url) AS vpp_app_icon_url_list,
+					GROUP_CONCAT(vpp_apps_teams.self_service) AS vpp_app_self_service_list
+			`, vppVulnerableJoin, `
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
 					software_titles.source,
+					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
 					software_installers.version,
-					software_installers.platform,
-					vpp_apps_teams.self_service,
-					vpp_apps_teams.adam_id,
-					vpp_apps.latest_version,
-					vpp_apps.platform,
-					vpp_apps.icon_url
+					software_installers.platform
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		// stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
-		orderKey := sanitizeColumn(opts.ListOptions.OrderKey)
-		if orderKey != "" {
-			direction := "ASC"
-			if opts.ListOptions.OrderDirection == fleet.OrderDescending {
-				direction = "DESC"
-			}
-
-			stmt = fmt.Sprintf("%s ORDER BY %s %s", stmt, orderKey, direction)
-			if opts.ListOptions.TestSecondaryOrderKey != "" {
-				direction := "ASC"
-				if opts.ListOptions.TestSecondaryOrderDirection == fleet.OrderDescending {
-					direction = "DESC"
-				}
-				stmt += fmt.Sprintf(`, %s %s`, sanitizeColumn(opts.ListOptions.TestSecondaryOrderKey), direction)
-			}
-		}
+		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
 		stmt = ds.reader(ctx).Rebind(stmt)
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -3551,128 +3585,159 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			})
 		}
 
-		// Group by software titles because multiple versions are returned and appends them to InstalledVersions
+		// extract into vulnerabilitiesBySoftwareID
+		type softwareCVE struct {
+			SoftwareID uint   `db:"software_id"`
+			CVE        string `db:"cve"`
+		}
+		var softwareCVEs []softwareCVE
+
+		if len(softwareIDs) > 0 {
+			cveStmt := `
+				SELECT
+					sc.software_id,
+					sc.cve
+				FROM
+					software_cve sc
+				WHERE
+					sc.software_id IN (?)
+				ORDER BY
+					software_id, cve
+			`
+			cveStmt, args, err = sqlx.In(cveStmt, softwareIDs)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "building query args to list cves")
+			}
+			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareCVEs, cveStmt, args...); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "list software cves")
+			}
+		}
+
+		// group by softwareID
+		vulnerabilitiesBySoftwareID := make(map[uint][]string)
+		for _, cve := range softwareCVEs {
+			vulnerabilitiesBySoftwareID[cve.SoftwareID] = append(vulnerabilitiesBySoftwareID[cve.SoftwareID], cve.CVE)
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
-			softwareTitle, softwareTitleFound := bySoftwareTitleID[softwareTitleRecord.ID]
+			softwareTitle := bySoftwareTitleID[softwareTitleRecord.ID]
 
-			var VPPTitle *hostSoftware
-			var VPPFound bool
-			if softwareTitleRecord.VPPAppAdamID != nil {
-				VPPTitle, VPPFound = byVPPAdamID[*softwareTitleRecord.VPPAppAdamID]
-			}
+			if softwareTitleRecord.SoftwareIDList != nil {
+				softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
+				softwareSourceList := strings.Split(*softwareTitleRecord.SoftwareSourceList, ",")
+				softwareVersionList := strings.Split(*softwareTitleRecord.VersionList, ",")
+				softwareBundleIdentifierList := strings.Split(*softwareTitleRecord.BundleIdentifierList, ",")
 
-			if !softwareTitleFound {
-				if !VPPFound {
-					// This should never happen
-					return nil, nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("Software title or vpp app not found for `%s`", softwareTitleRecord.Name))
-				}
-				softwareTitle = VPPTitle
-			}
+				for index, softwareIdStr := range softwareIDList {
+					version := &fleet.HostSoftwareInstalledVersion{}
 
-			version := &fleet.HostSoftwareInstalledVersion{}
-			if softwareTitleRecord.SoftwareID != nil {
-				// Find software from bySoftwareID, indicating the version is installed on host
-				if software, ok := bySoftwareID[*softwareTitleRecord.SoftwareID]; ok {
-					// Find installed path
-					paths := installedPathBySoftwareId[*softwareTitleRecord.SoftwareID]
-					signatureInformation := pathSignatureInformation[*softwareTitleRecord.SoftwareID]
-					version.Version = *softwareTitleRecord.Version
-					version.Source = *softwareTitleRecord.SoftwareSource
-					version.BundleIdentifier = *softwareTitleRecord.BundleIdentifier
-					version.LastOpenedAt = software.LastOpenedAt
-					version.InstalledPaths = paths
-					version.SoftwareID = *softwareTitleRecord.SoftwareID
-					version.SoftwareTitleID = softwareTitleRecord.ID
+					if softwareId, err := strconv.ParseUint(softwareIdStr, 10, 32); err == nil {
 
-					if version.Source == "apps" {
-						version.SignatureInformation = signatureInformation
-					}
+						softwareId := uint(softwareId)
+						if software, ok := bySoftwareID[softwareId]; ok {
+							version.Version = softwareVersionList[index]
+							version.BundleIdentifier = softwareBundleIdentifierList[index]
+							version.Source = softwareSourceList[index]
+							version.LastOpenedAt = software.LastOpenedAt
+							version.SoftwareID = softwareId
+							version.SoftwareTitleID = softwareTitleRecord.ID
 
-					if softwareTitleRecord.VulnerabilitiesList != nil {
-						rawVulnerabilities := strings.Split(*softwareTitleRecord.VulnerabilitiesList, ",")
-						for i := range rawVulnerabilities {
-							rawVulnerabilities[i] = strings.TrimSpace(rawVulnerabilities[i])
+							version.InstalledPaths = installedPathBySoftwareId[softwareId]
+							version.Vulnerabilities = vulnerabilitiesBySoftwareID[softwareId]
+
+							if version.Source == "apps" {
+								version.SignatureInformation = pathSignatureInformation[softwareId]
+							}
+
+							if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+								deduplicatedList[storedIndex].InstalledVersions = append(deduplicatedList[storedIndex].InstalledVersions, version)
+							} else {
+								softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
+							}
 						}
-						version.Vulnerabilities = rawVulnerabilities
 					}
 				}
 			}
 
-			// If we have seen the software title already, then we just need to add an installed version to the InstalledVersions list
+			if softwareTitleRecord.VPPAppAdamIDList != nil {
+				vppAppAdamIDList := strings.Split(*softwareTitleRecord.VPPAppAdamIDList, ",")
+				vppAppSelfServiceList := strings.Split(*softwareTitleRecord.VPPAppSelfServiceList, ",")
+				vppAppVersionList := strings.Split(*softwareTitleRecord.VPPAppVersionList, ",")
+				vppAppPlatformList := strings.Split(*softwareTitleRecord.VPPAppPlatformList, ",")
+				vppAppIconURLList := strings.Split(*softwareTitleRecord.VPPAppIconUrlList, ",")
+
+				if len(vppAppAdamIDList) > 1 {
+					fmt.Print("What are we going to do here???")
+				}
+
+				if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
+					softwareTitleRecord = deduplicatedList[storedIndex]
+				}
+
+				for index, vppAppAdamIdStr := range vppAppAdamIDList {
+					if vppAppAdamIdStr != "" {
+						softwareTitle = byVPPAdamID[vppAppAdamIdStr]
+						softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
+					}
+
+					vppAppSelfService := vppAppSelfServiceList[index]
+					if vppAppSelfService != "" {
+						if vppAppSelfService == "1" {
+							softwareTitleRecord.VPPAppSelfService = ptr.Bool(true)
+						} else {
+							softwareTitleRecord.VPPAppSelfService = ptr.Bool(false)
+						}
+					}
+
+					vppAppVersion := vppAppVersionList[index]
+					if vppAppVersion != "" {
+						softwareTitleRecord.VPPAppVersion = &vppAppVersion
+					}
+
+					vppAppPlatform := vppAppPlatformList[index]
+					if vppAppPlatform != "" {
+						softwareTitleRecord.VPPAppPlatform = &vppAppPlatform
+					}
+					VPPAppIconURL := vppAppIconURLList[index]
+					if VPPAppIconURL != "" {
+						softwareTitleRecord.VPPAppIconURL = &VPPAppIconURL
+					}
+				}
+			}
+
 			if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
-				// Combine the software version, source, and bundle identifier of the current `s` with the existing record
-				deduplicatedList[storedIndex].InstalledVersions = append(
-					deduplicatedList[storedIndex].InstalledVersions,
-					version,
-				)
+				softwareTitleRecord = deduplicatedList[storedIndex]
+			}
 
-				// VPP app that has been installed on the host, found as a sofware title, but we need to copy over all the vpp associated data
-				if VPPTitle != nil {
-					if VPPTitle.VPPAppSelfService != nil {
-						deduplicatedList[storedIndex].VPPAppSelfService = VPPTitle.VPPAppSelfService
-					}
-					deduplicatedList[storedIndex].VPPAppAdamID = VPPTitle.VPPAppAdamID
-					deduplicatedList[storedIndex].VPPAppVersion = VPPTitle.VPPAppVersion
-					deduplicatedList[storedIndex].VPPAppPlatform = VPPTitle.VPPAppPlatform
-					deduplicatedList[storedIndex].VPPAppIconURL = VPPTitle.VPPAppIconURL
+			// Merge the data of `software title` into `softwareTitleRecord`
+			// We should try to move as much of these attributes into the `stmt` query
+			softwareTitleRecord.Status = softwareTitle.Status
+			softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
+			softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
+			softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
+			softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
+			if softwareTitle.PackageSelfService != nil {
+				softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
+			}
 
-					// promote the VPP app id and version to the proper destination fields
-					if deduplicatedList[storedIndex].VPPAppAdamID != nil {
-						promoteSoftwareTitleVPPApp(deduplicatedList[storedIndex])
-					}
-				}
-			} else {
-				// version.SoftwareTitleID is not set when the software is available for install only,
-				// and not installed on the host
-				if version.SoftwareTitleID != 0 {
-					softwareTitleRecord.InstalledVersions = append(softwareTitleRecord.InstalledVersions, version)
-				}
+			// promote the package name and version to the proper destination fields
+			if softwareTitleRecord.PackageName != nil {
+				promoteSoftwareTitlePackageName(softwareTitleRecord, softwareTitle)
+			}
 
-				// Merge the data of `software title` into `softwareTitleRecord`
-				// We should try to move as much of these attributes into the `stmt` query
-				softwareTitleRecord.Status = softwareTitle.Status
-				softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
-				softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
-				softwareTitleRecord.InstallerID = softwareTitle.InstallerID
-				softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
-				softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
-				if softwareTitle.PackageSelfService != nil {
-					softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
-				}
-				if softwareTitle.VPPAppSelfService != nil {
-					softwareTitleRecord.VPPAppSelfService = softwareTitle.VPPAppSelfService
-				}
-				if softwareTitle.VPPAppAdamID != nil {
-					softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
-				}
-				if softwareTitle.VPPAppVersion != nil {
-					softwareTitleRecord.VPPAppVersion = softwareTitle.VPPAppVersion
-				}
-				if softwareTitle.VPPAppPlatform != nil {
-					softwareTitleRecord.VPPAppPlatform = softwareTitle.VPPAppPlatform
-				}
-				if softwareTitle.VPPAppIconURL != nil {
-					softwareTitleRecord.VPPAppIconURL = softwareTitle.VPPAppIconURL
-				}
+			// promote the VPP app id and version to the proper destination fields
+			if softwareTitleRecord.VPPAppAdamID != nil {
+				promoteSoftwareTitleVPPApp(softwareTitleRecord)
+			}
 
-				// promote the package name and version to the proper destination fields
-				if softwareTitleRecord.PackageName != nil {
-					promoteSoftwareTitlePackageName(softwareTitleRecord, softwareTitle)
-				}
-
-				// promote the VPP app id and version to the proper destination fields
-				if softwareTitleRecord.VPPAppAdamID != nil {
-					promoteSoftwareTitleVPPApp(softwareTitleRecord)
-				}
-
-				// Add the current `softwareTitleRecord`s to the de-duplicated list
+			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {
 				indexOfSoftwareTitle[softwareTitleRecord.ID] = uint(len(deduplicatedList))
 				deduplicatedList = append(deduplicatedList, softwareTitleRecord)
 			}
 		}
-		// Replace the original list with the de-duplicated list
+
 		hostSoftwareList = deduplicatedList
 	}
 
@@ -3686,19 +3751,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
-		startIndex := (opts.ListOptions.Page) * perPage
-		endIndex := startIndex + perPage
-
-		if endIndex > uint(len(hostSoftwareList)) {
-			endIndex = uint(len(hostSoftwareList))
-		}
-
-		metaData.HasNextResults = endIndex < uint(len(hostSoftwareList))
-
-		if startIndex < uint(len(hostSoftwareList)) {
-			hostSoftwareList = hostSoftwareList[startIndex:endIndex]
-		} else {
-			hostSoftwareList = nil // No results for the current page
+		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
+			metaData.HasNextResults = true
+			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
 		}
 	}
 
