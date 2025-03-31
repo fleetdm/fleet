@@ -1,7 +1,9 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
+
+import { NotificationContext } from "context/notification";
 
 import deviceApi, {
   IDeviceSoftwareQueryKey,
@@ -17,6 +19,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
+import SearchField from "components/forms/fields/SearchField";
 
 import Pagination from "components/Pagination";
 
@@ -27,10 +30,9 @@ const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 9,
+  per_page: 12, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
   order_key: "name",
   order_direction: "asc",
-  query: "",
   self_service: true,
 } as const;
 
@@ -51,7 +53,22 @@ const SoftwareSelfService = ({
   queryParams,
   router,
 }: ISoftwareSelfServiceProps) => {
-  const { data, isLoading, isError, refetch } = useQuery<
+  const { renderFlash } = useContext(NotificationContext);
+
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // State for controlling the self-service polling mechanism
+  const [
+    selfServiceRefetchStartTime,
+    setSelfServiceRefetchStartTime,
+  ] = useState<number | null>(null);
+
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch: refetchSelfServiceSoftware,
+  } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
@@ -62,6 +79,7 @@ const SoftwareSelfService = ({
         scope: "device_software",
         id: deviceToken,
         page: queryParams.page,
+        query: searchQuery,
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ],
@@ -71,8 +89,52 @@ const SoftwareSelfService = ({
       enabled: isSoftwareEnabled, // if software inventory is disabled, we don't bother fetching and always show the empty state
       keepPreviousData: true,
       staleTime: 7000,
+      onSuccess: (response) => {
+        // Check if any software is still installing (pending_install)
+        const hasPendingInstalls = response.software.some(
+          (software) => software.status === "pending_install"
+        );
+
+        if (hasPendingInstalls) {
+          // If our timer wasn't already started
+          if (!selfServiceRefetchStartTime) {
+            setSelfServiceRefetchStartTime(Date.now());
+
+            // Poll the API again using refetchSelfServiceSoftware.
+            setTimeout(() => {
+              refetchSelfServiceSoftware();
+            }, 5000); // Poll every 5 seconds
+          } else {
+            // Check elapsed time
+            const totalElapsedTime =
+              Date.now() - (selfServiceRefetchStartTime || Date.now());
+            if (totalElapsedTime < 120000) {
+              // Continue polling if within the timeout
+              setTimeout(() => {
+                refetchSelfServiceSoftware();
+              }, 5000); // Poll every 5 seconds
+            } else {
+              // Timeout reached
+              renderFlash(
+                "error",
+                "Self-service software status check timed out. Please refresh the page."
+              );
+            }
+          }
+        }
+      },
+      onError: () => {
+        renderFlash(
+          "error",
+          "We're having trouble fetching self-service software statuses. Please refresh the page."
+        );
+      },
     }
   );
+
+  const onSearchQueryChange = (value: string) => {
+    setSearchQuery(value.trim());
+  };
 
   const onNextPage = useCallback(() => {
     router.push(pathname.concat(`?page=${queryParams.page + 1}`));
@@ -85,7 +147,94 @@ const SoftwareSelfService = ({
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
   // available results)?
-  const isEmpty = !data?.software.length && !data?.meta.has_previous_results;
+  const isEmpty =
+    !data?.software.length &&
+    !data?.meta.has_previous_results &&
+    searchQuery === "";
+
+  const isEmptySearch =
+    !data?.software.length &&
+    !data?.meta.has_previous_results &&
+    searchQuery !== "";
+
+  const renderSelfServiceCard = () => {
+    if (isLoading) return <Spinner />;
+
+    if (isError) return <DataError />;
+
+    if (isEmpty || !data) {
+      return (
+        <EmptyTable
+          graphicName="empty-software"
+          header="No self-service software available yet"
+          info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
+        />
+      );
+    }
+
+    const itemCount = data?.count || 0;
+    return (
+      <>
+        <div className={`${baseClass}__header`}>
+          <div className={`${baseClass}__items-count`}>
+            {`${itemCount} ${pluralize(itemCount, "item")}`}
+          </div>
+          <div className={`${baseClass}__search`}>
+            <SearchField
+              placeholder="Search by name"
+              onChange={onSearchQueryChange}
+            />
+          </div>
+        </div>
+        {isEmptySearch ? (
+          <EmptyTable
+            graphicName="empty-search-question"
+            header="No items match the current search criteria"
+            info={
+              <>
+                Not finding what you&apos;re looking for?{" "}
+                <CustomLink url={contactUrl} text="reach out to IT" newTab />
+              </>
+            }
+          />
+        ) : (
+          <>
+            <div className={`${baseClass}__items`}>
+              {data.software.map((s) => {
+                let uuid =
+                  s.software_package?.last_install?.install_uuid ??
+                  s.app_store_app?.last_install?.command_uuid;
+                if (!uuid) {
+                  uuid = "";
+                }
+                // concatenating uuid so item updates with fresh data on refetch
+                const key = `${s.id}${uuid}`;
+                return (
+                  <SelfServiceItem
+                    key={key}
+                    deviceToken={deviceToken}
+                    software={s}
+                    onInstall={refetchSelfServiceSoftware}
+                  />
+                );
+              })}
+            </div>
+            <Pagination
+              disableNext={data.meta.has_next_results === false}
+              disablePrev={data.meta.has_previous_results === false}
+              hidePagination={
+                data.meta.has_next_results === false &&
+                data.meta.has_previous_results === false
+              }
+              onNextPage={onNextPage}
+              onPrevPage={onPrevPage}
+              className={`${baseClass}__pagination`}
+            />
+          </>
+        )}
+      </>
+    );
+  };
 
   return (
     <Card
@@ -108,61 +257,7 @@ const SoftwareSelfService = ({
           </>
         }
       />
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <>
-          {isError && <DataError />}
-          {!isError && (
-            <div className={baseClass}>
-              {isEmpty ? (
-                <EmptyTable
-                  graphicName="empty-software"
-                  header="No self-service software available yet"
-                  info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
-                />
-              ) : (
-                <>
-                  <div className={`${baseClass}__items-count`}>
-                    <b>{`${data.count} ${pluralize(data.count, "item")}`}</b>
-                  </div>
-                  <div className={`${baseClass}__items`}>
-                    {data.software.map((s) => {
-                      let uuid =
-                        s.software_package?.last_install?.install_uuid ??
-                        s.app_store_app?.last_install?.command_uuid;
-                      if (!uuid) {
-                        uuid = "";
-                      }
-                      // concatenating uuid so item updates with fresh data on refetch
-                      const key = `${s.id}${uuid}`;
-                      return (
-                        <SelfServiceItem
-                          key={key}
-                          deviceToken={deviceToken}
-                          software={s}
-                          onInstall={refetch}
-                        />
-                      );
-                    })}
-                  </div>
-                  <Pagination
-                    disableNext={data.meta.has_next_results === false}
-                    disablePrev={data.meta.has_previous_results === false}
-                    hidePagination={
-                      data.meta.has_next_results === false &&
-                      data.meta.has_previous_results === false
-                    }
-                    onNextPage={onNextPage}
-                    onPrevPage={onPrevPage}
-                    className={`${baseClass}__pagination`}
-                  />
-                </>
-              )}
-            </div>
-          )}
-        </>
-      )}
+      {renderSelfServiceCard()}
     </Card>
   );
 };
