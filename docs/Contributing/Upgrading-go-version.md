@@ -2,7 +2,7 @@
 
 ## Updating Go locally
 
-The Go documentation doesn't include explicit instructions on upgrading versions. Some consider a best practice to completely uninstall the current version before installing a new one. If you used a package manager like Homebrew to install Go, you can upgrade it using `brew upgrade`. You can also install multiple versions by following the [Manage Go Installations guide](https://go.dev/doc/manage-install) in the Go docs. This is a good way to keep your previous version around for A/B testing.
+The Go documentation doesn't include explicit instructions on upgrading versions. Some consider it a best practice to [completely uninstall the current version](https://go.dev/doc/manage-install#uninstalling) before installing a new one. If you used a package manager like Homebrew to install Go, you can upgrade it using `brew upgrade`. You can also install multiple versions by following the [Manage Go Installations guide](https://go.dev/doc/manage-install) in the Go docs. This is a good way to keep your previous version around for A/B testing.
 
 If you use the golangci-lint linter in your local development, you'll need to recompile it using the new Go version:
 
