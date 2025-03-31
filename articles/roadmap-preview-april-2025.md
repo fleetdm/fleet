@@ -19,7 +19,7 @@ For Security Engineers:
 
 For IT Admins:
 - 🛡️ Integration with Microsoft compliance tools
-- 👨‍💻 50 more Fleet-maintained apps for macOS & Windows (each) and first 20 for Linux
+- 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📅 Patch apps when end users are free
 - ⬇️ Downloadable agents (fleetd)
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
