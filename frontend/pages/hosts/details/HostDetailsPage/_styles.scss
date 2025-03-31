@@ -18,7 +18,7 @@
     }
 
     // No agent options card for i(Pad)OS, so extend Labels card vertically.
-    // We also add the certs card to the grid layout on mac hosts
+    // We also add the certs card to the grid layout.
     &__details-panel--ios-grid.react-tabs__tab-panel--selected {
       grid-template-areas:
         "about about"
@@ -26,7 +26,7 @@
         "certs certs";
     }
 
-    // No agent options card for Android, so extend Labels card vertically.
+    // for Android we only show About and Labels card.
     &__details-panel--android-grid.react-tabs__tab-panel--selected {
       grid-template-areas:
         "about about"
