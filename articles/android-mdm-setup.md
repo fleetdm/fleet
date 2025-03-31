@@ -1,6 +1,9 @@
 # Android MDM setup
 
-To turn on Android MDM features, follow the instructions on this page to connect Android Enterprise to Fleet.
+To turn on Android MDM features, follow the instructions on this page to connect Android Enterprise
+to Fleet.
+
+Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
 
 ## Turn Android MDM
 
