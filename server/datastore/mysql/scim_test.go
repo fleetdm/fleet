@@ -117,6 +117,10 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 
 func testScimUserByID(t *testing.T, ds *Datastore) {
 	users := createTestScimUsers(t, ds)
+
+	// Create test groups and associate them with users
+	groups := createTestScimGroups(t, ds, []uint{users[0].ID, users[1].ID})
+
 	for _, tt := range users {
 		returned, err := ds.ScimUserByID(context.Background(), tt.ID)
 		assert.Nil(t, err)
@@ -135,6 +139,39 @@ func testScimUserByID(t *testing.T, ds *Datastore) {
 			assert.Equal(t, email.Type, returned.Emails[i].Type)
 			assert.Equal(t, tt.ID, returned.Emails[i].ScimUserID)
 		}
+
+		// Verify groups
+		// User 0 and 1 should be in groups, User 2 should not be in any group
+		if tt.ID == users[0].ID || tt.ID == users[1].ID {
+			assert.NotEmpty(t, returned.Groups, "User should have groups")
+
+			// Check if the user is in the expected groups
+			var foundInGroups bool
+			for _, group := range groups {
+				for _, userID := range group.ScimUsers {
+					if userID == tt.ID {
+						foundInGroups = true
+
+						// Verify the group ID is in the user's Groups field
+						var foundGroupID bool
+						for _, groupID := range returned.Groups {
+							if groupID == group.ID {
+								foundGroupID = true
+								break
+							}
+						}
+						assert.True(t, foundGroupID, "User's Groups field should contain the group ID")
+						break
+					}
+				}
+				if foundInGroups {
+					break
+				}
+			}
+			assert.True(t, foundInGroups, "User should be found in at least one group")
+		} else {
+			assert.Empty(t, returned.Groups, "User should not have any groups")
+		}
 	}
 
 	// test missing user
@@ -144,6 +181,10 @@ func testScimUserByID(t *testing.T, ds *Datastore) {
 
 func testScimUserByUserName(t *testing.T, ds *Datastore) {
 	users := createTestScimUsers(t, ds)
+
+	// Create test groups and associate them with users
+	groups := createTestScimGroups(t, ds, []uint{users[0].ID, users[1].ID})
+
 	for _, tt := range users {
 		returned, err := ds.ScimUserByUserName(context.Background(), tt.UserName)
 		assert.Nil(t, err)
@@ -161,6 +202,39 @@ func testScimUserByUserName(t *testing.T, ds *Datastore) {
 			assert.Equal(t, email.Primary, returned.Emails[i].Primary)
 			assert.Equal(t, email.Type, returned.Emails[i].Type)
 			assert.Equal(t, tt.ID, returned.Emails[i].ScimUserID)
+		}
+
+		// Verify groups
+		// User 0 and 1 should be in groups, User 2 should not be in any group
+		if tt.ID == users[0].ID || tt.ID == users[1].ID {
+			assert.NotEmpty(t, returned.Groups, "User should have groups")
+
+			// Check if the user is in the expected groups
+			var foundInGroups bool
+			for _, group := range groups {
+				for _, userID := range group.ScimUsers {
+					if userID == tt.ID {
+						foundInGroups = true
+
+						// Verify the group ID is in the user's Groups field
+						var foundGroupID bool
+						for _, groupID := range returned.Groups {
+							if groupID == group.ID {
+								foundGroupID = true
+								break
+							}
+						}
+						assert.True(t, foundGroupID, "User's Groups field should contain the group ID")
+						break
+					}
+				}
+				if foundInGroups {
+					break
+				}
+			}
+			assert.True(t, foundInGroups, "User should be found in at least one group")
+		} else {
+			assert.Empty(t, returned.Groups, "User should not have any groups")
 		}
 	}
 
@@ -237,7 +311,16 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 	user.ID, err = ds.CreateScimUser(context.Background(), &user)
 	require.Nil(t, err)
 
-	// Verify the user was created correctly
+	// Create a test group and associate it with the user
+	group := fleet.ScimGroup{
+		DisplayName: "Test Group for User",
+		ExternalID:  ptr.String("ext-group-for-user"),
+		ScimUsers:   []uint{user.ID},
+	}
+	group.ID, err = ds.CreateScimGroup(context.Background(), &group)
+	require.Nil(t, err)
+
+	// Verify the user was created correctly and has the group
 	createdUser, err := ds.ScimUserByID(context.Background(), user.ID)
 	require.Nil(t, err)
 	assert.Equal(t, user.UserName, createdUser.UserName)
@@ -248,7 +331,11 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 1, len(createdUser.Emails))
 	assert.Equal(t, "original.user@example.com", createdUser.Emails[0].Email)
 
-	// Modify the user
+	// Verify the user has the group
+	require.Len(t, createdUser.Groups, 1)
+	assert.Equal(t, group.ID, createdUser.Groups[0])
+
+	// Modify the user and attempt to modify the Groups field
 	updatedUser := fleet.ScimUser{
 		ID:         user.ID,
 		UserName:   "replace-test-user",           // Same username
@@ -268,6 +355,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 				Type:    ptr.String("home"),
 			},
 		},
+		Groups: []uint{999}, // Attempt to modify Groups (should be ignored)
 	}
 
 	// Replace the user
@@ -287,6 +375,25 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, len(replacedUser.Emails))
 	assert.Equal(t, "personal.user@example.com", replacedUser.Emails[0].Email) // Alphabetical order
 	assert.Equal(t, "updated.user@example.com", replacedUser.Emails[1].Email)
+
+	// Verify that the Groups field was NOT modified (it should still contain the original group)
+	require.Len(t, replacedUser.Groups, 1, "Groups field should not be modified by ReplaceScimUser")
+	assert.Equal(t, group.ID, replacedUser.Groups[0], "Groups field should still contain the original group")
+
+	// Now remove the user from the group using the group methods
+	updatedGroup := fleet.ScimGroup{
+		ID:          group.ID,
+		DisplayName: group.DisplayName,
+		ExternalID:  group.ExternalID,
+		ScimUsers:   []uint{}, // Remove the user
+	}
+	err = ds.ReplaceScimGroup(context.Background(), &updatedGroup)
+	require.Nil(t, err)
+
+	// Verify that the user no longer has the group
+	userAfterGroupUpdate, err := ds.ScimUserByID(context.Background(), user.ID)
+	require.Nil(t, err)
+	assert.Empty(t, userAfterGroupUpdate.Groups, "User should no longer have any groups")
 
 	// Test replacing a non-existent user
 	nonExistentUser := fleet.ScimUser{
@@ -400,6 +507,16 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 		require.Nil(t, err)
 	}
 
+	// Create a group and associate it with the first user
+	group := fleet.ScimGroup{
+		DisplayName: "Test Group for ListUsers",
+		ExternalID:  ptr.String("ext-group-for-list"),
+		ScimUsers:   []uint{users[0].ID},
+	}
+	var err error
+	group.ID, err = ds.CreateScimGroup(context.Background(), &group)
+	require.Nil(t, err)
+
 	// Test 1: List all users without filters
 	allUsers, totalResults, err := ds.ListScimUsers(context.Background(), fleet.ScimUsersListOptions{
 		ScimListOptions: fleet.ScimListOptions{
@@ -417,6 +534,15 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 		for _, testUser := range users {
 			if u.ID == testUser.ID {
 				foundUsers++
+
+				// Verify Groups field for the first user
+				if testUser.ID == users[0].ID {
+					require.Len(t, u.Groups, 1, "First user should have exactly one group")
+					assert.Equal(t, group.ID, u.Groups[0], "First user should be in the test group")
+				} else {
+					assert.Empty(t, u.Groups, "Other users should not have groups")
+				}
+
 				break
 			}
 		}

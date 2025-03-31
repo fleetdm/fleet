@@ -714,7 +714,7 @@ type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fle
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
-type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
+type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
 type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
@@ -1295,6 +1295,16 @@ type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
 type DeleteScimUserFunc func(ctx context.Context, id uint) error
 
 type ListScimUsersFunc func(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error)
+
+type CreateScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) (uint, error)
+
+type ScimGroupByIDFunc func(ctx context.Context, id uint) (*fleet.ScimGroup, error)
+
+type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) error
+
+type DeleteScimGroupFunc func(ctx context.Context, id uint) error
+
+type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3207,6 +3217,21 @@ type DataStore struct {
 
 	ListScimUsersFunc        ListScimUsersFunc
 	ListScimUsersFuncInvoked bool
+
+	CreateScimGroupFunc        CreateScimGroupFunc
+	CreateScimGroupFuncInvoked bool
+
+	ScimGroupByIDFunc        ScimGroupByIDFunc
+	ScimGroupByIDFuncInvoked bool
+
+	ReplaceScimGroupFunc        ReplaceScimGroupFunc
+	ReplaceScimGroupFuncInvoked bool
+
+	DeleteScimGroupFunc        DeleteScimGroupFunc
+	DeleteScimGroupFuncInvoked bool
+
+	ListScimGroupsFunc        ListScimGroupsFunc
+	ListScimGroupsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5633,11 +5658,11 @@ func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 	return s.VerifyEnrollSecretFunc(ctx, secret)
 }
 
-func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 	s.mu.Lock()
 	s.IsEnrollSecretAvailableFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsEnrollSecretAvailableFunc(ctx, secret, new, teamID)
+	return s.IsEnrollSecretAvailableFunc(ctx, secret, isNew, teamID)
 }
 
 func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -7668,4 +7693,39 @@ func (s *DataStore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersListO
 	s.ListScimUsersFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScimUsersFunc(ctx, opts)
+}
+
+func (s *DataStore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup) (uint, error) {
+	s.mu.Lock()
+	s.CreateScimGroupFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateScimGroupFunc(ctx, group)
+}
+
+func (s *DataStore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGroup, error) {
+	s.mu.Lock()
+	s.ScimGroupByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimGroupByIDFunc(ctx, id)
+}
+
+func (s *DataStore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup) error {
+	s.mu.Lock()
+	s.ReplaceScimGroupFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceScimGroupFunc(ctx, group)
+}
+
+func (s *DataStore) DeleteScimGroup(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteScimGroupFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteScimGroupFunc(ctx, id)
+}
+
+func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
+	s.mu.Lock()
+	s.ListScimGroupsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListScimGroupsFunc(ctx, opts)
 }
