@@ -16,6 +16,8 @@ import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import Spinner from "components/Spinner";
 
 import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell";
 
@@ -36,7 +38,7 @@ const STATUS_CONFIG: Record<
   },
   pending_install: {
     iconName: "pending-outline",
-    displayText: "Pending",
+    displayText: "Installing...",
     tooltip: () => "Fleet is installing software.",
   },
   failed_install: {
@@ -75,7 +77,7 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
       </div>
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
-          {name || installerPackage?.name}
+          <TooltipTruncatedText value={name || installerPackage?.name} />
         </div>
         <div className={`${baseClass}__item-version`}>
           {installerPackage?.version || vppApp?.version || ""}
@@ -108,7 +110,11 @@ const InstallerStatus = ({
         data-tip
         data-for={`install-tooltip__${id}`}
       >
-        <Icon name={displayConfig.iconName} />
+        {displayConfig.iconName === "pending-outline" ? (
+          <Spinner size="x-small" includeContainer={false} centered={false} />
+        ) : (
+          <Icon name={displayConfig.iconName} />
+        )}
         <span data-testid={`${baseClass}__status--test`}>
           {displayConfig.displayText}
         </span>

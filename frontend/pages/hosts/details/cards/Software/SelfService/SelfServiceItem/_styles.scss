@@ -37,6 +37,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     text-wrap: nowrap;
+
+    .truncated-tooltip {
+      font-weight: initial;
+    }
   }
 
   &__item-version {
