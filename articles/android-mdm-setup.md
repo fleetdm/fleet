@@ -28,11 +28,18 @@ When you select **Connect Android Enterprise**, Fleet will open Google sign-up p
 6. Select **Allow and create account** on the next screen.
 8. You'll be asked to log in with your account that you just created, and to confirm your phone number.
 9. After succussfull login and phone verification, you'll be redirected to Fleet, and you should see that Android MDM is turned on.
-10. Verify your domain name to claim that you're owner and prevent someone else sign up with your domain. Follow steps [here](https://support.google.com/a/answer/60216?hl=en).
+10. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name, and prevent others from signing up with your domain.
 
 This way you created Managed Google Domain, with Android Enterprise subscription only. You can use this domain later to add additional subscriptions (i.e. Google Workspace) if you need.
 
+## Turn off Android MDM
 
+1. Head to **Settings > Integrations > MDM**.
+2. In the **Mobile Device Management (MDM)** section, select **Edit** next to "Android MDM turned on."
+3. Select **Turn off Android MDM**
+
+When you turn off Android MDM, your Android Enterprise will be deleted, and MDM will be turned off
+on all hosts.
 
 
 <meta name="articleTitle" value="Android MDM setup">
@@ -40,4 +47,4 @@ This way you created Managed Google Domain, with Android Enterprise subscription
 <meta name="authorGitHubUsername" value="marko-lisica">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-04-05">
-<meta name="description" value="Learn how to turn on MDM features in Fleet.">
+<meta name="description" value="Learn how to turn on Android MDM in Fleet.">
