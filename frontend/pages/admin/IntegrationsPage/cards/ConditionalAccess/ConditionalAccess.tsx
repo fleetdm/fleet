@@ -1,9 +1,13 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 
+import { size } from "lodash";
+
 import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
+
+import conditionalAccessAPI from "services/entities/conditional_access";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -13,7 +17,10 @@ import SectionHeader from "components/SectionHeader";
 import { AppContext } from "context/app";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import Button from "components/buttons/Button";
-import { size } from "lodash";
+import Spinner from "components/Spinner";
+import { IFormField } from "interfaces/form_field";
+import { IConfig } from "interfaces/config";
+// import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "conditional-access";
 
@@ -35,9 +42,8 @@ const validate = (formData: IFormData) => {
   return errs;
 };
 
-const ConditionalAccess = (router: InjectedRouter) => {
+const ConditionalAccess = () => {
   const { renderFlash } = useContext(NotificationContext);
-  const { config } = useContext(AppContext);
 
   const [formData, setFormData] = useState<IFormData>({
     [msetid]: "",
@@ -47,10 +53,10 @@ const ConditionalAccess = (router: InjectedRouter) => {
 
   // Redirect to /settings if not a cloud-managed Fleet instance. Must do this down at this level
   // since it depends on config context
-  if (!config) return;
-  if (!config.license.managed_cloud) {
-    router.push(paths.ADMIN_SETTINGS);
-  }
+  // if (!config.license?.managed_cloud) {
+  //   // return <>OOPS</>;
+  //   router.push(paths.ADMIN_SETTINGS);
+  // }
 
   // TODO - actually call API
   setFormData({ [msetid]: "12345" });
@@ -65,10 +71,24 @@ const ConditionalAccess = (router: InjectedRouter) => {
     }
     setIsUpdating(true);
     try {
-    } catch (e) {}
+      await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
+        formData[msetid]
+      );
+      setIsUpdating(false);
+      // TODO go to next step
+    } catch (e) {
+      // const message = getErrorReason(e);
+      // renderFlash("error", message || "Failed to update settings");
+      // TODO - coordinate with Lucas re what this error will contain
+      renderFlash(
+        "error",
+        "Could not update conditional access integration settings."
+      );
+      setIsUpdating(false);
+    }
   };
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField<string>) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);
@@ -90,6 +110,7 @@ const ConditionalAccess = (router: InjectedRouter) => {
   };
 
   const renderContent = () => {
+    return <>OOPS</>;
     if (!formData[msetid]) {
       return (
         <form onSubmit={handleSubmit} autoComplete="off">
@@ -124,40 +145,10 @@ const ConditionalAccess = (router: InjectedRouter) => {
         </form>
       );
     }
-    return null;
-    // <form onSubmit={handleSubmit}>
-    //   <Checkbox
-    //     onChange={onInputChange}
-    //     name="gitOpsModeEnabled"
-    //     value={gitOpsModeEnabled}
-    //     parseTarget
-    //   >
-    //     <TooltipWrapper tipContent="GitOps mode is a UI-only setting. API permissions are restricted based on user role.">
-    //       Enable GitOps mode
-    //     </TooltipWrapper>
-    //   </Checkbox>
-    //   {/* Git repository URL */}
-    //   <InputField
-    //     label="Git repository URL"
-    //     onChange={onInputChange}
-    //     name="repoURL"
-    //     value={repoURL}
-    //     parseTarget
-    //     onBlur={onInputBlur}
-    //     error={formErrors.repository_url}
-    //     helpText="When GitOps mode is enabled, you will be directed here to make changes."
-    //     disabled={!gitOpsModeEnabled}
-    //   />
-    //   <Button
-    //     type="submit"
-    //     disabled={!!Object.keys(formErrors).length}
-    //     isLoading={isUpdating}
-    //   >
-    //     Save
-    //   </Button>
-    // </form>
+    return <div>TODO</div>;
   };
 
+  return <>OOPs2</>;
   return (
     <div className={baseClass}>
       <SectionHeader title="Conditional access" />

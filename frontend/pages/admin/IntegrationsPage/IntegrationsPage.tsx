@@ -4,33 +4,41 @@ import { AppContext } from "context/app";
 
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
+import paths from "router/paths";
+import { IRouterLocation } from "interfaces/routing";
+
 import SideNav from "../components/SideNav";
-import integrationSettingsNavItems from "./IntegrationNavItems";
+import getIntegrationSettingsNavItems from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 
 interface IIntegrationSettingsPageProps {
   router: InjectedRouter;
   params: Params;
+  location: IRouterLocation; // no type in react-router v3
 }
 
 const IntegrationsPage = ({
   router,
   params,
+  location: { pathname },
 }: IIntegrationSettingsPageProps) => {
+  const { config } = useContext(AppContext);
+  if (!config) return <></>;
+
+  // const isManagedCloud = config.license.managed_cloud;
+  // const isManagedCloud = false;
+  const isManagedCloud = true;
+
+  if (!isManagedCloud && pathname.includes("conditional-access")) {
+    router.push(paths.ADMIN_SETTINGS);
+  }
+  const navItems = getIntegrationSettingsNavItems(isManagedCloud);
   const { section } = params;
-  const navItems = integrationSettingsNavItems;
   const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
-
-  if (!useContext(AppContext)?.config?.license.managed_cloud) {
-    navItems.splice(
-      navItems.findIndex((item) => item.urlSection === "conditional-access"),
-      1
-    );
-  }
 
   const CurrentCard = currentSection.Card;
 
