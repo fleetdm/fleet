@@ -24,6 +24,8 @@ Following are screenshots of the end-user experience when Fleet runs the script 
   <img src="../website/assets/images/debian_12_appindicator_extension_prompt.png" title="Debian 12" width="300" /> 
 </p>
 
+> If the end-user hits `Cancel` instead of `Install` then the extension won't be installed and the policy will continue to fail on the host. Fleet only deploys the script on the first failure of the policy, so the end-user won't be prompted again and again, just once. Admins can still run the script on such hosts manually.
+
 ### Tray icon
 
 After the extension is installed your users will see the Fleet icon on their menu bar:
