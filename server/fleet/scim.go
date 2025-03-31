@@ -9,6 +9,7 @@ type ScimUser struct {
 	FamilyName *string `db:"family_name"`
 	Active     *bool   `db:"active"`
 	Emails     []ScimUserEmail
+	Groups     []uint
 }
 
 func (su *ScimUser) AuthzType() string {

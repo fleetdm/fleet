@@ -97,6 +97,13 @@ func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser
 	}
 	user.Emails = emails
 
+	// Get the user's groups
+	groups, err := ds.getScimUserGroups(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	user.Groups = groups
+
 	return user, nil
 }
 
@@ -123,6 +130,13 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 		return nil, err
 	}
 	user.Emails = emails
+
+	// Get the user's groups
+	groups, err := ds.getScimUserGroups(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.Groups = groups
 
 	return user, nil
 }
@@ -177,7 +191,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			return ctxerr.Wrap(ctx, err, "delete scim user emails")
 		}
 
-		return insertEmails(ctx, tx, user)
+		err = insertEmails(ctx, tx, user)
+		if err != nil {
+			return err
+		}
+
+		// Get the user's groups
+		groups, err := ds.getScimUserGroups(ctx, user.ID)
+		if err != nil {
+			return err
+		}
+		user.Groups = groups
+
+		return nil
 	})
 }
 
@@ -341,6 +367,37 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 		}
 	}
 
+	// Fetch groups for all users in a single query
+	groupQuery, groupArgs, err := sqlx.In(`
+		SELECT
+			scim_user_id, group_id
+		FROM scim_user_group
+		WHERE scim_user_id IN (?)
+		ORDER BY group_id ASC
+	`, userIDs)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "prepare groups query")
+	}
+
+	// Execute the group query
+	type userGroup struct {
+		UserID  uint `db:"scim_user_id"`
+		GroupID uint `db:"group_id"`
+	}
+	var allUserGroups []userGroup
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allUserGroups, groupQuery, groupArgs...); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, 0, ctxerr.Wrap(ctx, err, "select scim user groups")
+		}
+	}
+
+	// Associate groups with their users
+	for _, ug := range allUserGroups {
+		if user, ok := userMap[ug.UserID]; ok {
+			user.Groups = append(user.Groups, ug.GroupID)
+		}
+	}
+
 	return users, totalResults, nil
 }
 
@@ -361,6 +418,25 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 		return nil, ctxerr.Wrap(ctx, err, "select scim user emails")
 	}
 	return emails, nil
+}
+
+// getScimUserGroups retrieves all group IDs for a SCIM user
+func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]uint, error) {
+	const query = `
+		SELECT
+			group_id
+		FROM scim_user_group
+		WHERE scim_user_id = ? ORDER BY group_id ASC
+	`
+	var groupIDs []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &groupIDs, query, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim user groups")
+	}
+	return groupIDs, nil
 }
 
 // validateScimGroupFields checks if the group fields exceed the maximum allowed length
