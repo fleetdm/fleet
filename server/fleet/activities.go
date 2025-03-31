@@ -300,8 +300,10 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 }
 
 type ActivityTypeCreatedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID             uint   `json:"policy_id"`
+	Name           string `json:"policy_name"`
+	AutomationTYpe string `json:"automation_type,omitempty"`
+	SoftwareName   string `json:"software_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -312,15 +314,21 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 	return `Generated when creating policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
-- "policy_name": the name of the created policy.`, `{
+- "policy_name": the name of the created policy.
+- "automation_type": if provided, either "auto_install" or "patch", indicating which workflow a Fleet-maintained policy is covering.
+- "software_name": if provided, the name of the software title associated with a Fleet-maintained patch or auto-install policy.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "Patch Zoom",
+	"automation_type": "patch",
+	"software_name": "Zoom"
 }`
 }
 
 type ActivityTypeEditedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID             uint   `json:"policy_id"`
+	Name           string `json:"policy_name"`
+	AutomationTYpe string `json:"automation_type,omitempty"`
+	SoftwareName   string `json:"software_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -331,9 +339,13 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 	return `Generated when editing policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
-- "policy_name": the name of the edited policy.`, `{
+- "policy_name": the name of the edited policy.
+- "automation_type": if provided, either "auto_install" or "patch", indicating which workflow a Fleet-maintained policy is covering.
+- "software_name": if provided, the name of the software title associated with a Fleet-maintained patch or auto-install policy.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "Patch Zoom",
+	"automation_type": "patch",
+	"software_name": "Zoom"
 }`
 }
 
@@ -350,9 +362,13 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 	return `Generated when deleting policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
-- "policy_name": the name of the deleted policy.`, `{
+- "policy_name": the name of the deleted policy.
+- "automation_type": if provided, either "auto_install" or "patch", indicating which workflow a Fleet-maintained policy is covering.
+- "software_name": if provided, the name of the software title associated with a Fleet-maintained patch or auto-install policy.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "Patch Zoom",
+	"automation_type": "patch",
+	"software_name": "Zoom"
 }`
 }
 
