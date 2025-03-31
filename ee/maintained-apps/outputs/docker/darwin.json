@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';"
       },
       "installer_url": "https://desktop.docker.com/mac/main/arm64/184744/Docker.dmg",
-      "unique_identifier": "com.docker.docker",
       "install_script_ref": "15801b89",
       "uninstall_script_ref": "5060ccfa",
       "sha256": "553a0b9d155af21ce9dd524a3f59d421f3ac8109c913a2c6bd663f25770803d3"
