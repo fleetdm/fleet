@@ -19,7 +19,7 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The microsoft entra application ID was sent to a managed cloud instance.'},
+    success: { outputDescription: 'The setup and admin consent status of a Microsoft complianance tenant'},
   },
 
 
