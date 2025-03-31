@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250326142354, Down_20250326142354)
+	MigrationClient.AddMigration(Up_20250331042354, Down_20250331042354)
 }
 
-func Up_20250326142354(tx *sql.Tx) error {
+func Up_20250331042354(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE IF NOT EXISTS scim_users (
 	    id int UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -72,6 +72,6 @@ func Up_20250326142354(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250326142354(tx *sql.Tx) error {
+func Down_20250331042354(tx *sql.Tx) error {
 	return nil
 }
