@@ -85,6 +85,25 @@ func RegisterSCIM(
 				Description: optional.NewString("A Boolean value indicating the User's administrative status."),
 				Name:        "active",
 			})),
+			schema.ComplexCoreAttribute(schema.ComplexParams{
+				Description: optional.NewString("A list of groups to which the user belongs, either through direct membership, through nested groups, or dynamically calculated."),
+				MultiValued: true,
+				Mutability:  schema.AttributeMutabilityReadOnly(),
+				Name:        "groups",
+				SubAttributes: []schema.SimpleParams{
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("The identifier of the User's group."),
+						Mutability:  schema.AttributeMutabilityReadOnly(),
+						Name:        "value",
+					}),
+					schema.SimpleReferenceParams(schema.ReferenceParams{
+						Description:    optional.NewString("The URI of the corresponding 'Group' resource to which the user belongs."),
+						Mutability:     schema.AttributeMutabilityReadOnly(),
+						Name:           "$ref",
+						ReferenceTypes: []schema.AttributeReferenceType{"Group"},
+					}),
+				},
+			}),
 		},
 	}
 
@@ -132,6 +151,8 @@ func RegisterSCIM(
 		return handler
 	}
 
+	// We cannot use Go URL path pattern like {version} because the http.StripPrefix method
+	// that gets us to the root SCIM path does not support wildcards: https://github.com/golang/go/issues/64909
 	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
 	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
 	return nil

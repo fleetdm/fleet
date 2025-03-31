@@ -241,7 +241,20 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		}
 		userResource.Attributes[emailsAttr] = emails
 	}
+	if len(user.Groups) > 0 {
+		groups := make([]scim.ResourceAttributes, 0, len(user.Groups))
+		for _, groupID := range user.Groups {
+			groups = append(groups, map[string]interface{}{
+				"value": scimGroupID(groupID),
+				"$ref":  "Groups/" + scimGroupID(groupID),
+			})
+		}
+	}
 	return userResource
+}
+
+func scimGroupID(groupID uint) string {
+	return fmt.Sprintf("group-%d", groupID)
 }
 
 // GetAll
