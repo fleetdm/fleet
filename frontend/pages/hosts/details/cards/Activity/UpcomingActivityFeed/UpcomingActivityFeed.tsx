@@ -71,8 +71,8 @@ const UpcomingActivityFeed = ({
         disablePrev={!meta.has_previous_results}
         disableNext={!meta.has_next_results}
         hidePagination={!meta.has_previous_results && !meta.has_next_results}
-        onPrevPage={() => onPreviousPage}
-        onNextPage={() => onNextPage}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
       />
     </div>
   );
