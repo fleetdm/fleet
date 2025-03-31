@@ -2,11 +2,6 @@ name: Generate Fleet Desktop targets for Orbit
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-targets.yml'
     tags:
       - "orbit-*" # For testing, use a pre-release tag like 'orbit-1.24.0-1'    
 

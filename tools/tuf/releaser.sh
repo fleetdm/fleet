@@ -165,7 +165,8 @@ release_fleetd_to_edge () {
 }
 
 create_fleetd_release_pr () {
-    echo "Creating a PR for fleetd release changelog..."
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    echo "Creating a PR against '$CURRENT_BRANCH' for fleetd release changelog..."
     BRANCH_NAME=release-fleetd-v$VERSION
     pushd "$GIT_REPOSITORY_DIRECTORY"
     git checkout -b "$BRANCH_NAME"
@@ -175,7 +176,7 @@ create_fleetd_release_pr () {
     git commit -m "Release fleetd $VERSION"
     git push origin "$BRANCH_NAME"
     # Create a new PR with the changelog.
-    gh pr create -f -B main -t "Release fleetd $VERSION"
+    gh pr create -f -B $CURRENT_BRANCH -t "Release fleetd $VERSION"
     popd
 }
 
@@ -282,6 +283,8 @@ print_reminder () {
         :
     elif [[ $ACTION == "release-to-production" ]]; then
         prompt "To smoke test the release make sure to generate and install fleetd with on Linux amd64, Linux arm64, Windows, and macOS. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --update-interval=1m --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
+    elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
+        :
     else
         echo "Unsupported action: $ACTION"
         exit 1

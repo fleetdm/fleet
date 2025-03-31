@@ -299,7 +299,7 @@ ACTION=release-to-production ./tools/tuf/releaser.sh
 Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of fleet locally, you check out a patch branch of fleet, e.g.:
 
 ```
-git checkout rc-minor-fleet-v.4.65.1
+git checkout rc-minor-fleet-v4.65.1
 ```
 
 As always, the `VERSION` env var used when running `releaser.sh` should match the version of the fleetd release, e.g.
@@ -317,6 +317,8 @@ GITHUB_USERNAME=foobar \
 GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
 ./tools/tuf/releaser.sh
 ```
+
+See https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md to find the latest released version.
 
 After following the rest of the "Releasing to edge" steps above, publish your release using the instructions in "Promoting from edge to stable" above as you would for a minor release, again remembering to set the `VERSION` accordingly.
 
