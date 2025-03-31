@@ -28,6 +28,8 @@ import {
   IHostResponse,
   IHostMdmData,
   IPackStats,
+  IHostEndUser,
+  IHostIDPEndUser,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
@@ -888,6 +890,22 @@ const HostDetailsPage = ({
     [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
+  const testEndUserData: IHostEndUser = [
+    {
+      idp_id: "1234567890",
+      idp_email: "test@email.com",
+      idp_full_name: "Test User",
+      idp_info_updated_at: "2023-10-01T00:00:00Z",
+      idp_groups: ["test_group"],
+      other_emails: [
+        {
+          email: "another-email@test.com",
+          source: "google",
+        },
+      ],
+    },
+  ];
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -950,7 +968,13 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              {showUsersCard && <UserCard className={defaultCardClass} />}
+              {showUsersCard && (
+                <UserCard
+                  className={defaultCardClass}
+                  platform={host.platform}
+                  endUsers={testEndUserData}
+                />
+              )}
               {showActivityCard && (
                 <ActivityCard
                   className={

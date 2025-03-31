@@ -265,6 +265,17 @@ export interface IHostIssues {
   critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
 }
+export interface IHostEndUser {
+  idp_id: string;
+  idp_email: string;
+  idp_full_name: string;
+  idp_info_updated_at: string | null;
+  idp_groups: string[];
+  other_emails: Array<{
+    email: string;
+    source: string;
+  }>;
+}
 
 export interface IHost {
   created_at: string;
@@ -333,6 +344,7 @@ export interface IHost {
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
   device_mapping: IDeviceUser[] | null;
+  end_users: IHostEndUser[];
 }
 
 /*
