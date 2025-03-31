@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"testing"
 
@@ -26,10 +27,17 @@ func TestScim(t *testing.T) {
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
 		{"DeleteScimUser", testDeleteScimUser},
 		{"ListScimUsers", testListScimUsers},
+		{"ScimGroupCreate", testScimGroupCreate},
+		{"ScimGroupCreateValidation", testScimGroupCreateValidation},
+		{"ScimGroupByID", testScimGroupByID},
+		{"ReplaceScimGroup", testReplaceScimGroup},
+		{"ReplaceScimGroupValidation", testScimGroupReplaceValidation},
+		{"DeleteScimGroup", testDeleteScimGroup},
+		{"ListScimGroups", testListScimGroups},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds, "scim_users", "scim_user_emails")
+			defer TruncateTables(t, ds, "scim_users", "scim_user_emails", "scim_groups", "scim_user_group")
 			c.fn(t, ds)
 		})
 	}
@@ -511,9 +519,400 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), totalNoUsers2)
 }
 
+func testScimGroupCreate(t *testing.T, ds *Datastore) {
+	// Create test users first
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	groupsToCreate := []fleet.ScimGroup{
+		{
+			DisplayName: "Group1",
+			ExternalID:  nil,
+			ScimUsers:   []uint{},
+		},
+		{
+			DisplayName: "Group2",
+			ExternalID:  ptr.String("ext-group-123"),
+			ScimUsers:   []uint{userIDs[0]},
+		},
+		{
+			DisplayName: "Group3",
+			ExternalID:  ptr.String("ext-group-456"),
+			ScimUsers:   userIDs,
+		},
+	}
+
+	for _, g := range groupsToCreate {
+		var err error
+		groupCopy := g
+		groupCopy.ID, err = ds.CreateScimGroup(context.Background(), &g)
+		assert.Nil(t, err)
+
+		verify, err := ds.ScimGroupByID(context.Background(), g.ID)
+		assert.Nil(t, err)
+
+		assert.Equal(t, groupCopy.ID, verify.ID)
+		assert.Equal(t, groupCopy.DisplayName, verify.DisplayName)
+		assert.Equal(t, groupCopy.ExternalID, verify.ExternalID)
+
+		// Verify users
+		assert.Equal(t, len(groupCopy.ScimUsers), len(verify.ScimUsers))
+		if len(groupCopy.ScimUsers) > 0 {
+			// Sort the user IDs for comparison
+			sort.Slice(groupCopy.ScimUsers, func(i, j int) bool {
+				return groupCopy.ScimUsers[i] < groupCopy.ScimUsers[j]
+			})
+			sort.Slice(verify.ScimUsers, func(i, j int) bool {
+				return verify.ScimUsers[i] < verify.ScimUsers[j]
+			})
+			assert.Equal(t, groupCopy.ScimUsers, verify.ScimUsers)
+		}
+	}
+}
+
+func testScimGroupCreateValidation(t *testing.T, ds *Datastore) {
+	// Test validation for ExternalID
+	longString := strings.Repeat("a", 256) // String longer than 255 characters
+
+	// Test ExternalID validation
+	groupWithLongExternalID := fleet.ScimGroup{
+		DisplayName: "Valid Name",
+		ExternalID:  ptr.String(longString),
+		ScimUsers:   []uint{},
+	}
+	_, err := ds.CreateScimGroup(context.Background(), &groupWithLongExternalID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "external_id exceeds maximum length")
+
+	// Test DisplayName validation
+	groupWithLongDisplayName := fleet.ScimGroup{
+		DisplayName: longString,
+		ExternalID:  ptr.String("valid-external-id"),
+		ScimUsers:   []uint{},
+	}
+	_, err = ds.CreateScimGroup(context.Background(), &groupWithLongDisplayName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "display_name exceeds maximum length")
+
+	// Test with valid values
+	validGroup := fleet.ScimGroup{
+		DisplayName: "Valid Name",
+		ExternalID:  ptr.String("valid-external-id"),
+		ScimUsers:   []uint{},
+	}
+	_, err = ds.CreateScimGroup(context.Background(), &validGroup)
+	assert.NoError(t, err)
+}
+
+func testScimGroupByID(t *testing.T, ds *Datastore) {
+	// Create test users first
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	// Create test groups
+	groups := createTestScimGroups(t, ds, userIDs)
+
+	// Test retrieving each group
+	for _, tt := range groups {
+		returned, err := ds.ScimGroupByID(context.Background(), tt.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, tt.ID, returned.ID)
+		assert.Equal(t, tt.DisplayName, returned.DisplayName)
+		assert.Equal(t, tt.ExternalID, returned.ExternalID)
+
+		// Verify users
+		assert.Equal(t, len(tt.ScimUsers), len(returned.ScimUsers))
+		if len(tt.ScimUsers) > 0 {
+			// Sort the user IDs for comparison
+			sort.Slice(tt.ScimUsers, func(i, j int) bool {
+				return tt.ScimUsers[i] < tt.ScimUsers[j]
+			})
+			sort.Slice(returned.ScimUsers, func(i, j int) bool {
+				return returned.ScimUsers[i] < returned.ScimUsers[j]
+			})
+			assert.Equal(t, tt.ScimUsers, returned.ScimUsers)
+		}
+	}
+
+	// Test missing group
+	_, err := ds.ScimGroupByID(context.Background(), 10000000000)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+// createTestScimGroups creates test SCIM groups for testing
+func createTestScimGroups(t *testing.T, ds *Datastore, userIDs []uint) []*fleet.ScimGroup {
+	createGroups := []fleet.ScimGroup{
+		{
+			DisplayName: "Test Group 1",
+			ExternalID:  ptr.String("ext-test-group-123"),
+			ScimUsers:   []uint{},
+		},
+		{
+			DisplayName: "Test Group 2",
+			ExternalID:  ptr.String("ext-test-group-456"),
+			ScimUsers:   []uint{userIDs[0]},
+		},
+		{
+			DisplayName: "Test Group 3",
+			ExternalID:  ptr.String("ext-test-group-789"),
+			ScimUsers:   userIDs,
+		},
+	}
+
+	var groups []*fleet.ScimGroup
+	for _, g := range createGroups {
+		var err error
+		g.ID, err = ds.CreateScimGroup(context.Background(), &g)
+		require.Nil(t, err)
+		groups = append(groups, &g)
+	}
+	return groups
+}
+
+func testReplaceScimGroup(t *testing.T, ds *Datastore) {
+	// Create test users first
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	// Create a test group
+	group := fleet.ScimGroup{
+		DisplayName: "Replace Test Group",
+		ExternalID:  ptr.String("ext-replace-group-123"),
+		ScimUsers:   []uint{userIDs[0]},
+	}
+
+	var err error
+	group.ID, err = ds.CreateScimGroup(context.Background(), &group)
+	require.Nil(t, err)
+
+	// Verify the group was created correctly
+	createdGroup, err := ds.ScimGroupByID(context.Background(), group.ID)
+	require.Nil(t, err)
+	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
+	assert.Equal(t, group.ExternalID, createdGroup.ExternalID)
+	assert.Equal(t, 1, len(createdGroup.ScimUsers))
+	assert.Equal(t, userIDs[0], createdGroup.ScimUsers[0])
+
+	// Modify the group
+	updatedGroup := fleet.ScimGroup{
+		ID:          group.ID,
+		DisplayName: "Updated Group",
+		ExternalID:  ptr.String("ext-replace-group-456"),
+		ScimUsers:   userIDs, // Add all users
+	}
+
+	// Replace the group
+	err = ds.ReplaceScimGroup(context.Background(), &updatedGroup)
+	require.Nil(t, err)
+
+	// Verify the group was updated correctly
+	replacedGroup, err := ds.ScimGroupByID(context.Background(), group.ID)
+	require.Nil(t, err)
+	assert.Equal(t, updatedGroup.DisplayName, replacedGroup.DisplayName)
+	assert.Equal(t, updatedGroup.ExternalID, replacedGroup.ExternalID)
+
+	// Verify users were updated
+	assert.Equal(t, len(userIDs), len(replacedGroup.ScimUsers))
+
+	// Sort the user IDs for comparison
+	sort.Slice(userIDs, func(i, j int) bool {
+		return userIDs[i] < userIDs[j]
+	})
+	sort.Slice(replacedGroup.ScimUsers, func(i, j int) bool {
+		return replacedGroup.ScimUsers[i] < replacedGroup.ScimUsers[j]
+	})
+	assert.Equal(t, userIDs, replacedGroup.ScimUsers)
+
+	// Test replacing a non-existent group
+	nonExistentGroup := fleet.ScimGroup{
+		ID:          99999, // Non-existent ID
+		DisplayName: "Non-existent",
+		ExternalID:  ptr.String("ext-non-existent"),
+		ScimUsers:   []uint{},
+	}
+
+	err = ds.ReplaceScimGroup(context.Background(), &nonExistentGroup)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testScimGroupReplaceValidation(t *testing.T, ds *Datastore) {
+	// Create a valid group first
+	group := fleet.ScimGroup{
+		DisplayName: "Validation Test Group",
+		ExternalID:  ptr.String("ext-validation-group"),
+		ScimUsers:   []uint{},
+	}
+
+	var err error
+	group.ID, err = ds.CreateScimGroup(context.Background(), &group)
+	require.NoError(t, err)
+
+	// Test validation for ExternalID
+	longString := strings.Repeat("a", 256) // String longer than 255 characters
+
+	// Test ExternalID validation
+	groupWithLongExternalID := fleet.ScimGroup{
+		ID:          group.ID,
+		DisplayName: "Valid Name",
+		ExternalID:  ptr.String(longString),
+		ScimUsers:   []uint{},
+	}
+	err = ds.ReplaceScimGroup(context.Background(), &groupWithLongExternalID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "external_id exceeds maximum length")
+
+	// Test DisplayName validation
+	groupWithLongDisplayName := fleet.ScimGroup{
+		ID:          group.ID,
+		DisplayName: longString,
+		ExternalID:  ptr.String("valid-external-id"),
+		ScimUsers:   []uint{},
+	}
+	err = ds.ReplaceScimGroup(context.Background(), &groupWithLongDisplayName)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "display_name exceeds maximum length")
+
+	// Test with valid values
+	validGroup := fleet.ScimGroup{
+		ID:          group.ID,
+		DisplayName: "Updated Valid Name",
+		ExternalID:  ptr.String("updated-valid-external-id"),
+		ScimUsers:   []uint{},
+	}
+	err = ds.ReplaceScimGroup(context.Background(), &validGroup)
+	assert.NoError(t, err)
+}
+
+func testDeleteScimGroup(t *testing.T, ds *Datastore) {
+	// Create test users first
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	// Create a test group
+	group := fleet.ScimGroup{
+		DisplayName: "Delete Test Group",
+		ExternalID:  ptr.String("ext-delete-group"),
+		ScimUsers:   userIDs,
+	}
+
+	var err error
+	group.ID, err = ds.CreateScimGroup(context.Background(), &group)
+	require.Nil(t, err)
+
+	// Verify the group was created correctly
+	createdGroup, err := ds.ScimGroupByID(context.Background(), group.ID)
+	require.Nil(t, err)
+	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
+
+	// Delete the group
+	err = ds.DeleteScimGroup(context.Background(), group.ID)
+	require.Nil(t, err)
+
+	// Verify the group was deleted
+	_, err = ds.ScimGroupByID(context.Background(), group.ID)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Test deleting a non-existent group
+	err = ds.DeleteScimGroup(context.Background(), 99999) // Non-existent ID
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testListScimGroups(t *testing.T, ds *Datastore) {
+	// Create test users first
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	// Create test groups
+	groups := []fleet.ScimGroup{
+		{
+			DisplayName: "List Test Group 1",
+			ExternalID:  ptr.String("ext-list-group-123"),
+			ScimUsers:   []uint{},
+		},
+		{
+			DisplayName: "List Test Group 2",
+			ExternalID:  ptr.String("ext-list-group-456"),
+			ScimUsers:   []uint{userIDs[0]},
+		},
+		{
+			DisplayName: "List Test Group 3",
+			ExternalID:  ptr.String("ext-list-group-789"),
+			ScimUsers:   userIDs,
+		},
+	}
+
+	// Create the groups
+	for i := range groups {
+		var err error
+		groups[i].ID, err = ds.CreateScimGroup(context.Background(), &groups[i])
+		require.Nil(t, err)
+	}
+
+	// Test 1: List all groups without filters
+	allGroups, totalResults, err := ds.ListScimGroups(context.Background(), fleet.ScimListOptions{
+		Page:    1,
+		PerPage: 10,
+	})
+	require.Nil(t, err)
+	assert.GreaterOrEqual(t, len(allGroups), 3) // There might be other groups from previous tests
+	assert.GreaterOrEqual(t, totalResults, uint(3))
+
+	// Verify that our test groups are in the results
+	foundGroups := 0
+	for _, g := range allGroups {
+		for _, testGroup := range groups {
+			if g.ID == testGroup.ID {
+				foundGroups++
+				break
+			}
+		}
+	}
+	assert.Equal(t, 3, foundGroups)
+
+	// Test 2: Pagination - first page with 2 items
+	page1Groups, totalPage1, err := ds.ListScimGroups(context.Background(), fleet.ScimListOptions{
+		Page:    1,
+		PerPage: 2,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(page1Groups))
+	assert.GreaterOrEqual(t, totalPage1, uint(3)) // Total should be at least 3
+
+	// Test 3: Pagination - second page with 2 items
+	page2Groups, totalPage2, err := ds.ListScimGroups(context.Background(), fleet.ScimListOptions{
+		Page:    2,
+		PerPage: 2,
+	})
+	require.Nil(t, err)
+	assert.GreaterOrEqual(t, len(page2Groups), 1) // At least 1 item on the second page
+	assert.GreaterOrEqual(t, totalPage2, uint(3)) // Total should be at least 3
+
+	// Verify that page1 and page2 contain different groups
+	for _, p1Group := range page1Groups {
+		for _, p2Group := range page2Groups {
+			assert.NotEqual(t, p1Group.ID, p2Group.ID, "Groups should not appear on multiple pages")
+		}
+	}
+}
+
 func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", MaxScimFieldLength+1) // String longer than MaxScimFieldLength
+	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
 
 	// Test ExternalID validation
 	userWithLongExternalID := fleet.ScimUser{
@@ -590,7 +989,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", MaxScimFieldLength+1) // String longer than MaxScimFieldLength
+	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
 
 	// Test ExternalID validation
 	userWithLongExternalID := fleet.ScimUser{

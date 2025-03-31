@@ -12,22 +12,26 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// MaxScimFieldLength is the maximum length for SCIM user fields
-const MaxScimFieldLength = 255
+const (
+	// SCIMMaxFieldLength is the maximum length for SCIM user fields
+	SCIMMaxFieldLength = 255
+
+	SCIMDefaultResourcesPerPage = 100
+)
 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length
 func validateScimUserFields(user *fleet.ScimUser) error {
-	if user.ExternalID != nil && len(*user.ExternalID) > MaxScimFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", MaxScimFieldLength)
+	if user.ExternalID != nil && len(*user.ExternalID) > SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
 	}
-	if len(user.UserName) > MaxScimFieldLength {
-		return fmt.Errorf("user_name exceeds maximum length of %d characters", MaxScimFieldLength)
+	if len(user.UserName) > SCIMMaxFieldLength {
+		return fmt.Errorf("user_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
 	}
-	if user.GivenName != nil && len(*user.GivenName) > MaxScimFieldLength {
-		return fmt.Errorf("given_name exceeds maximum length of %d characters", MaxScimFieldLength)
+	if user.GivenName != nil && len(*user.GivenName) > SCIMMaxFieldLength {
+		return fmt.Errorf("given_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
 	}
-	if user.FamilyName != nil && len(*user.FamilyName) > MaxScimFieldLength {
-		return fmt.Errorf("family_name exceeds maximum length of %d characters", MaxScimFieldLength)
+	if user.FamilyName != nil && len(*user.FamilyName) > SCIMMaxFieldLength {
+		return fmt.Errorf("family_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
 	}
 	return nil
 }
@@ -247,7 +251,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 		opts.Page = 1
 	}
 	if opts.PerPage == 0 {
-		opts.PerPage = 100
+		opts.PerPage = SCIMDefaultResourcesPerPage
 	}
 
 	// Calculate offset for pagination
@@ -359,29 +363,340 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 	return emails, nil
 }
 
-func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup) (groupID uint, err error) {
-	// TODO: validate that group.displayName is not more than MaxScimFieldLength
-
-	// TODO
-	return 0, nil
+// validateScimGroupFields checks if the group fields exceed the maximum allowed length
+func validateScimGroupFields(group *fleet.ScimGroup) error {
+	if group.ExternalID != nil && len(*group.ExternalID) > SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	}
+	if len(group.DisplayName) > SCIMMaxFieldLength {
+		return fmt.Errorf("display_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	}
+	return nil
 }
 
+// CreateScimGroup creates a new SCIM group in the database
+func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup) (uint, error) {
+	if err := validateScimGroupFields(group); err != nil {
+		return 0, err
+	}
+
+	var groupID uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const insertGroupQuery = `
+		INSERT INTO scim_groups (
+			external_id, display_name
+		) VALUES (?, ?)`
+		result, err := tx.ExecContext(
+			ctx,
+			insertGroupQuery,
+			group.ExternalID,
+			group.DisplayName,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert scim group")
+		}
+
+		id, err := result.LastInsertId()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert scim group last insert id")
+		}
+		group.ID = uint(id) // nolint:gosec // dismiss G115
+		groupID = group.ID
+
+		// Insert user-group relationships if any
+		if len(group.ScimUsers) > 0 {
+			return insertScimGroupUsers(ctx, tx, group.ID, group.ScimUsers)
+		}
+
+		return nil
+	})
+	return groupID, err
+}
+
+// insertScimGroupUsers inserts the relationships between a SCIM group and its users
+func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint, userIDs []uint) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	// Build the batch insert query
+	valueStrings := make([]string, 0, len(userIDs))
+	valueArgs := make([]interface{}, 0, len(userIDs)*2)
+
+	for _, userID := range userIDs {
+		valueStrings = append(valueStrings, "(?, ?)")
+		valueArgs = append(valueArgs, userID, groupID)
+	}
+
+	// Construct the batch insert query
+	insertQuery := `
+	INSERT INTO scim_user_group (
+		scim_user_id, group_id
+	) VALUES ` + strings.Join(valueStrings, ",")
+
+	// Execute the batch insert
+	_, err := tx.ExecContext(ctx, insertQuery, valueArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "batch insert scim group users")
+	}
+
+	return nil
+}
+
+// ScimGroupByID retrieves a SCIM group by ID
 func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGroup, error) {
-	// TODO
-	return nil, nil
+	const query = `
+		SELECT
+			id, external_id, display_name
+		FROM scim_groups
+		WHERE id = ?
+	`
+	group := &fleet.ScimGroup{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), group, query, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("scim group").WithID(id)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim group")
+	}
+
+	// Get the group's users
+	users, err := ds.getScimGroupUsers(ctx, ds.reader(ctx), id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign the users to the group
+	group.ScimUsers = users
+
+	return group, nil
 }
 
+// getScimGroupUsers retrieves all user IDs for a SCIM group
+func (ds *Datastore) getScimGroupUsers(ctx context.Context, q sqlx.QueryerContext, groupID uint) ([]uint, error) {
+	const query = `
+		SELECT
+			scim_user_id
+		FROM scim_user_group
+		WHERE group_id = ? ORDER BY scim_user_id ASC
+	`
+	var userIDs []uint
+	err := sqlx.SelectContext(ctx, q, &userIDs, query, groupID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim group users")
+	}
+	return userIDs, nil
+}
+
+// ReplaceScimGroup replaces an existing SCIM group in the database
 func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup) error {
-	// TODO
-	return nil
+	if err := validateScimGroupFields(group); err != nil {
+		return err
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Update the SCIM group
+		const updateGroupQuery = `
+		UPDATE scim_groups SET
+			external_id = ?,
+			display_name = ?
+		WHERE id = ?`
+		result, err := tx.ExecContext(
+			ctx,
+			updateGroupQuery,
+			group.ExternalID,
+			group.DisplayName,
+			group.ID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update scim group")
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for update scim group")
+		}
+		if rowsAffected == 0 {
+			return notFound("scim group").WithID(group.ID)
+		}
+
+		// Get existing user-group relationships
+		existingUsers, err := ds.getScimGroupUsers(ctx, tx, group.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get existing scim group users")
+		}
+
+		// Create maps for efficient lookup
+		existingUserMap := make(map[uint]bool)
+		for _, userID := range existingUsers {
+			existingUserMap[userID] = true
+		}
+
+		newUserMap := make(map[uint]bool)
+		for _, userID := range group.ScimUsers {
+			newUserMap[userID] = true
+		}
+
+		// Find users to add (in new but not in existing)
+		var usersToAdd []uint
+		for _, userID := range group.ScimUsers {
+			if !existingUserMap[userID] {
+				usersToAdd = append(usersToAdd, userID)
+			}
+		}
+
+		// Find users to remove (in existing but not in new)
+		var usersToRemove []uint
+		for _, userID := range existingUsers {
+			if !newUserMap[userID] {
+				usersToRemove = append(usersToRemove, userID)
+			}
+		}
+
+		// Add new user-group relationships
+		if len(usersToAdd) > 0 {
+			err = insertScimGroupUsers(ctx, tx, group.ID, usersToAdd)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert new scim group users")
+			}
+		}
+
+		// Remove old user-group relationships
+		if len(usersToRemove) > 0 {
+			// Build a query with placeholders for each user
+			placeholders := make([]string, len(usersToRemove))
+			params := make([]interface{}, len(usersToRemove)+1)
+			params[0] = group.ID
+
+			for i, userID := range usersToRemove {
+				placeholders[i] = "?"
+				params[i+1] = userID
+			}
+
+			deleteQuery := "DELETE FROM scim_user_group WHERE group_id = ? AND scim_user_id IN (" +
+				strings.Join(placeholders, ",") + ")"
+
+			_, err = tx.ExecContext(ctx, deleteQuery, params...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete removed scim group users")
+			}
+		}
+
+		return nil
+	})
 }
 
+// DeleteScimGroup deletes a SCIM group from the database
 func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
-	// TODO
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Delete the group
+		const deleteGroupQuery = `DELETE FROM scim_groups WHERE id = ?`
+		result, err := tx.ExecContext(ctx, deleteGroupQuery, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete scim group")
+		}
+
+		// Check if the group existed
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for delete scim group")
+		}
+		if rowsAffected == 0 {
+			return notFound("scim group").WithID(id)
+		}
+
+		return nil
+	})
 }
 
+// ListScimGroups retrieves a list of SCIM groups with pagination
 func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
-	// TODO
-	return nil, 0, nil
+	// Default pagination values if not provided
+	if opts.Page == 0 {
+		opts.Page = 1
+	}
+	if opts.PerPage == 0 {
+		opts.PerPage = SCIMDefaultResourcesPerPage
+	}
+
+	// Calculate offset for pagination
+	offset := (opts.Page - 1) * opts.PerPage
+
+	// Build the query
+	baseQuery := `
+		SELECT DISTINCT
+			scim_groups.id, external_id, display_name
+		FROM scim_groups
+	`
+
+	// First, get the total count without pagination
+	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + ") AS filtered_groups"
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalResults, countQuery)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "count total scim groups")
+	}
+
+	// Add pagination to the main query
+	query := baseQuery + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
+	params := []interface{}{opts.PerPage, offset}
+
+	// Execute the query
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, params...)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "list scim groups")
+	}
+
+	// Process the results
+	groupIDs := make([]uint, 0, len(groups))
+	groupMap := make(map[uint]*fleet.ScimGroup, len(groups))
+
+	for i, group := range groups {
+		groupIDs = append(groupIDs, group.ID)
+		groupMap[group.ID] = &groups[i]
+		groups[i].ScimUsers = []uint{} // Initialize empty user list for each group
+	}
+
+	// If no groups found, return empty slice
+	if len(groups) == 0 {
+		return groups, totalResults, nil
+	}
+
+	// Fetch users for all groups in a single query
+	userQuery, args, err := sqlx.In(`
+		SELECT
+			group_id, scim_user_id
+		FROM scim_user_group
+		WHERE group_id IN (?)
+		ORDER BY scim_user_id ASC
+	`, groupIDs)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "prepare users query")
+	}
+
+	// Convert query for the specific DB dialect
+	userQuery = ds.reader(ctx).Rebind(userQuery)
+
+	// Execute the user query
+	type groupUser struct {
+		GroupID uint `db:"group_id"`
+		UserID  uint `db:"scim_user_id"`
+	}
+	var allGroupUsers []groupUser
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allGroupUsers, userQuery, args...); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, 0, ctxerr.Wrap(ctx, err, "select scim group users")
+		}
+	}
+
+	// Associate users with their groups
+	for _, gu := range allGroupUsers {
+		if group, ok := groupMap[gu.GroupID]; ok {
+			group.ScimUsers = append(group.ScimUsers, gu.UserID)
+		}
+	}
+
+	return groups, totalResults, nil
 }
