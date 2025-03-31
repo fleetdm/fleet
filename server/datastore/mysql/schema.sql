@@ -1765,7 +1765,7 @@ CREATE TABLE `scheduled_query_stats` (
 CREATE TABLE `scim_groups` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `external_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `display_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `display_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),

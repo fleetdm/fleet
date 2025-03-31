@@ -48,7 +48,7 @@ func Up_20250331042354(tx *sql.Tx) error {
 	CREATE TABLE IF NOT EXISTS scim_groups (
 	    id int UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	    external_id VARCHAR(255) NULL,
-	    display_name VARCHAR(255) NULL,
+	    display_name VARCHAR(255) NOT NULL,
 	    created_at DATETIME(6) NOT NULL DEFAULT NOW(6),
 	    updated_at DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
 	    KEY idx_scim_groups_external_id (external_id),
