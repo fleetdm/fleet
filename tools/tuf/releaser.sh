@@ -319,6 +319,8 @@ elif [[ $ACTION == "update-timestamp" ]]; then
     push_to_staging
 elif [[ $ACTION == "release-to-production" ]]; then
     release_to_production
+elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
+    create_fleetd_release_pr
 else
     echo "Unsupported action: $ACTION"
     exit 1
