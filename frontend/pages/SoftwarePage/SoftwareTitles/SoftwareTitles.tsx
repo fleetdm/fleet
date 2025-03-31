@@ -44,7 +44,6 @@ interface ISoftwareTitlesProps {
   vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
-  resetPageIndex: boolean;
   addedSoftwareToken: string | null;
   onAddFiltersClick: () => void;
 }
@@ -60,7 +59,6 @@ const SoftwareTitles = ({
   vulnFilters,
   currentPage,
   teamId,
-  resetPageIndex,
   addedSoftwareToken,
   onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
@@ -197,7 +195,6 @@ const SoftwareTitles = ({
         isLoading={
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
-        resetPageIndex={resetPageIndex}
         onAddFiltersClick={onAddFiltersClick}
         vulnFilters={vulnFilters}
       />
