@@ -28,8 +28,8 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'success'},
-    adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'success'}
+    success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'ok'},
+    adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'ok'}
   },
 
 
