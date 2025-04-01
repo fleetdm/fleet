@@ -668,7 +668,110 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 }
 
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
-	panic("unimplemented")
+	//panic("unimplemented")
+	const (
+		loadScriptActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(ses.name, scr.name, '') as canceled_name, -- script name in this case
+		NULL as canceled_id, -- no ID for scripts in the canceled activity
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		scripts scr ON scr.id = sua.script_id
+	LEFT OUTER JOIN
+		setup_experience_scripts ses ON ses.id = sua.setup_experience_script_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'script'
+`
+
+		loadSoftwareInstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		software_installers si ON si.id = siua.software_installer_id
+	LEFT OUTER JOIN
+		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'software_install'
+`
+
+		loadSoftwareUninstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		software_installers si ON si.id = siua.software_installer_id
+	LEFT OUTER JOIN
+		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		activity_type = 'software_uninstall'
+`
+
+		loadVPPAppInstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
+	LEFT OUTER JOIN
+		software_titles st ON st.id = vpa.title_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'vpp_app_install'
+`
+	)
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// read the activity along with the required information to create the
+		// "canceled" past activity, and check if the activity was activated or
+		// not.
+	})
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
