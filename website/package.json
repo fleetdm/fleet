@@ -12,11 +12,11 @@
     "jsonwebtoken": "9.0.2",
     "jsrsasign": "11.1.0",
     "moment": "2.29.4",
-    "sails": "^1.5.11",
+    "sails": "^1.5.14",
     "sails-hook-apianalytics": "^2.0.6",
     "sails-hook-organics": "^3.0.0",
     "sails-hook-orm": "^4.0.3",
-    "sails-hook-sockets": "^3.0.0",
+    "sails-hook-sockets": "^3.0.2",
     "sails-postgresql": "^5.0.1",
     "stripe": "17.3.1"
   },
