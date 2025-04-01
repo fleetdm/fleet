@@ -16500,7 +16500,8 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
-	require.Nil(t, title.BundleIdentifier)
+	require.NotNil(t, title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.BundleIdentifier()), title.BundleIdentifier)
 	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
@@ -16509,7 +16510,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NoError(t, err)
 	require.Equal(t, ptr.Uint(4), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
-	require.Equal(t, "windows", i.Platform)
+	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
