@@ -89,7 +89,8 @@
     }
   }
 
-  &__item-action-button {
+  &__item-action-button,
+  &__item-status-button {
     height: auto;
   }
 }

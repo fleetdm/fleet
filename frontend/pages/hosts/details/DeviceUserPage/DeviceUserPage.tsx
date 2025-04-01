@@ -36,6 +36,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -130,6 +131,9 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
+    string | undefined
+  >(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -329,6 +333,13 @@ const DeviceUserPage = ({
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
+  const onShowInstallerDetails = useCallback(
+    (install_uuid: string) => {
+      setSelectedSelfServiceUuid(install_uuid);
+    },
+    [setSelectedSelfServiceUuid]
+  );
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -487,6 +498,7 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
+                      onShowInstallerDetails={onShowInstallerDetails}
                     />
                   </TabPanel>
                 )}
@@ -614,6 +626,15 @@ const DeviceUserPage = ({
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}
+          />
+        )}
+        {selectedSelfServiceUuid && !!host && (
+          <SoftwareInstallDetailsModal
+            details={{
+              host_display_name: host.display_name,
+              install_uuid: selectedSelfServiceUuid,
+            }}
+            onCancel={() => setSelectedSelfServiceUuid(undefined)}
           />
         )}
         {selectedSoftwareDetails && !!host && (
