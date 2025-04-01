@@ -867,19 +867,45 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 		level.Error(ds.logger).Log("err", "unrecognized platform", "hostID", host.ID, "platform", host.Platform) //nolint:errcheck
 	}
 	const stmt = `
-		SELECT id, query
-		FROM policies
+		SELECT p.id, p.query
+		FROM policies p
 		WHERE
 			-- team_id == NULL are global policies that apply to all hosts
 			-- team_id == 0 are policies that apply to hosts in "No team"
 			-- team_id > 0 are policies that apply to hosts in teams
 			(team_id IS NULL OR team_id = COALESCE(?, 0)) AND
-			(platforms = '' OR FIND_IN_SET(?, platforms))`
+			(platforms = '' OR FIND_IN_SET(?, platforms)) AND
+			(
+				-- Policy has no include labels
+				NOT EXISTS (
+					SELECT 1
+					FROM policy_labels pl
+					WHERE pl.policy_id = p.id
+					AND pl.exclude = 0
+				)
+				-- Policy is included in the include_any list
+				OR EXISTS (
+					SELECT 1
+					FROM policy_labels pl
+					INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
+					WHERE pl.policy_id = p.id
+					AND NOT pl.exclude
+				)
+			)
+			-- Policy is not included in the exclude_any list
+			AND NOT EXISTS (
+				SELECT 1
+				FROM policy_labels pl
+				INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
+				WHERE pl.policy_id = p.id
+				AND pl.exclude = 1
+			)
+`
 	var rows []struct {
 		ID    string `db:"id"`
 		Query string `db:"query"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, host.TeamID, host.FleetPlatform()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, host.TeamID, host.ID, host.ID, host.FleetPlatform()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting policies for host")
 	}
 	results := make(map[string]string)

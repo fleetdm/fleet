@@ -75,6 +75,7 @@ func TestPolicies(t *testing.T) {
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
+		{"PolicyLabels", testPolicyLabels},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2199,6 +2200,10 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
 
 	err = ds.SavePolicy(ctx, &fleet.Policy{
 		PolicyData: fleet.PolicyData{
@@ -2213,10 +2218,12 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.True(t, errors.As(err, &nfe))
 
 	payload := fleet.PolicyPayload{
-		Name:        "global query",
-		Query:       "select 1;",
-		Description: "global query desc",
-		Resolution:  "global query resolution",
+		Name:             "global query",
+		Query:            "select 1;",
+		Description:      "global query desc",
+		Resolution:       "global query resolution",
+		LabelsIncludeAny: []string{label1.Name, label2.Name},
+		// TODO also find out where policies get selected and add the logic for checking labels
 	}
 	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, payload)
 	require.NoError(t, err)
@@ -2225,6 +2232,8 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	require.Equal(t, []string{label1.Name, label2.Name}, gp.LabelsIncludeAny)
+
 	computeChecksum := func(policy fleet.Policy) string {
 		h := md5.New() //nolint:gosec // (only used for tests)
 		// Compute the same way as DB does.
@@ -2250,6 +2259,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 		Resolution:            "team1 query resolution",
 		Critical:              true,
 		CalendarEventsEnabled: true,
+		LabelsExcludeAny:      []string{label1.Name, label2.Name},
 	}
 	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, payload)
 	require.NoError(t, err)
@@ -2259,6 +2269,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
 	assert.Equal(t, tp1.CalendarEventsEnabled, payload.CalendarEventsEnabled)
+	require.Equal(t, []string{label1.Name, label2.Name}, tp1.LabelsExcludeAny)
 	var teamChecksum []uint8
 	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
 	require.NoError(t, err)
@@ -2268,10 +2279,15 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	gp2 := *gp
 	gp2.Name = "global query updated"
 	gp2.Critical = true
+	// Swap labels include to labels exclude
+	gp2.LabelsExcludeAny = gp2.LabelsIncludeAny
+	gp2.LabelsIncludeAny = nil
 	err = ds.SavePolicy(ctx, &gp2, false, false)
 	require.NoError(t, err)
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
+	require.Empty(t, gp.LabelsIncludeAny)
+	require.Equal(t, []string{label1.Name, label2.Name}, gp.LabelsExcludeAny)
 	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
 	require.Equal(t, &gp2, gp)
 	var globalChecksum2 []uint8
@@ -2279,6 +2295,12 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
 	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum2))
+
+	// Cannot save a policy with both include and exclude labels
+	gp2.LabelsExcludeAny = []string{label1.Name}
+	gp2.LabelsIncludeAny = []string{label2.Name}
+	err = ds.SavePolicy(ctx, &gp2, false, false)
+	require.Error(t, err)
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -2288,9 +2310,14 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
 	tp2.CalendarEventsEnabled = false
+	// Swap labels include and exclude
+	tp2.LabelsIncludeAny = tp2.LabelsExcludeAny
+	tp2.LabelsExcludeAny = nil
 	err = ds.SavePolicy(ctx, &tp2, true, true)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)
+	require.Empty(t, tp1.LabelsExcludeAny)
+	require.Equal(t, []string{label1.Name, label2.Name}, tp1.LabelsIncludeAny)
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
@@ -5880,4 +5907,158 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostPolicies[0].Response, "pass")
 	require.Empty(t, hostPolicies[1].Response)
 	require.Empty(t, hostPolicies[2].Response)
+}
+
+func testPolicyLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	requirePolicies := func(t *testing.T, havePolicies []*fleet.HostPolicy, wantPolicies []*fleet.Policy) {
+		haveMap := map[uint]string{}
+		wantMap := map[uint]string{}
+		missingPolicies := []string{}
+		extraPolicies := []string{}
+		for _, policy := range havePolicies {
+			haveMap[policy.ID] = policy.Name
+		}
+		for _, policy := range wantPolicies {
+			wantMap[policy.ID] = policy.Name
+		}
+		for _, wantPolicy := range wantPolicies {
+			if _, ok := haveMap[wantPolicy.ID]; !ok {
+				missingPolicies = append(missingPolicies, wantPolicy.Name)
+			}
+		}
+		for _, havePolicy := range havePolicies {
+			if _, ok := wantMap[havePolicy.ID]; !ok {
+				extraPolicies = append(extraPolicies, havePolicy.Name)
+			}
+		}
+
+		if len(missingPolicies) > 0 || len(extraPolicies) > 0 {
+			t.Errorf("missing policies: %q, extra policies: %q", missingPolicies, extraPolicies)
+		}
+	}
+
+	requireQueries := func(t *testing.T, havePolicies map[string]string, wantPolicies []*fleet.Policy) {
+		haveMap := map[uint]string{}
+		wantMap := map[uint]string{}
+		missingPolicies := []string{}
+		extraPolicies := []string{}
+		for policyID := range havePolicies {
+			i, err := strconv.Atoi(policyID)
+			require.NoError(t, err)
+			haveMap[uint(i)] = policyID
+		}
+		for _, policy := range wantPolicies {
+			wantMap[policy.ID] = policy.Name
+		}
+		for _, wantPolicy := range wantPolicies {
+			if _, ok := haveMap[wantPolicy.ID]; !ok {
+				missingPolicies = append(missingPolicies, wantPolicy.Name)
+			}
+		}
+		for havePolicy, haveStr := range haveMap {
+			if _, ok := wantMap[havePolicy]; !ok {
+				extraPolicies = append(extraPolicies, haveStr)
+			}
+		}
+
+		if len(missingPolicies) > 0 || len(extraPolicies) > 0 {
+			t.Errorf("missing policies: %q, extra policies: %q", missingPolicies, extraPolicies)
+		}
+	}
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
+
+	hostNoLabels := test.NewHost(t, ds, "host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
+	hostLabel1 := test.NewHost(t, ds, "host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
+	hostLabel2 := test.NewHost(t, ds, "host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
+	hostLabelBoth := test.NewHost(t, ds, "host-label-both", "10.0.0.4", "key4", "uuid4", time.Now())
+
+	// Apply da labels
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel1.ID, []uint{label1.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel2.ID, []uint{label2.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabelBoth.ID, []uint{label1.ID, label2.ID}))
+
+	// create our policies
+	policyNoLabel := newTestPolicy(t, ds, user1, "policy no label", "", nil)
+
+	policyIncludeLabel1 := newTestPolicy(t, ds, user1, "policy include label1", "", nil)
+	policyIncludeLabel1.LabelsIncludeAny = []string{label1.Name}
+	require.NoError(t, ds.SavePolicy(ctx, policyIncludeLabel1, false, false))
+
+	policyExcludeLabel2 := newTestPolicy(t, ds, user1, "policy exclude label2", "", nil)
+	policyExcludeLabel2.LabelsExcludeAny = []string{label2.Name}
+	require.NoError(t, ds.SavePolicy(ctx, policyExcludeLabel2, false, false))
+
+	policyIncludeBoth := newTestPolicy(t, ds, user1, "policy include both", "", nil)
+	policyIncludeBoth.LabelsIncludeAny = []string{label1.Name, label2.Name}
+	require.NoError(t, ds.SavePolicy(ctx, policyIncludeBoth, false, false))
+
+	policyExcludeBoth := newTestPolicy(t, ds, user1, "policy exclude both", "", nil)
+	policyExcludeBoth.LabelsExcludeAny = []string{label1.Name, label2.Name}
+	require.NoError(t, ds.SavePolicy(ctx, policyExcludeBoth, false, false))
+
+	// The testing grid of truth
+	//
+	// | hosts \ policies | No labels | include 1 | exclude 2 | include both | exclude both |
+	// |------------------+-----------+-----------+-----------+--------------+--------------|
+	// | no label         | X         |           | X         |              | X            |
+	// | label 1          | X         | X         | X         | X            |              |
+	// | label 2          | X         |           |           | X            |              |
+	// | label both       | X         | X         |           | X            |              |
+
+	tcs := []struct {
+		Host     *fleet.Host
+		Policies []*fleet.Policy
+	}{
+		{
+			Host: hostNoLabels,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyExcludeLabel2,
+				policyExcludeBoth,
+			},
+		},
+		{
+			Host: hostLabel1,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyIncludeLabel1,
+				policyExcludeLabel2,
+				policyIncludeBoth,
+			},
+		},
+		{
+			Host: hostLabel2,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyIncludeBoth,
+			},
+		},
+		{
+			Host: hostLabelBoth,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyIncludeLabel1,
+				policyIncludeBoth,
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.Host.Hostname, func(t *testing.T) {
+			policies, err := ds.ListPoliciesForHost(ctx, tc.Host)
+			require.NoError(t, err)
+			requirePolicies(t, policies, tc.Policies)
+			queries, err := ds.PolicyQueriesForHost(ctx, tc.Host)
+			require.NoError(t, err)
+			requireQueries(t, queries, tc.Policies)
+		})
+	}
 }
