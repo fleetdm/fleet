@@ -43,16 +43,7 @@ const STATUS_CONFIG: Record<
   },
   failed_install: {
     iconName: "error",
-    displayText: (
-      <Button
-        onClick={() => {
-          console.log("opened");
-        }}
-        variant="link"
-      >
-        Failed
-      </Button>
-    ),
+    displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
         Software failed to install
@@ -96,15 +87,16 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   );
 };
 
-// TODO: update if/when we support self-service app store apps
 type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
+  onShowInstallerDetails: (installId: string) => void;
 };
 
 const InstallerStatus = ({
   id,
   status,
   last_install,
+  onShowInstallerDetails,
 }: IInstallerStatusProps) => {
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
@@ -125,7 +117,26 @@ const InstallerStatus = ({
           <Icon name={displayConfig.iconName} />
         )}
         <span data-testid={`${baseClass}__status--test`}>
-          {displayConfig.displayText}
+          {last_install && displayConfig.displayText === "Failed" ? (
+            <Button
+              className={`${baseClass}__item-status-button`}
+              variant="text-icon"
+              onClick={() => {
+                if ("command_uuid" in last_install) {
+                  onShowInstallerDetails(last_install.command_uuid);
+                } else if ("install_uuid" in last_install) {
+                  onShowInstallerDetails(last_install.install_uuid);
+                } else {
+                  onShowInstallerDetails("");
+                }
+                console.log("opened");
+              }}
+            >
+              {displayConfig.displayText}
+            </Button>
+          ) : (
+            displayConfig.displayText
+          )}
         </span>
       </div>
       <ReactTooltip
@@ -149,6 +160,7 @@ interface IInstallerStatusActionProps {
   deviceToken: string;
   software: IHostSoftware;
   onInstall: () => void;
+  onShowInstallerDetails: (installId: string) => void;
 }
 
 const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
@@ -168,6 +180,7 @@ const InstallerStatusAction = ({
   deviceToken,
   software: { id, status, software_package, app_store_app },
   onInstall,
+  onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -212,7 +225,12 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-status`}>
-        <InstallerStatus id={id} status={status} last_install={lastInstall} />
+        <InstallerStatus
+          id={id}
+          status={status}
+          last_install={lastInstall}
+          onShowInstallerDetails={onShowInstallerDetails}
+        />
       </div>
       <div className={`${baseClass}__item-action`}>
         {!!installButtonText && (
@@ -237,12 +255,14 @@ interface ISelfServiceItemProps {
   deviceToken: string;
   software: IDeviceSoftware;
   onInstall: () => void;
+  onShowInstallerDetails: (installId: string) => void;
 }
 
 const SelfServiceItem = ({
   deviceToken,
   software,
   onInstall,
+  onShowInstallerDetails,
 }: ISelfServiceItemProps) => {
   return (
     <Card
@@ -256,6 +276,7 @@ const SelfServiceItem = ({
           deviceToken={deviceToken}
           software={software}
           onInstall={onInstall}
+          onShowInstallerDetails={onShowInstallerDetails}
         />
       </div>
     </Card>

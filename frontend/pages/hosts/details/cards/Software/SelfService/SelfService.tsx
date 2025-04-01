@@ -43,6 +43,7 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
+  onShowInstallerDetails: (installUuid: string) => void;
 }
 
 const SoftwareSelfService = ({
@@ -52,6 +53,7 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
+  onShowInstallerDetails,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -60,6 +62,10 @@ const SoftwareSelfService = ({
     selfServiceRefetchStartTime,
     setSelfServiceRefetchStartTime,
   ] = useState<number | null>(null);
+
+  // TODO: Build polling in a separate API call that only checks the pending installs
+  // then when there are no longer any pending installs, we can stop polling and
+  // refetch all the self-service software
 
   // Memoize the query key
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
@@ -260,6 +266,7 @@ const SoftwareSelfService = ({
                 deviceToken={deviceToken}
                 software={s}
                 onInstall={refetchSelfServiceSoftware}
+                onShowInstallerDetails={onShowInstallerDetails}
               />
             );
           })}
