@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -290,7 +290,7 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		require.Equal(t, "Hello World!", payload.UninstallScript)
 
 		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
-		return 0, 0, fmt.Errorf("forced error to short-circuit storage and activity creation")
+		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
 	}
 
 	// Mock server to serve the "installer"
