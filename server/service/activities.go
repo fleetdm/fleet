@@ -271,5 +271,18 @@ func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
-	panic("unimplemented")
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return err
+	}
+	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, upcomingActivityID)
 }

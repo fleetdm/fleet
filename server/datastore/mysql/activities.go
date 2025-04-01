@@ -667,6 +667,10 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	return nil
 }
 
+func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+	panic("unimplemented")
+}
+
 // This function activates the next upcoming activity, if any, for the specified host.
 // It does a few things to achieve this:
 //   - If there was an activity already marked as activated (activated_at is
