@@ -88,9 +88,9 @@ interface IManagePoliciesPageProps {
   };
 }
 
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_PAGE_SIZE = 20;
-const DEFAULT_SORT_COLUMN = "name";
+export const DEFAULT_SORT_DIRECTION = "asc";
+export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_SORT_COLUMN = "name";
 const [
   DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG,
   DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
@@ -98,11 +98,6 @@ const [
   "Successfully updated policy automations.",
   "Could not update policy automations.",
 ];
-
-// isLastPage is removable if/when API is updated to include meta.has_next_results
-const isLastPage = (count: number, pageSize: number, page: number) => {
-  return count <= pageSize * (page + 1);
-};
 
 const baseClass = "manage-policies-page";
 
@@ -908,11 +903,7 @@ const ManagePolicyPage = ({
               globalPolicies
             )
           }
-          disableNextPage={isLastPage(
-            globalPoliciesCount || 0,
-            DEFAULT_PAGE_SIZE,
-            page
-          )}
+          count={globalPoliciesCount || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
@@ -945,11 +936,7 @@ const ManagePolicyPage = ({
             )
           }
           isPremiumTier={isPremiumTier}
-          disableNextPage={isLastPage(
-            teamPoliciesCountMergeInherited || 0,
-            DEFAULT_PAGE_SIZE,
-            page
-          )}
+          count={teamPoliciesCountMergeInherited || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
