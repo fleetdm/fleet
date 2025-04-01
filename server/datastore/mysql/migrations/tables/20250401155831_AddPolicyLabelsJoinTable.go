@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250327160054, Down_20250327160054)
+	MigrationClient.AddMigration(Up_20250401155831, Down_20250401155831)
 }
 
-func Up_20250327160054(tx *sql.Tx) error {
+func Up_20250401155831(tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE policy_labels (
   id int unsigned NOT NULL AUTO_INCREMENT,
@@ -32,6 +32,6 @@ CREATE TABLE policy_labels (
 	return nil
 }
 
-func Down_20250327160054(tx *sql.Tx) error {
+func Down_20250401155831(tx *sql.Tx) error {
 	return nil
 }
