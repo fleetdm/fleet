@@ -65,7 +65,11 @@ const User = ({ endUsers, className }: IUserProps) => {
               //   "thisisareallyreallyreallylongemailaddress2@longdomain.com",
               //   "mediumsidedemail@mediumdomain.com",
               // ]}
-              values={[...testvalues]}
+              // values={[...testvalues]}
+              values={[
+                "thisisareallyreallyreallylongemailaddress@longdomain.com",
+                ...testvalues,
+              ]}
             />
           }
         />

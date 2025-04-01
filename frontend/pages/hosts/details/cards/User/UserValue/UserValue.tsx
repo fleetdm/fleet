@@ -54,7 +54,10 @@ const UserValue = ({ values }: IUserValueProps) => {
           <span ref={displayNameRef} className={`${baseClass}__multi`}>
             {values[0]}
           </span>
-        </TooltipWrapper>{" "}
+        </TooltipWrapper>
+        {/* conditionally render the space character as it only is needed when the
+        value text is not truncated */}
+        {!isTruncated ? " " : null}
         <TooltipWrapper tipContent={tipContent} position="bottom" showArrow>
           <span>+ {values.length - 1} more</span>
         </TooltipWrapper>
