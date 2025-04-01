@@ -45,7 +45,7 @@ module.exports = {
       await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({stateTokenForAdminConsent: stateTokenForThisAdminConsentLink});
 
       // Build an admin consent url for this request.
-      let adminConsentUrlForThisTenant = `https://login.microsoftonline.com/${entraTenantId}/adminconsent?client_id=${encodeURIComponent(sails.config.custom.compliancePartnerClientId)}&state=${encodeURIComponent(stateTokenForThisAdminConsentLink)}&redirect_uri=${encodeURIComponent('fleetdm.com/api/v1/microsoft-compliance-partner/adminconsent')}`;
+      let adminConsentUrlForThisTenant = `https://login.microsoftonline.com/${entraTenantId}/adminconsent?client_id=${encodeURIComponent(sails.config.custom.compliancePartnerClientId)}&state=${encodeURIComponent(stateTokenForThisAdminConsentLink)}&redirect_uri=${encodeURIComponent(`${sails.config.custom.baseUrl}/api/v1/microsoft-compliance-partner/adminconsent`)}`;
 
       return {
         entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
