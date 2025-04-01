@@ -10,6 +10,10 @@ import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import UserValue from "./UserValue";
+import {
+  generateFullNameTipContent,
+  generateGroupsTipContent,
+} from "./helpers";
 // import { generateEmailValue } from "./helpers";
 
 const baseClass = "user-card";
@@ -42,6 +46,7 @@ const User = ({ endUsers, className }: IUserProps) => {
             <TooltipWrapper
               tipContent="Email collected from your IdP during automatic enrollment (ADE)."
               position="top"
+              showArrow
             >
               Email
             </TooltipWrapper>
@@ -63,6 +68,34 @@ const User = ({ endUsers, className }: IUserProps) => {
               values={[...testvalues]}
             />
           }
+        />
+        <DataSet
+          title={
+            <TooltipWrapper
+              tipContent={generateFullNameTipContent(endUsers)}
+              position="top"
+              showArrow
+            >
+              Full name (IdP)
+            </TooltipWrapper>
+          }
+          value={<UserValue values={["test name"]} />}
+        />
+        <DataSet
+          title={
+            <TooltipWrapper
+              tipContent={generateGroupsTipContent(endUsers)}
+              position="top"
+              showArrow
+            >
+              Groups (IdP)
+            </TooltipWrapper>
+          }
+          value={<UserValue values={["test group"]} />}
+        />
+        <DataSet
+          title="Google Chrome profiles"
+          value={<UserValue values={["test group"]} />}
         />
       </div>
     </Card>
