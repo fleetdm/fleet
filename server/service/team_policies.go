@@ -557,10 +557,14 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		}
 	}
 	if p.LabelsIncludeAny != nil {
-		policy.LabelsIncludeAny = p.LabelsIncludeAny
+		for _, label := range p.LabelsIncludeAny {
+			policy.LabelsIncludeAny = append(policy.LabelsIncludeAny, fleet.LabelIdent{LabelName: label})
+		}
 	}
 	if p.LabelsExcludeAny != nil {
-		policy.LabelsExcludeAny = p.LabelsExcludeAny
+		for _, label := range p.LabelsExcludeAny {
+			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
+		}
 	}
 
 	logging.WithExtras(ctx, "name", policy.Name, "sql", policy.Query)
