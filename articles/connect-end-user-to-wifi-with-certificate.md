@@ -28,7 +28,7 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 3. Select your **Business unit** and **Issuing CA**.
 4. Select **REST API** from **Enrollment method**. Then select **3rd party app** from the **Authentication method** dropdown and select **Next**.
 5. Configure the certificate expiration. At most organizations, this is set to 90 days.
-6. In the **Subject DN and SAN fields** section, make sure to add **Common name** and **Other name (UPN)**. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. For **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**.
+6. In the **Subject DN and SAN fields** section, make sure to add **Common name**. **Other name (UPN)** is optional. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. If you use **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. Organizations usually use device's serial number or user's email, you can use Fleet variables in the next section, and Fleet will replace these variables with the actual values before certificate is delivered to a device.
 7. Click **Next** and leave all default options. We'll come back to this later.
 
 ### Step 3: Connect Fleet to DigiCert
