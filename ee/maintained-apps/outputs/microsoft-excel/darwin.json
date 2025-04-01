@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.Excel';"
       },
       "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.95.25030928_Installer.pkg",
-      "unique_identifier": "com.microsoft.Excel",
       "install_script_ref": "3428e787",
       "uninstall_script_ref": "6694909e",
       "sha256": "61828b387ee351773c0654a2131fc93695ab24fcc992ba415a4bc454c852bfed"

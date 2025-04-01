@@ -417,6 +417,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	if appConfig.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "Fleet server URL must be present")
+	} else {
+		if err := ValidateServerURL(appConfig.ServerSettings.ServerURL); err != nil {
+			invalid.Append("server_url", "Couldn't update settings: "+err.Error())
+		}
 	}
 
 	if appConfig.ActivityExpirySettings.ActivityExpiryEnabled && appConfig.ActivityExpirySettings.ActivityExpiryWindow < 1 {
@@ -563,21 +567,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
-	gme, rurl := newAppConfig.UIGitOpsMode.GitopsModeEnabled, newAppConfig.UIGitOpsMode.RepositoryURL
-	if gme {
+	gitopsModeEnabled, gitopsRepoURL := appConfig.UIGitOpsMode.GitopsModeEnabled, appConfig.UIGitOpsMode.RepositoryURL
+	if gitopsModeEnabled {
 		if !license.IsPremium() {
 			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
 		}
-		if rurl == "" {
+		if gitopsRepoURL == "" {
 			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
 		}
 	}
-	appConfig.UIGitOpsMode = newAppConfig.UIGitOpsMode
 
 	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
 		// generate the activity
 		var act fleet.ActivityDetails
-		if gme {
+		if gitopsModeEnabled {
 			act = fleet.ActivityTypeEnabledGitOpsMode{}
 		} else {
 			act = fleet.ActivityTypeDisabledGitOpsMode{}
@@ -924,8 +927,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 }
 
 func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
-	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError) (appConfigCAStatus, error) {
-
+	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+) (appConfigCAStatus, error) {
 	var invalidLicense bool
 	fleetLicense, _ := license.FromContext(ctx)
 	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !fleetLicense.IsPremium() {
@@ -1249,7 +1252,8 @@ func (svc *Service) populateCustomSCEPChallenges(ctx context.Context, remainingO
 // filterDeletedDigiCertCAs identifies deleted DigiCert integrations in the provided configs.
 // It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
 func filterDeletedDigiCertCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
-	result *appConfigCAStatus) []fleet.DigiCertIntegration {
+	result *appConfigCAStatus,
+) []fleet.DigiCertIntegration {
 	remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
 	for _, oldCA := range oldAppConfig.Integrations.DigiCert.Value {
 		var found bool
@@ -1271,7 +1275,8 @@ func filterDeletedDigiCertCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet
 // filterDeletedCustomSCEPCAs identifies deleted custom SCEP integrations in the provided configs.
 // It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
 func filterDeletedCustomSCEPCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
-	result *appConfigCAStatus) []fleet.CustomSCEPProxyIntegration {
+	result *appConfigCAStatus,
+) []fleet.CustomSCEPProxyIntegration {
 	remainingOldCAs := make([]fleet.CustomSCEPProxyIntegration, 0, len(oldAppConfig.Integrations.CustomSCEPProxy.Value))
 	for _, oldCA := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
 		var found bool
@@ -1362,6 +1367,11 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 	if len(userPrincipalNames) > 1 {
 		invalid.Append("integrations.digicert.certificate_user_principal_names",
 			"DigiCert CA can only have one certificate user principal name")
+		return false
+	}
+	if len(strings.TrimSpace(userPrincipalNames[0])) == 0 {
+		invalid.Append("integrations.digicert.certificate_user_principal_names",
+			"DigiCert CA certificate user principal name cannot be empty if specified")
 		return false
 	}
 	fleetVars := findFleetVariables(userPrincipalNames[0])

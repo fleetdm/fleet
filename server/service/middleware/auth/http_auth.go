@@ -28,3 +28,11 @@ func SetRequestsContexts(svc fleet.Service) kithttp.RequestFunc {
 		return ctx
 	}
 }
+
+func SetRequestsContextMiddleware(svc fleet.Service, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := kithttp.PopulateRequestContext(r.Context(), r)
+		ctx = SetRequestsContexts(svc)(ctx, r)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}

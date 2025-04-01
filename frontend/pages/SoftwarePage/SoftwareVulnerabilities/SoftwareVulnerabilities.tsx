@@ -35,7 +35,6 @@ interface ISoftwareVulnerabilitiesProps {
   currentPage: number;
   teamId?: number;
   showExploitedVulnerabilitiesOnly: boolean;
-  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilities = ({
@@ -48,7 +47,6 @@ const SoftwareVulnerabilities = ({
   currentPage,
   teamId,
   showExploitedVulnerabilitiesOnly,
-  resetPageIndex,
 }: ISoftwareVulnerabilitiesProps) => {
   const [tableData, setTableData] = useState<IVulnerabilitiesResponse>();
   const [
@@ -264,7 +262,6 @@ const SoftwareVulnerabilities = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching || isFetchingExactMatch}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

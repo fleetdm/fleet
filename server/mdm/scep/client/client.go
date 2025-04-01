@@ -12,7 +12,7 @@ import (
 // Client is a SCEP Client
 type Client interface {
 	scepserver.Service
-	Supports(cap string) bool
+	Supports(capacity string) bool
 }
 
 // New creates a SCEP Client.

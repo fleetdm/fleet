@@ -357,6 +357,7 @@ $shadow-transition-width: 10px;
   &__footer {
     display: flex;
     align-items: center;
+    height: 50px; // Match pagination height as pagination is optionally rendered
   }
 
   &__table-help-text {

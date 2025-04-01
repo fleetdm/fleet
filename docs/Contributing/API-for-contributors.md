@@ -1284,7 +1284,7 @@ Content-Type: application/octet-stream
 
 `/mdm/scep/proxy/{identifier}`
 
-This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID,caName` (URL escaped).
 
 ### Get Android Enterprise signup URL
 
