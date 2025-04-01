@@ -52,7 +52,8 @@ func Up_20250331042354(tx *sql.Tx) error {
 	    created_at DATETIME(6) NOT NULL DEFAULT NOW(6),
 	    updated_at DATETIME(6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),
 	    KEY idx_scim_groups_external_id (external_id),
-	    KEY idx_scim_groups_display_name (display_name)
+	    -- Entra ID requires a unique display name
+	    UNIQUE KEY idx_scim_groups_display_name (display_name)
 	) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	
 	CREATE TABLE IF NOT EXISTS scim_user_group (
