@@ -43,7 +43,16 @@ const STATUS_CONFIG: Record<
   },
   failed_install: {
     iconName: "error",
-    displayText: "Failed",
+    displayText: (
+      <Button
+        onClick={() => {
+          console.log("opened");
+        }}
+        variant="link"
+      >
+        Failed
+      </Button>
+    ),
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
         Software failed to install
