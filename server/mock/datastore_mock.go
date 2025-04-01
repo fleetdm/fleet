@@ -1300,6 +1300,8 @@ type CreateScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) (uint
 
 type ScimGroupByIDFunc func(ctx context.Context, id uint) (*fleet.ScimGroup, error)
 
+type ScimGroupByDisplayNameFunc func(ctx context.Context, displayName string) (*fleet.ScimGroup, error)
+
 type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) error
 
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
@@ -3223,6 +3225,9 @@ type DataStore struct {
 
 	ScimGroupByIDFunc        ScimGroupByIDFunc
 	ScimGroupByIDFuncInvoked bool
+
+	ScimGroupByDisplayNameFunc        ScimGroupByDisplayNameFunc
+	ScimGroupByDisplayNameFuncInvoked bool
 
 	ReplaceScimGroupFunc        ReplaceScimGroupFunc
 	ReplaceScimGroupFuncInvoked bool
@@ -7707,6 +7712,13 @@ func (s *DataStore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGrou
 	s.ScimGroupByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScimGroupByIDFunc(ctx, id)
+}
+
+func (s *DataStore) ScimGroupByDisplayName(ctx context.Context, displayName string) (*fleet.ScimGroup, error) {
+	s.mu.Lock()
+	s.ScimGroupByDisplayNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimGroupByDisplayNameFunc(ctx, displayName)
 }
 
 func (s *DataStore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGroup) error {
