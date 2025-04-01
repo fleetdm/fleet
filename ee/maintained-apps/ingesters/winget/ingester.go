@@ -199,7 +199,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	for _, installer := range m.Installers {
-		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type")
+		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
 		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
@@ -229,9 +229,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			// We only care about the locale if one is specified
 			installer.InstallerLocale = ""
 		}
-
-		fmt.Printf("input.InstallerLocale: %v\n", input.InstallerLocale)
-		fmt.Printf("installer.InstallerLocale: %v\n", installer.InstallerLocale)
 
 		if installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&

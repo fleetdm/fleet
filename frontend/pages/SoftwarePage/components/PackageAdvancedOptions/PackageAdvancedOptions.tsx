@@ -30,17 +30,34 @@ const PKG_TYPE_TO_ID_TEXT = {
   exe: "software name",
 } as const;
 
-const getInstallHelpText = (pkgType: PackageType) => (
-  <>
-    Use the $INSTALLER_PATH variable to point to the installer.{" "}
-    {getSupportedScriptTypeText(pkgType)}{" "}
-    <CustomLink
-      url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
-      text="Learn more about install scripts"
-      newTab
-    />
-  </>
-);
+const getInstallHelpText = (pkgType: PackageType) => {
+  if (pkgType === "exe") {
+    return (
+      <>
+        For Windows, Fleet only creates install scripts for .msi packages. Use
+        the $INSTALLER_PATH variable to point to the installer.{" "}
+        {getSupportedScriptTypeText(pkgType)}{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
+          text="Learn more"
+          newTab
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      Use the $INSTALLER_PATH variable to point to the installer.{" "}
+      {getSupportedScriptTypeText(pkgType)}{" "}
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/install-scripts`}
+        text="Learn more about install scripts"
+        newTab
+      />
+    </>
+  );
+};
 
 const getPostInstallHelpText = (pkgType: PackageType) => {
   return getSupportedScriptTypeText(pkgType);
@@ -48,7 +65,23 @@ const getPostInstallHelpText = (pkgType: PackageType) => {
 
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
-    return "Currently, shell scripts are supported";
+    return "Currently, shell scripts are supported.";
+  }
+
+  if (pkgType === "exe") {
+    return (
+      <>
+        For Windows, Fleet only creates uninstall scripts for .msi packages.
+        $PACKAGE_ID will be populated with the software name from the .exe file
+        after it&apos;s added.
+        {getSupportedScriptTypeText(pkgType)}{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
+          text="Learn more"
+          newTab
+        />
+      </>
+    );
   }
 
   return (
@@ -97,14 +130,15 @@ const PackageAdvancedOptions = ({
   onChangeUninstallScript,
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const name = selectedPackage?.name || "";
+  const ext = name.split(".").pop() as PackageType;
 
   const renderAdvancedOptions = () => {
-    const name = selectedPackage?.name || "";
-    const ext = name.split(".").pop() as PackageType;
     if (!isPackageType(ext)) {
       // this should never happen
       return null;
     }
+
     return (
       <AdvancedOptionsFields
         className={`${baseClass}__input-fields`}
@@ -143,7 +177,9 @@ const PackageAdvancedOptions = ({
           </>
         }
       />
-      {showAdvancedOptions && !!selectedPackage && renderAdvancedOptions()}
+      {(showAdvancedOptions || ext === "exe") &&
+        !!selectedPackage &&
+        renderAdvancedOptions()}
     </div>
   );
 };
