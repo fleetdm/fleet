@@ -602,6 +602,11 @@ type Service interface {
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
+	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
+	// host. If the activity does not exist in the queue of upcoming activities
+	// (e.g. it did complete), it returns a not found error.
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 
