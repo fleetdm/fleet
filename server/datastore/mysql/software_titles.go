@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -221,18 +222,28 @@ func (ds *Datastore) ListSoftwareTitles(
 	// the application logic. This is because we need to support MySQL 5.7
 	// and there's no good way to do an aggregation that builds a structure
 	// (like a JSON) object for nested arrays.
-	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
-		titleIDs,
-		opt.TeamID,
-		tmFilter,
-		false,
-	)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get versions stmt")
-	}
+	batchSize := 32000
 	var versions []fleet.SoftwareVersion
-	if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software versions")
+	err = common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
+		getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
+			titleIDsToProcess,
+			opt.TeamID,
+			tmFilter,
+			false,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build get versions stmt")
+		}
+		var versionsBatch []fleet.SoftwareVersion
+		if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get software versions")
+		}
+		versions = append(versions, versionsBatch...)
+
+		return nil
+	})
+	if err != nil {
+		return nil, 0, nil, err
 	}
 
 	// append matching versions to titles

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path"
@@ -18,9 +19,16 @@ import (
 )
 
 func main() {
+	slugPtr := flag.String("slug", "", "app slug")
+	debugPtr := flag.Bool("debug", false, "enable debug logging")
+	flag.Parse()
 	ctx := context.Background()
 	logger := kitlog.NewJSONLogger(os.Stderr)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	lvl := level.AllowInfo()
+	if *debugPtr {
+		lvl = level.AllowDebug()
+	}
+	logger = level.NewFilter(logger, lvl)
 	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
 
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
@@ -31,12 +39,13 @@ func main() {
 	}
 
 	for p, i := range ingesters {
-		apps, err := i(ctx, logger, p)
+		apps, err := i(ctx, logger, p, *slugPtr)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
 		}
 
 		for _, app := range apps {
+
 			if app.IsEmpty() {
 				level.Info(logger).Log("msg", "skipping manifest update due to empty output", "slug", app.Slug)
 				continue
@@ -50,6 +59,11 @@ func main() {
 }
 
 func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) error {
+	if err := updateAppsListFile(ctx, app); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating apps list file")
+	}
+	app.UniqueIdentifier = "" // make sure we don't leak unique_identifier into individual app manifests
+
 	outFile := maintained_apps.FMAManifestFile{
 		Versions: []*maintained_apps.FMAManifestApp{app},
 		Refs:     map[string]string{app.UninstallScriptRef: app.UninstallScript, app.InstallScriptRef: app.InstallScript},
@@ -69,10 +83,6 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 	}
 	if err := os.WriteFile(path.Join(maintained_apps.OutputPath, fmt.Sprintf("%s.json", app.Slug)), outBytes, 0o644); err != nil {
 		return ctxerr.Wrap(ctx, err, "writing output json file")
-	}
-
-	if err := updateAppsListFile(ctx, app); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating apps list file")
 	}
 
 	return nil

@@ -25,3 +25,5 @@ agent_options:
   path: ./agent-options.yml
 org_settings:
   path: ./org-settings.yml
+labels:
+  - path: ./top.labels.yml

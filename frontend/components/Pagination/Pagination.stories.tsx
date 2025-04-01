@@ -2,26 +2,21 @@ import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 import { noop } from "lodash";
 
-// @ts-ignore
+import { IPaginationProps } from "./Pagination";
 import Pagination from ".";
 
 import "../../index.scss";
-
-interface IPaginationProps {
-  currentPage: number;
-  resultsPerPage: number;
-  resultsOnCurrentPage: number;
-  onPaginationChange: () => void;
-}
 
 const meta: Meta<IPaginationProps> = {
   component: Pagination,
   title: "Components/Pagination",
   args: {
-    currentPage: 1,
-    resultsPerPage: 10,
-    resultsOnCurrentPage: 10,
-    onPaginationChange: noop,
+    disableNext: false,
+    disablePrev: true,
+    onNextPage: noop,
+    onPrevPage: noop,
+    className: "pagination-story",
+    hidePagination: false,
   },
 };
 

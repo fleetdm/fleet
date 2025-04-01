@@ -11,6 +11,7 @@ import { getPathWithQueryParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 
 import {
@@ -152,12 +153,12 @@ const Policies = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Policies</p>
+      <CardHeader header="Policies" />
       {renderHostPolicies()}
     </Card>
   );

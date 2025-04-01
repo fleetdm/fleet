@@ -667,7 +667,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	var rawDecl MDMAppleRawDeclaration
 	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't add. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
 	}
 
 	return &rawDecl, nil
@@ -979,4 +979,15 @@ type MDMBulkUpsertManagedCertificatePayload struct {
 	NotValidAfter        *time.Time
 	Type                 CAConfigAssetType
 	CAName               string
+}
+
+// MDMAppleEnrolledDeviceInfo represents the information of a device enrolled
+// in Apple MDM. Used by the MDM flow to re-create an iDevice that has been
+// deleted from the hosts table but is still MDM-enrolled.
+type MDMAppleEnrolledDeviceInfo struct {
+	ID           string `db:"id"`
+	SerialNumber string `db:"serial_number"`
+	Authenticate string `db:"authenticate"`
+	Platform     string `db:"platform"`
+	EnrollTeamID *uint  `db:"enroll_team_id"`
 }

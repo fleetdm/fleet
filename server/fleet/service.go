@@ -74,6 +74,9 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
+	GetTransparencyURL(ctx context.Context) (string, error)
+
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
@@ -599,6 +602,11 @@ type Service interface {
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
+	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
+	// host. If the activity does not exist in the queue of upcoming activities
+	// (e.g. it did complete), it returns a not found error.
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 
@@ -1073,7 +1081,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool,
+		assumeEnabled *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////

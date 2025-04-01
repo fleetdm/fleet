@@ -2,7 +2,6 @@ import {
   ICertificatesIntegrationCustomSCEP,
   ICertificatesIntegrationDigicert,
   ICertificatesIntegrationNDES,
-  isNDESCertIntegration,
 } from "interfaces/integration";
 
 export interface ICertAuthorityListData {
@@ -40,7 +39,7 @@ export const generateListData = (
   if (customProxies?.length) {
     customProxies.forEach((cert) => {
       listData.push({
-        id: `custom-scep-proxy-${cert.id}`,
+        id: `custom-scep-proxy-${cert.name}`,
         name: cert.name,
         description: "Custom Simple Certificate Enrollment Protocol (SCEP)",
       });
@@ -91,8 +90,7 @@ export const getCertificateAuthority = (
   if (id.includes("custom-scep-proxy") && customProxies) {
     return (
       customProxies?.find(
-        // TODO: remove custom scep id
-        (cert) => id.split("custom-scep-proxy-")[1] === cert.id.toString()
+        (cert) => id.split("custom-scep-proxy-")[1] === cert.name
       ) ?? null
     );
   }

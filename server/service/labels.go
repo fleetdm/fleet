@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +58,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	label := &fleet.Label{
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		AuthorID:            ptr.Uint(vc.UserID()),
 	}
 
 	if p.Name == "" {
@@ -528,6 +530,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", name), http.StatusUnprocessableEntity)
 			}
 		}
+
 		regularSpecs = append(regularSpecs, spec)
 	}
 
@@ -553,6 +556,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	}
 	if len(regularSpecs) == 0 {
 		return nil
+	}
+
+	// Get the user from the context.
+	user, ok := viewer.FromContext(ctx)
+	// If we have a user, mark them as the label's author.
+	if ok {
+		return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))
 	}
 	return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
 }

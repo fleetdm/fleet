@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 )
 
 var automationActivityAuthor = "Fleet"
+var deleteIDsBatchSize = 1000
 
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(
@@ -570,71 +572,103 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		}
 	}
 
-	//
 	// `activities` and `queries` are not tied because the activity itself holds
 	// the query SQL so they don't need to be executed on the same transaction.
 	//
-	// All expired live queries are deleted in batch sizes of `maxCount` to ensure
-	// the table size is kept in check with high volumes of live queries (zero-trust workflows).
-	// This differs from the `activities` cleanup which uses maxCount as a limit to
-	// the number of activities to delete.
-	//
-	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
+	// All expired live queries are deleted in batch sizes of
+	// `deleteIDsBatchSize` to ensure the table size is kept in check
+	// with high volumes of live queries (zero-trust workflows). This differs
+	// from the `activities` cleanup which uses maxCount as a limit to the
+	// number of activities to delete.
 
-		var rowsAffected int64
+	const selectUnsavedQueryIDs = `
+		SELECT id
+		FROM queries
+		WHERE NOT saved
+		AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
+		ORDER BY id`
+	var allUnsavedQueryIDs []uint
 
-		// Start a new transaction for each batch of deletions.
-		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-			// Delete expired live queries (aka "not saved")
-			result, err := tx.ExecContext(ctx,
-				`DELETE FROM queries
-			WHERE NOT saved AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-			LIMIT ?`,
-				expiredWindowDays, maxCount,
-			)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "delete expired non-saved queries")
-			}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allUnsavedQueryIDs, selectUnsavedQueryIDs, expiredWindowDays); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting expired unsaved query IDs")
+	}
 
-			rowsAffected, err = result.RowsAffected()
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving rows affected from delete query")
-			}
+	unsavedQueryIter := slices.Chunk(allUnsavedQueryIDs, deleteIDsBatchSize)
 
-			// Cleanup orphaned distributed campaigns that reference non-existing queries.
-			if _, err := tx.ExecContext(ctx,
-				`DELETE distributed_query_campaigns FROM distributed_query_campaigns
-			LEFT JOIN queries ON (distributed_query_campaigns.query_id=queries.id)
-			WHERE queries.id IS NULL`,
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete expired orphaned distributed_query_campaigns")
-			}
-
-			// Cleanup orphaned distributed campaign targets that reference non-existing distributed campaigns.
-			if _, err := tx.ExecContext(ctx,
-				`DELETE distributed_query_campaign_targets FROM distributed_query_campaign_targets
-			LEFT JOIN distributed_query_campaigns ON (distributed_query_campaign_targets.distributed_query_campaign_id=distributed_query_campaigns.id)
-			WHERE distributed_query_campaigns.id IS NULL`,
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete expired orphaned distributed_query_campaign_targets")
-			}
-
-			return nil
-		})
+	for unsavedQueryIDs := range unsavedQueryIter {
+		const deleteStmt = `DELETE FROM queries WHERE id IN (?)`
+		deleteQuery, args, err := sqlx.In(deleteStmt, unsavedQueryIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete expired queries in batch")
+			return ctxerr.Wrap(ctx, err, "creating query to delete unsaved queries")
 		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired unsaved queries")
+		}
+	}
 
-		// Break the loop if no rows were deleted in the current batch.
-		if rowsAffected == 0 {
-			break
+	// Cleanup orphaned distributed campaigns that reference non-existing queries.
+	const selectCampaignIDs = `
+		SELECT id
+		FROM distributed_query_campaigns dqc
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM queries q
+			WHERE q.id = dqc.query_id
+		)
+		ORDER BY id`
+	var allCampaignIDs []uint
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allCampaignIDs, selectCampaignIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting expired distributed query campaigns")
+	}
+
+	campaignIter := slices.Chunk(allCampaignIDs, deleteIDsBatchSize)
+
+	for campaignIDs := range campaignIter {
+		const deleteStmt = `DELETE FROM distributed_query_campaigns WHERE id IN (?)`
+		deleteQuery, args, err := sqlx.In(deleteStmt, campaignIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating delete expired distributed query campaigns stmt")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired distributed query campaigns")
+		}
+	}
+
+	// Cleanup orphaned distributed campaign targets that reference non-existing distributed campaigns.
+	const selectCampaignTargets = `
+		SELECT id
+		FROM distributed_query_campaign_targets dqct
+		WHERE NOT EXISTS (
+			SELECT 1
+			FROM distributed_query_campaigns dqc
+			WHERE dqc.id = dqct.distributed_query_campaign_id
+		)
+		ORDER BY id`
+	var allCampaignTargetIDs []uint
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allCampaignTargetIDs, selectCampaignTargets); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting expired distributed query campaign targets")
+	}
+
+	campaignTargetIter := slices.Chunk(allCampaignTargetIDs, deleteIDsBatchSize)
+
+	for campaignTargetIDs := range campaignTargetIter {
+		const deleteStmt = `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
+		deleteQuery, args, err := sqlx.In(deleteStmt, campaignTargetIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating query to delete expired query campaign targets")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, deleteQuery, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting expired distributed query campaign targets")
 		}
 	}
 
 	return nil
+}
+
+func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+	panic("unimplemented")
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.

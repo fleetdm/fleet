@@ -7,6 +7,7 @@ import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 
@@ -36,12 +37,12 @@ const Users = ({
   if (!hostUsersEnabled) {
     return (
       <Card
-        borderRadiusSize="xxlarge"
-        includeShadow
-        largePadding
         className={baseClass}
+        borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
+        includeShadow
       >
-        <p className="card__header">Users</p>
+        <CardHeader header="Users" />
         <EmptyTable
           header="User collection has been disabled"
           info={
@@ -61,13 +62,13 @@ const Users = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      paddingSize="xxlarge"
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
       <>
-        <h2 className="card__header">Users</h2>
+        <CardHeader header="Users" />
         {users?.length ? (
           <TableContainer
             columnConfigs={tableHeaders}

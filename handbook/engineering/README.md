@@ -127,7 +127,7 @@ To provide full-time focus to the role, the on-call engineer is not expected to 
 
 ### Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
@@ -354,6 +354,11 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
 - Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
+
+
+### Request product group transfer
+
+Product groups are organized by core use case to allow each product group to develop subject matter expertise. Transferring between product groups offers engineers the opportunity to gain experience contributing to other areas of Fleet. To request a product group transfer, notify the Engineering Manager of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) or the [CTO](https://fleetdm.com/handbook/engineering#team) to be considered for transfer the next time the requested product group has an available position.
 
 
 ### Record engineering KPIs
