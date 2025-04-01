@@ -32,7 +32,7 @@ module.exports = {
     }
 
     // Return a bad request response if the origin header is missing.
-    if(!this.req.headers['Origin']) {
+    if(!this.req.get('Origin')) {
       throw 'missingOriginHeader';
     }
 
@@ -41,13 +41,13 @@ module.exports = {
     let newTenant = await MicrosoftComplianceTenant.create({
       fleetServerSecret: sails.helpers.strings.random.with({len: 30}),
       entraTenantId: entraTenantId,
-      fleetInstanceUrl: this.req.headers['Origin'],
+      fleetInstanceUrl: this.req.get('Origin'),
       setupCompleted: false,
-    });
+    }).fetch();
 
 
     return {
-      fleet_server_secret: newTenant.apiKey,// eslint-disable-line camelcase
+      fleet_server_secret: newTenant.fleetServerSecret,// eslint-disable-line camelcase
       entra_tenant_id: entraTenantId,// eslint-disable-line camelcase
     };
 
