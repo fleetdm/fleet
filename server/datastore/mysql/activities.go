@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -668,7 +669,6 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 }
 
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
-	//panic("unimplemented")
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -767,11 +767,44 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 `
 	)
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	type activityToCancel struct {
+		ActivityType    string `db:"activity_type"`
+		HostID          uint   `db:"host_id"`
+		HostDisplayName string `db:"host_display_name"`
+		CanceledName    string `db:"canceled_name"`
+		CanceledID      *uint  `db:"canceled_id"`
+		Activated       bool   `db:"activated"`
+	}
+
+	var act activityToCancel
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// read the activity along with the required information to create the
 		// "canceled" past activity, and check if the activity was activated or
 		// not.
+		stmt := strings.Join([]string{loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
+			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt}, " UNION ALL ")
+		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": upcomingActivityID})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
+		}
+
+		if err := sqlx.GetContext(ctx, tx, &act, stmt, args...); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(upcomingActivityID))
+			}
+			return ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
+		}
+
+		if act.Activated {
+		}
 	})
+
+	if err != nil {
+		return err
+	}
+
+	// TODO: create canceled activity
+	return nil
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
