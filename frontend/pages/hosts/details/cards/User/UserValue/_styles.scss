@@ -1,0 +1,11 @@
+.user-value {
+  &__single {
+    display: block;
+    @include ellipse-text(270px);
+  }
+
+  &__multi {
+    display: block;
+    @include ellipse-text(197px);
+  }
+}

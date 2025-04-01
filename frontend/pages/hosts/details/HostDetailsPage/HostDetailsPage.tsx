@@ -29,7 +29,6 @@ import {
   IHostMdmData,
   IPackStats,
   IHostEndUser,
-  IHostIDPEndUser,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
@@ -890,7 +889,7 @@ const HostDetailsPage = ({
     [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
   });
 
-  const testEndUserData: IHostEndUser = [
+  const testEndUserData: IHostEndUser[] = [
     {
       idp_id: "1234567890",
       idp_email: "test@email.com",
