@@ -889,7 +889,7 @@ func (ds *Datastore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host)
 					FROM policy_labels pl
 					INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
 					WHERE pl.policy_id = p.id
-					AND NOT pl.exclude
+					AND pl.exclude = 0
 				)
 			)
 			-- Policy is not included in the exclude_any list

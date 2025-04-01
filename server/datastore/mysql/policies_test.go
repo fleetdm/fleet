@@ -5912,7 +5912,7 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 func testPolicyLabels(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	requirePolicies := func(t *testing.T, havePolicies []*fleet.HostPolicy, wantPolicies []*fleet.Policy) {
+	assertPolicies := func(t *testing.T, havePolicies []*fleet.HostPolicy, wantPolicies []*fleet.Policy, hostName string) {
 		haveMap := map[uint]string{}
 		wantMap := map[uint]string{}
 		missingPolicies := []string{}
@@ -5935,11 +5935,11 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 		}
 
 		if len(missingPolicies) > 0 || len(extraPolicies) > 0 {
-			t.Errorf("missing policies: %q, extra policies: %q", missingPolicies, extraPolicies)
+			t.Errorf("%s missing policies: %q, extra policies: %q", hostName, missingPolicies, extraPolicies)
 		}
 	}
 
-	requireQueries := func(t *testing.T, havePolicies map[string]string, wantPolicies []*fleet.Policy) {
+	assertQueries := func(t *testing.T, havePolicies map[string]string, wantPolicies []*fleet.Policy, hostName string) {
 		haveMap := map[uint]string{}
 		wantMap := map[uint]string{}
 		missingPolicies := []string{}
@@ -5964,7 +5964,7 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 		}
 
 		if len(missingPolicies) > 0 || len(extraPolicies) > 0 {
-			t.Errorf("missing policies: %q, extra policies: %q", missingPolicies, extraPolicies)
+			t.Errorf("%s missing policies: %q, extra policies: %q", hostName, missingPolicies, extraPolicies)
 		}
 	}
 
@@ -6052,13 +6052,11 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.Host.Hostname, func(t *testing.T) {
-			policies, err := ds.ListPoliciesForHost(ctx, tc.Host)
-			require.NoError(t, err)
-			requirePolicies(t, policies, tc.Policies)
-			queries, err := ds.PolicyQueriesForHost(ctx, tc.Host)
-			require.NoError(t, err)
-			requireQueries(t, queries, tc.Policies)
-		})
+		policies, err := ds.ListPoliciesForHost(ctx, tc.Host)
+		require.NoError(t, err)
+		assertPolicies(t, policies, tc.Policies, tc.Host.Hostname)
+		queries, err := ds.PolicyQueriesForHost(ctx, tc.Host)
+		require.NoError(t, err)
+		assertQueries(t, queries, tc.Policies, tc.Host.Hostname)
 	}
 }
