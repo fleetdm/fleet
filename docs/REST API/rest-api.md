@@ -9319,7 +9319,7 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "bundle_identifier": "com.apple.logic10",
-    "available_apps": {
+    "available_software": {
       "fleet_maintained_app": null,
       "app_store_app": {
         "app_store_id": "8675309"
