@@ -180,8 +180,8 @@ func (r *Runner) HasLocalHash(target string) bool {
 	return ok
 }
 
-func randomizeDuration(max time.Duration) (time.Duration, error) {
-	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+func randomizeDuration(maxTime time.Duration) (time.Duration, error) {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(maxTime)))
 	if err != nil {
 		return 0, err
 	}

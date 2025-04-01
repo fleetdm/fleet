@@ -6,7 +6,6 @@ spec:
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
   discard_data: false
   interval: 86400
-  labels_include_any: null
   logging: ""
   min_osquery_version: 1.4.7
   name: app_schemes

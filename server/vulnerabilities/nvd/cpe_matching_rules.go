@@ -259,10 +259,11 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreAll: true,
 		},
-		// CVE-2024-4030 only targets windows operating systems
+		// CVE-2024-4030 and CVE-2024-6286 only target windows operating systems
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
 				"CVE-2024-4030": {},
+				"CVE-2024-6286": {},
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.TargetSW != "windows"

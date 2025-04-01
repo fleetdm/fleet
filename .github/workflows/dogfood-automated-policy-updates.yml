@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  update-macos-versions:
+  update-policies:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,6 +30,15 @@ jobs:
         run: |
           chmod +x ./.github/scripts/dogfood-policy-updater-latest-macos.sh
           ./.github/scripts/dogfood-policy-updater-latest-macos.sh
+        env:
+          DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
+          DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
+          DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
+
+      - name: Run 1Password macOS version update script
+        run: |
+          chmod +x ./.github/scripts/dogfood-policy-updater-latest-1password-macos.sh
+          ./.github/scripts/dogfood-policy-updater-latest-1password-macos.sh
         env:
           DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
           DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}

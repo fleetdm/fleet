@@ -21,7 +21,8 @@ type Metadata struct {
 }
 
 func (c *Metadata) Get(installer *fleet.SoftwareInstallDetails, orbitClient *service.OrbitClient) (meta *file.InstallerMetadata,
-	cacheMiss bool, err error) {
+	cacheMiss bool, err error,
+) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.cache == nil {
@@ -42,7 +43,8 @@ func (c *Metadata) Get(installer *fleet.SoftwareInstallDetails, orbitClient *ser
 }
 
 func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orbitClient *service.OrbitClient) (*file.InstallerMetadata,
-	error) {
+	error,
+) {
 	tmpDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		c.Stats.IncrementOrbitErrors()
@@ -54,7 +56,8 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 	var path string
 	if installer.SoftwareInstallerURL != nil {
 		path, err = orbitClient.DownloadSoftwareInstallerFromURL(installer.SoftwareInstallerURL.URL,
-			installer.SoftwareInstallerURL.Filename, tmpDir)
+			installer.SoftwareInstallerURL.Filename, tmpDir, func(n int) {
+			})
 		if err != nil {
 			log.Printf("level=error, msg=download software installer from URL; is CloudFront CDN configured correctly?, err=%s", err)
 			c.Stats.IncrementOrbitErrors()
@@ -63,7 +66,8 @@ func (c *Metadata) populateMetadata(installer *fleet.SoftwareInstallDetails, orb
 	}
 
 	if path == "" {
-		path, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
+		path, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir, func(n int) {
+		})
 		if err != nil {
 			log.Printf("level=error, msg=download software installer, err=%s", err)
 			c.Stats.IncrementOrbitErrors()

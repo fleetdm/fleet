@@ -1,4 +1,3 @@
-import EditCertAuthorityModal from "pages/admin/IntegrationsPage/cards/CertificateAuthorities/components/EditCertAuthorityModal";
 import configAPI from "./config";
 
 export default {

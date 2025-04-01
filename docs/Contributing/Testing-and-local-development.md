@@ -46,6 +46,8 @@
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
     - [Testing the end user flow for MDM migrations](#testing-the-end-user-flow-for-mdm-migrations)
+  - [Software packages](#software-packages)
+    - [Troubleshooting installation](#troubleshooting-installation)
 
 ## License key
 
@@ -70,7 +72,7 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -805,3 +807,12 @@ We have a few servers in `tools/mdm/migration` that you can use. Follow the inst
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="description" value="An overview of Fleet's full test suite and integration tests.">
+
+## Software packages
+
+### Troubleshooting installation
+
+- macOS: `sudo grep "runner=installer" /var/log/orbit/orbit.stderr.log`.
+- Ubuntu: `sudo grep "runner=installer" /var/log/syslog` (or using `journalctl` if `syslog` is not available).
+- Fedora: `sudo grep "runner=installer" /var/log/messages` (or using `journalctl` if `syslog` is not available).
+- Windows: `grep "runner=installer" C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log`

@@ -9,6 +9,9 @@ import {
 } from "interfaces/integration";
 import { useCallback, useContext } from "react";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 
 export const useCertAuthorityDataGenerator = (
   certAuthorityType: ICertificateAuthorityType,
@@ -17,7 +20,7 @@ export const useCertAuthorityDataGenerator = (
   const { config } = useContext(AppContext);
 
   const generateAddPatchData = useCallback(
-    (formData: IDigicertFormData) => {
+    (formData: ICertFormData) => {
       if (!config) return null;
 
       const data: { integrations: Partial<IGlobalIntegrations> } = {
@@ -26,22 +29,59 @@ export const useCertAuthorityDataGenerator = (
 
       switch (certAuthorityType) {
         case "ndes":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            scepURL: ndesSCEPUrl,
+            adminURL,
+            username,
+            password,
+          } = formData as INDESFormData;
+          data.integrations.ndes_scep_proxy = {
+            url: ndesSCEPUrl,
+            admin_url: adminURL,
+            username,
+            password,
+          };
           break;
         case "digicert":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            name: digicertName,
+            url,
+            apiToken,
+            profileId,
+            commonName,
+            userPrincipalName,
+            certificateSeatId,
+          } = formData as IDigicertFormData;
           data.integrations.digicert = [
             ...(config.integrations.digicert || []),
             {
-              name: formData.name,
-              url: formData.url,
-              api_token: formData.apiToken,
-              profile_id: formData.profileId,
-              certificate_common_name: formData.commonName,
-              certificate_user_principal_names: [formData.userPrincipalName],
-              certificate_seat_id: formData.certificateSeatId,
+              name: digicertName,
+              url,
+              api_token: apiToken,
+              profile_id: profileId,
+              certificate_common_name: commonName,
+              certificate_user_principal_names: [userPrincipalName],
+              certificate_seat_id: certificateSeatId,
             },
           ];
           break;
         case "custom":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            name: customSCEPName,
+            scepURL: customSCEPUrl,
+            challenge,
+          } = formData as ICustomSCEPFormData;
+          data.integrations.custom_scep_proxy = [
+            ...(config.integrations.custom_scep_proxy || []),
+            {
+              name: customSCEPName,
+              url: customSCEPUrl,
+              challenge,
+            },
+          ];
           break;
         default:
           break;
@@ -82,8 +122,8 @@ export const useCertAuthorityDataGenerator = (
         data.integrations.custom_scep_proxy = config.integrations.custom_scep_proxy?.filter(
           (cert) => {
             return (
-              (certAuthority as ICertificatesIntegrationCustomSCEP).id ===
-              cert.id
+              (certAuthority as ICertificatesIntegrationCustomSCEP).name !==
+              cert.name
             );
           }
         );
@@ -101,7 +141,7 @@ export const useCertAuthorityDataGenerator = (
    * have to generate the correct data for the PATCH request.
    */
   const generateEditPatchData = useCallback(
-    (formData: IDigicertFormData) => {
+    (formData: ICertFormData) => {
       if (!config) return null;
 
       const data: { integrations: Partial<IGlobalIntegrations> } = {
@@ -110,8 +150,31 @@ export const useCertAuthorityDataGenerator = (
 
       switch (certAuthorityType) {
         case "ndes":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            scepURL: ndesSCEPUrl,
+            adminURL,
+            username,
+            password,
+          } = formData as INDESFormData;
+          data.integrations.ndes_scep_proxy = {
+            url: ndesSCEPUrl,
+            admin_url: adminURL,
+            username,
+            password,
+          };
           break;
         case "digicert":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            name: digicertName,
+            url,
+            apiToken,
+            profileId,
+            commonName,
+            userPrincipalName,
+            certificateSeatId,
+          } = formData as IDigicertFormData;
           data.integrations.digicert = config.integrations.digicert?.map(
             (cert) => {
               // only update the certificate authority that we are editing
@@ -120,15 +183,14 @@ export const useCertAuthorityDataGenerator = (
                 cert.name
               ) {
                 return {
-                  name: formData.name,
-                  url: formData.url,
-                  api_token: formData.apiToken,
-                  profile_id: formData.profileId,
-                  certificate_common_name: formData.commonName,
-                  certificate_user_principal_names: [
-                    formData.userPrincipalName,
-                  ],
-                  certificate_seat_id: formData.certificateSeatId,
+                  name: digicertName,
+                  url,
+                  api_token: apiToken,
+                  profile_id: profileId,
+                  certificate_common_name: commonName,
+                  certificate_user_principal_names:
+                    userPrincipalName !== "" ? [userPrincipalName] : [],
+                  certificate_seat_id: certificateSeatId,
                 };
               }
               return cert;
@@ -136,6 +198,28 @@ export const useCertAuthorityDataGenerator = (
           );
           break;
         case "custom":
+          // eslint-disable-next-line no-case-declarations
+          const {
+            name: customSCEPName,
+            scepURL: customSCEPUrl,
+            challenge,
+          } = formData as ICustomSCEPFormData;
+          data.integrations.custom_scep_proxy = config.integrations.custom_scep_proxy?.map(
+            (cert) => {
+              // only update the certificate authority that we are editing
+              if (
+                (certAuthority as ICertificatesIntegrationCustomSCEP).name ===
+                cert.name
+              ) {
+                return {
+                  name: customSCEPName,
+                  url: customSCEPUrl,
+                  challenge,
+                };
+              }
+              return cert;
+            }
+          );
           break;
         default:
           break;

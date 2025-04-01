@@ -8,6 +8,7 @@ import {
 } from "services/entities/activities";
 
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Spinner from "components/Spinner";
@@ -58,8 +59,8 @@ const Activity = ({
   return (
     <Card
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      largePadding
       className={baseClass}
     >
       {isLoading && (
@@ -67,7 +68,7 @@ const Activity = ({
           <Spinner />
         </div>
       )}
-      <h2>Activity</h2>
+      <CardHeader header="Activity" />
       <TabNav>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
