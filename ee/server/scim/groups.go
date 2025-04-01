@@ -3,7 +3,6 @@ package scim
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/scim2/filter-parser/v2"
 )
 
 const (
@@ -34,13 +32,19 @@ func NewGroupHandler(ds fleet.Datastore, logger kitlog.Logger) scim.ResourceHand
 	return &GroupHandler{ds: ds, logger: logger}
 }
 
+// Create creates a SCIM group
+// The SCIM specification doesn’t require group display names to be unique. SCIM only mandates that each group’s "id" is unique
 func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
-	// Check for displayName uniqueness
 	displayName, err := getRequiredResource[string](attributes, displayNameAttr)
 	if err != nil {
 		level.Error(g.logger).Log("msg", "failed to get displayName", "err", err)
 		return scim.Resource{}, err
 	}
+
+	// Microsoft’s SCIM implementation (Entra ID) imposes additional constraints—like enforcing uniqueness on a group’s
+	// displayName—that the SCIM spec itself does not mandate.
+	// In effect, Microsoft’s implementation diverges from strict SCIM compliance by making displayName behave like a unique key.
+	// TODO: Check if displayName is already used.
 
 	group, err := createGroupFromAttributes(attributes)
 	if err != nil {
@@ -96,31 +100,14 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 	return &group, nil
 }
 
-// extractUserIDFromValue extracts the user ID from a value like "user-123"
-func extractUserIDFromValue(value string) (uint, error) {
-	// Check if the value starts with "user-"
-	if !strings.HasPrefix(value, "user-") {
-		return 0, fmt.Errorf("invalid user ID format: %s", value)
-	}
-
-	// Extract the ID part
-	idStr := strings.TrimPrefix(value, "user-")
-	id, err := strconv.ParseUint(idStr, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return uint(id), nil
-}
-
 func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
 		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
-	group, err := g.ds.ScimGroupByID(r.Context(), uint(idUint))
+	group, err := g.ds.ScimGroupByID(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group", "id", id)
@@ -135,7 +122,7 @@ func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 
 func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 	groupResource := scim.Resource{}
-	groupResource.ID = fmt.Sprintf("%d", group.ID)
+	groupResource.ID = scimGroupID(group.ID)
 	if group.ExternalID != nil {
 		groupResource.ExternalID = optional.NewString(*group.ExternalID)
 	}
@@ -149,16 +136,13 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 			members = append(members, map[string]interface{}{
 				"value": scimUserID(userID),
 				"$ref":  "Users/" + scimUserID(userID),
+				"type":  "User",
 			})
 		}
 		groupResource.Attributes[membersAttr] = members
 	}
 
 	return groupResource
-}
-
-func scimUserID(userID uint) string {
-	return fmt.Sprintf("user-%d", userID)
 }
 
 func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
@@ -181,29 +165,8 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
-		expr, err := filter.ParseAttrExp([]byte(resourceFilter))
-		if err != nil {
-			level.Error(g.logger).Log("msg", "failed to parse filter", "filter", resourceFilter, "err", err)
-			return scim.Page{}, errors.ScimErrorInvalidFilter
-		}
-		if !strings.EqualFold(expr.AttributePath.String(), displayNameAttr) || expr.Operator != "eq" {
-			level.Info(g.logger).Log("msg", "unsupported filter", "filter", resourceFilter)
-			return scim.Page{}, nil
-		}
-		displayName, ok := expr.CompareValue.(string)
-		if !ok {
-			level.Error(g.logger).Log("msg", "unsupported value", "value", expr.CompareValue)
-			return scim.Page{}, nil
-		}
-
-		// Decode URL-encoded characters in displayName
-		displayName, err = url.QueryUnescape(displayName)
-		if err != nil {
-			level.Error(g.logger).Log("msg", "failed to decode displayName", "displayName", displayName, "err", err)
-			return scim.Page{}, nil
-		}
-		// Note: The current implementation of ListScimGroups doesn't support filtering by displayName
-		// This would need to be added to the datastore implementation
+		level.Info(g.logger).Log("msg", "not parsing group filter", "filter", resourceFilter)
+		return scim.Page{}, nil
 	}
 
 	groups, totalResults, err := g.ds.ListScimGroups(r.Context(), opts)
@@ -224,7 +187,7 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 }
 
 func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
 		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
@@ -235,7 +198,7 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 		level.Error(g.logger).Log("msg", "failed to create group from attributes", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
-	group.ID = uint(idUint)
+	group.ID = idUint
 	err = g.ds.ReplaceScimGroup(r.Context(), group)
 	switch {
 	case fleet.IsNotFound(err):
@@ -250,12 +213,12 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 }
 
 func (g *GroupHandler) Delete(r *http.Request, id string) error {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
 		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return errors.ScimErrorResourceNotFound(id)
 	}
-	err = g.ds.DeleteScimGroup(r.Context(), uint(idUint))
+	err = g.ds.DeleteScimGroup(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group to delete", "id", id)
@@ -267,13 +230,15 @@ func (g *GroupHandler) Delete(r *http.Request, id string) error {
 	return nil
 }
 
+// Patch
+// Only supporting replacing the "displayName" attribute
 func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
 		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	group, err := g.ds.ScimGroupByID(r.Context(), uint(idUint))
+	group, err := g.ds.ScimGroupByID(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
@@ -295,14 +260,16 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				level.Info(g.logger).Log("msg", "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			// Handle replacing the entire group
-			newGroup, err := createGroupFromAttributes(newValues)
+			if len(newValues) != 1 {
+				level.Info(g.logger).Log("msg", "too many patch values", "value", op.Value)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			displayName, err := getRequiredResource[string](newValues, displayNameAttr)
 			if err != nil {
-				level.Error(g.logger).Log("msg", "failed to create group from patch values", "err", err)
+				level.Info(g.logger).Log("msg", "failed to get active value", "value", op.Value)
 				return scim.Resource{}, err
 			}
-			newGroup.ID = group.ID
-			group = newGroup
+			group.DisplayName = displayName
 		case op.Path.String() == displayNameAttr:
 			displayName, ok := op.Value.(string)
 			if !ok {
@@ -310,34 +277,6 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			group.DisplayName = displayName
-		case op.Path.String() == membersAttr:
-			// Handle replacing members
-			membersIntf, ok := op.Value.([]interface{})
-			if !ok {
-				level.Error(g.logger).Log("msg", "unsupported 'members' patch value", "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-			}
-			userIDs := make([]uint, 0, len(membersIntf))
-			for _, memberIntf := range membersIntf {
-				memberMap, ok := memberIntf.(map[string]interface{})
-				if !ok {
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-				}
-				valueIntf, ok := memberMap["value"]
-				if !ok || valueIntf == nil {
-					continue
-				}
-				valueStr, ok := valueIntf.(string)
-				if !ok {
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-				}
-				userID, err := extractUserIDFromValue(valueStr)
-				if err != nil {
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-				}
-				userIDs = append(userIDs, userID)
-			}
-			group.ScimUsers = userIDs
 		default:
 			level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -355,4 +294,23 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	}
 
 	return createGroupResource(group), nil
+}
+
+func scimGroupID(groupID uint) string {
+	return fmt.Sprintf("group-%d", groupID)
+}
+
+// extractGroupIDFromValue extracts the group ID from a value like "group-123"
+func extractGroupIDFromValue(value string) (uint, error) {
+	if !strings.HasPrefix(value, "group-") {
+		return 0, fmt.Errorf("value %q does not match the expected format 'group-<id>'", value)
+	}
+
+	idStr := strings.TrimPrefix(value, "group-")
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse group ID from value %q: %w", value, err)
+	}
+
+	return uint(id), nil
 }

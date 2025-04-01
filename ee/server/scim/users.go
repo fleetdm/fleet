@@ -28,6 +28,7 @@ const (
 	familyNameAttr = "familyName"
 	activeAttr     = "active"
 	emailsAttr     = "emails"
+	groupsAttr     = "groups"
 )
 
 type UserHandler struct {
@@ -187,13 +188,13 @@ func getComplexResourceSlice(attributes scim.ResourceAttributes, key string) ([]
 }
 
 func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
-	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
+	user, err := u.ds.ScimUserByID(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user", "id", id)
@@ -208,7 +209,7 @@ func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 
 func createUserResource(user *fleet.ScimUser) scim.Resource {
 	userResource := scim.Resource{}
-	userResource.ID = fmt.Sprintf("%d", user.ID)
+	userResource.ID = scimUserID(user.ID)
 	if user.ExternalID != nil {
 		userResource.ExternalID = optional.NewString(*user.ExternalID)
 	}
@@ -249,12 +250,9 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 				"$ref":  "Groups/" + scimGroupID(groupID),
 			})
 		}
+		userResource.Attributes[groupsAttr] = groups
 	}
 	return userResource
-}
-
-func scimGroupID(groupID uint) string {
-	return fmt.Sprintf("group-%d", groupID)
 }
 
 // GetAll
@@ -333,7 +331,7 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 }
 
 func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
@@ -344,7 +342,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		level.Error(u.logger).Log("msg", "failed to create user from attributes", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
-	user.ID = uint(idUint)
+	user.ID = idUint
 	err = u.ds.ReplaceScimUser(r.Context(), user)
 	switch {
 	case fleet.IsNotFound(err):
@@ -362,12 +360,12 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.6
 // MUST return a 404 (Not Found) error code for all operations associated with the previously deleted resource
 func (u *UserHandler) Delete(r *http.Request, id string) error {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return errors.ScimErrorResourceNotFound(id)
 	}
-	err = u.ds.DeleteScimUser(r.Context(), uint(idUint))
+	err = u.ds.DeleteScimUser(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to delete", "id", id)
@@ -383,12 +381,12 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 // Okta only requires patching the "active" attribute:
 // https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
+	user, err := u.ds.ScimUserByID(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
@@ -467,4 +465,18 @@ func removeWhitespace(str string) string {
 		}
 		return r
 	}, str)
+}
+
+func scimUserID(userID uint) string {
+	return fmt.Sprintf("%d", userID)
+}
+
+// extractUserIDFromValue extracts the user ID from a value like "123"
+func extractUserIDFromValue(value string) (uint, error) {
+	id, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(id), nil
 }
