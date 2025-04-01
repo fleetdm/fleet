@@ -51,7 +51,11 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		return scim.Resource{}, err
 	}
 	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
-	if !fleet.IsNotFound(err) {
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		level.Error(u.logger).Log("msg", "failed to check for userName uniqueness", userNameAttr, userName, "err", err)
+		return scim.Resource{}, err
+	case err == nil:
 		level.Info(u.logger).Log("msg", "user already exists", userNameAttr, userName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 	}

@@ -33,7 +33,6 @@ func NewGroupHandler(ds fleet.Datastore, logger kitlog.Logger) scim.ResourceHand
 }
 
 // Create creates a SCIM group
-// The SCIM specification doesn’t require group display names to be unique. SCIM only mandates that each group’s "id" is unique
 func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	displayName, err := getRequiredResource[string](attributes, displayNameAttr)
 	if err != nil {
@@ -44,6 +43,7 @@ func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttribute
 	// Microsoft’s SCIM implementation (Entra ID) imposes additional constraints—like enforcing uniqueness on a group’s
 	// displayName—that the SCIM spec itself does not mandate.
 	// In effect, Microsoft’s implementation diverges from strict SCIM compliance by making displayName behave like a unique key.
+	// SCIM only mandates that each group’s "id" is unique
 	// TODO: Check if displayName is already used.
 
 	group, err := createGroupFromAttributes(attributes)
