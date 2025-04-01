@@ -9238,7 +9238,7 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "bundle_identifier": "crowdstrike.falcon.Agent",
-    "available_apps": {
+    "available_software": {
       "fleet_maintained_app": {
         "id": 4
       },
