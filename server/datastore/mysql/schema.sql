@@ -1769,8 +1769,8 @@ CREATE TABLE `scim_groups` (
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  KEY `idx_scim_groups_external_id` (`external_id`),
-  KEY `idx_scim_groups_display_name` (`display_name`)
+  UNIQUE KEY `idx_scim_groups_display_name` (`display_name`),
+  KEY `idx_scim_groups_external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
