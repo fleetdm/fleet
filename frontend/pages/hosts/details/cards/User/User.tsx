@@ -30,8 +30,12 @@ interface IUserProps {
   onAddEndUser: () => void;
 }
 
-const User = ({ endUsers, className, onAddEndUser }: IUserProps) => {
+const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
   const classNames = classnames(baseClass, className);
+
+  // TODO: show and hide data sets
+  const endUser = endUsers[0];
+  const showEmail = platform === "darwin";
 
   return (
     <Card
