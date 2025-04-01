@@ -38,9 +38,8 @@ export const generateDefaultFormData = (
       apiToken: certAuthority.api_token,
       profileId: certAuthority.profile_id,
       commonName: certAuthority.certificate_common_name,
-      userPrincipalName: certAuthority.certificate_user_principal_names
-        ? certAuthority.certificate_user_principal_names[0]
-        : "",
+      userPrincipalName:
+        certAuthority.certificate_user_principal_names?.[0] ?? "",
       certificateSeatId: certAuthority.certificate_seat_id,
     };
   }

@@ -74,6 +74,9 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
+	GetTransparencyURL(ctx context.Context) (string, error)
+
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret

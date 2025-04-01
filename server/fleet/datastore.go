@@ -2013,6 +2013,22 @@ type Datastore interface {
 	// Android
 
 	AndroidDatastore
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// CreateScimUser creates a new SCIM user in the database
+	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// ScimUserByID retrieves a SCIM user by ID
+	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
+	// ScimUserByUserName retrieves a SCIM user by username
+	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
+	// ReplaceScimUser replaces an existing SCIM user in the database
+	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	// DeleteScimUser deletes a SCIM user from the database
+	DeleteScimUser(ctx context.Context, id uint) error
+	// ListScimUsers retrieves a list of SCIM users with optional filtering
+	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 }
 
 type AndroidDatastore interface {

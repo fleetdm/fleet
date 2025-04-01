@@ -3,8 +3,6 @@ import installPkg from "../../pkg/file/scripts/install_pkg.sh";
 // @ts-ignore
 import installMsi from "../../pkg/file/scripts/install_msi.ps1";
 // @ts-ignore
-import installExe from "../../pkg/file/scripts/install_exe.ps1";
-// @ts-ignore
 import installDeb from "../../pkg/file/scripts/install_deb.sh";
 // @ts-ignore
 import installRPM from "../../pkg/file/scripts/install_rpm.sh";
@@ -25,7 +23,7 @@ const getDefaultInstallScript = (fileName: string): string => {
     case "rpm":
       return installRPM;
     case "exe":
-      return installExe;
+      return "";
     default:
       throw new Error(`unsupported file extension: ${extension}`);
   }
