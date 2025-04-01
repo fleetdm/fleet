@@ -6,7 +6,7 @@
 </div>
 -->
 
-The Fleet roadmap is set spring 2025. Watch the video above for a walkthrough, or continue reading for the highlights.
+The Fleet roadmap is set for spring 2025. Watch the video above for a walkthrough, or continue reading for the highlights.
 
 In the next 3 months, Fleet will ship...
 
