@@ -2,14 +2,15 @@ import React from "react";
 import classnames from "classnames";
 
 import { IHostEndUser } from "interfaces/host";
+import { HostPlatform } from "interfaces/platform";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
-import { HostPlatform } from "interfaces/platform";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
 
-import UserValue from "./UserValue";
+import UserValue from "./components/UserValue";
 import {
   generateFullNameTipContent,
   generateGroupsTipContent,
@@ -22,9 +23,10 @@ interface IUserProps {
   platform: HostPlatform;
   endUsers: IHostEndUser[];
   className?: string;
+  onAddEndUser: () => void;
 }
 
-const User = ({ endUsers, className }: IUserProps) => {
+const User = ({ endUsers, className, onAddEndUser }: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
   const testvalues = [];
@@ -39,7 +41,17 @@ const User = ({ endUsers, className }: IUserProps) => {
       paddingSize="xlarge"
       includeShadow
     >
-      <CardHeader header="User" />
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="User" />
+        <Button
+          className={`${baseClass}__add-user-btn`}
+          variant="text-link"
+          onClick={onAddEndUser}
+        >
+          + Add user
+        </Button>
+      </div>
+
       <div className={`${baseClass}__content`}>
         <DataSet
           title={

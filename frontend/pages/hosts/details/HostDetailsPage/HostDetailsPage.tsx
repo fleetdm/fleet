@@ -109,6 +109,7 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import AddEndUserModal from "../cards/User/components/AddEndUserModal";
 
 const baseClass = "host-details";
 
@@ -241,6 +242,7 @@ const HostDetailsPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
+  const [showAddEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -972,6 +974,7 @@ const HostDetailsPage = ({
                   className={defaultCardClass}
                   platform={host.platform}
                   endUsers={testEndUserData}
+                  onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
               )}
               {showActivityCard && (
@@ -1241,6 +1244,9 @@ const HostDetailsPage = ({
           />
         )}
       </>
+      {showAddEndUserModal && (
+        <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
+      )}
     </MainContent>
   );
 };

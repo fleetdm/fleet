@@ -1,4 +1,11 @@
 .user-card {
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
   &__content {
     display: inline-grid;
     gap: $pad-medium $pad-xxlarge;
