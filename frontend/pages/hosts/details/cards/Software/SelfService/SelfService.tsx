@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useContext } from "react";
+import React, { useCallback, useState, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
@@ -12,6 +12,7 @@ import deviceApi, {
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { pluralize } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -20,7 +21,6 @@ import DataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
-
 import Pagination from "components/Pagination";
 
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
@@ -30,7 +30,7 @@ const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 12, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
+  per_page: 24, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
   order_key: "name",
   order_direction: "asc",
   self_service: true,
@@ -55,18 +55,30 @@ const SoftwareSelfService = ({
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [searchQuery, setSearchQuery] = useState("");
-
   // State for controlling the self-service polling mechanism
   const [
     selfServiceRefetchStartTime,
     setSelfServiceRefetchStartTime,
   ] = useState<number | null>(null);
 
+  // Memoize the query key
+  const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
+    return [
+      {
+        scope: "device_software",
+        id: deviceToken,
+        page: queryParams.page,
+        query: queryParams.query,
+        ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
+      },
+    ];
+  }, [deviceToken, queryParams.page, queryParams.query]);
+
   const {
     data,
     isLoading,
     isError,
+    isFetching,
     refetch: refetchSelfServiceSoftware,
   } = useQuery<
     IGetDeviceSoftwareResponse,
@@ -74,16 +86,8 @@ const SoftwareSelfService = ({
     IGetDeviceSoftwareResponse,
     IDeviceSoftwareQueryKey[]
   >(
-    [
-      {
-        scope: "device_software",
-        id: deviceToken,
-        page: queryParams.page,
-        query: searchQuery,
-        ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
-      },
-    ],
-    ({ queryKey }) => deviceApi.getDeviceSoftware(queryKey[0]),
+    queryKey,
+    (context) => deviceApi.getDeviceSoftware(context.queryKey[0]), // Changed destructuring to context.queryKey
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isSoftwareEnabled, // if software inventory is disabled, we don't bother fetching and always show the empty state
@@ -133,15 +137,31 @@ const SoftwareSelfService = ({
   );
 
   const onSearchQueryChange = (value: string) => {
-    setSearchQuery(value.trim());
+    router.push(
+      getPathWithQueryParams(pathname, {
+        query: value,
+        page: 0, // Always reset to page 0 when searching
+      })
+    );
   };
 
   const onNextPage = useCallback(() => {
-    router.push(pathname.concat(`?page=${queryParams.page + 1}`));
-  }, [pathname, queryParams.page, router]);
+    router.push(
+      getPathWithQueryParams(pathname, {
+        query: queryParams.query,
+        page: queryParams.page + 1,
+      })
+    );
+  }, [pathname, queryParams.page, queryParams.query, router]);
 
+  console.log("queryParams", queryParams);
   const onPrevPage = useCallback(() => {
-    router.push(pathname.concat(`?page=${queryParams.page - 1}`));
+    router.push(
+      getPathWithQueryParams(pathname, {
+        query: queryParams.query,
+        page: queryParams.page - 1,
+      })
+    );
   }, [pathname, queryParams.page, router]);
 
   // TODO: handle empty state better, this is just a placeholder for now
@@ -150,31 +170,17 @@ const SoftwareSelfService = ({
   const isEmpty =
     !data?.software.length &&
     !data?.meta.has_previous_results &&
-    searchQuery === "";
-
+    queryParams.query === "";
   const isEmptySearch =
     !data?.software.length &&
     !data?.meta.has_previous_results &&
-    searchQuery !== "";
+    queryParams.query !== "";
 
   const renderSelfServiceCard = () => {
-    if (isLoading) return <Spinner />;
+    const renderHeader = () => {
+      const itemCount = data?.count || 0;
 
-    if (isError) return <DataError />;
-
-    if (isEmpty || !data) {
       return (
-        <EmptyTable
-          graphicName="empty-software"
-          header="No self-service software available yet"
-          info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
-        />
-      );
-    }
-
-    const itemCount = data?.count || 0;
-    return (
-      <>
         <div className={`${baseClass}__header`}>
           <div className={`${baseClass}__items-count`}>
             {`${itemCount} ${pluralize(itemCount, "item")}`}
@@ -186,7 +192,47 @@ const SoftwareSelfService = ({
             />
           </div>
         </div>
-        {isEmptySearch ? (
+      );
+    };
+
+    if (isLoading) {
+      return (
+        <>
+          <Spinner />
+        </>
+      );
+    }
+
+    if (isError) {
+      return <DataError />;
+    }
+
+    if (isEmpty || !data) {
+      return (
+        <>
+          {renderHeader()}
+          <EmptyTable
+            graphicName="empty-software"
+            header="No self-service software available yet"
+            info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
+          />
+        </>
+      );
+    }
+
+    if (isFetching) {
+      return (
+        <>
+          {renderHeader()}
+          <Spinner />
+        </>
+      );
+    }
+
+    if (isEmptySearch) {
+      return (
+        <>
+          {renderHeader()}
           <EmptyTable
             graphicName="empty-search-question"
             header="No items match the current search criteria"
@@ -197,41 +243,43 @@ const SoftwareSelfService = ({
               </>
             }
           />
-        ) : (
-          <>
-            <div className={`${baseClass}__items`}>
-              {data.software.map((s) => {
-                let uuid =
-                  s.software_package?.last_install?.install_uuid ??
-                  s.app_store_app?.last_install?.command_uuid;
-                if (!uuid) {
-                  uuid = "";
-                }
-                // concatenating uuid so item updates with fresh data on refetch
-                const key = `${s.id}${uuid}`;
-                return (
-                  <SelfServiceItem
-                    key={key}
-                    deviceToken={deviceToken}
-                    software={s}
-                    onInstall={refetchSelfServiceSoftware}
-                  />
-                );
-              })}
-            </div>
-            <Pagination
-              disableNext={data.meta.has_next_results === false}
-              disablePrev={data.meta.has_previous_results === false}
-              hidePagination={
-                data.meta.has_next_results === false &&
-                data.meta.has_previous_results === false
-              }
-              onNextPage={onNextPage}
-              onPrevPage={onPrevPage}
-              className={`${baseClass}__pagination`}
-            />
-          </>
-        )}
+        </>
+      );
+    }
+
+    return (
+      <>
+        {renderHeader()}
+        <div className={`${baseClass}__items`}>
+          {data.software.map((s) => {
+            let uuid =
+              s.software_package?.last_install?.install_uuid ??
+              s.app_store_app?.last_install?.command_uuid;
+            if (!uuid) {
+              uuid = "";
+            }
+            const key = `${s.id}${uuid}`;
+            return (
+              <SelfServiceItem
+                key={key}
+                deviceToken={deviceToken}
+                software={s}
+                onInstall={refetchSelfServiceSoftware}
+              />
+            );
+          })}
+        </div>
+        <Pagination
+          disableNext={data.meta.has_next_results === false}
+          disablePrev={data.meta.has_previous_results === false}
+          hidePagination={
+            data.meta.has_next_results === false &&
+            data.meta.has_previous_results === false
+          }
+          onNextPage={onNextPage}
+          onPrevPage={onPrevPage}
+          className={`${baseClass}__pagination`}
+        />
       </>
     );
   };
