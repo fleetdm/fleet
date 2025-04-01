@@ -3,8 +3,6 @@ import uninstallPkg from "../../pkg/file/scripts/uninstall_pkg.sh";
 // @ts-ignore
 import uninstallMsi from "../../pkg/file/scripts/uninstall_msi.ps1";
 // @ts-ignore
-import uninstallExe from "../../pkg/file/scripts/uninstall_exe.ps1";
-// @ts-ignore
 import uninstallDeb from "../../pkg/file/scripts/uninstall_deb.sh";
 // @ts-ignore
 import uninstallRPM from "../../pkg/file/scripts/uninstall_rpm.sh";
@@ -25,7 +23,7 @@ const getDefaultUninstallScript = (fileName: string): string => {
     case "rpm":
       return uninstallRPM;
     case "exe":
-      return uninstallExe;
+      return "";
     default:
       throw new Error(`unsupported file extension: ${extension}`);
   }
