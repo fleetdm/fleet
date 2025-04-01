@@ -91,13 +91,21 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	}
 	policyID := uint(lastIdInt64) //nolint:gosec // dismiss G115
 
-	if err := updatePolicyLabelsTx(ctx, db, &fleet.Policy{
+	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
-			ID:               policyID,
-			LabelsIncludeAny: args.LabelsIncludeAny,
-			LabelsExcludeAny: args.LabelsExcludeAny,
+			ID: policyID,
 		},
-	}); err != nil {
+	}
+
+	for _, labelInclude := range args.LabelsIncludeAny {
+		dummyPolicy.LabelsIncludeAny = append(dummyPolicy.LabelsIncludeAny, fleet.LabelIdent{LabelName: labelInclude})
+	}
+
+	for _, labelExclude := range args.LabelsExcludeAny {
+		dummyPolicy.LabelsExcludeAny = append(dummyPolicy.LabelsExcludeAny, fleet.LabelIdent{LabelName: labelExclude})
+	}
+
+	if err := updatePolicyLabelsTx(ctx, db, dummyPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting policy labels")
 	}
 
@@ -136,9 +144,13 @@ func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet
 	exclude := false
 	if len(policy.LabelsExcludeAny) > 0 {
 		exclude = true
-		labelNames = append(labelNames, policy.LabelsExcludeAny...)
+		for _, label := range policy.LabelsExcludeAny {
+			labelNames = append(labelNames, label.LabelName)
+		}
 	} else {
-		labelNames = append(labelNames, policy.LabelsIncludeAny...)
+		for _, label := range policy.LabelsIncludeAny {
+			labelNames = append(labelNames, label.LabelName)
+		}
 	}
 
 	if _, err := tx.ExecContext(ctx, deleteLabelsStmt, policy.ID); err != nil {
@@ -176,6 +188,7 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 		SELECT
 			pl.policy_id,
 			l.name AS label_name,
+			l.id AS label_id,
 			pl.exclude
 		FROM policy_labels pl
 		INNER JOIN labels l ON l.id = pl.label_id
@@ -204,6 +217,7 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 	rows := []struct {
 		PolicyID  uint   `db:"policy_id"`
 		LabelName string `db:"label_name"`
+		LabelID   uint   `db:"label_id"`
 		Exclude   bool   `db:"exclude"`
 	}{}
 
@@ -213,9 +227,9 @@ func loadLabelsForPolicies(ctx context.Context, db sqlx.QueryerContext, policies
 
 	for _, row := range rows {
 		if row.Exclude {
-			policyMap[row.PolicyID].LabelsExcludeAny = append(policyMap[row.PolicyID].LabelsExcludeAny, row.LabelName)
+			policyMap[row.PolicyID].LabelsExcludeAny = append(policyMap[row.PolicyID].LabelsExcludeAny, fleet.LabelIdent{LabelName: row.LabelName, LabelID: row.LabelID})
 		} else {
-			policyMap[row.PolicyID].LabelsIncludeAny = append(policyMap[row.PolicyID].LabelsIncludeAny, row.LabelName)
+			policyMap[row.PolicyID].LabelsIncludeAny = append(policyMap[row.PolicyID].LabelsIncludeAny, fleet.LabelIdent{LabelName: row.LabelName, LabelID: row.LabelID})
 		}
 	}
 
@@ -983,13 +997,21 @@ func newTeamPolicy(ctx context.Context, db sqlx.ExtContext, teamID uint, authorI
 
 	policyID := uint(lastIdInt64) //nolint:gosec // dismiss G115
 
-	if err := updatePolicyLabelsTx(ctx, db, &fleet.Policy{
+	dummyPolicy := &fleet.Policy{
 		PolicyData: fleet.PolicyData{
-			ID:               policyID,
-			LabelsIncludeAny: args.LabelsIncludeAny,
-			LabelsExcludeAny: args.LabelsExcludeAny,
+			ID: policyID,
 		},
-	}); err != nil {
+	}
+
+	for _, labelInclude := range args.LabelsIncludeAny {
+		dummyPolicy.LabelsIncludeAny = append(dummyPolicy.LabelsIncludeAny, fleet.LabelIdent{LabelName: labelInclude})
+	}
+
+	for _, labelExclude := range args.LabelsExcludeAny {
+		dummyPolicy.LabelsExcludeAny = append(dummyPolicy.LabelsExcludeAny, fleet.LabelIdent{LabelName: labelExclude})
+	}
+
+	if err := updatePolicyLabelsTx(ctx, db, dummyPolicy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting policy labels")
 	}
 
