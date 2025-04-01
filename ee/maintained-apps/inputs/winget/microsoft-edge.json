@@ -1,9 +1,0 @@
-{
-  "name": "Microsoft Edge",
-  "slug": "microsoft-edge/windows",
-  "package_identifier": "Microsoft.Edge",
-  "unique_identifier": "Microsoft Edge",
-  "installer_arch": "x64",
-  "installer_type": "msi",
-  "installer_scope": "machine"
-}
