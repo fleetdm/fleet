@@ -281,7 +281,7 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		return ctxerr.Wrap(ctx, err, "get host")
 	}
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionCancelHostActivity); err != nil {
 		return err
 	}
 	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, upcomingActivityID)
