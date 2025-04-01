@@ -672,6 +672,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
 #### scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
