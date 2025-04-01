@@ -1,0 +1,15 @@
+{
+  "name": "Box Drive",
+  "slug": "box-drive/darwin",
+  "unique_identifier": "com.box.desktop",
+  "token": "box-drive",
+  "installer_format": "pkg",
+  "pre_uninstall_scripts": [
+    "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER fileproviderctl domain remove -A com.box.desktop.boxfileprovider)",
+    "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-archive-unsynced-content Box)",
+    "(cd /Users/$LOGGED_IN_USER; sudo -u $LOGGED_IN_USER /Applications/Box.app/Contents/MacOS/fpe/streem --remove-fpe-domain-and-preserve-unsynced-content Box)",
+    "(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)",
+    "echo \"${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\\ Support/Box/uninstall_box_drive_r\" >> /etc/sudoers.d/box_uninstall"
+  ],
+  "post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"]
+}

@@ -6,6 +6,7 @@ import { secondsToHms } from "utilities/helpers";
 
 import DataSet from "components/DataSet";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 const baseClass = "agent-options-card";
 interface IAgentOptionsProps {
@@ -54,20 +55,21 @@ const AgentOptions = ({
   return (
     <Card
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      largePadding
       className={classNames}
     >
-      {isChromeOS ? (
-        <TooltipWrapper
-          tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
-          className="card__header"
-        >
-          Agent options
-        </TooltipWrapper>
-      ) : (
-        <p className="card__header">Agent options</p>
-      )}
+      <CardHeader
+        header={
+          isChromeOS ? (
+            <TooltipWrapper tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}>
+              Agent options
+            </TooltipWrapper>
+          ) : (
+            "Agent options"
+          )
+        }
+      />
       <div className={`${baseClass}__data`}>
         <DataSet title="Config TLS refresh" value={configTLSRefresh} />
         <DataSet title="Logger TLS period" value={loggerTLSPeriod} />

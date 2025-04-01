@@ -11227,7 +11227,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slreq := submitLogsRequest{
 		NodeKey: *host2Team1.NodeKey,
 		LogType: "result",
-		Data: json.RawMessage(`[{
+		Data: []json.RawMessage{
+			json.RawMessage(`{
   "snapshot": [
     {
       "class": "239",
@@ -11270,8 +11271,7 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "` + host2Team1.UUID + `",
     "hostname": "` + host2Team1.Hostname + `"
   }
-},
-{
+}`), json.RawMessage(`{
   "snapshot": [
     {
       "build_distro": "10.14",
@@ -11300,9 +11300,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "` + host2Team1.UUID + `",
     "hostname": "` + host2Team1.Hostname + `"
   }
-}
-]`),
-	}
+}`),
+		}}
 	slres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11310,7 +11309,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slreq = submitLogsRequest{
 		NodeKey: *host1Global.NodeKey,
 		LogType: "result",
-		Data: json.RawMessage(`[{
+		Data: []json.RawMessage{
+			json.RawMessage(`{
   "snapshot": [
     {
       "build_distro": "centos7",
@@ -11339,8 +11339,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
     "hostname": "` + host1Global.Hostname + `"
   }
-}]`),
-	}
+}`),
+		}}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11348,7 +11348,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slreq = submitLogsRequest{
 		NodeKey: *host1Team2.NodeKey,
 		LogType: "result",
-		Data: json.RawMessage(`[{
+		Data: []json.RawMessage{
+			json.RawMessage(`{
   "snapshot": [
     {
       "build_distro": "10.14",
@@ -11377,8 +11378,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "` + host1Team2.UUID + `",
     "hostname": "` + host1Team2.Hostname + `"
   }
-}]`),
-	}
+}`),
+		}}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11386,7 +11387,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	emptyslreq := submitLogsRequest{
 		NodeKey: *host2Global.NodeKey,
 		LogType: "result",
-		Data: json.RawMessage(`[{
+		Data: []json.RawMessage{
+			json.RawMessage(`{
 			  "snapshot": [],
 			  "action": "snapshot",
 			  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
@@ -11400,7 +11402,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 				"host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
 				"hostname": "` + host1Global.Hostname + `"
 			  }
-			}]`),
+			}`),
+		},
 	}
 	emptyslres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", emptyslreq, http.StatusOK, &emptyslres)
@@ -11782,7 +11785,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	slreq = submitLogsRequest{
 		NodeKey: *host1Global.NodeKey,
 		LogType: "result",
-		Data: json.RawMessage(`[{
+		Data: []json.RawMessage{
+			json.RawMessage(`{
   "snapshot": [` + results(fleet.DefaultMaxQueryReportRows, host1Global.UUID) + `
   ],
   "action": "snapshot",
@@ -11797,7 +11801,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
     "hostname": "` + host1Global.Hostname + `"
   }
-}]`),
+}`),
+		},
 	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
@@ -11815,7 +11820,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, ghqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ghqrr.ReportClipped)
 
-	slreq.Data = json.RawMessage(`[{
+	slreq.Data = []json.RawMessage{json.RawMessage(`{
   "snapshot": [` + results(1, host1Global.UUID) + `
   ],
   "action": "snapshot",
@@ -11830,7 +11835,7 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
     "hostname": "` + host1Global.Hostname + `"
   }
-}]`)
+}`)}
 
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11847,7 +11852,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.False(t, gqrr.ReportClipped)
 
-	slreq.Data = json.RawMessage(`[{
+	slreq.Data = []json.RawMessage{json.RawMessage(`{
   "snapshot": [` + results(1002, host1Global.UUID) + `
   ],
   "action": "snapshot",
@@ -11862,7 +11867,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
     "hostname": "` + host1Global.Hostname + `"
   }
-}]`)
+}`),
+	}
 
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)

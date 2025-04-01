@@ -253,7 +253,10 @@ type HostSoftwareTitleListOptions struct {
 	// the host.
 	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
-	VulnerableOnly bool `query:"vulnerable,optional"`
+	VulnerableOnly bool    `query:"vulnerable,optional"`
+	KnownExploit   bool    `query:"exploit,optional"`
+	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
 	IsMDMEnrolled bool

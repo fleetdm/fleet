@@ -9,6 +9,13 @@
       "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
+      "name": "1Password",
+      "slug": "1password/windows",
+      "platform": "windows",
+      "unique_identifier": "1Password",
+      "description": "Password manager that keeps all passwords secure behind one password"
+    },
+    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -23,10 +30,24 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
+      "name": "Box Drive",
+      "slug": "box-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Box",
+      "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",
       "unique_identifier": "com.brave.Browser",
+      "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Brave",
+      "slug": "brave-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
@@ -37,10 +58,24 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Cloudflare WARP",
+      "slug": "cloudflare-warp/windows",
+      "platform": "windows",
+      "unique_identifier": "Cloudflare WARP",
+      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
       "unique_identifier": "com.docker.docker",
+      "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
+      "name": "Docker Desktop",
+      "slug": "docker/windows",
+      "platform": "windows",
+      "unique_identifier": "Docker Desktop",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -62,6 +97,13 @@
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Google Chrome",
+      "slug": "google-chrome/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
@@ -121,10 +163,24 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "TeamViewer",
+      "slug": "teamviewer/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer",
+      "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.VSCode",
+      "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Microsoft Visual Studio Code",
+      "slug": "visual-studio-code/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
@@ -135,10 +191,17 @@
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
-      "name": "Zoom for IT Admins",
-      "slug": "zoom-for-it-admins/darwin",
+      "name": "Zoom",
+      "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
+      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom",
+      "slug": "zoom/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Workplace (64-bit)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]

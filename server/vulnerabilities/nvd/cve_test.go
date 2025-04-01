@@ -339,6 +339,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-6286"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
@@ -535,6 +545,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		version      string
 		osID         uint
 		includedCVEs []string
+		excludedCVEs []string
 	}{
 		{
 			platform: "darwin",
@@ -600,6 +611,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				"CVE-2023-32396",
 				"CVE-2023-29497",
 			},
+		},
+		{
+			platform: "darwin",
+			version:  "15.3",
+			osID:     3,
+			// This was resolved in 15.3, so it should be excluded. See https://github.com/fleetdm/fleet/issues/26561.
+			excludedCVEs: []string{"CVE-2025-24176"},
 		},
 	}
 
@@ -699,6 +717,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		for _, tc := range cveOSTests {
 			for _, cve := range tc.includedCVEs {
 				require.Contains(t, osCVEsFound[tc.osID], cve)
+			}
+			for _, cve := range tc.excludedCVEs {
+				require.NotContains(t, osCVEsFound[tc.osID], cve)
 			}
 		}
 	})

@@ -1,6 +1,6 @@
 # Single sign-on (SSO)
 
-Fleet supports [Okta](#okta), [Authentik](https://github.com/goauthentik/authentik), [Google Workspace](#google-workspace), and [Microsoft Active Directory (AD) / Entra ID](https://learn.microsoft.com/en-us/entra/architecture/auth-saml), as well as any other identity provider (IdP) that supports the SAML standard.
+Fleet supports [Okta](#okta), [authentik](#authentik), [Google Workspace](#google-workspace), and [Microsoft Active Directory (AD) / Entra ID](https://learn.microsoft.com/en-us/entra/architecture/auth-saml), as well as any other identity provider (IdP) that supports the SAML standard.
 
 To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
 
@@ -38,12 +38,11 @@ Create a new SAML app in Google Workspace:
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. Configure the **Service provider details**:
-
-  - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
-  - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
-  - For **Name ID format**, choose `EMAIL`.
-  - For **Name ID**, choose `Basic Information > Primary email`.
-  - All other fields can be left blank.
+    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+    - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
+    - For **Name ID format**, choose `EMAIL`.
+    - For **Name ID**, choose `Basic Information > Primary email`.
+    - All other fields can be left blank.
 
   Click **Continue** at the bottom of the page.
 
@@ -63,6 +62,37 @@ Create a new SAML app in Google Workspace:
 
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
+## authentik
+
+Fleet can be configured to use authentik as an identity provider. To continue, you will need to have an authentik instance hosted on an HTTPS domain, and an admin account.
+
+
+1. Log in to authentik and click **Admin interface**.
+
+2. Navigate to **Applications -> Applications** and click **Create with Provider** to create an application and provider pair.
+
+3. Enter "Fleet" for the **App name** and click **Next**.
+
+4. Choose **SAML** as the **Provider Type** and click **Next**.
+    - For **Name**, enter "Fleet".
+    - For **Authorization flow**, choose `default-provider-authorization-implicit-consent (Authorize Application)`.
+    - In the **Protocol settings** section, configure the following:
+      - For **Assertion Consumer Service URL** use `https://<your_fleet_url>/api/v1/fleet/sso/callback`.
+        - If you're configuring **[end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
+      - For **Issuer**, use `authentik`.
+      - For **Service Provider Binding**, choose `Post`.
+      - For **audience**, use `https://<your_fleet_url>`.
+    - In the **Advanced protocol settings** section, configure the following:
+      - Choose a signing certificate and enable **Sign assertions** and **Sign responses**.
+      - For **NameID Property Mapping**, choose `default SAML Mapping: Email`.
+    - Click **Next**.
+    - Continue to the **Review and Submit Application** page and click **Submit**.
+
+5. Navigate to **Applications -> Providers** and click on the Fleet provider you just created.
+    - In the **Related objects** section, click **Copy Metadata URL** and paste the URL to a text editor for later use.
+
+6. Proceed to [Fleet configuration](#fleet-configuration).
+
 ## Other IdPs
 
 IdPs generally requires the following information:
@@ -79,7 +109,7 @@ After supplying the above information, your IdP will generate an issuer URI and 
 
 ## Fleet configuration
 
-To configure SSO in Fleet head to **Settings > Organization settings > Single sign-on options**.
+To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO)**.
 
 If you're configuring end user authentication head to **Settings > Integrations > Automatic enrollment > End user authentication**.
 
@@ -105,7 +135,7 @@ The new account's email and full name are copied from the user data in the SSO r
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
 To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Organization settings > Single sign-on options** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Integrations > Single sign-on (SSO)** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
@@ -143,6 +173,7 @@ If the account already exists:
   - If the `SAMLResponse` does not have any role attributes set, no role change is attempted.
 
 Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
+
 ```xml
 [...]
 <saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -165,6 +196,7 @@ Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 ```
 
 Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+
 ```xml
 [...]
 <saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">

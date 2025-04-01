@@ -32,7 +32,7 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/smallstep/scep"
 )
@@ -185,7 +185,9 @@ func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 	c.depURLToken = tok
 }
 
-// Enroll runs the MDM enroll protocol on the simulated device.
+// Enroll runs the MDM enroll protocol on the simulated device. It fetches the enrollment
+// profile from the Fleet server and then runs the SCEP enrollment, Authenticate and TokenUpdate
+// steps.
 func (c *TestAppleMDMClient) Enroll() error {
 	switch {
 	case c.fetchEnrollmentProfileFromDesktop:
@@ -949,7 +951,7 @@ func RandUDID() string {
 
 type scepClient interface {
 	scepserver.Service
-	Supports(cap string) bool
+	Supports(capacity string) bool
 }
 
 func newSCEPClient(

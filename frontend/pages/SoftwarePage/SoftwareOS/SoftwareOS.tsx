@@ -25,7 +25,6 @@ interface ISoftwareOSProps {
   orderKey: string;
   currentPage: number;
   teamId?: number;
-  resetPageIndex: boolean;
   platform: SelectedPlatform;
 }
 
@@ -37,7 +36,6 @@ const SoftwareOS = ({
   orderKey,
   currentPage,
   teamId,
-  resetPageIndex,
   platform,
 }: ISoftwareOSProps) => {
   const queryParams = {
@@ -88,7 +86,6 @@ const SoftwareOS = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching}
-        resetPageIndex={resetPageIndex}
         platform={platform}
       />
     </div>

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
@@ -34,7 +35,7 @@ func Analyze(
 	if !platform.IsGovalDictionarySupported() {
 		return nil, ErrUnsupportedPlatform
 	}
-	db, err := loadDb(platform, vulnPath)
+	db, err := LoadDb(platform, vulnPath)
 	if err != nil {
 		return nil, err
 	}
@@ -117,8 +118,8 @@ func Analyze(
 	return inserted, nil
 }
 
-// loadDb returns the latest goval_dictionary database for the given platform.
-func loadDb(platform oval.Platform, vulnPath string) (*Database, error) {
+// LoadDb returns the latest goval_dictionary database for the given platform.
+func LoadDb(platform oval.Platform, vulnPath string) (*Database, error) {
 	if !platform.IsGovalDictionarySupported() {
 		return nil, fmt.Errorf("platform %q not supported", platform)
 	}

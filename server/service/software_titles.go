@@ -220,3 +220,50 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 	return software, nil
 }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Update a software title's name
+/////////////////////////////////////////////////////////////////////////////////
+
+type updateSoftwareNameRequest struct {
+	ID   uint   `url:"id"`
+	Name string `json:"name"`
+}
+
+type updateSoftwareNameResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateSoftwareNameResponse) Error() error { return r.Err }
+func (r updateSoftwareNameResponse) Status() int  { return http.StatusResetContent }
+
+func updateSoftwareNameEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateSoftwareNameRequest)
+	return updateSoftwareNameResponse{Err: svc.UpdateSoftwareName(ctx, req.ID, req.Name)}, nil
+}
+
+func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	// get software by id including team_id data from software_title_host_counts
+	software, err := svc.ds.SoftwareTitleByID(ctx, titleID, nil, fleet.TeamFilter{
+		User: vc.User,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software title by id")
+	}
+	if software.BundleIdentifier == nil || *software.BundleIdentifier == "" {
+		return fleet.NewInvalidArgumentError("id", "only titles with a bundle ID can have their name modified")
+	}
+	if name == "" {
+		return fleet.NewInvalidArgumentError("name", "cannot be empty")
+	}
+
+	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
+}

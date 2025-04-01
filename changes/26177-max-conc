@@ -1,2 +1,0 @@
-- Prevented an invalid `FLEET_VULNERABILITIES_MAX_CONCURRENCY` value from causing deadlocks during
-  vulnerability processing.

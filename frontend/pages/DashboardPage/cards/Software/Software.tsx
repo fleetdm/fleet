@@ -29,6 +29,7 @@ interface ISoftwareCardProps {
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
   router: InjectedRouter;
+  softwarePageIndex: number;
 }
 
 interface IRowProps extends Row {
@@ -53,6 +54,7 @@ const Software = ({
   software,
   teamId,
   router,
+  softwarePageIndex,
 }: ISoftwareCardProps): JSX.Element => {
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
@@ -94,6 +96,7 @@ const Software = ({
                   columnConfigs={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
+                  pageIndex={softwarePageIndex}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
@@ -116,6 +119,7 @@ const Software = ({
                   columnConfigs={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
+                  pageIndex={softwarePageIndex}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"

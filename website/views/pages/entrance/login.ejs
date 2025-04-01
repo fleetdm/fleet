@@ -13,19 +13,19 @@
           <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
             <div class="form-group">
               <label for="email">Email</label>
-              <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
+              <input tabindex="1" type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
               <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
             </div>
             <div class="form-group">
               <label for="password">Password</label>
-              <input type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
+              <input tabindex="2" type="password" class="form-control" :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="current-password">
               <div class="invalid-feedback" v-if="formErrors.password">Please enter your password.</div>
             </div>
             <cloud-error v-if="cloudError === 'noUser'">The email address provided doesn't match an existing account. Create an account <a href="/customers/register">here</a>.</cloud-error>
             <cloud-error v-else-if="cloudError === 'badCombo'">Something’s not quite right with your email or password.</cloud-error>
             <cloud-error v-else-if="cloudError"></cloud-error>
             <div class="pb-3">
-              <ajax-button :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
+              <ajax-button tabindex="3" :syncing="syncing" spinner="true" purpose="submit-button" class="btn-primary mt-4 btn-lg btn-block">Sign in</ajax-button>
             </div>
           </ajax-form>
           <span class="text-center small"><a href="/customers/forgot-password">Forgot your password?</a></span>

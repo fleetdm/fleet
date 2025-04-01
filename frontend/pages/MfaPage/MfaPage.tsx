@@ -33,6 +33,10 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   } = useContext(AppContext);
   const { redirectLocation } = useContext(RoutingContext);
   const [isExpired, setIsExpired] = useState(false);
+  const [shouldFinishMFA, setShouldFinishMFA] = useState(
+    !!local.getItem("auth_pending_mfa")
+  );
+  local.removeItem("auth_pending_mfa");
 
   const finishMFA = async () => {
     const { DASHBOARD, RESET_PASSWORD, NO_ACCESS } = paths;
@@ -71,8 +75,10 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   };
 
   useEffect(() => {
-    finishMFA();
-  });
+    if (shouldFinishMFA) {
+      finishMFA();
+    }
+  }, [shouldFinishMFA, finishMFA]);
 
   useEffect(() => {
     if (currentUser) {
@@ -83,6 +89,22 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   const onClickLoginButton = () => {
     router.push(paths.LOGIN);
   };
+
+  const onClickFinishLoginButton = () => {
+    setShouldFinishMFA(true);
+  };
+
+  if (!shouldFinishMFA) {
+    return (
+      <AuthenticationFormWrapper>
+        <div className={baseClass}>
+          <Button variant="brand" onClick={onClickFinishLoginButton}>
+            Log in
+          </Button>
+        </div>
+      </AuthenticationFormWrapper>
+    );
+  }
 
   if (isExpired) {
     return (

@@ -74,6 +74,7 @@ module.exports = {
       'Scott MacVicar',
       'Chandra Majumdar',
       'Kenny Botelho',
+      'Luis Madrigal',
       'Brendan Shaklovitz',
       'Erik Gomez',
       'Charles Zaffery',

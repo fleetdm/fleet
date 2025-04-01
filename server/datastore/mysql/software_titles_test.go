@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -28,9 +29,11 @@ func TestSoftwareTitles(t *testing.T) {
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 		{"ListSoftwareTitlesInstallersOnly", testListSoftwareTitlesInstallersOnly},
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
+		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
+		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1180,6 +1183,47 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	}, names)
 }
 
+func testListSoftwareTitlesOverflow(t *testing.T, ds *Datastore) {
+	t.Skip("This test is too slow to run in CI")
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host", "", "hostkey1", "hostuuid1", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "hostkey2", "hostuuid2", time.Now())
+
+	var software []fleet.Software
+	for i := uint(0); i < 40_000; i++ {
+		software = append(software,
+			fleet.Software{Name: fmt.Sprintf("%dname", i), Version: fmt.Sprintf("0.0.%d", i), Source: "deb_packages"},
+		)
+		// UpdateHostSoftware blows up on a similar placeholder limit if we don't break it up
+		if i == 20_000 {
+			_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+			require.NoError(t, err)
+			software = []fleet.Software{}
+		}
+		if i == 39_999 {
+			_, err := ds.UpdateHostSoftware(ctx, host2.ID, software)
+			require.NoError(t, err)
+		}
+	}
+
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	_, counts, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: nil,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 40000, counts)
+}
+
 func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1699,4 +1743,47 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			assertTitles(t, titles, tt.expectedTitles)
 		})
 	}
+}
+
+func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		BundleIdentifier: "com.foo.installer1",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer1)
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "programs",
+		InstallScript:   "echo",
+		Filename:        "installer2.msi",
+		TeamID:          &tm.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer2)
+
+	// Changes name with bundle ID
+	require.NoError(t, ds.UpdateSoftwareTitleName(ctx, installer1, "A new name"))
+	title1, err := ds.SoftwareTitleByID(ctx, installer1, nil, fleet.TeamFilter{User: user1})
+	require.NoError(t, err)
+	require.Equal(t, "A new name", title1.Name)
+
+	// Doesn't change name with no bundle ID
+	require.NoError(t, ds.UpdateSoftwareTitleName(ctx, installer2, "A newer name"))
+	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
+	require.NoError(t, err)
+	require.Equal(t, "installer2", title2.Name)
 }

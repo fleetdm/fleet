@@ -104,6 +104,12 @@ func TestSync(t *testing.T) {
 					Arch:          "64-bit",
 					KernelVersion: "10.0.19044",
 				},
+				{ // multiple versions of the same OS map to one file, should only be downloaded/deleted once
+					Name:          "Microsoft Windows 10 Pro",
+					Version:       "10.0.19045",
+					Arch:          "64-bit",
+					KernelVersion: "10.0.19045",
+				},
 			}
 			t.Run("without remote bulletins", func(t *testing.T) {
 				var remote []io.MetadataFileName

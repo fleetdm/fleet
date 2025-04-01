@@ -1,10 +1,13 @@
 import React from "react";
 
-import { IHostCertificate } from "interfaces/certificates";
-import { HostPlatform } from "interfaces/platform";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
+import { IHostCertificate } from "interfaces/certificates";
+import { IListSort } from "interfaces/list_options";
+import { HostPlatform } from "interfaces/platform";
+
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 
 import CertificatesTable from "./CertificatesTable";
@@ -16,11 +19,14 @@ interface ICertificatesProps {
   hostPlatform: HostPlatform;
   page: number;
   pageSize: number;
+  sortHeader: string;
+  sortDirection: string;
   isError: boolean;
   isMyDevicePage?: boolean;
   onSelectCertificate: (certificate: IHostCertificate) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
+  onSortChange: ({ order_key, order_direction }: IListSort) => void;
 }
 
 const CertificatesCard = ({
@@ -29,10 +35,13 @@ const CertificatesCard = ({
   isError,
   page,
   pageSize,
+  sortHeader,
+  sortDirection,
   isMyDevicePage = false,
   onSelectCertificate,
   onNextPage,
   onPreviousPage,
+  onSortChange,
 }: ICertificatesProps) => {
   const renderContent = () => {
     if (isError) return <DataError />;
@@ -43,6 +52,9 @@ const CertificatesCard = ({
         showHelpText={!isMyDevicePage && hostPlatform === "darwin"}
         page={page}
         pageSize={pageSize}
+        sortDirection={sortDirection}
+        sortHeader={sortHeader}
+        onSortChange={onSortChange}
         onSelectCertificate={onSelectCertificate}
         onNextPage={onNextPage}
         onPreviousPage={onPreviousPage}
@@ -54,10 +66,10 @@ const CertificatesCard = ({
     <Card
       className={baseClass}
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      paddingSize="xxlarge"
     >
-      <h2>Certificates</h2>
+      <CardHeader header="Certificates" />
       {renderContent()}
     </Card>
   );

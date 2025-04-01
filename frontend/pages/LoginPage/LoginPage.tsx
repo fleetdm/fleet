@@ -141,6 +141,10 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         return router.push(redirectLocation || DASHBOARD);
       } catch (response) {
         if ((response as { status: number }).status === 202) {
+          // This (plus associated code in MfaPage) adds an extra click for browsers hitting the MFA landing page without
+          // logging in first, ensuring MFA tokens don't get auto-redeemed in those cases. An example of such a browser
+          // is an email link scanner (e.g. Microsoft's); see #26976.
+          local.setItem("auth_pending_mfa", "true");
           setPendingEmail(true);
         }
 

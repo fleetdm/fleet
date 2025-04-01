@@ -42,6 +42,8 @@ variable "fleet_calendar_periodicity" {
 }
 variable "android_service_credentials" {}
 variable "dogfood_sidecar_enroll_secret" {}
+variable "cloudfront_public_key" {}
+variable "cloudfront_private_key" {}
 
 data "aws_caller_identity" "current" {}
 
@@ -72,7 +74,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.12.0"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.13.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -128,7 +130,6 @@ module "main" {
       }
     }
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
-    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_environment_variables = merge(
       module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
@@ -137,7 +138,16 @@ module "main" {
       module.geolite2.extra_environment_variables,
       module.vuln-processing.extra_environment_variables
     )
-    extra_secrets           = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    extra_execution_iam_policies = concat(
+      module.mdm.extra_execution_iam_policies,
+      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn],
+      module.cloudfront-software-installers.extra_execution_iam_policies,
+    ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
+    extra_secrets           = merge(
+      module.mdm.extra_secrets,
+      local.sentry_secrets,
+      module.cloudfront-software-installers.extra_secrets
+    )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
     # extra_load_balancers         = [{
     #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
@@ -146,6 +156,8 @@ module "main" {
     # }]
     software_installers = {
       bucket_prefix = "${local.customer}-software-installers-"
+      create_kms_key = true
+      kms_alias      = "${local.customer}-software-installers"
     }
     # sidecars = [
     #   {
@@ -419,7 +431,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.2.0"
+  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.3.0"
   prefix        = local.customer
   enable_athena = true
 }
@@ -615,4 +627,15 @@ resource "aws_iam_policy" "osquery_sidecar" {
   name        = "osquery-sidecar-policy"
   description = "IAM policy that Osquery sidecar containers use to define access to AWS resources"
   policy      = data.aws_iam_policy_document.osquery_sidecar.json
+}
+
+module "cloudfront-software-installers" {
+  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.0.0"
+  customer          = local.customer
+  s3_bucket         = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
+  s3_kms_key_id     = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.kms_key_id
+  public_key        = var.cloudfront_public_key
+  private_key       = var.cloudfront_private_key
+  enable_logging    = true
+  logging_s3_bucket = module.logging_alb.log_s3_bucket_id
 }

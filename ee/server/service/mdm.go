@@ -1013,9 +1013,18 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		windows = *w
 	}
 
-	linux, err := svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
+	// Linux doesn't have configuration profiles, so if we aren't enforcing disk encryption we have nothing to report
+	diskEncEnabled, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
+		return nil, ctxerr.Wrap(ctx, err, "check if disk encryption is enabled")
+	}
+
+	var linux fleet.MDMLinuxDiskEncryptionSummary
+	if diskEncEnabled {
+		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
+		}
 	}
 
 	return &fleet.MDMDiskEncryptionSummary{

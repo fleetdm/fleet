@@ -23,7 +23,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -38,6 +40,33 @@ const (
 	fleetServerURL = "https://fleet.example.com"
 	orgName        = "GitOps Test"
 )
+
+func addLabelMocks(ds *mock.Store) {
+	var deletedLabels []string
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
+		return nil
+	}
+
+	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
+	}
+}
 
 func TestGitOpsFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
@@ -83,6 +112,10 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -169,6 +202,7 @@ org_settings:
 queries:
 policies:
 agent_options:
+labels:
 org_settings:
   server_settings:
     server_url: https://example.com
@@ -199,11 +233,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	scepConfig := &scep_mock.SCEPConfigService{}
+	scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
+	scepConfig.ValidateNDESSCEPAdminURLFunc = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error { return nil }
+	digiCertService := &digicert_mock.Service{}
+	digiCertService.VerifyProfileIDFunc = func(_ context.Context, _ fleet.DigiCertIntegration) error { return nil }
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			License:         license,
-			KeyValueStore:   newMemKeyValueStore(),
-			EnableSCEPProxy: true,
+			License:           license,
+			KeyValueStore:     newMemKeyValueStore(),
+			EnableSCEPProxy:   true,
+			SCEPConfigService: scepConfig,
+			DigiCertService:   digiCertService,
 		},
 	)
 
@@ -234,12 +275,22 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			// Set a GitOps UI mode to verify that applying GitOps config won't overwrite it.
+			UIGitOpsMode: fleet.UIGitOpsModeConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://didsomeonesaygitops.biz",
+			},
+		}, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
@@ -273,6 +324,21 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
+	ds.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
+		switch assetType {
+		case fleet.CAConfigCustomSCEPProxy:
+			return map[string]fleet.CAConfigAsset{
+				"CustomScepProxy2": {
+					Name:  "CustomScepProxy2",
+					Value: []byte("challenge2"),
+					Type:  fleet.CAConfigCustomSCEPProxy,
+				},
+			}, nil
+		default:
+			return nil, &notFoundError{}
+		}
+	}
+
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
@@ -293,6 +359,7 @@ controls:
     minimum_version: "18.0"
 queries:
 policies:
+labels:
 agent_options:
 org_settings:
   integrations:
@@ -301,6 +368,27 @@ org_settings:
       admin_url: https://ndes.example.com/admin
       username: ndes_user
       password: ndes_password
+    digicert:
+      - name: DigiCert
+        url: https://one.digicert.com
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn"]
+        certificate_seat_id: digicert_seat_id
+      - name: DigiCert2
+        url: https://two.digicert.com
+        api_token: digicert_api_token2
+        profile_id: digicert_profile_id2
+        certificate_common_name: digicert_cn2
+        certificate_seat_id: digicert_seat_id2
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: https://custom.scep.proxy.com
+        challenge: challenge
+      - name: CustomScepProxy2
+        url: https://custom.scep.proxy.com2
+        challenge: challenge2
   server_settings:
     server_url: $FLEET_SERVER_URL
   org_info:
@@ -326,6 +414,38 @@ software:
 	assert.Empty(t, enrolledSecrets)
 	assert.True(t, savedAppConfig.Integrations.NDESSCEPProxy.Valid)
 	assert.Equal(t, "https://ndes.example.com/scep", savedAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+	// GitOps should not overwrite GitOps UI Mode.
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
+	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
+
+	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)
+	require.True(t, savedAppConfig.Integrations.DigiCert.Valid)
+	digicerts := savedAppConfig.Integrations.DigiCert.Value
+	require.Len(t, digicerts, 2)
+	assert.Equal(t, "DigiCert", digicerts[0].Name)
+	assert.Equal(t, "https://one.digicert.com", digicerts[0].URL)
+	assert.Equal(t, "digicert_api_token", digicerts[0].APIToken)
+	assert.Equal(t, "digicert_profile_id", digicerts[0].ProfileID)
+	assert.Equal(t, "digicert_cn", digicerts[0].CertificateCommonName)
+	assert.Equal(t, []string{"digicert_upn"}, digicerts[0].CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id", digicerts[0].CertificateSeatID)
+	assert.Equal(t, "DigiCert2", digicerts[1].Name)
+	assert.Equal(t, "https://two.digicert.com", digicerts[1].URL)
+	assert.Equal(t, "digicert_api_token2", digicerts[1].APIToken)
+	assert.Equal(t, "digicert_profile_id2", digicerts[1].ProfileID)
+	assert.Equal(t, "digicert_cn2", digicerts[1].CertificateCommonName)
+	assert.Empty(t, digicerts[1].CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id2", digicerts[1].CertificateSeatID)
+
+	require.True(t, savedAppConfig.Integrations.CustomSCEPProxy.Valid)
+	sceps := savedAppConfig.Integrations.CustomSCEPProxy.Value
+	require.Len(t, sceps, 2)
+	assert.Equal(t, "CustomScepProxy", sceps[0].Name)
+	assert.Equal(t, "https://custom.scep.proxy.com", sceps[0].URL)
+	assert.Equal(t, "challenge", sceps[0].Challenge)
+	assert.Equal(t, "CustomScepProxy2", sceps[1].Name)
+	assert.Equal(t, "https://custom.scep.proxy.com2", sceps[1].URL)
+	assert.Equal(t, "challenge2", sceps[1].Challenge)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
@@ -372,6 +492,10 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	team := &fleet.Team{
 		ID:        1,
 		CreatedAt: time.Now(),
@@ -403,7 +527,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		enrolledTeamSecrets = newTeam.Secrets
 		return newTeam, nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -466,6 +590,7 @@ controls:
 queries:
 policies:
 agent_options:
+labels:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: ${TEST_SECRET}
@@ -632,6 +757,47 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return nil
 	}
 
+	var appliedLabelSpecs []*fleet.LabelSpec
+	var deletedLabels []string
+	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+		return []*fleet.LabelSpec{
+			{
+				Name:                "a",
+				Description:         "A global label",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts:               []string{"host2", "host3"},
+			},
+			{
+				Name:                "c",
+				Description:         "A label that should be deleted",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Query:               "SELECT 1 from osquery_info",
+			},
+		}, nil
+	}
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
+		appliedLabelSpecs = specs
+		return nil
+	}
+
+	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
+		deletedLabels = append(deletedLabels, name)
+		return nil
+	}
+
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
+	}
+
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -641,7 +807,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		savedAppConfig = config
 		return nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	var enrolledSecrets []*fleet.EnrollSecret
@@ -672,10 +838,11 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
 	t.Setenv("SOFTWARE_INSTALLER_URL", fleetServerURL)
-	file := "./testdata/gitops/global_config_no_paths.yml"
 
-	// Dry run
-	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
+	// Dry run w/ top-level labels key
+	logs := runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths.yml", "--dry-run"})
+	fmt.Printf("%s", logs)
+	fmt.Printf("-----------\n")
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 	assert.Len(t, enrolledSecrets, 0)
 	assert.Len(t, appliedPolicySpecs, 0)
@@ -683,9 +850,27 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedScripts, 0)
 	assert.Len(t, appliedMacProfiles, 0)
 	assert.Len(t, appliedWinProfiles, 0)
+	assert.Len(t, appliedLabelSpecs, 0)
+	assert.Len(t, deletedLabels, 0)
 
-	// Real run
-	_ = runAppForTest(t, []string{"gitops", "-f", file})
+	// Dry run w/out top-level labels key
+	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml", "--dry-run"})
+	fmt.Printf("%s", logs)
+	fmt.Printf("-----------\n")
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
+	assert.Len(t, enrolledSecrets, 0)
+	assert.Len(t, appliedPolicySpecs, 0)
+	assert.Len(t, appliedQueries, 0)
+	assert.Len(t, appliedScripts, 0)
+	assert.Len(t, appliedMacProfiles, 0)
+	assert.Len(t, appliedWinProfiles, 0)
+	assert.Len(t, appliedLabelSpecs, 0)
+	assert.Len(t, deletedLabels, 0)
+
+	// Real run w/ top-level labels key
+	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths.yml"})
+	fmt.Printf("%s", logs)
+	fmt.Printf("-----------\n")
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Contains(t, string(*savedAppConfig.AgentOptions), "distributed_denylist_duration")
@@ -705,6 +890,20 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.True(t, savedAppConfig.ServerSettings.AIFeaturesDisabled)
 	assert.True(t, savedAppConfig.WebhookSettings.ActivitiesWebhook.Enable)
 	assert.Equal(t, "https://activities_webhook_url", savedAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL)
+	assert.Len(t, appliedLabelSpecs, 2)
+	assert.Len(t, deletedLabels, 1)
+	assert.Len(t, appliedQueries[0].LabelsIncludeAny, 2)
+	assert.Contains(t, []string{appliedQueries[0].LabelsIncludeAny[0].LabelName, appliedQueries[0].LabelsIncludeAny[1].LabelName}, "a")
+	assert.Contains(t, []string{appliedQueries[0].LabelsIncludeAny[0].LabelName, appliedQueries[0].LabelsIncludeAny[1].LabelName}, "b")
+
+	// Reset labels arrays
+	deletedLabels = make([]string, 0)
+	appliedLabelSpecs = make([]*fleet.LabelSpec, 0)
+	// Real run w/out top-level labels key
+	logs = runAppForTest(t, []string{"gitops", "-f", "./testdata/gitops/global_config_no_paths_no_labels.yml"})
+	fmt.Printf("%s", logs)
+	assert.Len(t, appliedLabelSpecs, 0)
+	assert.Len(t, deletedLabels, 0)
 }
 
 func TestGitOpsFullTeam(t *testing.T) {
@@ -830,7 +1029,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	const teamID = uint(123)
@@ -912,6 +1111,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
+
+	addLabelMocks(ds)
+
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		appliedSoftwareInstallers = installers
@@ -1136,7 +1338,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		Name:      teamName,
 	}
 
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1187,6 +1389,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+
+	addLabelMocks(ds)
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -1351,13 +1556,17 @@ software:
 
 	// Files out of order
 	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
-	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "must be the global config"))
+	require.NoError(t, err)
+
+	// No global file, only team file
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+	require.NoError(t, err)
 
 	// Global file specified multiple times
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "-f", globalFile.Name(), "--dry-run"})
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "only the first file can be the global config"))
+	fmt.Printf("err.Error(): %v\n", err.Error())
+	assert.Contains(t, err.Error(), "only one global config file may be provided")
 
 	// Duplicate secret
 	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFileDupSecret.Name(), "--dry-run"})
@@ -1472,7 +1681,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		Name:      teamName,
 	}
 
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1520,6 +1729,8 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	addLabelMocks(ds)
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -1952,6 +2163,19 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{
+			"a": {
+				ID:   1,
+				Name: "a",
+			},
+			"b": {
+				ID:   2,
+				Name: "b",
+			},
+		}, nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
@@ -2062,11 +2286,11 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
-		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
+		{"testdata/gitops/team_software_installer_invalid_unknown_label.yml", "Please create the missing labels, or update your settings to not refer to these labels."},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -2099,6 +2323,24 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 					Teams:     nil,
 				}, nil
 			}
+
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "a",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "b",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+				}, nil
+			}
+
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
 				"a":                           2,
@@ -2227,6 +2469,18 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 				}
 				return ret, nil
 			}
+			ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+				return map[string]*fleet.Label{
+					"a": {
+						ID:   1,
+						Name: "a",
+					},
+					"b": {
+						ID:   2,
+						Name: "b",
+					},
+				}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "./testdata/gitops/global_config_no_paths.yml"
@@ -2267,11 +2521,11 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
-		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "some or all the labels provided don't exist"},
+		{"testdata/gitops/no_team_software_installer_invalid_unknown_label.yml", "Please create the missing labels, or update your settings to not refer to these labels."},
 		// No team tests for setup experience software/script
 		{"testdata/gitops/no_team_setup_software_valid.yml", ""},
 		{"testdata/gitops/no_team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
@@ -2302,6 +2556,22 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					RenewDate: tokExpire,
 					Token:     string(token),
 					Teams:     nil,
+				}, nil
+			}
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "a",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "b",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
 				}, nil
 			}
 			labelToIDs := map[string]uint{
@@ -2362,8 +2632,8 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}},
 		{"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
 		{"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
-		{"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml", "some or all the labels provided don't exist", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
-		{"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml", "some or all the labels provided don't exist", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml", "Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
+		{"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml", "Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour), map[string]uint{"label 1": 1, "label 2": 2}},
 		{"testdata/gitops/team_vpp_invalid_app_labels_both.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour), map[string]uint{}},
 	}
 
@@ -2391,6 +2661,23 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 					RenewDate: c.tokenExpiration,
 					Token:     string(token),
 					Teams:     nil,
+				}, nil
+			}
+
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "label 1",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "label 2",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
 				}, nil
 			}
 
@@ -2429,24 +2716,47 @@ func TestGitOpsCustomSettings(t *testing.T) {
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
 		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
+		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
 		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
 		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
+		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
 			ds, appCfgPtr, _ := setupFullGitOpsPremiumServer(t)
 			(*appCfgPtr).MDM.EnabledAndConfigured = true
 			(*appCfgPtr).MDM.WindowsEnabledAndConfigured = true
+			ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
+				return []*fleet.LabelSpec{
+					{
+						Name:                "A",
+						Description:         "A global label",
+						LabelMembershipType: fleet.LabelMembershipTypeManual,
+						Hosts:               []string{"host2", "host3"},
+					},
+					{
+						Name:                "B",
+						Description:         "Another label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+					{
+						Name:                "C",
+						Description:         "Another nother label",
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+						Query:               "SELECT 1 from osquery_info",
+					},
+				}, nil
+			}
 			labelToIDs := map[string]uint{
 				fleet.BuiltinLabelMacOS14Plus: 1,
 				"A":                           2,
 				"B":                           3,
 				"C":                           4,
 			}
+
 			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
 				ret := make(map[string]uint)
@@ -2714,6 +3024,8 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			EnabledAndConfigured: true,
 		},
 	}
+	addLabelMocks(ds)
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfigCopy := *savedAppConfig
 		return &appConfigCopy, nil
@@ -2772,7 +3084,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {

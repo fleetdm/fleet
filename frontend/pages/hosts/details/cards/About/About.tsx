@@ -18,6 +18,7 @@ import {
   BATTERY_TOOLTIP,
 } from "utilities/constants";
 import DataSet from "components/DataSet";
+import CardHeader from "components/CardHeader";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -56,7 +57,10 @@ const About = ({
     if (isIosOrIpadosHost) {
       return (
         <>
-          <DataSet title="Serial number" value={aboutData.hardware_serial} />
+          <DataSet
+            title="Serial number"
+            value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+          />
           <DataSet title="Hardware model" value={aboutData.hardware_model} />
         </>
       );
@@ -71,7 +75,10 @@ const About = ({
     return (
       <>
         <DataSet title="Hardware model" value={aboutData.hardware_model} />
-        <DataSet title="Serial number" value={aboutData.hardware_serial} />
+        <DataSet
+          title="Serial number"
+          value={<TooltipTruncatedText value={aboutData.hardware_serial} />}
+        />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
         <DataSet
           title={
@@ -118,7 +125,11 @@ const About = ({
         />
         <DataSet
           title="MDM server URL"
-          value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+          value={
+            <TooltipTruncatedText
+              value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+            />
+          }
         />
       </>
     );
@@ -215,12 +226,12 @@ const About = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      paddingSize="xxlarge"
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <h2>About</h2>
+      <CardHeader header="About" />
       <div className="info-flex">
         <DataSet
           title="Added to Fleet"

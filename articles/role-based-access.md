@@ -36,6 +36,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | :------: | :--------: | :--------: | :---: | :-----: |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| Cancel [host's upcoming activities](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                |          |            | ✅        | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                 |               |                |                 | ✅         | ✅          |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
@@ -44,6 +45,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
+| Add user information from IdP to hosts\*                                                                                                   |          |            | ✅          | ✅    |        |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
@@ -85,6 +87,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View, edit, and delete APNs certificate                                                                          |          |            |            | ✅    |         |
 | View, edit, and delete Apple Business Manager (ABM) connections                                                                                               |          |            |            | ✅    |         |
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                                               |          |            |            | ✅    |         |
+| Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |

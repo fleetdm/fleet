@@ -1,4 +1,4 @@
-# YAML files
+# GitOps
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
@@ -43,6 +43,9 @@ policies:
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
     platform: darwin
     critical: false
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 #### Separate file
@@ -65,22 +68,22 @@ policies:
   critical: false
   calendar_events_enabled: false
   run_script:
-    path: "./disable-guest-account.sh"
+    path: ./disable-guest-account.sh
 - name: Install Firefox on macOS
   platform: darwin
-  description: "This policy checks that Firefox is installed."
-  resolution: "Install Firefox app if not installed."
+  description: This policy checks that Firefox is installed.
+  resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
   install_software:
-    package_path: "./firefox.package.yml"
+    package_path: ./firefox.package.yml
 - name: [Install software] Logic Pro
   platform: darwin
-  description: "This policy checks that Logic Pro is installed"
-  resolution: "Install Logic Pro App Store app if not installed"
+  description: This policy checks that Logic Pro is installed
+  resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
   install_software:
     package_path: ./linux-firefox.deb.package.yml
-    # app_store_id: "1487937127" (for App Store apps)
+    # app_store_id: '1487937127' (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -226,13 +229,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 15.1
   ios_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 18.1
   ipados_updates: # Available in Fleet Premium
-    deadline: "2024-12-31"
+    deadline: 2024-12-31
     minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
@@ -240,13 +243,13 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any:
+        labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
       - path: ../lib/macos-profile2.json
-        labels_include_all:
+        labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
       - path: ../lib/macos-profile3.mobileconfig
-        labels_include_any:
+        labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
   windows_settings:
@@ -288,7 +291,7 @@ controls:
 
 ### macos_settings and windows_settings
 
-- `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
@@ -322,12 +325,11 @@ Can only be configured for all teams (`default.yml`).
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
+The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
-Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
-
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, .deb, or .tar.gz).
 - `app_store_apps` is a list of Apple App Store apps.
+- `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -340,14 +342,17 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any:
+      labels_include_any: # Available in Fleet Premium
         - Engineering
         - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
+  fleet_maintained_apps:
+    - slug: slack/darwin
+      self_service: true
       labels_include_any:
-        - Product
-        - Marketing
+        - Design
+        - Sales
 ```
 
 Use `labels_include_any` to target hosts that have any label in the array or `labels_exclude_any` to target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -384,6 +389,12 @@ self_service: true
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 
+### fleet_maintained_apps
+
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+
+> Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
+
 ## org_settings and team_settings
 
 ### features
@@ -416,7 +427,7 @@ Can only be configured for all teams (`org_settings`).
 ```yaml
 org_settings:
   fleet_desktop:
-    transparency_url: "https://example.org/transparency"
+    transparency_url: https://example.org/transparency
 ```
 
 ### host_expiry_settings
@@ -692,9 +703,9 @@ org_settings:
   mdm:
     apple_business_manager: # Available in Fleet Premium
     - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned iPhones"
-      ipados_team: "🔳🏢 Company-owned iPads"
+      macos_team: 💻 Workstations
+      ios_team: 📱🏢 Company-owned iPhones
+      ipados_team: 🔳🏢 Company-owned iPads
 ```
 
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
@@ -714,10 +725,10 @@ org_settings:
     volume_purchasing_program: # Available in Fleet Premium
     - location: Fleet Device Management Inc.
       teams: 
-      - "💻 Workstations" 
-      - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned iPhones"
-      - "🔳🏢 Company-owned iPads"
+      - 💻 Workstations
+      - 💻🐣 Workstations (canary)
+      - 📱🏢 Company-owned iPhones
+      - 🔳🏢 Company-owned iPads
 ```
 
 Can only be configured for all teams (`org_settings`).
@@ -783,6 +794,6 @@ org_settings:
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
 
-<meta name="title" value="YAML files">
+<meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">

@@ -5695,6 +5695,17 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		require.Equal(t, expected[got.ID], got)
 	}
 
+	// performance test for 50_000 title ids, ensure batching works
+	megaTitleIDs := make([]uint, 0, 50_000)
+	megaTitleIDs = append(megaTitleIDs, *installer3.TitleID)
+	for i := uint(0); i < (50_000 - 2); i++ {
+		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
+	}
+	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, nil)
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
 	// "No team" titles should not have any policies when filtering by team 1
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(1))
 	require.NoError(t, err)

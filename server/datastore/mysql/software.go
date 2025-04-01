@@ -953,6 +953,7 @@ var dialect = goqu.Dialect("mysql")
 
 // listSoftwareDB returns software installed on hosts. Use opts for pagination, filtering, and controlling
 // fields populated in the returned software.
+// Used on software/versions not software/titles
 func listSoftwareDB(
 	ctx context.Context,
 	q sqlx.QueryerContext,
@@ -2251,6 +2252,12 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true",
+		)
+	}
+
 	var onlySelfServiceClause string
 	if opts.SelfServiceOnly {
 		onlySelfServiceClause = ` AND ( si.self_service = 1 OR ( vat.self_service = 1 AND :is_mdm_enrolled ) ) `
@@ -2261,11 +2268,62 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
-	var onlyVulnerableJoin string
+	var vulnerableLastSoftwareInstallJoins,
+		vulnerableLastSoftwareUninstallJoins,
+		vulnerableLastVppInstall,
+		onlyVulnerableJoin,
+		vulnerabilityFiltersClause,
+		cveMetaJoin string
+	var hasCVEFilters bool
+
 	if opts.VulnerableOnly {
-		onlyVulnerableJoin = `
-INNER JOIN software_cve scve ON scve.software_id = s.id
+		// we don't currently do any vulnerability scanning on upcoming software/vpp installs/uninstalls
+		// so we don't need to join to software_cve for
+		// upcoming_software_install, upcoming_software_uninstall, upcoming_vpp_install
+		vulnerableLastSoftwareInstallJoins = `
+	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
+    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
 		`
+		vulnerableLastSoftwareUninstallJoins = `
+	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
+    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
+		`
+		vulnerableLastVppInstall = `
+    INNER JOIN vpp_apps va ON va.adam_id = hvsi.adam_id
+               AND va.platform = hvsi.platform
+    INNER JOIN software_titles ON software_titles.id = va.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
+		`
+		onlyVulnerableJoin = `
+INNER JOIN software_cve ON software_cve.software_id = s.id
+		`
+		cveMetaJoin = "INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
+
+		if opts.KnownExploit {
+			vulnerabilityFiltersClause += " AND cve_meta.cisa_known_exploit = 1"
+			hasCVEFilters = true
+		}
+		if opts.MinimumCVSS > 0 {
+			vulnerabilityFiltersClause += " AND cve_meta.cvss_score >= :min_cvss"
+			hasCVEFilters = true
+		}
+		if opts.MaximumCVSS > 0 {
+			vulnerabilityFiltersClause += " AND cve_meta.cvss_score <= :max_cvss"
+			hasCVEFilters = true
+		}
+
+		// Only join CVE table if there are filters
+		if hasCVEFilters {
+			onlyVulnerableJoin += cveMetaJoin
+			vulnerableLastSoftwareInstallJoins += cveMetaJoin
+			vulnerableLastSoftwareUninstallJoins += cveMetaJoin
+			vulnerableLastVppInstall += cveMetaJoin
+		}
 	}
 
 	softwareIsInstalledOnHostClause := fmt.Sprintf(`
@@ -2275,11 +2333,12 @@ INNER JOIN software_cve scve ON scve.software_id = s.id
 					host_software hs
 				INNER JOIN
 					software s ON hs.software_id = s.id
-					%s
+					%s -- onlyVulnerableJoin (includes software_cve and potentially cve_meta)
 				WHERE
 					hs.host_id = :host_id AND
 					s.title_id = st.id
-			) OR `, onlyVulnerableJoin)
+					%s
+			) OR `, onlyVulnerableJoin, vulnerabilityFiltersClause)
 
 	status := fmt.Sprintf(`COALESCE(%s, %s)`, `
 	CASE
@@ -2358,6 +2417,7 @@ last_software_install AS (
 		hsi.status
 	FROM
 		host_software_installs hsi
+		%s
 		LEFT JOIN host_software_installs hsi2
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
@@ -2381,6 +2441,7 @@ last_software_install AS (
 				siua.software_installer_id = hsi.software_installer_id AND
 				ua.activity_type = 'software_install'
 		)
+		%s
 ),
 last_software_uninstall AS (
 	SELECT
@@ -2391,6 +2452,7 @@ last_software_uninstall AS (
 		hsi.status
 	FROM
 		host_software_installs hsi
+		%s
 		LEFT JOIN host_software_installs hsi2
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
@@ -2414,6 +2476,7 @@ last_software_uninstall AS (
 				siua.software_installer_id = hsi.software_installer_id AND
 				ua.activity_type = 'software_uninstall'
 		)
+		%s
 ),
 upcoming_vpp_install AS (
 	SELECT
@@ -2450,6 +2513,7 @@ last_vpp_install AS (
 		%s
 	FROM
 		host_vpp_software_installs hvsi
+		%s
 		LEFT JOIN nano_command_results ncr
 			ON ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
@@ -2473,6 +2537,7 @@ last_vpp_install AS (
 				vaua.platform = hvsi.platform AND
 				ua.activity_type = 'vpp_app_install'
 		)
+		%s
 )
 		SELECT
 			st.id,
@@ -2481,9 +2546,11 @@ last_vpp_install AS (
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			COALESCE(lsia.created_at, lvia.created_at) as last_install_installed_at,
 			COALESCE(lsia.execution_id, lvia.execution_id) as last_install_install_uuid,
@@ -2613,11 +2680,23 @@ last_vpp_install AS (
 			)
 
 			%s
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+`,
+		vulnerableLastSoftwareInstallJoins,
+		vulnerabilityFiltersClause,
+		vulnerableLastSoftwareUninstallJoins,
+		vulnerabilityFiltersClause,
+		vppAppHostStatusNamedQuery("hvsi", "ncr", "status"),
+		vulnerableLastVppInstall,
+		vulnerabilityFiltersClause,
+		status,
+		softwareIsInstalledOnHostClause,
+		onlySelfServiceClause,
+	)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
+	// Cannot scan available software for vulnerabilities
 	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2626,9 +2705,11 @@ last_vpp_install AS (
 			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			si.platform as package_platform,
 			vat.self_service as vpp_app_self_service,
 			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			vap.platform as vpp_app_platform,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
@@ -2809,9 +2890,11 @@ last_vpp_install AS (
 		package_self_service,
 		package_name,
 		package_version,
+		package_platform,
 		vpp_app_self_service,
 		vpp_app_adam_id,
 		vpp_app_version,
+		vpp_app_platform,
 		vpp_app_icon_url,
 		last_install_installed_at,
 		last_install_install_uuid,
@@ -2838,10 +2921,13 @@ last_vpp_install AS (
 		"host_label_updated_at":     host.LabelUpdatedAt,
 		"avail":                     opts.OnlyAvailableForInstall,
 		"self_service":              opts.SelfServiceOnly,
+		"min_cvss":                  opts.MinimumCVSS,
+		"max_cvss":                  opts.MaximumCVSS,
 	}
 
 	stmt := stmtInstalled
-	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+	// We currently don't scan only available software for vulnerabilities
+	if (opts.OnlyAvailableForInstall && !opts.VulnerableOnly) || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
@@ -2888,9 +2974,11 @@ last_vpp_install AS (
 		PackageSelfService             *bool      `db:"package_self_service"`
 		PackageName                    *string    `db:"package_name"`
 		PackageVersion                 *string    `db:"package_version"`
+		PackagePlatform                *string    `db:"package_platform"`
 		VPPAppSelfService              *bool      `db:"vpp_app_self_service"`
 		VPPAppAdamID                   *string    `db:"vpp_app_adam_id"`
 		VPPAppVersion                  *string    `db:"vpp_app_version"`
+		VPPAppPlatform                 *string    `db:"vpp_app_platform"`
 		VPPAppIconURL                  *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
@@ -2910,9 +2998,14 @@ last_vpp_install AS (
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
 			}
+			var platform string
+			if hs.PackagePlatform != nil {
+				platform = *hs.PackagePlatform
+			}
 			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:        *hs.PackageName,
 				Version:     version,
+				Platform:    platform,
 				SelfService: hs.PackageSelfService,
 			}
 
@@ -2943,9 +3036,14 @@ last_vpp_install AS (
 			if hs.VPPAppVersion != nil {
 				version = *hs.VPPAppVersion
 			}
+			var platform string
+			if hs.VPPAppPlatform != nil {
+				platform = *hs.VPPAppPlatform
+			}
 			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:  *hs.VPPAppAdamID,
 				Version:     version,
+				Platform:    platform,
 				SelfService: hs.VPPAppSelfService,
 				IconURL:     hs.VPPAppIconURL,
 			}

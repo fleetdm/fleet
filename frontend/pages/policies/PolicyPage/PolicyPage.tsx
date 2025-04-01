@@ -213,6 +213,7 @@ const PolicyPage = ({
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
     storedPolicy?.team_id !== undefined &&
+    storedPolicy?.team_id !== null &&
     !(storedPolicy?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
