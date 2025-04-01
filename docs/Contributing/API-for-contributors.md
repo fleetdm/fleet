@@ -4244,7 +4244,6 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 | Name       | Type   | In   | Description                                                                                                                 |
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| fleet_license_key        | string | body | **Required.** The license key for the Fleet instance. |
 | microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
 
 
@@ -4278,18 +4277,8 @@ Confirm whether admin consent has been granted in Microsoft Entra.
 
 #### Parameters
 
-| Name       | Type   | In   | Description                                                                                                                 |
-| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| microsoft_tenant_id | string | body | **Required.** The Microsoft Entra tenant ID. |
+None.
 
-
-##### Request body
-
-```json
-{
-  "microsoft_tenant_id": "<TENANT ID>"
-}
-```
 
 ##### Default response
 
@@ -4307,18 +4296,7 @@ Confirm whether admin consent has been granted in Microsoft Entra.
 
 #### Parameters
 
-| Name       | Type   | In   | Description                                                                                                                 |
-| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
-| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
-
-##### Request body
-
-```json
-{
-  "fleet_license_key": "<LICENSE KEY>",
-  "microsoft_tenant_id": "<TENANT ID>"
-}
-```
+None.
 
 ##### Default response
 
