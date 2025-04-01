@@ -221,7 +221,6 @@ const SoftwareSelfService = ({
     );
   }, [pathname, queryParams.page, queryParams.query, router]);
 
-  console.log("queryParams", queryParams);
   const onPrevPage = useCallback(() => {
     router.push(
       getPathWithQueryParams(pathname, {
