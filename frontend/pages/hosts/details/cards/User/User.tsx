@@ -66,9 +66,9 @@ const User = ({ endUsers, className, onAddEndUser }: IUserProps) => {
           // value={generateEmailValue(endUsers)}
           value={
             <UserValue
-              // values={[
-              //   "thisisareallyreallyreallylongemailaddress@longdomain.com",
-              // ]}
+              values={[
+                "thisisareallyreallyreallylongemailaddress@longdomain.com",
+              ]}
               // values={["shortemail@test.com"]}
               // values={["shortemail@test.com", "shortemail2@test.com"]}
               // values={[
@@ -78,10 +78,10 @@ const User = ({ endUsers, className, onAddEndUser }: IUserProps) => {
               //   "mediumsidedemail@mediumdomain.com",
               // ]}
               // values={[...testvalues]}
-              values={[
-                "thisisareallyreallyreallylongemailaddress@longdomain.com",
-                ...testvalues,
-              ]}
+              // values={[
+              //   "thisisareallyreallyreallylongemailaddress@longdomain.com",
+              //   ...testvalues,
+              // ]}
             />
           }
         />

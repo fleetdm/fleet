@@ -1,5 +1,3 @@
-import { buildQueryStringFromParams } from "utilities/url";
-
 import URL_PREFIX from "./url_prefix";
 
 // Note: changes to paths.ts should change page_titles.ts respectively
