@@ -2032,6 +2032,8 @@ type Datastore interface {
 	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
 	// ScimGroupByID retrieves a SCIM group by ID
 	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// ScimGroupByDisplayName retrieves a SCIM group by display name
+	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
 	// ReplaceScimGroup replaces an existing SCIM group in the database
 	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
 	// DeleteScimGroup deletes a SCIM group from the database

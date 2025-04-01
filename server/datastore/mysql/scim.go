@@ -548,6 +548,33 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGro
 	return group, nil
 }
 
+// ScimGroupByDisplayName retrieves a SCIM group by display name
+func (ds *Datastore) ScimGroupByDisplayName(ctx context.Context, displayName string) (*fleet.ScimGroup, error) {
+	const query = `
+		SELECT
+			id, external_id, display_name
+		FROM scim_groups
+		WHERE display_name = ?
+	`
+	group := &fleet.ScimGroup{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), group, query, displayName)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("scim group")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim group by displayName")
+	}
+
+	// Get the group's users
+	users, err := ds.getScimGroupUsers(ctx, ds.reader(ctx), group.ID)
+	if err != nil {
+		return nil, err
+	}
+	group.ScimUsers = users
+
+	return group, nil
+}
+
 // getScimGroupUsers retrieves all user IDs for a SCIM group
 func (ds *Datastore) getScimGroupUsers(ctx context.Context, q sqlx.QueryerContext, groupID uint) ([]uint, error) {
 	const query = `

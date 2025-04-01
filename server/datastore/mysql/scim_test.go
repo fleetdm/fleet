@@ -30,6 +30,7 @@ func TestScim(t *testing.T) {
 		{"ScimGroupCreate", testScimGroupCreate},
 		{"ScimGroupCreateValidation", testScimGroupCreateValidation},
 		{"ScimGroupByID", testScimGroupByID},
+		{"ScimGroupByDisplayName", testScimGroupByDisplayName},
 		{"ReplaceScimGroup", testReplaceScimGroup},
 		{"ReplaceScimGroupValidation", testScimGroupReplaceValidation},
 		{"DeleteScimGroup", testDeleteScimGroup},
@@ -768,6 +769,44 @@ func testScimGroupByID(t *testing.T, ds *Datastore) {
 
 	// Test missing group
 	_, err := ds.ScimGroupByID(context.Background(), 10000000000)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testScimGroupByDisplayName(t *testing.T, ds *Datastore) {
+	// Create test users first
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	// Create test groups
+	groups := createTestScimGroups(t, ds, userIDs)
+
+	// Test retrieving each group by display name
+	for _, tt := range groups {
+		returned, err := ds.ScimGroupByDisplayName(context.Background(), tt.DisplayName)
+		assert.Nil(t, err)
+		assert.Equal(t, tt.ID, returned.ID)
+		assert.Equal(t, tt.DisplayName, returned.DisplayName)
+		assert.Equal(t, tt.ExternalID, returned.ExternalID)
+
+		// Verify users
+		assert.Equal(t, len(tt.ScimUsers), len(returned.ScimUsers))
+		if len(tt.ScimUsers) > 0 {
+			// Sort the user IDs for comparison
+			sort.Slice(tt.ScimUsers, func(i, j int) bool {
+				return tt.ScimUsers[i] < tt.ScimUsers[j]
+			})
+			sort.Slice(returned.ScimUsers, func(i, j int) bool {
+				return returned.ScimUsers[i] < returned.ScimUsers[j]
+			})
+			assert.Equal(t, tt.ScimUsers, returned.ScimUsers)
+		}
+	}
+
+	// Test missing group
+	_, err := ds.ScimGroupByDisplayName(context.Background(), "Nonexistent Group")
 	assert.True(t, fleet.IsNotFound(err))
 }
 

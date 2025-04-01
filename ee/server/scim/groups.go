@@ -44,7 +44,15 @@ func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttribute
 	// displayName—that the SCIM spec itself does not mandate.
 	// In effect, Microsoft’s implementation diverges from strict SCIM compliance by making displayName behave like a unique key.
 	// SCIM only mandates that each group’s "id" is unique
-	// TODO: Check if displayName is already used.
+	_, err = g.ds.ScimGroupByDisplayName(r.Context(), displayName)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		level.Error(g.logger).Log("msg", "failed to check for displayName uniqueness", displayNameAttr, displayName, "err", err)
+		return scim.Resource{}, err
+	case err == nil:
+		level.Info(g.logger).Log("msg", "group already exists", displayNameAttr, displayName)
+		return scim.Resource{}, errors.ScimErrorUniqueness
+	}
 
 	group, err := createGroupFromAttributes(attributes)
 	if err != nil {
