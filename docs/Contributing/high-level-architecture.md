@@ -13,29 +13,32 @@ Add text
 graph LR;
     
     subgraph Development
-        fleet_release_owner[Fleet Release<br>Owner];
+        fleet_release_owner[fleetd release<br>owner];
     end
 
-    subgraph Agent
-        orbit[orbit];
-        desktop[Fleet Desktop<br>Tray App];
-        osqueryd[osqueryd];
+    subgraph Host
+        subgraph Agent
+            orbit[orbit];
+            desktop[Fleet Desktop];
+            osqueryd[osqueryd];
+        end
         desktop_browser[Fleet Desktop<br> from Browser];
     end
 
     subgraph Customer Cloud
         fleet_server[Fleet<br>Server];
         db[DB];
-        redis[Redis<br>Live queries' results <br>go here];
+        redis[Redis<br>Live queries' results, etc. <br>go here];
         prometheus[Prometheus Server];
     end
 
     subgraph FleetDM Cloud
-        tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
-        datadog[DataDog metrics]
+        tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://updates.fleetdm.com>updates.fleetdm.com</a>)"];
+        datadog[DataDog dashboard]
         heroku[Usage Analytics<br>Heroku]
-        log[Send logs to optional<br> external location]
     end
+
+    log[Send logs to optional<br> external location]
 
     subgraph Customer Admin
         frontend[API user UI or other]
@@ -45,7 +48,7 @@ graph LR;
     fleet_release_owner -- "Release Process" --> tuf;
 
     orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
-    orbit -- "Auto Update (TLS)" --> tuf;
+    Agent -- "Auto Update (TLS)" --> tuf;
     desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
     osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
     desktop_browser -- "My Device API (TLS)" --> fleet_server;
@@ -54,11 +57,10 @@ graph LR;
 
     fleet_server <== "Read/Write" ==> db;
     fleet_server <== "Read/Write" ==> redis;
-    redis <==> db;
 
     prometheus ==> fleet_server;
     fleet_server -- "metrics" --> heroku;
-    fleet_server -- "queries results" --> log;
+    fleet_server -- "queries/log results" --> log;
 
     frontend <== "API" ==> fleet_server;
 
