@@ -299,7 +299,7 @@ ACTION=release-to-production ./tools/tuf/releaser.sh
 Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of fleet locally, you check out a patch branch of fleet, e.g.:
 
 ```
-git checkout rc-minor-fleet-v4.65.1
+git checkout rc-minor-fleetd-v1.41.1
 ```
 
 As always, the `VERSION` env var used when running `releaser.sh` should match the version of the fleetd release, e.g.
@@ -308,7 +308,7 @@ As always, the `VERSION` env var used when running `releaser.sh` should match th
 TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
 COMPONENT=fleetd \
 ACTION=release-to-edge \
-VERSION=1.23.1 # <-- note the patch version \
+VERSION=1.41.1 # <-- note the patch version \
 KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
 TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
 SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
