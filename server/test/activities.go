@@ -138,6 +138,7 @@ func CreateHostVPPAppInstallUpcomingActivity(t *testing.T, ds fleet.Datastore, h
 // etc).
 func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage.CommandAndReportResultsStore, host *fleet.Host, execID, adamID, status string) {
 	ctx := context.Background()
+	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
 
 	cmdRes := &mdm.CommandResults{

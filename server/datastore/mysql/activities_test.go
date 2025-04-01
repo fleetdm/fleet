@@ -1639,6 +1639,34 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			},
 			cancelIndex: 1,
 		},
+		{
+			desc: "cancel script with another activity after",
+			setup: func(t *testing.T) []string {
+				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				exec3 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostSoftwareInstallResult(t, ds, host, exec3, 0)
+				})
+				return []string{exec1, exec2, exec3}
+			},
+			cancelIndex: 1,
+		},
+		{
+			desc: "cancel software uninstall with a couple activities before",
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				exec3 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				t.Cleanup(func() {
+					test.SetHostSoftwareInstallResult(t, ds, host, exec1, 0)
+					test.SetHostScriptResult(t, ds, host, exec2, 0)
+				})
+				return []string{exec1, exec2, exec3}
+			},
+			cancelIndex: 2,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
