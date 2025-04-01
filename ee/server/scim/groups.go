@@ -108,6 +108,8 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 	return &group, nil
 }
 
+// Get the Scim group by ID. The group id is of the format: group-123
+// SCIM resource IDs must be unique across all resources.
 func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
@@ -173,7 +175,7 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
-		level.Info(g.logger).Log("msg", "not parsing group filter", "filter", resourceFilter)
+		level.Info(g.logger).Log("msg", "group filter not supported", "filter", resourceFilter)
 		return scim.Page{}, nil
 	}
 
@@ -239,7 +241,8 @@ func (g *GroupHandler) Delete(r *http.Request, id string) error {
 }
 
 // Patch
-// Only supporting replacing the "displayName" attribute
+// Only supporting replacing the "displayName" attribute.
+// Note: Okta does not use PATCH endpoint to update groups (2025/04/01)
 func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {

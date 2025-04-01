@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -18,23 +19,6 @@ const (
 
 	SCIMDefaultResourcesPerPage = 100
 )
-
-// validateScimUserFields checks if the user fields exceed the maximum allowed length
-func validateScimUserFields(user *fleet.ScimUser) error {
-	if user.ExternalID != nil && len(*user.ExternalID) > SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
-	}
-	if len(user.UserName) > SCIMMaxFieldLength {
-		return fmt.Errorf("user_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
-	}
-	if user.GivenName != nil && len(*user.GivenName) > SCIMMaxFieldLength {
-		return fmt.Errorf("given_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
-	}
-	if user.FamilyName != nil && len(*user.FamilyName) > SCIMMaxFieldLength {
-		return fmt.Errorf("family_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
-	}
-	return nil
-}
 
 // CreateScimUser creates a new SCIM user in the database
 func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {
@@ -439,6 +423,23 @@ func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]uint
 	return groupIDs, nil
 }
 
+// validateScimUserFields checks if the user fields exceed the maximum allowed length
+func validateScimUserFields(user *fleet.ScimUser) error {
+	if user.ExternalID != nil && len(*user.ExternalID) > SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	}
+	if len(user.UserName) > SCIMMaxFieldLength {
+		return fmt.Errorf("user_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	}
+	if user.GivenName != nil && len(*user.GivenName) > SCIMMaxFieldLength {
+		return fmt.Errorf("given_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	}
+	if user.FamilyName != nil && len(*user.FamilyName) > SCIMMaxFieldLength {
+		return fmt.Errorf("family_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	}
+	return nil
+}
+
 // validateScimGroupFields checks if the group fields exceed the maximum allowed length
 func validateScimGroupFields(group *fleet.ScimGroup) error {
 	if group.ExternalID != nil && len(*group.ExternalID) > SCIMMaxFieldLength {
@@ -495,28 +496,30 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 		return nil
 	}
 
-	// Build the batch insert query
-	valueStrings := make([]string, 0, len(userIDs))
-	valueArgs := make([]interface{}, 0, len(userIDs)*2)
+	batchSize := 10000
+	return common_mysql.BatchProcessSimple(userIDs, batchSize, func(userIDsInBatch []uint) error {
+		// Build the batch insert query
+		valueStrings := make([]string, 0, len(userIDsInBatch))
+		valueArgs := make([]interface{}, 0, len(userIDsInBatch)*2)
 
-	for _, userID := range userIDs {
-		valueStrings = append(valueStrings, "(?, ?)")
-		valueArgs = append(valueArgs, userID, groupID)
-	}
+		for _, userID := range userIDsInBatch {
+			valueStrings = append(valueStrings, "(?, ?)")
+			valueArgs = append(valueArgs, userID, groupID)
+		}
 
-	// Construct the batch insert query
-	insertQuery := `
-	INSERT INTO scim_user_group (
-		scim_user_id, group_id
-	) VALUES ` + strings.Join(valueStrings, ",")
+		// Construct the batch insert query
+		insertQuery := `
+		INSERT INTO scim_user_group (
+			scim_user_id, group_id
+		) VALUES ` + strings.Join(valueStrings, ",")
 
-	// Execute the batch insert
-	_, err := tx.ExecContext(ctx, insertQuery, valueArgs...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "batch insert scim group users")
-	}
-
-	return nil
+		// Execute the batch insert
+		_, err := tx.ExecContext(ctx, insertQuery, valueArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert scim group users")
+		}
+		return nil
+	})
 }
 
 // ScimGroupByID retrieves a SCIM group by ID
@@ -541,8 +544,6 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGro
 	if err != nil {
 		return nil, err
 	}
-
-	// Assign the users to the group
 	group.ScimUsers = users
 
 	return group, nil
@@ -669,23 +670,23 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 
 		// Remove old user-group relationships
 		if len(usersToRemove) > 0 {
-			// Build a query with placeholders for each user
-			placeholders := make([]string, len(usersToRemove))
-			params := make([]interface{}, len(usersToRemove)+1)
-			params[0] = group.ID
+			batchSize := 10000
+			return common_mysql.BatchProcessSimple(usersToRemove, batchSize, func(usersToRemoveInBatch []uint) error {
+				params := make([]interface{}, len(usersToRemoveInBatch)+1)
+				params[0] = group.ID
+				for i, userID := range usersToRemoveInBatch {
+					params[i+1] = userID
+				}
 
-			for i, userID := range usersToRemove {
-				placeholders[i] = "?"
-				params[i+1] = userID
-			}
+				deleteQuery := "DELETE FROM scim_user_group WHERE group_id = ? AND scim_user_id IN (" +
+					strings.Repeat("?, ", len(usersToRemoveInBatch)-1) + "?)"
 
-			deleteQuery := "DELETE FROM scim_user_group WHERE group_id = ? AND scim_user_id IN (" +
-				strings.Join(placeholders, ",") + ")"
-
-			_, err = tx.ExecContext(ctx, deleteQuery, params...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "delete removed scim group users")
-			}
+				_, err = tx.ExecContext(ctx, deleteQuery, params...)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "delete removed scim group users")
+				}
+				return nil
+			})
 		}
 
 		return nil

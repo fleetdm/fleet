@@ -28,10 +28,7 @@ func RegisterSCIM(
 	logger kitlog.Logger,
 ) error {
 	config := scim.ServiceProviderConfig{
-		// TODO: DocumentationURI and Authentication scheme
 		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
-		SupportFiltering: true,
-		SupportPatch:     true,
 		MaxResults:       maxResults,
 	}
 
