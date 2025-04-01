@@ -896,12 +896,28 @@ const HostDetailsPage = ({
       idp_id: "1234567890",
       idp_email: "test@email.com",
       idp_full_name: "Test User",
-      idp_info_updated_at: "2023-10-01T00:00:00Z",
-      idp_groups: ["test_group"],
+      // idp_info_updated_at: "2023-10-01T00:00:00Z",
+      idp_info_updated_at: null,
+      idp_groups: [
+        "apple",
+        "test group",
+        "Test Group 2",
+        "Test Group 3",
+        "test Group 4",
+        "kite",
+      ],
       other_emails: [
         {
           email: "another-email@test.com",
-          source: "google",
+          source: "google_chrome_profiles",
+        },
+        {
+          email: "another-email-2@test.com",
+          source: "google_chrome_profiles",
+        },
+        {
+          email: "custom-email@test.com",
+          source: "custom",
         },
       ],
     },

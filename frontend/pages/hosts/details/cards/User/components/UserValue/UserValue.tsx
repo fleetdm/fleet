@@ -25,9 +25,9 @@ const UserValue = ({ values }: IUserValueProps) => {
     content = (
       <TooltipWrapper
         tipContent={values[0]}
-        position="bottom"
         underline={false}
         disableTooltip={!isTruncated}
+        position="top"
         showArrow
       >
         <span ref={displayNameRef} className={`${baseClass}__single`}>
@@ -36,8 +36,8 @@ const UserValue = ({ values }: IUserValueProps) => {
       </TooltipWrapper>
     );
   } else {
-    // multiple values content
-    const tipContent = values.map((value) => (
+    // multiple values content. dont include the first value in the tooltip.
+    const tipContent = values.slice(1).map((value) => (
       <div key={value} className={`${baseClass}__tooltip-item`}>
         {value}
       </div>
@@ -46,9 +46,9 @@ const UserValue = ({ values }: IUserValueProps) => {
       <>
         <TooltipWrapper
           tipContent={values[0]}
-          position="bottom"
           underline={false}
           disableTooltip={!isTruncated}
+          position="top"
           showArrow
         >
           <span ref={displayNameRef} className={`${baseClass}__multi`}>
@@ -58,7 +58,7 @@ const UserValue = ({ values }: IUserValueProps) => {
         {/* conditionally render the space character as it only is needed when the
         value text is not truncated */}
         {!isTruncated ? " " : null}
-        <TooltipWrapper tipContent={tipContent} position="bottom" showArrow>
+        <TooltipWrapper tipContent={tipContent} position="bottom-start">
           <span>+ {values.length - 1} more</span>
         </TooltipWrapper>
       </>

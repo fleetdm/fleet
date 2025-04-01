@@ -1,47 +1,82 @@
 import React from "react";
-// import { IHostEndUser } from "interfaces/host";
-// import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-import { IHost, IHostEndUser } from "interfaces/host";
+import { IHostEndUser } from "interfaces/host";
 
-// export const generateEmailValue = (endUsers: IHostEndUser[]) => {
-//   return "test";
-//   // const { idp_email, other_emails } = endUsers[;
+export const generateEmailValues = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) {
+    return [];
+  }
 
-//   // if (!idp_email && !other_emails.length) {
-//   //   return DEFAULT_EMPTY_CELL_VALUE;
-//   // }
-
-//   // return idp_email;
-// };
-
-// export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
-//   // const { idp_email, other_emails } = endUsers;
-//   // if (!idp_email && !other_emails.length) {
-//   //   return DEFAULT_EMPTY_CELL_VALUE;
-//   // }
-//   // return idp_email;
-// };
-
-// export const generateOtherEmailValue = (endUsers: IHostEndUser[]) => {
-//   if (!idp_email && !other_emails.length) {
-//     return DEFAULT_EMPTY_CELL_VALUE;
-//   }
-
-//   return other_emails.map((email) => email.email).join(", ");
-// };
-
-// eslint-disable-next-line import/prefer-default-export
-export const generateFullNameTipContent = (endUsers: IHostEndUser[]) => {
-  return (
-    <>
-      Connect your identity provider to Fleet on the{" "}
-      <b>
-        Settings {">"} Integrations {">"} IdP
-      </b>{" "}
-      page.
-    </>
-  );
+  return endUsers.map((endUser) => {
+    return endUser.idp_email;
+  });
 };
 
-export const generateGroupsTipContent = generateFullNameTipContent;
+export const generateFullNameValues = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) {
+    return [];
+  }
+
+  return endUsers.map((endUser) => {
+    return endUser.idp_full_name;
+  });
+};
+
+export const generateGroupsValues = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) {
+    return [];
+  }
+
+  return endUsers[0].idp_groups.sort((a, b) => {
+    return a.localeCompare(b);
+  });
+};
+
+export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) {
+    return [];
+  }
+
+  return endUsers[0].other_emails.reduce<string[]>((acc, otherEmail) => {
+    if (otherEmail.source === "google_chrome_profiles") {
+      acc.push(otherEmail.email);
+    }
+    return acc;
+  }, []);
+};
+
+export const generateFullNameTipContent = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) return null;
+
+  if (endUsers[0].idp_info_updated_at === null) {
+    return (
+      <>
+        Connect your identity provider to Fleet on the{" "}
+        <b>
+          Settings {">"} Integrations {">"} IdP
+        </b>{" "}
+        page.
+      </>
+    );
+  }
+
+  return <>This is the {'"givenName + familyName"'} from your IdP.</>;
+};
+
+export const generateGroupsTipContent = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) return null;
+
+  if (endUsers[0].idp_info_updated_at === null) {
+    return (
+      <>
+        Connect your identity provider to Fleet on the{" "}
+        <b>
+          Settings {">"} Integrations {">"} IdP
+        </b>{" "}
+        page.
+      </>
+    );
+  }
+
+  return null;
+};

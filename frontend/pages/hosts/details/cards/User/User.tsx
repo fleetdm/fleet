@@ -12,8 +12,12 @@ import Button from "components/buttons/Button";
 
 import UserValue from "./components/UserValue";
 import {
+  generateChromeProfilesValue,
+  generateEmailValues,
   generateFullNameTipContent,
+  generateFullNameValues,
   generateGroupsTipContent,
+  generateGroupsValues,
 } from "./helpers";
 // import { generateEmailValue } from "./helpers";
 
@@ -28,11 +32,6 @@ interface IUserProps {
 
 const User = ({ endUsers, className, onAddEndUser }: IUserProps) => {
   const classNames = classnames(baseClass, className);
-
-  const testvalues = [];
-  for (let i = 0; i < 30; i++) {
-    testvalues.push(`test-email-${i}`);
-  }
 
   return (
     <Card
@@ -55,63 +54,36 @@ const User = ({ endUsers, className, onAddEndUser }: IUserProps) => {
       <div className={`${baseClass}__content`}>
         <DataSet
           title={
-            <TooltipWrapper
-              tipContent="Email collected from your IdP during automatic enrollment (ADE)."
-              position="top"
-              showArrow
-            >
+            <TooltipWrapper tipContent="Email collected from your IdP during automatic enrollment (ADE).">
               Email
             </TooltipWrapper>
           }
           // value={generateEmailValue(endUsers)}
-          value={
-            <UserValue
-              values={[
-                "thisisareallyreallyreallylongemailaddress@longdomain.com",
-              ]}
-              // values={["shortemail@test.com"]}
-              // values={["shortemail@test.com", "shortemail2@test.com"]}
-              // values={[
-              //   "thisisareallyreallyreallylongemailaddress@longdomain.com",
-              //   "shortemail@longdomain.com",
-              //   "thisisareallyreallyreallylongemailaddress2@longdomain.com",
-              //   "mediumsidedemail@mediumdomain.com",
-              // ]}
-              // values={[...testvalues]}
-              // values={[
-              //   "thisisareallyreallyreallylongemailaddress@longdomain.com",
-              //   ...testvalues,
-              // ]}
-            />
-          }
+          value={<UserValue values={generateEmailValues(endUsers)} />}
         />
         <DataSet
           title={
-            <TooltipWrapper
-              tipContent={generateFullNameTipContent(endUsers)}
-              position="top"
-              showArrow
-            >
+            <TooltipWrapper tipContent={generateFullNameTipContent(endUsers)}>
               Full name (IdP)
             </TooltipWrapper>
           }
-          value={<UserValue values={["test name"]} />}
+          value={<UserValue values={generateFullNameValues(endUsers)} />}
         />
         <DataSet
           title={
-            <TooltipWrapper
-              tipContent={generateGroupsTipContent(endUsers)}
-              position="top"
-              showArrow
-            >
-              Groups (IdP)
-            </TooltipWrapper>
+            endUsers[0].idp_info_updated_at === null ? (
+              <TooltipWrapper tipContent={generateGroupsTipContent(endUsers)}>
+                Groups (IdP)
+              </TooltipWrapper>
+            ) : (
+              "Groups (IdP)"
+            )
           }
-          value={<UserValue values={["test group"]} />}
+          value={<UserValue values={generateGroupsValues(endUsers)} />}
         />
         <DataSet
           title="Google Chrome profiles"
-          value={<UserValue values={["test group"]} />}
+          value={<UserValue values={generateChromeProfilesValue(endUsers)} />}
         />
       </div>
     </Card>
