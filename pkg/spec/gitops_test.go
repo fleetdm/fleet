@@ -958,6 +958,32 @@ software:
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be 4000 characters or less", tooBigURL))
 
+	// Software URL isn't a valid URL
+	config = getTeamConfig([]string{"software"})
+	invalidURL := "1.2.3://"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, invalidURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("%s is not a valid URL", invalidURL))
+
+	// Software URL refers to a .exe but doesn't have (un)install scripts specified
+	config = getTeamConfig([]string{"software"})
+	exeURL := "https://download-installer.cdn.mozilla.net/pub/firefox/releases/136.0.4/win64/en-US/Firefox%20Setup%20136.0.4.exe?foo=bar"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, exeURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", exeURL))
+
 	// Policy references a VPP app not present on the team
 	config = getTeamConfig([]string{"policies"})
 	config += `

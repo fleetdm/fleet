@@ -1,3 +1,5 @@
+import React from "react";
+
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
@@ -39,6 +41,36 @@ const FORM_VALIDATION_CONFIG: Record<
           );
         },
         message: (formData) => validateQuery(formData.preInstallQuery).error,
+      },
+    ],
+  },
+  installScript: {
+    validations: [
+      {
+        name: "requiredForExe",
+        isValid: (formData) => {
+          if (formData.software?.type === "exe") {
+            // Handle undefined safely with nullish coalescing
+            return (formData.installScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Install script is required for .exe files.",
+      },
+    ],
+  },
+  uninstallScript: {
+    validations: [
+      {
+        name: "requiredForExe",
+        isValid: (formData) => {
+          if (formData.software?.type === "exe") {
+            // Handle undefined safely with nullish coalescing
+            return (formData.uninstallScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Uninstall script is required for .exe files.",
       },
     ],
   },
@@ -98,6 +130,29 @@ export const generateFormValidation = (formData: IPackageFormData) => {
   });
 
   return formValidation;
+};
+
+export const createTooltipContent = (
+  formValidation: IPackageFormValidation
+) => {
+  const messages = Object.values(formValidation)
+    .filter((field) => field.isValid === false && field.message)
+    .map((field) => field.message);
+
+  if (messages.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {messages.map((message, index) => (
+        <>
+          {message}
+          {index < messages.length - 1 && <br />}
+        </>
+      ))}
+    </>
+  );
 };
 
 export default generateFormValidation;

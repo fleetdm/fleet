@@ -1284,7 +1284,7 @@ Content-Type: application/octet-stream
 
 `/mdm/scep/proxy/{identifier}`
 
-This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID,caName` (URL escaped).
 
 ### Get Android Enterprise signup URL
 
@@ -3520,7 +3520,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 |-----------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop                                                                          |
 | error_source_version  | string   | version of error_source                                                                                                                   |
-| error_timestamp       | datetime | Time in UTC that error occured                                                                                                            |
+| error_timestamp       | datetime | Time in UTC that error occurred                                                                                                            |
 | error_message         | string   | error message                                                                                                                             |
 | error_additional_info | obj      | Any additional identifiers to assist debugging                                                                                            |
 | vital                 | boolean  | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors. |

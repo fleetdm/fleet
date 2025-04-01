@@ -6,7 +6,6 @@
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';"
       },
       "installer_url": "https://downloads.1password.com/mac/1Password-8.10.68-aarch64.zip",
-      "unique_identifier": "com.1password.1password",
       "install_script_ref": "d88f3fc1",
       "uninstall_script_ref": "f3d9471c",
       "sha256": "6e19aecbc814542bfe858488a585e09bc6b47f5f89b7229be20e5c5082426f6f"

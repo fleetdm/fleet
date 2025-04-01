@@ -82,6 +82,7 @@ controls:
     - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1

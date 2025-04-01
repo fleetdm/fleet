@@ -1286,8 +1286,8 @@ func TestApplyAsGitOps(t *testing.T) {
 		return savedTeam, nil
 	}
 
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Equal(t, uint(123), *teamID)
 		return true, nil
 	}
@@ -2098,7 +2098,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			return nil
 		}
 
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -2812,7 +2812,7 @@ func TestApplySpecs(t *testing.T) {
 			return team, nil
 		}
 
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {

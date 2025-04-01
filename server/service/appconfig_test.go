@@ -305,8 +305,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// Dry run
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return true, nil
 	}
@@ -318,8 +318,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run fails
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return false, nil
 	}
@@ -331,7 +331,7 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run with error
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return false, assert.AnError
 	}
 	err = svc.ApplyEnrollSecretSpec(
@@ -810,6 +810,25 @@ func TestTransparencyURL(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
 			}
+
+			expectedURL := fleet.DefaultTransparencyURL
+			expectedSecureframeURL := fleet.SecureframeTransparencyURL
+			if tt.expectedURL != "" {
+				expectedURL = tt.expectedURL
+				expectedSecureframeURL = tt.expectedURL
+			}
+
+			transparencyURL, err := svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedURL, transparencyURL)
+
+			cfg := config.TestConfig()
+			cfg.Partnerships.EnableSecureframe = true
+			svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+			transparencyURL, err = svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedSecureframeURL, transparencyURL)
 		})
 	}
 }
@@ -821,7 +840,8 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	cfg := config.TestConfig()
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	dsAppConfig := &fleet.AppConfig{
@@ -858,6 +878,19 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	ac, err := svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
+
+	// delivered URL should be the default one
+	transparencyUrl, err := svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DefaultTransparencyURL, transparencyUrl)
+
+	// delivered URL should be the Secureframe one if we have that config value set
+	cfg.Partnerships.EnableSecureframe = true
+	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	transparencyUrl, err = svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SecureframeTransparencyURL, transparencyUrl)
 
 	// setting transparency url fails
 	raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"})
@@ -1979,6 +2012,15 @@ func TestAppConfigCAs(t *testing.T) {
 			"one certificate user principal name")
 	})
 
+	t.Run("digicert empty user principal name", func(t *testing.T) {
+		mt := setUpDigiCert()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = []string{" "}
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
+			"user principal name cannot be empty")
+	})
+
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
@@ -2279,7 +2321,6 @@ func TestAppConfigCAs(t *testing.T) {
 		assert.Equal(t, caStatusDeleted, status.customSCEPProxy["delete"])
 		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 3)
 	})
-
 }
 
 type configCASuite struct {

@@ -24,7 +24,9 @@
                 <key>Password</key>
                 <string>$FLEET_VAR_DIGICERT_PASSWORD_FleetVars</string>
                 <key>PayloadContent</key>
-                <data>${FLEET_VAR_DIGICERT_DATA_FleetVars}</data>
+                <data>
+                    ${FLEET_VAR_DIGICERT_DATA_FleetVars}
+                </data>
                 <key>PayloadDisplayName</key>
                 <string>CertificatePKCS12 2</string>
                 <key>PayloadIdentifier</key>
