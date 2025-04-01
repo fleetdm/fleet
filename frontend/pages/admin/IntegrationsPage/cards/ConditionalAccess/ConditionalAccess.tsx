@@ -19,6 +19,9 @@ import { IFormField } from "interfaces/form_field";
 import { AppContext } from "context/app";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import InfoBanner from "components/InfoBanner";
+import Icon from "components/Icon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 // import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "conditional-access";
@@ -70,7 +73,11 @@ const ConditionalAccess = () => {
   // watch curMsetid coming from `config`, populate initial form state once present
   const curMsetid = config?.conditional_access?.microsoft_entra_tenant_id;
   useEffect(() => {
-    setFormData({ [msetid]: curMsetid || "" });
+    setFormData({
+      [msetid]:
+        curMsetid ||
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    });
   }, [curMsetid]);
 
   if (!isPremiumTier) {
@@ -87,11 +94,15 @@ const ConditionalAccess = () => {
     }
     setIsUpdating(true);
     try {
-      await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
-        formData[msetid]
-      );
+      // await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
+      //   formData[msetid]
+      // );
+      await setTimeout(() => true, 3000);
       setIsUpdating(false);
       setPhase(1);
+      // TODO:
+      // open a new tab navigating to the authentication URL returned from the API
+      // (https://login.microsoftonline.com/{tenant-id}/adminconsent?client_id={client-id})
     } catch (e) {
       // const message = getErrorReason(e);
       // renderFlash("error", message || "Failed to update settings");
@@ -158,28 +169,31 @@ const ConditionalAccess = () => {
     </form>
   );
 
-  const renderFormSubmitted = () => (
-    // TODO
-    <></>
-  );
-
-  const renderIntegrationConfirmed = () => (
-    // TODO
-    <></>
-  );
-
   const renderContent = () => {
     switch (phase) {
       case 0:
         return renderForm();
       case 1:
-        return renderFormSubmitted();
+        return (
+          // TODO - confirm border color
+          <InfoBanner>
+            To complete your integration, follow the instructions in the other
+            tab, then refresh this page to verify.
+          </InfoBanner>
+        );
       case 2:
         // checking integration
         return <Spinner />;
       case 3:
-        // TODO
-        return renderIntegrationConfirmed();
+        return (
+          // TODO - confirm border color
+          <InfoBanner color="grey" className={`${baseClass}__success`}>
+            <Icon name="success" />
+            <b>Microsoft Entra tenant ID:</b>{" "}
+            {/* TODO - address buginess with truncation –> tooltip enabling */}
+            <TooltipTruncatedText value={formData[msetid]} />
+          </InfoBanner>
+        );
       default:
         return <Spinner />;
     }
