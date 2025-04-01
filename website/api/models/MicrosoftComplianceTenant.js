@@ -50,7 +50,7 @@ module.exports = {
     },
 
     stateTokenForAdminConsent: {
-      type: 'boolean',
+      type: 'string',
       description: 'A token used to authenticate admin consent webhook requests.',
     }
 
