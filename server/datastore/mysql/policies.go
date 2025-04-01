@@ -359,7 +359,6 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
-
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
@@ -1311,6 +1310,27 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							removePolicyStats, ds.logger,
 						); err != nil {
 							return err
+						}
+						// Create LabelIdents to send to updatePolicyLabelsTx.
+						// Right now we only need the names.
+						// @future: use IDs instead of names.
+						labelsIncludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsIncludeAny))
+						for _, labelInclude := range spec.LabelsIncludeAny {
+							labelsIncludeAnyIdents = append(labelsIncludeAnyIdents, fleet.LabelIdent{LabelName: labelInclude})
+						}
+						labelsExcludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsExcludeAny))
+						for _, labelExclude := range spec.LabelsExcludeAny {
+							labelsExcludeAnyIdents = append(labelsExcludeAnyIdents, fleet.LabelIdent{LabelName: labelExclude})
+						}
+						err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
+							PolicyData: fleet.PolicyData{
+								ID:               uint(lastID), //nolint:gosec // dismiss G115
+								LabelsIncludeAny: labelsIncludeAnyIdents,
+								LabelsExcludeAny: labelsExcludeAnyIdents,
+							},
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "exec queries update labels")
 						}
 					}
 				}

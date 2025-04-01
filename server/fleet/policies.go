@@ -361,7 +361,9 @@ type PolicySpec struct {
 	SoftwareTitleID *uint `json:"software_title_id"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
-	ScriptID *uint `json:"script_id"`
+	ScriptID         *uint    `json:"script_id"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.

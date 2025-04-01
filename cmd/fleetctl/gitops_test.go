@@ -878,6 +878,13 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)
+	assert.Len(t, appliedPolicySpecs[0].LabelsIncludeAny, 1)
+	assert.Len(t, appliedPolicySpecs[0].LabelsExcludeAny, 0)
+	assert.Equal(t, appliedPolicySpecs[0].LabelsIncludeAny[0], "a")
+	assert.Len(t, appliedPolicySpecs[1].LabelsIncludeAny, 0)
+	assert.Len(t, appliedPolicySpecs[1].LabelsExcludeAny, 1)
+	assert.Equal(t, appliedPolicySpecs[1].LabelsExcludeAny[0], "b")
+
 	assert.True(t, queryDeleted)
 	assert.Len(t, appliedQueries, 3)
 	assert.Len(t, appliedScripts, 1)

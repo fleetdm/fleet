@@ -533,6 +533,23 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
 		}
+
+		// Make sure any labels exist.
+		labels := append(policy.LabelsIncludeAny, policy.LabelsExcludeAny...)
+		if len(labels) > 0 {
+			labelsMap, err := svc.ds.LabelsByName(ctx, labels)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting labels by name")
+			}
+			for _, label := range labels {
+				if _, ok := labelsMap[label]; !ok {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("label %q does not exist", label),
+					})
+				}
+			}
+		}
+
 	}
 
 	// An empty string indicates there are no duplicate names.
@@ -551,6 +568,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			policies[i].Critical = false
 		}
 	}
+
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
