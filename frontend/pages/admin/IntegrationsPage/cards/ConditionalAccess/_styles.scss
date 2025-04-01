@@ -5,6 +5,16 @@
       gap: 4px;
       white-space: nowrap;
       overflow: hidden;
+      width: 100%;
+      justify-content: space-between;
+      .tenant-id {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .button--text-icon {
+        // TODO - figure out coloring
+      }
     }
   }
 }

@@ -5,16 +5,30 @@ import endpoints from "utilities/endpoints";
 export type TriggerMSConditionalStatusResponse = {
   microsoft_authentication_url: string;
 };
-export type ConfirmMSConditionalStatusResponse = { admin_consented: boolean };
+export type ConfirmMSConditionalAccessResponse = { admin_consented: boolean };
 
 const conditionalAccessService = {
-  triggerMicrosoftConditionalAccess: (msTenantId: string) => {
-    return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_MICROSOFT, {
-      microsoft_tenant_id: msTenantId,
+  triggerMicrosoftConditionalAccess: (
+    msTenantId: string
+  ): Promise<TriggerMSConditionalStatusResponse> => {
+    // TODO - real ones!
+
+    // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_MICROSOFT, {
+    //   microsoft_tenant_id: msTenantId,
+    // });
+    return Promise.resolve({
+      microsoft_authentication_url: "https://www.example.com",
     });
   },
-  confirmMicrosoftConditionalAccess: () => {
-    return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_CONFIRM);
+  confirmMicrosoftConditionalAccess: (): Promise<ConfirmMSConditionalAccessResponse> => {
+    // TODO - Lucas suggested this should be GET, which makes sense
+    // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_CONFIRM);
+
+    // TODO - real one!
+    // return sendRequest("GET", endpoints.CONDITIONAL_ACCESS_CONFIRM);
+    return Promise.resolve({
+      admin_consented: true,
+    });
   },
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);

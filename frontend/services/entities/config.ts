@@ -10,7 +10,16 @@ export default {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 
-    return sendRequest("GET", path);
+    // TODO - restore real return!
+    return sendRequest("GET", path).then((response) => {
+      return {
+        ...response,
+        conditional_access: {
+          microsoft_entra_tenant_id: "abcde",
+          microsoft_entra_connection_configured: false,
+        },
+      };
+    });
   },
   loadCertificate: () => {
     const { CONFIG } = endpoints;

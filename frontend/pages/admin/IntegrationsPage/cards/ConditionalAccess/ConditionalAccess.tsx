@@ -6,14 +6,19 @@ import paths from "router/paths";
 
 import { NotificationContext } from "context/notification";
 
-import conditionalAccessAPI from "services/entities/conditional_access";
+import conditionalAccessAPI, {
+  ConfirmMSConditionalAccessResponse,
+} from "services/entities/conditional_access";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 import Button from "components/buttons/Button";
 import { IFormField } from "interfaces/form_field";
 import { AppContext } from "context/app";
@@ -22,18 +27,19 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { useQuery } from "react-query";
 // import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "conditional-access";
 
 const msetid = "microsoft_entra_tenant_id";
 
-// States –> UI phases:
+// conditionas –> UI phases:
 // 	- not premium –> -1
-// 	- no tenant id –> 0
-// 	- tenant id & form submitted –> 1
-// 	- tenant id & no consent –> 2
-//   - tenant id & consent –> 3
+// 	- no tenant id –> "form"
+// 	- tenant id & form submitted –> "form-submitted"
+// 	- tenant id & no consent –> "confirming-consent"
+//   - tenant id & consent –> "confirmed"
 
 interface IFormData {
   [msetid]: string;
@@ -42,6 +48,8 @@ interface IFormData {
 interface IFormErrors {
   [msetid]?: string | null;
 }
+
+type Phase = "form" | "form-submitted" | "confirming-consent" | "confirmed";
 
 const validate = (formData: IFormData) => {
   const errs: IFormErrors = {};
@@ -54,12 +62,7 @@ const validate = (formData: IFormData) => {
 const ConditionalAccess = () => {
   const { renderFlash } = useContext(NotificationContext);
 
-  // UI phases:
-  // 	0: form (valid, loading, error)
-  // 	1: form submitted (aka, “continue in other tab”)
-  // 	2: checking integration
-  // 	3: integration confirmed
-  const [phase, setPhase] = useState(0);
+  const [phase, setPhase] = useState<Phase>("form");
 
   const [formData, setFormData] = useState<IFormData>({
     // [msetid]: "12345",
@@ -71,14 +74,44 @@ const ConditionalAccess = () => {
   const { isPremiumTier, config } = useContext(AppContext);
 
   // watch curMsetid coming from `config`, populate initial form state once present
-  const curMsetid = config?.conditional_access?.microsoft_entra_tenant_id;
+  const {
+    microsoft_entra_tenant_id: configMsetId,
+    microsoft_entra_connection_configured: configMseConfigured,
+  } = config?.conditional_access || {};
   useEffect(() => {
     setFormData({
-      [msetid]:
-        curMsetid ||
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      [msetid]: configMsetId || "aaaaaaaaaaaaaaaa",
     });
-  }, [curMsetid]);
+  }, [configMsetId]);
+
+  const {
+    isLoading: isConfirmingAdminConsent,
+    error: isConfirmingAdminConsentError,
+    refetch: reConfirmAdminConsent,
+  } = useQuery<
+    ConfirmMSConditionalAccessResponse,
+    Error,
+    ConfirmMSConditionalAccessResponse
+  >(["confirmAccess"], conditionalAccessAPI.confirmMicrosoftConditionalAccess, {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: phase === "confirming-consent",
+  });
+
+  // only confirm if id was already present in config, not if use addded to formdata
+  if (configMsetId) {
+    if (!configMseConfigured) {
+      // no admin consent
+      setPhase("confirming-consent");
+      // TODO: call verification endpoint
+      // if verified, setPhase(3) and set verification to local config
+      // or, setting config with confirmed field should cause page re-render with both fields true,
+      // leading to next code block and setting to phase 3
+      // PATCH server to set config there as well?
+    } else {
+      // both configMseId and configMseConfigured are true
+      setPhase("confirmed");
+    }
+  }
 
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
@@ -94,15 +127,14 @@ const ConditionalAccess = () => {
     }
     setIsUpdating(true);
     try {
-      // await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
-      //   formData[msetid]
-      // );
-      await setTimeout(() => true, 3000);
+      const {
+        microsoft_authentication_url: msAuthURL,
+      } = await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
+        formData[msetid]
+      );
       setIsUpdating(false);
-      setPhase(1);
-      // TODO:
-      // open a new tab navigating to the authentication URL returned from the API
-      // (https://login.microsoftonline.com/{tenant-id}/adminconsent?client_id={client-id})
+      setPhase("form-submitted");
+      window.open(msAuthURL);
     } catch (e) {
       // const message = getErrorReason(e);
       // renderFlash("error", message || "Failed to update settings");
@@ -169,11 +201,15 @@ const ConditionalAccess = () => {
     </form>
   );
 
+  const onDelete = () => {
+    // TODO
+  };
+
   const renderContent = () => {
     switch (phase) {
-      case 0:
+      case "form":
         return renderForm();
-      case 1:
+      case "form-submitted":
         return (
           // TODO - confirm border color
           <InfoBanner>
@@ -181,17 +217,28 @@ const ConditionalAccess = () => {
             tab, then refresh this page to verify.
           </InfoBanner>
         );
-      case 2:
+      case "confirming-consent":
         // checking integration
         return <Spinner />;
-      case 3:
+      case "confirmed":
         return (
           // TODO - confirm border color
           <InfoBanner color="grey" className={`${baseClass}__success`}>
-            <Icon name="success" />
-            <b>Microsoft Entra tenant ID:</b>{" "}
-            {/* TODO - address buginess with truncation –> tooltip enabling */}
-            <TooltipTruncatedText value={formData[msetid]} />
+            <div className="tenant-id">
+              <Icon name="success" />
+              <b>Microsoft Entra tenant ID:</b>{" "}
+              {/* TODO - address buginess with truncation –> tooltip enabling */}
+              <TooltipTruncatedText value={formData[msetid]} />
+            </div>
+            {/* TODO - ensure delete button doesn't get pushed out of banner */}
+            <Button
+              // className={`${baseClass}__delete-mse-integration`}
+              variant="text-icon"
+              onClick={onDelete}
+            >
+              Delete
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </Button>
           </InfoBanner>
         );
       default:
