@@ -255,6 +255,11 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
+> **Need an app that you don't see in Fleet Slack?**
+>
+> [Create a Digital Experience issue](https://fleetdm.com/handbook/digital-experience#contact-us) to request an app be added to the Fleet Slack workspace.
+
+
 
 ## Key Slack channels
 
