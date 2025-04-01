@@ -30,6 +30,7 @@ interface IPoliciesTableProps {
   sortHeader?: "name" | "failing_host_count";
   sortDirection?: "asc" | "desc";
   page: number;
+  disableNextPage: boolean;
 }
 
 const PoliciesTable = ({
@@ -47,6 +48,7 @@ const PoliciesTable = ({
   sortHeader,
   sortDirection,
   page,
+  disableNextPage,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -105,6 +107,7 @@ const PoliciesTable = ({
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
         defaultSearchQuery={searchQuery}
         pageIndex={page}
+        disableNextPage={disableNextPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         primarySelectAction={{

@@ -99,6 +99,11 @@ const [
   "Could not update policy automations.",
 ];
 
+// isLastPage is removable if/when API is updated to include meta.has_next_results
+const isLastPage = (count: number, pageSize: number, page: number) => {
+  return count <= pageSize * (page + 1);
+};
+
 const baseClass = "manage-policies-page";
 
 const ManagePolicyPage = ({
@@ -903,6 +908,11 @@ const ManagePolicyPage = ({
               globalPolicies
             )
           }
+          disableNextPage={isLastPage(
+            globalPoliciesCount || 0,
+            DEFAULT_PAGE_SIZE,
+            page
+          )}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
@@ -935,6 +945,11 @@ const ManagePolicyPage = ({
             )
           }
           isPremiumTier={isPremiumTier}
+          disableNextPage={isLastPage(
+            teamPoliciesCountMergeInherited || 0,
+            DEFAULT_PAGE_SIZE,
+            page
+          )}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
