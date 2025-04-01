@@ -795,8 +795,24 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 			return ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
 		}
 
-		if act.Activated {
+		// in all cases, we must delete the row from upcoming_activities
+		const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, upcomingActivityID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
 		}
+
+		if act.Activated {
+			// TODO: based on activity type, must set as canceled in the respective table
+		}
+
+		// must activate the next activity, if any (this should be required only if
+		// the canceled activity was already "activated", but there's no harm in
+		// doing it if it wasn't, and it makes sure there's always progress even in
+		// unsuspected scenarios)
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+		}
+		return nil
 	})
 
 	if err != nil {
