@@ -85,56 +85,52 @@ const SoftwareSelfService = ({
     AxiosError,
     IGetDeviceSoftwareResponse,
     IDeviceSoftwareQueryKey[]
-  >(
-    queryKey,
-    (context) => deviceApi.getDeviceSoftware(context.queryKey[0]), // Changed destructuring to context.queryKey
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled, // if software inventory is disabled, we don't bother fetching and always show the empty state
-      keepPreviousData: true,
-      staleTime: 7000,
-      onSuccess: (response) => {
-        // Check if any software is still installing (pending_install)
-        const hasPendingInstalls = response.software.some(
-          (software) => software.status === "pending_install"
-        );
+  >(queryKey, (context) => deviceApi.getDeviceSoftware(context.queryKey[0]), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: isSoftwareEnabled, // if software inventory is disabled, we don't bother fetching and always show the empty state
+    keepPreviousData: true,
+    staleTime: 7000,
+    onSuccess: (response) => {
+      // Check if any software is still installing (pending_install)
+      const hasPendingInstalls = response.software.some(
+        (software) => software.status === "pending_install"
+      );
 
-        if (hasPendingInstalls) {
-          // If our timer wasn't already started
-          if (!selfServiceRefetchStartTime) {
-            setSelfServiceRefetchStartTime(Date.now());
+      if (hasPendingInstalls) {
+        // If our timer wasn't already started
+        if (!selfServiceRefetchStartTime) {
+          setSelfServiceRefetchStartTime(Date.now());
 
-            // Poll the API again using refetchSelfServiceSoftware.
+          // Poll the API again using refetchSelfServiceSoftware.
+          setTimeout(() => {
+            refetchSelfServiceSoftware();
+          }, 5000); // Poll every 5 seconds
+        } else {
+          // Check elapsed time
+          const totalElapsedTime =
+            Date.now() - (selfServiceRefetchStartTime || Date.now());
+          if (totalElapsedTime < 120000) {
+            // Continue polling if within the timeout
             setTimeout(() => {
               refetchSelfServiceSoftware();
             }, 5000); // Poll every 5 seconds
           } else {
-            // Check elapsed time
-            const totalElapsedTime =
-              Date.now() - (selfServiceRefetchStartTime || Date.now());
-            if (totalElapsedTime < 120000) {
-              // Continue polling if within the timeout
-              setTimeout(() => {
-                refetchSelfServiceSoftware();
-              }, 5000); // Poll every 5 seconds
-            } else {
-              // Timeout reached
-              renderFlash(
-                "error",
-                "Self-service software status check timed out. Please refresh the page."
-              );
-            }
+            // Timeout reached
+            renderFlash(
+              "error",
+              "Self-service software status check timed out. Please refresh the page."
+            );
           }
         }
-      },
-      onError: () => {
-        renderFlash(
-          "error",
-          "We're having trouble fetching self-service software statuses. Please refresh the page."
-        );
-      },
-    }
-  );
+      }
+    },
+    onError: () => {
+      renderFlash(
+        "error",
+        "We're having trouble fetching self-service software statuses. Please refresh the page."
+      );
+    },
+  });
 
   const onSearchQueryChange = (value: string) => {
     router.push(
@@ -154,7 +150,6 @@ const SoftwareSelfService = ({
     );
   }, [pathname, queryParams.page, queryParams.query, router]);
 
-  console.log("queryParams", queryParams);
   const onPrevPage = useCallback(() => {
     router.push(
       getPathWithQueryParams(pathname, {

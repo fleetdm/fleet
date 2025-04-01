@@ -26,7 +26,7 @@ export type IStatusDisplayConfig = {
     | "error"
     | "install"
     | "install-self-service";
-  displayText: string;
+  displayText: string | JSX.Element;
   tooltip: (args: TootipArgs) => ReactNode;
 };
 
