@@ -162,7 +162,8 @@ fleetctl user create --name 'API User' --email 'api@example.com' --password 'tem
 
 #### Changing permissions
 
-To change the role of a current user, log into the Fleet UI as an admin and navigate to Settings > Users.
+To change the role of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**. If you're setting up Fleet's [best practice GitOps](https://github.com/fleetdm/fleet-gitops), grant your user the "GitOps" role.
+
 > Suggestion: Create a new user to disable/enable a user's access to the UI (converting a regular user to an API-only user or vice versa).
 
 ### Switching users
