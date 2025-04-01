@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -275,6 +276,12 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	return users
 }
 
+const (
+	TestAdminUserEmail      = "admin1@example.com"
+	TestMaintainerUserEmail = "user1@example.com"
+	TestObserverUserEmail   = "user2@example.com"
+)
+
 var testUsers = map[string]struct {
 	Email             string
 	PlaintextPassword string
@@ -282,17 +289,17 @@ var testUsers = map[string]struct {
 }{
 	"admin1": {
 		PlaintextPassword: test.GoodPassword,
-		Email:             "admin1@example.com",
+		Email:             TestAdminUserEmail,
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
 		PlaintextPassword: test.GoodPassword,
-		Email:             "user1@example.com",
+		Email:             TestMaintainerUserEmail,
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
 		PlaintextPassword: test.GoodPassword,
-		Email:             "user2@example.com",
+		Email:             TestObserverUserEmail,
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
 }
@@ -353,6 +360,7 @@ type TestServerOpts struct {
 	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
 	SCEPConfigService     fleet.SCEPConfigService
 	DigiCertService       fleet.DigiCertService
+	EnableSCIM            bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -450,6 +458,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
+
+	if len(opts) > 0 && opts[0].EnableSCIM {
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger))
+	}
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
