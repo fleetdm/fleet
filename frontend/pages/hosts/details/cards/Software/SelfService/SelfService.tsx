@@ -28,7 +28,6 @@ import DataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
-
 import Pagination from "components/Pagination";
 
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
@@ -39,7 +38,7 @@ const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 12, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
+  per_page: 24, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
   order_key: "name",
   order_direction: "asc",
   self_service: true,
@@ -222,6 +221,7 @@ const SoftwareSelfService = ({
     );
   }, [pathname, queryParams.page, queryParams.query, router]);
 
+  console.log("queryParams", queryParams);
   const onPrevPage = useCallback(() => {
     router.push(
       getPathWithQueryParams(pathname, {
