@@ -294,7 +294,7 @@ controls:
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles) are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP email.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username.
 - `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@fleetdm.com).
 - `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to.
 
