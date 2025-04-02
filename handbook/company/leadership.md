@@ -546,6 +546,11 @@ Schedule a call with a [finance engineer](https://fleetdm.com/handbook/finance#t
 Once approved by the finance engineer, they will finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
 
+## Plan a Fleetie get together
+
+When several Fleeties are in the same geographic location, Fleet will sponsor a one-time or recurring in-person Fleetie get together. It is up to the Fleeties in each area to organize and plan their own events. The cost should not exceed $25 per attendee, and does not require pre-approval unless the cost exceeds your Brex limit.
+
+
 #### Stubs
 
 The following stubs are included only to make links backward compatible.
