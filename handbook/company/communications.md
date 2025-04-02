@@ -1621,38 +1621,38 @@ For below, please see 📖[handbook/company/communications#scheduling-a-meeting]
 For above, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 
 ##### Zoom
-Please see 📖[handbook/company/communications#meetings](https://fleetdm.com/handbook/company/company/communications#meetings).
+Please see 📖[handbook/company/communications#meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
 ##### Excluding calls from being recorded
-Please see 📖[handbook/company/communications#recording-meetings](https://fleetdm.com/handbook/company/company/communications#recording-meetings).
+Please see 📖[handbook/company/communications#recording-meetings](https://fleetdm.com/handbook/company/communications#recording-meetings).
 
-For below, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/company/communications#communicating-with-team-members).
+For below, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/communications#communicating-with-team-members).
 ##### Slack
 ##### Slack communications and best practices
-For above, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/company/communications#communicating-with-team-members).
+For above, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/communications#communicating-with-team-members).
 
 ##### Slack channel prefixes
-Please see 📖[handbook/company/communications#key-slack-channels](https://fleetdm.com/handbook/company/company/communications#key-slack-channels)
+Please see 📖[handbook/company/communications#key-slack-channels](https://fleetdm.com/handbook/company/communications#key-slack-channels)
 
 ##### GitHub
-Please see 📖[handbook/company/communications#change-management](https://fleetdm.com/handbook/company/company/communications#change-management).
+Please see 📖[handbook/company/communications#change-management](https://fleetdm.com/handbook/company/communications#change-management).
 
-For below, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/company/communications#issue-labels).
+For below, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/communications#issue-labels).
 ##### GitHub labels
 ##### Create a GitHub issue from a Slack thread
-For above, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/company/communications#issue-labels).
+For above, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/communications#issue-labels).
 
 ##### Vulnerability monitoring
-Please see 📖[handbook/digital-experience#check-production-dependencies-of-fleetdm.com](https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm.com).
+Please see 📖[handbook/digital-experience#check-production-dependencies-of-fleetdm-com](https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com).
 
 ##### Testing changes
 Please see 📖[handbook/digital-experience#test-fleetdm-com-locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally).
 
 ##### Cloudflare
-Please see 📖[handbook/digital-experience#edit-a-dns-record](https://fleetdm.com/handbook/digital-experience#edit-a-dns-record).
+Please see 📖[handbook/engineering#edit-a-dns-record](https://fleetdm.com/handbook/engineering#edit-a-dns-record).
 
 ##### Incident post-mortems
-Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fleetdm.com/handbook/product-groups#perform-an-incident-postmortem).
+Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fleetdm.com/handbook/engineering#perform-an-incident-postmortem).
 
 
 <meta name="maintainedBy" value="sampfluger88">
