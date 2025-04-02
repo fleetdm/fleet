@@ -349,7 +349,6 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
-
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
@@ -1306,7 +1305,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 				}
 
-				// If the policy record itself wasn't updated, we still may need to update labels.
+				// Even if the policy record itself wasn't updated, we still may need to update labels.
+				// So we'll get the ID of the policy that was just updated.
 				if lastID == 0 {
 					var (
 						rows *sql.Rows
@@ -1335,7 +1335,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					if err := rows.Close(); err != nil {
 						return ctxerr.Wrap(ctx, err, "close policies id")
 					}
-
 				}
 
 				// Create LabelIdents to send to updatePolicyLabelsTx.
