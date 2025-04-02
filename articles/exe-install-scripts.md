@@ -340,6 +340,7 @@ $uninstallScriptPath = "${env:PUBLIC}/uninstall-$softwareName.ps1"
 $taskName = "fleet-uninstall-$softwareName"
 try {
     Set-Content -Path $uninstallScriptPath -Value $userScript -Force
+    
     # Task properties. The task will be started by the logged in user
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
         -Argument "$uninstallScriptPath"
@@ -404,6 +405,7 @@ try {
     # Remove user script
     Remove-Item -Path $uninstallScriptPath -Force
 }
+
 Exit $exitCode
 ```
 
