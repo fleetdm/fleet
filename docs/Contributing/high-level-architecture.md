@@ -17,52 +17,63 @@ graph LR;
     end
 
     subgraph Host
-        subgraph Agent
+        subgraph "Agent (fleetd)"
             orbit[orbit];
-            desktop[Fleet Desktop];
             osqueryd[osqueryd];
+            desktop[Fleet Desktop];
         end
-        desktop_browser[Fleet Desktop<br> from Browser];
+        desktop_browser["Host details<br>[browser]"];
     end
 
     subgraph Customer Cloud
         fleet_server[Fleet<br>Server];
-        db[DB];
+        db[(MySQL)];
         redis[Redis<br>Live queries' results, etc. <br>go here];
-        prometheus[Prometheus Server];
+        subgraph Telemetry
+            prometheus[Prometheus Server];
+            opentel[Open Telemetry]
+            apm[Elastic APM]
+        end
     end
 
     subgraph FleetDM Cloud
         tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://updates.fleetdm.com>updates.fleetdm.com</a>)"];
         datadog[DataDog dashboard]
         heroku[Usage Analytics<br>Heroku]
+        fleetdm[AI gen]
     end
 
-    log[Send logs to optional<br> external location]
+    log[/Send logs to optional<br> external location/]
 
-    subgraph Customer Admin
-        frontend[API user UI or other]
+    subgraph Customer
+        api[raw API]
+        frontend["UI<br>React app"]
+        fleetctl[fleetctl CLI]
     end
 
 
     fleet_release_owner -- "Release Process" --> tuf;
 
-    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
-    Agent -- "Auto Update (TLS)" --> tuf;
-    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
-    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
-    desktop_browser -- "My Device API (TLS)" --> fleet_server;
+    orbit -- "Fleet Orbit API" --> fleet_server;
+    orbit -- "Auto update all fleetd components" --> tuf;
+    desktop -- "Fleet Desktop API" --> fleet_server;
+    osqueryd -- "osquery<br>remote API" --> fleet_server;
+    orbit -- "starts" --> desktop
+    orbit -- "starts" --> osqueryd
+    desktop -- "opens" -->desktop_browser
+    desktop_browser -- "My Device API" --> fleet_server;
 
     heroku -- "Metrics from all customers" --> datadog;
 
-    fleet_server <== "Read/Write" ==> db;
-    fleet_server <== "Read/Write" ==> redis;
+    fleet_server == "Read/Write" ==> db;
+    fleet_server == "Read/Write" ==> redis;
 
-    prometheus ==> fleet_server;
+    fleet_server ==> Telemetry;
     fleet_server -- "metrics" --> heroku;
+    fleet_server -- "fleetdm API" --> fleetdm
     fleet_server -- "queries/log results" --> log;
 
-    frontend <== "API" ==> fleet_server;
+    Customer == "API" ==> fleet_server;
 
 ```
 
