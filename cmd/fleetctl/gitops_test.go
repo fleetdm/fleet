@@ -2267,6 +2267,21 @@ software:
 		require.Len(t, (*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value, 1)
 		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
+
+		// Get applied policies for the team
+		teamAppliedPoliceSpecs := make([]*fleet.PolicySpec, 0)
+		for _, appliedPolicySpec := range appliedPolicySpecs {
+			if appliedPolicySpec.Team == teamName {
+				teamAppliedPoliceSpecs = append(teamAppliedPoliceSpecs, appliedPolicySpec)
+			}
+		}
+		assert.Len(t, teamAppliedPoliceSpecs, 5)
+		assert.Len(t, teamAppliedPoliceSpecs[0].LabelsIncludeAny, 0)
+		assert.Len(t, teamAppliedPoliceSpecs[0].LabelsExcludeAny, 1)
+		assert.Equal(t, teamAppliedPoliceSpecs[0].LabelsExcludeAny[0], "a")
+		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny, 1)
+		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsExcludeAny, 0)
+		assert.Equal(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny[0], "b")
 	})
 }
 
