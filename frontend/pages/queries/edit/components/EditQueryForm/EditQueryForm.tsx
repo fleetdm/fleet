@@ -40,6 +40,7 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { getErrorReason, IApiError } from "interfaces/errors";
 import {
@@ -198,6 +199,14 @@ const EditQueryForm = ({
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
   const [selectedLabels, setSelectedLabels] = useState({});
+
+  const platformSelector = usePlatformSelector(
+    lastEditedQueryPlatforms,
+    baseClass,
+    false,
+    undefined,
+    undefined
+  );
 
   useEffect(() => {
     setSelectedTargetType(
@@ -900,6 +909,7 @@ const EditQueryForm = ({
               >
                 Observers can run
               </Checkbox>
+              {savedQueryMode && platformSelector.render()}
               {isPremiumTier && (
                 <TargetLabelSelector
                   selectedTargetType={selectedTargetType}
@@ -914,6 +924,7 @@ const EditQueryForm = ({
                       labels:
                     </span>
                   }
+                  suppressTitle
                 />
               )}
               <RevealButton
@@ -926,16 +937,6 @@ const EditQueryForm = ({
               />
               {showAdvancedOptions && (
                 <>
-                  <Dropdown
-                    options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-                    placeholder="Select"
-                    label="Platform"
-                    onChange={onChangeSelectPlatformOptions}
-                    value={lastEditedQueryPlatforms.replace(/\s/g, "")} // NOTE: FE requires no whitespace to render UI
-                    multi
-                    wrapperClassName={`${baseClass}__form-field form-field--platform`}
-                    helpText="By default, your query collects data on all compatible platforms."
-                  />
                   <Dropdown
                     options={MIN_OSQUERY_VERSION_OPTIONS}
                     onChange={onChangeMinOsqueryVersionOptions}
