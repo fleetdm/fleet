@@ -909,12 +909,6 @@ const HostDetailsPage = ({
     (isIosOrIpadosHost || isDarwinHost) &&
     !!hostCertificates?.certificates.length;
 
-  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
-    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
-    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
-    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
-  });
-
   return (
     <MainContent className={baseClass}>
       <>
@@ -967,7 +961,7 @@ const HostDetailsPage = ({
                 );
               })}
             </TabList>
-            <TabPanel className={detailsPanelClass}>
+            <TabPanel className={`${baseClass}__details-panel`}>
               <AboutCard
                 className={
                   showUsersCard ? defaultCardClass : fullWidthCardClass
@@ -981,6 +975,7 @@ const HostDetailsPage = ({
                   className={defaultCardClass}
                   platform={host.platform}
                   endUsers={testEndUserData}
+                  enableAddEndUser={isDarwinHost}
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
               )}
