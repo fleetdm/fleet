@@ -700,7 +700,7 @@ Offsites are:
   - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
   - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
 
-Follow the process to [request an offsite]([url](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite)) and [plan an offsite]([url](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite)).
+Follow the process to [request an offsite](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite) and [plan an offsite](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite).
 
 
 ### Attending conferences
