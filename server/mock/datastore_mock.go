@@ -498,6 +498,8 @@ type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) 
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
+type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, upcomingActivityID string) error
+
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
@@ -714,7 +716,7 @@ type ReplaceHostBatteriesFunc func(ctx context.Context, id uint, mappings []*fle
 
 type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.EnrollSecret, error)
 
-type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
+type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
 type EnrollHostFunc func(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error)
 
@@ -1283,6 +1285,18 @@ type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fle
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
 type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
+
+type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
+
+type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
+
+type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.ScimUser, error)
+
+type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
+
+type DeleteScimUserFunc func(ctx context.Context, id uint) error
+
+type ListScimUsersFunc func(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1998,6 +2012,9 @@ type DataStore struct {
 
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
+
+	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
+	CancelHostUpcomingActivityFuncInvoked bool
 
 	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
 	ListHostPastActivitiesFuncInvoked bool
@@ -3177,6 +3194,24 @@ type DataStore struct {
 
 	UpdateAndroidHostFunc        UpdateAndroidHostFunc
 	UpdateAndroidHostFuncInvoked bool
+
+	CreateScimUserFunc        CreateScimUserFunc
+	CreateScimUserFuncInvoked bool
+
+	ScimUserByIDFunc        ScimUserByIDFunc
+	ScimUserByIDFuncInvoked bool
+
+	ScimUserByUserNameFunc        ScimUserByUserNameFunc
+	ScimUserByUserNameFuncInvoked bool
+
+	ReplaceScimUserFunc        ReplaceScimUserFunc
+	ReplaceScimUserFuncInvoked bool
+
+	DeleteScimUserFunc        DeleteScimUserFunc
+	DeleteScimUserFuncInvoked bool
+
+	ListScimUsersFunc        ListScimUsersFunc
+	ListScimUsersFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4847,6 +4882,13 @@ func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
 }
 
+func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+	s.mu.Lock()
+	s.CancelHostUpcomingActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelHostUpcomingActivityFunc(ctx, hostID, upcomingActivityID)
+}
+
 func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListHostPastActivitiesFuncInvoked = true
@@ -5603,11 +5645,11 @@ func (s *DataStore) VerifyEnrollSecret(ctx context.Context, secret string) (*fle
 	return s.VerifyEnrollSecretFunc(ctx, secret)
 }
 
-func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 	s.mu.Lock()
 	s.IsEnrollSecretAvailableFuncInvoked = true
 	s.mu.Unlock()
-	return s.IsEnrollSecretAvailableFunc(ctx, secret, new, teamID)
+	return s.IsEnrollSecretAvailableFunc(ctx, secret, isNew, teamID)
 }
 
 func (s *DataStore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostId string, hardwareUUID string, hardwareSerial string, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
@@ -7596,4 +7638,46 @@ func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHo
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
+}
+
+func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {
+	s.mu.Lock()
+	s.CreateScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateScimUserFunc(ctx, user)
+}
+
+func (s *DataStore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByIDFunc(ctx, id)
+}
+
+func (s *DataStore) ScimUserByUserName(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByUserNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByUserNameFunc(ctx, userName)
+}
+
+func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
+	s.mu.Lock()
+	s.ReplaceScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceScimUserFunc(ctx, user)
+}
+
+func (s *DataStore) DeleteScimUser(ctx context.Context, id uint) error {
+	s.mu.Lock()
+	s.DeleteScimUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteScimUserFunc(ctx, id)
+}
+
+func (s *DataStore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error) {
+	s.mu.Lock()
+	s.ListScimUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListScimUsersFunc(ctx, opts)
 }

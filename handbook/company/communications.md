@@ -255,6 +255,11 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
+> **Need an app that you don't see in Fleet Slack?**
+>
+> [Create a Digital Experience issue](https://fleetdm.com/handbook/digital-experience#contact-us) to request an app be added to the Fleet Slack workspace.
+
+
 
 ## Key Slack channels
 
@@ -695,18 +700,7 @@ Offsites are:
   - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
   - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
 
-Before spending any money on an offsite, inviting people, booking travel, or otherwise committing the company:
-  - **Make a plan:** Write a Google Doc with your proposed plan, listing:
-    - all participants with their current work locations
-    - tentative dates
-    - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
-    - a detailed agenda of how time will be spent
-  - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
-
-After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
-  - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
-  - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
+Follow the process to [request an offsite](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite) and [plan an offsite](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite).
 
 
 ### Attending conferences
@@ -1616,38 +1610,38 @@ For below, please see 📖[handbook/company/communications#scheduling-a-meeting]
 For above, please see 📖[handbook/company/communications#scheduling-a-meeting](https://fleetdm.com/handbook/company/communications#scheduling-a-meeting).
 
 ##### Zoom
-Please see 📖[handbook/company/communications#meetings](https://fleetdm.com/handbook/company/company/communications#meetings).
+Please see 📖[handbook/company/communications#meetings](https://fleetdm.com/handbook/company/communications#meetings).
 
 ##### Excluding calls from being recorded
-Please see 📖[handbook/company/communications#recording-meetings](https://fleetdm.com/handbook/company/company/communications#recording-meetings).
+Please see 📖[handbook/company/communications#recording-meetings](https://fleetdm.com/handbook/company/communications#recording-meetings).
 
-For below, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/company/communications#communicating-with-team-members).
+For below, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/communications#communicating-with-team-members).
 ##### Slack
 ##### Slack communications and best practices
-For above, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/company/communications#communicating-with-team-members).
+For above, please see 📖[handbook/company/communications#communicating-with-team-members](https://fleetdm.com/handbook/company/communications#communicating-with-team-members).
 
 ##### Slack channel prefixes
-Please see 📖[handbook/company/communications#key-slack-channels](https://fleetdm.com/handbook/company/company/communications#key-slack-channels)
+Please see 📖[handbook/company/communications#key-slack-channels](https://fleetdm.com/handbook/company/communications#key-slack-channels)
 
 ##### GitHub
-Please see 📖[handbook/company/communications#change-management](https://fleetdm.com/handbook/company/company/communications#change-management).
+Please see 📖[handbook/company/communications#change-management](https://fleetdm.com/handbook/company/communications#change-management).
 
-For below, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/company/communications#issue-labels).
+For below, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/communications#issue-labels).
 ##### GitHub labels
 ##### Create a GitHub issue from a Slack thread
-For above, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/company/communications#issue-labels).
+For above, please see 📖[handbook/company/communications#issue-labels](https://fleetdm.com/handbook/company/communications#issue-labels).
 
 ##### Vulnerability monitoring
-Please see 📖[handbook/digital-experience#check-production-dependencies-of-fleetdm.com](https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm.com).
+Please see 📖[handbook/digital-experience#check-production-dependencies-of-fleetdm-com](https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com).
 
 ##### Testing changes
 Please see 📖[handbook/digital-experience#test-fleetdm-com-locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally).
 
 ##### Cloudflare
-Please see 📖[handbook/digital-experience#edit-a-dns-record](https://fleetdm.com/handbook/digital-experience#edit-a-dns-record).
+Please see 📖[handbook/engineering#edit-a-dns-record](https://fleetdm.com/handbook/engineering#edit-a-dns-record).
 
 ##### Incident post-mortems
-Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fleetdm.com/handbook/product-groups#perform-an-incident-postmortem).
+Please see 📖[handbook/engineering#perform-an-incident-postmortem](https://fleetdm.com/handbook/engineering#perform-an-incident-postmortem).
 
 
 <meta name="maintainedBy" value="sampfluger88">

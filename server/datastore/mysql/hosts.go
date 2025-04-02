@@ -3097,10 +3097,35 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	LEFT JOIN users u ON p.author_id = u.id
 	WHERE (p.team_id IS NULL OR p.team_id = COALESCE((SELECT team_id FROM hosts WHERE id = ?), 0))
 	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
+	AND (
+		-- Policy has no include labels
+		NOT EXISTS (
+			SELECT 1
+			FROM policy_labels pl
+			WHERE pl.policy_id = p.id
+			AND pl.exclude = 0
+		)
+		-- Policy is included in the include_any list
+		OR EXISTS (
+			SELECT 1
+			FROM policy_labels pl
+			INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
+			WHERE pl.policy_id = p.id
+			AND pl.exclude = 0
+		)
+	)
+	-- Policy is not included in the exclude_any list
+	AND NOT EXISTS (
+		SELECT 1
+		FROM policy_labels pl
+		INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
+		WHERE pl.policy_id = p.id
+		AND pl.exclude = 1
+	)
 	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, host.ID, host.ID, host.FleetPlatform(), host.ID, host.ID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil

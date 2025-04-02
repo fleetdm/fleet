@@ -26,7 +26,7 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
 
-2. In your new SAML app, set **Name ID** to email. Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
+2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
 
 3. Make sure your end users' full names are set to one of the following attributes (depends on IdP): `name`, `displayname`, `cn`, `urn:oid:2.5.4.3`, or `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name`. Fleet will automatically populate and lock the macOS local account **Full Name** with any of these.
 
@@ -40,7 +40,7 @@ To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrol
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet.
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a distribution package.
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
@@ -67,7 +67,7 @@ Whether you have to download or generate a package depends on what you want to d
 
 * To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 
-Apple requires that your package is a distribution package. Verify that the package is a distribution package:
+Verify that the package is a distribution package:
 
 1. Run the following commands to expand your package and look at the files in the expanded folder:
 
