@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSCIM(t *testing.T) {
@@ -20,6 +22,8 @@ func TestSCIM(t *testing.T) {
 	}{
 		{"Auth", testAuth},
 		{"BaseEndpoints", testBaseEndpoints},
+		{"Users", testUsersBasicCRUD},
+		{"CreateUser", testCreateUser},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -58,15 +62,351 @@ func testAuth(t *testing.T, s *Suite) {
 }
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
-	var resp map[string]interface{}
-	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
+	// Test /Schemas endpoint
+	var schemasResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &schemasResp)
+
+	// Verify schemas response
+	assert.EqualValues(t, schemasResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resources, ok := schemasResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.GreaterOrEqual(t, len(resources), 2, "Should have at least 2 schemas (User and Group)")
+
+	// Check for User and Group schemas
+	foundUser := false
+	foundGroup := false
+	for _, resource := range resources {
+		schema, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Schema should be an object")
+
+		id, ok := schema["id"].(string)
+		assert.True(t, ok, "Schema ID should be a string")
+
+		if id == "urn:ietf:params:scim:schemas:core:2.0:User" {
+			foundUser = true
+		} else if id == "urn:ietf:params:scim:schemas:core:2.0:Group" {
+			foundGroup = true
+		}
+	}
+	assert.True(t, foundUser, "User schema should be present")
+	assert.True(t, foundGroup, "Group schema should be present")
+
+	// Test /ServiceProviderConfig endpoint
+	var configResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/ServiceProviderConfig"), nil, http.StatusOK, &configResp)
+
+	// Verify service provider config response
+	assert.EqualValues(t, configResp["schemas"], []interface{}{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"})
+	assert.NotNil(t, configResp["documentationUri"])
+
+	// Test /ResourceTypes endpoint
+	var resourceTypesResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/ResourceTypes"), nil, http.StatusOK, &resourceTypesResp)
+
+	// Verify resource types response
+	assert.EqualValues(t, resourceTypesResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resourceTypes, ok := resourceTypesResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.GreaterOrEqual(t, len(resourceTypes), 2, "Should have at least 2 resource types (User and Group)")
+
+	// Check for User and Group resource types
+	foundUserResource := false
+	foundGroupResource := false
+	for _, resource := range resourceTypes {
+		resourceType, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Resource type should be an object")
+
+		name, ok := resourceType["name"].(string)
+		assert.True(t, ok, "Resource type name should be a string")
+
+		if name == "User" {
+			foundUserResource = true
+			assert.Equal(t, "/Users", resourceType["endpoint"])
+			assert.Equal(t, "urn:ietf:params:scim:schemas:core:2.0:User", resourceType["schema"])
+		} else if name == "Group" {
+			foundGroupResource = true
+			assert.Equal(t, "/Groups", resourceType["endpoint"])
+			assert.Equal(t, "urn:ietf:params:scim:schemas:core:2.0:Group", resourceType["schema"])
+		}
+	}
+	assert.True(t, foundUserResource, "User resource type should be present")
+	assert.True(t, foundGroupResource, "Group resource type should be present")
 }
 
-// func responseAsJSON(t *testing.T, resp map[string]interface{}) {
-// 	formattedResp, err := json.MarshalIndent(resp, "", "  ")
-// 	require.NoError(t, err)
-// 	t.Logf("formatted resp: %s", string(formattedResp))
-// }
+func testUsersBasicCRUD(t *testing.T, s *Suite) {
+	// Test creating a user
+	createUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "testuser@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Test",
+			"familyName": "User",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "testuser@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
+
+	// Verify the created user
+	assert.Equal(t, "testuser@example.com", createResp["userName"])
+	assert.Equal(t, true, createResp["active"])
+
+	// Extract the user ID for subsequent operations
+	userID := createResp["id"].(string)
+	assert.NotEmpty(t, userID)
+
+	// Test getting a user by ID
+	var getResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusOK, &getResp)
+	assert.Equal(t, userID, getResp["id"])
+	assert.Equal(t, "testuser@example.com", getResp["userName"])
+	assert.Equal(t, true, getResp["active"])
+
+	// Test getting a user with a bad ID
+	var errResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users/99999"), nil, http.StatusNotFound, &errResp)
+	assert.Contains(t, errResp["detail"], "Resource 99999 not found")
+	assert.EqualValues(t, errResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+
+	// Test listing users
+	var listResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &listResp)
+	assert.EqualValues(t, listResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resources, ok := listResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, len(resources), 1, "Should have 1 user")
+
+	// Test filtering users by userName
+	var filterResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &filterResp, "filter", `userName eq "testuser@example.com"`)
+	assert.EqualValues(t, filterResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources, ok := filterResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 1, len(filterResources), "Should have exactly 1 user matching the filter")
+
+	// Test filtering users by non-existent userName
+	filterResp = nil
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &filterResp, "filter", `userName eq "bozo@example.com"`)
+	assert.EqualValues(t, filterResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources, ok = filterResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Empty(t, filterResources, "Should have no users matching the filter")
+
+	// Test updating a user
+	updateUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "testuser@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Updated",
+			"familyName": "User",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "testuser@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var updateResp map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+userID), updateUserPayload, http.StatusOK, &updateResp)
+	assert.Equal(t, "testuser@example.com", updateResp["userName"])
+
+	// Verify the name was updated
+	name, ok := updateResp["name"].(map[string]interface{})
+	assert.True(t, ok, "Name should be an object")
+	assert.Equal(t, "Updated", name["givenName"])
+
+	// Test patching a user (updating just the active status)
+	patchUserPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op":    "replace",
+				"path":  "active",
+				"value": false,
+			},
+		},
+	}
+
+	var patchResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserPayload, http.StatusOK, &patchResp)
+	assert.Equal(t, false, patchResp["active"])
+
+	// Test deleting a user
+	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+
+	// Verify the user was deleted by trying to get it (should return 404)
+	var errorResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusNotFound, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp["detail"], "not found")
+}
+
+func testCreateUser(t *testing.T, s *Suite) {
+	// Test creating a user without givenName
+	userWithoutGivenName := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "no-given-name@example.com",
+		"name": map[string]interface{}{
+			"familyName": "NoGivenName",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "no-given-name@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createResp1 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutGivenName, http.StatusCreated, &createResp1)
+	assert.Equal(t, "no-given-name@example.com", createResp1["userName"])
+	userID1 := createResp1["id"].(string)
+
+	// Verify name only has familyName
+	name1, ok := createResp1["name"].(map[string]interface{})
+	assert.True(t, ok, "Name should be an object")
+	assert.Equal(t, "NoGivenName", name1["familyName"])
+	assert.Nil(t, name1["givenName"], "givenName should be nil")
+
+	// Test creating a user without familyName
+	userWithoutFamilyName := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "no-family-name@example.com",
+		"name": map[string]interface{}{
+			"givenName": "NoFamilyName",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "no-family-name@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createResp2 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusCreated, &createResp2)
+	assert.Equal(t, "no-family-name@example.com", createResp2["userName"])
+	userID2 := createResp2["id"].(string)
+
+	// Verify name only has givenName
+	name2, ok := createResp2["name"].(map[string]interface{})
+	assert.True(t, ok, "Name should be an object")
+	assert.Equal(t, "NoFamilyName", name2["givenName"])
+	assert.Nil(t, name2["familyName"], "familyName should be nil")
+
+	// Test creating a user without emails
+	userWithoutEmails := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "no-emails@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "No",
+			"familyName": "Emails",
+		},
+		"active": true,
+	}
+
+	var createResp3 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutEmails, http.StatusCreated, &createResp3)
+	assert.Equal(t, "no-emails@example.com", createResp3["userName"])
+	userID3 := createResp3["id"].(string)
+
+	// Verify emails is not present or empty
+	_, hasEmails := createResp3["emails"]
+	assert.False(t, hasEmails, "emails should not be present")
+
+	// Test creating a user without active status
+	userWithoutActive := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "no-active@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "No",
+			"familyName": "Active",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "no-active@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+	}
+
+	var createResp4 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutActive, http.StatusCreated, &createResp4)
+	assert.Equal(t, "no-active@example.com", createResp4["userName"])
+	userID4 := createResp4["id"].(string)
+
+	// Verify active is not present or nil
+	_, hasActive := createResp4["active"]
+	assert.False(t, hasActive, "active should not be present")
+
+	// Test creating a user with multiple emails
+	userWithMultipleEmails := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "multiple-emails@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Multiple",
+			"familyName": "Emails",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "multiple-emails@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+			{
+				"value":   "multiple-emails-home@example.com",
+				"type":    "home",
+				"primary": false,
+			},
+			{
+				"value":   "multiple-emails-other@example.com",
+				"type":    "other",
+				"primary": false,
+			},
+		},
+		"active": true,
+	}
+
+	var createResp5 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithMultipleEmails, http.StatusCreated, &createResp5)
+	assert.Equal(t, "multiple-emails@example.com", createResp5["userName"])
+	userID5 := createResp5["id"].(string)
+
+	// Verify multiple emails are present
+	emails, ok := createResp5["emails"].([]interface{})
+	assert.True(t, ok, "Emails should be an array")
+	assert.Equal(t, 3, len(emails), "Should have 3 emails")
+
+	// Make sure these users can be deleted.
+	s.Do(t, "DELETE", scimPath("/Users/"+userID1), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+userID2), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+userID3), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+userID4), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
+}
+
+func responseAsJSON(t *testing.T, resp map[string]interface{}) {
+	formattedResp, err := json.MarshalIndent(resp, "", "  ")
+	require.NoError(t, err)
+	t.Logf("formatted resp: %s", string(formattedResp))
+}
 
 func scimPath(suffix string) string {
 	paths := []string{"/api/v1/fleet/scim", "/api/latest/fleet/scim"}
