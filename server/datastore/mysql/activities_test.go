@@ -629,11 +629,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	execIDsFromPolicyAutomation := map[string]struct{}{
 		h1Fleet: {},
 	}
-	// to simplify map, false = cancellable, true = NON-cancellable
-	execIDsNonCancellable := map[string]bool{
-		vppCommand1: true,
-		vppCommand2: true,
-	}
 
 	cases := []struct {
 		opts      fleet.ListOptions
@@ -757,8 +752,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 				default:
 					t.Fatalf("unknown activity type %s", a.Type)
 				}
-
-				require.Equal(t, !execIDsNonCancellable[wantExec], a.Cancellable, "result %d", i)
 
 				if _, ok := execIDsFromPolicyAutomation[wantExec]; ok {
 					require.Nil(t, a.ActorID, "result %d", i)
@@ -1221,13 +1214,9 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 4)
 	require.Equal(t, script1_1, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, script1_2, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 	require.Equal(t, vpp1_1, pendingActs[2].UUID)
-	require.True(t, pendingActs[2].Cancellable)
 	require.Equal(t, vpp1_2, pendingActs[3].UUID)
-	require.True(t, pendingActs[3].Cancellable)
 
 	// listing scripts ready to execute returns script1_1
 	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
@@ -1265,14 +1254,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NotNil(t, scriptRes.ExitCode)
 	require.EqualValues(t, 0, *scriptRes.ExitCode)
 
-	// pending activities are vpp1_1, vpp1_2, both are non-cancellable because activated
+	// pending activities are vpp1_1, vpp1_2
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 2)
 	require.Equal(t, vpp1_1, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, vpp1_2, pendingActs[1].UUID)
-	require.False(t, pendingActs[1].Cancellable)
 
 	// nano commands have been inserted
 	cmd, err := nanoDB.RetrieveNextCommand(nanoCtx, false)
@@ -1310,7 +1297,6 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, vpp1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 
 	// vpp1_2 is now the next nano command
 	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
@@ -1352,9 +1338,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 2)
 	require.Equal(t, vpp1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_1, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 
 	// create a pending uninstall request
 	sw1_2 := uuid.NewString()
@@ -1366,11 +1350,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 3)
 	require.Equal(t, vpp1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_1, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 	require.Equal(t, sw1_2, pendingActs[2].UUID)
-	require.True(t, pendingActs[2].Cancellable)
 
 	// insert a result for the vpp1_2 command
 	cmdRes = &mdm.CommandResults{
@@ -1398,9 +1379,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 2)
 	require.Equal(t, sw1_1, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 	require.Equal(t, sw1_2, pendingActs[1].UUID)
-	require.True(t, pendingActs[1].Cancellable)
 
 	// set a result for the software install
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1423,7 +1402,6 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, sw1_2, pendingActs[0].UUID)
-	require.False(t, pendingActs[0].Cancellable)
 
 	// set a result for the software uninstall
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
