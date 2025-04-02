@@ -62,6 +62,19 @@ Create a new SAML app in Google Workspace:
 
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
+## Entra
+Create a new SAML app in Microsoft Entra Admin Center:
+
+1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
+2. At the top of the page, click **+ New Application**.
+3. On the next page, click **+ Create your own application** and enter the following.
+   - For **Input name**, enter `Fleet`.
+   - For **What are you looking to do with your application?**, select `Integrate any other application you don't find in the gallery (Non-gallery)`.
+   - Click **Create**.
+4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
+5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
+   - For **Identifier (Entity ID)**, click **Add identifier**
+
 ## authentik
 
 Fleet can be configured to use authentik as an identity provider. To continue, you will need to have an authentik instance hosted on an HTTPS domain, and an admin account.
