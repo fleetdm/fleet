@@ -23,7 +23,6 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
   IHost,
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IHostResponse,
   IHostMdmData,
@@ -261,19 +260,6 @@ const HostDetailsPage = ({
     }
   );
 
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", hostIdFromURL],
-    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
-    {
-      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
-    }
-  );
-
   const { data: mdm, refetch: refetchMdm } = useQuery<IHostMdmData>(
     ["mdm", hostIdFromURL],
     () => hostAPI.getMdm(hostIdFromURL),
@@ -336,7 +322,6 @@ const HostDetailsPage = ({
   );
 
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
     mdm?.enrollment_status !== null && refetchMdm();
     hostCertificates && refetchHostCertificates();
@@ -988,7 +973,6 @@ const HostDetailsPage = ({
                   showUsersCard ? defaultCardClass : fullWidthCardClass
                 }
                 aboutData={aboutData}
-                deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />

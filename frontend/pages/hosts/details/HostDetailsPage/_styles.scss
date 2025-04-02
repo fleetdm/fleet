@@ -60,14 +60,6 @@
     margin: $pad-xxlarge 0 0;
   }
 
-  &__device_mapping {
-    .device_mapping--tooltip {
-      flex-direction: column;
-      justify-content: start;
-      text-align: left;
-    }
-  }
-
   .tooltip__tooltip-icon {
     img {
       vertical-align: middle;

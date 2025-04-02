@@ -6,12 +6,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Card from "components/Card";
 
-import {
-  IHostMdmData,
-  IMunkiData,
-  IDeviceUser,
-  mapDeviceUsersForDisplay,
-} from "interfaces/host";
+import { IHostMdmData, IMunkiData } from "interfaces/host";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
@@ -21,24 +16,8 @@ import {
 import DataSet from "components/DataSet";
 import CardHeader from "components/CardHeader";
 
-const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
-  if (deviceMapping.length === 0) {
-    return [];
-  }
-  const format = (d: IDeviceUser) =>
-    d.source ? `${d.email} (${d.source})` : d.email;
-
-  return deviceMapping.slice(1).map((d) => (
-    <span key={format(d)}>
-      {format(d)}
-      <br />
-    </span>
-  ));
-};
-
 interface IAboutProps {
   aboutData: { [key: string]: any };
-  deviceMapping?: IDeviceUser[];
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
   className?: string;
@@ -48,7 +27,6 @@ const baseClass = "about-card";
 
 const About = ({
   aboutData,
-  deviceMapping,
   munki,
   mdm,
   className,

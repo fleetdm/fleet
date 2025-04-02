@@ -13,7 +13,6 @@ import deviceUserAPI, {
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
   IHostDevice,
@@ -147,20 +146,6 @@ const DeviceUserPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", deviceAuthToken],
-    () =>
-      deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "device_mapping"),
-    {
-      enabled: !!deviceAuthToken,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
-    }
-  );
-
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
@@ -208,7 +193,6 @@ const DeviceUserPage = ({
   );
 
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     deviceCertificates && refetchDeviceCertificates();
   };
 
@@ -488,7 +472,6 @@ const DeviceUserPage = ({
                 <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
                     aboutData={aboutData}
-                    deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
                   {isAppleHost && !!deviceCertificates?.certificates.length && (

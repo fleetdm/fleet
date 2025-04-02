@@ -45,14 +45,6 @@
     }
   }
 
-  &__device_mapping {
-    .device_mapping--tooltip {
-      flex-direction: column;
-      justify-content: start;
-      text-align: left;
-    }
-  }
-
   &__wrapper {
     border: solid 1px $ui-fleet-black-10;
     border-radius: 6px;

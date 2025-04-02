@@ -87,58 +87,6 @@ export interface IDeviceUser {
   source: string;
 }
 
-const DEVICE_USER_SOURCE_TO_DISPLAY: { [key: string]: string } = {
-  google_chrome_profiles: "Google Chrome",
-  mdm_idp_accounts: "identity provider",
-  custom: "custom",
-} as const;
-
-const getDeviceUserSourceForDisplay = (s: string): string => {
-  return DEVICE_USER_SOURCE_TO_DISPLAY[s] || s;
-};
-
-const getDeviceUserForDisplay = (d: IDeviceUser): IDeviceUser => {
-  return { ...d, source: getDeviceUserSourceForDisplay(d.source) };
-};
-
-/*
- * mapDeviceUsersForDisplay is a helper function that takes an array of device users and returns a
- * new array of device users with the source field mapped to a more user-friendly value. It also
- * ensures that the resulting array is ordered by source as follows: mdm_idp_accounts, if any,
- * custom, if any, then any remaining elements. Note that emails are not deduped.
- */
-export const mapDeviceUsersForDisplay = (
-  deviceMapping: IDeviceUser[]
-): IDeviceUser[] => {
-  const newDeviceMapping: IDeviceUser[] = [];
-  let idpUser: IDeviceUser | undefined;
-  let customUser: IDeviceUser | undefined;
-  deviceMapping.forEach((d) => {
-    switch (d.source) {
-      case "mdm_idp_accounts":
-        idpUser = d;
-        break;
-      case "custom":
-        // exclude custom user without email
-        if (d.email) {
-          customUser = d;
-        }
-        break;
-      default:
-        newDeviceMapping.push(getDeviceUserForDisplay(d));
-    }
-  });
-  // add idpUser and customUser to the front of the array, if they exist
-  customUser && newDeviceMapping.unshift(getDeviceUserForDisplay(customUser));
-  idpUser && newDeviceMapping.unshift(getDeviceUserForDisplay(idpUser));
-
-  return newDeviceMapping;
-};
-
-export interface IDeviceMappingResponse {
-  device_mapping: IDeviceUser[];
-}
-
 export interface IMunkiData {
   version: string;
 }
