@@ -404,6 +404,12 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
 	}
 
+	// Get policy label usage
+	for _, policy := range config.Policies {
+		labels := concatLabels(policy.LabelsIncludeAny, policy.LabelsExcludeAny)
+		updateLabelUsage(labels, policy.Name, "Policy", result)
+	}
+
 	return result
 }
 
