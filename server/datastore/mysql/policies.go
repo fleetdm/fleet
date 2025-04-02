@@ -1258,9 +1258,12 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 				}
 
+				// Get the last inserted ID -- this will be 0 if it was an update.
 				var lastID int64
+				lastID, _ = res.LastInsertId()
 
-				if lastID, _ = res.LastInsertId(); lastID > 0 {
+				// If something was actually inserted or updated, perform any necessary cleanup.
+				if insertOnDuplicateDidInsertOrUpdate(res) {
 					var (
 						shouldRemoveAllPolicyMemberships bool
 						removePolicyStats                bool
@@ -1302,8 +1305,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					}
 				}
 
-				// If the ID is 0, it was an update that didn't change the row,
-				// but we still need to update the labels.
+				// If the policy record itself wasn't updated, we still may need to update labels.
 				if lastID == 0 {
 					var (
 						rows *sql.Rows

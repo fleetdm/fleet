@@ -221,8 +221,6 @@ func gitopsCommand() *cli.Command {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
 				}
 
-				// Check that
-
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
 				// grab some information to help us determine allowed/restricted actions and
