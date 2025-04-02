@@ -488,17 +488,17 @@ The DRI for your department will review the proposed budget with the e-group and
 
 When budget is approved, begin planning the offsite. 
 
-1. **Decide where to stay.**
+### 1. Decide where to stay
 
 **Hotels.** The simplest and most common option is to purchase a block of rooms from a hotel along with a conference room for the offsite. Submit a request for proposal (RFP) to multiple hotels before selecting an option. 
 
 **Airbnb.** For a more unique experience, one or more Airbnbs can be used to provide lodging and meeting space for the offsite. Ensure that every attendee has their own room, and that there are an adequate number of bathrooms.
 
-2. **Decide how to get there.**
+### 2. Decide how to get there.
 
 Ask each attendee to arrange their own travel using the budget guidance from the offsite planning document and the [travel guidance from our handbook](https://fleetdm.com/handbook/company/communications#travel).
 
-3. **Plan an agenda.**
+### 3. Plan an agenda.
 
 The primary purpose of team offsites is to build team cohesion. A large portion of the time together should be spent enjoying each other's company, sharing meals, and participating activities together. An agenda provides clear structure for all attendees so they know what to expect. 
 
@@ -537,11 +537,11 @@ The agenda of each offsite varies based on number of days and the team. Below is
 
 > When the agenda is complete, share it with the team in advance to set expectations for the offsite, and to provide a chance for feedback.
 
-4. **Review with finance.**
+### 4. Review with finance.
 
 Schedule a call with a [finance engineer](https://fleetdm.com/handbook/finance#team) to review total anticipated cost for the offsite. The finance engineer will assist if any cost adjustments are needed, and can provide budget guidance based on the specifics of the offsite.
 
-5. **Purchase accommodations and make reservations.**
+### 5. Purchase accommodations and make reservations.
 
 Once approved by the finance engineer, they will finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
