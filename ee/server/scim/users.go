@@ -260,6 +260,8 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 }
 
 // GetAll
+// Pagination is 1-indexed.
+//
 // Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2
 //
@@ -400,6 +402,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		return scim.Resource{}, err
 	}
 
+	if len(operations) > 1 {
+		level.Info(u.logger).Log("msg", "too many patch operations")
+		return scim.Resource{}, errors.ScimErrorBadParams([]string{"Operations"})
+	}
 	for _, op := range operations {
 		if op.Op != "replace" {
 			level.Info(u.logger).Log("msg", "unsupported patch operation", "op", op.Op)
@@ -435,14 +441,16 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		}
 	}
 
-	err = u.ds.ReplaceScimUser(r.Context(), user)
-	switch {
-	case fleet.IsNotFound(err):
-		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
-		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
-	case err != nil:
-		level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
-		return scim.Resource{}, err
+	if len(operations) != 0 {
+		err = u.ds.ReplaceScimUser(r.Context(), user)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		case err != nil:
+			level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
+			return scim.Resource{}, err
+		}
 	}
 
 	return createUserResource(user), nil
