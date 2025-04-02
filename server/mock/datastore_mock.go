@@ -498,6 +498,8 @@ type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) 
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
+type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, upcomingActivityID string) error
+
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
@@ -2022,6 +2024,9 @@ type DataStore struct {
 
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
+
+	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
+	CancelHostUpcomingActivityFuncInvoked bool
 
 	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
 	ListHostPastActivitiesFuncInvoked bool
@@ -4905,6 +4910,13 @@ func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
+}
+
+func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+	s.mu.Lock()
+	s.CancelHostUpcomingActivityFuncInvoked = true
+	s.mu.Unlock()
+	return s.CancelHostUpcomingActivityFunc(ctx, hostID, upcomingActivityID)
 }
 
 func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {

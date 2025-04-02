@@ -9,13 +9,6 @@
       "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
-      "name": "1Password",
-      "slug": "1password/windows",
-      "platform": "windows",
-      "unique_identifier": "1Password",
-      "description": "Password manager that keeps all passwords secure behind one password"
-    },
-    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -69,13 +62,6 @@
       "slug": "docker/darwin",
       "platform": "darwin",
       "unique_identifier": "com.docker.docker",
-      "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
-    },
-    {
-      "name": "Docker Desktop",
-      "slug": "docker/windows",
-      "platform": "windows",
-      "unique_identifier": "Docker Desktop",
       "description": "Docker Desktop provides a seamless environment for building, sharing, and running containerized applications and microservices."
     },
     {
@@ -195,13 +181,6 @@
       "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
-      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
-    },
-    {
-      "name": "Zoom",
-      "slug": "zoom/windows",
-      "platform": "windows",
-      "unique_identifier": "Zoom Workplace (64-bit)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]
