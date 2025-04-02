@@ -30,7 +30,6 @@ import {
 } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
-  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   INVALID_PLATFORMS_REASON,
@@ -386,6 +385,10 @@ const EditQueryForm = ({
     valid = isValidated;
 
     if (valid) {
+      const newPlatformString = platformSelector
+        .getSelectedPlatforms()
+        .join(",") as CommaSeparatedPlatformString;
+
       setIsSaveAsNewLoading(true);
       const apiProps = {
         description: lastEditedQueryDescription,
@@ -394,7 +397,7 @@ const EditQueryForm = ({
         observer_can_run: lastEditedQueryObserverCanRun,
         interval: lastEditedQueryFrequency,
         automations_enabled: lastEditedQueryAutomationsEnabled,
-        platform: lastEditedQueryPlatforms,
+        platform: newPlatformString,
         min_osquery_version: lastEditedQueryMinOsqueryVersion,
         logging: lastEditedQueryLoggingType,
         labels_include_any:
@@ -489,6 +492,10 @@ const EditQueryForm = ({
       if (!savedQueryMode) {
         setShowSaveQueryModal(true);
       } else {
+        const newPlatformString = platformSelector
+          .getSelectedPlatforms()
+          .join(",") as CommaSeparatedPlatformString;
+
         onUpdate({
           // name should already be trimmed at this point due to associated onBlurs, but this
           // doesn't hurt
@@ -498,7 +505,7 @@ const EditQueryForm = ({
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
           automations_enabled: lastEditedQueryAutomationsEnabled,
-          platform: lastEditedQueryPlatforms,
+          platform: newPlatformString,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
           discard_data: lastEditedQueryDiscardData,
@@ -806,6 +813,7 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       !!size(errors) ||
+      !platformSelector.isAnyPlatformSelected ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
           return value;
