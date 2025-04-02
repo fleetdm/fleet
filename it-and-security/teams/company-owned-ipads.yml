@@ -12,8 +12,8 @@ team_settings:
 agent_options:
 controls:
   ipados_updates:
-    deadline: "2025-02-23"
-    minimum_version: "18.3"
+    deadline: "2025-04-26"
+    minimum_version: "18.4"
   macos_settings:
     custom_settings:
       - path: ../lib/ipados/declaration-profiles/software-update-settings.json
