@@ -243,9 +243,9 @@ type PolicyData struct {
 	Platform string `json:"platform" db:"platforms"`
 
 	// LabelsExcludeAny is a list of labels that are targeted by this policy
-	LabelsIncludeAny []LabelIdent `json:"labels_include_any"`
+	LabelsIncludeAny []LabelIdent `json:"labels_include_any,omitempty"`
 	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
-	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any"`
+	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any,omitempty"`
 
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`

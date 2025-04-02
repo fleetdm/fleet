@@ -689,6 +689,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
 	require.NoError(t, err)
 	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
 
 	gpol, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
 		Name:             "existing-query-global-1",
@@ -5964,7 +5965,7 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 		for policyID := range havePolicies {
 			i, err := strconv.Atoi(policyID)
 			require.NoError(t, err)
-			haveMap[uint(i)] = policyID
+			haveMap[uint(i)] = policyID //nolint:gosec // dismiss G115
 		}
 		for _, policy := range wantPolicies {
 			wantMap[policy.ID] = policy.Name

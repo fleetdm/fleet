@@ -112,16 +112,6 @@ func newGlobalPolicy(ctx context.Context, db sqlx.ExtContext, authorID *uint, ar
 	return policyDB(ctx, db, policyID, nil)
 }
 
-func (ds *Datastore) updatePolicyLabels(ctx context.Context, policy *fleet.Policy) error {
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return updatePolicyLabelsTx(ctx, tx, policy)
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "update policy label transaction")
-	}
-
-	return nil
-}
-
 func updatePolicyLabelsTx(ctx context.Context, tx sqlx.ExtContext, policy *fleet.Policy) error {
 	const deleteLabelsStmt = `DELETE FROM policy_labels WHERE policy_id = ?`
 	const insertLabelStmt = `
