@@ -204,7 +204,7 @@ spec:
     This security setting is used by Credential Manager during Backup and Restore. No accounts should have this user right, as it is only assigned to Winlogon. Users' saved credentials might be compromised if this user right is assigned to other entities.
     The recommended state for this setting is No One.
   resolution: |
-    Automatic method:
+    Automatic method
     Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list of users:
     'Computer Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Access Credential Manager as a trusted caller'
   query: |
