@@ -5,7 +5,9 @@ import endpoints from "utilities/endpoints";
 export type TriggerMSConditionalStatusResponse = {
   microsoft_authentication_url: string;
 };
-export type ConfirmMSConditionalAccessResponse = { admin_consented: boolean };
+export type ConfirmMSConditionalAccessResponse = {
+  configuration_completed: boolean;
+};
 
 const conditionalAccessService = {
   triggerMicrosoftConditionalAccess: (
@@ -27,7 +29,7 @@ const conditionalAccessService = {
     // TODO - real one!
     // return sendRequest("GET", endpoints.CONDITIONAL_ACCESS_CONFIRM);
     return Promise.resolve({
-      admin_consented: true,
+      configuration_completed: true,
     });
   },
   deleteMicrosoftConditionalAccess: () => {

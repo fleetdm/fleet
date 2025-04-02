@@ -49,7 +49,12 @@ interface IFormErrors {
   [msetid]?: string | null;
 }
 
-type Phase = "form" | "form-submitted" | "confirming-consent" | "confirmed";
+enum Phase {
+  Form = "form",
+  FormSubmitted = "form-submitted",
+  ConfirmingConfigured = "confirming-configured",
+  Configured = "configured",
+}
 
 const validate = (formData: IFormData) => {
   const errs: IFormErrors = {};
@@ -62,7 +67,7 @@ const validate = (formData: IFormData) => {
 const ConditionalAccess = () => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [phase, setPhase] = useState<Phase>("form");
+  const [phase, setPhase] = useState<Phase>(Phase.Form);
 
   const [formData, setFormData] = useState<IFormData>({
     // [msetid]: "12345",
@@ -85,23 +90,23 @@ const ConditionalAccess = () => {
   }, [configMsetId]);
 
   const {
-    isLoading: isConfirmingAdminConsent,
-    error: isConfirmingAdminConsentError,
-    refetch: reConfirmAdminConsent,
+    isLoading: isConfirmingConfigCompleted,
+    error: confirmConfigCompletedError,
+    refetch: reConfirmConfigCompleted,
   } = useQuery<
     ConfirmMSConditionalAccessResponse,
     Error,
     ConfirmMSConditionalAccessResponse
   >(["confirmAccess"], conditionalAccessAPI.confirmMicrosoftConditionalAccess, {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: phase === "confirming-consent",
+    enabled: phase === Phase.ConfirmingConfigured,
   });
 
   // only confirm if id was already present in config, not if use addded to formdata
   if (configMsetId) {
     if (!configMseConfigured) {
       // no admin consent
-      setPhase("confirming-consent");
+      setPhase(Phase.ConfirmingConfigured);
       // TODO: call verification endpoint
       // if verified, setPhase(3) and set verification to local config
       // or, setting config with confirmed field should cause page re-render with both fields true,
@@ -109,7 +114,7 @@ const ConditionalAccess = () => {
       // PATCH server to set config there as well?
     } else {
       // both configMseId and configMseConfigured are true
-      setPhase("confirmed");
+      setPhase(Phase.Configured);
     }
   }
 
@@ -133,7 +138,7 @@ const ConditionalAccess = () => {
         formData[msetid]
       );
       setIsUpdating(false);
-      setPhase("form-submitted");
+      setPhase(Phase.FormSubmitted);
       window.open(msAuthURL);
     } catch (e) {
       // const message = getErrorReason(e);
@@ -207,9 +212,9 @@ const ConditionalAccess = () => {
 
   const renderContent = () => {
     switch (phase) {
-      case "form":
+      case Phase.Form:
         return renderForm();
-      case "form-submitted":
+      case Phase.FormSubmitted:
         return (
           // TODO - confirm border color
           <InfoBanner>
@@ -217,10 +222,10 @@ const ConditionalAccess = () => {
             tab, then refresh this page to verify.
           </InfoBanner>
         );
-      case "confirming-consent":
+      case Phase.ConfirmingConfigured:
         // checking integration
         return <Spinner />;
-      case "confirmed":
+      case Phase.Configured:
         return (
           // TODO - confirm border color
           <InfoBanner color="grey" className={`${baseClass}__success`}>
