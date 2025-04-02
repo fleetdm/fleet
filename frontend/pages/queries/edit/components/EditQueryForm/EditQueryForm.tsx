@@ -471,6 +471,9 @@ const EditQueryForm = ({
 
     if (valid) {
       if (!savedQueryMode) {
+        platformSelector.setSelectedPlatforms(
+          platformCompatibility.getCompatiblePlatforms()
+        );
         setShowSaveQueryModal(true);
       } else {
         const newPlatformString = platformSelector
@@ -499,14 +502,6 @@ const EditQueryForm = ({
         });
       }
     }
-  };
-
-  const saveQueryModalSubmit = (formData: ICreateQueryRequestBody) => {
-    const newPlatformString = platformSelector
-      .getSelectedPlatforms()
-      .join(",") as CommaSeparatedPlatformString;
-    formData.platform = newPlatformString;
-    onSubmitNewQuery(formData);
   };
 
   const renderAuthor = (): JSX.Element | null => {
@@ -1052,7 +1047,7 @@ const EditQueryForm = ({
           <SaveQueryModal
             queryValue={lastEditedQueryBody}
             apiTeamIdForQuery={apiTeamIdForQuery}
-            saveQuery={saveQueryModalSubmit}
+            saveQuery={onSubmitNewQuery}
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}

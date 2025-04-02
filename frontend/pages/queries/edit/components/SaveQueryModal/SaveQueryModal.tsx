@@ -86,10 +86,6 @@ const SaveQueryModal = ({
     existingQuery?.interval ?? 3600
   );
   const [
-    selectedPlatformOptions,
-    setSelectedPlatformOptions,
-  ] = useState<CommaSeparatedPlatformString>(existingQuery?.platform ?? "");
-  const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
   ] = useState(existingQuery?.min_osquery_version ?? "");
@@ -168,6 +164,10 @@ const SaveQueryModal = ({
     });
     setName(trimmedName);
 
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString;
+
     if (valid) {
       saveQuery({
         // from modal fields
@@ -177,7 +177,7 @@ const SaveQueryModal = ({
         observer_can_run: observerCanRun,
         automations_enabled: automationsEnabled,
         discard_data: discardData,
-        platform: selectedPlatformOptions,
+        platform: newPlatformString,
         min_osquery_version: selectedMinOsqueryVersionOptions,
         logging: selectedLoggingType,
         // from previous New query page
@@ -193,26 +193,6 @@ const SaveQueryModal = ({
       });
     }
   };
-
-  const onChangeSelectPlatformOptions = useCallback(
-    (values: string) => {
-      const valArray = values.split(",");
-
-      // Remove All if another OS is chosen
-      // else if Remove OS if All is chosen
-      if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        // TODO - inmprove type safety of all 3 options
-        setSelectedPlatformOptions(
-          pull(valArray, "").join(",") as CommaSeparatedPlatformString
-        );
-      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setSelectedPlatformOptions("");
-      } else {
-        setSelectedPlatformOptions(values as CommaSeparatedPlatformString);
-      }
-    },
-    [setSelectedPlatformOptions]
-  );
 
   return (
     <Modal title="Save query" onExit={toggleSaveQueryModal}>
