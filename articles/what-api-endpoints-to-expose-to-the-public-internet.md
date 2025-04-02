@@ -11,7 +11,7 @@ If you would like to manage hosts that can travel outside your VPN or intranet, 
 
 ## Using Fleet Desktop on remote devices
 
-If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/*/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
+If you are using Fleet Desktop and want the **My device** page to work, `/api/*/fleet/device/*` must be exposed.
 
 For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
