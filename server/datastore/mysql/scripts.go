@@ -366,7 +366,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		script_contents sc
 	WHERE
 		hsr.execution_id = ? AND
-		hsr.script_content_id = sc.id
+		hsr.script_content_id = sc.id AND
+		hsr.canceled = 0
 `
 
 	const getUpcomingStmt = `
@@ -795,9 +796,11 @@ FROM
 			LEFT OUTER JOIN host_script_results r2
 				ON r.host_id = r2.host_id AND
 					r.script_id = r2.script_id AND
+					r2.canceled = 0 AND
 					(r2.created_at > r.created_at OR (r.created_at = r2.created_at AND r2.id > r.id))
 		WHERE
 			r.host_id = ? AND
+			r.canceled = 0 AND
 			r2.id IS NULL AND -- no other row at a later time
 			NOT EXISTS (
 				SELECT 1

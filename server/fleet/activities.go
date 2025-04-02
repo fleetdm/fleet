@@ -45,7 +45,9 @@ func (*Activity) AuthzType() string {
 type UpcomingActivity struct {
 	Activity
 
-	Cancellable bool `json:"cancellable" db:"cancellable"`
+	// this struct used to have an additional field for upcoming activities, but
+	// it has since been removed. Keeping the distinct struct as a useful type
+	// indication that the value is an upcoming, not past, activity.
 }
 
 // ActivityDetailsList is used to generate documentation.

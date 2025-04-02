@@ -170,6 +170,7 @@ past AS (
 				 hvsi.adam_id = hvsi2.adam_id AND
 				 hvsi.platform = hvsi2.platform AND
 				 hvsi2.removed = 0 AND
+				 hvsi2.canceled = 0 AND
 				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 	WHERE
 		hvsi2.id IS NULL
@@ -178,6 +179,7 @@ past AS (
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
+		AND hvsi.canceled = 0
 )
 
 -- count each status
@@ -196,7 +198,7 @@ UNION
 SELECT
 	upcoming.host_id,
 	upcoming.status
-FROM upcoming 
+FROM upcoming
 ) t`
 
 	var tmID uint
@@ -904,7 +906,7 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
-			WHERE hvsi.host_id = ?`, hostID); err != nil && err != sql.ErrNoRows {
+			WHERE hvsi.host_id = ? AND hvsi.canceled = 0`, hostID); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list pending VPP installs")
 	}
 	adamMap := map[string]struct{}{}
@@ -941,7 +943,8 @@ FROM
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
 	LEFT OUTER JOIN policies p ON p.id = hvsi.policy_id
 WHERE
-	hvsi.command_uuid = :command_uuid
+	hvsi.command_uuid = :command_uuid AND
+	hvsi.canceled = 0
 	`
 
 	type result struct {
@@ -1648,13 +1651,13 @@ func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTe
 
 func (ds *Datastore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
 	query := `
-SELECT 
-    adam_id, 
-	title_id, 
-	bundle_identifier, 
-	icon_url, 
-	name, 
-	latest_version, 
+SELECT
+    adam_id,
+	title_id,
+	bundle_identifier,
+	icon_url,
+	name,
+	latest_version,
 	platform
 FROM vpp_apps`
 

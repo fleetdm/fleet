@@ -319,8 +319,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) as details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -361,8 +360,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) as details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -401,8 +399,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) as details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -440,8 +437,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -470,8 +466,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			activity_type,
 			created_at,
 			details,
-			fleet_initiated,
-			cancellable
+			fleet_initiated
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming
 		ORDER BY topmost DESC, priority DESC, created_at ASC`
 
@@ -494,11 +489,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
-	}
-
-	// first activity (next one to execute) is always non-cancellable, per spec
-	if len(activities) > 0 && opt.Page == 0 {
-		activities[0].Cancellable = false
 	}
 
 	metaData := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
