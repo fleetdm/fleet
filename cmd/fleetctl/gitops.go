@@ -201,7 +201,10 @@ func gitopsCommand() *cli.Command {
 				// so we can bail if any of the referenced labels wouldn't exist
 				// after this run (either because they'd be deleted, never existed
 				// in the first place).
-				labelsUsed := getLabelUsage(config)
+				labelsUsed, err := getLabelUsage(config)
+				if err != nil {
+					return err
+				}
 
 				// Check if any used labels are not in the proposed labels list.
 				// If there are, we'll bail out with helpful error messages.
@@ -217,6 +220,8 @@ func gitopsCommand() *cli.Command {
 				if unknownLabelsUsed {
 					return errors.New("Please create the missing labels, or update your settings to not refer to these labels.")
 				}
+
+				// Check that
 
 				// Special handling for tokens is required because they link to teams (by
 				// name.) Because teams can be created/deleted during the same gitops run, we
@@ -374,14 +379,31 @@ func updateLabelUsage(labels []string, ident string, usageType string, currentUs
 
 // Create a map of label name -> who is using that label.
 // This will be used to determine if any non-existent labels are being referenced.
-func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
+func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 	result := make(map[string][]LabelUsage)
 
 	// Get profile label usage
 	for _, osSettingName := range []interface{}{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
-				labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsIncludeAll, setting.LabelsExcludeAny)
+				var labels []string
+				err := errors.New(fmt.Sprintf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path))
+
+				if len(setting.LabelsIncludeAny) > 0 {
+					labels = setting.LabelsIncludeAny
+				}
+				if len(setting.LabelsIncludeAll) > 0 {
+					if len(labels) > 0 {
+						return nil, err
+					}
+					labels = setting.LabelsIncludeAll
+				} else if len(setting.LabelsExcludeAny) > 0 {
+					if len(labels) > 0 {
+						return nil, err
+					}
+					labels = setting.LabelsExcludeAny
+				}
+
 				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
 			}
 		}
@@ -389,13 +411,31 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 
 	// Get software package installer label usage
 	for _, setting := range config.Software.Packages {
-		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
+		var labels []string
+		if len(setting.LabelsIncludeAny) > 0 {
+			labels = setting.LabelsIncludeAny
+		}
+		if len(setting.LabelsExcludeAny) > 0 {
+			if len(labels) > 0 {
+				return nil, errors.New(fmt.Sprintf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.URL))
+			}
+			labels = setting.LabelsExcludeAny
+		}
 		updateLabelUsage(labels, setting.URL, "Software Package", result)
 	}
 
 	// Get app store app installer label usage
 	for _, setting := range config.Software.AppStoreApps {
-		labels := concatLabels(setting.LabelsIncludeAny, setting.LabelsExcludeAny)
+		var labels []string
+		if len(setting.LabelsIncludeAny) > 0 {
+			labels = setting.LabelsIncludeAny
+		}
+		if len(setting.LabelsExcludeAny) > 0 {
+			if len(labels) > 0 {
+				return nil, errors.New(fmt.Sprintf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.AppStoreID))
+			}
+			labels = setting.LabelsExcludeAny
+		}
 		updateLabelUsage(labels, setting.AppStoreID, "App Store App", result)
 	}
 
@@ -406,11 +446,20 @@ func getLabelUsage(config *spec.GitOps) map[string][]LabelUsage {
 
 	// Get policy label usage
 	for _, policy := range config.Policies {
-		labels := concatLabels(policy.LabelsIncludeAny, policy.LabelsExcludeAny)
+		var labels []string
+		if len(policy.LabelsIncludeAny) > 0 {
+			labels = policy.LabelsIncludeAny
+		}
+		if len(policy.LabelsExcludeAny) > 0 {
+			if len(labels) > 0 {
+				return nil, errors.New(fmt.Sprintf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name))
+			}
+			labels = policy.LabelsExcludeAny
+		}
 		updateLabelUsage(labels, policy.Name, "Policy", result)
 	}
 
-	return result
+	return result, nil
 }
 
 func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
