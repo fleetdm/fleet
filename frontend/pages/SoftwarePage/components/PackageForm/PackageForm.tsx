@@ -147,11 +147,6 @@ const PackageForm = ({
           uninstallScript: newDefaultUninstallScript || "",
         };
         setFormData(newData);
-        console.log("newData", newData);
-        console.log(
-          "generateFormValidation(newData)",
-          generateFormValidation(newData)
-        );
         setFormValidation(generateFormValidation(newData));
       }
     }
@@ -221,7 +216,6 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  console.log("formValidation", formValidation);
   const isSubmitDisabled = !formValidation.isValid;
   const submitTooltipContent = createTooltipContent(formValidation);
 
@@ -245,7 +239,6 @@ const PackageForm = ({
     onToggleAutomaticInstallCheckbox,
   ]);
 
-  console.log("accepted_extensions", ACCEPTED_EXTENSIONS);
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>

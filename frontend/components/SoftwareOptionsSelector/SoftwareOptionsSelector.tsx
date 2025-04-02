@@ -61,8 +61,9 @@ const SoftwareOptionsSelector = ({
         <>
           Fleet can&apos;t create a policy to detect existing installations for
           {isExePackage ? ".exe packages" : ".tar.gz archives"}. To
-          automatically install {isExePackage ? "an .exe" : ".tar.gz archives"},
-          add a custom policy and enable the install software automation on the{" "}
+          automatically install{" "}
+          {isExePackage ? ".exe packages" : ".tar.gz archives"}, add a custom
+          policy and enable the install software automation on the{" "}
           <b>Policies</b> page.
         </>
       );

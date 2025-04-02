@@ -87,7 +87,6 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForTgz",
         isValid: (formData) => {
-          console.log("formData", formData);
           // application/x-gzip is the MIME type for .tar.gz files
           if (formData.software?.type === "application/x-gzip") {
             // Handle undefined safely with nullish coalescing
