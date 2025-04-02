@@ -18,7 +18,7 @@ For Security Engineers:
 - 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
 
 For IT Admins:
-- 🛡️ Integration with Microsoft compliance tools
+- 🛡️ Integration with Microsoft Entra for conditional access
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📅 Patch apps when end users are free
 - ⬇️ Downloadable agents (fleetd)
