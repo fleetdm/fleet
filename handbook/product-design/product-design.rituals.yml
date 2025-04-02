@@ -90,3 +90,9 @@
   frequency: "Weekly"
   description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
   dri: "noahtalerman"
+- 
+  task: "🦢🚀🔄 Design sync"
+  startedOn: "2025-04-23"
+  frequency: "Triweekly"
+  description: "Product Designers and Frontend Engineers meet to discuss proposed changes to design conventions, UI components, and potential overlap/collisions between in progress wireframes."
+  dri: "rachaelshaw"

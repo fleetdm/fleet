@@ -161,7 +161,7 @@ Additional infrastructure:
 
 5. **CI/CD pipelines**. All CI/CD pipelines supporting Fleet's infrastructure are hosted as GitHub workflows in both [our public](https://github.com/fleetdm/fleet/actions) and [private](https://github.com/fleetdm/confidential/actions) repositories.
 
-6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
+6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform)**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
 
 7. **Domain name registrar**. All Fleet domain names are registered with [NameCheap](https://www.namecheap.com).
 
