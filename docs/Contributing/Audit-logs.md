@@ -1711,7 +1711,7 @@ Generated when upcoming activity `ran_script` is canceled.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
-- "script_name": Name of the script.
+- "script_name": Name of the script (empty if it was an anonymous script).
 
 #### Example
 
