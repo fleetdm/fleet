@@ -386,7 +386,8 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 						return nil, err
 					}
 					labels = setting.LabelsIncludeAll
-				} else if len(setting.LabelsExcludeAny) > 0 {
+				}
+				if len(setting.LabelsExcludeAny) > 0 {
 					if len(labels) > 0 {
 						return nil, err
 					}
