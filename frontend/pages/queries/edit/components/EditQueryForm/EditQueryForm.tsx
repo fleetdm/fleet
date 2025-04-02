@@ -334,25 +334,6 @@ const EditQueryForm = ({
     setShowAdvancedOptions(!showAdvancedOptions);
   };
 
-  const onChangeSelectPlatformOptions = useCallback(
-    (values: string) => {
-      const valArray = values.split(",");
-
-      // Remove All if another OS is chosen
-      // else if Remove OS if All is chosen
-      if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        setLastEditedQueryPlatforms(
-          pull(valArray, "").join(",") as CommaSeparatedPlatformString
-        );
-      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setLastEditedQueryPlatforms("");
-      } else {
-        setLastEditedQueryPlatforms(values as CommaSeparatedPlatformString);
-      }
-    },
-    [setLastEditedQueryPlatforms]
-  );
-
   const onChangeMinOsqueryVersionOptions = useCallback(
     (value: string) => {
       setLastEditedQueryMinOsqueryVersion(value);
@@ -518,6 +499,14 @@ const EditQueryForm = ({
         });
       }
     }
+  };
+
+  const saveQueryModalSubmit = (formData: ICreateQueryRequestBody) => {
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString;
+    formData.platform = newPlatformString;
+    onSubmitNewQuery(formData);
   };
 
   const renderAuthor = (): JSX.Element | null => {
@@ -1063,11 +1052,12 @@ const EditQueryForm = ({
           <SaveQueryModal
             queryValue={lastEditedQueryBody}
             apiTeamIdForQuery={apiTeamIdForQuery}
-            saveQuery={onSubmitNewQuery}
+            saveQuery={saveQueryModalSubmit}
             toggleSaveQueryModal={toggleSaveQueryModal}
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
             queryReportsDisabled={queryReportsDisabled}
+            platformSelector={platformSelector}
           />
         )}
         {showConfirmSaveChangesModal && (

@@ -6,6 +6,7 @@ import { pull, size } from "lodash";
 import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -52,6 +53,7 @@ export interface ISaveQueryModalProps {
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
   queryReportsDisabled?: boolean;
+  platformSelector: IPlatformSelector;
 }
 
 const validateQueryName = (name: string) => {
@@ -74,6 +76,7 @@ const SaveQueryModal = ({
   backendValidators,
   existingQuery,
   queryReportsDisabled,
+  platformSelector,
 }: ISaveQueryModalProps): JSX.Element => {
   const { config, isPremiumTier } = useContext(AppContext);
 
@@ -147,10 +150,11 @@ const SaveQueryModal = ({
 
   // Disable saving if "Custom" targeting is selected, but no labels are selected.
   const canSave =
-    selectedTargetType === "All hosts" ||
-    Object.entries(selectedLabels).some(([, value]) => {
-      return value;
-    });
+    platformSelector.isAnyPlatformSelected &&
+    (selectedTargetType === "All hosts" ||
+      Object.entries(selectedLabels).some(([, value]) => {
+        return value;
+      }));
 
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -299,6 +303,7 @@ const SaveQueryModal = ({
             </>
           }
         />
+        {platformSelector.render()}
         {isPremiumTier && (
           <TargetLabelSelector
             selectedTargetType={selectedTargetType}
@@ -324,16 +329,6 @@ const SaveQueryModal = ({
         />
         {showAdvancedOptions && (
           <>
-            <Dropdown
-              options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-              placeholder="Select"
-              label="Platforms"
-              onChange={onChangeSelectPlatformOptions}
-              value={selectedPlatformOptions}
-              multi
-              wrapperClassName={`${baseClass}__form-field form-field--platform`}
-              helpText="By default, your query collects data on all compatible platforms."
-            />
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}
