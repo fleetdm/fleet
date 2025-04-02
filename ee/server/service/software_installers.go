@@ -181,6 +181,10 @@ var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<s
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) {
 	// We assume that we already validated that payload.PackageIDs is not empty.
 	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
+	if len(payload.PackageIDs) == 0 {
+		// do nothing, this could be a FMA which won't include the installer when editing the scripts
+		return
+	}
 	var packageID string
 	switch payload.Extension {
 	case "dmg", "zip":
@@ -369,6 +373,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if installScript == "" {
 			installScript = file.GetInstallScript(existingInstaller.Extension)
 		}
+		if installScript == "" {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			}
+		}
 
 		if installScript != existingInstaller.InstallScript {
 			dirty["InstallScript"] = true
@@ -388,6 +397,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
 		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+		}
+		if uninstallScript == "" {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			}
 		}
 
 		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
@@ -1404,9 +1418,19 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if payload.InstallScript == "" {
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
+	if payload.InstallScript == "" {
+		return "", &fleet.BadRequestError{
+			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", strings.ToLower(payload.Extension)),
+		}
+	}
 
 	if payload.UninstallScript == "" {
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
+	}
+	if payload.UninstallScript == "" {
+		return "", &fleet.BadRequestError{
+			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
+		}
 	}
 
 	if payload.BundleIdentifier != "" {

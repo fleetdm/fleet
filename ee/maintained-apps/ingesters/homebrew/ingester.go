@@ -20,7 +20,7 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
+func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
 	level.Info(logger).Log("msg", "starting homebrew app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
@@ -57,6 +57,10 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 
 		if input.Name == "" {
 			return nil, ctxerr.NewWithData(ctx, "missing name for app", map[string]any{"fileName": f.Name()})
+		}
+
+		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
+			continue
 		}
 
 		level.Info(i.logger).Log("msg", "ingesting homebrew app", "name", input.Name)

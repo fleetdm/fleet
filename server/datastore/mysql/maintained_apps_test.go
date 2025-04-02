@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -22,6 +22,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"UpsertMaintainedApps", testUpsertMaintainedApps},
 		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
+		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 	}
 
 	for _, c := range cases {
@@ -120,6 +121,13 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 		UniqueIdentifier: "fleet.maintained3",
 	})
 	require.NoError(t, err)
+	maintained4, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained4",
+		Slug:             "maintained4",
+		Platform:         "windows",
+		UniqueIdentifier: "Maintained4 (MSI)",
+	})
+	require.NoError(t, err)
 
 	gotApp, err := ds.GetMaintainedAppByID(ctx, maintained1.ID, nil)
 	require.NoError(t, err)
@@ -148,27 +156,33 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 			Platform: maintained3.Platform,
 			Slug:     "maintained3",
 		},
+		{
+			ID:       maintained4.ID,
+			Name:     maintained4.Name,
+			Platform: maintained4.Platform,
+			Slug:     "maintained4",
+		},
 	}
 
 	// Testing pagination
 	apps, meta, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 	require.False(t, meta.HasNextResults)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps[:1], apps)
 	require.True(t, meta.HasNextResults)
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, Page: 1, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps[1:2], apps)
 	require.True(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
@@ -176,8 +190,16 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, Page: 2, IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, apps, 1)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps[2:3], apps)
+	require.True(t, meta.HasNextResults)
+	require.True(t, meta.HasPreviousResults)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{PerPage: 1, Page: 3, IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.EqualValues(t, meta.TotalResults, 4)
+	require.Equal(t, expectedApps[3:], apps)
 	require.False(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
 
@@ -199,8 +221,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on a different team
@@ -218,8 +240,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 
 	/// Correct package on the right team with the wrong platform
@@ -237,8 +259,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 
 	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, &team1.ID)
@@ -253,8 +275,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	expectedApps[0].TitleID = ptr.Uint(titleID)
 	require.Equal(t, expectedApps, apps)
 
@@ -266,6 +288,37 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained1.TitleID = ptr.Uint(titleID)
 	require.Equal(t, maintained1, gotApp)
+
+	// we haven't added the windows app yet, so we shouldn't have a title ID for it
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
+	require.Nil(t, apps[3].TitleID)
+
+	// add Windows app
+	_, windowsTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "Maintained4 (MSI)",
+		TeamID:          &team1.ID,
+		InstallScript:   "nothing",
+		Filename:        "foo.msi",
+		UserID:          user.ID,
+		Platform:        "windows",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
+	expectedApps[3].TitleID = ptr.Uint(windowsTitleID)
+	require.Equal(t, expectedApps, apps)
+
+	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained4.ID, &team1.ID)
+	require.NoError(t, err)
+	maintained4.TitleID = ptr.Uint(windowsTitleID)
+	require.Equal(t, maintained4, gotApp)
 
 	//
 	// Test including software title ID for existing apps (VPP)
@@ -288,8 +341,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 
 	// right vpp app, wrong team
@@ -308,8 +361,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 
 	// right app, right team, wrong platform
@@ -329,8 +382,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	require.Equal(t, expectedApps, apps)
 
 	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained3.ID, &team1.ID)
@@ -343,8 +396,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	expectedApps[1].TitleID = ptr.Uint(vppApp.TitleID)
 	require.Equal(t, expectedApps, apps)
 
@@ -356,10 +409,11 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	// viewing with no team selected shouldn't include any title IDs
 	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, nil, fleet.ListOptions{IncludeMetadata: true})
 	require.NoError(t, err)
-	require.Len(t, apps, 3)
-	require.EqualValues(t, meta.TotalResults, 3)
+	require.Len(t, apps, 4)
+	require.EqualValues(t, meta.TotalResults, 4)
 	expectedApps[0].TitleID = nil
 	expectedApps[1].TitleID = nil
+	expectedApps[3].TitleID = nil
 	require.Equal(t, expectedApps, apps)
 
 	gotApp, err = ds.GetMaintainedAppByID(ctx, maintained1.ID, nil)
@@ -371,4 +425,8 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
+}
+
+func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {
+	maintained_apps.SyncAndRemoveApps(t, ds)
 }

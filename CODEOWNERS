@@ -56,9 +56,9 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -69,6 +69,7 @@ go.mod @fleetdm/go
 /docs/Contributing                              @fleetdm/go @fleetdm/frontend
 /docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
 /docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/Contributing/Audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                    @edwardsb
 

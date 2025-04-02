@@ -20,7 +20,7 @@ const (
 	// used by Fleet to configure FileVault and FileVault Escrow.
 	FleetFileVaultPayloadIdentifier        = "com.fleetdm.fleet.mdm.filevault"
 	FleetFileVaultPayloadType              = "com.apple.MCX.FileVault2"
-	FleetFileVaultOptionsPayloadType       = "com.apple.MCX"
+	FleetCustomSettingsPayloadType         = "com.apple.MCX"
 	FleetRecoveryKeyEscrowPayloadType      = "com.apple.security.FDERecoveryKeyEscrow"
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include FileVault settings."
 
@@ -61,12 +61,12 @@ func FleetPayloadIdentifiers() map[string]struct{} {
 }
 
 // FleetPayloadTypes returns a map of PayloadType strings
-// that are handled and delivered by Fleet.
+// that are fully or partially handled and delivered by Fleet.
 func FleetPayloadTypes() map[string]struct{} {
 	return map[string]struct{}{
 		FleetRecoveryKeyEscrowPayloadType:        {},
 		FleetFileVaultPayloadType:                {},
-		FleetFileVaultOptionsPayloadType:         {},
+		FleetCustomSettingsPayloadType:           {},
 		"com.apple.security.FDERecoveryRedirect": {}, // no longer supported in macOS 10.13 and later
 	}
 }
@@ -250,13 +250,26 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 	}
 
 	if len(screenedTypes) > 0 {
+		var unsupportedTypes []string
 		for _, t := range screenedTypes {
 			switch t {
-			case FleetFileVaultPayloadType, FleetFileVaultOptionsPayloadType, FleetRecoveryKeyEscrowPayloadType:
+			case FleetFileVaultPayloadType, FleetRecoveryKeyEscrowPayloadType:
 				return errors.New(DiskEncryptionProfileRestrictionErrMsg)
+			case FleetCustomSettingsPayloadType:
+				contains, err := ContainsFDEFileVaultOptionsPayload(*mc)
+				if err != nil {
+					return fmt.Errorf("checking for FDEVileVaultOptions payload: %w", err)
+				}
+				if contains {
+					return errors.New(DiskEncryptionProfileRestrictionErrMsg)
+				}
+			default:
+				unsupportedTypes = append(unsupportedTypes, t)
 			}
 		}
-		return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screenedTypes, ", "))
+		if len(unsupportedTypes) > 0 {
+			return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screenedTypes, ", "))
+		}
 	}
 
 	if len(screenedIdentifiers) > 0 {
