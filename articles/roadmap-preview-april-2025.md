@@ -29,7 +29,7 @@ For IT Admins:
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - 🤖 AI-generated osquery queries
 - 👻 Fleet for configuration management (ala Puppet)
-- 📉 Report for time-to-fix (aka "timeframes") for top vulnerabilities
+- 📉 Report time-to-fix (aka "timeframes") for top vulnerabilities
 
 Any feedback or a questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
