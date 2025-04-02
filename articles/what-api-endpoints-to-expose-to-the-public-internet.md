@@ -11,7 +11,7 @@ If you would like to manage hosts that can travel outside your VPN or intranet, 
 
 ## Using Fleet Desktop on remote devices
 
-If you're using Fleet Desktop `/api/*/fleet/device/*` and `/api/*/assets/*`must be exposed (for the end user's **Fleet Desktop > My device** page).
+If you're using Fleet Desktop `/api/*/fleet/device/*` and `/api/*/assets/*` must be exposed (for the end user's **Fleet Desktop > My device** page).
 
 For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
