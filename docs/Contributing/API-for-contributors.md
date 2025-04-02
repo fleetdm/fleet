@@ -4590,7 +4590,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ### Confirm Microsoft Entra conditional access configuration
 
-`POST /api/v1/conditional-access/confirm`
+`GET /api/v1/conditional-access/confirm`
 
 Confirm whether admin consent has been granted in Microsoft Entra.
 
@@ -4598,16 +4598,17 @@ Confirm whether admin consent has been granted in Microsoft Entra.
 
 None.
 
-
 ##### Default response
 
 `Status: 200`
 
 ```json
 {
-  "admin_consented": false
+  "configuration_completed": false
 }
 ```
+
+The field `configuration_completed` will be `true` after the admin has consented permissions for Fleet's Multi-tenant application to operate on their Tenant and the fleetdm.com proxy has finalized the setup of the integration.
 
 ### Delete Microsoft Entra conditional access
 
