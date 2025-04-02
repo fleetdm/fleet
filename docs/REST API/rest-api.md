@@ -9021,6 +9021,7 @@ Get a list of all software.
         "platform": "darwin",
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
+        "fleet_maintained_app_id": 3,
         "self_service": true,
         "policies": [
           {
