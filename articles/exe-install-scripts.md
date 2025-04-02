@@ -382,8 +382,8 @@ try {
     $state = (Get-ScheduledTask -TaskName "$taskName").State
     while ($state  -eq "Running") {
         Write-Host "ScheduledTask is '$state'. Waiting for .exe to complete..."
-        $endDate = Get-Date
         
+        $endDate = Get-Date
         $elapsedTime = New-Timespan -Start $startDate -End $endDate
         if ($elapsedTime.TotalSeconds -gt 120) {
             Throw "Timed-out waiting for scheduled task state."
