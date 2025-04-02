@@ -894,7 +894,7 @@ const HostDetailsPage = ({
   const testEndUserData: IHostEndUser[] = [
     {
       idp_id: "1234567890",
-      idp_email: "test@email.com",
+      idp_username: "test@email.com",
       idp_full_name: "Test User",
       // idp_info_updated_at: "2023-10-01T00:00:00Z",
       idp_info_updated_at: null,

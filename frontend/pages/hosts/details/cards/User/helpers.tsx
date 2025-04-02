@@ -2,13 +2,13 @@ import React from "react";
 
 import { IHostEndUser } from "interfaces/host";
 
-export const generateEmailValues = (endUsers: IHostEndUser[]) => {
+export const generateUsernameValues = (endUsers: IHostEndUser[]) => {
   if (endUsers.length === 0) {
     return [];
   }
 
   return endUsers.map((endUser) => {
-    return endUser.idp_email;
+    return endUser.idp_username;
   });
 };
 

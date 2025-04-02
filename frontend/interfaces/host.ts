@@ -267,7 +267,7 @@ export interface IHostIssues {
 }
 export interface IHostEndUser {
   idp_id: string;
-  idp_email: string;
+  idp_username: string;
   idp_full_name: string;
   idp_info_updated_at: string | null;
   idp_groups: string[];

@@ -18,11 +18,11 @@ const AddEndUserModal = ({ onExit }: IAddEndUserModalProps) => {
       <>
         <div className={`${baseClass}__content`}>
           <p>
-            Currently, <b>Email (IdP)</b> is only added when the host
+            Currently, <b>Username (IdP)</b> is only added when the host
             automatically enrolls (ADE).{" "}
           </p>
           <p>
-            To add email when hosts enroll in the future, enable{" "}
+            To add username when hosts enroll in the future, enable{" "}
             <Link to={paths.CONTROLS_END_USER_AUTHENTICATION}>
               end user authentication
             </Link>

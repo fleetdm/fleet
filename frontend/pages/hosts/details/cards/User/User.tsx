@@ -13,13 +13,12 @@ import Button from "components/buttons/Button";
 import UserValue from "./components/UserValue";
 import {
   generateChromeProfilesValue,
-  generateEmailValues,
+  generateUsernameValues,
   generateFullNameTipContent,
   generateFullNameValues,
   generateGroupsTipContent,
   generateGroupsValues,
 } from "./helpers";
-// import { generateEmailValue } from "./helpers";
 
 const baseClass = "user-card";
 
@@ -35,7 +34,7 @@ const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
 
   // TODO: show and hide data sets
   const endUser = endUsers[0];
-  const showEmail = platform === "darwin";
+  const showUsername = platform === "darwin";
 
   return (
     <Card
@@ -58,12 +57,11 @@ const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
       <div className={`${baseClass}__content`}>
         <DataSet
           title={
-            <TooltipWrapper tipContent="Email collected from your IdP during automatic enrollment (ADE).">
-              Email
+            <TooltipWrapper tipContent="Username collected from your IdP during automatic enrollment (ADE).">
+              Username (IdP)
             </TooltipWrapper>
           }
-          // value={generateEmailValue(endUsers)}
-          value={<UserValue values={generateEmailValues(endUsers)} />}
+          value={<UserValue values={generateUsernameValues(endUsers)} />}
         />
         <DataSet
           title={
