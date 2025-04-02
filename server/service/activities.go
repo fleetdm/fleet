@@ -284,6 +284,15 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionCancelHostActivity); err != nil {
 		return err
 	}
+
 	// TODO: prevent cancellation of lock/wipe that are already activated
+	// isLockWipe, isActivated, err := svc.ds.IsLockWipeActivity(ctx, upcomingActivityID)
+	// if err != nil {
+	// 	// ...
+	// }
+	// if isLockWipe && isActivated {
+	// 	// prevent cancellation
+	// }
+
 	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, upcomingActivityID)
 }
