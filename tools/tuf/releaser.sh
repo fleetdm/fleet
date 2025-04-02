@@ -165,18 +165,25 @@ release_fleetd_to_edge () {
 }
 
 create_fleetd_release_pr () {
-    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-    echo "Creating a PR against '$CURRENT_BRANCH' for fleetd release changelog..."
+    echo "Creating a PR against main for fleetd release changelog..."
     BRANCH_NAME=release-fleetd-v$VERSION
     pushd "$GIT_REPOSITORY_DIRECTORY"
-    git checkout -b "$BRANCH_NAME"
+    # Create a branch to make the changelog update on.
+    git checkout -b "${BRANCH_NAME}-changelog"
     make changelog-orbit version="$VERSION"
     ORBIT_CHANGELOG=orbit/CHANGELOG.md
     git add "$ORBIT_CHANGELOG"
     git commit -m "Release fleetd $VERSION"
-    git push origin "$BRANCH_NAME"
+    # Checkout the main branch.
+    git checkout main
+    # Create a new branch to cherry pick the changelog commit to.
+    git checkout -b "$BRANCH_NAME"
+    # Cherry pick the changelog commit to the new branch.
+    git cherry-pick "${BRANCH_NAME}-changelog" 
     # Create a new PR with the changelog.
-    gh pr create -f -B $CURRENT_BRANCH -t "Release fleetd $VERSION"
+    gh pr create -f -B main -t "Update changelog for fleetd $VERSION release"
+    # Delete the changelog branch.
+    git branch -D "${BRANCH_NAME}-changelog"
     popd
 }
 
