@@ -110,6 +110,10 @@ import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import AddEndUserModal from "../cards/User/components/AddEndUserModal";
+import {
+  generateChromeProfilesValue,
+  generateOtherEmailsValue,
+} from "../cards/User/helpers";
 
 const baseClass = "host-details";
 
@@ -877,27 +881,13 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const showUsersCard = true; // TODO: really show and hide
-  const showActivityCard = !isAndroidHost;
-  const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
-  const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
-  const showCertificatesCard =
-    (isIosOrIpadosHost || isDarwinHost) &&
-    !!hostCertificates?.certificates.length;
-
-  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
-    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
-    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
-    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
-  });
-
   const testEndUserData: IHostEndUser[] = [
     {
       idp_id: "1234567890",
       idp_username: "test",
       idp_full_name: "Test User",
-      // idp_info_updated_at: "2023-10-01T00:00:00Z",
-      idp_info_updated_at: null,
+      idp_info_updated_at: "2023-10-01T00:00:00Z",
+      // idp_info_updated_at: null,
       idp_groups: [
         "apple",
         "test group",
@@ -922,6 +912,23 @@ const HostDetailsPage = ({
       ],
     },
   ];
+
+  const showUsersCard =
+    isDarwinHost ||
+    generateChromeProfilesValue(testEndUserData).length > 0 ||
+    generateOtherEmailsValue(testEndUserData).length > 0;
+  const showActivityCard = !isAndroidHost;
+  const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showCertificatesCard =
+    (isIosOrIpadosHost || isDarwinHost) &&
+    !!hostCertificates?.certificates.length;
+
+  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
+    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
+    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
+    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
+  });
 
   return (
     <MainContent className={baseClass}>
