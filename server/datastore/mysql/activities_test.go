@@ -43,6 +43,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
+		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1714,7 +1715,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	execIDUntouched := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, hostLeftUntouched, u)
 
 	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
-		var execIDs []string
+		execIDs := []string{}
 		for _, act := range acts {
 			execIDs = append(execIDs, act.UUID)
 		}
@@ -1765,6 +1766,44 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
 				t.Cleanup(func() {
 					test.SetHostSoftwareInstallResult(t, ds, host, exec2, 0)
+				})
+				return []string{exec1, exec2}
+			},
+		},
+		{
+			desc: "cancel script none after",
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				return []string{exec1}
+			},
+		},
+		{
+			desc: "cancel sofware install with a couple after",
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+				exec2 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				exec3 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostSoftwareUninstallResult(t, ds, host, exec2, 0)
+					test.SetHostScriptResult(t, ds, host, exec3, 0)
+				})
+				return []string{exec1, exec2, exec3}
+			},
+		},
+		{
+			desc: "cancel sofware uninstall none after",
+			setup: func(t *testing.T) []string {
+				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+				return []string{exec1}
+			},
+		},
+		{
+			desc: "cancel vpp install same after",
+			setup: func(t *testing.T) []string {
+				exec1, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+				t.Cleanup(func() {
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
 				})
 				return []string{exec1, exec2}
 			},
@@ -1826,4 +1865,39 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+}
+
+func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+
+	// set a script result post-cancel
+	exec := test.CreateHostScriptUpcomingActivity(t, ds, host)
+	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostScriptResult(t, ds, host, exec, 0)
+
+	// set a software install result post-cancel
+	exec = test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostSoftwareInstallResult(t, ds, host, exec, 0)
+
+	// set a software uninstall result post-cancel
+	exec = test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostSoftwareUninstallResult(t, ds, host, exec, 0)
+
+	// set a vpp app install result post-cancel
+	exec, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	require.NoError(t, err)
+	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
 }
