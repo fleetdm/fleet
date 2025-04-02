@@ -7,13 +7,16 @@ export const generateUsernameValues = (endUsers: IHostEndUser[]) => {
     return [];
   }
 
-  return endUsers.map((endUser) => {
-    return endUser.idp_username;
-  });
+  return endUsers.reduce<string[]>((acc, endUser) => {
+    if (endUser.idp_username) {
+      acc.push(endUser.idp_username);
+    }
+    return acc;
+  }, []);
 };
 
 export const generateFullNameValues = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0) {
+  if (endUsers.length === 0 || endUsers[0].idp_info_updated_at === null) {
     return [];
   }
 
@@ -23,7 +26,7 @@ export const generateFullNameValues = (endUsers: IHostEndUser[]) => {
 };
 
 export const generateGroupsValues = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0) {
+  if (endUsers.length === 0 || endUsers[0].idp_info_updated_at === null) {
     return [];
   }
 
@@ -39,6 +42,19 @@ export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
 
   return endUsers[0].other_emails.reduce<string[]>((acc, otherEmail) => {
     if (otherEmail.source === "google_chrome_profiles") {
+      acc.push(otherEmail.email);
+    }
+    return acc;
+  }, []);
+};
+
+export const generateOtherEmailsValue = (endUsers: IHostEndUser[]) => {
+  if (endUsers.length === 0) {
+    return [];
+  }
+
+  return endUsers[0].other_emails.reduce<string[]>((acc, otherEmail) => {
+    if (otherEmail.source === "custom") {
       acc.push(otherEmail.email);
     }
     return acc;
