@@ -1678,7 +1678,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			require.Equal(t, execIDs, pluckExecIDs(got))
 
 			cancelExecID := execIDs[c.cancelIndex]
-			expectedExecIDs := append(execIDs[:c.cancelIndex], execIDs[c.cancelIndex+1:]...)
+			expectedExecIDs := append(execIDs[:c.cancelIndex], execIDs[c.cancelIndex+1:]...) // nolint: gocritic
 			err = ds.CancelHostUpcomingActivity(ctx, host.ID, cancelExecID)
 			require.NoError(t, err)
 
