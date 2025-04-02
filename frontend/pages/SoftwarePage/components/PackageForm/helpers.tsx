@@ -55,7 +55,19 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return true;
         },
-        message: "Install script is required for .exe files.",
+        message: "Install script is required for .exe packages.",
+      },
+      {
+        name: "requiredForTgz",
+        isValid: (formData) => {
+          // application/x-gzip is the MIME type for .tar.gz files
+          if (formData.software?.type === "application/x-gzip") {
+            // Handle undefined safely with nullish coalescing
+            return (formData.installScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Install script is required for .tar.gz archives.",
       },
     ],
   },
@@ -70,7 +82,20 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return true;
         },
-        message: "Uninstall script is required for .exe files.",
+        message: "Uninstall script is required for .exe packages.",
+      },
+      {
+        name: "requiredForTgz",
+        isValid: (formData) => {
+          console.log("formData", formData);
+          // application/x-gzip is the MIME type for .tar.gz files
+          if (formData.software?.type === "application/x-gzip") {
+            // Handle undefined safely with nullish coalescing
+            return (formData.uninstallScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Uninstall script is required for .tar.gz archives.",
       },
     ],
   },

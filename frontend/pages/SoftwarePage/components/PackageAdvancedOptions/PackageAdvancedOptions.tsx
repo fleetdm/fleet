@@ -16,6 +16,16 @@ import RevealButton from "components/buttons/RevealButton";
 import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
 
+/** Extract the extension, considering compound extensions like .tar.gz */
+export const getExtensionFromFileName = (fileName: string) => {
+  const parts = fileName.split(".");
+  const extension =
+    parts.length > 1 && parts[parts.length - 2] === "tar"
+      ? "tar.gz"
+      : parts.pop();
+  return extension as PackageType;
+};
+
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   return `Currently, ${
     isWindowsPackageType(pkgType) ? "PowerS" : "s"
@@ -29,6 +39,18 @@ const PKG_TYPE_TO_ID_TEXT = {
   msi: "product code",
   exe: "software name",
 } as const;
+
+const getInstallScriptTooltip = (pkgType: PackageType) => {
+  if (
+    !isFleetMaintainedPackageType(pkgType) &&
+    (pkgType === "exe" || pkgType === "tar.gz")
+  ) {
+    return `Required for ${
+      pkgType === "exe" ? ".exe packages" : ".tar.gz archives"
+    }.`;
+  }
+  return undefined;
+};
 
 const getInstallHelpText = (pkgType: PackageType) => {
   if (pkgType === "exe") {
@@ -63,6 +85,18 @@ const getPostInstallHelpText = (pkgType: PackageType) => {
   return getSupportedScriptTypeText(pkgType);
 };
 
+const getUninstallScriptTooltip = (pkgType: PackageType) => {
+  if (
+    !isFleetMaintainedPackageType(pkgType) &&
+    (pkgType === "exe" || pkgType === "tar.gz")
+  ) {
+    return `Required for ${
+      pkgType === "exe" ? ".exe packages" : ".tar.gz archives"
+    }.`;
+  }
+  return undefined;
+};
+
 const getUninstallHelpText = (pkgType: PackageType) => {
   if (isFleetMaintainedPackageType(pkgType)) {
     return "Currently, shell scripts are supported.";
@@ -78,6 +112,19 @@ const getUninstallHelpText = (pkgType: PackageType) => {
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/exe-install-scripts`}
           text="Learn more"
+          newTab
+        />
+      </>
+    );
+  }
+
+  if (pkgType === "tar.gz") {
+    return (
+      <>
+        Currently, shell scripts are supported.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-scripts`}
+          text="Learn more about uninstall scripts"
           newTab
         />
       </>
@@ -131,7 +178,7 @@ const PackageAdvancedOptions = ({
 }: IPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const name = selectedPackage?.name || "";
-  const ext = name.split(".").pop() as PackageType;
+  const ext = getExtensionFromFileName(name);
 
   const renderAdvancedOptions = () => {
     if (!isPackageType(ext)) {
@@ -143,8 +190,10 @@ const PackageAdvancedOptions = ({
       <AdvancedOptionsFields
         className={`${baseClass}__input-fields`}
         showSchemaButton={showSchemaButton}
+        installScriptTooltip={getInstallScriptTooltip(ext)}
         installScriptHelpText={getInstallHelpText(ext)}
         postInstallScriptHelpText={getPostInstallHelpText(ext)}
+        uninstallScriptTooltip={getUninstallScriptTooltip(ext)}
         uninstallScriptHelpText={getUninstallHelpText(ext)}
         errors={errors}
         preInstallQuery={preInstallQuery}
@@ -160,6 +209,7 @@ const PackageAdvancedOptions = ({
     );
   };
 
+  console.log("ext", ext);
   return (
     <div className={baseClass}>
       <RevealButton
@@ -177,7 +227,7 @@ const PackageAdvancedOptions = ({
           </>
         }
       />
-      {(showAdvancedOptions || ext === "exe") &&
+      {(showAdvancedOptions || ext === "exe" || ext === "tar.gz") &&
         !!selectedPackage &&
         renderAdvancedOptions()}
     </div>

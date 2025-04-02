@@ -28,6 +28,7 @@ import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
 import { createTooltipContent, generateFormValidation } from "./helpers";
+import { getExtensionFromFileName } from "../PackageAdvancedOptions/PackageAdvancedOptions";
 
 export const baseClass = "package-form";
 
@@ -70,8 +71,8 @@ interface IPackageFormProps {
   /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
 }
-
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
+// application/gzip is used for .tar.gz files
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip";
 
 const PackageForm = ({
   labels,
@@ -120,6 +121,7 @@ const PackageForm = ({
       if (isEditingSoftware) {
         const newData = { ...formData, software: file };
         setFormData(newData);
+
         setFormValidation(generateFormValidation(newData));
       } else {
         let newDefaultInstallScript: string;
@@ -145,6 +147,11 @@ const PackageForm = ({
           uninstallScript: newDefaultUninstallScript || "",
         };
         setFormData(newData);
+        console.log("newData", newData);
+        console.log(
+          "generateFormValidation(newData)",
+          generateFormValidation(newData)
+        );
         setFormValidation(generateFormValidation(newData));
       }
     }
@@ -214,27 +221,31 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  console.log("formValidation", formValidation);
   const isSubmitDisabled = !formValidation.isValid;
   const submitTooltipContent = createTooltipContent(formValidation);
 
   const classNames = classnames(baseClass, className);
 
-  const ext = formData?.software?.name.split(".").pop() as PackageType;
+  const ext = getExtensionFromFileName(formData?.software?.name || "");
   const isExePackage = ext === "exe";
+  const isTarballPackage = ext === "tar.gz";
 
   // If a user preselects automatic install and then uploads a .exe
   // which automatic install is not supported, the form will default
   // back to manual install
   useEffect(() => {
-    if (isExePackage && formData.automaticInstall) {
+    if ((isExePackage || isTarballPackage) && formData.automaticInstall) {
       onToggleAutomaticInstallCheckbox(false);
     }
   }, [
     formData.automaticInstall,
     isExePackage,
+    isTarballPackage,
     onToggleAutomaticInstallCheckbox,
   ]);
 
+  console.log("accepted_extensions", ACCEPTED_EXTENSIONS);
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
@@ -242,7 +253,7 @@ const PackageForm = ({
           canEdit={isEditingSoftware}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
-          message=".pkg, .msi, .exe, .deb, or .rpm"
+          message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
           buttonType="link"
@@ -274,6 +285,7 @@ const PackageForm = ({
                 isCustomPackage
                 isEditingSoftware={isEditingSoftware}
                 isExePackage={isExePackage}
+                isTarballPackage={isTarballPackage}
               />
             </Card>
             <Card
