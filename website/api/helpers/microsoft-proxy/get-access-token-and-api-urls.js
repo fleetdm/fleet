@@ -49,7 +49,7 @@ module.exports = {
     try {
       accessToken = JSON.parse(accessTokenResponse.body).access_token;
     } catch(err){
-      throw new Error(`When sending a request to get an access token for a Microsoft compliance tenant, an error occured. full error: ${require('util').inspect(err)}`)
+      throw new Error(`When sending a request to get an access token for a Microsoft compliance tenant, an error occured. full error: ${require('util').inspect(err)}`);
     }
 
     // (2025-04-01) TODO: test the code below once the test tenant has been configured to be able to use the Fleet compliance partner application.
@@ -62,7 +62,6 @@ module.exports = {
       }
     });
 
-    // TODO: verify that the servicePrincipal object is not nested in the response from the Microsoft graph API.
     let servicePrincipalObjectId = servicePrincipalResponse.value[0].id;
 
     // [?]: https://learn.microsoft.com/en-us/graph/api/group-list-endpoints
