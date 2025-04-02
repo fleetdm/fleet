@@ -27,7 +27,7 @@ For IT Admins:
 - ⏳ See upcoming and past MDM command history
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
-- 🤖 AI-generated osquery queries
+- 🤖 Auto-complete osquery queries (SQL), Bash scripts, and PowerShell scripts
 - 👻 Fleet for configuration management (ala Puppet)
 - 📉 Report time-to-fix (aka "timeframes") for top vulnerabilities
 
