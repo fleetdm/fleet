@@ -1,0 +1,7 @@
+{
+  "name": "Microsoft Edge",
+  "slug": "microsoft-edge/darwin",
+  "unique_identifier": "com.microsoft.edgemac",
+  "token": "microsoft-edge",
+  "installer_format": "pkg"
+}

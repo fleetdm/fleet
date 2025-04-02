@@ -29,6 +29,16 @@ export interface ILabelSoftwareTitle {
   name: string;
 }
 
+export interface ILabelQuery {
+  id: number;
+  name: string;
+}
+
+export interface ILabelPolicy {
+  id: number;
+  name: string;
+}
+
 export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;
@@ -43,6 +53,7 @@ export interface ILabel extends ILabelSummary {
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
   platform: string;
+  author_id?: number;
 }
 
 // corresponding to fleet>server>fleet>labels.go>LabelSpec

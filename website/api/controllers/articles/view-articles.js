@@ -47,8 +47,9 @@ module.exports = {
           return page;
         }
       });
-      articles = _.sortBy(articles, 'meta.publishedOn');
     }
+    // Sort articles in descending order by publish date.
+    articles = _.sortByOrder(articles, 'meta.publishedOn', 'DESC');
 
     let pageTitleForMeta = 'Fleet blog';
     let pageDescriptionForMeta = 'Read the latest articles written by Fleet.';

@@ -1,4 +1,4 @@
-# YAML files
+# GitOps
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
@@ -226,13 +226,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: '2024-12-31
+    deadline: 2024-12-31
     minimum_version: 15.1
   ios_updates: # Available in Fleet Premium
-    deadline: '2024-12-31'
+    deadline: 2024-12-31
     minimum_version: 18.1
   ipados_updates: # Available in Fleet Premium
-    deadline: '2024-12-31'
+    deadline: 2024-12-31
     minimum_version: 18.1
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
@@ -240,13 +240,13 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any:
+        labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
       - path: ../lib/macos-profile2.json
-        labels_include_all:
+        labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
       - path: ../lib/macos-profile3.mobileconfig
-        labels_include_any:
+        labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product
   windows_settings:
@@ -288,7 +288,7 @@ controls:
 
 ### macos_settings and windows_settings
 
-- `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
@@ -340,12 +340,12 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any:
+      labels_include_any: # Available in Fleet Premium
         - Engineering
         - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any:
+      labels_include_any: # Available in Fleet Premium
         - Product
         - Marketing
 ```
@@ -770,6 +770,6 @@ org_settings:
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
 
-<meta name="title" value="YAML files">
+<meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">

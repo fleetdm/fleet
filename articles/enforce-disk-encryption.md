@@ -8,7 +8,7 @@ In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and 
 
 When disk encryption is enforced, hosts' disk encryption keys will be stored in Fleet.
 
-For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant. For Windows, disk encryption is enforced on the C: volume (default system/OS drive). For Linux, encryption requires end user interaction.
+For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant. For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
 
 ## Enforce disk encryption
 
@@ -86,6 +86,28 @@ Disk encryption keys are used to login to workstations (hosts) when the end user
 
 3. Follow the instructions on the Mac to enter the disk encryption (recovery) key.
 
+### Windows
+
+For Windows hosts, you don't need the disk encryption key.
+
+First, in Fleet, head to the host's **Host details** page in Fleet and check it's **MDM status**. If it has an **On (automatic)** status follow the first set of instructions below. If it has an **On (manual)** status follow the second set of instructions.
+
+#### On (automatic)
+
+1. Login to [Microsoft Azure](portal.azure.com) (Entra) and navigate to the **Users** page.
+
+2. Select the end user's user and select **Reset password**.
+
+3. Use the new password to login to the Windows workstation.
+
+#### On (manual)
+
+1. Add [this script](https://github.com/fleetdm/fleet/tree/main/it-and-security/lib/windows/scripts/create-admin-user.ps1) to Fleet (creates a local admin user).
+
+2. Head to the Windows host's **Host details** page and select **Actions > Run script** to run the script.
+
+3. With the Windows host in front of you, restart the host and login with the new admin user.
+
 ### Linux 
 
 1. With the Linux host in front of you, restart it.
@@ -101,8 +123,6 @@ passwd -d <username>
 ```
 
 5. Head back to the **Host details** page and select **Actions > Run script** to run the script.
-
-#### 
 
 ## Migrate macOS hosts
 

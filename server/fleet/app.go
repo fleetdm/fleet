@@ -1126,6 +1126,9 @@ type FleetDesktopSettings struct {
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
+// SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
+const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
+
 type OrderDirection int
 
 const (
@@ -1206,6 +1209,9 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+	// NoCache indicates that cached_mysql calls should be bypassed on the server.
+	// This is needed where related data was just updated and we need that latest data from the DB.
+	NoCache bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1237,6 +1243,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.DryRun {
 		query.Set("dry_run", "true")
+	}
+	if o.NoCache {
+		query.Set("no_cache", "true")
 	}
 	return query.Encode()
 }

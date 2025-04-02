@@ -36,11 +36,15 @@ const (
 	EnterpriseID        = "LC02k5wxw7"
 )
 
+type AndroidDSWithMock struct {
+	*mysql.Datastore
+	ds_mock.Store
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
-	DS       *mysql.Datastore
-	FleetDS  ds_mock.Store
+	DS       AndroidDSWithMock
 	FleetSvc mockService
 	Server   *httptest.Server
 	Token    string
@@ -53,14 +57,14 @@ type WithServer struct {
 }
 
 func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
-	ts.DS = CreateNamedMySQLDS(t, dbName)
+	ts.DS.Datastore = CreateNamedMySQLDS(t, dbName)
 	ts.CreateCommonDSMocks()
 
 	ts.Proxy = proxy_mock.Proxy{}
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithProxy(logger, &ts.FleetDS, &ts.Proxy, &ts.FleetSvc)
+	svc, err := service.NewServiceWithProxy(logger, &ts.DS, &ts.Proxy, &ts.FleetSvc)
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -68,26 +72,23 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 }
 
 func (ts *WithServer) CreateCommonDSMocks() {
-	ts.FleetDS.GetAndroidDSFunc = func() android.Datastore {
-		return ts.DS
-	}
-	ts.FleetDS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+	ts.DS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		// Create a copy to prevent race conditions
 		ts.AppConfigMu.Lock()
 		appConfigCopy := ts.AppConfig
 		ts.AppConfigMu.Unlock()
 		return &appConfigCopy, nil
 	}
-	ts.FleetDS.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
+	ts.DS.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
 		ts.AppConfigMu.Lock()
 		ts.AppConfig.MDM.AndroidEnabledAndConfigured = configured
 		ts.AppConfigMu.Unlock()
 		return nil
 	}
-	ts.FleetDS.UserOrDeletedUserByIDFunc = func(_ context.Context, id uint) (*fleet.User, error) {
+	ts.DS.UserOrDeletedUserByIDFunc = func(_ context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id}, nil
 	}
-	ts.FleetDS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+	ts.DS.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
 		for _, name := range assetNames {
@@ -95,13 +96,13 @@ func (ts *WithServer) CreateCommonDSMocks() {
 		}
 		return result, nil
 	}
-	ts.FleetDS.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	ts.DS.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error {
 		return nil
 	}
-	ts.FleetDS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	ts.DS.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error {
 		return nil
 	}
-	ts.FleetDS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
+	ts.DS.BulkSetAndroidHostsUnenrolledFunc = func(ctx context.Context) error {
 		return nil
 	}
 }
@@ -128,7 +129,7 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 }
 
 func (ts *WithServer) TearDownSuite() {
-	mysql.Close(ts.DS)
+	mysql.Close(ts.DS.Datastore)
 }
 
 type mockService struct {

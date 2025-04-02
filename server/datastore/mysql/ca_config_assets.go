@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,16 +12,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetAllCAConfigAssets(ctx context.Context) (map[string]fleet.CAConfigAsset, error) {
+func (ds *Datastore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
 	stmt := `
 SELECT
-    name, type, value
+	   name, type, value
 FROM
-   ca_config_assets
-	`
+	  ca_config_assets
+WHERE
+	  type = ?
+		`
 
 	var res []fleet.CAConfigAsset
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, assetType); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get CA config assets")
 	}
 
@@ -71,6 +75,33 @@ func (ds *Datastore) saveCAConfigAssets(ctx context.Context, tx sqlx.ExtContext,
 		return ctxerr.Wrap(ctx, err, "save CA config assets")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetCAConfigAsset(ctx context.Context, name string, assetType fleet.CAConfigAssetType) (*fleet.CAConfigAsset, error) {
+	stmt := `
+	SELECT
+		name, type, value
+	FROM
+		ca_config_assets
+	WHERE
+		name = ? AND type = ?
+	`
+
+	var asset fleet.CAConfigAsset
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &asset, stmt, name, assetType); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("CAConfigAsset").WithName(name)
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "get CA config asset %s", name)
+	}
+
+	decryptedVal, err := decrypt(asset.Value, ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "decrypting CA config asset %s", asset.Name)
+	}
+	asset.Value = decryptedVal
+
+	return &asset, nil
 }
 
 func (ds *Datastore) DeleteCAConfigAssets(ctx context.Context, names []string) error {

@@ -17,7 +17,6 @@ import VppSection from "./components/VppSection";
 import IdpSection from "./components/IdpSection";
 import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
-import ScepSection from "./components/ScepSection/ScepSection";
 
 const baseClass = "mdm-settings";
 
@@ -131,11 +130,6 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           <VppSection
             router={router}
             isVppOn={!noVppTokenUploaded}
-            isPremiumTier={!!isPremiumTier}
-          />
-          <ScepSection
-            router={router}
-            isScepOn={!noScepCredentials}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (

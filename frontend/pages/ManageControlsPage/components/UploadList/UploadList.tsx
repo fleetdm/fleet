@@ -1,23 +1,24 @@
 import React from "react";
+import classnames from "classnames";
 
 const baseClass = "upload-list";
 
-interface IUploadListProps {
+interface IUploadListProps<T = any> {
   /** The attribute name that is used for the react key for each list item */
-  keyAttribute: string;
-  listItems: any[]; // TODO: typings
-  HeadingComponent?: (props: any) => JSX.Element; // TODO: Typings
-  ListItemComponent: (props: { listItem: any }) => JSX.Element; // TODO: types
-  sortCompareFn?: (a: any, b: any) => number;
+  keyAttribute: keyof T;
+  listItems: T[];
+  HeadingComponent?: (props: any) => JSX.Element;
+  ListItemComponent: (props: { listItem: T }) => JSX.Element;
+  className?: string;
 }
 
-const UploadList = ({
+const UploadList = <T,>({
   keyAttribute,
   listItems,
   HeadingComponent,
   ListItemComponent,
-  sortCompareFn,
-}: IUploadListProps) => {
+  className,
+}: IUploadListProps<T>) => {
   const items = listItems.map((listItem) => {
     return (
       <li
@@ -28,16 +29,17 @@ const UploadList = ({
       </li>
     );
   });
+
+  const classNames = classnames(baseClass, className);
+
   return (
-    <div className={baseClass}>
+    <div className={classNames}>
       {HeadingComponent && (
         <div className={`${baseClass}__header`}>
           <HeadingComponent />
         </div>
       )}
-      <ul className={`${baseClass}__list`}>
-        {sortCompareFn ? items.sort(sortCompareFn) : items}
-      </ul>
+      <ul className={`${baseClass}__list`}>{items}</ul>
     </div>
   );
 };

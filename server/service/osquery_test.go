@@ -68,7 +68,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
 		}
@@ -1634,7 +1634,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "NEW_HW_SERIAL",
+      "hardware_serial": "NEW_HW_SRL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1701,7 +1701,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
-	assert.Equal(t, "NEW_HW_SERIAL", gotHost.HardwareSerial)
+	assert.Equal(t, "NEW_HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1748,7 +1748,7 @@ func TestDetailQueries(t *testing.T) {
 	host := &fleet.Host{
 		ID:             1,
 		Platform:       "linux",
-		HardwareSerial: "HW_SERIAL",
+		HardwareSerial: "HW_SRL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -2012,7 +2012,7 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
-	assert.Equal(t, "HW_SERIAL", gotHost.HardwareSerial)
+	assert.Equal(t, "HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -2609,7 +2609,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 

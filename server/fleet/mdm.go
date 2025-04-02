@@ -764,6 +764,7 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 type CAConfigAssetType string
 
 const (
+	CAConfigNDES            CAConfigAssetType = "ndes"
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 )

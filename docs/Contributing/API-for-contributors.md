@@ -12,6 +12,7 @@
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Users](#users)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
@@ -573,6 +574,12 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
 - [SCEP proxy](#scep-proxy)
+- [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
+- [Connect Android Enterprise](#connect-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
+- [Create Android enrollment token](#create-android-enrollment-token)
+- [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
+- [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -1277,7 +1284,127 @@ Content-Type: application/octet-stream
 
 `/mdm/scep/proxy/{identifier}`
 
-This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID,caName` (URL escaped).
+
+### Get Android Enterprise signup URL
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enterprise_signup_url": "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=S7512150D1D59A3BK"
+}
+```
+
+### Connect Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to connect (bind) Android Enterprise to Fleet and to turn on Android MDM features.
+
+`GET /api/v1/fleet/android_enterprise/connect/:token`
+
+This is callback URL that will be open after user completes Google's signup flow. It will self-close and return user to settings page.
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| token | string | path | **Required.** The signup token associated with Android Enterprise in Fleet. |
+| enterpriseToken | string | query | **Required.** The enterprise token that's returned from Google API. |
+
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/connect/6177a9cb410ff61f20015ad?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
+
+##### Default response
+
+`Status: 200`
+
+```
+<html><!-- self-closing page --></html>
+```
+
+### Delete Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise/`
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
+
+### Create Android enrollment token
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
+
+`POST /api/v1/fleet/android_enterprise/enrollment_token`
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| enroll_secret | string | query | **Required.** The enroll secret of a team in Fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enrollment_token": "OJDDNCYSEZPAUZZOXHDF",
+  "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF"
+}
+```
+
+### Get Android Enterprise server-sent event
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+##### Default response
+
+`Status: 200`
+
+```
+Android Enterprise successfully connected
+```
+
+### Android Enterprise PubSub push endpoint
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
+
+`POST /api/v1/fleet/android_enterprise/pubsub`
+
 
 ## Get or apply configuration files
 
@@ -2909,6 +3036,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
 - [Get device's software](#get-devices-software)
 - [Get device's policies](#get-devices-policies)
+- [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
@@ -3190,6 +3318,68 @@ Lists the policies applied to the current device.
 }
 ```
 
+#### Get device's certificates
+
+Available for macOS, iOS, and iPadOS hosts only. Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+
+
+Lists the certificates installed on the current device.
+
+`GET /api/v1/fleet/device/{token}/certificates`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/certificates`
+
+#### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificates": [
+    {
+      "id": 3,
+      "not_valid_after": "2021-08-19T02:02:17Z",
+      "not_valid_before": "2021-08-19T02:02:17Z",
+      "certificate_authority": true,
+      "common_name": "FleetDM",
+      "key_algorithm": "rsaEncryption",
+      "key_strength": 2048,
+      "key_usage": "CRL Sign, Key Cert Sign",
+      "serial": 1,
+      "signing_algorithm": "sha256WithRSAEncryption",
+      "subject": {
+        "country": "US",
+        "organization": "Fleet Device Management Inc.",
+        "organizational_unit": "Fleet Device Management Inc.",
+        "common_name": "FleetDM"
+      },
+      "issuer": {
+        "country": "US",
+        "organization": "Fleet Device Management Inc.",
+        "organizational_unit": "Fleet Device Management Inc.",
+        "common_name": "FleetDM"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
 #### Get device's API features
 
 This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
@@ -3330,7 +3520,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 |-----------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop                                                                          |
 | error_source_version  | string   | version of error_source                                                                                                                   |
-| error_timestamp       | datetime | Time in UTC that error occured                                                                                                            |
+| error_timestamp       | datetime | Time in UTC that error occurred                                                                                                            |
 | error_message         | string   | error message                                                                                                                             |
 | error_additional_info | obj      | Any additional identifiers to assist debugging                                                                                            |
 | vital                 | boolean  | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors. |
@@ -4257,4 +4447,102 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+## Users
+
+### Update user-specific UI settings
+
+`PATCH /api/v1/fleet/users/:id`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| settings  | object   | body  | The updated user settings. |
+
+#### Example
+
+`PATCH /api/v1/fleet/users/1`
+```json
+{
+  "hidden_host_columns": ["hostname"]
+}
+```
+
+##### Default response
+* Note that user settings are *not* included in this response. See below `GET`s for how to get user settings.
+`Status: 200`
+```json
+{
+    "user": {
+        "created_at": "2025-01-08T01:04:23Z",
+        "updated_at": "2025-01-09T00:08:19Z",
+        "id": 1,
+        "name": "Sum Bahdee",
+        "email": "sum@org.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "mfa_enabled": false,
+        "global_role": "admin",
+        "api_only": false,
+        "teams": []
+    }
+}
+```
+
+### Include settings when getting a user
+
+`GET /api/v1/fleet/users/:id?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/users/2/?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
+```
+
+### Include settings when getting current user
+
+`GET /api/v1/fleet/me/?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/me?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
 ```

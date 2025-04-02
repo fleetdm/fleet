@@ -72,6 +72,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
+		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 	}
@@ -3552,6 +3553,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 				require.Equal(t, e.AppStoreApp.AppStoreID, g.AppStoreApp.AppStoreID)
 				require.Equal(t, e.AppStoreApp.Name, g.AppStoreApp.Name)
 				require.Equal(t, e.AppStoreApp.Version, g.AppStoreApp.Version)
+				require.Equal(t, e.AppStoreApp.Platform, g.AppStoreApp.Platform)
 				if e.AppStoreApp.LastInstall != nil {
 					require.Equal(t, e.AppStoreApp.LastInstall.InstallUUID, g.AppStoreApp.LastInstall.InstallUUID)
 					require.Equal(t, e.AppStoreApp.LastInstall.CommandUUID, g.AppStoreApp.LastInstall.CommandUUID)
@@ -3835,7 +3837,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "b",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", Platform: "darwin", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3844,7 +3846,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i0",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstalled),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", Platform: "darwin", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi2InstallUUID}},
 	}
 	expected[i0.Name+i0.Source] = i0
 
@@ -3852,7 +3854,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i1",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3InstallUUID}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3InstallUUID}},
 	}
 	expected[i1.Name+i1.Source] = i1
 
@@ -3861,7 +3863,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source: "apps",
 		Status: expectStatus(fleet.SoftwareUninstallPending),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-5.pkg", Version: "v5.0.0", SelfService: ptr.Bool(false),
+			Name: "installer-5.pkg", Version: "v5.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
 			LastInstall:   &fleet.HostSoftwareInstall{InstallUUID: hostSwi6InstallUUID},
 			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi6UninstallUUID},
 		},
@@ -3873,7 +3875,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source: "apps",
 		Status: expectStatus(fleet.SoftwareUninstallFailed),
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-6.pkg", Version: "v6.0.0", SelfService: ptr.Bool(false),
+			Name: "installer-6.pkg", Version: "v6.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
 			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi7UninstallUUID},
 		},
 	}
@@ -3884,7 +3886,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Source: "apps",
 		Status: nil,
 		SoftwarePackage: &fleet.SoftwarePackageOrApp{
-			Name: "installer-7.pkg", Version: "v7.0.0", SelfService: ptr.Bool(false),
+			Name: "installer-7.pkg", Version: "v7.0.0", Platform: "darwin", SelfService: ptr.Bool(false),
 			LastUninstall: &fleet.HostSoftwareUninstall{ExecutionID: hostSwi8UninstallUUID},
 		},
 	}
@@ -3902,7 +3904,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i2",
 		Source:          "apps",
 		Status:          nil,
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", SelfService: ptr.Bool(false)},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", Platform: "darwin", SelfService: ptr.Bool(false)},
 	}
 	expected[i2.Name+i2.Source] = i2
 
@@ -3910,7 +3912,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i3",
 		Source:          "apps",
 		Status:          nil,
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-4.pkg", Version: "v4.0.0", SelfService: ptr.Bool(false)},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-4.pkg", Version: "v4.0.0", Platform: "darwin", SelfService: ptr.Bool(false)},
 	}
 	expected[i3.Name+i3.Source] = i3
 
@@ -3969,7 +3971,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "b",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallFailed),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", Platform: "darwin", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi1InstallUUID}},
 		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
 			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
 		},
@@ -3978,7 +3980,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:            "i1",
 		Source:          "apps",
 		Status:          expectStatus(fleet.SoftwareInstallPending),
-		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3PendingInstallUUID}},
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: hostSwi3PendingInstallUUID}},
 	}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
 	expectedAvailableOnly[i1.Name+i1.Source] = expected[i1.Name+i1.Source]
@@ -4107,13 +4109,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -4127,7 +4129,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(true)},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "darwin", SelfService: ptr.Bool(true)},
 	}
 
 	expectedAvailableOnly["vpp1apps"] = expected["vpp1apps"]
@@ -4178,7 +4180,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			Name:        "vpp1",
 			Source:      "apps",
 			Status:      expectStatus(fleet.SoftwareInstallPending),
-			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
+			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
 		},
 	}, sw, true)
 
@@ -4202,13 +4204,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			Name:            "i1",
 			Source:          "apps",
 			Status:          expectStatus(fleet.SoftwareInstallPending),
-			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI1UUID}},
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI1UUID}},
 		},
 		"i2apps": {
 			Name:            "i2",
 			Source:          "apps",
 			Status:          expectStatus(fleet.SoftwareInstallPending),
-			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI2UUID}},
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", Platform: "darwin", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI2UUID}},
 		},
 	}
 	compareResults(expectedOther, sw, true)
@@ -4486,6 +4488,7 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 				require.Equal(t, e.AppStoreApp.AppStoreID, g.AppStoreApp.AppStoreID)
 				require.Equal(t, e.AppStoreApp.Name, g.AppStoreApp.Name)
 				require.Equal(t, e.AppStoreApp.Version, g.AppStoreApp.Version)
+				require.Equal(t, e.AppStoreApp.Platform, g.AppStoreApp.Platform)
 				if e.AppStoreApp.LastInstall != nil {
 					require.Equal(t, e.AppStoreApp.LastInstall.InstallUUID, g.AppStoreApp.LastInstall.InstallUUID)
 					require.Equal(t, e.AppStoreApp.LastInstall.CommandUUID, g.AppStoreApp.LastInstall.CommandUUID)
@@ -4606,13 +4609,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp1",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstalled),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
 	}
 	expected["vpp2ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
 		Source:      "ios_apps",
 		Status:      expectStatus(fleet.SoftwareInstallPending),
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, Platform: "ios", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
 	}
 
 	opts.IncludeAvailableForInstall = false
@@ -4626,13 +4629,13 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 		Name:        "vpp3",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, SelfService: ptr.Bool(false)},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3, Platform: "ios", SelfService: ptr.Bool(false)},
 	}
 	expected["vpp4ios_apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp4",
 		Source:      "ios_apps",
 		Status:      nil,
-		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, SelfService: ptr.Bool(false)},
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp4, Platform: "ios", SelfService: ptr.Bool(false)},
 	}
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly["vpp1ios_apps"] = expected["vpp1ios_apps"]
@@ -5513,6 +5516,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		installer1.Filename: {
 			Name:        installer1.Filename,
 			Version:     installer1.Version,
+			Platform:    installer1.Platform,
 			SelfService: ptr.Bool(false),
 		},
 	}
@@ -5612,6 +5616,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	expectedInstallers[installer2.Filename] = &fleet.SoftwarePackageOrApp{
 		Name:        installer2.Filename,
 		Version:     installer2.Version,
+		Platform:    installer2.Platform,
 		SelfService: ptr.Bool(false),
 	}
 
@@ -5682,6 +5687,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	expectedInstallers[installer3.Filename] = &fleet.SoftwarePackageOrApp{
 		Name:        installer3.Filename,
 		Version:     installer3.Version,
+		Platform:    installer3.Platform,
 		SelfService: ptr.Bool(false),
 	}
 
@@ -5760,6 +5766,349 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.False(t, scoped)
 }
 
+func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// filter by only vulnerable software
+	vulnerableOnlyOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		VulnerableOnly: true,
+	}
+	// filter by has known exploit
+	knownExploitOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		VulnerableOnly: true,
+		KnownExploit:   true,
+	}
+	// filter by min CVSSScore
+	minCVSSScoreOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		VulnerableOnly: true,
+		MinimumCVSS:    2.0,
+	}
+	// filter by max CVSSScore
+	maxCVSSScoreOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		VulnerableOnly: true,
+		MaximumCVSS:    1.5,
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// create a user
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// create a host on team
+	tmHost := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, tmHost, false)
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{tmHost.ID})
+	require.NoError(t, err)
+	tmHost.TeamID = &tm.ID
+
+	// add software to the host
+	software := []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "ios_apps"},
+		{Name: "b", Version: "0.0.2", Source: "apps"},
+	}
+	byNSV := map[string]fleet.Software{}
+	for _, s := range software {
+		byNSV[s.Name+s.Source+s.Version] = s
+	}
+
+	mutationResults, err := ds.UpdateHostSoftware(ctx, tmHost.ID, software)
+	for _, m := range mutationResults.Inserted {
+		s, ok := byNSV[m.Name+m.Source+m.Version]
+		assert.True(t, ok)
+		s.ID = m.ID
+		byNSV[s.Name+s.Source+s.Version] = s
+
+	}
+	require.NoError(t, err)
+	assert.Len(t, mutationResults.Inserted, len(software))
+
+	getKey := func(i int) string {
+		return software[i].Name + software[i].Source + software[i].Version
+	}
+	a := getKey(0)
+	b := getKey(1)
+	// add vulnerabilities
+	vulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: byNSV[a].ID, CVE: "CVE-a-0001"},
+		{SoftwareID: byNSV[b].ID, CVE: "CVE-b-0002"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	// add meta around vulnerabilities
+	cveMeta := []fleet.CVEMeta{
+		{
+			CVE:              "CVE-a-0001",
+			CVSSScore:        ptr.Float64(2.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(now.Add(-2 * time.Hour)),
+			Description:      "description for CVE-a-0001",
+		},
+		{
+			CVE:              "CVE-b-0002",
+			CVSSScore:        ptr.Float64(1.0),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now),
+			Description:      "description for CVE-b-0002",
+		},
+	}
+	err = ds.InsertCVEMeta(context.Background(), cveMeta)
+	require.NoError(t, err)
+	swPaths := map[string]struct{}{}
+	err = ds.UpdateHostSoftwareInstalledPaths(ctx, tmHost.ID, swPaths, mutationResults)
+	require.NoError(t, err)
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	// Ensure that software "a" & "b" are returned as they are vulnerable
+	require.NoError(t, ds.LoadHostSoftware(ctx, tmHost, false))
+	sw, _, err := ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// last_software_install
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerTm1, installerTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr1,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		TeamID:          &tm.ID,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                tmHost.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+	software = append(software, fleet.Software{
+		Name:    "file1",
+		Version: "1.0",
+		Source:  "apps",
+		TitleID: &installerTitleID,
+	})
+	mutationResults, err = ds.UpdateHostSoftware(ctx, tmHost.ID, software)
+	require.NoError(t, err)
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	// set up vpp
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
+
+	// last_vpp_install
+	vPPApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	require.NoError(t, err)
+	vpp1 := va1.AdamID
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), tmHost.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// Insert software entry for vpp app
+	result, err := ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	insertedID, err := result.LastInsertId()
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure a different created_at timestamp
+
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// upcoming_software_install
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo",
+		Source:          "bar",
+		InstallScript:   "echo",
+		TeamID:          &tm.ID,
+		Filename:        "foo.pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	// insert into software without adding to host
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo")),
+	)
+	require.NoError(t, err)
+	// pending install request
+	_, err = ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// upcoming_software_uninstall
+	installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo2",
+		Source:          "bar2",
+		InstallScript:   "cat",
+		TeamID:          &tm.ID,
+		Filename:        "foo2.pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	// insert into software without adding to host
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo2", "1.0.0", "bar2", &titleID, hex.EncodeToString([]byte("foo2")),
+	)
+	require.NoError(t, err)
+	// pending install request
+	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID)
+	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// upcoming_vpp_install
+	pendingVPPApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}},
+		Name:             "vpp2",
+		BundleIdentifier: "com.app.vpp2",
+	}
+	va2, err := ds.InsertVPPAppWithTeam(ctx, pendingVPPApp, &tm.ID)
+	require.NoError(t, err)
+	vpp2 := va2.AdamID
+	createVPPAppInstallRequest(t, ds, tmHost, vpp2, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), tmHost.ID, "")
+	require.NoError(t, err)
+	// Insert software entry for vpp app
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		pendingVPPApp.Name, pendingVPPApp.LatestVersion, "apps", pendingVPPApp.BundleIdentifier, pendingVPPApp.TitleID, hex.EncodeToString([]byte("vpp2")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure a different created_at timestamp
+
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// add vulnerabilities to last_software_install and last_vpp_install
+	vulns = []fleet.SoftwareVulnerability{
+		{SoftwareID: mutationResults.Inserted[0].ID, CVE: "CVE-file1-0003"},
+		{SoftwareID: uint(insertedID), CVE: "CVE-vpp1-0004"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+	// add meta around vulnerabilities
+	cveMeta = []fleet.CVEMeta{
+		{
+			CVE:              "CVE-file1-0003",
+			CVSSScore:        ptr.Float64(1.7),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now.Add(-2 * time.Hour)),
+			Description:      "description for CVE-file1-0003",
+		},
+		{
+			CVE:              "CVE-vpp1-0004",
+			CVSSScore:        ptr.Float64(1.8),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now),
+			Description:      "description for CVE-vpp1-0004",
+		},
+	}
+	err = ds.InsertCVEMeta(context.Background(), cveMeta)
+	require.NoError(t, err)
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, knownExploitOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, software[0].Name, sw[0].Name) // should only return "a"
+
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, minCVSSScoreOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, software[0].Name, sw[0].Name) // should only return "a"
+
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, maxCVSSScoreOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 1)
+	require.Equal(t, software[1].Name, sw[0].Name) // should only return "b"
+
+	matchingsOpts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		VulnerableOnly: true,
+		MinimumCVSS:    1.5,
+		MaximumCVSS:    2.0,
+	}
+
+	// should only return "file1" and "vpp1"
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, matchingsOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, "file1", sw[0].Name)
+	require.Equal(t, "vpp1", sw[1].Name)
+}
+
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -5820,10 +6169,12 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 			Name:        installer1.Filename,
 			Version:     installer1.Version,
 			SelfService: ptr.Bool(false),
+			Platform:    "darwin",
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
 			SelfService: ptr.Bool(false),
+			Platform:    "darwin",
 		},
 	}
 

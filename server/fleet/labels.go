@@ -104,6 +104,7 @@ func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
 type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
+	AuthorID            *uint               `json:"author_id" db:"author_id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
@@ -199,8 +200,8 @@ func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []stri
 
 // LabelIdent is a simple struct to hold the ID and Name of a label
 type LabelIdent struct {
-	LabelID   uint
-	LabelName string
+	LabelID   uint   `json:"id"`
+	LabelName string `json:"name"`
 }
 
 // LabelScope identifies the manner by which labels may be used to scope entities, such as MDM

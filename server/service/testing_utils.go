@@ -17,6 +17,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -42,7 +43,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -69,6 +69,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage        nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
+		scepConfigService                               = eeservice.NewSCEPConfigService(logger, nil)
+		digiCertService                                 = digicert.NewService(digicert.WithLogger(logger))
 
 		mdmStorage            fleet.MDMAppleStore
 		mdmPusher             nanomdm_push.Pusher
@@ -157,6 +159,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			}
 		}
 	}
+	if len(opts) > 0 && opts[0].SCEPConfigService != nil {
+		scepConfigService = opts[0].SCEPConfigService
+	}
+	if len(opts) > 0 && opts[0].DigiCertService != nil {
+		digiCertService = opts[0].DigiCertService
+	}
 
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
@@ -190,6 +198,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		cronSchedulesService,
 		wstepManager,
+		scepConfigService,
+		digiCertService,
 	)
 	if err != nil {
 		panic(err)
@@ -341,6 +351,8 @@ type TestServerOpts struct {
 	EnableSCEPProxy       bool
 	WithDEPWebview        bool
 	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
+	SCEPConfigService     fleet.SCEPConfigService
+	DigiCertService       fleet.DigiCertService
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -399,24 +411,21 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			require.NoError(t, err)
 		}
 		if opts[0].EnableSCEPProxy {
+			var timeout *time.Duration
+			if opts[0].SCEPConfigService != nil {
+				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				if ok {
+					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
+					timeout = scepConfig.Timeout
+				}
+			}
 			err := RegisterSCEPProxy(
 				rootMux,
 				ds,
 				logger,
+				timeout,
 			)
 			require.NoError(t, err)
-			origValidateNDESSCEPURL := validateNDESSCEPURL
-			origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
-			t.Cleanup(func() {
-				validateNDESSCEPURL = origValidateNDESSCEPURL
-				validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
-			})
-			validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-				return nil
-			}
-			validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-				return nil
-			}
 		}
 	}
 

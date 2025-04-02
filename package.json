@@ -18,7 +18,7 @@
   "dependencies": {
     "@types/dompurify": "3.0.2",
     "ace-builds": "1.4.12",
-    "axios": "1.7.4",
+    "axios": "1.8.3",
     "content-disposition": "0.5.4",
     "core-js": "3.25.1",
     "date-fns": "3.6.0",
@@ -131,6 +131,7 @@
     "babel-plugin-dynamic-import-node": "2.3.3",
     "bourbon": "5.1.0",
     "classnames": "2.2.5",
+    "compare-versions": "6.1.1",
     "css-loader": "6.7.3",
     "esbuild-loader": "2.18.0",
     "eslint": "7.32.0",
@@ -170,7 +171,7 @@
     "tslint": "5.10.0",
     "tslint-react": "3.6.0",
     "typescript": "4.7",
-    "webpack": "5.78.0",
+    "webpack": "5.98.0",
     "webpack-cli": "5.0.1",
     "webpack-notifier": "1.12.0"
   },

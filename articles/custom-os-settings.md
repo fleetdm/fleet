@@ -2,13 +2,13 @@
 
 In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
 
-Currently, Fleet only supports [system level](https://support.apple.com/guide/deployment/intro-to-mdm-profiles-depc0aadd3fe/1/web/1.0#:~:text=Device%20and%20user%20settings%20vary%20according%20to%20where%20they%20reside%3A%20Settings%20installed%20at%20the%20system%20level%20reside%20in%20a%20device%20channel.%20Settings%20installed%20for%20a%20user%20reside%20in%20a%20user%20channel.) configuration profiles.
+Currently, Fleet only supports system (device) level configuration profiles.
 
 ## Enforce OS settings
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
-For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles.
+For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
 
 For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). Learn more about Windows CSPs [here](https://fleetdm.com/guides/creating-windows-csps).
 
@@ -20,9 +20,7 @@ Fleet UI:
 
 3. Select **Upload** and choose your configuration profile.
 
-4. To modify the OS setting, first remove the old configuration profile and then add the new one.
-
-> On macOS, iOS, and iPadOS, removing a configuration profile will remove enforcement of the OS setting.
+4. To edit the OS setting, first remove the old configuration profile and then add the new one. On macOS, iOS, and iPadOS, removing a configuration profile will remove enforcement of the OS setting.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile)
 

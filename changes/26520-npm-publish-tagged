@@ -1,0 +1,1 @@
+- Stop fleetctl npm publishing script from tagging patch releases for old versions as "latest"

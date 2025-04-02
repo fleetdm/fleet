@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -474,8 +475,12 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	}
 }
 
-func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
-	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...string) { //nolint: unused
+	colList := "*"
+	if len(cols) > 0 {
+		colList = strings.Join(cols, ", ")
+	}
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT %s FROM %s`, colList, tableName))
 	require.NoError(t, err)
 	defer rows.Close()
 
@@ -510,6 +515,15 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint
 	}
 	require.NoError(t, rows.Err())
 	t.Logf("<< dumping table %s completed", tableName)
+}
+
+func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
+	syncML := generateDummyWindowsProfile(uuid)
+	checksum := md5.Sum(syncML)
+	return fleet.MDMWindowsProfileContents{
+		SyncML:   syncML,
+		Checksum: checksum[:],
+	}
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {

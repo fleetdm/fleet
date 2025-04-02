@@ -151,9 +151,6 @@ module.exports = {
           } else if (issue.labels.some(label => label.name === '~released bug')) {
             allBugsWithReleasedLabel.push(issue);
             daysSinceReleasedBugsWereOpened.push(timeOpenInDays);
-          } else {
-            // If not labeled as a released or unreleased bug, log a warning.
-            sails.log.warn('Issue #'+issue.number+' is labeled as a bug but is not labeled as released or unreleased.');
           }
 
         }
@@ -256,7 +253,10 @@ module.exports = {
           // Get commits on this PR.
           // [?] https://docs.github.com/en/rest/commits/commits#list-commits
           let commitsOnThisPullRequest = await sails.helpers.http.get(pullRequest.commits_url, {}, baseHeaders).retry();
-
+          if(commitsOnThisPullRequest.length === 0) {
+            sails.log.warn(`A pull request #${pullRequest.number} (${pullRequest.html_url}) was found that has no commits. This PR will be not counted in the commit to merge time metric.`);
+            return;
+          }
           // Create a new Date from the timestamp of the first commit on this pull request.
           let firstCommitAt = new Date(commitsOnThisPullRequest[0].commit.author.date); // https://docs.github.com/en/rest/commits/commits#list-commits--code-samples
           // Get the amount of time this issue has been open in milliseconds.

@@ -10,9 +10,15 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/smallstep/pkcs7"
 )
+
+var ProfileVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_(?P<name1>\w+))|(\${FLEET_VAR_(?P<name2>\w+)})`)
+
+// ProfileDataVariableRegex matches variables present in <data> section of Apple profile, which may cause validation issues.
+var ProfileDataVariableRegex = regexp.MustCompile(`(\$FLEET_VAR_DIGICERT_DATA_(?P<name1>\w+))|(\${FLEET_VAR_DIGICERT_DATA_(?P<name2>\w+)})`)
 
 // MaxProfileRetries is the maximum times an install profile command may be
 // retried, after which marked as failed and no further attempts will be made
@@ -59,7 +65,7 @@ func GetRawProfilePlatform(profile []byte) string {
 		return "darwin"
 	}
 
-	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") {
+	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") || prefixMatches(trimmedProfile, "<!--") {
 		return "windows"
 	}
 

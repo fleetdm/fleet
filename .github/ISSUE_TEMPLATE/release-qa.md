@@ -183,9 +183,12 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
 
-Using the migration scripts located in fleet/test/upgrade/
-1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
-2. Upgrade test returns an 'OK' response.
+Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-upgrade-test.yml
+1. Using the most recent stable version of Fleet and `main`, click `Run workflow`
+2. Enter the Docker tag of Fleet starting version, e.g. 'v4.64.2'
+3. Enter the Docker tag of Fleet version to upgrade to, e.g. 'rc-minor-fleet-v4.65.0'
+4. Click `Run workflow`.
+5. Action should complete successfully.
 </td><td>pass/fail</td></tr>
 </table>
 

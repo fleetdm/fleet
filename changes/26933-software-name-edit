@@ -1,1 +1,0 @@
-* Added `PATCH /api/latest/fleet/software/titles/:id/name` endpoint for cleaning up incorrect software titles for software that has a bundle ID.

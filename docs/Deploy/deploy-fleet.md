@@ -17,7 +17,7 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
     </a>
 </div>
 
-Want to host Fleet yourself? Check out the [reference architecture](https://fleetdm.com/docs/deploy/reference-architectures#reference-architectures).
+Want to enable premium features?  You can easily [configure your license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key) as an environment variable.
 
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
@@ -52,13 +52,14 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 3. Click "**Deploy Blueprint.**" Render will provision your services, which should take less than five minutes. 
 
-4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services. 
+4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services.
 
-5. Click on the "**Fleet**" service to reveal the Fleet URL.
+5. From the "**Fleet**" service, click on the Fleet URL to open your Fleet instance. Then follow the on-screen instructions to set up your Fleet account.
 
-6. Click on the URL to open your Fleet instance, then follow the on-screen instructions to set up your Fleet account.
+> **Add a license key:** After successful deployment, navigate to the environment variables section of the Render blueprint to manually add your license key. 
 
-Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+> Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+
 
 <h2 style="display: none;" class="markdown-heading"><a href="#aws" class="markdown-link">AWS</a></h2>
 <h2 id="aws">Deploy at scale with AWS and Terraform</h2>
@@ -66,6 +67,7 @@ Support for add/install software features is coming soon. Get [commmunity suppor
 The simplest way to get started with Fleet at scale is to use AWS with Terraform.
 
 This workflow takes about 30 minutes to complete and supports between 10 and 350,000 hosts.
+
 
 ### Prerequisites
 
@@ -89,12 +91,11 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     # Change these to match your environment.
     domain_name = "fleet.example.com"
     vpc_name = "fleet-vpc"
-    osquery_carve_bucket_name   = "fleet-osquery-carve"
-    osquery_results_bucket_name = "fleet-osquery-results"
-    osquery_status_bucket_name  = "fleet-osquery-status"
     ```
 
-    > Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).
+    > **Note:** Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).
+
+    > **Add a license key:** You can include your license key as an environment variable during this step.
 
 3. Log in to [your AWS account](https://aws.amazon.com/iam/) using your IAM identity.
 
