@@ -472,14 +472,14 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 
 ## Request a team offsite
 
-Our goal is for each team at Fleet to conduct an offsite once per year. Team offsites provide valuable opportunities for the team to build greater cohesion, align on strategic objects for the coming year, and get to know each other outside of work. Offsites help build trust, which is the foundation of a highly functional team.
+Our goal is for each team at Fleet to conduct an offsite once per year. Team offsites provide valuable opportunities to build cohesion, align on objectives for the coming year, and get to know each other outside of work. Offsites help build trust, which is the foundation of an effective team.
 
 1. Make a copy of the [offsite budget template](https://docs.google.com/spreadsheets/d/1oe1wAFzerXlKghZaZtdlA7QrWBv9iZmHThlFYqfVzRQ/edit?usp=sharing) document.
 2. Populate the document with the proposed dates and location. 
 3. Populate the table with all attendees, using the provided budget guidance for each category. 
 4. Share the document with the DRI for your department.
 
-The DRI for your department will review the proposed budget and provide approval or request revisions. 
+The DRI for your department will review the proposed budget with the e-group and provide approval or request revisions. 
 
 > Look for central locations near major international airports to minimize travel. Avoid high cost areas during peak travel times to minimize cost.
 
@@ -517,7 +517,7 @@ The agenda of each offsite varies based on number of days and the team. Below is
     - [Casual dinner](https://en.wikipedia.org/wiki/Types_of_restaurant#Casual_dining_/_slow_casual) dinner with all product groups.
 - **Day 3:**
   - Morning: 
-    - Hackathon using expedited drafting to build real stories. 
+    - Hackathon using expedited drafting to build real user stories. 
   - Break for lunch.
   - Afternoon: 
     - Continue hackathon.
