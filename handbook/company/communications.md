@@ -700,18 +700,7 @@ Offsites are:
   - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
   - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
 
-Before spending any money on an offsite, inviting people, booking travel, or otherwise committing the company:
-  - **Make a plan:** Write a Google Doc with your proposed plan, listing:
-    - all participants with their current work locations
-    - tentative dates
-    - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
-    - a detailed agenda of how time will be spent
-  - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
-
-After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
-  - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
-  - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
+Follow the process to [request an offsite]([url](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite)) and [plan an offsite]([url](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite)).
 
 
 ### Attending conferences
