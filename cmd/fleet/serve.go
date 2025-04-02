@@ -22,6 +22,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
+	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -1171,10 +1172,13 @@ the way that the Fleet server works.
 				}
 			}
 
-			// SCEP proxy (for NDES, etc.)
 			if license.IsPremium() {
+				// SCEP proxy (for NDES, etc.)
 				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
+				}
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
+					initFatal(err, "setup SCIM")
 				}
 			}
 

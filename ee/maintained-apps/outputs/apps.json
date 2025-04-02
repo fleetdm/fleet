@@ -23,13 +23,6 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
-      "name": "Adobe Acrobat Reader",
-      "slug": "adobe-acrobat-reader/windows",
-      "platform": "windows",
-      "unique_identifier": "Adobe Acrobat (64-bit)",
-      "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
-    },
-    {
       "name": "Box Drive",
       "slug": "box-drive/darwin",
       "platform": "darwin",
@@ -93,24 +86,10 @@
       "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
     },
     {
-      "name": "Figma",
-      "slug": "figma/windows",
-      "platform": "windows",
-      "unique_identifier": "Figma (Machine)",
-      "description": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time."
-    },
-    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.firefox",
-      "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
-    },
-    {
-      "name": "Mozilla Firefox",
-      "slug": "firefox/windows",
-      "platform": "windows",
-      "unique_identifier": "Mozilla Firefox (x64 en-US)",
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
@@ -135,13 +114,6 @@
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
-      "name": "Microsoft Edge",
-      "slug": "microsoft-edge/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Edge",
-      "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
-    },
-    {
       "name": "Microsoft Excel",
       "slug": "microsoft-excel/darwin",
       "platform": "darwin",
@@ -153,13 +125,6 @@
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.teams2",
-      "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
-    },
-    {
-      "name": "Microsoft Teams",
-      "slug": "microsoft-teams/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Teams",
       "description": "Microsoft Teams is an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
     },
     {
@@ -177,13 +142,6 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
-      "name": "Notion",
-      "slug": "notion/windows",
-      "platform": "windows",
-      "unique_identifier": "Notion",
-      "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
-    },
-    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -191,24 +149,10 @@
       "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
     },
     {
-      "name": "Postman",
-      "slug": "postman/windows",
-      "platform": "windows",
-      "unique_identifier": "Postman",
-      "description": "Postman is a collaboration platform for API development that simplifies building, testing, and sharing APIs."
-    },
-    {
       "name": "Slack",
       "slug": "slack/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyspeck.slackmacgap",
-      "description": "Slack is a team communication and collaboration software for modern workplaces"
-    },
-    {
-      "name": "Slack",
-      "slug": "slack/windows",
-      "platform": "windows",
-      "unique_identifier": "Slack (Machine - MSI)",
       "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {

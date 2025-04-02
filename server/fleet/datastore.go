@@ -679,6 +679,7 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
@@ -2012,6 +2013,22 @@ type Datastore interface {
 	// Android
 
 	AndroidDatastore
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// CreateScimUser creates a new SCIM user in the database
+	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// ScimUserByID retrieves a SCIM user by ID
+	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
+	// ScimUserByUserName retrieves a SCIM user by username
+	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
+	// ReplaceScimUser replaces an existing SCIM user in the database
+	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	// DeleteScimUser deletes a SCIM user from the database
+	DeleteScimUser(ctx context.Context, id uint) error
+	// ListScimUsers retrieves a list of SCIM users with optional filtering
+	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
 }
 
 type AndroidDatastore interface {
