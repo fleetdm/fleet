@@ -535,7 +535,8 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		}
 
 		// Make sure any labels exist.
-		labels := append(policy.LabelsIncludeAny, policy.LabelsExcludeAny...)
+		labels := policy.LabelsIncludeAny
+		labels = append(labels, policy.LabelsExcludeAny...)
 		if len(labels) > 0 {
 			labelsMap, err := svc.ds.LabelsByName(ctx, labels)
 			if err != nil {

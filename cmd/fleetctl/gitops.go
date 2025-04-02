@@ -352,15 +352,6 @@ func gitopsCommand() *cli.Command {
 	}
 }
 
-// Merge sets of label names.
-func concatLabels(labelArrays ...[]string) []string {
-	var result []string
-	for _, arr := range labelArrays {
-		result = append(result, arr...)
-	}
-	return result
-}
-
 // Given a set of referenced labels and info about who is using them, update a provided usage map.
 func updateLabelUsage(labels []string, ident string, usageType string, currentUsage map[string][]LabelUsage) {
 	for _, label := range labels {
@@ -387,7 +378,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := errors.New(fmt.Sprintf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path))
+				err := fmt.Errorf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path)
 
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
@@ -417,7 +408,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(setting.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, errors.New(fmt.Sprintf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.URL))
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.URL)
 			}
 			labels = setting.LabelsExcludeAny
 		}
@@ -432,7 +423,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(setting.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, errors.New(fmt.Sprintf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.AppStoreID))
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.AppStoreID)
 			}
 			labels = setting.LabelsExcludeAny
 		}
@@ -452,7 +443,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		}
 		if len(policy.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, errors.New(fmt.Sprintf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name))
+				return nil, fmt.Errorf("Policy '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", policy.Name)
 			}
 			labels = policy.LabelsExcludeAny
 		}
