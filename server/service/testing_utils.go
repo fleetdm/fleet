@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -256,15 +255,11 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	userID := uint(1)
 	for _, key := range keys {
 		u := testUsers[key]
-		role := fleet.RoleObserver
-		if strings.Contains(u.Email, "admin") {
-			role = fleet.RoleAdmin
-		}
 		user := &fleet.User{
 			ID:         userID, // We need to set this in case ds is a mocked Datastore.
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
-			GlobalRole: &role,
+			GlobalRole: u.GlobalRole,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
