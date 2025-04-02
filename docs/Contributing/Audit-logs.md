@@ -1719,7 +1719,7 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "Marko's MacBook Pro",
-	"software_title": "set-timezone.sh",
+	"script_name": "set-timezone.sh",
 }
 ```
 
