@@ -4608,7 +4608,7 @@ None.
 }
 ```
 
-The field `configuration_completed` will be `true` after the admin has consented permissions for Fleet's Multi-tenant application to operate on their Tenant and the fleetdm.com proxy has finalized the setup of the integration.
+The field `configuration_completed` will be `true` after the admin has consented permissions for Fleet's multi-tenant application to operate on their tenant and the fleetdm.com proxy has finalized the setup of the integration.
 
 ### Delete Microsoft Entra conditional access
 
