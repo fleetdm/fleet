@@ -21,7 +21,7 @@ For IT Admins:
 - 🛡️ Integration with Microsoft Entra for conditional access
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📅 Patch apps when end users are free
-- ⬇️ Downloadable agents (fleetd)
+- ⬇️ Easier agent downloads
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - ⏳ See upcoming and past MDM command history
