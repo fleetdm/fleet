@@ -802,7 +802,54 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		}
 
 		if act.Activated {
-			// TODO: based on activity type, must set as canceled in the respective table
+			switch act.ActivityType {
+			case "script":
+				const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+				}
+
+			case "software_install":
+				const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+				}
+
+			case "software_uninstall":
+				// uninstall is a combination of software install and script result,
+				// with the same execution id.
+				const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updSoftwareStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+				}
+
+				const updScriptStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updScriptStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+				}
+
+			case "vpp_app_install":
+				const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
+				if _, err := tx.ExecContext(ctx, updVPPStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
+				}
+
+				// must get the host uuid for the nano table update
+				const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
+				var hostUUID string
+				if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+					return ctxerr.Wrap(ctx, err, "get host uuid")
+				}
+				const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
+				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
+				}
+
+			default:
+				// cannot happen since activity type comes from the UNION query above,
+				// but can be useful to detect a missing case in tests
+				panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
+			}
 		}
 
 		// must activate the next activity, if any (this should be required only if
@@ -819,7 +866,9 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		return err
 	}
 
-	// TODO: create canceled activity
+	// TODO: create canceled activity, this must be done via svc.NewActivity (not
+	// ds.NewActivity), so once canceled activities are implemented return the
+	// ready-to-insert activity struct to the caller and let svc do the rest.
 	return nil
 }
 
