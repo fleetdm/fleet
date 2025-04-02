@@ -470,6 +470,11 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
 
 
+## Plan a Fleetie get together
+
+When several Fleeties are in the same geographic location, Fleet will sponsor a one-time or recurring in-person Fleetie get together. It is up to the Fleeties in each area to organize and plan their own events. The cost should not exceed $25 per attendee, and does not require pre-approval unless the cost exceeds your Brex limit.
+
+
 ## Request a team offsite
 
 Our goal is for each team at Fleet to conduct an offsite once per year. Team offsites provide valuable opportunities to build cohesion, align on objectives for the coming year, and get to know each other outside of work. Offsites help build trust, which is the foundation of an effective team.
