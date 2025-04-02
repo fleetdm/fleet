@@ -138,58 +138,6 @@ const About = ({
     );
   };
 
-  const renderDeviceUser = () => {
-    if (!deviceMapping) {
-      return null;
-    }
-
-    let displayPrimaryUser: React.ReactNode = DEFAULT_EMPTY_CELL_VALUE;
-
-    const newDeviceMapping = mapDeviceUsersForDisplay(deviceMapping);
-    if (newDeviceMapping[0]) {
-      const { email, source } = newDeviceMapping[0];
-      if (!source) {
-        displayPrimaryUser = email;
-      } else {
-        displayPrimaryUser = (
-          <span className={`${baseClass}__device-mapping__primary-user`}>
-            {email}{" "}
-            <span
-              className={`${baseClass}__device-mapping__source`}
-            >{`(${source})`}</span>
-          </span>
-        );
-      }
-    }
-    return (
-      <DataSet
-        title="Used by"
-        value={
-          <div className={`${baseClass}__used-by`}>
-            {newDeviceMapping.length > 1 ? (
-              <>
-                <span className={`${baseClass}__multiple`}>
-                  <TooltipTruncatedText value={displayPrimaryUser} />
-                </span>
-                <TooltipWrapper
-                  tipContent={getDeviceUserTipContent(newDeviceMapping)}
-                >
-                  <span className="device-mapping__more">{` +${
-                    newDeviceMapping.length - 1
-                  } more`}</span>
-                </TooltipWrapper>
-              </>
-            ) : (
-              <span className={`${baseClass}__single`}>
-                <TooltipTruncatedText value={displayPrimaryUser} />
-              </span>
-            )}
-          </div>
-        }
-      />
-    );
-  };
-
   const renderGeolocation = () => {
     const geolocation = aboutData.geolocation;
 
@@ -259,7 +207,6 @@ const About = ({
         {renderHardwareSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
-        {renderDeviceUser()}
         {renderGeolocation()}
         {renderBattery()}
       </div>
