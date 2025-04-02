@@ -1241,11 +1241,13 @@ FROM
 		ON hvsi.host_id = hvsi2.host_id AND
 			 hvsi.adam_id = hvsi2.adam_id AND
 			 hvsi.platform = hvsi2.platform AND
+			 hvsi2.canceled = 0 AND
 			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 WHERE
 	hvsi2.id IS NULL
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
+	AND hvsi.canceled = 0
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1

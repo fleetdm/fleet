@@ -2527,10 +2527,12 @@ last_vpp_install AS (
 				 hvsi.adam_id = hvsi2.adam_id AND
 				 hvsi.platform = hvsi2.platform AND
 				 hvsi2.removed = 0 AND
+				 hvsi2.canceled = 0 AND
 				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 	WHERE
 		hvsi.host_id = :host_id AND
 		hvsi.removed = 0 AND
+		hvsi.canceled = 0 AND
 		hvsi2.id IS NULL AND
 		NOT EXISTS (
 			SELECT 1
@@ -2778,7 +2780,8 @@ last_vpp_install AS (
 				WHERE
 					hvsi.host_id = :host_id AND
 					hvsi.adam_id = vat.adam_id AND
-					hvsi.removed = 0
+					hvsi.removed = 0 AND
+					hvsi.canceled = 0
 			) AND
 			-- VPP install is not upcoming on host
 			NOT EXISTS (
@@ -3285,7 +3288,7 @@ FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
 INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
+WHERE hvsi.removed = 0 AND hvsi.canceled = 0 AND ncr.status = :mdm_status_acknowledged
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":                   hostID,
