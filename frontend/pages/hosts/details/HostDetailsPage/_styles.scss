@@ -6,10 +6,9 @@
   }
 
   @media screen and (min-width: $break-md) {
-    // default grid to show for non macos, ios, or ipados hosts.
     &__details-panel.react-tabs__tab-panel--selected {
       // Must be selected to show grid
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(2, 1fr);
     }
 
     // these are used for positiong the cards in the grid. place these classes

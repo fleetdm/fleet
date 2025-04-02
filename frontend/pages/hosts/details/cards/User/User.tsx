@@ -1,5 +1,6 @@
 import React from "react";
 import classnames from "classnames";
+import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
 import { HostPlatform } from "interfaces/platform";
@@ -26,11 +27,22 @@ const baseClass = "user-card";
 interface IUserProps {
   platform: HostPlatform;
   endUsers: IHostEndUser[];
+  enableAddEndUser: boolean;
+  disableFullNameTooltip?: boolean;
+  disableGroupsTooltip?: boolean;
   className?: string;
-  onAddEndUser: () => void;
+  onAddEndUser?: () => void;
 }
 
-const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
+const User = ({
+  platform,
+  endUsers,
+  enableAddEndUser,
+  disableFullNameTooltip = false,
+  disableGroupsTooltip = false,
+  className,
+  onAddEndUser = noop,
+}: IUserProps) => {
   const classNames = classnames(baseClass, className);
 
   const userNameDisplayValues = generateUsernameValues(endUsers);
@@ -52,13 +64,15 @@ const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
-        <Button
-          className={`${baseClass}__add-user-btn`}
-          variant="text-link"
-          onClick={onAddEndUser}
-        >
-          + Add user
-        </Button>
+        {enableAddEndUser && (
+          <Button
+            className={`${baseClass}__add-user-btn`}
+            variant="text-link"
+            onClick={onAddEndUser}
+          >
+            + Add user
+          </Button>
+        )}
       </div>
 
       <div className={`${baseClass}__content`}>
@@ -76,9 +90,15 @@ const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
         {showFullName && (
           <DataSet
             title={
-              <TooltipWrapper tipContent={generateFullNameTipContent(endUsers)}>
-                Full name (IdP)
-              </TooltipWrapper>
+              disableFullNameTooltip ? (
+                "Full name (IdP)"
+              ) : (
+                <TooltipWrapper
+                  tipContent={generateFullNameTipContent(endUsers)}
+                >
+                  Full name (IdP)
+                </TooltipWrapper>
+              )
             }
             value={<UserValue values={generateFullNameValues(endUsers)} />}
           />
@@ -86,12 +106,12 @@ const User = ({ platform, endUsers, className, onAddEndUser }: IUserProps) => {
         {showGroups && (
           <DataSet
             title={
-              endUser.idp_info_updated_at === null ? (
+              disableGroupsTooltip && endUser.idp_info_updated_at !== null ? (
+                "Groups (IdP)"
+              ) : (
                 <TooltipWrapper tipContent={generateGroupsTipContent(endUsers)}>
                   Groups (IdP)
                 </TooltipWrapper>
-              ) : (
-                "Groups (IdP)"
               )
             }
             value={<UserValue values={generateGroupsValues(endUsers)} />}
