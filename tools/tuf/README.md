@@ -296,7 +296,7 @@ ACTION=release-to-production ./tools/tuf/releaser.sh
 
 ### Doing a patch release of fleetd
 
-Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of fleet locally, you check out a patch branch of fleet, e.g.:
+Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of Fleet locally, you check out a patch branch of Fleet, e.g.:
 
 ```
 git checkout rc-minor-fleetd-v1.41.1
