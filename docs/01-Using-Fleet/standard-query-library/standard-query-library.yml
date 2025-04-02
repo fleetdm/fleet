@@ -1462,53 +1462,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: Time and date are configured to be updated automatically (macOS)
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.applicationaccess' AND name='forceAutomaticDateAndTime' AND value=1 LIMIT 1;
-  bash: sudo systemsetup -getusingnetworktime 2>/dev/null | grep -q "On" && echo 1 ||
-    echo 0
-  description: "Checks that a mobile device management (MDM) solution configures the Mac to automatically update the time and date."
-  resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that enables automatic time and date configuration."
-  tags: MDM required, compliance, CIS, CIS2.2.1
-  platform: darwin
-  contributors: GuillaumeRoss,ddribeiro
-  configuration_profile: |
-    <?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-    <plist version="1.0">
-    <dict>
-      <key>PayloadContent</key>
-      <array>
-        <dict>
-          <key>PayloadDisplayName</key>
-          <string>Restrictions</string>
-          <key>PayloadIdentifier</key>
-          <string>com.apple.applicationaccess.B0EBDEA9-69D3-46CA-BB19-72B86A7111F5</string>
-          <key>PayloadType</key>
-          <string>com.apple.applicationaccess</string>
-          <key>PayloadUUID</key>
-          <string>B0EBDEA9-69D3-46CA-BB19-72B86A7111F5</string>
-          <key>PayloadVersion</key>
-          <integer>1</integer>
-          <key>forceAutomaticDateAndTime</key>
-          <true/>
-        </dict>
-      </array>
-      <key>PayloadDisplayName</key>
-      <string>Automatically configure time and date</string>
-      <key>PayloadIdentifier</key>
-      <string>com.fleetdm.automaticallyConfigureTimeAndDate.BA0A14E0-22A2-4D59-A803-BB04F374F6A3</string>
-      <key>PayloadType</key>
-      <string>Configuration</string>
-      <key>PayloadUUID</key>
-      <string>BA0A14E0-22A2-4D59-A803-BB04F374F6A3</string>
-      <key>PayloadVersion</key>
-      <integer>1</integer>
-    </dict>
-    </plist>
----
-apiVersion: v1
-kind: policy
-spec:
   name: Lock screen after inactivity of 20 minutes or less (macOS)
   query: SELECT 1 WHERE EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'askForPasswordDelay' AND valueint <= 60 LIMIT 1) AND EXISTS (SELECT CAST(value as integer(4)) valueint from managed_policies WHERE domain = 'com.apple.screensaver' AND name = 'idleTime' AND valueint <= 1140 LIMIT 1) AND EXISTS (SELECT 1 from managed_policies WHERE domain='com.apple.screensaver' AND name='askForPassword' AND value=1 LIMIT 1);
   description: "Checks that a mobile device management (MDM) solution configures the Mac to lock the screen after 20 minutes or less."
