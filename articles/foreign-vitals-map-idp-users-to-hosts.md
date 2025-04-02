@@ -160,11 +160,11 @@ To map users from Google Workspace to hosts in Fleet, do the following steps:
     }
     ```
 
-- **Name**: Google LDAP mail > email  
+- **Name**: Google LDAP mail >   
 - **Expression**:
     ```
     return {
-        "email": list_flatten(ldap.get("mail")),
+        "": list_flatten(ldap.get("mail")),
     }
     ```
 
@@ -250,19 +250,16 @@ To map users from Google Workspace to hosts in Fleet, do the following steps:
 
 ## Verify connection
 
-After following steps above, you should be able to see latest requests from your IdP to Fleet if you
-navigate to **Settings > Integrations > Identity Provider (IdP)**. 
+After following steps above, you should be able to see latest requests from your IdP to Fleet if you navigate to **Settings > Integrations > Identity Provider (IdP)**. 
 
-To verify that user information is added to a hosts, go to the host that has IdP email assigned, and
-verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
+To verify that user information is added to a host, go to the host that has IdP username assigned, and verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
 
 ### Troubleshooting
 
-If you find that information from IdP (e.g full name or groups) is missing on the host, and host has
-IdP email assigned to it, follow steps below to resolve.
+If you find that information from IdP (e.g full name or groups) is missing on the host, and host has IdP username assigned to it, follow steps below to resolve.
 
 1. Please first go to Okta, select **Directory > People**, find user that is
-missing information and make sure that it has all fields required by Fleet (username, first name and
+missing information and make sure that it has all fields required by Fleet (username, first name, and
 last name).
 2. If all required fields are present, then go to **Applications > Applications > fleet_scim_application > Provisioning > To App**, then scroll on the bottom of the page and make sure that `userName`, `givenName`, and `familyName` has value assigned to it.
 3. Otherwise make sure that all settings from instructions above were set correctly.
