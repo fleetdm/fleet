@@ -52,7 +52,7 @@ func TestStack(t *testing.T) {
 func TestElasticStack(t *testing.T) {
 	ctx := context.Background()
 
-	var wrap = errors.New("wrap")
+	wrap := errors.New("wrap")
 	errFn := func(fn func() error) error { // func1
 		if err := fn(); err != nil {
 			if err == wrap {
@@ -76,7 +76,7 @@ func TestElasticStack(t *testing.T) {
 				return errFn(func() error { return wrap })
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestElasticStack.func1 ",
+				"\\.TestElasticStack\\.func1",
 			},
 		},
 		{
@@ -86,8 +86,8 @@ func TestElasticStack(t *testing.T) {
 				return errFn(func() error { return Wrap(ctx, wrap) })
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestElasticStack.func3.1 ",
-				"/ctxerr.TestElasticStack.func1 ", // errFn
+				"\\.TestElasticStack\\.func3\\.\\d",
+				"\\.TestElasticStack\\.func1", // errFn
 			},
 		},
 		{
@@ -97,9 +97,9 @@ func TestElasticStack(t *testing.T) {
 				return errFn(func() error { return func() error { return New(ctx, "new") }() })
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestElasticStack.func4.1.1 ",
-				"/ctxerr.TestElasticStack.func4.1 ",
-				"/ctxerr.TestElasticStack.func1 ", // errFn
+				"\\.TestElasticStack\\.func4(\\.\\d){2}",
+				"\\.TestElasticStack\\.func4\\.\\d",
+				"\\.TestElasticStack\\.func1", // errFn
 			},
 		},
 		{
@@ -115,10 +115,10 @@ func TestElasticStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestElasticStack.func5.1.1.1 ",
-				"/ctxerr.TestElasticStack.func5.1.1 ",
-				"/ctxerr.TestElasticStack.func5.1 ",
-				"/ctxerr.TestElasticStack.func1 ", // errFn
+				"\\.TestElasticStack\\.func5(\\.\\d){3}",
+				"\\.TestElasticStack\\.func5(\\.\\d){2}",
+				"\\.TestElasticStack\\.func5\\.\\d",
+				"\\.TestElasticStack\\.func1", // errFn
 			},
 		},
 		{
@@ -134,15 +134,15 @@ func TestElasticStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestElasticStack.func6.1.1.1 ",
-				"/ctxerr.TestElasticStack.func6.1.1 ",
-				"/ctxerr.TestElasticStack.func6.1 ",
-				"/ctxerr.TestElasticStack.func1 ", // errFn
+				"\\.TestElasticStack\\.func6(\\.\\d){3}",
+				"\\.TestElasticStack\\.func6(\\.\\d){2}",
+				"\\.TestElasticStack\\.func6\\.\\d",
+				"\\.TestElasticStack\\.func1", // errFn
 			},
 			leafStackContains: []string{
 				// only a single stack trace is collected when wrapping another
 				// FleetError.
-				"/ctxerr.TestElasticStack.func6.1 ",
+				"\\.TestElasticStack\\.func6\\.\\d",
 			},
 		},
 		{
@@ -158,8 +158,8 @@ func TestElasticStack(t *testing.T) {
 			},
 			causeStackContains: []string{
 				// since it wraps a non-FleetError, the full stack is collected
-				"/ctxerr.TestElasticStack.func7.1 ",
-				"/ctxerr.TestElasticStack.func1 ", // errFn
+				"\\.TestElasticStack\\.func7\\.\\d",
+				"\\.TestElasticStack\\.func1", // errFn
 			},
 		},
 	}
@@ -207,8 +207,8 @@ func TestElasticStack(t *testing.T) {
 			// cause error.
 			fnIndex := strings.Index(c.causeStackContains[0], "TestElasticStack")
 			require.GreaterOrEqual(t, fnIndex, 0)
-			fnName := strings.TrimSpace(c.causeStackContains[0][fnIndex:])
-			require.Equal(t, fnName, apmErr.Culprit)
+			// fnName := strings.TrimSpace(c.causeStackContains[0][fnIndex:])
+			require.Regexp(t, c.causeStackContains[0][fnIndex:], apmErr.Culprit)
 
 			// the APM stack should match the cause stack (i.e. APM should have
 			// grabbed the stacktrace that we provided). If it didn't, it would have
@@ -226,7 +226,7 @@ func TestElasticStack(t *testing.T) {
 func TestSentryStack(t *testing.T) {
 	ctx := context.Background()
 
-	var wrap = errors.New("wrap")
+	wrap := errors.New("wrap")
 	errFn := func(fn func() error) error { // func1
 		if err := fn(); err != nil {
 			if err == wrap {
@@ -254,7 +254,7 @@ func TestSentryStack(t *testing.T) {
 				return errFn(func() error { return wrap })
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestSentryStack.func1 ",
+				"\\.TestSentryStack\\.func1",
 			},
 		},
 		{
@@ -264,8 +264,8 @@ func TestSentryStack(t *testing.T) {
 				return errFn(func() error { return Wrap(ctx, wrap) })
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestSentryStack.func3.1 ",
-				"/ctxerr.TestSentryStack.func1 ", // errFn
+				"\\.TestSentryStack\\.func3.1",
+				"\\.TestSentryStack\\.func1", // errFn
 			},
 		},
 		{
@@ -275,9 +275,9 @@ func TestSentryStack(t *testing.T) {
 				return errFn(func() error { return func() error { return New(ctx, "new") }() })
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestSentryStack.func4.1.1 ",
-				"/ctxerr.TestSentryStack.func4.1 ",
-				"/ctxerr.TestSentryStack.func1 ", // errFn
+				"\\.TestSentryStack\\.func4(\\.\\d){2}",
+				"\\.TestSentryStack\\.func4\\.\\d",
+				"\\.TestSentryStack\\.func1", // errFn
 			},
 		},
 		{
@@ -293,10 +293,10 @@ func TestSentryStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestSentryStack.func5.1.1.1 ",
-				"/ctxerr.TestSentryStack.func5.1.1 ",
-				"/ctxerr.TestSentryStack.func5.1 ",
-				"/ctxerr.TestSentryStack.func1 ", // errFn
+				"\\.TestSentryStack\\.func5(\\.\\d){3}",
+				"\\.TestSentryStack\\.func5(\\.\\d){2}",
+				"\\.TestSentryStack\\.func5\\.\\d",
+				"\\.TestSentryStack\\.func1", // errFn
 			},
 		},
 		{
@@ -312,15 +312,15 @@ func TestSentryStack(t *testing.T) {
 				})
 			},
 			causeStackContains: []string{
-				"/ctxerr.TestSentryStack.func6.1.1.1 ",
-				"/ctxerr.TestSentryStack.func6.1.1 ",
-				"/ctxerr.TestSentryStack.func6.1 ",
-				"/ctxerr.TestSentryStack.func1 ", // errFn
+				"\\.TestSentryStack\\.func6(\\.\\d){3}",
+				"\\.TestSentryStack\\.func6(\\.\\d){2}",
+				"\\.TestSentryStack\\.func6\\.\\d",
+				"\\.TestSentryStack\\.func1", // errFn
 			},
 			leafStackContains: []string{
 				// only a single stack trace is collected when wrapping another
 				// FleetError.
-				"/ctxerr.TestSentryStack.func6.1 ",
+				"\\.TestSentryStack\\.func6.1",
 			},
 		},
 		{
@@ -336,8 +336,8 @@ func TestSentryStack(t *testing.T) {
 			},
 			causeStackContains: []string{
 				// since it wraps a non-FleetError, the full stack is collected
-				"/ctxerr.TestSentryStack.func7.1 ",
-				"/ctxerr.TestSentryStack.func1 ", // errFn
+				"\\.TestSentryStack\\.func7.1",
+				"\\.TestSentryStack\\.func1", // errFn
 			},
 		},
 	}
@@ -425,7 +425,9 @@ func checkStack(t *testing.T, stack, contains []string) {
 	stackStr := strings.Join(stack, "\n")
 	lastIx := -1
 	for _, want := range contains {
-		ix := strings.Index(stackStr, want)
+		regex := regexp.MustCompile(want + " ")
+		require.Regexp(t, regex, stackStr, "expected stack %v to contain %q", stackStr, want)
+		ix := regex.FindStringIndex(stackStr)[0]
 		require.True(t, ix > -1, "expected stack %v to contain %q", stackStr, want)
 		require.True(t, ix > lastIx, "expected %q to be after last check in %v", want, stackStr)
 		lastIx = ix

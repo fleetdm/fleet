@@ -17,13 +17,13 @@ func queryMinLength(query string) bool {
 }
 
 func countLongestTerm(query string) int {
-	max := 0
+	maxSize := 0
 	for _, q := range strings.Split(query, " ") {
-		if len(q) > max {
-			max = len(q)
+		if len(q) > maxSize {
+			maxSize = len(q)
 		}
 	}
-	return max
+	return maxSize
 }
 
 // transformQuery replaces occurrences of characters that are treated specially

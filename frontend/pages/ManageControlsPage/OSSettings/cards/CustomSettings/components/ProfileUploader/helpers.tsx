@@ -88,9 +88,12 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     return generateSecretErrMsg(err);
   }
 
-  if (apiReason.includes("Fleet variable")) {
+  if (
+    apiReason.includes("Fleet variable") &&
+    apiReason.includes("not supported in configuration profiles")
+  ) {
     return generateUnsupportedVariableErrMsg(apiReason);
   }
 
-  return apiReason || DEFAULT_ERROR_MESSAGE;
+  return `Couldn't add. ${apiReason}` || DEFAULT_ERROR_MESSAGE;
 };

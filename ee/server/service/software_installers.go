@@ -373,6 +373,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if installScript == "" {
 			installScript = file.GetInstallScript(existingInstaller.Extension)
 		}
+		if installScript == "" {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			}
+		}
 
 		if installScript != existingInstaller.InstallScript {
 			dirty["InstallScript"] = true
@@ -392,6 +397,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
 		if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 			uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
+		}
+		if uninstallScript == "" {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+			}
 		}
 
 		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
@@ -1408,9 +1418,19 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if payload.InstallScript == "" {
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
+	if payload.InstallScript == "" {
+		return "", &fleet.BadRequestError{
+			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", strings.ToLower(payload.Extension)),
+		}
+	}
 
 	if payload.UninstallScript == "" {
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
+	}
+	if payload.UninstallScript == "" {
+		return "", &fleet.BadRequestError{
+			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
+		}
 	}
 
 	if payload.BundleIdentifier != "" {
