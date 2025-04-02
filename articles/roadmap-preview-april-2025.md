@@ -14,7 +14,6 @@ For Security Engineers:
 - 📊 Vulnerability (CVE) graphs/visualizations
 - ⏰ Schedule and run scripts offline
 - 🔍 Filter hosts with custom host vitals (ala Sal)
-- ⛔️ Block unrecognized software
 - 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
 
 For IT Admins:
