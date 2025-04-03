@@ -32,29 +32,33 @@ module.exports = {
       return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
     }
 
-    let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
-      complianceTenantRecordId: informationAboutThisTenant.id
-    });
+    // If setup was completed, we will need to deprovision this Complaince tenant, otherwise, we will only delete the databse record.
+    if(informationAboutThisTenant.setupCompleted){
 
-    let accessToken = tokenAndApiUrls.accessToken;
-    let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
+      let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
+        complianceTenantRecordId: informationAboutThisTenant.id
+      });
+
+      let accessToken = tokenAndApiUrls.accessToken;
+      let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
 
-    // Deprovison this tenant
-    await sails.helpers.http.sendHtttpRequest.with({
-      method: 'PUT',
-      url: `${tenantDataSyncUrl}/${encodeURIComponent(`PartnerTenants(guid${informationAboutThisTenant.entraTenantId}`)}?api-version=1.0`,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: {
-        Provisioned: 2,// 1 = provisioned, 2 = deprovisioned.
-        PartnerEnrollmentUrl: `${informationAboutThisTenant.fleetInstanceUrl}/enrollment`,
-        PartnerRemediationUrl: `${informationAboutThisTenant.fleetInstanceUrl}/remediation`,
-      }
-    }).intercept((err)=>{
-      return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
-    });
+      // Deprovison this tenant
+      await sails.helpers.http.sendHtttpRequest.with({
+        method: 'PUT',
+        url: `${tenantDataSyncUrl}/${encodeURIComponent(`PartnerTenants(guid${informationAboutThisTenant.entraTenantId}`)}?api-version=1.0`,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: {
+          Provisioned: 2,// 1 = provisioned, 2 = deprovisioned.
+          PartnerEnrollmentUrl: `${informationAboutThisTenant.fleetInstanceUrl}/enrollment`,
+          PartnerRemediationUrl: `${informationAboutThisTenant.fleetInstanceUrl}/remediation`,
+        }
+      }).intercept((err)=>{
+        return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
+      });
+    }
 
     await MicrosoftComplianceTenant.destroyOne({id: informationAboutThisTenant.id});
 
