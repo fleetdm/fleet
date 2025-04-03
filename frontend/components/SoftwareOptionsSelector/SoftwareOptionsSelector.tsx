@@ -52,7 +52,7 @@ const SoftwareOptionsSelector = ({
   const isAutomaticInstallDisabled =
     disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
 
-  /** Tooltip only shows when enabled or for exe and tar.gz packages */
+  /** Tooltip only shows when enabled or for exe/tar.gz packages */
   const showAutomaticInstallTooltip =
     !isAutomaticInstallDisabled || isExePackage || isTarballPackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
