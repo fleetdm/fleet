@@ -1206,12 +1206,6 @@ func testUsersPagination(t *testing.T, s *Suite) {
 	}
 }
 
-// func responseAsJSON(t *testing.T, resp map[string]interface{}) {
-// 	formattedResp, err := json.MarshalIndent(resp, "", "  ")
-// 	require.NoError(t, err)
-// 	t.Logf("formatted resp: %s", string(formattedResp))
-// }
-
 func testGroupsPagination(t *testing.T, s *Suite) {
 	// First, create a user to be added as a member of some groups
 	createUserPayload := map[string]interface{}{
