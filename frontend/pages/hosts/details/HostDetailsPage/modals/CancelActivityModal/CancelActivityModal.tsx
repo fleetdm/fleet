@@ -43,13 +43,19 @@ const CancelActivityModal = ({
   return (
     <Modal className={baseClass} title="Cancel activity" onExit={onCancel}>
       <>
-        <ActivityItemComponent
-          tab="upcoming"
-          activity={activity}
-          onCancel={noop}
-          onShowDetails={noop}
-          isSoloActivity
-        />
+        <div className={`${baseClass}__content`}>
+          <p>
+            If the activity is happening on the host it will still complete.
+            Results won&apos;t appear in Fleet.
+          </p>
+          <ActivityItemComponent
+            tab="upcoming"
+            activity={activity}
+            onCancel={noop}
+            onShowDetails={noop}
+            isSoloActivity
+          />
+        </div>
         <div className="modal-cta-wrap">
           <Button variant="alert" onClick={onCancelActivity}>
             Cancel activity
