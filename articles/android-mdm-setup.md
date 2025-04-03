@@ -21,15 +21,15 @@ When you select **Connect Android Enterprise**, Fleet will open the Google sign-
 6. Select **Android EMM**, check **Enable third-party Android mobile management**, then select **Manage EMM providers**.
 7. Toggle **Authenticate Using Google** switch for your Android Enterprise, select the cross icon in the top left corner, and select **Save**.
 
-## Organizations using Microsoft 365
+### Microsoft 365
 
 1. If your organization uses Microsoft 365, you can use your email to register Android Enterprise. When you click **Connect Android Enterprise**, you'll see option to **Sign in with Microsoft**.
 2. Follow the steps in Google's sign-up flow to finish the registration.
 3. After successful registration Android Enterprise subscription (free) is added to your Google Workspace, and you can see in Fleet that Android MDM is turned on.
 
-### Organizations that don't use Google Workspace
+### Other
 
-1. In the Google sign-up page, use a work email to register Android Enterprise (don't use personal emails like "@gmail.com").
+1. If your organization doesn't use Google Workspace or Microsoft 365, in the Google sign-up page, use a work email to register Android Enterprise (don't use personal emails like "@gmail.com").
 2. After you enter your email, you'll get a verification email. Open the link from the email.
 3. Enter information about you and your company and select **Continue**.
 4. Android Enterprise subscription will be selected (free), select **Next**.
