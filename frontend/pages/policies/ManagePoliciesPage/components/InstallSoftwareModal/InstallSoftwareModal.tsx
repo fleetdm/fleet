@@ -288,7 +288,7 @@ const InstallSoftwareModal = ({
                 ) : null;
               }}
               footer={
-                <p className="form-field__help-text">
+                <>
                   If compatible with the host, the selected software will be
                   installed when hosts fail the policy. Host counts will reset
                   when new software is selected.{" "}
@@ -297,7 +297,7 @@ const InstallSoftwareModal = ({
                     text="Learn more"
                     newTab
                   />
-                </p>
+                </>
               }
               isUpdating={isUpdating}
               onSubmit={onUpdateInstallSoftware}
