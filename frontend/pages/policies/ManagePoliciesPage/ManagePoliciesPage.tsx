@@ -1027,32 +1027,33 @@ const ManagePolicyPage = ({
 
     const options: CustomOptionType[] = [
       {
-        label: "Calendar events",
+        label: "Calendar",
         value: "calendar_events",
         isDisabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
       {
-        label: "Install software",
+        label: "Software",
         value: "install_software",
         isDisabled: !!disabledInstallTooltipContent,
         helpText: "Install software to resolve failing policies.",
         tooltipContent: disabledInstallTooltipContent,
       },
       {
-        label: "Run script",
+        label: "Scripts",
         value: "run_script",
         isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
+      // Conditional access
     ];
 
     // Maintainers do not have access to other workflows
     if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
       options.push({
-        label: "Other workflows",
+        label: "Other",
         value: "other_workflows",
         isDisabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
