@@ -716,12 +716,18 @@ func TestValidateCloudfrontURL(t *testing.T) {
 		{"bad URL", "bozo!://example.com", "public", "private", "parse"},
 		{"non-HTTPS URL", "http://example.com", "public", "private", "cloudfront url scheme must be https"},
 		{"missing URL", "", "public", "private", "`s3_software_installers_cloudfront_url` must be set"},
-		{"missing public key", "https://example.com", "", "private",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing private key", "https://example.com", "public", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing keys", "https://example.com", "", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+		{
+			"missing public key", "https://example.com", "", "private",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing private key", "https://example.com", "public", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing keys", "https://example.com", "", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
 	}
 
 	for _, c := range cases {

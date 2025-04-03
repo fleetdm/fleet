@@ -1320,6 +1320,14 @@ type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, erro
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
+type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string, proxyServerSecret string) error
+
+type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
+
+type ConditionalAccessMicrosoftMarkSetupDoneFunc func(ctx context.Context) error
+
+type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3267,6 +3275,18 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	ConditionalAccessMicrosoftCreateIntegrationFunc        ConditionalAccessMicrosoftCreateIntegrationFunc
+	ConditionalAccessMicrosoftCreateIntegrationFuncInvoked bool
+
+	ConditionalAccessMicrosoftGetFunc        ConditionalAccessMicrosoftGetFunc
+	ConditionalAccessMicrosoftGetFuncInvoked bool
+
+	ConditionalAccessMicrosoftMarkSetupDoneFunc        ConditionalAccessMicrosoftMarkSetupDoneFunc
+	ConditionalAccessMicrosoftMarkSetupDoneFuncInvoked bool
+
+	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
+	ConditionalAccessMicrosoftDeleteFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -7812,4 +7832,32 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string, proxyServerSecret string) error {
+	s.mu.Lock()
+	s.ConditionalAccessMicrosoftCreateIntegrationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessMicrosoftCreateIntegrationFunc(ctx, tenantID, proxyServerSecret)
+}
+
+func (s *DataStore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+	s.mu.Lock()
+	s.ConditionalAccessMicrosoftGetFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessMicrosoftGetFunc(ctx)
+}
+
+func (s *DataStore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error {
+	s.mu.Lock()
+	s.ConditionalAccessMicrosoftMarkSetupDoneFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessMicrosoftMarkSetupDoneFunc(ctx)
+}
+
+func (s *DataStore) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
+	s.mu.Lock()
+	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
 }

@@ -2052,6 +2052,14 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Compliance Partner
+
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID, proxyServerSecret string) error
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 }
 
 type AndroidDatastore interface {
@@ -2224,3 +2232,13 @@ func IsForeignKey(err error) bool {
 }
 
 type OptionalArg func() interface{}
+
+type ConditionalAccessMicrosoftIntegration struct {
+	TenantID          string `db:"tenant_id"`
+	ProxyServerSecret string `db:"proxy_server_secret"`
+	SetupDone         bool   `db:"setup_done"`
+}
+
+func (c *ConditionalAccessMicrosoftIntegration) AuthzType() string {
+	return "conditional_access_microsoft"
+}

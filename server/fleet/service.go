@@ -1217,6 +1217,15 @@ type Service interface {
 
 	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
 	ScimDetails(ctx context.Context) (ScimDetails, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Conditional Access
+
+	// ConditionalAccessMicrosoftCreateIntegration kicks-off the integration.
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string) (adminConsentURL string, err error)
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 }
 
 type KeyValueStore interface {

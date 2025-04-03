@@ -7198,7 +7198,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Contains(t, errMsg, "missing or invalid license")
 }
 
-// TODO(lucas): Add tests here.
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
 
@@ -11337,7 +11336,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host2Team1.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11376,7 +11376,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Global.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11415,7 +11416,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Team2.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11888,7 +11890,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.False(t, gqrr.ReportClipped)
 
-	slreq.Data = []json.RawMessage{json.RawMessage(`{
+	slreq.Data = []json.RawMessage{
+		json.RawMessage(`{
   "snapshot": [` + results(1002, host1Global.UUID) + `
   ],
   "action": "snapshot",

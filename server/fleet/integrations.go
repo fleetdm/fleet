@@ -19,6 +19,8 @@ type TeamIntegrations struct {
 	Jira           []*TeamJiraIntegration         `json:"jira"`
 	Zendesk        []*TeamZendeskIntegration      `json:"zendesk"`
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
+
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 }
 
 // MatchWithIntegrations matches the team integrations to their corresponding
@@ -416,6 +418,9 @@ type Integrations struct {
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
 	NDESSCEPProxy   optjson.Any[NDESSCEPProxyIntegration]     `json:"ndes_scep_proxy"`
 	CustomSCEPProxy optjson.Slice[CustomSCEPProxyIntegration] `json:"custom_scep_proxy"`
+
+	// TODO(lucas): Use for "No team"?
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

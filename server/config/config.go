@@ -583,39 +583,47 @@ type PackagingConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql            MysqlConfig
-	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
-	Redis            RedisConfig
-	Server           ServerConfig
-	Auth             AuthConfig
-	App              AppConfig
-	Session          SessionConfig
-	Osquery          OsqueryConfig
-	Activity         ActivityConfig
-	Logging          LoggingConfig
-	Firehose         FirehoseConfig
-	Kinesis          KinesisConfig
-	Lambda           LambdaConfig
-	S3               S3Config
-	Email            EmailConfig
-	SES              SESConfig
-	PubSub           PubSubConfig
-	Filesystem       FilesystemConfig
-	KafkaREST        KafkaRESTConfig
-	License          LicenseConfig
-	Vulnerabilities  VulnerabilitiesConfig
-	Upgrades         UpgradesConfig
-	Sentry           SentryConfig
-	GeoIP            GeoIPConfig
-	Prometheus       PrometheusConfig
-	Packaging        PackagingConfig
-	MDM              MDMConfig
-	Calendar         CalendarConfig
-	Partnerships     PartnershipsConfig
+	Mysql                      MysqlConfig
+	MysqlReadReplica           MysqlConfig `yaml:"mysql_read_replica"`
+	Redis                      RedisConfig
+	Server                     ServerConfig
+	Auth                       AuthConfig
+	App                        AppConfig
+	Session                    SessionConfig
+	Osquery                    OsqueryConfig
+	Activity                   ActivityConfig
+	Logging                    LoggingConfig
+	Firehose                   FirehoseConfig
+	Kinesis                    KinesisConfig
+	Lambda                     LambdaConfig
+	S3                         S3Config
+	Email                      EmailConfig
+	SES                        SESConfig
+	PubSub                     PubSubConfig
+	Filesystem                 FilesystemConfig
+	KafkaREST                  KafkaRESTConfig
+	License                    LicenseConfig
+	Vulnerabilities            VulnerabilitiesConfig
+	Upgrades                   UpgradesConfig
+	Sentry                     SentryConfig
+	GeoIP                      GeoIPConfig
+	Prometheus                 PrometheusConfig
+	Packaging                  PackagingConfig
+	MDM                        MDMConfig
+	Calendar                   CalendarConfig
+	Partnerships               PartnershipsConfig
+	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 }
 
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
+}
+
+type MicrosoftCompliancePartnerConfig struct {
+	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
+	ProxyAPIKey string `yaml:"proxy_api_key"`
+	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
 }
 
 type MDMConfig struct {
@@ -1402,6 +1410,10 @@ func (man Manager) addConfigs() {
 
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
+
+	// Microsoft Compliance Partner
+	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
+	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1678,6 +1690,10 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
+		},
+		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
+			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
+			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 		},
 	}
 

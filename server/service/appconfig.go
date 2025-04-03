@@ -55,6 +55,9 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
 	AndroidEnabled bool  `json:"android_enabled,omitempty"`
+
+	// ConditionalAccess holds the Microsoft conditional access configuration.
+	ConditionalAccess *fleet.ConditionalAccessSettings `json:"conditional_access,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -131,6 +134,20 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
+	var conditionalAccessSettings *fleet.ConditionalAccessSettings
+	conditionalAccessIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if conditionalAccessIntegration != nil {
+		conditionalAccessSettings = &fleet.ConditionalAccessSettings{
+			MicrosoftEntraTenantID: conditionalAccessIntegration.TenantID,
+			// TODO(lucas): Fix me.
+			// MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
+			MicrosoftEntraConnectionConfigured: true,
+		}
+	}
+
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
@@ -191,13 +208,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:  updateIntervalConfig,
-			Vulnerabilities: vulnConfig,
-			License:         license,
-			Logging:         loggingConfig,
-			Email:           emailConfig,
-			SandboxEnabled:  svc.SandboxEnabled(),
-			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			UpdateInterval:    updateIntervalConfig,
+			Vulnerabilities:   vulnConfig,
+			License:           license,
+			Logging:           loggingConfig,
+			Email:             emailConfig,
+			SandboxEnabled:    svc.SandboxEnabled(),
+			AndroidEnabled:    os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			ConditionalAccess: conditionalAccessSettings,
 		},
 	}
 	return response, nil

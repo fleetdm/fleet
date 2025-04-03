@@ -263,6 +263,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
 		}
+
+		if err := svc.validateTeamConditionalAccessIntegration(ctx,
+			team.Config.Integrations.ConditionalAccessEnabled,
+			payload.Integrations.ConditionalAccessEnabled,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		team.Config.Integrations.ConditionalAccessEnabled = payload.Integrations.ConditionalAccessEnabled
 	}
 
 	if payload.WebhookSettings != nil || payload.Integrations != nil {
@@ -400,6 +408,44 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 	}
 	return team, err
+}
+
+func (svc *Service) validateTeamConditionalAccessIntegration(
+	ctx context.Context,
+	currentConditionalAccessEnabled bool,
+	newConditionalAccessEnabled bool,
+) error {
+	switch {
+	case currentConditionalAccessEnabled == newConditionalAccessEnabled:
+		// No change, mothing to do.
+	case currentConditionalAccessEnabled && !newConditionalAccessEnabled:
+		// Disabling feature on team, nothing to do here.
+		//
+		// The non-compliant hosts in the team will need their compliance status set to compliant next
+		// time they check in with policy results.
+	case !currentConditionalAccessEnabled && newConditionalAccessEnabled:
+		// Enabling feature on team.
+		var settings *fleet.ConditionalAccessSettings
+		conditionalAccessIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load conditional access microsoft")
+		}
+		if conditionalAccessIntegration != nil {
+			settings = &fleet.ConditionalAccessSettings{
+				MicrosoftEntraTenantID: conditionalAccessIntegration.TenantID,
+				// TODO(lucas): Fix me.
+				// MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
+				MicrosoftEntraConnectionConfigured: true,
+			}
+		}
+		if settings == nil || !settings.MicrosoftEntraConnectionConfigured {
+			return fleet.NewInvalidArgumentError(
+				"integrations.conditional_access_enabled",
+				"Couldn't enable because the integration isn't configured",
+			)
+		}
+	}
+	return nil
 }
 
 func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, teamOptions json.RawMessage, applyOptions fleet.ApplySpecOptions) (*fleet.Team, error) {
@@ -1077,6 +1123,13 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	if err := svc.validateTeamConditionalAccessIntegration(ctx,
+		false,
+		spec.Integrations.ConditionalAccessEnabled,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	if dryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
@@ -1117,7 +1170,8 @@ func (svc *Service) createTeamFromSpec(
 				HostStatusWebhook: hostStatusWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
-				GoogleCalendar: spec.Integrations.GoogleCalendar,
+				GoogleCalendar:           spec.Integrations.GoogleCalendar,
+				ConditionalAccessEnabled: spec.Integrations.ConditionalAccessEnabled,
 			},
 			Software: spec.Software,
 		},
@@ -1329,6 +1383,14 @@ func (svc *Service) editTeamFromSpec(
 		}
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
+
+	if err := svc.validateTeamConditionalAccessIntegration(ctx,
+		team.Config.Integrations.ConditionalAccessEnabled,
+		spec.Integrations.ConditionalAccessEnabled,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	team.Config.Integrations.ConditionalAccessEnabled = spec.Integrations.ConditionalAccessEnabled
 
 	if opts.DryRun {
 		for _, secret := range secrets {
