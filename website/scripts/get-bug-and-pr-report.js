@@ -281,10 +281,22 @@ module.exports = {
               readyToReviewToMergeTimesInDays.push(
                 prReadyToReviewToMergeTimeInDays,
               );
+            } else {
+              // If no ready_for_review event, use the created_at timestamp
+              let pullRequestCreationTime = new Date(pullRequest.created_at);
+              let readyToReviewToMergeTimeInMS = Math.abs(
+                    pullRequestMergedOn - pullRequestCreationTime
+              );
+              let prReadyToReviewToMergeTimeInDays =
+                    readyToReviewToMergeTimeInMS / ONE_DAY_IN_MILLISECONDS;
+              readyToReviewToMergeTimesInDays.push(
+                    prReadyToReviewToMergeTimeInDays
+              );
             }
           },
         );
       },
+
 
       //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██████╗ ███████╗
       //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██╔══██╗██╔════╝
