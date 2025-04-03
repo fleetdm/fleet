@@ -351,6 +351,9 @@ const PackageForm = ({
               )
             }
           />
+          <Button variant="inverse" onClick={onCancel}>
+            Cancel
+          </Button>
         </div>
       </form>
     </div>

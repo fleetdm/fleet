@@ -43,6 +43,8 @@ const SoftwareDetailsSummary = ({
   iconUrl,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
+  // Remove host count for tgz_packages only
+  const showHostCount = source !== "tgz_packages";
 
   return (
     <div className={baseClass}>
@@ -53,19 +55,21 @@ const SoftwareDetailsSummary = ({
           {!!type && <DataSet title="Type" value={type} />}
 
           {!!versions && <DataSet title="Versions" value={versions} />}
-          <DataSet
-            title="Hosts"
-            value={
-              <LastUpdatedHostCount
-                hostCount={
-                  <TooltipWrapper tipContent="View all hosts">
-                    <CustomLink url={hostCountPath} text={hosts.toString()} />
-                  </TooltipWrapper>
-                }
-                lastUpdatedAt={countsUpdatedAt}
-              />
-            }
-          />
+          {showHostCount && (
+            <DataSet
+              title="Hosts"
+              value={
+                <LastUpdatedHostCount
+                  hostCount={
+                    <TooltipWrapper tipContent="View all hosts">
+                      <CustomLink url={hostCountPath} text={hosts.toString()} />
+                    </TooltipWrapper>
+                  }
+                  lastUpdatedAt={countsUpdatedAt}
+                />
+              }
+            />
+          )}
         </dl>
       </dl>
     </div>

@@ -52,14 +52,14 @@ const SoftwareOptionsSelector = ({
   const isAutomaticInstallDisabled =
     disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
 
-  /** Tooltip only shows when enabled or for exe package */
+  /** Tooltip only shows when enabled or for exe and tar.gz packages */
   const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled || isExePackage;
+    !isAutomaticInstallDisabled || isExePackage || isTarballPackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
     if (isExePackage || isTarballPackage) {
       return (
         <>
-          Fleet can&apos;t create a policy to detect existing installations for
+          Fleet can&apos;t create a policy to detect existing installations for{" "}
           {isExePackage ? ".exe packages" : ".tar.gz archives"}. To
           automatically install{" "}
           {isExePackage ? ".exe packages" : ".tar.gz archives"}, add a custom

@@ -209,7 +209,6 @@ const PackageAdvancedOptions = ({
     );
   };
 
-  console.log("ext", ext);
   return (
     <div className={baseClass}>
       <RevealButton
