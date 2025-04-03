@@ -50,6 +50,11 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		level.Error(u.logger).Log("msg", "failed to get userName", "err", err)
 		return scim.Resource{}, err
 	}
+	// In IETF documents, “non-empty” is generally used in the literal sense of “having at least one character.” That means if a value contains one or more spaces (and nothing else), it is still considered non-empty.
+	if len(userName) == 0 {
+		level.Info(u.logger).Log("msg", "userName is empty")
+		return scim.Resource{}, errors.ScimErrorBadParams([]string{userNameAttr})
+	}
 	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):

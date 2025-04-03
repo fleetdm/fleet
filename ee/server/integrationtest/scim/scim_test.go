@@ -701,6 +701,56 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.True(t, ok, "Emails should be an array")
 	assert.Equal(t, 3, len(emails), "Should have 3 emails")
 
+	// Test creating a user with empty userName
+	userWithEmptyUserName := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "", // Empty userName
+		"name": map[string]interface{}{
+			"givenName":  "Empty",
+			"familyName": "UserName",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "empty-username@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var errorResp1 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithEmptyUserName, http.StatusBadRequest, &errorResp1)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp1["detail"], "Bad Request")
+
+	// Test creating a user with duplicate userName
+	duplicateUserNamePayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "multiple-emails@example.com", // Same as userWithMultipleEmails
+		"name": map[string]interface{}{
+			"givenName":  "Duplicate",
+			"familyName": "UserName",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "duplicate@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var errorResp2 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), duplicateUserNamePayload, http.StatusConflict, &errorResp2)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
+
 	// Make sure these users can be deleted.
 	s.Do(t, "DELETE", scimPath("/Users/"+userID1), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID2), nil, http.StatusNoContent)
