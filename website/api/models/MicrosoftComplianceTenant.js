@@ -52,6 +52,11 @@ module.exports = {
     stateTokenForAdminConsent: {
       type: 'string',
       description: 'A token used to authenticate admin consent webhook requests.',
+    },
+
+    setupError: {
+      type: 'string',
+      description: 'The last error logged from a Microsoft API during the initial setup of the complaince tenant (If there were any)',
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
