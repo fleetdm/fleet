@@ -243,9 +243,6 @@ module.exports = {
         }, 10000);
 
         for (let pullRequest of allPublicOpenPrs) {
-          if (pullRequest.number === 27406) {
-            console.log('pullRequest: ', pullRequest);
-          }
           // Create a date object from the PR's created_at timestamp.
           let pullRequestOpenedOn = new Date(pullRequest.created_at);
           // Get the amount of time this issue has been open in milliseconds.
