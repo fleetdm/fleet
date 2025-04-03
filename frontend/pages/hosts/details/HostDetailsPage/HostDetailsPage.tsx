@@ -670,6 +670,10 @@ const HostDetailsPage = ({
     [host?.display_name]
   );
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -760,10 +764,6 @@ const HostDetailsPage = ({
         break;
       default: // do nothing
     }
-  };
-
-  const onCancelActivity = (activity: IHostUpcomingActivity) => {
-    setSelectedCancelActivity(activity);
   };
 
   const onSelectCertificate = (certificate: IHostCertificate) => {
