@@ -851,8 +851,7 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  -- COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
-  name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,

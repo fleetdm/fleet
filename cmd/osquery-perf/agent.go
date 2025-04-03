@@ -1445,7 +1445,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
 		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d.app", i),
+			"name":              fmt.Sprintf("Common_%d", i),
 			"version":           "0.0.1",
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            "apps",
@@ -1468,7 +1468,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
 		uniqueSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Unique_%s_%d.app", a.CachedString("hostname"), i),
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
 			"version":           "1.1.1",
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
 			"source":            "apps",

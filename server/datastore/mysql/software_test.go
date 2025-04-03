@@ -292,6 +292,8 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	)
 	require.NoError(t, err)
 	require.Len(t, softwareTitle, 1)
+	// name has been updated
+	require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
 }
 
 func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {
