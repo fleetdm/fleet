@@ -4565,13 +4565,14 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 | ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
 | microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
 
-
+- If the same `microsoft_tenant_id` was already configured, then the POST is a nop.
+- If there's already a different Tenant ID configured but its setup is not completed, then the POST will replace the existing one.
+- If there's already a different Tenant ID configured and its setup is completed, then the POST will fail. You need to use the `DELETE /api/v1/conditional-access/microsoft` endpoint to delete the integration and create a new one.
 
 ##### Request body
 
 ```json
 {
-  "fleet_license_key": "<LICENSE KEY>",
   "microsoft_tenant_id": "<TENANT ID>"
 }
 ```
@@ -4584,15 +4585,14 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 {
   "microsoft_authentication_url": "https://login.microsoftonline.com/<TENANT ID>/adminconsent?client_id=<CLIENT ID>"
 }
-
 ```
 
 
 ### Confirm Microsoft Entra conditional access configuration
 
-`GET /api/v1/conditional-access/confirm`
+`POST /api/v1/conditional-access/microsoft/confirm`
 
-Confirm whether admin consent has been granted in Microsoft Entra.
+Finalize setup and confirm whether admin consent has been granted in Microsoft Entra.
 
 #### Parameters
 
