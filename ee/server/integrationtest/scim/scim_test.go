@@ -574,7 +574,34 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	manyMembersGroupID := manyMembersGroupResp["id"].(string)
 	assert.NotEmpty(t, manyMembersGroupID)
 
-	// Test 3: Try to create a group with the same display name (should fail)
+	// Test 3: Create a group with externalId
+	externalIDGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "External ID Group",
+		"externalId":  "external-system-group-789",
+		"members": []map[string]interface{}{
+			{
+				"value": userIDs[0], // Just add the first user as a member
+			},
+		},
+	}
+
+	var externalIDGroupResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), externalIDGroupPayload, http.StatusCreated, &externalIDGroupResp)
+
+	// Verify the created group
+	assert.Equal(t, "External ID Group", externalIDGroupResp["displayName"])
+	assert.Equal(t, "external-system-group-789", externalIDGroupResp["externalId"])
+
+	// Verify members
+	externalIDGroupMembers, ok := externalIDGroupResp["members"].([]interface{})
+	assert.True(t, ok, "Members should be an array")
+	assert.Equal(t, 1, len(externalIDGroupMembers), "Should have 1 member")
+
+	externalIDGroupID := externalIDGroupResp["id"].(string)
+	assert.NotEmpty(t, externalIDGroupID)
+
+	// Test 4: Try to create a group with the same display name (should fail)
 	duplicateGroupPayload := map[string]interface{}{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Empty Group", // Same as the first group
@@ -621,6 +648,7 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	// Delete the groups
 	s.Do(t, "DELETE", scimPath("/Groups/"+emptyGroupID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Groups/"+manyMembersGroupID), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Groups/"+externalIDGroupID), nil, http.StatusNoContent)
 
 	// Delete the users
 	for _, userID := range userIDs {
@@ -845,12 +873,40 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.EqualValues(t, errorResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp3["detail"], "One or more of the attribute values are already in use or are reserved")
 
+	// Test creating a user with externalId
+	userWithExternalID := map[string]interface{}{
+		"schemas":    []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName":   "external-id-user@example.com",
+		"externalId": "external-system-123456",
+		"name": map[string]interface{}{
+			"givenName":  "External",
+			"familyName": "IDUser",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "external-id-user@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createResp6 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithExternalID, http.StatusCreated, &createResp6)
+	assert.Equal(t, "external-id-user@example.com", createResp6["userName"])
+	userID6 := createResp6["id"].(string)
+
+	// Verify externalId is present and correct
+	assert.Equal(t, "external-system-123456", createResp6["externalId"])
+
 	// Make sure these users can be deleted.
 	s.Do(t, "DELETE", scimPath("/Users/"+userID1), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID2), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID3), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID4), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+userID6), nil, http.StatusNoContent)
 }
 
 func testPatchUserFailure(t *testing.T, s *Suite) {
@@ -1376,12 +1432,8 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 func testUsersAndGroups(t *testing.T, s *Suite) {
 	// Create multiple test users
 	userIDs := make([]string, 0, 3)
-	userNames := make([]string, 0, 3)
-
 	for i := 1; i <= 3; i++ {
 		userName := fmt.Sprintf("user-group-test-%d@example.com", i)
-		userNames = append(userNames, userName)
-
 		createUserPayload := map[string]interface{}{
 			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 			"userName": userName,
