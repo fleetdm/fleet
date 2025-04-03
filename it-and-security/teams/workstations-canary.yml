@@ -157,7 +157,7 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
-  - path: ../lib/linux/policies/fedora-debian-check-fleet-desktop.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
