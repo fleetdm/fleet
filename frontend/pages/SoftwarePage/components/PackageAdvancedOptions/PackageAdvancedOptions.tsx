@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { noop } from "lodash";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 import {
   isPackageType,
@@ -15,16 +16,6 @@ import RevealButton from "components/buttons/RevealButton";
 
 import { IPackageFormData } from "../PackageForm/PackageForm";
 import AdvancedOptionsFields from "../AdvancedOptionsFields";
-
-/** Extract the extension, considering compound extensions like .tar.gz */
-export const getExtensionFromFileName = (fileName: string) => {
-  const parts = fileName.split(".");
-  const extension =
-    parts.length > 1 && parts[parts.length - 2] === "tar"
-      ? "tar.gz"
-      : parts.pop();
-  return extension as PackageType;
-};
 
 const getSupportedScriptTypeText = (pkgType: PackageType) => {
   return `Currently, ${

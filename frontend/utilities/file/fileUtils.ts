@@ -1,9 +1,6 @@
-type IPlatformDisplayName = "macOS" | "Windows" | "Linux";
+import { PackageType } from "interfaces/package_type";
 
-const getFileExtension = (file: File) => {
-  const nameParts = file.name.split(".");
-  return nameParts.slice(-1)[0];
-};
+type IPlatformDisplayName = "macOS" | "Windows" | "Linux";
 
 export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   string,
@@ -17,19 +14,32 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   xml: "Windows",
   deb: "Linux",
   rpm: "Linux",
+  "tar.gz": "Linux",
 };
 
-/**
- * This gets the platform display name from the file.
- */
+/** Extract the extension, considering compound extensions like .tar.gz */
+export const getExtensionFromFileName = (fileName: string) => {
+  const parts = fileName.split(".");
+
+  if (parts.length <= 1) {
+    // No period in the filename, hence no extension
+    return undefined;
+  }
+
+  const extension =
+    parts.length > 1 && parts[parts.length - 2] === "tar"
+      ? "tar.gz"
+      : parts.pop();
+  return extension as PackageType;
+};
+
+/** This gets the platform display name from the file. */
 export const getPlatformDisplayName = (file: File) => {
-  const fileExt = getFileExtension(file);
+  const fileExt = getExtensionFromFileName(file.name);
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
-/**
- * This gets the file details from the file.
- */
+/** This gets the file details from the file. */
 export const getFileDetails = (file: File) => {
   return {
     name: file.name,

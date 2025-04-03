@@ -4,11 +4,13 @@ import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { getFileDetails } from "utilities/file/fileUtils";
+import {
+  getExtensionFromFileName,
+  getFileDetails,
+} from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
-import { PackageType } from "interfaces/package_type";
 
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -28,7 +30,6 @@ import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
 import { createTooltipContent, generateFormValidation } from "./helpers";
-import { getExtensionFromFileName } from "../PackageAdvancedOptions/PackageAdvancedOptions";
 
 export const baseClass = "package-form";
 

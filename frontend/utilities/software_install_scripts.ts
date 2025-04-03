@@ -1,4 +1,5 @@
-import { getExtensionFromFileName } from "pages/SoftwarePage/components/PackageAdvancedOptions/PackageAdvancedOptions";
+import { getExtensionFromFileName } from "./file/fileUtils";
+
 // @ts-ignore
 import installPkg from "../../pkg/file/scripts/install_pkg.sh";
 // @ts-ignore
