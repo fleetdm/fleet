@@ -343,8 +343,9 @@ func packageCommand() *cli.Command {
 			case "deb", "rpm":
 				linuxPackage = true
 			}
+			windowsPackage := c.String("type") == "msi"
 
-			if opt.Architecture != packaging.ArchAmd64 && !linuxPackage {
+			if opt.Architecture != packaging.ArchAmd64 && !(linuxPackage || windowsPackage) {
 				return fmt.Errorf("can't use '--arch' with '--type %s'", c.String("type"))
 			}
 
