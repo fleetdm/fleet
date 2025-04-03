@@ -17,13 +17,13 @@ const baseClass = "cancel-activity-modal";
 interface ICancelActivityModalProps {
   hostId: number;
   activity: IHostUpcomingActivity;
-  onCancel: () => void;
+  onExit: () => void;
 }
 
 const CancelActivityModal = ({
   hostId,
   activity,
-  onCancel,
+  onExit,
 }: ICancelActivityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -37,11 +37,11 @@ const CancelActivityModal = ({
       // TODO: hook up error message when API is updated
       renderFlash("error", getErrorMessage(error));
     }
-    onCancel();
+    onExit();
   };
 
   return (
-    <Modal className={baseClass} title="Cancel activity" onExit={onCancel}>
+    <Modal className={baseClass} title="Cancel activity" onExit={onExit}>
       <>
         <div className={`${baseClass}__content`}>
           <p>
@@ -60,7 +60,7 @@ const CancelActivityModal = ({
           <Button variant="alert" onClick={onCancelActivity}>
             Cancel activity
           </Button>
-          <Button variant="inverse-alert" onClick={onCancel}>
+          <Button variant="inverse-alert" onClick={onExit}>
             Back
           </Button>
         </div>

@@ -1235,7 +1235,7 @@ const HostDetailsPage = ({
           <CancelActivityModal
             hostId={host.id}
             activity={selectedCancelActivity}
-            onCancel={() => setSelectedCancelActivity(null)}
+            onExit={() => setSelectedCancelActivity(null)}
           />
         )}
         {selectedCertificate && (
