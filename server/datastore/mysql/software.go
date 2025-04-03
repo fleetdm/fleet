@@ -2268,30 +2268,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
-	var vulnerableUpcomingSoftwareInstall,
-		vulnerableUpcomingSoftwareUninstall,
-		vulnerableLastSoftwareInstallJoins,
+	var vulnerableLastSoftwareInstallJoins,
 		vulnerableLastSoftwareUninstallJoins,
 		vulnerableLastVppInstall,
-		vulnerableUpcomingVPPInstall,
 		onlyVulnerableJoin,
 		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
 		cveMetaJoin string
 	var hasCVEFilters bool
 
 	if opts.VulnerableOnly {
-		vulnerableUpcomingSoftwareInstall = `
-	INNER JOIN software_installers ON software_installers.id = siua.software_installer_id
-	INNER JOIN software_titles ON software_titles.id = software_installers.title_id
-	INNER JOIN software ON software.title_id = software_titles.id
-	INNER JOIN software_cve ON software_cve.software_id = software.id
-		`
-		vulnerableUpcomingSoftwareUninstall = `
-	INNER JOIN software_installers ON software_installers.id = siua.software_installer_id
-	INNER JOIN software_titles ON software_titles.id = software_installers.title_id
-	INNER JOIN software ON software.title_id = software_titles.id
-	INNER JOIN software_cve ON software_cve.software_id = software.id
-		`
+		vulnerabilityExcludeClause = ` AND FALSE`
 		vulnerableLastSoftwareInstallJoins = `
 	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
     INNER JOIN software_titles ON software_titles.id = software_installers.title_id
@@ -2311,13 +2298,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
     INNER JOIN software ON software.title_id = software_titles.id
     INNER JOIN software_cve ON software_cve.software_id = software.id
 		`
-		vulnerableUpcomingVPPInstall = `
-	INNER JOIN vpp_apps va ON va.adam_id = vaua.adam_id
-	           AND va.platform = vaua.platform
-	INNER JOIN software_titles ON software_titles.id = va.title_id
-	INNER JOIN software ON software.title_id = software_titles.id
-	INNER JOIN software_cve ON software_cve.software_id = software.id
-	`
 		onlyVulnerableJoin = `
 INNER JOIN software_cve ON software_cve.software_id = s.id
 		`
@@ -2339,12 +2319,9 @@ INNER JOIN software_cve ON software_cve.software_id = s.id
 		// Only join CVE table if there are filters
 		if hasCVEFilters {
 			onlyVulnerableJoin += cveMetaJoin
-			vulnerableUpcomingSoftwareInstall += cveMetaJoin
-			vulnerableUpcomingSoftwareUninstall += cveMetaJoin
 			vulnerableLastSoftwareInstallJoins += cveMetaJoin
 			vulnerableLastSoftwareUninstallJoins += cveMetaJoin
 			vulnerableLastVppInstall += cveMetaJoin
-			vulnerableUpcomingVPPInstall += cveMetaJoin
 		}
 	}
 
@@ -2394,7 +2371,6 @@ WITH upcoming_software_install AS (
 	FROM
 		upcoming_activities ua
 		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-		%s
 		LEFT JOIN (
 			upcoming_activities ua2
 			INNER JOIN software_install_upcoming_activities siua2
@@ -2419,7 +2395,6 @@ upcoming_software_uninstall AS (
 	FROM
 		upcoming_activities ua
 		INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
-		%s
 		LEFT JOIN (
 			upcoming_activities ua2
 			INNER JOIN software_install_upcoming_activities siua2
@@ -2515,7 +2490,6 @@ upcoming_vpp_install AS (
 	FROM
 		upcoming_activities ua
 		INNER JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-		%s
 		LEFT JOIN (
 			upcoming_activities ua2
 			INNER JOIN vpp_app_upcoming_activities vaua2
@@ -2709,16 +2683,13 @@ last_vpp_install AS (
 
 			%s
 `,
-		vulnerableUpcomingSoftwareInstall,
-		vulnerabilityFiltersClause,
-		vulnerableUpcomingSoftwareUninstall,
-		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
+		vulnerabilityExcludeClause,
 		vulnerableLastSoftwareInstallJoins,
 		vulnerabilityFiltersClause,
 		vulnerableLastSoftwareUninstallJoins,
 		vulnerabilityFiltersClause,
-		vulnerableUpcomingVPPInstall,
-		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
 		vppAppHostStatusNamedQuery("hvsi", "ncr", "status"),
 		vulnerableLastVppInstall,
 		vulnerabilityFiltersClause,
