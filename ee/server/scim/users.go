@@ -276,9 +276,9 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 // totalResults: The total number of results returned by the list or query operation.  The value may be larger than the number of
 // resources returned, such as when returning a single page (see Section 3.4.2.4) of results where multiple pages are available.
 func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
-	page := params.StartIndex
-	if page < 1 {
-		page = 1
+	startIndex := params.StartIndex
+	if startIndex < 1 {
+		startIndex = 1
 	}
 	count := params.Count
 	if count > maxResults {
@@ -290,8 +290,8 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 
 	opts := fleet.ScimUsersListOptions{
 		ScimListOptions: fleet.ScimListOptions{
-			StartIndex: uint(page),  // nolint:gosec // ignore G115
-			PerPage:    uint(count), // nolint:gosec // ignore G115
+			StartIndex: uint(startIndex), // nolint:gosec // ignore G115
+			PerPage:    uint(count),      // nolint:gosec // ignore G115
 		},
 	}
 	resourceFilter := r.URL.Query().Get("filter")

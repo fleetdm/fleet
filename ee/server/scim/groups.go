@@ -158,9 +158,9 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 // GetAll
 // Pagination is 1-indexed.
 func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
-	page := params.StartIndex
-	if page < 1 {
-		page = 1
+	startIndex := params.StartIndex
+	if startIndex < 1 {
+		startIndex = 1
 	}
 	count := params.Count
 	if count > maxResults {
@@ -171,8 +171,8 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 	}
 
 	opts := fleet.ScimListOptions{
-		StartIndex: uint(page),  // nolint:gosec // ignore G115
-		PerPage:    uint(count), // nolint:gosec // ignore G115
+		StartIndex: uint(startIndex), // nolint:gosec // ignore G115
+		PerPage:    uint(count),      // nolint:gosec // ignore G115
 	}
 
 	resourceFilter := r.URL.Query().Get("filter")
