@@ -196,6 +196,23 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 1, len(filterResources), "Should have exactly 1 user matching the filter")
 
+	// Test filtering users by userName with random capitalization (case insensitivity)
+	randomCapUserName := "TeStUsEr@ExAmPlE.cOm" // Randomly capitalized version of testuser@example.com
+	var caseInsensitiveResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &caseInsensitiveResp, "filter", `userName eq "`+randomCapUserName+`"`)
+	assert.EqualValues(t, caseInsensitiveResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	caseInsensitiveResources, ok := caseInsensitiveResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 1, len(caseInsensitiveResources), "Should have exactly 1 user matching the case-insensitive filter")
+
+	// Verify it's the same user
+	if len(caseInsensitiveResources) > 0 {
+		user, ok := caseInsensitiveResources[0].(map[string]interface{})
+		assert.True(t, ok, "User should be an object")
+		assert.Equal(t, userID, user["id"], "Should be the same user despite case differences in userName filter")
+		assert.Equal(t, "testuser@example.com", user["userName"], "Original userName should be preserved")
+	}
+
 	// Test filtering users by non-existent userName
 	filterResp = nil
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &filterResp, "filter", `userName eq "bozo@example.com"`)
