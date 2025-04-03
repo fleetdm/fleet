@@ -8,8 +8,6 @@ Any past decision is open to questioning in a future iteration, as long as you a
 
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/234d3072-96eb-43b7-8b9e-b97af17ef72e">
-
 
 ## Why open source?
 
@@ -161,7 +159,7 @@ Additional infrastructure:
 
 5. **CI/CD pipelines**. All CI/CD pipelines supporting Fleet's infrastructure are hosted as GitHub workflows in both [our public](https://github.com/fleetdm/fleet/actions) and [private](https://github.com/fleetdm/confidential/actions) repositories.
 
-6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
+6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform)**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
 
 7. **Domain name registrar**. All Fleet domain names are registered with [NameCheap](https://www.namecheap.com).
 
