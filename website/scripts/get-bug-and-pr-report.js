@@ -227,11 +227,11 @@ module.exports = {
           let closedPullRequests = await sails.helpers.http.get(
             `https://api.github.com/repos/fleetdm/fleet/pulls`,
             {
-              state: 'closed',
-              sort: 'updated',
-              direction: 'desc',
-              per_page: NUMBER_OF_RESULTS_REQUESTED,
-              page: pageNumberForPaginatedResults,
+              'state': 'closed',
+              'sort': 'updated',
+              'direction': 'desc',
+              'per_page': NUMBER_OF_RESULTS_REQUESTED,
+              'page': pageNumberForPaginatedResults,
             },
             baseHeaders,
           ).retry();
@@ -242,7 +242,7 @@ module.exports = {
               !pullRequest.draft &&
               pullRequest.merged_at && // Ensure it's merged
               sevenDaysAgo <= new Date(pullRequest.merged_at) &&
-              pullRequest.user.type !== 'Bot' && 
+              pullRequest.user.type !== 'Bot' &&
               !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '~ceo' || label.name === ':improve documentation')
             );
           });
