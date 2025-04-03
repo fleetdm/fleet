@@ -11,6 +11,10 @@
 
 - https://developer.okta.com/docs/guides/scim-provisioning-integration-prepare/main/
 
+Sample provisioning settings that work. Capabilities can be disabled and attributes can be removed as needed.
+
+![Okta to Fleet provisioning](./assets/SCIM-Okta-provisioning.png)
+
 ### Testing Okta integration
 
 First, create at least one SCIM user:
