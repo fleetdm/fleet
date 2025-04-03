@@ -119,8 +119,23 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
-.help-short--serve .help-short--up:
+.help-short--serve: 
 	@echo "Start the fleet server"
+.help-short--up: 
+	@echo "Start the fleet server (alias for \`serve\`)"
+.help-long--serve .help-long--up:
+	@echo "Starts an instance of the Fleet web and API server. If no arguments are provided, the server will start with the last used arguments."
+	@echo
+	@echo "  To see all available options, run \`$(TOOL_CMD) serve --help\`"
+.help-options--serve .help-options--up:
+	@echo "HELP"
+	@echo "Show all options for the fleet serve command"
+	@echo "USE_IP"
+	@echo "Start the server on the IP address of the host machine"
+	@echo "NO_SAVE"
+	@echo "Don't save the current arguments for the next invocation"
+	@echo "SHOW"
+	@echo "Show the last arguments used to start the server"
 
 serve up: TARGET_ARGS := --use-ip --no-save --show
 ifdef USE_IP
@@ -559,8 +574,10 @@ $(SNAPSHOT_BINARY): tools/snapshot/*.go
 .help-short--restore:
 	@echo "Restore a database snapshot"
 .help-long--restore:
-	@echo "Restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."	
-
+	@echo "Interactively restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."	
+.help-options--restore:
+	@echo "PREPARE (alias: PREP)"
+	@echo "Run migrations after restoring the snapshot"
 
 restore: $(SNAPSHOT_BINARY)
 	@$(SNAPSHOT_BINARY) restore
