@@ -5,6 +5,8 @@ import (
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/hex"
 	"fmt"
+	"log/slog"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -249,6 +251,7 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 	incomingMap := make(map[string]fleet.Software, len(current)) // setting len(current) as the length since that should be the common case
 	for _, s := range incoming {
 		uniqueStr := s.ToUniqueStr()
+		fmt.Printf("uniqueStr: %v\n", uniqueStr)
 		if duplicate, ok := incomingMap[uniqueStr]; ok {
 			// Check the last opened at timestamp and keep the latest.
 			if s.LastOpenedAt == nil ||
@@ -347,8 +350,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	current, incoming, notChanged := nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff)
 	if notChanged {
+		slog.With("filename", "server/datastore/mysql/software.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: not changed ")
 		return r, nil
 	}
+
+	fmt.Printf("incoming: %v\n", incoming)
 
 	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, err := ds.getExistingSoftware(ctx, current, incoming)
 	if err != nil {
@@ -477,6 +483,7 @@ func (ds *Datastore) getExistingSoftware(
 	newSoftware := make(map[string]struct{})
 	for uniqueName, s := range incoming {
 		if _, ok := current[uniqueName]; !ok {
+			fmt.Printf("uniqueName: %v\n", uniqueName)
 			checksum, err := computeRawChecksum(s)
 			if err != nil {
 				return nil, nil, nil, err
@@ -589,13 +596,14 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "build query to existing titles with bundle_identifier")
 		}
+		fmt.Printf("argsWithBundleIdentifier: %v\n", argsWithBundleIdentifier)
 		var existingSoftwareTitlesForNewSoftwareWithBundleIdentifier []fleet.SoftwareTitle
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get existing titles with bundle_identifier")
 		}
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
-			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)]
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser, title.Name)]
 			if ok {
 				incomingChecksumToTitle[checksum] = title
 			}
@@ -678,6 +686,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 ) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
+	fmt.Printf("existingSoftware: %v\n", existingSoftware)
 
 	// First, we remove incoming software that already exists in the software table.
 	if len(softwareChecksums) > 0 {
@@ -686,6 +695,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			if !ok {
 				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
+			fmt.Printf("software.Name: %v\n", software.Name)
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
 			insertedSoftware = append(insertedSoftware, software)
@@ -738,6 +748,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				title, ok := existingTitlesForNewSoftware[checksum]
 				if ok {
 					titleID = &title.ID
+					slog.With("filename", "server/datastore/mysql/software.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: found title ", "title_id", title.ID, "software_name", sw.Name, "checksum", checksum)
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					st := fleet.SoftwareTitle{
 						Name:    sw.Name,
@@ -748,6 +759,8 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					if sw.BundleIdentifier != "" {
 						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
 					}
+
+					slog.With("filename", "server/datastore/mysql/software.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: new title needed ", "software_title_name", st.Name)
 
 					newTitlesNeeded[checksum] = st
 				}
@@ -766,7 +779,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				const numberOfArgsPerSoftwareTitles = 4 // number of ? in each VALUES clause
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES %s ON DUPLICATE KEY UPDATE name = VALUES(name)", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
