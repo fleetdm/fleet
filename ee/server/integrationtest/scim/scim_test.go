@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSCIM(t *testing.T) {
@@ -23,6 +25,7 @@ func TestSCIM(t *testing.T) {
 		{"Users", testUsersBasicCRUD},
 		{"CreateUser", testCreateUser},
 		{"PatchUserFailure", testPatchUserFailure},
+		{"UsersPagination", testUsersPagination},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -554,6 +557,165 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 
 	// Clean up the created user
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+}
+
+func testUsersPagination(t *testing.T, s *Suite) {
+	// Create multiple users for pagination testing
+	userIDs := make([]string, 0, 10)
+
+	for i := 1; i <= 10; i++ {
+		userName := fmt.Sprintf("pagination-user-%d@example.com", i)
+		createUserPayload := map[string]interface{}{
+			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+			"userName": userName,
+			"name": map[string]interface{}{
+				"givenName":  fmt.Sprintf("User%d", i),
+				"familyName": "Pagination",
+			},
+			"emails": []map[string]interface{}{
+				{
+					"value":   userName,
+					"type":    "work",
+					"primary": true,
+				},
+			},
+			"active": true,
+		}
+
+		var createResp map[string]interface{}
+		s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
+		userID := createResp["id"].(string)
+		userIDs = append(userIDs, userID)
+	}
+
+	// Test 1: Get first page with 3 users per page
+	var page1Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page1Resp, "startIndex", "1", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page1Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page1Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources1, ok := page1Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 3, len(resources1), "First page should have 3 users")
+
+	// Verify the users on the first page
+	userNames1 := make([]string, 0, 3)
+	for _, resource := range resources1 {
+		user, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "User should be an object")
+		userName, ok := user["userName"].(string)
+		assert.True(t, ok, "userName should be a string")
+		userNames1 = append(userNames1, userName)
+	}
+	assert.Contains(t, userNames1, "pagination-user-1@example.com", "First page should contain user 1")
+	assert.Contains(t, userNames1, "pagination-user-2@example.com", "First page should contain user 2")
+	assert.Contains(t, userNames1, "pagination-user-3@example.com", "First page should contain user 3")
+
+	// Test 2: Get second page with 3 users per page
+	var page2Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page2Resp, "startIndex", "4", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page2Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page2Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources2, ok := page2Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 3, len(resources2), "Second page should have 3 users")
+
+	// Verify the users on the second page
+	userNames2 := make([]string, 0, 3)
+	for _, resource := range resources2 {
+		user, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "User should be an object")
+		userName, ok := user["userName"].(string)
+		assert.True(t, ok, "userName should be a string")
+		userNames2 = append(userNames2, userName)
+	}
+	assert.Contains(t, userNames2, "pagination-user-4@example.com", "Second page should contain user 4")
+	assert.Contains(t, userNames2, "pagination-user-5@example.com", "Second page should contain user 5")
+	assert.Contains(t, userNames2, "pagination-user-6@example.com", "Second page should contain user 6")
+
+	// Test 3: Get third page with 3 users per page
+	var page3Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page3Resp, "startIndex", "7", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page3Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page3Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources3, ok := page3Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 3, len(resources3), "Third page should have 3 users")
+
+	// Verify the users on the third page
+	userNames3 := make([]string, 0, 3)
+	for _, resource := range resources3 {
+		user, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "User should be an object")
+		userName, ok := user["userName"].(string)
+		assert.True(t, ok, "userName should be a string")
+		userNames3 = append(userNames3, userName)
+	}
+	assert.Contains(t, userNames3, "pagination-user-7@example.com", "Third page should contain user 7")
+	assert.Contains(t, userNames3, "pagination-user-8@example.com", "Third page should contain user 8")
+	assert.Contains(t, userNames3, "pagination-user-9@example.com", "Third page should contain user 9")
+
+	// Test 4: Get fourth page with 3 users per page (should contain only 1 user)
+	var page4Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page4Resp, "startIndex", "10", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page4Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page4Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources4, ok := page4Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	require.Len(t, resources4, 1, "Fourth page should have 1 user")
+
+	// Verify the user on the fourth page
+	user4, ok := resources4[0].(map[string]interface{})
+	assert.True(t, ok, "User should be an object")
+	userName4, ok := user4["userName"].(string)
+	assert.True(t, ok, "userName should be a string")
+	assert.Equal(t, "pagination-user-10@example.com", userName4, "Fourth page should contain user 10")
+
+	// Test 5: Get page with startIndex beyond the total results (should return empty resources)
+	var emptyPageResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &emptyPageResp, "startIndex", "11", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, emptyPageResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), emptyPageResp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	emptyResources, ok := emptyPageResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Empty(t, emptyResources, "Page beyond total results should have 0 users")
+
+	// Test 6: Get all users in a single page
+	var allUsersResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &allUsersResp, "count", "20")
+
+	// Verify response structure
+	assert.EqualValues(t, allUsersResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), allUsersResp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	allResources, ok := allUsersResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 10, len(allResources), "All users page should have 10 users")
+
+	// Clean up all created users
+	for _, userID := range userIDs {
+		s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+	}
 }
 
 // func responseAsJSON(t *testing.T, resp map[string]interface{}) {

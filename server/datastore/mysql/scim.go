@@ -257,15 +257,12 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 // ListScimUsers retrieves a list of SCIM users with optional filtering
 func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error) {
 	// Default pagination values if not provided
-	if opts.Page == 0 {
-		opts.Page = 1
+	if opts.StartIndex == 0 {
+		opts.StartIndex = 1
 	}
 	if opts.PerPage == 0 {
 		opts.PerPage = SCIMDefaultResourcesPerPage
 	}
-
-	// Calculate offset for pagination
-	offset := (opts.Page - 1) * opts.PerPage
 
 	// Build the base query
 	baseQuery := `
@@ -298,7 +295,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 
 	// Add pagination to the main query
 	query := baseQuery + whereClause + " ORDER BY scim_users.id LIMIT ? OFFSET ?"
-	params = append(params, opts.PerPage, offset)
+	params = append(params, opts.PerPage, opts.StartIndex-1)
 
 	// Execute the query
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, params...)
@@ -719,15 +716,12 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 // ListScimGroups retrieves a list of SCIM groups with pagination
 func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	// Default pagination values if not provided
-	if opts.Page == 0 {
-		opts.Page = 1
+	if opts.StartIndex == 0 {
+		opts.StartIndex = 1
 	}
 	if opts.PerPage == 0 {
 		opts.PerPage = SCIMDefaultResourcesPerPage
 	}
-
-	// Calculate offset for pagination
-	offset := (opts.Page - 1) * opts.PerPage
 
 	// Build the query
 	baseQuery := `
@@ -745,7 +739,7 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOpti
 
 	// Add pagination to the main query
 	query := baseQuery + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
-	params := []interface{}{opts.PerPage, offset}
+	params := []interface{}{opts.PerPage, opts.StartIndex - 1}
 
 	// Execute the query
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, params...)
