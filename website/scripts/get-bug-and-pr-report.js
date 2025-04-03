@@ -26,6 +26,7 @@ module.exports = {
     const ONE_DAY_IN_MILLISECONDS = (1000 * 60 * 60 * 24);
     const todaysDate = new Date;
     const threeWeeksAgo = new Date(Date.now() - (21 * ONE_DAY_IN_MILLISECONDS));
+    const sevenDaysAgo = new Date(Date.now() - 7 * ONE_DAY_IN_MILLISECONDS);
     const NUMBER_OF_RESULTS_REQUESTED = 100;
 
     let daysSinceBugsWereOpened = [];
@@ -36,6 +37,7 @@ module.exports = {
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
+    let readyToReviewToMergeTimesInDays = [];
 
     let allPublicOpenPrs = [];
     let publicPrsMergedInThePastThreeWeeks = [];
@@ -211,6 +213,79 @@ module.exports = {
         });
 
       },
+
+      async () => {
+        let pageNumberForPaginatedResults = 0;
+        let mergedPrsInThePastWeek = [];
+
+        // This array will hold the difference between ready for review, and the merge
+        let readyToReviewToMergeTimesInDays = [];
+
+        // Fetch merged pull requests from the fleetdm/fleet GitHub Repo
+        await sails.helpers.flow.until(async () => {
+          pageNumberForPaginatedResults += 1;
+          let closedPullRequests = await sails.helpers.http.get(
+            `https://api.github.com/repos/fleetdm/fleet/pulls`,
+            {
+              state: 'closed',
+              sort: 'updated',
+              direction: 'desc',
+              per_page: NUMBER_OF_RESULTS_REQUESTED,
+              page: pageNumberForPaginatedResults,
+            },
+            baseHeaders,
+          ).retry();
+
+          // Filter for merged PRs within the last 7 days ( No bot/handbook/CEO/documentation PRs)
+          let resultsToAdd = closedPullRequests.filter(pullRequest => {
+            return (
+              !pullRequest.draft &&
+              pullRequest.merged_at && // Ensure it's merged
+              sevenDaysAgo <= new Date(pullRequest.merged_at) &&
+              pullRequest.user.type !== 'Bot' && 
+              !pullRequest.labels.some(label => label.name === '#handbook' || label.name === '~ceo' || label.name === ':improve documentation')
+            );
+          });
+
+          mergedPrsInThePastWeek = mergedPrsInThePastWeek.concat(
+            resultsToAdd,
+          );
+          // For rate limiting issues, we stop after 3 pages (300 results)
+          return pageNumberForPaginatedResults === 3;
+        });
+
+        // Process each merged PR to find "ready_for_review" time
+        await sails.helpers.flow.simultaneouslyForEach(
+          mergedPrsInThePastWeek,
+          async pullRequest => {
+            // Create a date object from the PR's merged_at timestamp.
+            let pullRequestMergedOn = new Date(pullRequest.merged_at);
+
+            // ** Ready for Review Time Calculation **
+            //  Fetch the events related to the pull request to determine when it was last marked as "ready for review".
+            let eventsUrl = pullRequest.url + '/events';
+            let events = await sails.helpers.http.get(eventsUrl, {}, baseHeaders).retry();
+
+            // Find the last "ready_for_review" event
+            let readyForReviewEvent = events
+              .filter(event => event.event === 'ready_for_review')
+              .pop();
+
+            if (readyForReviewEvent) {
+              let readyForReviewTime = new Date(readyForReviewEvent.created_at);
+              let readyToReviewToMergeTimeInMS = Math.abs(
+                pullRequestMergedOn - readyForReviewTime,
+              );
+              let prReadyToReviewToMergeTimeInDays =
+                readyToReviewToMergeTimeInMS / ONE_DAY_IN_MILLISECONDS;
+              readyToReviewToMergeTimesInDays.push(
+                prReadyToReviewToMergeTimeInDays,
+              );
+            }
+          },
+        );
+      },
+
       //   ██████╗ ██████╗ ███████╗███╗   ██╗    ██████╗ ██████╗ ███████╗
       //  ██╔═══██╗██╔══██╗██╔════╝████╗  ██║    ██╔══██╗██╔══██╗██╔════╝
       //  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║    ██████╔╝██████╔╝███████╗
@@ -304,6 +379,9 @@ module.exports = {
     // Get the averages from the arrays of results.
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
+    let averageDaysFromReadyForReviewToMerge =
+      readyToReviewToMergeTimesInDays.reduce((a, b) => a + b, 0) /
+      readyToReviewToMergeTimesInDays.length;
 
 
     // Compute Handbook PR KPIs, which are slightly simpler.
@@ -352,6 +430,8 @@ module.exports = {
     Average open time: ${averageDaysContributorPullRequestsAreOpenFor} days.
 
     Number of open pull requests in the fleetdm/fleet Github repo: ${daysSinceContributorPullRequestsWereOpened.length}
+    
+    Average time from ready to review to merge for PRs merged in last 7 days (no bots, no handbook, no ceo): ${averageDaysFromReadyForReviewToMerge} days.
 
     Bugs:
     ---------------------------
