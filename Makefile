@@ -119,6 +119,9 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
+.help-short--serve .help-short--up:
+	@echo "Start the fleet server"
+
 serve up: TARGET_ARGS := --use-ip --no-save --show
 ifdef USE_IP
 serve up: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
@@ -129,6 +132,9 @@ serve up:
 	if [[ $$? -eq 0 ]]; then \
 		echo "$$SAVED_ARGS"; \
 	fi
+else ifdef HELP
+serve up:
+	@./build/fleet serve --help
 else
 serve up:
 	$(call filter_args)
