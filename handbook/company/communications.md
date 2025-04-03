@@ -718,9 +718,8 @@ In this section, you can find information about Fleet's benefit strategies and d
 ### Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
-For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/dc417031-82fd-4348-b811-6a2e73a654a2">
+For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
 
 #### Holidays
@@ -737,8 +736,6 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 #### New parent leave
 
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/80808c80-8e39-4413-b87b-988014aa4348">
 
 
 #### Taking time off
@@ -809,8 +806,6 @@ Welcome to Fleet!
 4. Immerse yourself in the world of device management and cybersecurity.
 
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/6b14f6ea-2e66-4369-9b71-d4babc0d00d5">
 
 
 ### Training expectations
@@ -1141,8 +1136,6 @@ Then use the short version for all other references.
 - A command-line interface (CLI) is a text-based user interface (UI) used to run programs, manage computer files, and interact with the computer.
 - The Fleet CLI is called fleetctl.
 If the abbreviation or acronym is well known, like API or HTML, use it instead (and don’t worry about spelling it out).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/195a1406-dc03-43ec-ae81-0a98e40b1d84">
 
 
 ### Numbers and times
