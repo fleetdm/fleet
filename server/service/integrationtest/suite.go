@@ -3,7 +3,6 @@ package integrationtest
 import (
 	"context"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -39,32 +38,6 @@ func (s *BaseSuite) GetTestAdminToken(t *testing.T) string {
 
 func (s *BaseSuite) GetTestToken(t *testing.T, email string, password string) string {
 	return service.GetToken(t, email, password, s.Server.URL)
-}
-
-func SetUpSuite(t *testing.T, uniqueTestName string) *BaseSuite {
-	ds, redisPool, fleetCfg, fleetSvc, ctx := SetUpDSRedisService(t, uniqueTestName)
-	logger := log.NewLogfmtLogger(os.Stdout)
-	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{
-			Tier: fleet.TierFree,
-		},
-		FleetConfig: &fleetCfg,
-		Pool:        redisPool,
-		Logger:      logger,
-	})
-
-	s := &BaseSuite{
-		Logger:   logger,
-		DS:       ds,
-		FleetCfg: fleetCfg,
-		Users:    users,
-		Server:   server,
-	}
-
-	SetUpServerURL(t, ds, server)
-
-	s.Token = s.GetTestAdminToken(t)
-	return s
 }
 
 func SetUpServerURL(t *testing.T, ds *mysql.Datastore, server *httptest.Server) {
