@@ -70,7 +70,7 @@ module.exports = {
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`an error occurred when provisioning a new Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return this.res.redirect(fleetInstanceUrlToRedirectTo)
+        return this.res.redirect(fleetInstanceUrlToRedirectTo);
       });
       // Example response:
       // HTTP/1.1 200 OK
@@ -99,7 +99,7 @@ module.exports = {
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return this.res.redirect(fleetInstanceUrlToRedirectTo)
+        return this.res.redirect(fleetInstanceUrlToRedirectTo);
       });
 
       // Example response:
