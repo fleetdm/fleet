@@ -25,6 +25,7 @@ func TestSCIM(t *testing.T) {
 		{"Users", testUsersBasicCRUD},
 		{"Groups", testGroupsBasicCRUD},
 		{"CreateUser", testCreateUser},
+		{"CreateGroup", testCreateGroup},
 		{"PatchUserFailure", testPatchUserFailure},
 		{"UsersPagination", testUsersPagination},
 	}
@@ -413,6 +414,150 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 
 	// Clean up the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+}
+
+func testCreateGroup(t *testing.T, s *Suite) {
+	// Create multiple test users to be added as members
+	userIDs := make([]string, 0, 5)
+
+	for i := 1; i <= 5; i++ {
+		userName := fmt.Sprintf("group-test-user-%d@example.com", i)
+		createUserPayload := map[string]interface{}{
+			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+			"userName": userName,
+			"name": map[string]interface{}{
+				"givenName":  fmt.Sprintf("User%d", i),
+				"familyName": "GroupTest",
+			},
+			"emails": []map[string]interface{}{
+				{
+					"value":   userName,
+					"type":    "work",
+					"primary": true,
+				},
+			},
+			"active": true,
+		}
+
+		var createResp map[string]interface{}
+		s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
+		userID := createResp["id"].(string)
+		userIDs = append(userIDs, userID)
+	}
+
+	// Test 1: Create a group with 0 members
+	emptyGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Empty Group",
+	}
+
+	var emptyGroupResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), emptyGroupPayload, http.StatusCreated, &emptyGroupResp)
+
+	// Verify the created group
+	assert.Equal(t, "Empty Group", emptyGroupResp["displayName"])
+
+	// Verify no members
+	_, membersExist := emptyGroupResp["members"]
+	assert.False(t, membersExist, "Members should not be present for an empty group")
+
+	emptyGroupID := emptyGroupResp["id"].(string)
+	assert.NotEmpty(t, emptyGroupID)
+
+	// Test 2: Create a group with many members
+	members := make([]map[string]interface{}, 0, len(userIDs))
+	for _, userID := range userIDs {
+		members = append(members, map[string]interface{}{
+			"value": userID,
+		})
+	}
+
+	manyMembersGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Many Members Group",
+		"members":     members,
+	}
+
+	var manyMembersGroupResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), manyMembersGroupPayload, http.StatusCreated, &manyMembersGroupResp)
+
+	// Verify the created group
+	assert.Equal(t, "Many Members Group", manyMembersGroupResp["displayName"])
+
+	// Verify members
+	respMembers, ok := manyMembersGroupResp["members"].([]interface{})
+	assert.True(t, ok, "Members should be an array")
+	assert.Equal(t, len(userIDs), len(respMembers), "Should have the same number of members as we added")
+
+	// Verify each member is in the response
+	memberValues := make([]string, 0, len(respMembers))
+	for _, member := range respMembers {
+		memberMap, ok := member.(map[string]interface{})
+		assert.True(t, ok, "Member should be an object")
+		memberValues = append(memberValues, memberMap["value"].(string))
+		assert.Equal(t, "User", memberMap["type"])
+		assert.Contains(t, memberMap["$ref"], "Users/")
+	}
+
+	for _, userID := range userIDs {
+		assert.Contains(t, memberValues, userID, "User ID should be in the members list")
+	}
+
+	manyMembersGroupID := manyMembersGroupResp["id"].(string)
+	assert.NotEmpty(t, manyMembersGroupID)
+
+	// Test 3: Try to create a group with the same display name (should fail)
+	duplicateGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Empty Group", // Same as the first group
+	}
+
+	var errorResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), duplicateGroupPayload, http.StatusConflict, &errorResp)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp["detail"], "One or more of the attribute values are already in use or are reserved")
+
+	// Test 4: Try to create a group without displayName (should fail)
+	noDisplayNamePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		// No displayName
+	}
+
+	errorResp = nil
+	s.DoJSON(t, "POST", scimPath("/Groups"), noDisplayNamePayload, http.StatusBadRequest, &errorResp)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp["detail"], "A required value was missing")
+
+	// Test 5: Try to create a group with invalid member ID (should fail)
+	invalidMemberPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Invalid Member Group",
+		"members": []map[string]interface{}{
+			{
+				"value": "invalid-user-id",
+			},
+		},
+	}
+
+	errorResp = nil
+	s.DoJSON(t, "POST", scimPath("/Groups"), invalidMemberPayload, http.StatusBadRequest, &errorResp)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+
+	// Clean up
+	// Delete the groups
+	s.Do(t, "DELETE", scimPath("/Groups/"+emptyGroupID), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Groups/"+manyMembersGroupID), nil, http.StatusNoContent)
+
+	// Delete the users
+	for _, userID := range userIDs {
+		s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+	}
 }
 
 func testCreateUser(t *testing.T, s *Suite) {
