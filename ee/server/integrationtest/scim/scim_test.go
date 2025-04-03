@@ -28,6 +28,7 @@ func TestSCIM(t *testing.T) {
 		{"CreateGroup", testCreateGroup},
 		{"PatchUserFailure", testPatchUserFailure},
 		{"UsersPagination", testUsersPagination},
+		{"GroupsPagination", testGroupsPagination},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -768,6 +769,32 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
 
+	// Test creating a user with duplicate userName using different case.
+	// userName must be case insensitive
+	duplicateUserNamePayload = map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "Multiple-Emails@example.com", // Same as userWithMultipleEmails
+		"name": map[string]interface{}{
+			"givenName":  "Duplicate",
+			"familyName": "UserName",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "duplicate@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var errorResp3 map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), duplicateUserNamePayload, http.StatusConflict, &errorResp3)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp3["detail"], "One or more of the attribute values are already in use or are reserved")
+
 	// Make sure these users can be deleted.
 	s.Do(t, "DELETE", scimPath("/Users/"+userID1), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID2), nil, http.StatusNoContent)
@@ -1078,6 +1105,223 @@ func testUsersPagination(t *testing.T, s *Suite) {
 // 	require.NoError(t, err)
 // 	t.Logf("formatted resp: %s", string(formattedResp))
 // }
+
+func testGroupsPagination(t *testing.T, s *Suite) {
+	// First, create a user to be added as a member of some groups
+	createUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "group-pagination-member@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Group",
+			"familyName": "PaginationMember",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "group-pagination-member@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createUserResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createUserResp)
+	userID := createUserResp["id"].(string)
+	assert.NotEmpty(t, userID)
+
+	// Create multiple groups for pagination testing
+	groupIDs := make([]string, 0, 10)
+
+	for i := 1; i <= 10; i++ {
+		// Add the user as a member to even-numbered groups
+		var members []map[string]interface{}
+		if i%2 == 0 {
+			members = []map[string]interface{}{
+				{
+					"value": userID,
+				},
+			}
+		}
+
+		createGroupPayload := map[string]interface{}{
+			"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+			"displayName": fmt.Sprintf("Pagination Group %d", i),
+		}
+
+		if len(members) > 0 {
+			createGroupPayload["members"] = members
+		}
+
+		var createResp map[string]interface{}
+		s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
+		groupID := createResp["id"].(string)
+		groupIDs = append(groupIDs, groupID)
+	}
+
+	// Test 1: Get first page with 3 groups per page
+	var page1Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page1Resp, "startIndex", "1", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page1Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page1Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources1, ok := page1Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 3, len(resources1), "First page should have 3 groups")
+
+	// Verify the groups on the first page
+	displayNames1 := make([]string, 0, 3)
+	for _, resource := range resources1 {
+		group, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		displayName, ok := group["displayName"].(string)
+		assert.True(t, ok, "displayName should be a string")
+		displayNames1 = append(displayNames1, displayName)
+	}
+	assert.Contains(t, displayNames1, "Pagination Group 1", "First page should contain group 1")
+	assert.Contains(t, displayNames1, "Pagination Group 2", "First page should contain group 2")
+	assert.Contains(t, displayNames1, "Pagination Group 3", "First page should contain group 3")
+
+	// Test 2: Get second page with 3 groups per page
+	var page2Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page2Resp, "startIndex", "4", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page2Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page2Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources2, ok := page2Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 3, len(resources2), "Second page should have 3 groups")
+
+	// Verify the groups on the second page
+	displayNames2 := make([]string, 0, 3)
+	for _, resource := range resources2 {
+		group, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		displayName, ok := group["displayName"].(string)
+		assert.True(t, ok, "displayName should be a string")
+		displayNames2 = append(displayNames2, displayName)
+	}
+	assert.Contains(t, displayNames2, "Pagination Group 4", "Second page should contain group 4")
+	assert.Contains(t, displayNames2, "Pagination Group 5", "Second page should contain group 5")
+	assert.Contains(t, displayNames2, "Pagination Group 6", "Second page should contain group 6")
+
+	// Test 3: Get third page with 3 groups per page
+	var page3Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page3Resp, "startIndex", "7", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page3Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page3Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources3, ok := page3Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 3, len(resources3), "Third page should have 3 groups")
+
+	// Verify the groups on the third page
+	displayNames3 := make([]string, 0, 3)
+	for _, resource := range resources3 {
+		group, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		displayName, ok := group["displayName"].(string)
+		assert.True(t, ok, "displayName should be a string")
+		displayNames3 = append(displayNames3, displayName)
+	}
+	assert.Contains(t, displayNames3, "Pagination Group 7", "Third page should contain group 7")
+	assert.Contains(t, displayNames3, "Pagination Group 8", "Third page should contain group 8")
+	assert.Contains(t, displayNames3, "Pagination Group 9", "Third page should contain group 9")
+
+	// Test 4: Get fourth page with 3 groups per page (should contain only 1 group)
+	var page4Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page4Resp, "startIndex", "10", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, page4Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), page4Resp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	resources4, ok := page4Resp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	require.Len(t, resources4, 1, "Fourth page should have 1 group")
+
+	// Verify the group on the fourth page
+	group4, ok := resources4[0].(map[string]interface{})
+	assert.True(t, ok, "Group should be an object")
+	displayName4, ok := group4["displayName"].(string)
+	assert.True(t, ok, "displayName should be a string")
+	assert.Equal(t, "Pagination Group 10", displayName4, "Fourth page should contain group 10")
+
+	// Test 5: Get page with startIndex beyond the total results (should return empty resources)
+	var emptyPageResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &emptyPageResp, "startIndex", "11", "count", "3")
+
+	// Verify response structure
+	assert.EqualValues(t, emptyPageResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), emptyPageResp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	emptyResources, ok := emptyPageResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Empty(t, emptyResources, "Page beyond total results should have 0 groups")
+
+	// Test 6: Get all groups in a single page
+	var allGroupsResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &allGroupsResp, "count", "20")
+
+	// Verify response structure
+	assert.EqualValues(t, allGroupsResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.Equal(t, float64(10), allGroupsResp["totalResults"], "Total results should be 10")
+
+	// Verify resources
+	allResources, ok := allGroupsResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 10, len(allResources), "All groups page should have 10 groups")
+
+	// Test 7: Verify that even-numbered groups have the user as a member
+	for _, resource := range allResources {
+		group, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		displayName, ok := group["displayName"].(string)
+		assert.True(t, ok, "displayName should be a string")
+
+		// Extract the group number from the display name
+		var groupNum int
+		_, err := fmt.Sscanf(displayName, "Pagination Group %d", &groupNum)
+		assert.NoError(t, err, "Should be able to extract group number from display name")
+
+		// Check if the group has members based on its number
+		if groupNum%2 == 0 {
+			// Even-numbered groups should have the user as a member
+			members, ok := group["members"].([]interface{})
+			assert.True(t, ok, "members should be an array")
+			assert.Equal(t, 1, len(members), "Even-numbered group should have 1 member")
+
+			if len(members) > 0 {
+				member, ok := members[0].(map[string]interface{})
+				assert.True(t, ok, "Member should be an object")
+				assert.Equal(t, userID, member["value"], "Member should be the test user")
+			}
+		} else {
+			// Odd-numbered groups should not have members
+			_, hasMembersField := group["members"]
+			assert.False(t, hasMembersField, "Odd-numbered group should not have members field")
+		}
+	}
+
+	// Clean up all created groups
+	for _, groupID := range groupIDs {
+		s.Do(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNoContent)
+	}
+
+	// Clean up the user
+	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+}
 
 func scimPath(suffix string) string {
 	paths := []string{"/api/v1/fleet/scim", "/api/latest/fleet/scim"}
