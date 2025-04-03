@@ -263,6 +263,7 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
 	},
+	osquery_utils.Integrations{},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {

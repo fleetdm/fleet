@@ -266,6 +266,9 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
 			return 0, nil
 		}
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return nil, &eeservice.NotFoundError{}
+		}
 	}
 
 	authzCtx := &authz_ctx.AuthorizationContext{}

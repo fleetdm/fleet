@@ -77,6 +77,11 @@ type SSOSettings struct {
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
 }
 
+type ConditionalAccessSettings struct {
+	MicrosoftEntraTenantID             string `json:"microsoft_entra_tenant_id"`
+	MicrosoftEntraConnectionConfigured bool   `json:"microsoft_entra_connection_configured"`
+}
+
 // SMTPSettings is part of the AppConfig which defines the wire representation
 // of the app config endpoints
 type SMTPSettings struct {
@@ -553,6 +558,7 @@ type AppConfig struct {
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
 	SSOSettings *SSOSettings `json:"sso_settings,omitempty"`
+
 	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
 	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
@@ -1331,6 +1337,9 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
+	// Currently only used to display UI features only present on cloud instances.
+	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {

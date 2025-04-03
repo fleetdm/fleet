@@ -1774,6 +1774,14 @@ func (c *Client) DoGitOps(
 				return nil, errors.New("team_settings.integrations.google_calendar config is not a map")
 			}
 		}
+		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		} else {
+			_, ok = conditionalAccessEnabled.(bool)
+			if !ok {
+				return nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
+			}
+		}
 
 		team["mdm"] = map[string]interface{}{}
 		mdmAppConfig = team["mdm"].(map[string]interface{})

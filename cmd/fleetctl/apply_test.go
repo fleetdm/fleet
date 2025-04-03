@@ -211,6 +211,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
 
 	filename := writeTmpYml(t, `
 ---
@@ -808,6 +811,9 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
 
 	// first, set the default app config's agent options as set after fleetctl setup
 	name := writeTmpYml(t, `---
@@ -1364,6 +1370,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
+	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
 	}
 
 	// Apply global config.
@@ -2176,6 +2185,9 @@ func TestApplyMacosSetup(t *testing.T) {
 
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{}, nil
+		}
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return nil, &notFoundError{}
 		}
 
 		return ds

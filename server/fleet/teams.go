@@ -474,6 +474,8 @@ type TeamSpecWebhookSettings struct {
 type TeamSpecIntegrations struct {
 	// If value is nil, we don't want to change the existing value.
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
+
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 }
 
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.

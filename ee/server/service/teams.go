@@ -263,6 +263,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
 		}
+
+		if err := fleet.ValidateConditionalAccessIntegration(ctx,
+			svc,
+			team.Config.Integrations.ConditionalAccessEnabled,
+			payload.Integrations.ConditionalAccessEnabled,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		team.Config.Integrations.ConditionalAccessEnabled = payload.Integrations.ConditionalAccessEnabled
 	}
 
 	if payload.WebhookSettings != nil || payload.Integrations != nil {
@@ -1078,6 +1087,14 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	if err := fleet.ValidateConditionalAccessIntegration(ctx,
+		svc,
+		false,
+		spec.Integrations.ConditionalAccessEnabled,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	if dryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
@@ -1118,7 +1135,8 @@ func (svc *Service) createTeamFromSpec(
 				HostStatusWebhook: hostStatusWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
-				GoogleCalendar: spec.Integrations.GoogleCalendar,
+				GoogleCalendar:           spec.Integrations.GoogleCalendar,
+				ConditionalAccessEnabled: spec.Integrations.ConditionalAccessEnabled,
 			},
 			Software: spec.Software,
 		},
@@ -1335,6 +1353,15 @@ func (svc *Service) editTeamFromSpec(
 		}
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
+
+	if err := fleet.ValidateConditionalAccessIntegration(ctx,
+		svc,
+		team.Config.Integrations.ConditionalAccessEnabled,
+		spec.Integrations.ConditionalAccessEnabled,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+	team.Config.Integrations.ConditionalAccessEnabled = spec.Integrations.ConditionalAccessEnabled
 
 	if opts.DryRun {
 		for _, secret := range secrets {

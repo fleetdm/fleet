@@ -163,6 +163,9 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds
@@ -224,4 +227,16 @@ func serveMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.
 	}))
 	t.Cleanup(srv.Close)
 	return srv, len(pkgBytes)
+}
+
+type notFoundError struct{}
+
+var _ fleet.NotFoundError = (*notFoundError)(nil)
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e *notFoundError) Error() string {
+	return ""
 }

@@ -14,11 +14,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/jmoiron/sqlx"
-
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -731,6 +730,7 @@ type Datastore interface {
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
+	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -2073,6 +2073,17 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Compliance Partner
+
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID, proxyServerSecret string) error
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+	LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*HostConditionalAccessStatus, error)
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string) error
+	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, compliant bool) error
 }
 
 type AndroidDatastore interface {
