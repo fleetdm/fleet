@@ -332,8 +332,8 @@ module.exports = {
     // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
     kpiResults.push(
       averageDaysContributorPullRequestsAreOpenFor,
-      averageNumberOfDaysBugsAreOpenFor,
       allBugs32DaysOrOlder.length,
+      averageNumberOfDaysBugsAreOpenFor,
       allBugsReportedByCustomersInPastWeek.length,
       allBugsCreatedInPastWeek.length,
       allBugsClosedInPastWeek.length,);
