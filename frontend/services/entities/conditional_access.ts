@@ -25,9 +25,13 @@ const conditionalAccessService = {
   confirmMicrosoftConditionalAccess: (): Promise<ConfirmMSConditionalAccessResponse> => {
     // TODO - real one!
     // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_CONFIRM);
+
     return Promise.resolve({
       configuration_completed: true,
+      // configuration_completed: false,
     });
+
+    // return Promise.reject(new Error("Bad data"));
   },
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
