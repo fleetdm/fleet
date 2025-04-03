@@ -34,7 +34,9 @@ const conditionalAccessService = {
     // return Promise.reject(new Error("Bad data"));
   },
   deleteMicrosoftConditionalAccess: () => {
-    return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
+    // TODO - real one!
+    // return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
+    return Promise.resolve();
   },
 };
 

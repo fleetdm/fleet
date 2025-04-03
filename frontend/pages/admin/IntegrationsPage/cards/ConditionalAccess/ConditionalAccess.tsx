@@ -29,10 +29,55 @@ import Icon from "components/Icon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";
+import Modal from "components/Modal";
 
 const baseClass = "conditional-access";
 
 const MSETID = "microsoft_entra_tenant_id";
+
+interface IDeleteConditionalAccessModal {
+  toggleDeleteConditionalAccessModal: () => void;
+  onDelete: () => void;
+  isUpdating: boolean;
+}
+
+const DeleteConditionalAccessModal = ({
+  toggleDeleteConditionalAccessModal,
+  onDelete,
+  isUpdating,
+}: IDeleteConditionalAccessModal) => {
+  return (
+    <Modal
+      title="Delete"
+      onExit={toggleDeleteConditionalAccessModal}
+      onEnter={onDelete}
+    >
+      <>
+        <p>
+          Fleet will be disconnected from Microsoft Entra and will stop blocking
+          end users from logging into third party apps.
+        </p>
+        <div className="modal-cta-wrap">
+          <Button
+            type="button"
+            variant="alert"
+            onClick={onDelete}
+            // className="delete-loading"
+            isLoading={isUpdating}
+          >
+            Delete
+          </Button>
+          <Button
+            onClick={toggleDeleteConditionalAccessModal}
+            variant="inverse-alert"
+          >
+            Cancel
+          </Button>
+        </div>
+      </>
+    </Modal>
+  );
+};
 
 // conditions –> UI phases:
 // 	- no config.tenant id –> "form" √
@@ -82,6 +127,10 @@ const ConditionalAccess = () => {
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [
+    showDeleteConditionalAccessModal,
+    setShowDeleteConditionalAccessModal,
+  ] = useState(false);
 
   // "loading" state here is encompassed by phase === Phase.ConfirmingConfigured state, don't need
   // to use useQuery's
@@ -143,7 +192,11 @@ const ConditionalAccess = () => {
 
   // HANDLERS
 
-  const handleSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
+  const toggleDeleteConditionalAccessModal = () => {
+    setShowDeleteConditionalAccessModal(!showDeleteConditionalAccessModal);
+  };
+
+  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const errs = validate(formData);
@@ -170,6 +223,28 @@ const ConditionalAccess = () => {
     }
   };
 
+  const onDeleteConditionalAccess = async () => {
+    setIsUpdating(true);
+    try {
+      await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
+      renderFlash(
+        "success",
+        "Successfully disconnected from Miscrosoft Entra."
+      );
+      // TODO - confirm config values are updated on server and don't need to be explicitly set to
+      // defaults here
+      setIsUpdating(false);
+      toggleDeleteConditionalAccessModal();
+      setPhase(Phase.Form);
+    } catch {
+      renderFlash(
+        "error",
+        "Could not disconnect from Microsoft Entra, please try again."
+      );
+      setIsUpdating(false);
+    }
+  };
+
   const onInputChange = ({ name, value }: IFormField<string>) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
@@ -191,15 +266,11 @@ const ConditionalAccess = () => {
     setFormErrors(validate(formData));
   };
 
-  const onDelete = () => {
-    // TODO
-  };
-
   const renderContent = () => {
     switch (phase) {
       case Phase.Form:
         return (
-          <form onSubmit={handleSubmit} autoComplete="off">
+          <form onSubmit={onSubmit} autoComplete="off">
             <InputField
               label="Microsoft Entra tenant ID"
               helpText={
@@ -256,7 +327,7 @@ const ConditionalAccess = () => {
             <Button
               // className={`${baseClass}__delete-mse-integration`}
               variant="text-icon"
-              onClick={onDelete}
+              onClick={toggleDeleteConditionalAccessModal}
             >
               Delete
               <Icon name="trash" color="ui-fleet-black-75" />
@@ -277,6 +348,15 @@ const ConditionalAccess = () => {
         <CustomLink url={paths.MANAGE_POLICIES} text="Policies" /> page.
       </p>
       {renderContent()}
+      {showDeleteConditionalAccessModal && (
+        <DeleteConditionalAccessModal
+          onDelete={onDeleteConditionalAccess}
+          toggleDeleteConditionalAccessModal={
+            toggleDeleteConditionalAccessModal
+          }
+          isUpdating={isUpdating}
+        />
+      )}
     </div>
   );
 };
