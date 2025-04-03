@@ -29,6 +29,7 @@ func TestSCIM(t *testing.T) {
 		{"PatchUserFailure", testPatchUserFailure},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
+		{"UsersAndGroups", testUsersAndGroups},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1321,6 +1322,187 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 
 	// Clean up the user
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+}
+
+func testUsersAndGroups(t *testing.T, s *Suite) {
+	// Create multiple test users
+	userIDs := make([]string, 0, 3)
+	userNames := make([]string, 0, 3)
+
+	for i := 1; i <= 3; i++ {
+		userName := fmt.Sprintf("user-group-test-%d@example.com", i)
+		userNames = append(userNames, userName)
+
+		createUserPayload := map[string]interface{}{
+			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+			"userName": userName,
+			"name": map[string]interface{}{
+				"givenName":  fmt.Sprintf("User%d", i),
+				"familyName": "GroupTest",
+			},
+			"emails": []map[string]interface{}{
+				{
+					"value":   userName,
+					"type":    "work",
+					"primary": true,
+				},
+			},
+			"active": true,
+		}
+
+		var createResp map[string]interface{}
+		s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
+		userID := createResp["id"].(string)
+		userIDs = append(userIDs, userID)
+	}
+
+	// Create two groups with different membership patterns
+	// Group 1: Contains users 1 and 2
+	group1Members := []map[string]interface{}{
+		{
+			"value": userIDs[0],
+		},
+		{
+			"value": userIDs[1],
+		},
+	}
+
+	createGroup1Payload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Test Group 1",
+		"members":     group1Members,
+	}
+
+	var createGroup1Resp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), createGroup1Payload, http.StatusCreated, &createGroup1Resp)
+	group1ID := createGroup1Resp["id"].(string)
+
+	// Group 2: Contains users 2 and 3
+	group2Members := []map[string]interface{}{
+		{
+			"value": userIDs[1],
+		},
+		{
+			"value": userIDs[2],
+		},
+	}
+
+	createGroup2Payload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Test Group 2",
+		"members":     group2Members,
+	}
+
+	var createGroup2Resp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), createGroup2Payload, http.StatusCreated, &createGroup2Resp)
+	group2ID := createGroup2Resp["id"].(string)
+
+	// Test 1: Verify that User 1 is in Group 1 only
+	var user1Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[0]), nil, http.StatusOK, &user1Resp)
+
+	// Check groups field in user response
+	user1Groups, ok := user1Resp["groups"].([]interface{})
+	assert.True(t, ok, "User should have groups field")
+	assert.Equal(t, 1, len(user1Groups), "User 1 should be in 1 group")
+
+	// Verify the group is Group 1
+	if len(user1Groups) > 0 {
+		group, ok := user1Groups[0].(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		assert.Equal(t, group1ID, group["value"], "User 1 should be in Group 1")
+		assert.Equal(t, "Groups/"+group1ID, group["$ref"], "Group $ref should be correct")
+	}
+
+	// Test 2: Verify that User 2 is in both Group 1 and Group 2
+	var user2Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[1]), nil, http.StatusOK, &user2Resp)
+
+	// Check groups field in user response
+	user2Groups, ok := user2Resp["groups"].([]interface{})
+	assert.True(t, ok, "User should have groups field")
+	assert.Equal(t, 2, len(user2Groups), "User 2 should be in 2 groups")
+
+	// Verify the groups include both Group 1 and Group 2
+	groupValues := make([]string, 0, 2)
+	for _, g := range user2Groups {
+		group, ok := g.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		groupValues = append(groupValues, group["value"].(string))
+	}
+	assert.Contains(t, groupValues, group1ID, "User 2 should be in Group 1")
+	assert.Contains(t, groupValues, group2ID, "User 2 should be in Group 2")
+
+	// Test 3: Verify that User 3 is in Group 2 only
+	var user3Resp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[2]), nil, http.StatusOK, &user3Resp)
+
+	// Check groups field in user response
+	user3Groups, ok := user3Resp["groups"].([]interface{})
+	assert.True(t, ok, "User should have groups field")
+	assert.Equal(t, 1, len(user3Groups), "User 3 should be in 1 group")
+
+	// Verify the group is Group 2
+	if len(user3Groups) > 0 {
+		group, ok := user3Groups[0].(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		assert.Equal(t, group2ID, group["value"], "User 3 should be in Group 2")
+		assert.Equal(t, "Groups/"+group2ID, group["$ref"], "Group $ref should be correct")
+	}
+
+	// Test 4: Update Group 1 to remove User 1 and add User 3
+	updateGroup1Payload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Test Group 1",
+		"members": []map[string]interface{}{
+			{
+				"value": userIDs[1], // Keep User 2
+			},
+			{
+				"value": userIDs[2], // Add User 3
+			},
+		},
+	}
+
+	var updateGroup1Resp map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Groups/"+group1ID), updateGroup1Payload, http.StatusOK, &updateGroup1Resp)
+
+	// Test 5: Verify that User 1 is no longer in any group
+	user1Resp = nil
+	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[0]), nil, http.StatusOK, &user1Resp)
+
+	// Check groups field in user response
+	_, hasGroups := user1Resp["groups"]
+	assert.False(t, hasGroups, "User 1 should not have groups field or it should be empty")
+
+	// Test 6: Verify that User 3 is now in both groups
+	user3Resp = nil
+	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[2]), nil, http.StatusOK, &user3Resp)
+
+	// Check groups field in user response
+	user3Groups, ok = user3Resp["groups"].([]interface{})
+	assert.True(t, ok, "User should have groups field")
+	assert.Equal(t, 2, len(user3Groups), "User 3 should be in 2 groups")
+
+	// Verify the groups include both Group 1 and Group 2
+	groupValues = make([]string, 0, 2)
+	for _, g := range user3Groups {
+		group, ok := g.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		groupValues = append(groupValues, group["value"].(string))
+	}
+	assert.Contains(t, groupValues, group1ID, "User 3 should be in Group 1")
+	assert.Contains(t, groupValues, group2ID, "User 3 should be in Group 2")
+
+	// Clean up
+	// Delete the groups
+	s.Do(t, "DELETE", scimPath("/Groups/"+group1ID), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Groups/"+group2ID), nil, http.StatusNoContent)
+
+	// Delete the users
+	for _, userID := range userIDs {
+		s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+	}
 }
 
 func scimPath(suffix string) string {
