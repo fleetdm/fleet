@@ -291,6 +291,36 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusNotFound, &errorResp)
 	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp["detail"], "not found")
+
+	// Test replacing a user that doesn't exist
+	nonExistentUserID := "99999"
+	updateNonExistentUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "nonexistent@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Non",
+			"familyName": "Existent",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "nonexistent@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var updateNonExistentResp map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+nonExistentUserID), updateNonExistentUserPayload, http.StatusNotFound, &updateNonExistentResp)
+	assert.EqualValues(t, updateNonExistentResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, updateNonExistentResp["detail"], "not found")
+
+	// Test deleting a user that was already deleted
+	var deleteAgainResp map[string]interface{}
+	s.DoJSON(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNotFound, &deleteAgainResp)
+	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, deleteAgainResp["detail"], "not found")
 }
 
 func testGroupsBasicCRUD(t *testing.T, s *Suite) {
@@ -430,6 +460,25 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusNotFound, &errorResp)
 	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp["detail"], "not found")
+
+	// Test replacing a group that doesn't exist
+	nonExistentGroupID := "99999"
+	updateNonExistentGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Non-Existent Group",
+		"members":     []map[string]interface{}{},
+	}
+
+	var updateNonExistentResp map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Groups/"+nonExistentGroupID), updateNonExistentGroupPayload, http.StatusNotFound, &updateNonExistentResp)
+	assert.EqualValues(t, updateNonExistentResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, updateNonExistentResp["detail"], "not found")
+
+	// Test deleting a group that was already deleted
+	var deleteAgainResp map[string]interface{}
+	s.DoJSON(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNotFound, &deleteAgainResp)
+	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, deleteAgainResp["detail"], "not found")
 
 	// Clean up the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)

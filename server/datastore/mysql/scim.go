@@ -227,13 +227,6 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 // DeleteScimUser deletes a SCIM user from the database
 func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Delete all email entries for the user
-		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
-		_, err := tx.ExecContext(ctx, deleteEmailsQuery, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete scim user emails")
-		}
-
 		// Delete the user
 		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ?`
 		result, err := tx.ExecContext(ctx, deleteUserQuery, id)
