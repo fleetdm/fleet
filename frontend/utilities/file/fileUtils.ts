@@ -36,6 +36,9 @@ export const getExtensionFromFileName = (fileName: string) => {
 /** This gets the platform display name from the file. */
 export const getPlatformDisplayName = (file: File) => {
   const fileExt = getExtensionFromFileName(file.name);
+  if (!fileExt) {
+    return undefined;
+  }
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
