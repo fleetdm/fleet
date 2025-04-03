@@ -15,8 +15,10 @@ export default {
       return {
         ...response,
         conditional_access: {
-          microsoft_entra_tenant_id: "abcde",
-          microsoft_entra_connection_configured: false,
+          // microsoft_entra_tenant_id: "",
+          microsoft_entra_tenant_id: "abc",
+          // microsoft_entra_connection_configured: false,
+          microsoft_entra_connection_configured: true,
         },
       };
     });

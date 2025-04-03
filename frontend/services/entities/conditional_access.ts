@@ -23,11 +23,8 @@ const conditionalAccessService = {
     });
   },
   confirmMicrosoftConditionalAccess: (): Promise<ConfirmMSConditionalAccessResponse> => {
-    // TODO - Lucas suggested this should be GET, which makes sense
-    // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_CONFIRM);
-
     // TODO - real one!
-    // return sendRequest("GET", endpoints.CONDITIONAL_ACCESS_CONFIRM);
+    // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_CONFIRM);
     return Promise.resolve({
       configuration_completed: true,
     });

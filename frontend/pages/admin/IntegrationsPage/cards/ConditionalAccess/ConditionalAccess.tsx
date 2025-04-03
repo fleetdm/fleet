@@ -34,12 +34,16 @@ const baseClass = "conditional-access";
 
 const msetid = "microsoft_entra_tenant_id";
 
-// conditionas –> UI phases:
-// 	- not premium –> -1
-// 	- no tenant id –> "form"
-// 	- tenant id & form submitted –> "form-submitted"
-// 	- tenant id & no consent –> "confirming-consent"
-//   - tenant id & consent –> "confirmed"
+// conditions –> UI phases:
+// 	- no config.tenant id –> "form"
+//  - config.tenant id:
+//    - and config.confirmed –> "configured"
+//    - not config.confirmed –> "confirming-configured", hit confirmation endpoint
+//      - confirmation endpoint returns false –> "form", prefilled with current tid
+//      - confirmation endpoint returns true –> "configured"
+//      - conf ep returns error –> DataError, under head
+// 	- form submitted –> "form-submitted", new tab to MS stuff
+//
 
 interface IFormData {
   [msetid]: string;
@@ -65,58 +69,68 @@ const validate = (formData: IFormData) => {
 };
 
 const ConditionalAccess = () => {
+  // HOOKS
   const { renderFlash } = useContext(NotificationContext);
 
-  const [phase, setPhase] = useState<Phase>(Phase.Form);
+  const { isPremiumTier, config } = useContext(AppContext);
 
+  const [phase, setPhase] = useState<Phase>(Phase.Form);
   const [formData, setFormData] = useState<IFormData>({
     // [msetid]: "12345",
-    [msetid]: "",
+    [msetid]: config?.conditional_access.microsoft_entra_tenant_id || "",
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const { isPremiumTier, config } = useContext(AppContext);
+  // CALL CONFIRMATION
+  // const {
+  //   isLoading: isConfirmingConfigCompleted,
+  //   error: confirmConfigCompletedError,
+  //   refetch: reConfirmConfigCompleted,
+  // } = useQuery<
+  //   ConfirmMSConditionalAccessResponse,
+  //   Error,
+  //   ConfirmMSConditionalAccessResponse
+  // >(["confirmAccess"], conditionalAccessAPI.confirmMicrosoftConditionalAccess, {
+  //   ...DEFAULT_USE_QUERY_OPTIONS,
+  //   enabled: phase === Phase.ConfirmingConfigured,
+  // });
 
-  // watch curMsetid coming from `config`, populate initial form state once present
   const {
     microsoft_entra_tenant_id: configMsetId,
     microsoft_entra_connection_configured: configMseConfigured,
   } = config?.conditional_access || {};
+
+  // // watch curMsetid coming from `config`, populate initial form state once present
+  // const {
+  //   microsoft_entra_tenant_id: configMsetId,
+  //   microsoft_entra_connection_configured: configMseConfigured,
+  // } = config?.conditional_access || {};
+  // useEffect(() => {
+  //   setFormData({
+  //     [msetid]: configMsetId || "aaaaaaaaaaaaaaaa",
+  //   });
+  // }, [configMsetId]);
+
+  // only confirm if id was already present in config, not if use added to formdata
   useEffect(() => {
-    setFormData({
-      [msetid]: configMsetId || "aaaaaaaaaaaaaaaa",
-    });
-  }, [configMsetId]);
-
-  const {
-    isLoading: isConfirmingConfigCompleted,
-    error: confirmConfigCompletedError,
-    refetch: reConfirmConfigCompleted,
-  } = useQuery<
-    ConfirmMSConditionalAccessResponse,
-    Error,
-    ConfirmMSConditionalAccessResponse
-  >(["confirmAccess"], conditionalAccessAPI.confirmMicrosoftConditionalAccess, {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: phase === Phase.ConfirmingConfigured,
-  });
-
-  // only confirm if id was already present in config, not if use addded to formdata
-  if (configMsetId) {
-    if (!configMseConfigured) {
-      // no admin consent
-      setPhase(Phase.ConfirmingConfigured);
-      // TODO: call verification endpoint
-      // if verified, setPhase(3) and set verification to local config
-      // or, setting config with confirmed field should cause page re-render with both fields true,
-      // leading to next code block and setting to phase 3
-      // PATCH server to set config there as well?
-    } else {
-      // both configMseId and configMseConfigured are true
-      setPhase(Phase.Configured);
+    if (configMsetId) {
+      if (!configMseConfigured) {
+        setPhase(Phase.ConfirmingConfigured);
+        // return <Spinner />;
+        // TODO: call verification endpoint
+        // if response.verified, setPhase(3) and set verification to local config - can just refresh
+        //  since refreshed config will be true and go to appropriate phase
+        // if !response.verified, setPhase(O) with formData prefilled with current msetid- PAGE CAN"T
+        //   REFRESH OR WILL GO TO INFINITE LOOP
+      } else {
+        // }
+        // both configMseId and configMseConfigured are true
+        setPhase(Phase.Configured);
+        // renderConfigured();
+      }
     }
-  }
+  }, [configMsetId, configMseConfigured]);
 
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
@@ -210,6 +224,26 @@ const ConditionalAccess = () => {
     // TODO
   };
 
+  const renderConfigured = () => (
+    <InfoBanner color="grey" className={`${baseClass}__success`}>
+      <div className="tenant-id">
+        <Icon name="success" />
+        <b>Microsoft Entra tenant ID:</b>{" "}
+        {/* TODO - address buginess with truncation –> tooltip enabling */}
+        <TooltipTruncatedText value={formData[msetid]} />
+      </div>
+      {/* TODO - ensure delete button doesn't get pushed out of banner */}
+      <Button
+        // className={`${baseClass}__delete-mse-integration`}
+        variant="text-icon"
+        onClick={onDelete}
+      >
+        Delete
+        <Icon name="trash" color="ui-fleet-black-75" />
+      </Button>
+    </InfoBanner>
+  );
+
   const renderContent = () => {
     switch (phase) {
       case Phase.Form:
@@ -226,30 +260,12 @@ const ConditionalAccess = () => {
         // checking integration
         return <Spinner />;
       case Phase.Configured:
-        return (
-          // TODO - confirm border color
-          <InfoBanner color="grey" className={`${baseClass}__success`}>
-            <div className="tenant-id">
-              <Icon name="success" />
-              <b>Microsoft Entra tenant ID:</b>{" "}
-              {/* TODO - address buginess with truncation –> tooltip enabling */}
-              <TooltipTruncatedText value={formData[msetid]} />
-            </div>
-            {/* TODO - ensure delete button doesn't get pushed out of banner */}
-            <Button
-              // className={`${baseClass}__delete-mse-integration`}
-              variant="text-icon"
-              onClick={onDelete}
-            >
-              Delete
-              <Icon name="trash" color="ui-fleet-black-75" />
-            </Button>
-          </InfoBanner>
-        );
+        return renderConfigured();
       default:
         return <Spinner />;
     }
   };
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Conditional access" />
