@@ -76,7 +76,7 @@ Create a new SAML app in Microsoft Entra Admin Center:
    - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
    - Click **Save**.
 6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
- ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
+ ![The new SAML app's details page in Enta Admin Center](../images/entra-sso-configuration-step-6.png)
 
 On your Fleet server: 
 1. Navigate to **Settings > Organization settings > Single sign-on options**.
@@ -87,7 +87,7 @@ On your Fleet server:
    - In the **Metadata URL** field, paste the URL that you copied from Entra in step 6 in the previous section.
    - Click **Save**.
 
- ![The configuration for the SSO connection in Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-fleet-config.png)
+ ![The configuration for the SSO connection in Fleet](../images/entra-sso-configuration-fleet-config.png) 
 3. Enable SSO for a test user and try to log in with Entra.
    
 
