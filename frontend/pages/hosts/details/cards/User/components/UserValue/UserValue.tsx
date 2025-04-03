@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 
-import { useTruncatedElement } from "utilities/dom_utils";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -13,7 +13,7 @@ interface IUserValueProps {
 
 const UserValue = ({ values }: IUserValueProps) => {
   const displayNameRef = useRef<HTMLSpanElement>(null);
-  const isTruncated = useTruncatedElement(displayNameRef);
+  const isTruncated = useCheckTruncatedElement(displayNameRef);
 
   let content: React.ReactNode = null;
 

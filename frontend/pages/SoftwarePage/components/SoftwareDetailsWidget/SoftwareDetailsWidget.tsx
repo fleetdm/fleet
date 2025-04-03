@@ -6,7 +6,7 @@ import classnames from "classnames";
 
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
-import { useTruncatedElement } from "utilities/dom_utils";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -20,7 +20,7 @@ interface ISoftwareNameProps {
 
 const SoftwareName = ({ name }: ISoftwareNameProps) => {
   const titleRef = React.useRef<HTMLDivElement>(null);
-  const isTruncated = useTruncatedElement(titleRef);
+  const isTruncated = useCheckTruncatedElement(titleRef);
 
   return (
     <TooltipWrapper
