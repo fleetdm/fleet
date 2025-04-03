@@ -11,7 +11,7 @@ To turn on Android MDM, connect Android Enterprise on **Settings > Integrations 
 
 When you select **Connect Android Enterprise**, Fleet will open the Google sign-up page. The registration process varies depending on whether your organization uses [Google Workspace](#google-workspace), [Microsoft 365](#microsoft-365), or [another provider](#other). Organizations using Google Workspace and Microsoft don't need to verify domain ownership.
 
-### Organizations using Google Workspace
+### Google Workspace
 
 1. If your organization already uses Google Workspace, use the admin account (or if you don't have one ask your Google Workspace admin to create one for you) to register Android Enterprise.
 2. Follow the steps in Google's sign-up flow to finish the registration.
