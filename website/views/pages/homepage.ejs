@@ -247,7 +247,11 @@
           <%} else {%>
             <h2>Is it any good?</h2>
           <%}%>
-          <p>Considering a move to Fleet as a cross-platform, open-source MDM alternative? See how we compare:</p>
+          <% if(primaryBuyingSituation === 'mdm'){ %>
+            <p>Considering a move to Fleet as a multi-platform, open-source MDM alternative? See how we compare:</p>
+          <% } else { %>
+            <p>Considering a move to Fleet? See how we compare:</p>
+          <% } %>
           <div purpose="desktop-comparison-table" class="d-none d-sm-block">
             <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
               <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>
