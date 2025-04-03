@@ -1308,32 +1308,15 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				// Even if the policy record itself wasn't updated, we still may need to update labels.
 				// So we'll get the ID of the policy that was just updated.
 				if lastID == 0 {
-					var (
-						rows *sql.Rows
-						err  error
-					)
-					// Get the query that was updated.
+					var err error
+					// Get the policy that was updated.
 					if teamID == nil {
-						rows, err = tx.QueryContext(ctx, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
+						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
 					} else {
-						rows, err = tx.QueryContext(ctx, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
 					}
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "select policies id")
-					}
-					// Get the ID from the rows
-					if rows.Next() {
-						if err := rows.Scan(&lastID); err != nil {
-							return ctxerr.Wrap(ctx, err, "scan policies id")
-						}
-					} else {
-						return ctxerr.Wrap(ctx, err, "could not find query after update")
-					}
-					if err = rows.Err(); err != nil {
-						return ctxerr.Wrap(ctx, err, "err policies id")
-					}
-					if err := rows.Close(); err != nil {
-						return ctxerr.Wrap(ctx, err, "close policies id")
 					}
 				}
 
@@ -1356,7 +1339,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					},
 				})
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "exec queries update labels")
+					return ctxerr.Wrap(ctx, err, "exec policies update labels")
 				}
 
 			}
