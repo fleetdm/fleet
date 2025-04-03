@@ -10,7 +10,7 @@ To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready
 
 Apple Business Manager (ABM) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
 
-![Mac mini in ABM](../website/assets/images/articles/end-user-authentication-mac-in-abm.png "Mac mini in ABM")
+![Mac mini in ABM](../website/assets/images/articles/end-user-authentication-mac-in-abm-1354x920@2x.png "Mac mini in ABM")
 
 ### Apple's ADE vs DEP
 
@@ -30,7 +30,7 @@ When the end user turns on their macOS device for the first time and connects to
 
 This request initiates a Service Provider-initiated SAML flow, where Fleet is the service provider. Fleet's SAML request uses HTTP redirect binding, which transmits the SAML request message within URL parameters. The HTTP redirect binding is a standard SAML flow. The other standard approach, which Fleet does not support, is the HTTP POST binding. Fleet does not use request signing and relies on the TLS channel to secure the request. For more details on SAML, see [SAML 2.0 Technical Overview](https://docs.oasis-open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html).
 
-![Okta SSO login](../website/assets/images/articles/end-user-authentication-mac-setup-experience-okta-login.png "Okta SSO login")
+![Okta SSO login](../website/assets/images/articles/end-user-authentication-mac-setup-experience-okta-login-2236x1682@2x.png "Okta SSO login")
 
 After the user enters their credentials, including any multi-factor authentication, the IdP sends a SAML response to the URL that we configured when setting up the SAML integration, which is `{server_url}/api/v1/fleet/mdm/sso/callback`. This SAML response is an API request to the Fleet server. The server validates that the SSO session is valid and has not expired. The server also saves the username and full name extracted from the SAML attributes into the MySQL database. The server returns a 303 redirect to the `{server_url}/mdm/sso/callback` web view.
 
@@ -40,15 +40,15 @@ At this point, the user is authenticated and proceeds with other parts of the se
 
 After installing the enrollment profile, the macOS device sends a `TokenUpdate` message to the Fleet MDM server.
 
-![Waiting for management server](../website/assets/images/articles/end-user-authentication-mac-waiting-for-management-server.png "Waiting for management server")
+![Waiting for management server](../website/assets/images/articles/end-user-authentication-mac-waiting-for-management-server-1782x1334@2x.png "Waiting for management server")
 
 Fleet processes all enrolling macOS devices once a minute and queues up several MDM commands to send to them. For this flow, we are interested in the [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary). This command sets the username and full name of the end user at the local account screen. If the IdP did not send the user's full name or if Fleet was not able to extract the full name from SAML, the full name will not be populated.
 
-![Create account](../website/assets/images/articles/end-user-authentication-create-account.png "Create account")
+![Create account](../website/assets/images/articles/end-user-authentication-create-account-1270x784@2x.png "Create account")
 
 After setting up the local account, the end user is ready to use their device. They can examine their Fleet enrollment profile to see the URL with the `enroll_reference` parameter.
 
-![MDM URL](../website/assets/images/articles/end-user-authentication-mac-enrollment-profile-with-enroll_reference.png "MDM URL")
+![MDM URL](../website/assets/images/articles/end-user-authentication-mac-enrollment-profile-with-enroll_reference-1598x1390@2x.png "MDM URL")
 
 ## Host details
 
