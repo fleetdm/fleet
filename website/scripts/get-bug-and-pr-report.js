@@ -332,11 +332,11 @@ module.exports = {
     // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
     kpiResults.push(
       averageDaysContributorPullRequestsAreOpenFor,
-      allBugs32DaysOrOlder.length,
       averageNumberOfDaysBugsAreOpenFor,
-      allBugsReportedByCustomersInPastWeek.length,
+      allBugs32DaysOrOlder.length,
       allBugsCreatedInPastWeek.length,
-      allBugsClosedInPastWeek.length,);
+      allBugsClosedInPastWeek.length,
+      allBugsReportedByCustomersInPastWeek.length,);
 
     // Log the results
     sails.log(`
