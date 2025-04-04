@@ -42,9 +42,9 @@ After installing the enrollment profile, the macOS device sends a `TokenUpdate` 
 
 ![Waiting for management server](../website/assets/images/articles/end-user-authentication-mac-waiting-for-management-server-1782x1334@2x.png "Waiting for management server")
 
-Fleet processes all enrolling macOS devices once a minute and queues up several MDM commands to send to them. For this flow, we are interested in the [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary). This command sets the username and full name of the end user at the local account screen. If the IdP did not send the user's full name or if Fleet was not able to extract the full name from SAML, the full name will not be populated.
+Fleet processes all enrolling macOS devices once a minute and queues up several MDM commands to send to them. For this flow, we are interested in the [AccountConfiguration command](https://developer.apple.com/documentation/devicemanagement/accountconfigurationcommand/command-data.dictionary). This command sets the username and full name of the end user at the local account screen. If the IdP did not send the user's full name or if Fleet was not able to extract the full name from SAML, Fleet will try to get the full name from the SCIM (System for Cross-domain Identiy Management) integration, if present. Otherwise, the full name will be empty and the end user can fill it in.
 
-![Create account](../website/assets/images/articles/end-user-authentication-create-account-1270x784@2x.png "Create account")
+![Create account](../website/assets/images/articles/end-user-authentication-create-account-2396x1476@2x.png "Create account")
 
 After setting up the local account, the end user is ready to use their device. They can examine their Fleet enrollment profile to see the URL with the `enroll_reference` parameter.
 
@@ -61,6 +61,10 @@ For additional technical details, including a sequence diagram, see [Fleet's con
 ## Summary
 
 Integrating your Fleet MDM server with your IdP is essential for IT professionals managing a fleet of devices. This deep dive into the details of end-user authentication provides you with the necessary insights to optimize your IT flows. We encourage you to apply these insights to your Fleet usage, and as always, we welcome your feedback and experiences in the [Fleet community Slack channels](https://fleetdm.com/support).
+
+## Watch us demo SAML integration for macOS Setup
+
+TODO: YouTube link
 
 <meta name="articleTitle" value="Effortless onboarding: Fleet’s SAML integration for macOS Setup">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
