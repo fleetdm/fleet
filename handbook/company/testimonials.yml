@@ -230,17 +230,17 @@
   # From social media company: “absolutely, will do! this amazing support has been one of the great things that helped make this decision easier and, trust me when I say this, you guys must be doing good if you can take some die-hards away from their ______ (competing product)”
 -
   quote: I recently attended a GitOps workshop hosted by the team at Fleet—and WOW, it was truly inspiring! Seeing industry-standard tools like osquery and git combined with MDM and CI/CD to manage endpoints was impressive.  With support for Linux, macOS, Windows, iOS, iPadOS, and Chrome OS, managing everything from a single codebase is a game-changer. Super cool.  I’ve been a fan of Fleet, and the GitOps functionality showcased at the workshop added yet another dimension to an already exciting product. If you’re in IT or device management/client platform engineering, I highly recommend checking out one of these sessions.
-  # quoteImageFilename: TODO: benchling logo - https://media.licdn.com/dms/image/v2/D4E0BAQFcT6OK7GJc0g/company-logo_200_200/company-logo_200_200/0/1720450553928/benchling_logo?e=1749081600&v=beta&t=GvB_ICcktuEoDkkccAf3lYeStpaL-ml3lfAIiHQ0Myo
+  quoteImageFilename: social-proof-logo-benchling-143x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/justinlabo/
   quoteAuthorName: Justin LaBo
-  # quoteAuthorProfileImageFilename: TODO: https://media.licdn.com/dms/image/v2/C4E03AQECPQuTwk8Lbg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1516339548084?e=1749081600&v=beta&t=qqsUjm0GzlMIfmIKsdbK9pln9I5FAGX6ABkMZvOvEVA
+  quoteAuthorProfileImageFilename: testimonial-author-justin-labo-48x48@2x.png
   quoteAuthorJobTitle: Head of Core BT Engineering
   productCategories: [Observability, Software management]
 -
   quote: Thanks for a great run Jamf...  Foursquare has officially completed the migration to Fleet as our new device management platform.
-  # quoteImageFilename: TODO: https://media.licdn.com/dms/image/v2/D560BAQFhovsiOi93ng/company-logo_200_200/company-logo_200_200/0/1713802374780/location_foursquare_logo?e=1749081600&v=beta&t=FYO2Od5-nJg_L_4TXOvQ73r78U-4Hp-SN7Cc09qMFdo
+  quoteImageFilename: social-proof-logo-foursquare-170x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/mike-meyer-a5a21910_teamwork-engineering-devicemanagement-activity-7267672056970788866-Yt5Z?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAOYKwIBtKBLvbxqgjD2fs4ScGobCzMbCvg
   quoteAuthorName: Mike Meyer
-  # quoteAuthorProfileImageFilename: TODO: https://media.licdn.com/dms/image/v2/C4E03AQGfu2qQsTGBkA/profile-displayphoto-shrink_100_100/profile-displayphoto-shrink_100_100/0/1574196837951?e=1749081600&v=beta&t=rfcndiVS5MVVY561XncuaLtoVJ9TNrMfmvG6o2wSJow
+  quoteAuthorProfileImageFilename: testimonial-author-mike-meyer-48x48@2x.png
   quoteAuthorJobTitle: Senior Manager, Corporate Engineering
   productCategories: [Device management]
