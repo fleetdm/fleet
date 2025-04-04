@@ -1,1 +1,0 @@
-- Split up expired query deletion to avoid deadlocks in zero-trust flows
