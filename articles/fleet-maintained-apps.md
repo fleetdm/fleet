@@ -10,7 +10,7 @@ Fleet maintains installation metadata for [a number of apps](https://github.com/
 
 ### macOS
 
-Currently, the macOS versions of these apps are Apple Silicon-only rather than Universal:
+Currently, the macOS versions of these apps are Apple Silicon-only rather than universal:
 
 * 1Password
 * Brave
