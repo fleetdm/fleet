@@ -23,6 +23,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserCreateValidation", testScimUserCreateValidation},
 		{"ScimUserByID", testScimUserByID},
 		{"ScimUserByUserName", testScimUserByUserName},
+		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ReplaceScimUser", testReplaceScimUser},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
 		{"DeleteScimUser", testDeleteScimUser},
@@ -1137,6 +1138,117 @@ func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.CreateScimUser(context.Background(), &validUser)
 	assert.NoError(t, err)
+}
+
+func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
+	// Create test users with different attributes and emails
+	users := []fleet.ScimUser{
+		{
+			UserName:   "email-test-user1",
+			ExternalID: ptr.String("ext-email-123"),
+			GivenName:  ptr.String("Email"),
+			FamilyName: ptr.String("User1"),
+			Active:     ptr.Bool(true),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "email.user1@example.com",
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+			},
+		},
+		{
+			UserName:   "email-test-user2",
+			ExternalID: ptr.String("ext-email-456"),
+			GivenName:  ptr.String("Email"),
+			FamilyName: ptr.String("User2"),
+			Active:     ptr.Bool(true),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "email.user2@example.com",
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+			},
+		},
+		{
+			UserName:   "duplicate-email-user1",
+			ExternalID: ptr.String("ext-dup-123"),
+			GivenName:  ptr.String("Duplicate"),
+			FamilyName: ptr.String("Email1"),
+			Active:     ptr.Bool(true),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "duplicate@example.com", // Duplicate email
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+			},
+		},
+		{
+			UserName:   "duplicate-email-user2",
+			ExternalID: ptr.String("ext-dup-456"),
+			GivenName:  ptr.String("Duplicate"),
+			FamilyName: ptr.String("Email2"),
+			Active:     ptr.Bool(true),
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "duplicate@example.com", // Duplicate email
+					Primary: ptr.Bool(true),
+					Type:    ptr.String("work"),
+				},
+			},
+		},
+	}
+
+	// Create the users
+	for i := range users {
+		var err error
+		users[i].ID, err = ds.CreateScimUser(context.Background(), &users[i])
+		require.Nil(t, err)
+	}
+
+	// Test 1: Find user by userName
+	email := "email.user1@example.com"
+	user, err := ds.ScimUserByUserNameOrEmail(context.Background(), "email-test-user1", &email)
+	assert.Nil(t, err)
+	require.NotNil(t, user)
+	assert.Equal(t, "email-test-user1", user.UserName)
+	assert.Equal(t, users[0].ID, user.ID)
+
+	// Test 2: Find user by email when userName is empty
+	user, err = ds.ScimUserByUserNameOrEmail(context.Background(), "", &email)
+	assert.Nil(t, err)
+	require.NotNil(t, user)
+	assert.Equal(t, "email-test-user1", user.UserName)
+	assert.Equal(t, users[0].ID, user.ID)
+
+	// Test 3: Find user by email when userName doesn't exist
+	email = "email.user2@example.com"
+	user, err = ds.ScimUserByUserNameOrEmail(context.Background(), "nonexistent-user", &email)
+	assert.Nil(t, err)
+	require.NotNil(t, user)
+	assert.Equal(t, "email-test-user2", user.UserName)
+	assert.Equal(t, users[1].ID, user.ID)
+
+	// Test 4: Handle case where multiple users have the same email
+	email = "duplicate@example.com"
+	user, err = ds.ScimUserByUserNameOrEmail(context.Background(), "nonexistent-user", &email)
+	assert.Nil(t, err)
+	assert.Nil(t, user, "Should return nil when multiple users have the same email")
+
+	// Test 5: Handle case where neither userName nor email match any user
+	email = "nonexistent@example.com"
+	user, err = ds.ScimUserByUserNameOrEmail(context.Background(), "nonexistent-user", &email)
+	assert.NotNil(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+	assert.Nil(t, user)
+
+	// Test 6: Handle case where email is nil
+	user, err = ds.ScimUserByUserNameOrEmail(context.Background(), "nonexistent-user", nil)
+	assert.NotNil(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+	assert.Nil(t, user)
 }
 
 func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
