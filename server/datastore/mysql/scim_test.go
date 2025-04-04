@@ -105,6 +105,7 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, userCopy.GivenName, verify.GivenName)
 		assert.Equal(t, userCopy.FamilyName, verify.FamilyName)
 		assert.Equal(t, userCopy.Active, verify.Active)
+		assert.False(t, verify.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 		// Verify emails
 		assert.Equal(t, len(userCopy.Emails), len(verify.Emails))
@@ -196,6 +197,7 @@ func testScimUserByUserName(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.GivenName, returned.GivenName)
 		assert.Equal(t, tt.FamilyName, returned.FamilyName)
 		assert.Equal(t, tt.Active, returned.Active)
+		assert.False(t, returned.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 		// Verify emails
 		assert.Equal(t, len(tt.Emails), len(returned.Emails))
@@ -536,6 +538,7 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 		for _, testUser := range users {
 			if u.ID == testUser.ID {
 				foundUsers++
+				assert.False(t, u.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 				// Verify Groups field for the first user
 				if testUser.ID == users[0].ID {
@@ -593,6 +596,7 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	require.Len(t, listUsers, 1)
 	assert.Equal(t, uint(1), totalListUsers)
 	assert.Equal(t, "list-test-user2", listUsers[0].UserName)
+	assert.False(t, listUsers[0].UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Test 5: Filter by email type and value
 	homeEmailUsers, totalHomeEmailUsers, err := ds.ListScimUsers(t.Context(), fleet.ScimUsersListOptions{
@@ -608,6 +612,7 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), totalHomeEmailUsers)
 	assert.Equal(t, users[1].ID, homeEmailUsers[0].ID)
 	assert.Equal(t, 2, len(homeEmailUsers[0].Emails))
+	assert.False(t, homeEmailUsers[0].UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Test 6: Filter by email type and value - work emails
 	workEmailUsers, totalWorkEmailUsers, err := ds.ListScimUsers(t.Context(), fleet.ScimUsersListOptions{
@@ -621,6 +626,7 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, workEmailUsers, 1)
 	assert.Equal(t, uint(1), totalWorkEmailUsers)
+	assert.False(t, workEmailUsers[0].UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Test 7: No results for non-matching filters
 	noUsers, totalNoUsers1, err := ds.ListScimUsers(t.Context(), fleet.ScimUsersListOptions{
@@ -1205,6 +1211,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.GivenName, result1.GivenName)
 	assert.Equal(t, user1.FamilyName, result1.FamilyName)
 	assert.Equal(t, user1.Active, result1.Active)
+	assert.False(t, result1.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Verify emails
 	require.Equal(t, 1, len(result1.Emails))
@@ -1226,6 +1233,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user2.GivenName, result2.GivenName)
 	assert.Equal(t, user2.FamilyName, result2.FamilyName)
 	assert.Equal(t, user2.Active, result2.Active)
+	assert.False(t, result2.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Verify no emails
 	assert.Empty(t, result2.Emails)
@@ -1315,6 +1323,7 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	require.NotNil(t, user)
 	assert.Equal(t, "email-test-user1", user.UserName)
 	assert.Equal(t, users[0].ID, user.ID)
+	assert.False(t, user.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Test 2: Find user by email when userName is empty
 	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "", &email)
@@ -1330,6 +1339,7 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	require.NotNil(t, user)
 	assert.Equal(t, "email-test-user2", user.UserName)
 	assert.Equal(t, users[1].ID, user.ID)
+	assert.False(t, user.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Test 4: Handle case where multiple users have the same email
 	email = "duplicate@example.com"

@@ -1,13 +1,16 @@
 package fleet
 
+import "time"
+
 // ScimUser represents a SCIM user in the database
 type ScimUser struct {
-	ID         uint    `db:"id"`
-	ExternalID *string `db:"external_id"`
-	UserName   string  `db:"user_name"`
-	GivenName  *string `db:"given_name"`
-	FamilyName *string `db:"family_name"`
-	Active     *bool   `db:"active"`
+	ID         uint      `db:"id"`
+	ExternalID *string   `db:"external_id"`
+	UserName   string    `db:"user_name"`
+	GivenName  *string   `db:"given_name"`
+	FamilyName *string   `db:"family_name"`
+	Active     *bool     `db:"active"`
+	UpdatedAt  time.Time `db:"updated_at"`
 	Emails     []ScimUserEmail
 	Groups     []uint
 }

@@ -62,7 +62,7 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, active
+			id, external_id, user_name, given_name, family_name, active, updated_at
 		FROM scim_users
 		WHERE id = ?
 	`
@@ -96,7 +96,7 @@ func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser
 func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, active
+			id, external_id, user_name, given_name, family_name, active, updated_at
 		FROM scim_users
 		WHERE user_name = ?
 	`
@@ -147,7 +147,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	// Try to find the user by email
 	const query = `
 		SELECT
-			scim_users.id, external_id, user_name, given_name, family_name, active
+			scim_users.id, external_id, user_name, given_name, family_name, active, scim_users.updated_at
 		FROM scim_users
 		JOIN scim_user_emails ON scim_users.id = scim_user_emails.scim_user_id
 		WHERE scim_user_emails.email = ?
@@ -179,7 +179,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.active
+			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.active, su.updated_at
 		FROM scim_users su
 		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
 		WHERE host_scim_user.host_id = ?
@@ -346,7 +346,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Build the base query
 	baseQuery := `
 		SELECT DISTINCT
-			scim_users.id, external_id, user_name, given_name, family_name, active
+			scim_users.id, external_id, user_name, given_name, family_name, active, scim_users.updated_at
 		FROM scim_users
 	`
 
