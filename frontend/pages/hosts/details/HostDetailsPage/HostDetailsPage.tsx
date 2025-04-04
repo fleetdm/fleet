@@ -897,10 +897,10 @@ const HostDetailsPage = ({
     },
   ];
 
-  const showUsersCard =
-    isDarwinHost ||
-    generateChromeProfilesValue(testEndUserData).length > 0 ||
-    generateOtherEmailsValue(testEndUserData).length > 0;
+  const showUsersCard = false;
+  // isDarwinHost ||
+  // generateChromeProfilesValue(testEndUserData).length > 0 ||
+  // generateOtherEmailsValue(testEndUserData).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
