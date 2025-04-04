@@ -30,10 +30,12 @@ module.exports = {
       'Erik Gomez',
       'Chandra Majumdar',
       'Eric Tan',
+      'Mike Meyer',
       'Matt Carr',
       'Luis Madrigal',
       'Nico Waisman',
       'Dan Grzelak',
+      'Tom Larkin',
     ];
 
     // Filter the testimonials by product category

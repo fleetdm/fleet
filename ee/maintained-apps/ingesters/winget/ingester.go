@@ -274,7 +274,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
-	out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
+	out.SHA256 = "no_check"
+	if !input.IgnoreHash {
+		out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
+	}
 	out.Version = m.PackageVersion
 	publisher := l.Publisher
 	if input.ProgramPublisher != "" {
@@ -347,6 +350,8 @@ type inputApp struct {
 	ProgramPublisher    string `json:"program_publisher"`
 	UninstallType       string `json:"uninstall_type"`
 	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
+	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
+	IgnoreHash bool `json:"ignore_hash"`
 }
 
 type installerManifest struct {
