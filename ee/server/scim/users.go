@@ -265,7 +265,7 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 }
 
 // GetAll
-// Pagination is 1-indexed.
+// Pagination is 1-indexed on the startIndex. The startIndex is the index of the resource (not the index of the page), per RFC7644.
 //
 // Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2

@@ -156,7 +156,7 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 }
 
 // GetAll
-// Pagination is 1-indexed.
+// Pagination is 1-indexed on the startIndex. The startIndex is the index of the resource (not the index of the page), per RFC7644.
 func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
 	startIndex := params.StartIndex
 	if startIndex < 1 {

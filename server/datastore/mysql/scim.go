@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -123,6 +124,55 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 	user.Groups = groups
 
 	return user, nil
+}
+
+// ScimUserByUserNameOrEmail finds a SCIM user by username. If it cannot find one, then it tries email, if set.
+// If multiple users are found with the same email, we log an error and return nil.
+// Emails and groups are NOT populated in this method.
+func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email *string) (*fleet.ScimUser, error) {
+	// First, try to find the user by userName
+	if userName != "" {
+		user, err := ds.ScimUserByUserName(ctx, userName)
+		switch {
+		case err == nil:
+			return user, nil
+		case !fleet.IsNotFound(err):
+			return nil, ctxerr.Wrap(ctx, err, "select scim user by userName")
+		}
+		if email == nil || *email == "" {
+			return nil, notFound("scim user")
+		}
+	}
+
+	// Try to find the user by email
+	const query = `
+		SELECT
+			scim_users.id, external_id, user_name, given_name, family_name, active
+		FROM scim_users
+		JOIN scim_user_emails ON scim_users.id = scim_user_emails.scim_user_id
+		WHERE scim_user_emails.email = ?
+	`
+
+	var users []fleet.ScimUser
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, *email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("scim user")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
+	}
+
+	if len(users) == 0 {
+		return nil, notFound("scim user")
+	}
+
+	// If multiple users found, log a message and return nil
+	if len(users) > 1 {
+		level.Error(ds.logger).Log("msg", "Multiple SCIM users found with the same email", "email", *email)
+		return nil, nil
+	}
+
+	return &users[0], nil
 }
 
 // ReplaceScimUser replaces an existing SCIM user in the database

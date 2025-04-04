@@ -3822,14 +3822,16 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
-	var email *string
-	if fleetEnrollmentRef != "" {
-		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
-		if err != nil {
-			return err
-		}
-		email = &idp.Email
+	if fleetEnrollmentRef == "" {
+		return ctxerr.Wrap(ctx, errors.New("fleetEnrollmentRef is required"), "update host_emails")
 	}
+
+	var email *string
+	idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+	if err != nil {
+		return err
+	}
+	email = &idp.Email
 
 	return ds.updateOrInsert(
 		ctx,
