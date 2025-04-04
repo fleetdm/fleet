@@ -166,7 +166,14 @@
   youtubeVideoUrl: https://www.youtube.com/watch?v=nRbZJflWqCo
   productCategories: [Observability]
 -
-  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first.
+  quote: I’m a huge fan of Fleet and their approach to GitOps. # https://www.linkedin.com/posts/mathewcarr_gitops-for-device-management-activity-7306101943301455872-4cTx
+  quoteAuthorName: Matt Carr
+  quoteAuthorJobTitle: CPE manager
+  quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
+  productCategories: [Observability]
+-
+  quote: Thanks for making our lives easier. We got a pat on the back for making the migration so easy! # I don't want one bad actor to brick my fleet, I want them to make a pull request first.
   quoteAuthorName: Matt Carr
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
