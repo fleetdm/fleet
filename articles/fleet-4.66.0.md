@@ -92,6 +92,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="Luke Heath">
 <meta name="authorGitHubUsername" value="lukeheath">
 <meta name="publishedOn" value="2025-04-04">
-<meta name="articleTitle" value="Fleet 4.66.0 | DigiCert integration, Custom SCEP server, Enhanced Query Management, and Windows Fleet-maintained apps">
+<meta name="articleTitle" value="Fleet 4.66.0 | Windows Fleet-maintained apps, DigiCert integration, Custom SCEP server">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.66.0-1600x900@2x.png">
 
