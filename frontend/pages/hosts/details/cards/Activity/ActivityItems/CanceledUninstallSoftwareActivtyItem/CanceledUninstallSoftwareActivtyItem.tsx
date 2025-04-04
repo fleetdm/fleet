@@ -18,7 +18,7 @@ const CanceledUninstallSoftwareActivtyItem = ({
     >
       <>
         <b>{activity.actor_full_name}</b> canceled{" "}
-        <b>{activity.details.software_title}</b> install on this host.
+        <b>{activity.details.software_title}</b> uninstall on this host.
       </>
     </ActivityItem>
   );
