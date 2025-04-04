@@ -36,6 +36,7 @@ module.exports = {
       'Matt Carr',
       'Mike Meyer',
       'Tom Larkin',
+      'u/Heteronymous',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);
