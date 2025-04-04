@@ -52,7 +52,7 @@ for system in $SYSTEMS; do
         osqueryd_system="linux-arm64"
     fi
 
-    if [[ $system == "linux-arm64" ]]; then
+    if [[ $system == "linux-arm64" ]] || [[ $system == "windows-arm64" ]]; then
         osqueryd_path="$TUF_PATH/tmp/${osqueryd}-arm64"
     else
         osqueryd_path="$TUF_PATH/tmp/$osqueryd"
