@@ -19,7 +19,61 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
-Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+## labels
+
+Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+### Options
+
+For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
+
+### Example
+
+#### Inline
+
+`default.yml`
+
+```yaml
+labels:
+  - name: Arm64
+    description: Hosts on the Arm64 architecture
+    query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+    label_membership_type: dynamic
+  - name: C-Suite
+    description: Hosts belonging to the C-Suite
+    label_membership_type: manual
+    hosts:
+      - "ceo-laptop"
+      - "the-CFOs-computer"
+```
+
+The `labels:` key is _optional_ in your YAML configuration:
++  If it is omitted, any existing labels created via the UI or API will remain untouched by GitOps.
++  If included, GitOps will replace all existing labels with those specified in the YAML, and any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+
+#### Separate file
+ 
+`lib/labels-name.labels.yml`
+
+```yaml
+- name: Arm64
+  description: Hosts on the Arm64 architecture
+  query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+  label_membership_type: dynamic
+- name: C-Suite
+  description: Hosts belonging to the C-Suite
+  label_membership_type: manual
+  hosts:
+    - "ceo-laptop"
+    - "the-CFOs-computer"
+```
+
+`lib/default.yml`
+
+```yaml
+labels:
+  path: ./lib/labels-name.labels.yml
+```
+
 
 ## policies
 
