@@ -19,7 +19,57 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
-Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+## labels
+
+Labels can be specified inline in your `default.yml` file.  This is an _optional_ key; if it is omitted, any existing labels created via the UI or API will remain untouched by GitOps. If it is added, GitOps will replace all existing labels with those specified in the YAML, and any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+
+### Options
+
+For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
+
+### Example
+
+#### Inline
+
+`default.yml`
+
+```yaml
+labels:
+  - name: Arm64
+    description: Hosts on the Arm64 architecture
+    query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+    label_membership_type: dynamic
+  - name: C-Suite
+    description: Hosts belonging to the C-Suite
+    label_membership_type: manual
+    hosts:
+      - "ceo-laptop"
+      - "the-CFOs-computer"
+
+#### Separate file
+ 
+`lib/labels-name.labels.yml`
+
+```yaml
+- name: Arm64
+  description: Hosts on the Arm64 architecture
+  query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+  label_membership_type: dynamic
+- name: C-Suite
+  description: Hosts belonging to the C-Suite
+  label_membership_type: manual
+  hosts:
+    - "ceo-laptop"
+    - "the-CFOs-computer"
+```
+
+`lib/default.yml`
+
+```yaml
+labels:
+  path: ./lib/labels-name.labels.yml
+```
+
 
 ## policies
 
@@ -60,6 +110,9 @@ policies:
   platform: darwin
   critical: false
   calendar_events_enabled: false
+  labels_exclude_any:
+    - Engineering
+
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -120,6 +173,9 @@ queries:
     interval: 300
     observer_can_run: false
     automations_enabled: false
+    labels_include_any:
+      - Engineering
+
 ```
 
 #### Separate file
@@ -134,6 +190,8 @@ queries:
   interval: 300
   observer_can_run: false
   automations_enabled: false
+  labels_include_any:
+    - Engineering
 - name: Collect USB devices
   description: Collects the USB devices that are currently connected to macOS and Linux hosts.
   query: SELECT model, vendor FROM usb_devices;

@@ -54,6 +54,11 @@
             "buildFlags": "-tags='full,fts5'",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/cmd/fleet",
+            "debugAdapter": "dlv-dap",
+            "env": {
+                "DLV_LOG": "true",
+                "DLV_LOG_OUTPUT": "debugger,gdbwire,rpc"
+            },
             "args": [
                 "serve",
                 "--dev",
@@ -61,6 +66,20 @@
                 "--dev_license"
             ]
         },
+        {
+            "name": "Fleet ctl gitops",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "buildFlags": "-tags='full,fts5'",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/fleetctl",
+            "args": [
+                "gitops",
+                "-f",
+                "/Users/scott/Development/test-fleet-gitops/teams/27301.yml"
+            ]
+        },        
         {
             "name": "Fleet vuln_processing (licensed)",
             "type": "go",
@@ -126,6 +145,6 @@
             ],
             "console": "integratedTerminal",
             "internalConsoleOptions": "neverOpen"
-        }
+        }          
     ]
 }
