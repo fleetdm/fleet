@@ -1722,6 +1722,7 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 		assert.True(t, ok, "Group should be an object")
 		assert.Equal(t, group1ID, group["value"], "User 1 should be in Group 1")
 		assert.Equal(t, "Groups/"+group1ID, group["$ref"], "Group $ref should be correct")
+		assert.Equal(t, "Test Group 1", group["display"], "Group display name should be correct")
 	}
 
 	// Test 2: Verify that User 2 is in both Group 1 and Group 2
@@ -1735,13 +1736,18 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 
 	// Verify the groups include both Group 1 and Group 2
 	groupValues := make([]string, 0, 2)
+	groupDisplays := make(map[string]string)
 	for _, g := range user2Groups {
 		group, ok := g.(map[string]interface{})
 		assert.True(t, ok, "Group should be an object")
-		groupValues = append(groupValues, group["value"].(string))
+		groupID := group["value"].(string)
+		groupValues = append(groupValues, groupID)
+		groupDisplays[groupID] = group["display"].(string)
 	}
 	assert.Contains(t, groupValues, group1ID, "User 2 should be in Group 1")
 	assert.Contains(t, groupValues, group2ID, "User 2 should be in Group 2")
+	assert.Equal(t, "Test Group 1", groupDisplays[group1ID], "Group 1 display name should be correct")
+	assert.Equal(t, "Test Group 2", groupDisplays[group2ID], "Group 2 display name should be correct")
 
 	// Test 3: Verify that User 3 is in Group 2 only
 	var user3Resp map[string]interface{}
@@ -1758,6 +1764,7 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 		assert.True(t, ok, "Group should be an object")
 		assert.Equal(t, group2ID, group["value"], "User 3 should be in Group 2")
 		assert.Equal(t, "Groups/"+group2ID, group["$ref"], "Group $ref should be correct")
+		assert.Equal(t, "Test Group 2", group["display"], "Group display name should be correct")
 	}
 
 	// Test 4: Update Group 1 to remove User 1 and add User 3
@@ -1796,13 +1803,18 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 
 	// Verify the groups include both Group 1 and Group 2
 	groupValues = make([]string, 0, 2)
+	groupDisplays = make(map[string]string)
 	for _, g := range user3Groups {
 		group, ok := g.(map[string]interface{})
 		assert.True(t, ok, "Group should be an object")
-		groupValues = append(groupValues, group["value"].(string))
+		groupID := group["value"].(string)
+		groupValues = append(groupValues, groupID)
+		groupDisplays[groupID] = group["display"].(string)
 	}
 	assert.Contains(t, groupValues, group1ID, "User 3 should be in Group 1")
 	assert.Contains(t, groupValues, group2ID, "User 3 should be in Group 2")
+	assert.Equal(t, "Test Group 1", groupDisplays[group1ID], "Group 1 display name should be correct")
+	assert.Equal(t, "Test Group 2", groupDisplays[group2ID], "Group 2 display name should be correct")
 
 	// Clean up
 	// Delete the groups

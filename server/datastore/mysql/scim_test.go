@@ -155,15 +155,16 @@ func testScimUserByID(t *testing.T, ds *Datastore) {
 					if userID == tt.ID {
 						foundInGroups = true
 
-						// Verify the group ID is in the user's Groups field
-						var foundGroupID bool
-						for _, groupID := range returned.Groups {
-							if groupID == group.ID {
-								foundGroupID = true
+						// Verify the group is in the user's Groups field
+						var foundGroup bool
+						for _, userGroup := range returned.Groups {
+							if userGroup.ID == group.ID {
+								foundGroup = true
+								assert.Equal(t, group.DisplayName, userGroup.DisplayName, "Group display name should match")
 								break
 							}
 						}
-						assert.True(t, foundGroupID, "User's Groups field should contain the group ID")
+						assert.True(t, foundGroup, "User's Groups field should contain the group")
 						break
 					}
 				}
@@ -220,15 +221,16 @@ func testScimUserByUserName(t *testing.T, ds *Datastore) {
 					if userID == tt.ID {
 						foundInGroups = true
 
-						// Verify the group ID is in the user's Groups field
-						var foundGroupID bool
-						for _, groupID := range returned.Groups {
-							if groupID == group.ID {
-								foundGroupID = true
+						// Verify the group is in the user's Groups field
+						var foundGroup bool
+						for _, userGroup := range returned.Groups {
+							if userGroup.ID == group.ID {
+								foundGroup = true
+								assert.Equal(t, group.DisplayName, userGroup.DisplayName, "Group display name should match")
 								break
 							}
 						}
-						assert.True(t, foundGroupID, "User's Groups field should contain the group ID")
+						assert.True(t, foundGroup, "User's Groups field should contain the group")
 						break
 					}
 				}
@@ -337,7 +339,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 
 	// Verify the user has the group
 	require.Len(t, createdUser.Groups, 1)
-	assert.Equal(t, group.ID, createdUser.Groups[0])
+	assert.Equal(t, fleet.ScimUserGroup{ID: group.ID, DisplayName: group.DisplayName}, createdUser.Groups[0])
 
 	// Modify the user and attempt to modify the Groups field
 	updatedUser := fleet.ScimUser{
@@ -359,7 +361,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 				Type:    ptr.String("home"),
 			},
 		},
-		Groups: []uint{999}, // Attempt to modify Groups (should be ignored)
+		Groups: []fleet.ScimUserGroup{{ID: 999, DisplayName: "Ignored Group"}}, // Attempt to modify Groups (should be ignored)
 	}
 
 	// Replace the user
@@ -382,7 +384,8 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 
 	// Verify that the Groups field was NOT modified (it should still contain the original group)
 	require.Len(t, replacedUser.Groups, 1, "Groups field should not be modified by ReplaceScimUser")
-	assert.Equal(t, group.ID, replacedUser.Groups[0], "Groups field should still contain the original group")
+	assert.Equal(t, group.ID, replacedUser.Groups[0].ID, "Groups field should still contain the original group ID")
+	assert.Equal(t, group.DisplayName, replacedUser.Groups[0].DisplayName, "Groups field should still contain the original group display name")
 
 	// Now remove the user from the group using the group methods
 	updatedGroup := fleet.ScimGroup{
@@ -543,7 +546,8 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 				// Verify Groups field for the first user
 				if testUser.ID == users[0].ID {
 					require.Len(t, u.Groups, 1, "First user should have exactly one group")
-					assert.Equal(t, group.ID, u.Groups[0], "First user should be in the test group")
+					assert.Equal(t, group.ID, u.Groups[0].ID, "First user should be in the test group")
+					assert.Equal(t, group.DisplayName, u.Groups[0].DisplayName, "Group display name should match")
 				} else {
 					assert.Empty(t, u.Groups, "Other users should not have groups")
 				}
@@ -1221,7 +1225,8 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 
 	// Verify groups
 	require.Equal(t, 1, len(result1.Groups))
-	assert.Equal(t, group.ID, result1.Groups[0])
+	assert.Equal(t, group.ID, result1.Groups[0].ID)
+	assert.Equal(t, group.DisplayName, result1.Groups[0].DisplayName)
 
 	// Test 2: Get SCIM user without emails and without groups by host ID
 	result2, err := ds.ScimUserByHostID(t.Context(), hostID2)

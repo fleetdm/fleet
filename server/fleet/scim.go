@@ -12,7 +12,12 @@ type ScimUser struct {
 	Active     *bool     `db:"active"`
 	UpdatedAt  time.Time `db:"updated_at"`
 	Emails     []ScimUserEmail
-	Groups     []uint
+	Groups     []ScimUserGroup
+}
+
+type ScimUserGroup struct {
+	ID          uint   `db:"id"`
+	DisplayName string `db:"display_name"`
 }
 
 func (su *ScimUser) AuthzType() string {

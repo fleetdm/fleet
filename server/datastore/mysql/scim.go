@@ -430,10 +430,11 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Fetch groups for all users in a single query
 	groupQuery, groupArgs, err := sqlx.In(`
 		SELECT
-			scim_user_id, group_id
-		FROM scim_user_group
-		WHERE scim_user_id IN (?)
-		ORDER BY group_id ASC
+			sug.scim_user_id, sg.id, sg.display_name
+		FROM scim_user_group sug
+		JOIN scim_groups sg ON sug.group_id = sg.id
+		WHERE sug.scim_user_id IN (?)
+		ORDER BY sg.id ASC
 	`, userIDs)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "prepare groups query")
@@ -441,8 +442,9 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 
 	// Execute the group query
 	type userGroup struct {
-		UserID  uint `db:"scim_user_id"`
-		GroupID uint `db:"group_id"`
+		UserID      uint   `db:"scim_user_id"`
+		ID          uint   `db:"id"`
+		DisplayName string `db:"display_name"`
 	}
 	var allUserGroups []userGroup
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allUserGroups, groupQuery, groupArgs...); err != nil {
@@ -454,7 +456,10 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Associate groups with their users
 	for _, ug := range allUserGroups {
 		if user, ok := userMap[ug.UserID]; ok {
-			user.Groups = append(user.Groups, ug.GroupID)
+			user.Groups = append(user.Groups, fleet.ScimUserGroup{
+				ID:          ug.ID,
+				DisplayName: ug.DisplayName,
+			})
 		}
 	}
 
@@ -480,23 +485,24 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 	return emails, nil
 }
 
-// getScimUserGroups retrieves all group IDs for a SCIM user
-func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]uint, error) {
+// getScimUserGroups retrieves all groups for a SCIM user
+func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]fleet.ScimUserGroup, error) {
 	const query = `
 		SELECT
-			group_id
-		FROM scim_user_group
-		WHERE scim_user_id = ? ORDER BY group_id ASC
+			sg.id, sg.display_name
+		FROM scim_groups sg
+		JOIN scim_user_group sug ON sg.id = sug.group_id
+		WHERE sug.scim_user_id = ? ORDER BY sg.id ASC
 	`
-	var groupIDs []uint
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &groupIDs, query, userID)
+	var groups []fleet.ScimUserGroup
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select scim user groups")
 	}
-	return groupIDs, nil
+	return groups, nil
 }
 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length

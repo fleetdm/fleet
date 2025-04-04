@@ -1320,12 +1320,50 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
+	scimUser, err := svc.ds.ScimUserByHostID(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get scim user by host id")
+	}
+	var endUsers []fleet.HostEndUser
+	if scimUser != nil {
+		endUser := fleet.HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		endUsers = append(endUsers, endUser)
+	}
+	deviceMapping, err := svc.ds.ListHostDeviceMapping(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host device mapping")
+	}
+	if len(deviceMapping) > 0 {
+		endUser := fleet.HostEndUser{}
+		for _, email := range deviceMapping {
+			if email.Source != fleet.DeviceMappingMDMIdpAccounts {
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if len(endUsers) > 0 {
+			endUsers[0].OtherEmails = endUser.OtherEmails
+		} else {
+			endUsers = append(endUsers, endUser)
+		}
+	}
+
 	return &fleet.HostDetail{
 		Host:              *host,
 		Labels:            labels,
 		Packs:             packs,
 		Batteries:         &bats,
 		MaintenanceWindow: nextMw,
+		EndUsers:          endUsers,
 	}, nil
 }
 

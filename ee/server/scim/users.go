@@ -253,10 +253,11 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 	}
 	if len(user.Groups) > 0 {
 		groups := make([]scim.ResourceAttributes, 0, len(user.Groups))
-		for _, groupID := range user.Groups {
+		for _, group := range user.Groups {
 			groups = append(groups, map[string]interface{}{
-				"value": scimGroupID(groupID),
-				"$ref":  "Groups/" + scimGroupID(groupID),
+				"value":   scimGroupID(group.ID),
+				"$ref":    "Groups/" + scimGroupID(group.ID),
+				"display": group.DisplayName,
 			})
 		}
 		userResource.Attributes[groupsAttr] = groups
