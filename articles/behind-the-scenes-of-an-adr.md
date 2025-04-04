@@ -43,3 +43,9 @@ Thanks for reading, and here’s to the ADRs out there, making the sales engine 
 —
 _ Written by an AE who’s seen firsthand how the right training can transform a lead from “cold stranger” to “excited prospect.”_
 
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="ambrusps">
+<meta name="authorFullName" value="Patricia Ambrus">
+<meta name="publishedOn" value="2025-04-03">
+<meta name="articleTitle" value="Behind the Scenes of an Account Development Representative (ADR)">
+<meta name="description" value="Behind the Scenes of an Account Development Representative (ADR)">
