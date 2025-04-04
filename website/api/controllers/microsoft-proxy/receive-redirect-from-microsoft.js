@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Get tenants admin consent status',
 
 
-  description: 'Updates the admin consent status of a MicrosoftComplianceTenant record.',
+  description: 'Updates the admin consent status of a MicrosoftComplianceTenant record and if the admin consented, completes the setup of the new tenant.',
 
 
   inputs: {
