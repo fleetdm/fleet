@@ -25,8 +25,8 @@ type ScimUserEmail struct {
 }
 
 type ScimListOptions struct {
-	// Which page to return (must be positive integer)
-	Page uint
+	// 1-based index of the first result to return (must be positive integer)
+	StartIndex uint
 	// How many results per page (must be positive integer)
 	PerPage uint
 }
