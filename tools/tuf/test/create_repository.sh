@@ -93,7 +93,7 @@ for system in $SYSTEMS; do
         goarch_value="arm64"
     fi
     orbit_target=orbit-$system
-    if [[ $system == "windows" ]]; then
+    if [[ $system == "windows" ]] || [[ $system == "windows-arm64" ]]; then
         orbit_target="${orbit_target}.exe"
     fi
 

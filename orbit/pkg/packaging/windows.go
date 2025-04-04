@@ -68,7 +68,11 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+		if opt.Architecture == ArchArm64 {
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
+		} else {
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+		}
 		// Override default channel with the provided value.
 		updateOpt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, opt.DesktopChannel)
 	}
