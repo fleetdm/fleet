@@ -503,6 +503,7 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
     }
@@ -1235,6 +1236,7 @@ const HostDetailsPage = ({
           <CancelActivityModal
             hostId={host.id}
             activity={selectedCancelActivity}
+            onCancelActivity={() => refetchUpcomingActivities()}
             onExit={() => setSelectedCancelActivity(null)}
           />
         )}
