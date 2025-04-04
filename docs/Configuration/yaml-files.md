@@ -571,11 +571,10 @@ org_settings:
 At the team level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium for managed cloud customers. Must have Microsoft Entra connected.)
 
 ```yaml
-integrations:
-  conditional_access_enabled: true
+team_settings:
+  integrations:
+    conditional_access_enabled: true
 ```
-
-
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
 
