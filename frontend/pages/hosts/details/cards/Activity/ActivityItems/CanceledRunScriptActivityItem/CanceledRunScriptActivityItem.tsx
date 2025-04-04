@@ -20,8 +20,8 @@ const CanceledRunScriptActivityItem = ({
     >
       <>
         <b>{activity.actor_full_name}</b> canceled{" "}
-        <b>{formatScriptNameForActivityItem(activity.details.script_name)}</b>{" "}
-        script on this host.
+        {formatScriptNameForActivityItem(activity.details.script_name)} on this
+        host.
       </>
     </ActivityItem>
   );
