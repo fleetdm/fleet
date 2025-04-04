@@ -1,4 +1,5 @@
 import React, { useCallback } from "react";
+import classnames from "classnames";
 
 import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
@@ -9,29 +10,31 @@ import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 
-import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
+import generateTableHeaders from "./LocalUserAccountsTable/LocalUserAccountsTableConfig";
 
-interface IUsersProps {
+interface ILocalUserAccountsProps {
   users: IHostUser[];
   usersState: { username: string }[];
   isLoading: boolean;
   onUsersTableSearchChange: (queryData: ITableQueryData) => void;
   hostUsersEnabled?: boolean;
+  className?: string;
 }
 
-const baseClass = "users-card";
+const baseClass = "local-user-accounts-card";
 
-const Users = ({
+const LocalUserAccounts = ({
   users,
   usersState,
   isLoading,
   onUsersTableSearchChange,
   hostUsersEnabled,
-}: IUsersProps): JSX.Element => {
-  const tableHeaders = generateUsersTableHeaders();
+  className,
+}: ILocalUserAccountsProps): JSX.Element => {
+  const tableHeaders = generateTableHeaders();
 
   const renderUsersCount = useCallback(() => {
-    return <TableCount name="users" count={usersState.length} />;
+    return <TableCount name="items" count={usersState.length} />;
   }, [usersState.length]);
 
   if (!hostUsersEnabled) {
@@ -42,7 +45,7 @@ const Users = ({
         paddingSize="xlarge"
         includeShadow
       >
-        <CardHeader header="Users" />
+        <CardHeader header="Local user accounts" />
         <EmptyTable
           header="User collection has been disabled"
           info={
@@ -60,15 +63,17 @@ const Users = ({
     );
   }
 
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
-      className={baseClass}
+      className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       includeShadow
     >
       <>
-        <CardHeader header="Users" />
+        <CardHeader header="Local user accounts" />
         {users?.length ? (
           <TableContainer
             columnConfigs={tableHeaders}
@@ -76,7 +81,7 @@ const Users = ({
             isLoading={isLoading}
             defaultSortHeader="username"
             defaultSortDirection="asc"
-            inputPlaceHolder="Search users by username"
+            inputPlaceHolder="Search local user accounts by username"
             onQueryChange={onUsersTableSearchChange}
             emptyComponent={() => (
               <EmptyTable
@@ -103,4 +108,4 @@ const Users = ({
   );
 };
 
-export default Users;
+export default LocalUserAccounts;
