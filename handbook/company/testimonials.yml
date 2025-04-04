@@ -189,7 +189,7 @@
   productCategories: [Device management]
 -
   quote: I just want to brag again about how awesome Fleet and Snowflake are together. Osquery alone isn't a big data tool, but it's a powerful data collector.
-  quoteAuthorName: Tom Larkin
+  quoteAuthorName: tom larkin # Note: this name is lowercased here so we can sort the two observability-related Tom larkin quotes in different spots. (The name will be capitalized via CSS)  
   quoteAuthorJobTitle: Sr. Manager, Client Engineering & DevOps
   quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
