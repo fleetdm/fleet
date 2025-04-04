@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 
 import { stringToClipboard } from "utilities/copy_text";
-import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
+import {
+  LEARN_MORE_ABOUT_BASE_LINK,
+  PLATFORM_DISPLAY_NAMES,
+} from "utilities/constants";
 
 import Modal from "components/Modal";
 import DataSet from "components/DataSet";
@@ -9,6 +12,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CustomLink from "components/CustomLink";
 
 const baseClass = "fleet-app-details-modal";
 
@@ -21,8 +25,25 @@ interface IFleetAppDetailsModalProps {
   onCancel: () => void;
 }
 
-const TOOLTIP_MESSAGE =
-  "Fleet downloads the package from the URL and stores it. Hosts download it from Fleet before install.";
+const SLUG_TOOLTIP_MESSAGE = (
+  <>
+    Used to manage apps in Gitops.{" "}
+    <CustomLink
+      newTab
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+      text="Learn more"
+      variant="tooltip-link"
+    />
+  </>
+);
+
+const URL_TOOLTIP_MESSAGE = (
+  <>
+    Fleet downloads the package from the URL and stores it.
+    <br />
+    Hosts download it from Fleet before install.
+  </>
+);
 
 const FleetAppDetailsModal = ({
   name,
@@ -55,7 +76,14 @@ const FleetAppDetailsModal = ({
           <DataSet title="Version" value={version} />
           {slug && (
             <DataSet
-              title="Fleet-maintained app slug"
+              title={
+                <TooltipWrapper
+                  tipContent={SLUG_TOOLTIP_MESSAGE}
+                  position="top-start"
+                >
+                  Fleet-maintained app slug
+                </TooltipWrapper>
+              }
               value={
                 <>
                   {slug}{" "}
@@ -82,7 +110,10 @@ const FleetAppDetailsModal = ({
           {url && (
             <DataSet
               title={
-                <TooltipWrapper tipContent={TOOLTIP_MESSAGE}>
+                <TooltipWrapper
+                  tipContent={URL_TOOLTIP_MESSAGE}
+                  position="top-start"
+                >
                   URL
                 </TooltipWrapper>
               }
