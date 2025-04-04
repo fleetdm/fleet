@@ -23,7 +23,7 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows}
+SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
 echo "Generating packages for $SYSTEMS"
 
@@ -79,6 +79,10 @@ for system in $SYSTEMS; do
     fi
     if [[ $system == "windows" ]]; then
         goarch_value="amd64"
+    fi
+    if [[ $system == "windows-arm64" ]]; then
+        goose_value="windows"
+        goarch_value="arm64"
     fi
     if [[ $system == "linux-arm64" ]]; then
         goose_value="linux"

@@ -52,7 +52,11 @@ func BuildMSI(opt Options) (string, error) {
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.Targets = update.WindowsTargets
+	if opt.Architecture == ArchAmd64 {
+		updateOpt.Targets = update.WindowsTargets
+	} else {
+		updateOpt.Targets = update.WindowsArm64Targets
+	}
 	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
