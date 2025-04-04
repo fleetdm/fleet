@@ -1,8 +1,12 @@
 # Fleet 4.66.0 | Windows Fleet-maintained apps, DigiCert integration, Custom SCEP server
 
-Fleet 4.66.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.66.0) or read on for highlights.
+<!-- TODO: Embed sprint demo video once it's on YouTube
+<div purpose="embedded-content">
+   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+</div>
+-->
 
-For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
+Fleet 4.66.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.66.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
 
@@ -24,7 +28,7 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 
 ## Changes
 
-### Security Engineers
+### Security
 - Added integration with DigiCert Trust Lifecycle Manager. Fleet admins can now deploy DigiCert certificates to their macOS devices via configuration profiles.
 - Updated activity log UI for new certificate authority features.
 - Updated host details > software table to filter by vulnerability severity and known exploit.
@@ -39,7 +43,7 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 - Fixed false positive on macOS 15.3 by making sure we match the version format reported by Vulncheck.
 - Fixed false positive for CVE-2024-6286 on non-Windows hosts.
 
-### IT Admins
+### IT
 - Added support for Fleet-maintained apps for Windows.
 - Added integration with a custom SCEP server. Fleet admins can now deploy certificates from their own SCEP server to their macOS devices via configuration profiles. The SCEP server will only see traffic from the Fleet server.
 - Return more granular data for live query and policy runs so it can be displayed to users.
@@ -56,7 +60,18 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 - Removed unreliable default (un)install scripts for .exe software packages; install and uninstall scripts are now required when adding .exe packages.
 - Added software URL validation in GitOps to catch URL parse errors earlier.
 
-### Other improvements
+
+### Bug fixes and improvements
+- Fixed software installer download and Fleet Maintained App errors by extending the timeout for the download and FMA add endpoints.
+- Fixed issue where bootstrap package was incorrectly installed during renewal of Apple MDM enrollment profiles.
+- Fixed a bug to ignore Windows hosts that are not enrolled in Fleet MDM for disk encryption statistics and filters.
+- Fixed policy automation with scripts to surface errors to user instead of rendering false success message.
+- Fixed whitespace not being displayed correctly in policy automation calendar preview.
+- Fixed bug where Windows profiles were not being resent after `fleetctl` GitOps update.
+- Fixed row selection firing twice in host selection screen.
+- Fixed Dashboard > Software table truncating host count.
+- Fixed an error when requesting `/fleet/software/titles` endpoint unpaginated with > 33k software titles by batching the policies by software title id query
+- Fixed an issue where removing label conditions on configuration profiles (e.g. `labels_include_any`, `labels_include_all` or `labels_exclude_any`) did not clear the labels associated with the profile when applied via `fleetctl gitops`.
 - Updated the empty states when choosing a label scope for new software, queries, and profiles.
 - Clarified meanings of various types and fields involved in live query/policy infrastructure, document, and refactor for improved code clarity.
 - Added configuration to Fleet server to enable H2C (forcing http2) to get around a limitation in GCP Cloud Run for upload file sizes.
@@ -71,18 +86,6 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 - Added support for displaying scheduled query labels in `fleetctl`.
 - Updated `fleetctl` to print an informative error message when it is authenticated with a user who is required to reset their password.
 - Stopped `fleetctl` npm publishing script from tagging patch releases for old versions as `latest`. 
-
-### Bug fixes
-- Fixed software installer download and Fleet Maintained App errors by extending the timeout for the download and FMA add endpoints.
-- Fixed issue where bootstrap package was incorrectly installed during renewal of Apple MDM enrollment profiles.
-- Fixed a bug to ignore Windows hosts that are not enrolled in Fleet MDM for disk encryption statistics and filters.
-- Fixed policy automation with scripts to surface errors to user instead of rendering false success message.
-- Fixed whitespace not being displayed correctly in policy automation calendar preview.
-- Fixed bug where Windows profiles were not being resent after `fleetctl` GitOps update.
-- Fixed row selection firing twice in host selection screen.
-- Fixed Dashboard > Software table truncating host count.
-- Fixed an error when requesting `/fleet/software/titles` endpoint unpaginated with > 33k software titles by batching the policies by software title id query
-- Fixed an issue where removing label conditions on configuration profiles (e.g. `labels_include_any`, `labels_include_all` or `labels_exclude_any`) did not clear the labels associated with the profile when applied via `fleetctl gitops`.
 
 ## Ready to upgrade?
 
