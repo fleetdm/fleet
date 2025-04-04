@@ -125,10 +125,15 @@ fdm:
 	@echo "Start the fleet server"
 .help-short--up: 
 	@echo "Start the fleet server (alias for \`serve\`)"
+.help-long--serve: SERVE_CMD:=serve
+.help-long--up: SERVE_CMD:=up
 .help-long--serve .help-long--up:
-	@echo "Starts an instance of the Fleet web and API server. If no arguments are provided, the server will start with the last used arguments."
+	@echo "Starts an instance of the Fleet web and API server." 
 	@echo
-	@echo "  To see all available options, run \`$(TOOL_CMD) serve --help\`"
+	@echo "  By default the server will listen on localhost:8080, in development mode with a premium license."
+	@echo "  If different options are used to start the server, the options will become 'sticky' and will be used the next time \`$(TOOL_CMD) $(SERVE_CMD)\` is called."
+	@echo
+	@echo "  To see all available options, run \`$(TOOL_CMD) $(SERVE_CMD) --help\`"
 .help-options--serve .help-options--up:
 	@echo "HELP"
 	@echo "Show all options for the fleet serve command"
@@ -139,7 +144,9 @@ fdm:
 	@echo "SHOW"
 	@echo "Show the last arguments used to start the server"
 
+up: SERVE_CMD:=up
 up: serve
+serve: SERVE_CMD:=serve
 serve: TARGET_ARGS := --use-ip --no-save --show
 ifdef USE_IP
 serve: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
@@ -153,6 +160,9 @@ serve:
 else ifdef HELP
 serve:
 	@./build/fleet serve --help
+else ifdef RESET
+serve:
+	@touch ~/.fleet/last-serve-invocation && rm ~/.fleet/last-serve-invocation
 else
 serve:
 	$(call filter_args)
@@ -165,12 +175,11 @@ serve:
 		fi; \
 		./build/fleet serve $(FORWARDED_ARGS); \
 	else \
-		if [[  -f ~/.fleet/last-serve-invocation ]]; then \
-			cat ~/.fleet/last-serve-invocation; \
-			$$(cat ~/.fleet/last-serve-invocation); \
-		else \
-			./build/fleet serve; \
+		if ! [[ -f ~/.fleet/last-serve-invocation ]]; then \
+			echo "./build/fleet serve --server_address=localhost:8080 --dev --dev_license" > ~/.fleet/last-serve-invocation; \
 		fi; \
+		cat ~/.fleet/last-serve-invocation; \
+		$$(cat ~/.fleet/last-serve-invocation); \
 	fi
 endif
 
