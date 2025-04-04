@@ -232,7 +232,7 @@ Use the following steps to track a Fleet applicant:
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
-- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/hosts/manage?page=0&order_key=display_name&order_direction=asc&team_id=300) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
 
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
@@ -258,6 +258,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 
 6. Turn on the device and enter the unlock code.
 7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
+8. Move the device to the ["📦 Warehouse" team](https://dogfood.fleetdm.com/hosts/manage?page=0&order_key=display_name&order_direction=asc&team_id=300) in Dogfood. 
 
 **If you need to manually recover a device or reinstall macOS**
 1. enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
@@ -270,7 +271,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 ### Ship approved equipment
 
 Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
-1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
+1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/hosts/manage?page=0&order_key=display_name&order_direction=asc&team_id=300) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
 4. Change the "host" info to reflect the new user.
