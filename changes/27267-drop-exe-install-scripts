@@ -1,2 +1,0 @@
-* Removed unreliable default (un)install scripts for .exe software packages; install and uninstall scripts are now required when adding .exe packages.
-* Added software URL validation in GitOps to catch URL parse errors earlier.

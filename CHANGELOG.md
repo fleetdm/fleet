@@ -28,6 +28,9 @@
 - Allowed for any number of comments at the top of XML files for Windows MDM profile CSPs.
 - Disabled unsupported automatic install option during add flow of .exe custom packages.
 - Updated Fleet to treat software installer download errors as a failure for that installation attempt, which prevents the software installation from remaining in "pending".
+- Added Apple Root Certificate for HTTP requests to https://gdmf.apple.com/v2/pmv. This solves the issue of minimum macOS version not being enforced at enrollment.
+- Removed unreliable default (un)install scripts for .exe software packages; install and uninstall scripts are now required when adding .exe packages.
+- Added software URL validation in GitOps to catch URL parse errors earlier.
 
 ### Other improvements
 - Updated the empty states when choosing a label scope for new software, queries, and profiles.
@@ -46,13 +49,16 @@
 - Stopped `fleetctl` npm publishing script from tagging patch releases for old versions as `latest`. 
 
 ### Bug fixes
+- Fixed software installer download and Fleet Maintained App errors by extending the timeout for the download and FMA add endpoints.
+- Fixed issue where bootstrap package was incorrectly installed during renewal of Apple MDM enrollment profiles.
 - Fixed a bug to ignore Windows hosts that are not enrolled in Fleet MDM for disk encryption statistics and filters.
 - Fixed policy automation with scripts to surface errors to user instead of rendering false success message.
 - Fixed whitespace not being displayed correctly in policy automation calendar preview.
 - Fixed bug where Windows profiles were not being resent after `fleetctl` GitOps update.
 - Fixed row selection firing twice in host selection screen.
-- Fixed an error when requesting `/fleet/software/titles` endpoint unpaginated with > 33k software titles by batching the policies by software title id query
 - Fixed Dashboard > Software table truncating host count.
+- Fixed an error when requesting `/fleet/software/titles` endpoint unpaginated with > 33k software titles by batching the policies by software title id query
+- Fixed an issue where removing label conditions on configuration profiles (e.g. `labels_include_any`, `labels_include_all` or `labels_exclude_any`) did not clear the labels associated with the profile when applied via `fleetctl gitops`.
 
 ## Fleet 4.65.0 (Mar 14, 2025)
 
