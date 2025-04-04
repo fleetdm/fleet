@@ -1681,6 +1681,8 @@ _Available in Fleet Premium._
 
 ##### integrations.digicert
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 `integrations.digicert` is an array of objects with the following structure:
 
 | Name                              | Type    | Description   |
@@ -1713,6 +1715,8 @@ _Available in Fleet Premium._
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
 ##### integrations.custom_scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `integrations.custom_scep_proxy` is an array of objects with the following structure:
 
