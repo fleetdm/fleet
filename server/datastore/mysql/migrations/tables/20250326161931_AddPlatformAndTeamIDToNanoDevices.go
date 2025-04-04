@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250325122638, Down_20250325122638)
+	MigrationClient.AddMigration(Up_20250326161931, Down_20250326161931)
 }
 
-func Up_20250325122638(tx *sql.Tx) error {
+func Up_20250326161931(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE nano_devices
 	ADD COLUMN platform VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -81,6 +81,6 @@ WHERE
 	return nil
 }
 
-func Down_20250325122638(tx *sql.Tx) error {
+func Down_20250326161931(tx *sql.Tx) error {
 	return nil
 }
