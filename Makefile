@@ -139,6 +139,8 @@ fdm:
 	@echo "Show all options for the fleet serve command"
 	@echo "USE_IP"
 	@echo "Start the server on the IP address of the host machine"
+	@echo "NO_BUILD"
+	@echo "Don't build the fleet binary before starting the server"
 	@echo "NO_SAVE"
 	@echo "Don't save the current arguments for the next invocation"
 	@echo "SHOW"
@@ -147,7 +149,7 @@ fdm:
 up: SERVE_CMD:=up
 up: serve
 serve: SERVE_CMD:=serve
-serve: TARGET_ARGS := --use-ip --no-save --show
+serve: TARGET_ARGS := --use-ip --no-save --show --no-build
 ifdef USE_IP
 serve: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
 endif
@@ -165,6 +167,7 @@ serve:
 	@touch ~/.fleet/last-serve-invocation && rm ~/.fleet/last-serve-invocation
 else
 serve:
+	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
 	$(call filter_args)
 # If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
 # Unless NO_SAVE is set to true, save the command to the last invocation file.
