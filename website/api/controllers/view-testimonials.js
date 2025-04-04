@@ -82,6 +82,7 @@ module.exports = {
       'Andre Shields',
       'Mike Arpaia',
       'Tom Larkin',
+      'Matt Carr'
     ];
     let testimonialsForObservability = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForObservability, testimonial.quoteAuthorName);
