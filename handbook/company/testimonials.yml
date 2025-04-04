@@ -213,3 +213,10 @@
   quoteAuthorJobTitle: Senior Systems Security Engineer
   productCategories: [Observability, Software management]
   # From social media company: “absolutely, will do! this amazing support has been one of the great things that helped make this decision easier and, trust me when I say this, you guys must be doing good if you can take some die-hards away from their ______ (competing product)”
+-
+  quote: If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM.
+  quoteLinkUrl: https://www.reddit.com/r/Intune/comments/1jkzxyl/comment/mk02c2k/
+  quoteAuthorName: u/Heteronymous
+  quoteAuthorProfileImageFilename: logo-reddit-80x32@2x.png
+  quoteAuthorJobTitle: Senior Systems Security Engineer
+  productCategories: [Device management]
