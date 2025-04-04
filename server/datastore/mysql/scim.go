@@ -175,6 +175,42 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	return &users[0], nil
 }
 
+// ScimUserByHostID retrieves a SCIM user associated with a host ID
+func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+	const query = `
+		SELECT
+			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.active
+		FROM scim_users su
+		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
+		WHERE host_scim_user.host_id = ?
+		LIMIT 1
+	`
+	user := &fleet.ScimUser{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), user, query, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("scim user for host").WithID(hostID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by host ID")
+	}
+
+	// Get the user's emails
+	emails, err := ds.getScimUserEmails(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.Emails = emails
+
+	// Get the user's groups
+	groups, err := ds.getScimUserGroups(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.Groups = groups
+
+	return user, nil
+}
+
 // ReplaceScimUser replaces an existing SCIM user in the database
 func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
 	if err := validateScimUserFields(user); err != nil {

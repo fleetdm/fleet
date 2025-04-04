@@ -1470,6 +1470,8 @@ type listHostDeviceMappingResponse struct {
 
 func (r listHostDeviceMappingResponse) Error() error { return r.Err }
 
+// listHostDeviceMappingEndpoint
+// Deprecated: Emails are now included in host details endpoint /api/_version_/fleet/hosts/{id}
 func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
 	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
@@ -1516,6 +1518,8 @@ type putHostDeviceMappingResponse struct {
 
 func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
+// putHostDeviceMappingEndpoint
+// Deprecated: Because the corresponding GET endpoint is deprecated.
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)

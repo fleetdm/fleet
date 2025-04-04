@@ -2027,6 +2027,8 @@ type Datastore interface {
 	// If multiple users are found with the same email, we log an error and return nil.
 	// Emails and groups are NOT populated in this method.
 	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email *string) (*ScimUser, error)
+	// ScimUserByHostID retrieves a SCIM user associated with a host ID
+	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 	// DeleteScimUser deletes a SCIM user from the database

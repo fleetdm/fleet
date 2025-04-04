@@ -1294,6 +1294,8 @@ type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.S
 
 type ScimUserByUserNameOrEmailFunc func(ctx context.Context, userName string, email *string) (*fleet.ScimUser, error)
 
+type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUser, error)
+
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
 
 type DeleteScimUserFunc func(ctx context.Context, id uint) error
@@ -3220,6 +3222,9 @@ type DataStore struct {
 
 	ScimUserByUserNameOrEmailFunc        ScimUserByUserNameOrEmailFunc
 	ScimUserByUserNameOrEmailFuncInvoked bool
+
+	ScimUserByHostIDFunc        ScimUserByHostIDFunc
+	ScimUserByHostIDFuncInvoked bool
 
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
@@ -7701,6 +7706,13 @@ func (s *DataStore) ScimUserByUserNameOrEmail(ctx context.Context, userName stri
 	s.ScimUserByUserNameOrEmailFuncInvoked = true
 	s.mu.Unlock()
 	return s.ScimUserByUserNameOrEmailFunc(ctx, userName, email)
+}
+
+func (s *DataStore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByHostIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByHostIDFunc(ctx, hostID)
 }
 
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
