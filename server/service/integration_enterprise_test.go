@@ -13482,7 +13482,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
 }
 
-func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
+func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -13490,7 +13490,21 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
 	require.NoError(t, err)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some installer script",
+		Filename:      "hello-world-installer.exe",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename: "hello-world-installer.exe",
+		TeamID:   &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
+		UninstallScript:  "some uninstall script",
 		Filename:         "hello-world-installer.exe",
 		TeamID:           &team.ID,
 		AutomaticInstall: true,

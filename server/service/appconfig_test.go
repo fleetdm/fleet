@@ -1979,6 +1979,15 @@ func TestAppConfigCAs(t *testing.T) {
 			"one certificate user principal name")
 	})
 
+	t.Run("digicert empty user principal name", func(t *testing.T) {
+		mt := setUpDigiCert()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = []string{" "}
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
+			"user principal name cannot be empty")
+	})
+
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUpDigiCert()
 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"

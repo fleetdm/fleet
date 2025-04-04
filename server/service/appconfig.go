@@ -1364,6 +1364,11 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 			"DigiCert CA can only have one certificate user principal name")
 		return false
 	}
+	if len(strings.TrimSpace(userPrincipalNames[0])) == 0 {
+		invalid.Append("integrations.digicert.certificate_user_principal_names",
+			"DigiCert CA certificate user principal name cannot be empty if specified")
+		return false
+	}
 	fleetVars := findFleetVariables(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {

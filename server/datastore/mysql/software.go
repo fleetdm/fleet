@@ -2273,13 +2273,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		vulnerableLastVppInstall,
 		onlyVulnerableJoin,
 		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
 		cveMetaJoin string
 	var hasCVEFilters bool
 
 	if opts.VulnerableOnly {
-		// we don't currently do any vulnerability scanning on upcoming software/vpp installs/uninstalls
-		// so we don't need to join to software_cve for
-		// upcoming_software_install, upcoming_software_uninstall, upcoming_vpp_install
+		vulnerabilityExcludeClause = ` AND FALSE`
 		vulnerableLastSoftwareInstallJoins = `
 	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
     INNER JOIN software_titles ON software_titles.id = software_installers.title_id
@@ -2384,6 +2383,7 @@ WITH upcoming_software_install AS (
 		ua.host_id = :host_id AND
 		ua.activity_type = 'software_install' AND
 		ua2.id IS NULL
+		%s
 ),
 upcoming_software_uninstall AS (
 	SELECT
@@ -2407,6 +2407,7 @@ upcoming_software_uninstall AS (
 		ua.host_id = :host_id AND
 		ua.activity_type = 'software_uninstall' AND
 		ua2.id IS NULL
+		%s
 ),
 last_software_install AS (
 	SELECT
@@ -2502,6 +2503,7 @@ upcoming_vpp_install AS (
 		ua.host_id = :host_id AND
 		ua.activity_type = 'vpp_app_install' AND
 		ua2.id IS NULL
+		%s
 ),
 last_vpp_install AS (
 	SELECT
@@ -2681,10 +2683,13 @@ last_vpp_install AS (
 
 			%s
 `,
+		vulnerabilityExcludeClause,
+		vulnerabilityExcludeClause,
 		vulnerableLastSoftwareInstallJoins,
 		vulnerabilityFiltersClause,
 		vulnerableLastSoftwareUninstallJoins,
 		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
 		vppAppHostStatusNamedQuery("hvsi", "ncr", "status"),
 		vulnerableLastVppInstall,
 		vulnerabilityFiltersClause,

@@ -69,6 +69,8 @@ const (
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
 	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
+
+	maxValueCharsInError = 100
 )
 
 const (
@@ -84,8 +86,10 @@ var (
 		FleetVarHostEndUserEmailIDP))
 	fleetVarHostHardwareSerialRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostHardwareSerial,
 		FleetVarHostHardwareSerial))
-	fleetVarsSupportedInConfigProfiles = []string{FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
-		FleetVarHostHardwareSerial}
+	fleetVarsSupportedInConfigProfiles = []string{
+		FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial,
+	}
 )
 
 type hostProfileUUID struct {
@@ -397,6 +401,17 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
+	// We validate Fleet variables before we unmarshal the profile because bad variables can break unmarshal.
+	// For example: <data>$FLEET_VAR_BOZO</data>
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	err = validateConfigProfileFleetVariables(appConfig, expanded)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
+	}
+
 	cp, err := fleet.NewMDMAppleConfigProfile([]byte(expanded), &teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -405,15 +420,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 
 	if err := cp.ValidateUserProvided(); err != nil {
+		if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
+			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error() + ` To control these settings use disk encryption endpoint.`})
+		}
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
-	}
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-	err = validateConfigProfileFleetVariables(appConfig, string(cp.Mobileconfig))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
 
 	// Save the original unexpanded profile
@@ -527,11 +537,11 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				}
 			}
 			if !found {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles", k)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
 			if !ok {
 				// We limit CA variables to once per profile
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile", k)}
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
 			}
 		}
 	}
@@ -570,8 +580,8 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse PKCS12 payload with Fleet variables: %s", err.Error())}
 	}
 	var foundCAs []string
-	var passwordPrefix = "FLEET_VAR_" + FleetVarDigiCertPasswordPrefix
-	var dataPrefix = "FLEET_VAR_" + FleetVarDigiCertDataPrefix
+	passwordPrefix := "FLEET_VAR_" + FleetVarDigiCertPasswordPrefix
+	dataPrefix := "FLEET_VAR_" + FleetVarDigiCertDataPrefix
 	for _, payload := range pkcs12Prof.PayloadContent {
 		if payload.PayloadType == "com.apple.security.pkcs12" {
 			for _, ca := range digiCertVars.CAs() {
@@ -581,15 +591,23 @@ func additionalDigiCertValidation(contents string, digiCertVars *digiCertVarsFou
 						foundCAs = append(foundCAs, ca)
 						break
 					}
-					return &fleet.BadRequestError{Message: "CA name mismatch between $FLEET_VAR_DIGICERT_DATA_<ca_name> and $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> in PKCS12 profile"}
+					payloadContent := string(payload.PayloadContent)
+					if len(payloadContent) > maxValueCharsInError {
+						payloadContent = payloadContent[:maxValueCharsInError] + "..."
+					}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $" + passwordPrefix + ca + " and " +
+						payloadContent + " in PKCS12 payload."}
 				}
 			}
 		}
 	}
 	if len(foundCAs) < len(digiCertVars.CAs()) {
-		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> and $FLEET_VAR_DIGICERT_DATA_<ca_name>" +
-			" can only be present in 'com.apple.security.pkcs12' profiles and must match the Password and PayloadContent fields in the" +
-			" profile exactly"}
+		for _, ca := range digiCertVars.CAs() {
+			if !slices.Contains(foundCAs, ca) {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively.",
+					passwordPrefix+ca, dataPrefix+ca)}
+			}
+		}
 	}
 	return nil
 }
@@ -628,8 +646,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse SCEP payload with Fleet variables: %s", err.Error())}
 	}
 	var foundCAs []string
-	var challengePrefix = "FLEET_VAR_" + FleetVarCustomSCEPChallengePrefix
-	var urlPrefix = "FLEET_VAR_" + FleetVarCustomSCEPProxyURLPrefix
+	challengePrefix := "FLEET_VAR_" + FleetVarCustomSCEPChallengePrefix
+	urlPrefix := "FLEET_VAR_" + FleetVarCustomSCEPProxyURLPrefix
 	for _, payload := range scepProf.PayloadContent {
 		if payload.PayloadType == "com.apple.security.scep" {
 			for _, ca := range customSCEPVars.CAs() {
@@ -639,16 +657,23 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 						foundCAs = append(foundCAs, ca)
 						break
 					}
-					return &fleet.BadRequestError{Message: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and" +
-						" $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile"}
+					scepURL := payload.PayloadContent.URL
+					if len(scepURL) > maxValueCharsInError {
+						scepURL = scepURL[:maxValueCharsInError] + "..."
+					}
+					return &fleet.BadRequestError{Message: "CA name mismatch between $" + challengePrefix + ca + " and " +
+						scepURL + " in SCEP payload."}
 				}
 			}
 		}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
-		return &fleet.BadRequestError{Message: "Fleet variables $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name>" +
-			" can only be present in 'com.apple.security.scep' profiles and must match the Challenge and URL fields in the" +
-			" profile exactly"}
+		for _, ca := range customSCEPVars.CAs() {
+			if !slices.Contains(foundCAs, ca) {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.scep' payload under Challenge and URL, respectively.",
+					challengePrefix+ca, urlPrefix+ca)}
+			}
+		}
 	}
 	return nil
 }
@@ -3016,15 +3041,19 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	svc.logger.Log("info", "received token update", "host_uuid", r.ID)
 	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
 
 	if info.SCEPRenewalInProgress {
-		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process", "host_uuid", r.ID)
-		err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID)
-		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
+		svc.logger.Log("info", "token update received for a SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
+		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {
+			return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs")
+		}
+		svc.logger.Log("info", "cleaned SCEP refs, skipping setup experience and mdm lifecycle turn on action", "host_uuid", r.ID)
+		return nil
 	}
 
 	var hasSetupExpItems bool
@@ -4070,6 +4099,7 @@ func preprocessProfileContents(
 			failed := false
 		fleetVarLoop:
 			for fleetVar := range fleetVars {
+				var err error
 				switch {
 				case fleetVar == FleetVarNDESSCEPChallenge:
 					if ndesConfig == nil {
@@ -4143,7 +4173,10 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 						continue
 					}
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPChallengePrefix, ca.Name, hostContents, ca.Challenge)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP challenge")
+					}
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix)
 					ca, ok := customSCEPCAs[caName]
@@ -4155,7 +4188,10 @@ func preprocessProfileContents(
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
+					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:    hostUUID,
 						ProfileUUID: profUUID,
@@ -4241,9 +4277,15 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertDataPrefix, caName, hostContents,
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertDataPrefix, caName, hostContents,
 						base64.StdEncoding.EncodeToString(cert.PfxData))
-					hostContents = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertPasswordPrefix, caName, hostContents, cert.Password)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert data")
+					}
+					hostContents, err = replaceExactFleetPrefixVariableInXML(FleetVarDigiCertPasswordPrefix, caName, hostContents, cert.Password)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
+					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
 						HostUUID:      hostUUID,
 						ProfileUUID:   profUUID,
@@ -4453,7 +4495,8 @@ func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool)
 
 func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
-	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string) (bool, error) {
+	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
+) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
 	}
@@ -4492,7 +4535,8 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 }
 
 func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
-	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget) (bool, error) {
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget,
+) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.")
 	}
@@ -4581,7 +4625,8 @@ func (cs *customSCEPVarsFound) SetChallenge(value string) (*customSCEPVarsFound,
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
-	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string) (bool, error) {
+	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
+) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.")
 	}
@@ -4652,7 +4697,7 @@ func replaceFleetVariableInXML(regExp *regexp.Regexp, contents string, replaceme
 	return regExp.ReplaceAllString(contents, buf.String())
 }
 
-func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) string {
+func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {
 	// Escape XML characters since this replacement is intended for XML profile.
 	b := make([]byte, 0, len(replacement))
 	buf := bytes.NewBuffer(b)
@@ -4660,9 +4705,14 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 	_ = xml.EscapeText(buf, []byte(replacement))
 
 	// We are replacing an exact variable, which should be present in XML like: <something>$FLEET_VAR_OUR_VAR</something>
-	contents = strings.ReplaceAll(contents, fmt.Sprintf(">$FLEET_VAR_%s%s<", prefix, suffix), fmt.Sprintf(">%s<", buf.String()))
-	contents = strings.ReplaceAll(contents, fmt.Sprintf(">${FLEET_VAR_%s%s}<", prefix, suffix), fmt.Sprintf(">%s<", buf.String()))
-	return contents
+	// We strip the leading/trailing whitespace since we don't want them to remain in XML
+	// Our plist parser ignores spaces in <data> type. We don't catch this issue at profile validation, so we handle it here.
+	fleetVar := "FLEET_VAR_" + prefix + suffix
+	re, err := regexp.Compile(fmt.Sprintf(`>\s*((\$%s)|(\${%s}))\s*<`, fleetVar, fleetVar))
+	if err != nil {
+		return "", err
+	}
+	return re.ReplaceAllString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
 }
 
 func findFleetVariables(contents string) map[string]interface{} {

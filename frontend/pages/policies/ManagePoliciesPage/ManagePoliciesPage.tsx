@@ -88,9 +88,9 @@ interface IManagePoliciesPageProps {
   };
 }
 
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_PAGE_SIZE = 20;
-const DEFAULT_SORT_COLUMN = "name";
+export const DEFAULT_SORT_DIRECTION = "asc";
+export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_SORT_COLUMN = "name";
 const [
   DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG,
   DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
@@ -170,9 +170,6 @@ const ManagePolicyPage = ({
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
-  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
-  // this prop.
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -246,7 +243,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryDataForApi?.pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -302,7 +299,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryDataForApi?.pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -343,7 +340,7 @@ const ManagePolicyPage = ({
         scope: "teamPoliciesCountMergeInherited",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
-        mergeInherited: !!teamIdForApi,
+        mergeInherited: true,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -403,32 +400,10 @@ const ManagePolicyPage = ({
     }
   };
 
-  // NOTE: used to reset page number to 0 when modifying filters
-  // NOTE: Solution reused from ManageHostPage.tsx
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    // this function encapsulates setting local page state to 0 and triggering the descendant
-    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
-    setTableQueryDataForApi(
-      (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
-    );
-    // change in state triggers effect in TableContainer (see comment above this state definition)
-    setResetPageIndex(true);
-  };
-
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
-      handleResetPageIndex();
     },
     [handleTeamChange]
   );
@@ -928,12 +903,12 @@ const ManagePolicyPage = ({
               globalPolicies
             )
           }
+          count={globalPoliciesCount || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
-          resetPageIndex={resetPageIndex}
         />
       );
     }
@@ -961,12 +936,12 @@ const ManagePolicyPage = ({
             )
           }
           isPremiumTier={isPremiumTier}
+          count={teamPoliciesCountMergeInherited || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
-          resetPageIndex={resetPageIndex}
         />
       </div>
     );

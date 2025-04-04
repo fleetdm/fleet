@@ -893,8 +893,8 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, appliedLabelSpecs, 2)
 	assert.Len(t, deletedLabels, 1)
 	assert.Len(t, appliedQueries[0].LabelsIncludeAny, 2)
-	assert.Equal(t, appliedQueries[0].LabelsIncludeAny[0].LabelName, "a")
-	assert.Equal(t, appliedQueries[0].LabelsIncludeAny[1].LabelName, "b")
+	assert.Contains(t, []string{appliedQueries[0].LabelsIncludeAny[0].LabelName, appliedQueries[0].LabelsIncludeAny[1].LabelName}, "a")
+	assert.Contains(t, []string{appliedQueries[0].LabelsIncludeAny[0].LabelName, appliedQueries[0].LabelsIncludeAny[1].LabelName}, "b")
 
 	// Reset labels arrays
 	deletedLabels = make([]string, 0)

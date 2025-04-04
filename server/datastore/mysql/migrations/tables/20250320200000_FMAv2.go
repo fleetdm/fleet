@@ -4,41 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250317201526, Down_20250317201526)
+	MigrationClient.AddMigration(Up_20250320200000, Down_20250320200000)
 }
 
-func Up_20250317201526(tx *sql.Tx) error {
-	// Clean up Fleet Library App associated scripts before we drop the columns on the table
-	_, err := tx.Exec(`DELETE FROM
-  script_contents
-WHERE
-  NOT EXISTS (
-    SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
-  AND NOT EXISTS (
-    SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
-  AND NOT EXISTS (
-    SELECT 1 FROM software_installers si
-    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
-  )
-  AND NOT EXISTS (
-    SELECT 1 FROM fleet_library_apps fla
-			WHERE script_contents.id IN (fla.install_script_content_id, fla.uninstall_script_content_id)
-  )
-  AND NOT EXISTS (
-    SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
-	)
-  AND NOT EXISTS (
-    SELECT 1 FROM script_upcoming_activities WHERE script_content_id = script_contents.id
-	)`)
-	if err != nil {
-		return fmt.Errorf("failed to clean up unused scripts: %w", err)
-	}
-
-	_, err = tx.Exec(`
+func Up_20250320200000(tx *sql.Tx) error {
+	_, err := tx.Exec(`
 ALTER TABLE software_installers
 	CHANGE COLUMN fleet_library_app_id fleet_maintained_app_id INT unsigned DEFAULT NULL
 `)
@@ -83,6 +58,28 @@ ALTER TABLE fleet_maintained_apps
 		return fmt.Errorf("failed to alter fleet_maintained_apps: %w", err)
 	}
 
+	// Clean up scripts that were only associated with FMAs
+	_, err = tx.Exec(`DELETE FROM
+  script_contents
+WHERE
+  NOT EXISTS (
+    SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM software_installers si
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
+	)
+  AND NOT EXISTS (
+    SELECT 1 FROM script_upcoming_activities WHERE script_content_id = script_contents.id
+	)`)
+	if err != nil {
+		return fmt.Errorf("failed to clean up unused scripts: %w", err)
+	}
+
 	_, err = tx.Exec(`UPDATE fleet_maintained_apps SET slug = concat(slug, '/', platform)`)
 	if err != nil {
 		return fmt.Errorf("failed to rename FMA slugs: %w", err)
@@ -98,7 +95,7 @@ ALTER TABLE fleet_maintained_apps
 
 	// clear old Zoom FMA before swapping in new one
 	if len(slugs) > 1 || (len(slugs) == 1 && slugs[0] == "zoom/darwin") {
-		_, err = tx.Exec(`DELETE FROM fleet_maintaned_apps WHERE slug = 'zoom/darwin'`)
+		_, err = tx.Exec(`DELETE FROM fleet_maintained_apps WHERE slug = 'zoom/darwin'`)
 		if err != nil {
 			return fmt.Errorf("failed to remove duplicate Zoom FMA: %w", err)
 		}
@@ -109,9 +106,16 @@ ALTER TABLE fleet_maintained_apps
 		return fmt.Errorf("failed to rename Zoom FMA: %w", err)
 	}
 
+	// Clear out scheduled runs for the maintained_apps cron. This will force the cron to run on
+	// next server start and sync the full maintained apps list, including Windows titles.
+	_, err = tx.Exec(`DELETE FROM cron_stats WHERE name = ? AND stats_type = ?`, fleet.CronMaintainedApps, fleet.CronStatsTypeScheduled)
+	if err != nil {
+		return fmt.Errorf("failed to clear past scheduled runs of maintained_apps from cron_stats table: %w", err)
+	}
+
 	return nil
 }
 
-func Down_20250317201526(tx *sql.Tx) error {
+func Down_20250320200000(tx *sql.Tx) error {
 	return nil
 }
