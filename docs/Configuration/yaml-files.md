@@ -4,6 +4,8 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
 
+Users that have global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only to teams it has permissions to modify.
+
 Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
@@ -20,6 +22,8 @@ team_settings: # Only teams/team-name.yml
 ```
 
 Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+
+Users may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
 
 ## policies
 
