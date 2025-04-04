@@ -28,17 +28,17 @@ make fleetctl-docker
 
 To sign and notarize a generated `pkg` you must have:
 
-1. A Developer ID certificate in PEM format
-2. An Apple Store Connect API key
+1. A Developer ID Application certificate in PEM format
+2. An Apple Store Connect API key with App Manager access
 
 > Note: the Developer ID certificate must be in PEM format because this image
 > can be run in automated environments where secrets are passed via environment
 > variables, and thus they must be in plain text.
 >
-> To convert a PKCS 12 certificate to PEM, you can run the following command:
+> To convert a DER (.cer) certificate to PEM, you can run the following command:
 >
 > ```
-> openssl pkcs12 -in /path/to/cert.p12 -out signing-keypair.pem -nodes
+> openssl x509 -inform der -outform pem -in developerID_application.cer -out developerID_application.pem
 > ```
 
 Once you are set, you can build and notarize/staple your package with:
