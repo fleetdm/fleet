@@ -2813,7 +2813,7 @@ Returns the information of the specified host.
       {
         "idp_info_updated_at": "2025-03-20T02:02:17Z",
         "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
-        "idp_email": "anna@acme.com",
+        "idp_username": "anna@acme.com",
         "idp_full_name": "Anna Chao",
         "idp_groups": [
           "Product",
@@ -2961,6 +2961,8 @@ Returns the information of the specified host.
 > - `fleet_desktop_version: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the desktop version
 > - `fleet_desktop_version: ""` means this agent is a fleetd agent but does not have fleet desktop
 > - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
+
+> Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) and [Update custom human-device mapping endpoints](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3564) are deprecated. End user information are available as part of Get host(#get-host) endpoint.
 
 ### Get host by identifier
 
