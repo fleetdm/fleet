@@ -1,1 +1,0 @@
-* Removed duplicate download/delete attempts for MSRC bulletins when hosts are enrolled spanning multiple builds of the same version of Windows
