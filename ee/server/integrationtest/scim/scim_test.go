@@ -26,6 +26,8 @@ func TestSCIM(t *testing.T) {
 		{"Groups", testGroupsBasicCRUD},
 		{"CreateUser", testCreateUser},
 		{"CreateGroup", testCreateGroup},
+		{"UpdateUser", testUpdateUser},
+		{"UpdateGroup", testUpdateGroup},
 		{"PatchUserFailure", testPatchUserFailure},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
@@ -1044,6 +1046,219 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 	assert.Contains(t, errorResp5["detail"], "A required value was missing")
 
 	// Clean up the created user
+	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+}
+
+func testUpdateUser(t *testing.T, s *Suite) {
+	// Create first user
+	firstUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "first-user@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "First",
+			"familyName": "User",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "first-user@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var firstUserResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), firstUserPayload, http.StatusCreated, &firstUserResp)
+	firstUserID := firstUserResp["id"].(string)
+	assert.NotEmpty(t, firstUserID)
+
+	// Create second user
+	secondUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "second-user@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Second",
+			"familyName": "User",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "second-user@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var secondUserResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), secondUserPayload, http.StatusCreated, &secondUserResp)
+	secondUserID := secondUserResp["id"].(string)
+	assert.NotEmpty(t, secondUserID)
+
+	// Test 1: Try to update first user's userName to be exactly the same as second user's userName
+	updatePayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "second-user@example.com", // Same as second user
+		"name": map[string]interface{}{
+			"givenName":  "First",
+			"familyName": "User",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "first-user@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var errorResp1 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusConflict, &errorResp1)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp1["detail"], "One or more of the attribute values are already in use or are reserved")
+
+	// Test 2: Try to update first user's userName to be a case-randomized version of second user's userName
+	updatePayload["userName"] = "SeCoNd-UsEr@ExAmPlE.cOm" // Case-randomized version of second user's userName
+
+	var errorResp2 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusConflict, &errorResp2)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
+
+	// Test 3: Try to update first user's userName to be exactly the same as its current userName (should succeed)
+	updatePayload["userName"] = "first-user@example.com" // Same as current userName
+
+	var updateResp map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusOK, &updateResp)
+
+	// Verify the update was successful
+	assert.Equal(t, "first-user@example.com", updateResp["userName"])
+
+	// Test 4: Try to update first user's userName to be a case-randomized version of its current userName (should succeed)
+	updatePayload["userName"] = "FiRsT-uSeR@eXaMpLe.CoM" // Case-randomized version of current userName
+
+	var updateResp2 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusOK, &updateResp2)
+
+	// Verify the update was successful.
+	assert.Equal(t, "FiRsT-uSeR@eXaMpLe.CoM", updateResp2["userName"])
+
+	// Clean up
+	s.Do(t, "DELETE", scimPath("/Users/"+firstUserID), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Users/"+secondUserID), nil, http.StatusNoContent)
+}
+
+func testUpdateGroup(t *testing.T, s *Suite) {
+	// Create a test user to be added as a member of the groups
+	createUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "group-update-test@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Group",
+			"familyName": "UpdateTest",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "group-update-test@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createUserResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createUserResp)
+	userID := createUserResp["id"].(string)
+	assert.NotEmpty(t, userID)
+
+	// Create first group
+	firstGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "First Test Group",
+		"members": []map[string]interface{}{
+			{
+				"value": userID,
+			},
+		},
+	}
+
+	var firstGroupResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), firstGroupPayload, http.StatusCreated, &firstGroupResp)
+	firstGroupID := firstGroupResp["id"].(string)
+	assert.NotEmpty(t, firstGroupID)
+
+	// Create second group
+	secondGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Second Test Group",
+		"members": []map[string]interface{}{
+			{
+				"value": userID,
+			},
+		},
+	}
+
+	var secondGroupResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), secondGroupPayload, http.StatusCreated, &secondGroupResp)
+	secondGroupID := secondGroupResp["id"].(string)
+	assert.NotEmpty(t, secondGroupID)
+
+	// Test 1: Try to update first group's displayName to be exactly the same as second group's displayName
+	updatePayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Second Test Group", // Same as second group
+		"members": []map[string]interface{}{
+			{
+				"value": userID,
+			},
+		},
+	}
+
+	var errorResp1 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusConflict, &errorResp1)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp1["detail"], "One or more of the attribute values are already in use or are reserved")
+
+	// Test 2: Try to update first group's displayName to be a case-randomized version of second group's displayName
+	updatePayload["displayName"] = "SeCoNd TeSt GrOuP" // Case-randomized version of second group's displayName
+
+	var errorResp2 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusConflict, &errorResp2)
+
+	// Verify error response
+	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
+
+	// Test 3: Try to update first group's displayName to be exactly the same as its current displayName (should succeed)
+	updatePayload["displayName"] = "First Test Group" // Same as current displayName
+
+	var updateResp map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusOK, &updateResp)
+
+	// Verify the update was successful
+	assert.Equal(t, "First Test Group", updateResp["displayName"])
+
+	// Test 4: Try to update first group's displayName to be a case-randomized version of its current displayName (should succeed)
+	updatePayload["displayName"] = "FiRsT TeSt GrOuP" // Case-randomized version of current displayName
+
+	var updateResp2 map[string]interface{}
+	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusOK, &updateResp2)
+
+	// Verify the update was successful but the displayName is normalized
+	assert.Equal(t, "FiRsT TeSt GrOuP", updateResp2["displayName"])
+
+	// Clean up
+	s.Do(t, "DELETE", scimPath("/Groups/"+firstGroupID), nil, http.StatusNoContent)
+	s.Do(t, "DELETE", scimPath("/Groups/"+secondGroupID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
 
