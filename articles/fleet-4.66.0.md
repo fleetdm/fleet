@@ -29,10 +29,9 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 ### Security
 - Added integration with DigiCert Trust Lifecycle Manager. Fleet admins can now deploy DigiCert certificates to their macOS devices via configuration profiles.
 - Updated activity log UI for new certificate authority features.
-- Updated host details > software table to filter by vulnerability severity and known exploit.
+- Updated **Host details** > **Software** table to filter by vulnerability severity and known exploit.
 - Return more granular data for live query and policy runs so it can be displayed to users.
-- Allowed adding labels when saving or editing queries in the UI.
-- Added support for queries with LabelsIncludeAny in backend.
+- Added support for queries targeting hosts via label.
 - Added `author_id` to labels DB table to track who created a label.
 - Removed duplicate download/delete attempts for MSRC bulletins when hosts are enrolled spanning multiple builds of the same version of Windows.
 - Split up expired query deletion to avoid deadlocks in zero-trust flows.
@@ -45,8 +44,7 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 - Added support for Fleet-maintained apps for Windows.
 - Added integration with a custom SCEP server. Fleet admins can now deploy certificates from their own SCEP server to their macOS devices via configuration profiles. The SCEP server will only see traffic from the Fleet server.
 - Return more granular data for live query and policy runs so it can be displayed to users.
-- Added support for queries with LabelsIncludeAny in backend.
-- Allowed adding labels when saving or editing queries in the UI.
+- Added support for queries targeting hosts via label.
 - Updated macOS setup experience to show an error if an App Store app installation fails due to lack of licenses.
 - Added `platform` key to `software_package` and `app_store_app` keys throughout API.
 - Improved error messages when Fleet admin tries to upload a FileVault (macOS) or a BitLocker (Windows) configuration profile.
@@ -60,14 +58,14 @@ Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP
 
 
 ### Bug fixes and improvements
-- Fixed software installer download and Fleet Maintained App errors by extending the timeout for the download and FMA add endpoints.
+- Fixed software installer download and Fleet-maintained app errors by extending the timeout for the download and FMA add endpoints.
 - Fixed issue where bootstrap package was incorrectly installed during renewal of Apple MDM enrollment profiles.
 - Fixed a bug to ignore Windows hosts that are not enrolled in Fleet MDM for disk encryption statistics and filters.
 - Fixed policy automation with scripts to surface errors to user instead of rendering false success message.
 - Fixed whitespace not being displayed correctly in policy automation calendar preview.
 - Fixed bug where Windows profiles were not being resent after `fleetctl` GitOps update.
 - Fixed row selection firing twice in host selection screen.
-- Fixed Dashboard > Software table truncating host count.
+- Fixed **Dashboard** > **Software** table truncating host count.
 - Fixed an error when requesting `/fleet/software/titles` endpoint unpaginated with > 33k software titles by batching the policies by software title id query
 - Fixed an issue where removing label conditions on configuration profiles (e.g. `labels_include_any`, `labels_include_all` or `labels_exclude_any`) did not clear the labels associated with the profile when applied via `fleetctl gitops`.
 - Updated the empty states when choosing a label scope for new software, queries, and profiles.
