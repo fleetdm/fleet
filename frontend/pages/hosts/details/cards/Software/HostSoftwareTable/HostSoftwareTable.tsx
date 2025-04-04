@@ -301,7 +301,7 @@ const HostSoftwareTable = ({
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}
         defaultSearchQuery={searchQuery}
-        defaultPageIndex={page}
+        pageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name or vulnerability (CVE)"

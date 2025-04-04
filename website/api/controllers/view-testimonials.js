@@ -34,6 +34,8 @@ module.exports = {
       'Dan Grzelak',
       'Erik Gomez',
       'Matt Carr',
+      'Mike Meyer',
+      'Tom Larkin',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);
@@ -82,6 +84,8 @@ module.exports = {
       'Andre Shields',
       'Mike Arpaia',
       'Tom Larkin',
+      'Justin LaBo',
+      'Bart Reardon',
     ];
     let testimonialsForObservability = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForObservability, testimonial.quoteAuthorName);

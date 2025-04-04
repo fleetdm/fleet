@@ -199,7 +199,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	for _, installer := range m.Installers {
-		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type")
+		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
 		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
@@ -229,9 +229,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			// We only care about the locale if one is specified
 			installer.InstallerLocale = ""
 		}
-
-		fmt.Printf("input.InstallerLocale: %v\n", input.InstallerLocale)
-		fmt.Printf("installer.InstallerLocale: %v\n", installer.InstallerLocale)
 
 		if installer.Architecture == input.InstallerArch &&
 			scope == input.InstallerScope &&
@@ -277,7 +274,10 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
 	out.UniqueIdentifier = input.UniqueIdentifier
-	out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
+	out.SHA256 = "no_check"
+	if !input.IgnoreHash {
+		out.SHA256 = strings.ToLower(selectedInstaller.InstallerSha256) // maintain consistency with darwin outputs SHAs
+	}
 	out.Version = m.PackageVersion
 	publisher := l.Publisher
 	if input.ProgramPublisher != "" {
@@ -350,6 +350,8 @@ type inputApp struct {
 	ProgramPublisher    string `json:"program_publisher"`
 	UninstallType       string `json:"uninstall_type"`
 	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
+	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
+	IgnoreHash bool `json:"ignore_hash"`
 }
 
 type installerManifest struct {

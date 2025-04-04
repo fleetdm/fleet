@@ -65,7 +65,7 @@ func GetRawProfilePlatform(profile []byte) string {
 		return "darwin"
 	}
 
-	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") {
+	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") || prefixMatches(trimmedProfile, "<!--") {
 		return "windows"
 	}
 

@@ -295,7 +295,7 @@ const CalendarEventsModal = ({
             );
           }}
           footer={
-            <div className="form-field__help-text">
+            <>
               A calendar event will be created for end users if one of their
               hosts fail any of these policies.{" "}
               <CustomLink
@@ -304,7 +304,7 @@ const CalendarEventsModal = ({
                 newTab
                 disableKeyboardNavigation={!formData.enabled}
               />
-            </div>
+            </>
           }
           isUpdating={isUpdating}
           onSubmit={onUpdateCalendarEvents}
