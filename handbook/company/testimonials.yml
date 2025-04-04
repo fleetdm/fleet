@@ -244,3 +244,11 @@
   quoteAuthorProfileImageFilename: testimonial-author-mike-meyer-48x48@2x.png
   quoteAuthorJobTitle: Senior Manager, Corporate Engineering
   productCategories: [Device management]
+-
+  quote: My users love this. It's increasing security and compliance across our workforce.
+  quoteImageFilename: social-proof-logo-swiftdialog-145x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/bart-reardon-00647889/
+  quoteAuthorName: Bart Reardon
+  quoteAuthorProfileImageFilename: testimonial-author-bart-reardon-48x48@2x.png
+  quoteAuthorJobTitle: Creator of swiftDialog
+  productCategories: [Device management, Observability]
