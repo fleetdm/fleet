@@ -43,6 +43,7 @@ module.exports = {
       'Brendan Shaklovitz',
       'Andre Shields',
       'Scott MacVicar',
+      'Matt Carr',
       'Erik Gomez',
       'Mike Arpaia',
       'Chandra Majumdar',
