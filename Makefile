@@ -61,6 +61,8 @@ LDFLAGS_VERSION = "\
 
 # Macro to allow targets to filter out their own arguments from the arguments
 # passed to the final command.
+# Targets may also add their own CLI arguments to the command as EXTRA_CLI_ARGS.
+# See `serve` target for an example.
 define filter_args
 $(eval FORWARDED_ARGS := $(filter-out $(TARGET_ARGS), $(CLI_ARGS)))
 $(eval FORWARDED_ARGS := $(FORWARDED_ARGS) $(EXTRA_CLI_ARGS))
@@ -137,22 +139,26 @@ fdm:
 	@echo "SHOW"
 	@echo "Show the last arguments used to start the server"
 
-serve up: TARGET_ARGS := --use-ip --no-save --show
+up: serve
+serve: TARGET_ARGS := --use-ip --no-save --show
 ifdef USE_IP
-serve up: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
+serve: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
 endif
 ifdef SHOW
-serve up:
+serve:
 	@SAVED_ARGS=$$(cat ~/.fleet/last-serve-invocation); \
 	if [[ $$? -eq 0 ]]; then \
 		echo "$$SAVED_ARGS"; \
 	fi
 else ifdef HELP
-serve up:
+serve:
 	@./build/fleet serve --help
 else
-serve up:
+serve:
 	$(call filter_args)
+# If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
+# Unless NO_SAVE is set to true, save the command to the last invocation file.
+# IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.
 	@if [[ "$(FORWARDED_ARGS)" != "" ]]; then \
 		if [[ "$(NO_SAVE)" != "true" ]]; then \
 			echo "./build/fleet serve $(FORWARDED_ARGS)" > ~/.fleet/last-serve-invocation; \
