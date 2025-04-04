@@ -21,6 +21,8 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
+Users may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
+
 ## labels
 
 Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
@@ -76,8 +78,6 @@ labels:
   path: ./lib/labels-name.labels.yml
 ```
 
-
-Users may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
 
 ## policies
 
