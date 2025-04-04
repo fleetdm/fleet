@@ -45,6 +45,7 @@ labels:
     hosts:
       - "ceo-laptop"
       - "the-CFOs-computer"
+```
 
 #### Separate file
  
