@@ -44,8 +44,10 @@ module.exports = {
       'Andre Shields',
       'Scott MacVicar',
       'Erik Gomez',
+      'Bart Reardon',
       'Mike Arpaia',
       'Chandra Majumdar',
+      'Justin LaBo',
       'Charles Zaffery',
       'Tom Larkin',
     ];
