@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -151,13 +152,17 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 
 		if ssoEnabled {
+			fullName, err := a.getIdPDisplayName(ctx, acct, args)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting idp account display name")
+			}
 			a.Log.Log("info", "setting username and fullname", "host_uuid", args.HostUUID)
 			cmdUUID := uuid.New().String()
 			if err := a.Commander.AccountConfiguration(
 				ctx,
 				[]string{args.HostUUID},
 				cmdUUID,
-				acct.Fullname,
+				fullName,
 				acct.Username,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
@@ -198,6 +203,43 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	}
 
 	return nil
+}
+
+func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAccount, args appleMDMArgs) (string, error) {
+	fullName := acct.Fullname
+	if len(fullName) == 0 && len(acct.Username) > 0 {
+		// If full name is empty, see if it exists via SCIM integration
+		scimUser, err := a.Datastore.ScimUserByUserName(ctx, acct.Username)
+		switch {
+		case fleet.IsNotFound(err):
+			// If username did not match, try email
+			if len(acct.Email) > 0 {
+				scimUsers, _, err := a.Datastore.ListScimUsers(ctx, fleet.ScimUsersListOptions{
+					EmailTypeFilter:  ptr.String("work"),
+					EmailValueFilter: ptr.String(acct.Email),
+				})
+				switch {
+				case err != nil:
+					return "", ctxerr.Wrap(ctx, err, "listing scim users")
+				case len(scimUsers) > 1:
+					level.Error(a.Log).Log("msg", "multiple scim users found for IdP email", "host_uuid", args.HostUUID)
+				case len(scimUsers) == 1:
+					fullName = scimUsers[0].DisplayName()
+					if len(fullName) > 0 {
+						a.Log.Log("info", "setting fullname from SCIM based on email", "host_uuid", args.HostUUID)
+					}
+				}
+			}
+		case err != nil:
+			return "", ctxerr.Wrapf(ctx, err, "getting scim user details for enroll reference %s and host_uuid %s", acct.UUID, args.HostUUID)
+		default:
+			fullName = scimUser.DisplayName()
+			if len(fullName) > 0 {
+				a.Log.Log("info", "setting fullname from SCIM based on username", "host_uuid", args.HostUUID)
+			}
+		}
+	}
+	return fullName, nil
 }
 
 // This job is deprecated for macos because releasing devices is now done via

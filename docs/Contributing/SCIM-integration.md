@@ -15,13 +15,17 @@ Sample provisioning settings that work. Capabilities can be disabled and attribu
 
 ![Okta to Fleet provisioning](./assets/SCIM-Okta-provisioning.png)
 
-### Testing Okta integration
+From our testing with Okta, we see the following behavior that is worth noting:
+- Okta does not use PATCH endpoint
+- Okta does not DELETE users; if a new user needs to be created with the same username as a "deleted" user, then it overwrites the old user
+
+### Automated test for Okta integration
 
 First, create at least one SCIM user:
 
 ```
 POST https://localhost:8080/api/latest/fleet/scim/Users
-
+Header: Bearer <API key>
 {
     "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
     "userName": "test.user@okta.local",

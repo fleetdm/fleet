@@ -16,6 +16,19 @@ func (su *ScimUser) AuthzType() string {
 	return "scim_user"
 }
 
+func (su *ScimUser) DisplayName() string {
+	switch {
+	case su.GivenName != nil && len(*su.GivenName) > 0 && su.FamilyName != nil && len(*su.FamilyName) > 0:
+		return *su.GivenName + " " + *su.FamilyName
+	case su.GivenName != nil && len(*su.GivenName) > 0:
+		return *su.GivenName
+	case su.FamilyName != nil && len(*su.FamilyName) > 0:
+		return *su.FamilyName
+	default:
+		return ""
+	}
+}
+
 // ScimUserEmail represents an email address associated with a SCIM user
 type ScimUserEmail struct {
 	ScimUserID uint    `db:"scim_user_id"`
