@@ -31,7 +31,7 @@ Fleet prefers 64-bit x86 versions of applications when available. Installing on 
 1. Head to the **Software** page for a team, then click **Add software**. You'll land on the Fleet-maintained apps list.
 2. Click the Add button for the app and platform you wish to add.
 
-> You'll see a ✅ icon instead of an Add button if the application has already been added to your team as a custom package or VPP app, or if you've already added the Fleet-maintained app.
+> You'll see a ✅ icon instead of an **Add** button if the application has already been added to your team as a custom package or VPP app, or if you've already added the Fleet-maintained app.
 
 3. Click **Add software** to download the installer package from the app's publisher into Fleet and make it available for install for your selected team.
 
