@@ -45,6 +45,10 @@ for system in $SYSTEMS; do
     osqueryd_system="$system"
     if [[ $system == "windows" ]]; then
         osqueryd="$osqueryd.exe"
+    elif [[ $system == "windows-arm64" ]]; then
+        # TODO osquery ARM is not yet fully supported
+        osqueryd="$osqueryd.exe"
+        osqueryd_system="windows"
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
@@ -52,7 +56,7 @@ for system in $SYSTEMS; do
         osqueryd_system="linux-arm64"
     fi
 
-    if [[ $system == "linux-arm64" ]] || [[ $system == "windows-arm64" ]]; then
+    if [[ $system == "linux-arm64" ]]; then
         osqueryd_path="$TUF_PATH/tmp/${osqueryd}-arm64"
     else
         osqueryd_path="$TUF_PATH/tmp/$osqueryd"
@@ -196,6 +200,19 @@ for system in $SYSTEMS; do
         --path $TUF_PATH \
         --target fleet-desktop.exe \
         --platform windows \
+        --name desktop \
+        --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm fleet-desktop.exe
+    fi
+
+    # Add Fleet Desktop application on windows-arm64 (if enabled).
+    if [[ $system == "windows-arm64" && -n "$FLEET_DESKTOP" ]]; then
+        FLEET_DESKTOP_VERSION=42.0.0 \
+        make desktop-windows-arm64
+        ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target fleet-desktop.exe \
+        --platform windows-arm64 \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
         rm fleet-desktop.exe

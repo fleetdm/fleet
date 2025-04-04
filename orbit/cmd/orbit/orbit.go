@@ -505,7 +505,7 @@ func main() {
 				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopMacOSTarget
 			case "windows":
 				if runtime.GOARCH == "arm64" {
-					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
 				} else {
 					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
 				}

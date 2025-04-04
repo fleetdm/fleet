@@ -41,7 +41,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "arch",
-				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb or rpm)",
+				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb, rpm, or msi)",
 				Destination: &opt.Architecture,
 				Value:       "amd64",
 			},

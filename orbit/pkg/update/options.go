@@ -94,6 +94,12 @@ var (
 		TargetFile: constant.DesktopAppExecName + ".exe",
 	}
 
+	DesktopWindowsArm64Target = TargetInfo{
+		Platform:   "windows-arm64",
+		Channel:    "stable",
+		TargetFile: constant.DesktopAppExecName + ".exe",
+	}
+
 	DesktopLinuxTarget = TargetInfo{
 		Platform:             "linux",
 		Channel:              "stable",
