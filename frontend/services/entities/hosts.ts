@@ -203,7 +203,7 @@ export interface IGetHostCertificatesResponse {
   };
 }
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 const LABEL_PREFIX = "labels/";
 

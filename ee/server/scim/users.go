@@ -50,6 +50,11 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		level.Error(u.logger).Log("msg", "failed to get userName", "err", err)
 		return scim.Resource{}, err
 	}
+	// In IETF documents, “non-empty” is generally used in the literal sense of “having at least one character.” That means if a value contains one or more spaces (and nothing else), it is still considered non-empty.
+	if len(userName) == 0 {
+		level.Info(u.logger).Log("msg", "userName is empty")
+		return scim.Resource{}, errors.ScimErrorBadParams([]string{userNameAttr})
+	}
 	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
@@ -260,6 +265,8 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 }
 
 // GetAll
+// Pagination is 1-indexed.
+//
 // Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2
 //
@@ -274,9 +281,9 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 // totalResults: The total number of results returned by the list or query operation.  The value may be larger than the number of
 // resources returned, such as when returning a single page (see Section 3.4.2.4) of results where multiple pages are available.
 func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
-	page := params.StartIndex
-	if page < 1 {
-		page = 1
+	startIndex := params.StartIndex
+	if startIndex < 1 {
+		startIndex = 1
 	}
 	count := params.Count
 	if count > maxResults {
@@ -288,8 +295,8 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 
 	opts := fleet.ScimUsersListOptions{
 		ScimListOptions: fleet.ScimListOptions{
-			Page:    uint(page),  // nolint:gosec // ignore G115
-			PerPage: uint(count), // nolint:gosec // ignore G115
+			StartIndex: uint(startIndex), // nolint:gosec // ignore G115
+			PerPage:    uint(count),      // nolint:gosec // ignore G115
 		},
 	}
 	resourceFilter := r.URL.Query().Get("filter")
@@ -400,6 +407,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		return scim.Resource{}, err
 	}
 
+	if len(operations) > 1 {
+		level.Info(u.logger).Log("msg", "too many patch operations")
+		return scim.Resource{}, errors.ScimErrorBadParams([]string{"Operations"})
+	}
 	for _, op := range operations {
 		if op.Op != "replace" {
 			level.Info(u.logger).Log("msg", "unsupported patch operation", "op", op.Op)
@@ -435,14 +446,16 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		}
 	}
 
-	err = u.ds.ReplaceScimUser(r.Context(), user)
-	switch {
-	case fleet.IsNotFound(err):
-		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
-		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
-	case err != nil:
-		level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
-		return scim.Resource{}, err
+	if len(operations) != 0 {
+		err = u.ds.ReplaceScimUser(r.Context(), user)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		case err != nil:
+			level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
+			return scim.Resource{}, err
+		}
 	}
 
 	return createUserResource(user), nil

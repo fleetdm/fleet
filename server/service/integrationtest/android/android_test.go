@@ -6,16 +6,15 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAndroid(t *testing.T) {
-	s := integrationtest.SetUpSuite(t, "integrationtest.Android")
+	s := SetUpSuite(t, "integrationtest.Android")
 
 	cases := []struct {
 		name string
-		fn   func(t *testing.T, s *integrationtest.Suite)
+		fn   func(t *testing.T, s *Suite)
 	}{
 		{"HappyPath", testHappyPath},
 	}
@@ -27,14 +26,14 @@ func TestAndroid(t *testing.T) {
 	}
 }
 
-func testHappyPath(t *testing.T, s *integrationtest.Suite) {
+func testHappyPath(t *testing.T, s *Suite) {
 	signupDetails := expectSignupDetails(t, s)
 	var signupURL android.EnterpriseSignupResponse
 	s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupURL)
 	assert.Equal(t, signupURL.Url, signupDetails.Url)
 }
 
-func expectSignupDetails(t *testing.T, s *integrationtest.Suite) *android.SignupDetails {
+func expectSignupDetails(t *testing.T, s *Suite) *android.SignupDetails {
 	signupDetails := &android.SignupDetails{
 		Url:  "URL",
 		Name: "Name",

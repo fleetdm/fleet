@@ -58,7 +58,7 @@ A pre-install query is a valid osquery SQL statement that will be evaluated on t
 
 ### Install script
 
-After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process (for example, if [an EXE-based Windows installer requires custom handling](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run.
+After selecting a file, a default install script will be pre-filled for most installer types. If the software package requires a custom installation process (for example, for [EXE-based Windows installers](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run.
 
 ### Post-install script
 
@@ -66,9 +66,11 @@ A post-install script will run after the installation, allowing you to, for exam
 
 ### Uninstall script
 
-An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if the post-install script (if supplied) fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process.
+An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if the post-install script (if supplied) fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file for most installer formats (EXE-based installers being the exception). This script can be edited if the software package requires a custom uninstallation process.
 
 In addition to the `$INSTALLER_PATH` environment variable supported by install scripts, you can use `$PACKAGE_ID` in uninstall scripts as a placeholder for the package IDs (for .pkg files), package name (for Linux installers), product code (for MSIs), or software name (for EXE installers). The Fleet server will substitute `$PACKAGE_ID` on upload.
+
+> Currently, the default MSI uninstaller script only uninstalls that exact installer, rather than earlier/later versions of the same application.
 
 ## Install the package
 

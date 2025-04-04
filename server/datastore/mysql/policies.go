@@ -349,7 +349,6 @@ func savePolicy(ctx context.Context, db sqlx.ExtContext, logger kitlog.Logger, p
 	return cleanupPolicy(
 		ctx, db, db, p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, logger,
 	)
-
 }
 
 func assertTeamMatches(ctx context.Context, db sqlx.QueryerContext, teamID uint, softwareInstallerID *uint, scriptID *uint, vppAppsTeamsID *uint) error {
@@ -1259,51 +1258,90 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
 				}
 
+				// Get the last inserted ID -- this will be 0 if it was an update.
+				var lastID int64
+				lastID, _ = res.LastInsertId()
+
+				// If something was actually inserted or updated, perform any necessary cleanup.
 				if insertOnDuplicateDidInsertOrUpdate(res) {
-					// when the upsert results in an UPDATE that *did* change some values,
-					// it returns the updated ID as last inserted id.
-					if lastID, _ := res.LastInsertId(); lastID > 0 {
-						var (
-							shouldRemoveAllPolicyMemberships bool
-							removePolicyStats                bool
-						)
-						// Figure out if the query, platform, software installer, or VPP app changed.
-						var softwareInstallerID *uint
-						if spec.SoftwareTitleID != nil {
-							softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
-						}
-						if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
-							switch {
-							case prev.Query != spec.Query:
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case teamID != nil &&
-								((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
-									(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case teamID != nil &&
-								((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
-									(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case teamID != nil &&
-								((prev.ScriptID == nil && spec.ScriptID != nil) ||
-									(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
-								shouldRemoveAllPolicyMemberships = true
-								removePolicyStats = true
-							case prev.Platforms != spec.Platform:
-								removePolicyStats = true
-							}
-						}
-						if err = cleanupPolicy(
-							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
-							removePolicyStats, ds.logger,
-						); err != nil {
-							return err
+					var (
+						shouldRemoveAllPolicyMemberships bool
+						removePolicyStats                bool
+					)
+					// Figure out if the query, platform, software installer, or VPP app changed.
+					var softwareInstallerID *uint
+					if spec.SoftwareTitleID != nil {
+						softwareInstallerID = softwareInstallerIDs[teamID][*spec.SoftwareTitleID]
+					}
+					if prev, ok := teamIDToPoliciesByName[teamID][spec.Name]; ok {
+						switch {
+						case prev.Query != spec.Query:
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil &&
+							((prev.SoftwareInstallerID == nil && spec.SoftwareTitleID != nil) ||
+								(prev.SoftwareInstallerID != nil && softwareInstallerID != nil && *prev.SoftwareInstallerID != *softwareInstallerID)):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil &&
+							((prev.VPPAppsTeamsID == nil && spec.SoftwareTitleID != nil) ||
+								(prev.VPPAppsTeamsID != nil && vppAppsTeamsID != nil && *prev.VPPAppsTeamsID != *vppAppsTeamsID)):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case teamID != nil &&
+							((prev.ScriptID == nil && spec.ScriptID != nil) ||
+								(prev.ScriptID != nil && spec.ScriptID != nil && *prev.ScriptID != *spec.ScriptID)):
+							shouldRemoveAllPolicyMemberships = true
+							removePolicyStats = true
+						case prev.Platforms != spec.Platform:
+							removePolicyStats = true
 						}
 					}
+					if err = cleanupPolicy(
+						ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, //nolint:gosec // dismiss G115
+						removePolicyStats, ds.logger,
+					); err != nil {
+						return err
+					}
 				}
+
+				// Even if the policy record itself wasn't updated, we still may need to update labels.
+				// So we'll get the ID of the policy that was just updated.
+				if lastID == 0 {
+					var err error
+					// Get the policy that was updated.
+					if teamID == nil {
+						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id is NULL", spec.Name)
+					} else {
+						err = sqlx.GetContext(ctx, tx, &lastID, "SELECT id FROM policies WHERE name = ? AND team_id = ?", spec.Name, teamID)
+					}
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "select policies id")
+					}
+				}
+
+				// Create LabelIdents to send to updatePolicyLabelsTx.
+				// Right now we only need the names.
+				// @future: use IDs instead of names.
+				labelsIncludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsIncludeAny))
+				for _, labelInclude := range spec.LabelsIncludeAny {
+					labelsIncludeAnyIdents = append(labelsIncludeAnyIdents, fleet.LabelIdent{LabelName: labelInclude})
+				}
+				labelsExcludeAnyIdents := make([]fleet.LabelIdent, 0, len(spec.LabelsExcludeAny))
+				for _, labelExclude := range spec.LabelsExcludeAny {
+					labelsExcludeAnyIdents = append(labelsExcludeAnyIdents, fleet.LabelIdent{LabelName: labelExclude})
+				}
+				err = updatePolicyLabelsTx(ctx, tx, &fleet.Policy{
+					PolicyData: fleet.PolicyData{
+						ID:               uint(lastID), //nolint:gosec // dismiss G115
+						LabelsIncludeAny: labelsIncludeAnyIdents,
+						LabelsExcludeAny: labelsExcludeAnyIdents,
+					},
+				})
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "exec policies update labels")
+				}
+
 			}
 		}
 		return nil
