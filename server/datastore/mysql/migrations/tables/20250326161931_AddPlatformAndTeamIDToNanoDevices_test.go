@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250325122638(t *testing.T) {
+func TestUp_20250326161931(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create a few devices/enrollments:
