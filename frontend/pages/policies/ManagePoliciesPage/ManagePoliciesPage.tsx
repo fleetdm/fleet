@@ -69,6 +69,8 @@ import {
   getRunScriptErrorMessage,
 } from "./helpers";
 import { DEFAULT_POLICY } from "../constants";
+import ConditionalAccessModal from "./components/ConditionalAccessModal";
+import { IConditionalAccessFormData } from "./components/ConditionalAccessModal/ConditionalAccessModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -112,6 +114,7 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
+    config: globalConfigFromContext,
     setConfig,
     setFilteredPoliciesPath,
     filteredPoliciesPath,
@@ -166,6 +169,9 @@ const ManagePolicyPage = ({
   );
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
   const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
+  const [showConditionalAccessModal, setShowConditionalAccessModal] = useState(
+    false
+  );
   const [
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
@@ -507,6 +513,10 @@ const ManagePolicyPage = ({
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
+  const toggleConditionalAccessModal = () => {
+    setShowConditionalAccessModal(!showConditionalAccessModal);
+  };
+
   const onSelectAutomationOption = (option: SingleValue<CustomOptionType>) => {
     switch (option?.value) {
       case "calendar_events":
@@ -517,6 +527,9 @@ const ManagePolicyPage = ({
         break;
       case "run_script":
         togglePolicyRunScriptModal();
+        break;
+      case "conditional_access":
+        toggleConditionalAccessModal();
         break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
@@ -773,6 +786,39 @@ const ManagePolicyPage = ({
     }
   };
 
+  const onUpdateConditionalAccess = async ({
+    enabled: enableConditionalAccess,
+  }: IConditionalAccessFormData) => {
+    setIsUpdatingPolicies(true);
+
+    // const payload = {
+    //   integrations: {
+    //     ...teamConfig.integrations,
+    //     conditional_access_enabled: enableConditionalAccess,
+    //   },
+    // };
+    try {
+      if (teamIdForApi === API_NO_TEAM_ID) {
+        // TODO - patch global config (No team case)
+        // await configAPI.update(payload);
+        Promise.resolve("nice, patched global (no team) config");
+      } else {
+        // TODO - patch team config
+        // await teamsAPI.update(payload, teamIdForApi);
+        Promise.resolve("nice, patched team config");
+      }
+      renderFlash(
+        "success",
+        "Successfully updated conditional access automations."
+      );
+    } catch {
+      renderFlash("error", "Could not update conditional access automations.");
+    } finally {
+      toggleConditionalAccessModal();
+      setIsUpdatingPolicies(false);
+    }
+  };
+
   const onAddPolicyClick = () => {
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
@@ -982,14 +1028,22 @@ const ManagePolicyPage = ({
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
+  const isConditionalAccessConfigured =
+    config?.conditional_access.microsoft_entra_connection_configured ?? false;
+
+  const isConditionalAccessEnabled =
+    teamConfig?.integrations.conditional_access_enabled ?? false;
+
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
     let disabledCalendarTooltipContent: TooltipContent;
     let disabledRunScriptTooltipContent: TooltipContent;
+    let disabledConditionalAccessTooltipContent: TooltipContent;
     if (!isPremiumTier) {
-      disabledInstallTooltipContent = "Available in Fleet Premium.";
-      disabledCalendarTooltipContent = "Available in Fleet Premium.";
-      disabledRunScriptTooltipContent = "Available in Fleet Premium.";
+      disabledInstallTooltipContent = "Available in Fleet Premium";
+      disabledCalendarTooltipContent = "Available in Fleet Premium";
+      disabledRunScriptTooltipContent = "Available in Fleet Premium";
+      disabledConditionalAccessTooltipContent = "Available in Fleet Premium";
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
@@ -1010,6 +1064,13 @@ const ManagePolicyPage = ({
           Select a team to manage
           <br />
           run script automation.
+        </>
+      );
+      disabledConditionalAccessTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          condtional access.
         </>
       );
     } else if (
@@ -1047,8 +1108,17 @@ const ManagePolicyPage = ({
         helpText: "Run script to resolve failing policies.",
         tooltipContent: disabledRunScriptTooltipContent,
       },
-      // Conditional access
     ];
+
+    if (globalConfigFromContext?.license.managed_cloud) {
+      options.push({
+        label: "Conditional access",
+        value: "conditional_access",
+        isDisabled: !!disabledConditionalAccessTooltipContent,
+        helpText: "Block single sign-on for hosts failing policies.",
+        tooltipContent: disabledConditionalAccessTooltipContent,
+      });
+    }
 
     // Maintainers do not have access to other workflows
     if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
@@ -1216,6 +1286,17 @@ const ManagePolicyPage = ({
             configured={isCalEventsConfigured}
             enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
+            teamId={currentTeamId ?? 0}
+            isUpdating={isUpdatingPolicies}
+            gitOpsModeEnabled={gitOpsModeEnabled}
+          />
+        )}
+        {showConditionalAccessModal && (
+          <ConditionalAccessModal
+            onExit={toggleConditionalAccessModal}
+            onSubmit={onUpdateConditionalAccess}
+            configured={isConditionalAccessConfigured}
+            enabled={isConditionalAccessEnabled}
             teamId={currentTeamId ?? 0}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}

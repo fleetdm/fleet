@@ -146,6 +146,8 @@ export interface IConfig {
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
   };
+  // configuration details for conditional access. For enabled/disabled status per team, see
+  // subfields under `integrations`
   conditional_access: {
     microsoft_entra_tenant_id: string;
     microsoft_entra_connection_configured: boolean;

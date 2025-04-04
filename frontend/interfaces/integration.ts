@@ -147,9 +147,12 @@ export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   ndes_scep_proxy?: ICertificatesIntegrationNDES | null;
   digicert?: ICertificatesIntegrationDigicert[];
   custom_scep_proxy?: ICertificatesIntegrationCustomSCEP[];
+  // whether or not conditional access is enabled for "No team"
+  conditional_access_enabled?: boolean;
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: ITeamCalendarSettings | null;
+  // whether or not conditional access is enabled for each team other than "No team" (see `IGlobalIntegrations.conditional_access_enabled`)
   conditional_access_enabled?: boolean;
 }

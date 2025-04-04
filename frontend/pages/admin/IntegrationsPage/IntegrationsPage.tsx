@@ -26,9 +26,7 @@ const IntegrationsPage = ({
   const { config } = useContext(AppContext);
   if (!config) return <></>;
 
-  // const isManagedCloud = config.license.managed_cloud;
-  // const isManagedCloud = false;
-  const isManagedCloud = true;
+  const isManagedCloud = config.license.managed_cloud;
 
   if (!isManagedCloud && pathname.includes("conditional-access")) {
     router.push(paths.ADMIN_SETTINGS);

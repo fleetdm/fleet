@@ -20,6 +20,10 @@ export default {
           // microsoft_entra_connection_configured: false,
           microsoft_entra_connection_configured: true,
         },
+        license: {
+          ...response.license,
+          managed_cloud: true,
+        },
       };
     });
   },
