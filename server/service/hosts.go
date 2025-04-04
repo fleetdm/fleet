@@ -1320,7 +1320,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
-	scimUser, err := svc.ds.ScimUserByHostID(ctx, host.ID)
+	endUsers, err := svc.getEndUsers(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
+	}
+
+	return &fleet.HostDetail{
+		Host:              *host,
+		Labels:            labels,
+		Packs:             packs,
+		Batteries:         &bats,
+		MaintenanceWindow: nextMw,
+		EndUsers:          endUsers,
+	}, nil
+}
+
+func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostEndUser, error) {
+	scimUser, err := svc.ds.ScimUserByHostID(ctx, hostID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get scim user by host id")
 	}
@@ -1339,7 +1355,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 		endUsers = append(endUsers, endUser)
 	}
-	deviceMapping, err := svc.ds.ListHostDeviceMapping(ctx, host.ID)
+	deviceMapping, err := svc.ds.ListHostDeviceMapping(ctx, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host device mapping")
 	}
@@ -1356,15 +1372,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			endUsers = append(endUsers, endUser)
 		}
 	}
-
-	return &fleet.HostDetail{
-		Host:              *host,
-		Labels:            labels,
-		Packs:             packs,
-		Batteries:         &bats,
-		MaintenanceWindow: nextMw,
-		EndUsers:          endUsers,
-	}, nil
+	return endUsers, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
