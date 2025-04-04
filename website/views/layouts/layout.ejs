@@ -132,14 +132,6 @@
   </head>
   <body>
     <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %> collapse"  id="navbarToggleExternalContent">
-      <%// Call to action ribbon above page header %>
-      <div purpose="header-ribbon-cta" class="<%= showHeaderCTA  ?  'd-flex' : 'd-none' %> flex-row justify-content-center align-items-md-center">
-        <div class="mb-0 d-flex flex-row align-items-center">
-          <p class="text-center">
-            <img src="/images/icon-emoji-wave-20x20@2x.png" class="d-inline" alt="👋">We’re launching free support for BYOD Android devices and looking for early feedback. <a href="/contact">Interested?</a>
-          </p>
-        </div>
-      </div>
       <%// Page header%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
@@ -173,26 +165,7 @@
                     <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
                   <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Docs</a>
-                  <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Guides</a>
-                    <a purpose="mobile-dropdown-link" href="/vitals">Vitals</a>
-                    <a purpose="mobile-dropdown-link" href="/queries">Queries</a>
-                    <a purpose="mobile-dropdown-link" href="/policies">Policies</a>
-                    <a purpose="mobile-dropdown-link" href="/app-library">Software</a>
-                    <a purpose="mobile-dropdown-link" href="/os-settings">OS settings</a>
-                    <a purpose="mobile-dropdown-link" href="/tables">Data tables</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
-                    <span class="mt-2 mb-2">SUPPORT</span>
-                    <div purpose="indented-mobile-links">
-                      <a purpose="mobile-dropdown-link" href="/support">Chat</a>
-                      <a purpose="mobile-dropdown-link" href="/contribute">Contribute</a>
-                      <a purpose="mobile-dropdown-link" href="/releases">Release notes</a>
-                      <a purpose="mobile-dropdown-link" href="/better">"Why is Fleet on my computer?"</a>
-                      <a purpose="mobile-dropdown-link" href="/new-license">Get your license</a>
-                    </div>
-                  </div>
+                  <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Stories</a>
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
@@ -240,24 +213,7 @@
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group" style="width: 74px;">
-                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Docs</a>
-                  <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/docs">Get started</a>
-                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Guides</a>
-                    <a class="dropdown-item" href="/vitals">Vitals</a>
-                    <a class="dropdown-item" href="/queries">Queries</a>
-                    <a class="dropdown-item" href="/policies">Policies</a>
-                    <a class="dropdown-item" href="/app-library">Software</a>
-                    <a class="dropdown-item" href="/os-settings">OS settings</a>
-                    <a class="dropdown-item" href="/tables">Data tables</a>
-                    <a class="dropdown-item" href="/docs/rest-api">API</a>
-                    <span class="muted dropdown-header">SUPPORT</span>
-                    <a class="dropdown-item" href="/support">Chat</a>
-                    <a class="dropdown-item" href="/contribute">Contribute</a>
-                    <a class="dropdown-item" href="/releases">Release notes</a>
-                    <a class="dropdown-item" href="/better">"Why is Fleet on my computer?"</a>
-                    <a class="dropdown-item" href="/new-license">Get your license</a>
-                  </div>
+                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" href="/docs">Docs</a>
                 </div>
                 <div purpose="dropdown-button" class="btn-group" style="width: 89px;">
                   <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Stories</a>

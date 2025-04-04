@@ -127,7 +127,7 @@ To provide full-time focus to the role, the on-call engineer is not expected to 
 
 ### Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 

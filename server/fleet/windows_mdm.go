@@ -156,7 +156,7 @@ func validateFleetProvidedLocURI(locURI string) error {
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
-				return errors.New("The configuration profile can't include BitLocker settings. To control these settings use disk encryption endpoint.")
+				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
 			if len(errHints) == 2 {
 				return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.",

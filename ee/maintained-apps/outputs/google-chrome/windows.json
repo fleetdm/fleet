@@ -1,19 +1,18 @@
 {
   "versions": [
     {
-      "version": "134.0.6998.118",
+      "version": "135.0.7049.42",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE identifying_number = '{D58F65B8-E0D5-336F-BC2C-E54DEE8503F4}';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
-      "unique_identifier": "Google Chrome",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "5910b9ba",
-      "sha256": "d7f97287f5b8c6743897a054150efae63a881baf1b0da6ea6dfb9b2be6d529fe"
+      "uninstall_script_ref": "0a9e57c0",
+      "sha256": "no_check"
     }
   ],
   "refs": {
-    "5910b9ba": "$product_code = $PACKAGE_ID\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n",
+    "0a9e57c0": "$product_code = \"{AED5E47A-CC78-3BBE-B251-AB3876C8030D}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n",
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
   }
 }

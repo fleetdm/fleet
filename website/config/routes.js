@@ -832,7 +832,7 @@ module.exports.routes = {
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/macos-setup-experience#macos-setup-assistant',
   'GET /learn-more-about/policy-automations': '/docs/using-fleet/automations',
-  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/scripts/macos-install-wine.sh',
+  'GET /install-wine': 'https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-wine.sh',
   'GET /learn-more-about/creating-service-accounts': 'https://console.cloud.google.com/projectselector2/iam-admin/serviceaccounts/create?walkthrough_id=iam--create-service-account&pli=1#step_index=1',
   'GET /learn-more-about/google-workspace-domains': 'https://admin.google.com/ac/domains/manage',
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',

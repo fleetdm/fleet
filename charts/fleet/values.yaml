@@ -103,7 +103,10 @@ fleet:
     licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
-
+  # Currently only passes runAsUser and runAsGroup
+  securityContext:
+    runAsUser: 3333
+    runAsGroup: 3333
 # Whether to make fleet vulnerability processing run in a dedicated container
 # if you set dedicated=false, you need to increase the main resources section
 # to 4Gi or the fleet container will be OOMKilled when vulnerability processing

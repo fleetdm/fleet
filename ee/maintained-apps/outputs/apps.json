@@ -9,13 +9,6 @@
       "description": "Password manager that keeps all passwords secure behind one password"
     },
     {
-      "name": "1Password",
-      "slug": "1password/windows",
-      "platform": "windows",
-      "unique_identifier": "1Password",
-      "description": "Password manager that keeps all passwords secure behind one password"
-    },
-    {
       "name": "Adobe Acrobat Reader",
       "slug": "adobe-acrobat-reader/darwin",
       "platform": "darwin",
@@ -33,7 +26,7 @@
       "name": "Box Drive",
       "slug": "box-drive/windows",
       "platform": "windows",
-      "unique_identifier": "Box Drive",
+      "unique_identifier": "Box",
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
@@ -44,10 +37,24 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Brave",
+      "slug": "brave-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Brave",
+      "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
+      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Cloudflare WARP",
+      "slug": "cloudflare-warp/windows",
+      "platform": "windows",
+      "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
@@ -93,13 +100,6 @@
       "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
     },
     {
-      "name": "Microsoft Edge",
-      "slug": "microsoft-edge/windows",
-      "platform": "windows",
-      "unique_identifier": "Microsoft Edge",
-      "description": "Microsoft Edge is a secure, fast, and modern web browser built for productivity and compatibility."
-    },
-    {
       "name": "Microsoft Excel",
       "slug": "microsoft-excel/darwin",
       "platform": "darwin",
@@ -128,13 +128,6 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
-      "name": "Notion",
-      "slug": "notion/windows",
-      "platform": "windows",
-      "unique_identifier": "",
-      "description": ""
-    },
-    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -149,13 +142,6 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
-      "name": "Slack",
-      "slug": "slack/windows",
-      "platform": "windows",
-      "unique_identifier": "Slack",
-      "description": "Slack is a team communication and collaboration software for modern workplaces"
-    },
-    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
@@ -163,10 +149,24 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "TeamViewer",
+      "slug": "teamviewer/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer",
+      "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.VSCode",
+      "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Microsoft Visual Studio Code",
+      "slug": "visual-studio-code/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
@@ -181,13 +181,6 @@
       "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
-      "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
-    },
-    {
-      "name": "Zoom",
-      "slug": "zoom/windows",
-      "platform": "windows",
-      "unique_identifier": "Zoom",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
     }
   ]

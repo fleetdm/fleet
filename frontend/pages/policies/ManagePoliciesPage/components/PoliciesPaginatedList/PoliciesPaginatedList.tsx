@@ -198,22 +198,20 @@ function PoliciesPaginatedList(
   return (
     <div className={`${baseClass} form`}>
       <div className="form-field">
-        <div>
-          <PaginatedList<IFormPolicy>
-            ref={paginatedListRef}
-            fetchPage={fetchPage}
-            fetchCount={fetchCount}
-            isSelected={isSelected}
-            onToggleItem={onToggleItem}
-            renderItemRow={renderItemRow}
-            pageSize={DEFAULT_PAGE_SIZE}
-            onUpdate={onUpdate}
-            disabled={disabled || gitOpsModeEnabled}
-            heading={<span className={`${baseClass}__header`}>Policies</span>}
-          />
-          {footer}
-        </div>
+        <PaginatedList<IFormPolicy>
+          ref={paginatedListRef}
+          fetchPage={fetchPage}
+          fetchCount={fetchCount}
+          isSelected={isSelected}
+          onToggleItem={onToggleItem}
+          renderItemRow={renderItemRow}
+          pageSize={DEFAULT_PAGE_SIZE}
+          onUpdate={onUpdate}
+          disabled={disabled || gitOpsModeEnabled}
+          heading={<span className={`${baseClass}__header`}>Policies</span>}
+        />
       </div>
+      {footer && <p className="form-field__help-text">{footer}</p>}
       <div className="modal-cta-wrap">
         <GitOpsModeTooltipWrapper
           position="right"

@@ -313,8 +313,9 @@ deps: deps-js deps-go
 deps-js:
 	yarn
 
+# We found that 'go get .' is faster than 'go mod download' in CI (dependencies are cached by actions/setup-go)
 deps-go:
-	go mod download
+	GOFLAGS=-mod=readonly go get .
 
 # check that the generated files in tools/cloner-check/generated_files match
 # the current version of the cloneable structures.
