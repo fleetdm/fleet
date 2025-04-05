@@ -51,7 +51,9 @@ jobs:
         exclude:
           - isCron: false
             mysql: "mysql:9.1.0"
-    continue-on-error: true
+    # Don't cancel all tests if an integration suite fails as integration suites are more likely to be flakey.
+    # Don't cancel all tests if the vulns suite fails as vulns may start failing for unrelated reasons to PR'd code.
+    continue-on-error: ${{ matrix.suite == 'vuln' || startsWith(matrix.suite, 'integration-') }}
     runs-on: ${{ matrix.os }}
 
     env:
@@ -85,10 +87,6 @@ jobs:
     # Go dependencies are cached by actions/setup-go
     - name: Install Go Dependencies
       run: make deps-go
-
-    # This step takes >20 seconds and should be skipped for jobs that don't need it. https://github.com/fleetdm/fleet/issues/27435
-    # - name: Install ZSH
-    #   run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
       run: |
