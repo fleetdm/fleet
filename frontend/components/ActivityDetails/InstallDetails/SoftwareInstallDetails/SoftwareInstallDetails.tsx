@@ -1,3 +1,5 @@
+// Also used on Self-service failed install details
+
 import React from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";

@@ -1,6 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
+import { noop } from "lodash";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
@@ -26,6 +27,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     exploit: false,
   },
   router: createMockRouter(),
+  onShowInstallerDetails: noop,
 };
 
 describe("SelfService", () => {
@@ -103,6 +105,7 @@ describe("SelfService", () => {
           exploit: false,
         }}
         router={createMockRouter()}
+        onShowInstallerDetails={noop}
       />
     );
 
