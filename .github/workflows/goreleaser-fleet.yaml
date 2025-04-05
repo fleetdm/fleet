@@ -57,9 +57,6 @@ jobs:
       - name: Install JS Dependencies
         run: make deps-js
 
-      - name: Install Go Dependencies
-        run: make deps-go
-
       - name: Install macOS signing + notarization tools
         run: |
           pushd /tmp

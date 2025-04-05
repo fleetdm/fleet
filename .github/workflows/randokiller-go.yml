@@ -81,10 +81,6 @@ jobs:
           sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
           sudo update-ca-certificates
 
-      # It seems faster not to cache Go dependencies
-      - name: Install Go Dependencies
-        run: make deps-go
-
       - name: Generate static files
         run: |
           export PATH=$PATH:~/go/bin
