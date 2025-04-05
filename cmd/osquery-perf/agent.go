@@ -305,8 +305,9 @@ type agent struct {
 	// a mutex even though only used in a.processQuery, that's because both
 	// the runLoop and the live query goroutines may call DistributedWrite
 	// (which calls processQuery).
-	certificatesMutex sync.RWMutex
-	certificatesCache []map[string]string
+	certificatesMutex        sync.RWMutex
+	certificatesCache        []map[string]string
+	commonSoftwareNameSuffix string
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -370,6 +371,7 @@ func newAgent(
 	loggerTLSMaxLines int,
 	linuxUniqueSoftwareVersion bool,
 	linuxUniqueSoftwareTitle bool,
+	commonSoftwareNameSuffix string,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -453,11 +455,12 @@ func newAgent(
 		macMDMClient: macMDMClient,
 		winMDMClient: winMDMClient,
 
-		disableScriptExec:   disableScriptExec,
-		disableFleetDesktop: disableFleetDesktop,
-		loggerTLSMaxLines:   loggerTLSMaxLines,
-		bufferedResults:     make(map[resultLog]int),
-		scheduledQueryData:  new(sync.Map),
+		disableScriptExec:        disableScriptExec,
+		disableFleetDesktop:      disableFleetDesktop,
+		loggerTLSMaxLines:        loggerTLSMaxLines,
+		bufferedResults:          make(map[resultLog]int),
+		scheduledQueryData:       new(sync.Map),
+		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 	}
 }
 
@@ -1445,7 +1448,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
 		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d", i),
+			"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
 			"version":           "0.0.1",
 			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
 			"source":            "apps",
@@ -2639,6 +2642,7 @@ func main() {
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
 		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
 			"Maximum number of buffered result log lines to send on every log request")
+		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
 	)
 
 	flag.Parse()
@@ -2813,6 +2817,7 @@ func main() {
 			*loggerTLSMaxLines,
 			*linuxUniqueSoftwareVersion,
 			*linuxUniqueSoftwareTitle,
+			*commonSoftwareNameSuffix,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

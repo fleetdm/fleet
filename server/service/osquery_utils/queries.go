@@ -1609,7 +1609,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			)
 			continue
 		}
-		fmt.Printf("s.Name: %v | row[name]: %s\n", s.Name, row["name"])
 
 		if shouldRemoveSoftware(host, s) {
 			continue
