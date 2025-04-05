@@ -3877,11 +3877,18 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		return nil
 	}
 
-	// Insert a new row into the host_scim_user table to associate the host with the SCIM user.
-	_, err = ds.writer(ctx).ExecContext(
+	err = ds.associateHostWithScimUser(ctx, hostID, scimUser.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "associate host with scim user")
+	}
+	return nil
+}
+
+func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
+	_, err := ds.writer(ctx).ExecContext(
 		ctx,
 		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
-		hostID, scimUser.ID,
+		hostID, scimUserID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
