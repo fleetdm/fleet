@@ -89,8 +89,8 @@ jobs:
       run: make deps-go
 
     # This step takes >20 seconds and should be skipped for jobs that don't need it. https://github.com/fleetdm/fleet/issues/27435
-    - name: Install ZSH
-      run: sudo apt update && sudo apt install -y zsh
+    # - name: Install ZSH
+    #   run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
       run: |
