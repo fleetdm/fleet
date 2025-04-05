@@ -1,0 +1,1 @@
+Added SCIM integration, which allows IdP email, full name, and groups to be visible in host vitals. SCIM data is also used for getting the end user's full name during end user authentication of macOS setup flow, if needed. Currently, only Okta IdP is supported.

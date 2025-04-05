@@ -100,6 +100,11 @@ func RegisterSCIM(
 						Name:           "$ref",
 						ReferenceTypes: []schema.AttributeReferenceType{"Group"},
 					}),
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("A human-readable name, primarily used for display purposes. READ-ONLY."),
+						Mutability:  schema.AttributeMutabilityReadOnly(),
+						Name:        "display",
+					}),
 				},
 			}),
 		},

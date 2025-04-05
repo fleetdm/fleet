@@ -156,7 +156,7 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 }
 
 // GetAll
-// Pagination is 1-indexed.
+// Pagination is 1-indexed on the startIndex. The startIndex is the index of the resource (not the index of the page), per RFC7644.
 func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
 	startIndex := params.StartIndex
 	if startIndex < 1 {
@@ -211,6 +211,19 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 		return scim.Resource{}, err
 	}
 	group.ID = idUint
+	// Display name is unique to comply with Entra ID requirements,
+	// so we must check if another group already exists with that display name to return a clear error
+	groupWithSameDisplayName, err := g.ds.ScimGroupByDisplayName(r.Context(), group.DisplayName)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		level.Error(g.logger).Log("msg", "failed to check for displayName uniqueness", displayNameAttr, group.DisplayName, "err", err)
+		return scim.Resource{}, err
+	case err == nil && group.ID != groupWithSameDisplayName.ID:
+		level.Info(g.logger).Log("msg", "group already exists with this displayName", displayNameAttr, group.DisplayName)
+		return scim.Resource{}, errors.ScimErrorUniqueness
+		// Otherwise, we assume that we are replacing the displayName with this operation.
+	}
+
 	err = g.ds.ReplaceScimGroup(r.Context(), group)
 	switch {
 	case fleet.IsNotFound(err):
