@@ -257,6 +257,10 @@ func packageCommand() *cli.Command {
 				}
 			}
 
+			if c.Args().Len() > 0 {
+				return fmt.Errorf("unexpected argument: %v", c.Args().Slice())
+			}
+
 			if opt.Insecure && opt.FleetCertificate != "" {
 				return errors.New("--insecure and --fleet-certificate may not be provided together")
 			}
