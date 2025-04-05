@@ -17,44 +17,64 @@ const baseClass = "cancel-activity-modal";
 interface ICancelActivityModalProps {
   hostId: number;
   activity: IHostUpcomingActivity;
-  onCancel: () => void;
+  onCancelActivity: () => void;
+  onExit: () => void;
 }
 
 const CancelActivityModal = ({
   hostId,
   activity,
-  onCancel,
+  onCancelActivity,
+  onExit,
 }: ICancelActivityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isCanceling, setIsCanceling] = React.useState(false);
 
   const ActivityItemComponent = upcomingActivityComponentMap[activity.type];
 
-  const onCancelActivity = async () => {
+  const onAttemptyCancel = async () => {
+    setIsCanceling(true);
     try {
       await activitiesAPI.cancelHostActivity(hostId, activity.uuid);
       renderFlash("success", "Activity successfully canceled.");
-    } catch (error) {
-      // TODO: hook up error message when API is updated
-      renderFlash("error", getErrorMessage(error));
+    } catch (err) {
+      renderFlash("error", getErrorMessage(err));
     }
-    onCancel();
+    onCancelActivity();
+    onExit();
   };
 
   return (
-    <Modal className={baseClass} title="Cancel activity" onExit={onCancel}>
+    <Modal
+      className={baseClass}
+      title="Cancel activity"
+      onExit={onExit}
+      isContentDisabled={isCanceling}
+    >
       <>
-        <ActivityItemComponent
-          tab="upcoming"
-          activity={activity}
-          onCancel={noop}
-          onShowDetails={noop}
-          isSoloActivity
-        />
+        <div className={`${baseClass}__content`}>
+          <p>
+            If the activity is happening on the host it will still complete.
+            Results won&apos;t appear in Fleet.
+          </p>
+          <ActivityItemComponent
+            tab="upcoming"
+            activity={activity}
+            onCancel={noop}
+            onShowDetails={noop}
+            isSoloActivity
+          />
+        </div>
         <div className="modal-cta-wrap">
-          <Button variant="alert" onClick={onCancelActivity}>
+          <Button
+            disabled={isCanceling}
+            isLoading={isCanceling}
+            variant="alert"
+            onClick={onAttemptyCancel}
+          >
             Cancel activity
           </Button>
-          <Button variant="inverse-alert" onClick={onCancel}>
+          <Button variant="inverse-alert" onClick={onExit}>
             Back
           </Button>
         </div>

@@ -503,6 +503,7 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
     }
@@ -670,6 +671,10 @@ const HostDetailsPage = ({
     [host?.display_name]
   );
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -760,10 +765,6 @@ const HostDetailsPage = ({
         break;
       default: // do nothing
     }
-  };
-
-  const onCancelActivity = (activity: IHostUpcomingActivity) => {
-    setSelectedCancelActivity(activity);
   };
 
   const onSelectCertificate = (certificate: IHostCertificate) => {
@@ -1235,7 +1236,8 @@ const HostDetailsPage = ({
           <CancelActivityModal
             hostId={host.id}
             activity={selectedCancelActivity}
-            onCancel={() => setSelectedCancelActivity(null)}
+            onCancelActivity={() => refetchUpcomingActivities()}
+            onExit={() => setSelectedCancelActivity(null)}
           />
         )}
         {selectedCertificate && (

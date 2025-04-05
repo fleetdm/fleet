@@ -14,8 +14,9 @@ import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
-import CanceledScriptActivityItem from "./ActivityItems/CanceledScriptActivityItem";
-import CanceledSoftwareInstallActivityItem from "./ActivityItems/CanceledSoftwareInstallActivityItem";
+import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
+import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
+import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninstallSoftwareActivtyItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -49,8 +50,10 @@ export const pastActivityComponentMap: Record<
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
-  [ActivityType.CanceledScript]: CanceledScriptActivityItem,
-  [ActivityType.CanceledSoftwareInstall]: CanceledSoftwareInstallActivityItem,
+  [ActivityType.CanceledRunScript]: CanceledRunScriptActivityItem,
+  [ActivityType.CanceledInstallSoftware]: CanceledInstallSoftwareActivityItem,
+  [ActivityType.CanceledInstallAppStoreApp]: CanceledInstallSoftwareActivityItem,
+  [ActivityType.CanceledUninstallSoftware]: CanceledUninstallSoftwareActivtyItem,
 };
 
 export const upcomingActivityComponentMap: Record<
