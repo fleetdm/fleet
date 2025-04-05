@@ -141,6 +141,9 @@
       line-height: 24px; /* 160% */
     }
   }
+  .header-hidden { // For scrolling the sidebars with the sticky header
+    transform: translateY(-81px);
+  }
   [purpose='platform-filters'] {
     &.detected-windows {
       flex-direction: row-reverse;
@@ -148,6 +151,13 @@
     flex-direction: row;
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 33%;
       display: flex;
