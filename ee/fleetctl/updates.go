@@ -284,7 +284,7 @@ func updatesAddFunc(c *cli.Context) error {
 			dstPath = filepath.Join(name, platform, tag, name)
 		}
 		switch {
-		case name == constant.DesktopTUFTargetName && platform == "windows":
+		case name == constant.DesktopTUFTargetName && (platform == "windows" || platform == "windows-arm64"):
 			// This is a special case for the desktop target on Windows.
 			dstPath = filepath.Join(filepath.Dir(dstPath), constant.DesktopAppExecName+".exe")
 		case name == constant.DesktopTUFTargetName && (platform == "linux" || platform == "linux-arm64"):

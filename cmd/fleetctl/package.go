@@ -41,7 +41,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "arch",
-				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb or rpm)",
+				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb, rpm, or msi)",
 				Destination: &opt.Architecture,
 				Value:       "amd64",
 			},
@@ -343,8 +343,9 @@ func packageCommand() *cli.Command {
 			case "deb", "rpm":
 				linuxPackage = true
 			}
+			windowsPackage := c.String("type") == "msi"
 
-			if opt.Architecture != packaging.ArchAmd64 && !linuxPackage {
+			if opt.Architecture != packaging.ArchAmd64 && !(linuxPackage || windowsPackage) {
 				return fmt.Errorf("can't use '--arch' with '--type %s'", c.String("type"))
 			}
 

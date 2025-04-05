@@ -11,7 +11,8 @@ var ManifestXMLTemplate = template.Must(template.New("").Option("missingkey=erro
     type="win32"
     name="Fleet osquery"
     version="{{.Version}}"
-    processorArchitecture="*"/>
+    processorArchitecture="{{.Arch}}"
+  />
  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
    <security>
      <requestedPrivileges>
