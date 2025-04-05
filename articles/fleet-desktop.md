@@ -25,7 +25,7 @@ Organizations with complex security postures can direct end users to a resource 
 To turn on the custom transparency link in the Fleet UI, click on your profile in the top right and select **Settings**.
 On the settings page, go to **Organization Settings > Fleet Desktop > Custom transparency URL**.
 
-For information on setting the custom transparency link via a YAML configuration file, see the [configuration files](https://fleetdm.com/docs/configuration/fleet-server-configuration#fleet-desktop-settings) documentation.
+For information on setting the custom transparency link via a YAML configuration file, see the [configuration files](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop) documentation.
 
 ## Secure Fleet Desktop
 
