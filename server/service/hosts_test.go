@@ -1588,6 +1588,7 @@ func TestHostEncryptionKey(t *testing.T) {
 	})
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostMDMProfileDetail(t *testing.T) {
 	ds := new(mock.Store)
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
@@ -1634,6 +1635,12 @@ func TestHostMDMProfileDetail(t *testing.T) {
 				EnabledAndConfigured: true,
 			},
 		}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
 	}
 
 	cases := []struct {
