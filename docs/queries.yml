@@ -1650,6 +1650,18 @@ spec:
 #   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
 #                                                       
 # From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
 apiVersion: v1
 kind: query
 spec:
