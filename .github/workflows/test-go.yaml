@@ -51,9 +51,7 @@ jobs:
         exclude:
           - isCron: false
             mysql: "mysql:9.1.0"
-    # Don't cancel all tests if an integration suite fails as integration suites are more likely to be flakey.
-    # Don't cancel all tests if the vulns suite fails as vulns may start failing for unrelated reasons to PR'd code.
-    continue-on-error: ${{ matrix.suite == 'vuln' || startsWith(matrix.suite, 'integration-') }}
+    continue-on-error: true
     runs-on: ${{ matrix.os }}
 
     env:
