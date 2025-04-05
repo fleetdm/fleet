@@ -186,6 +186,7 @@ export const SOURCE_TYPE_CONVERSION = {
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
+  tgz_packages: "Package (tar)",
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
@@ -209,6 +210,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   portage_packages: "linux",
   rpm_packages: "linux",
   yum_sources: "linux",
+  tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
   python_packages: null,

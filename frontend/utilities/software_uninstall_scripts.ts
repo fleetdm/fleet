@@ -1,3 +1,5 @@
+import { getExtensionFromFileName } from "./file/fileUtils";
+
 // @ts-ignore
 import uninstallPkg from "../../pkg/file/scripts/uninstall_pkg.sh";
 // @ts-ignore
@@ -12,7 +14,8 @@ import uninstallRPM from "../../pkg/file/scripts/uninstall_rpm.sh";
  * provided software.
  * */
 const getDefaultUninstallScript = (fileName: string): string => {
-  const extension = fileName.split(".").pop();
+  const extension = getExtensionFromFileName(fileName);
+
   switch (extension) {
     case "pkg":
       return uninstallPkg;
@@ -23,6 +26,8 @@ const getDefaultUninstallScript = (fileName: string): string => {
     case "rpm":
       return uninstallRPM;
     case "exe":
+      return "";
+    case "tar.gz":
       return "";
     default:
       throw new Error(`unsupported file extension: ${extension}`);

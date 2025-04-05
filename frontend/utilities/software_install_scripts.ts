@@ -1,3 +1,5 @@
+import { getExtensionFromFileName } from "./file/fileUtils";
+
 // @ts-ignore
 import installPkg from "../../pkg/file/scripts/install_pkg.sh";
 // @ts-ignore
@@ -12,7 +14,8 @@ import installRPM from "../../pkg/file/scripts/install_rpm.sh";
  * provided software.
  * */
 const getDefaultInstallScript = (fileName: string): string => {
-  const extension = fileName.split(".").pop();
+  const extension = getExtensionFromFileName(fileName);
+
   switch (extension) {
     case "pkg":
       return installPkg;
@@ -23,6 +26,8 @@ const getDefaultInstallScript = (fileName: string): string => {
     case "rpm":
       return installRPM;
     case "exe":
+      return "";
+    case "tar.gz":
       return "";
     default:
       throw new Error(`unsupported file extension: ${extension}`);
