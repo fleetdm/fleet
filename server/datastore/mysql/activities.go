@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -668,7 +669,207 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 }
 
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
-	panic("unimplemented")
+	const (
+		loadScriptActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(ses.name, scr.name, '') as canceled_name, -- script name in this case
+		NULL as canceled_id, -- no ID for scripts in the canceled activity
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		scripts scr ON scr.id = sua.script_id
+	LEFT OUTER JOIN
+		setup_experience_scripts ses ON ses.id = sua.setup_experience_script_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'script'
+`
+
+		loadSoftwareInstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		software_installers si ON si.id = siua.software_installer_id
+	LEFT OUTER JOIN
+		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'software_install'
+`
+
+		loadSoftwareUninstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		software_installers si ON si.id = siua.software_installer_id
+	LEFT OUTER JOIN
+		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		activity_type = 'software_uninstall'
+`
+
+		loadVPPAppInstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
+	LEFT OUTER JOIN
+		software_titles st ON st.id = vpa.title_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'vpp_app_install'
+`
+	)
+
+	type activityToCancel struct {
+		ActivityType    string `db:"activity_type"`
+		HostID          uint   `db:"host_id"`
+		HostDisplayName string `db:"host_display_name"`
+		CanceledName    string `db:"canceled_name"`
+		CanceledID      *uint  `db:"canceled_id"`
+		Activated       bool   `db:"activated"`
+	}
+
+	var act activityToCancel
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// read the activity along with the required information to create the
+		// "canceled" past activity, and check if the activity was activated or
+		// not.
+		stmt := strings.Join([]string{loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
+			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt}, " UNION ALL ")
+		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": upcomingActivityID})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
+		}
+
+		if err := sqlx.GetContext(ctx, tx, &act, stmt, args...); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(upcomingActivityID))
+			}
+			return ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
+		}
+
+		// in all cases, we must delete the row from upcoming_activities
+		const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, upcomingActivityID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
+		}
+
+		if act.Activated {
+			switch act.ActivityType {
+			case "script":
+				const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+				}
+
+			case "software_install":
+				const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+				}
+
+			case "software_uninstall":
+				// uninstall is a combination of software install and script result,
+				// with the same execution id.
+				const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updSoftwareStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+				}
+
+				const updScriptStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updScriptStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+				}
+
+			case "vpp_app_install":
+				const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
+				if _, err := tx.ExecContext(ctx, updVPPStmt, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
+				}
+
+				// must get the host uuid for the nano table update
+				const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
+				var hostUUID string
+				if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+					return ctxerr.Wrap(ctx, err, "get host uuid")
+				}
+				const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
+				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, upcomingActivityID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
+				}
+
+			default:
+				// cannot happen since activity type comes from the UNION query above,
+				// but can be useful to detect a missing case in tests
+				panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
+			}
+		}
+
+		// must activate the next activity, if any (this should be required only if
+		// the canceled activity was already "activated", but there's no harm in
+		// doing it if it wasn't, and it makes sure there's always progress even in
+		// unsuspected scenarios)
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// TODO: create canceled activity, this must be done via svc.NewActivity (not
+	// ds.NewActivity), so once canceled activities are implemented return the
+	// ready-to-insert activity struct to the caller and let svc do the rest.
+	return nil
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
