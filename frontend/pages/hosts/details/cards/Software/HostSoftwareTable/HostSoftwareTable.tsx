@@ -304,7 +304,7 @@ const HostSoftwareTable = ({
         pageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name" // TODO: "Search by name or vulnerability (CVE)"
+        inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
         customControl={
