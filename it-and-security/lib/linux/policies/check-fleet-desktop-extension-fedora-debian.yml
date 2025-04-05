@@ -1,4 +1,4 @@
-- name: Check Fleet Desktop on Fedora and Debian
+- name: Linux - Fleet Desktop extensions enabled
   critical: false
   description: This policy checks if the extension required for Fleet Desktop is installed and enabled.
   resolution: |
@@ -29,4 +29,4 @@
       )
     );
   run_script:
-    path: ../scripts/fedora-debian-enable-fleet-desktop.sh
+    path: ../scripts/install-fleet-desktop-required-extension.sh
