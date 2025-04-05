@@ -77,7 +77,9 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: |
+        /usr/bin/zsh --version
+        FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
     - name: Add TLS certificate for SMTP Tests
       run: |
@@ -87,10 +89,6 @@ jobs:
     # Go dependencies are cached by actions/setup-go
     - name: Install Go Dependencies
       run: make deps-go
-
-    # This step takes >20 seconds and should be skipped for jobs that don't need it. https://github.com/fleetdm/fleet/issues/27435
-    - name: Install ZSH
-      run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
       run: |
