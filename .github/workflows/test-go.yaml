@@ -127,8 +127,7 @@ jobs:
     - name: Start Infra Dependencies
       if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: |
-        FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
     - name: Add TLS certificate for SMTP Tests
       if: ${{ env.NEED_DOCKER }}
@@ -136,7 +135,7 @@ jobs:
         sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
         sudo update-ca-certificates
 
-    # Go dependencies should be cached by actions/setup-go, but it is not clear if they are
+    # Go dependencies should be cached by actions/setup-go
     - name: Install Go Dependencies
       run: make deps-go
 
