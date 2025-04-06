@@ -5822,6 +5822,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	software := []fleet.Software{
 		{Name: "a", Version: "0.0.1", Source: "ios_apps"},
 		{Name: "b", Version: "0.0.2", Source: "apps"},
+		{Name: "c", Version: "0.0.3", Source: "apps"},
 	}
 	byNSV := map[string]fleet.Software{}
 	for _, s := range software {
@@ -5839,12 +5840,29 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, mutationResults.Inserted, len(software))
 
+	bTitleId := mutationResults.Inserted[0].TitleID
+	// insert vulnerable software with the same software title as c, but this version is not added to host
+	result, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"c", "0.0.1", "apps", &bTitleId, hex.EncodeToString([]byte("c.0.0.1apps")),
+	)
+	require.NoError(t, err)
+	insertedID, err := result.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(
+		ctx,
+		fleet.SoftwareVulnerability{SoftwareID: uint(insertedID), CVE: "CVE-c-00c1"},
+		fleet.NVDSource,
+	)
+	require.NoError(t, err)
+
 	getKey := func(i int) string {
 		return software[i].Name + software[i].Source + software[i].Version
 	}
 	a := getKey(0)
 	b := getKey(1)
-	// add vulnerabilities
+	// add vulnerabilities to a and b
 	vulns := []fleet.SoftwareVulnerability{
 		{SoftwareID: byNSV[a].ID, CVE: "CVE-a-0001"},
 		{SoftwareID: byNSV[b].ID, CVE: "CVE-b-0002"},
@@ -5878,6 +5896,28 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
+
+	var ensureVulnerableState []struct {
+		HostID *uint   `db:"host_id"`
+		CVE    *string `db:"cve"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &ensureVulnerableState, `
+	SELECT
+		host_software.host_id as host_id,
+		software_cve.cve
+	FROM software_titles
+	LEFT JOIN software on software.title_id = software_titles.id
+	LEFT JOIN software_cve on software_cve.software_id = software.id
+	LEFT JOIN host_software on host_software.software_id = software.id
+	WHERE
+		software_titles.name = 'c'
+	ORDER BY host_software.host_id IS NOT NULL, host_software.host_id
+	`)
+	require.NoError(t, err)
+	require.Nil(t, ensureVulnerableState[0].HostID)
+	require.NotNil(t, ensureVulnerableState[0].CVE)
+	require.Equal(t, ensureVulnerableState[1].HostID, &tmHost.ID)
+	require.Nil(t, ensureVulnerableState[1].CVE)
 
 	// Ensure that software "a" & "b" are returned as they are vulnerable
 	require.NoError(t, ds.LoadHostSoftware(ctx, tmHost, false))
@@ -5945,14 +5985,14 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	result, err := ds.writer(ctx).ExecContext(ctx, `
+	result, err = ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
 		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
 	require.NoError(t, err)
-	insertedID, err := result.LastInsertId()
+	vppInsertedID, err := result.LastInsertId()
 	require.NoError(t, err)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 
@@ -5971,17 +6011,34 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		TeamID:          &tm.ID,
 		Filename:        "foo.pkg",
 		UserID:          user.ID,
+		Version:         "1.0.0",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	// insert into software without adding to host
+	// insert non-vulnerable software without adding to host
 	_, err = ds.writer(ctx).ExecContext(
 		ctx,
 		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
-		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo")),
+		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo1.0")),
 	)
 	require.NoError(t, err)
-	// pending install request
+	// insert vulnerable software with the same software title, but still not added to host
+	result, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo", "0.5", "bar", &titleID, hex.EncodeToString([]byte("foo0.5")),
+	)
+	require.NoError(t, err)
+	insertedID, err = result.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(
+		ctx,
+		fleet.SoftwareVulnerability{SoftwareID: uint(insertedID), CVE: "CVE-bar-0001"},
+		fleet.NVDSource,
+	)
+	require.NoError(t, err)
+
+	// pending install request for foo1.0 (non-vulnerable version)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -6053,7 +6110,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// add vulnerabilities to last_software_install and last_vpp_install
 	vulns = []fleet.SoftwareVulnerability{
 		{SoftwareID: mutationResults.Inserted[0].ID, CVE: "CVE-file1-0003"},
-		{SoftwareID: uint(insertedID), CVE: "CVE-vpp1-0004"},
+		{SoftwareID: uint(vppInsertedID), CVE: "CVE-vpp1-0004"},
 	}
 	for _, v := range vulns {
 		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
