@@ -225,7 +225,7 @@ SERVICE_PKGS_TO_TEST := ./server/service
 VULN_PKGS_TO_TEST := ./server/vulnerabilities/...
 ifeq ($(CI_TEST_PKG), main)
     # This is the bucket of all the tests that are not in a specific group. We take a diff between DEFAULT_PKG_TO_TEST and all the specific *_PKGS_TO_TEST.
-	CI_PKG_TO_TEST=$(shell bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ go list $(FLEETCTL_PKGS_TO_TEST) && go list $(MYSQL_PKGS_TO_TEST) && go list $(SCRIPTS_PKGS_TO_TEST) && go list $(SERVICE_PKGS_TO_TEST) && go list $(VULN_PKGS_TO_TEST) ;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
+	CI_PKG_TO_TEST=$(shell /bin/bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ go list $(FLEETCTL_PKGS_TO_TEST) && go list $(MYSQL_PKGS_TO_TEST) && go list $(SCRIPTS_PKGS_TO_TEST) && go list $(SERVICE_PKGS_TO_TEST) && go list $(VULN_PKGS_TO_TEST) ;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
 else ifeq ($(CI_TEST_PKG), fleetctl)
 	CI_PKG_TO_TEST=$(FLEETCTL_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), mysql)
@@ -323,8 +323,10 @@ deps-js:
 	yarn
 
 # We found that 'go get .' is faster than 'go mod download' in CI (dependencies are cached by actions/setup-go)
+# In CI, dependencies are downloaded during this step so that we don't have to download them during test run.
 deps-go:
-	GOFLAGS=-mod=readonly go get .
+	go mod download
+#	GOFLAGS=-mod=readonly go get .
 
 # check that the generated files in tools/cloner-check/generated_files match
 # the current version of the cloneable structures.

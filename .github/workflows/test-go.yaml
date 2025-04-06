@@ -84,11 +84,11 @@ jobs:
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "scripts" ]]; then
-          echo "CI_TEST_PKG='${{ matrix.suite }}'" >> $GITHUB_ENV
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG=''" >> $GITHUB_ENV
           echo "NEED_ZSH=1" >> $GITHUB_ENV
         else
-          echo "CI_TEST_PKG='${{ matrix.suite }}'" >> $GITHUB_ENV
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG=''" >> $GITHUB_ENV
         fi
 
