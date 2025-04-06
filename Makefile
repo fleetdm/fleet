@@ -218,6 +218,18 @@ debug-go-tests:
 
 # Set up packages for CI testing.
 DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+# fast tests are quick and do not require out-of-process dependencies (such as MySQL, etc.)
+FAST_PKGS_TO_TEST := \
+	./ee/tools/mdm \
+	./orbit/pkg/cryptoinfo \
+	./orbit/pkg/dataflatten \
+	./orbit/pkg/keystore \
+	./server/goose \
+	./server/mdm/apple/appmanifest \
+	./server/mdm/lifecycle \
+	./server/mdm/scep/challenge \
+	./server/mdm/scep/x509util \
+	./server/policies
 FLEETCTL_PKGS_TO_TEST := ./cmd/fleetctl/...
 MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/... ./server/mdm/android/mysql
 SCRIPTS_PKGS_TO_TEST := ./orbit/pkg/scripts
@@ -225,7 +237,16 @@ SERVICE_PKGS_TO_TEST := ./server/service
 VULN_PKGS_TO_TEST := ./server/vulnerabilities/...
 ifeq ($(CI_TEST_PKG), main)
     # This is the bucket of all the tests that are not in a specific group. We take a diff between DEFAULT_PKG_TO_TEST and all the specific *_PKGS_TO_TEST.
-	CI_PKG_TO_TEST=$(shell /bin/bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ go list $(FLEETCTL_PKGS_TO_TEST) && go list $(MYSQL_PKGS_TO_TEST) && go list $(SCRIPTS_PKGS_TO_TEST) && go list $(SERVICE_PKGS_TO_TEST) && go list $(VULN_PKGS_TO_TEST) ;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
+	CI_PKG_TO_TEST=$(shell /bin/bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ \
+	go list $(FAST_PKGS_TO_TEST) && \
+	go list $(FLEETCTL_PKGS_TO_TEST) && \
+	go list $(MYSQL_PKGS_TO_TEST) && \
+	go list $(SCRIPTS_PKGS_TO_TEST) && \
+	go list $(SERVICE_PKGS_TO_TEST) && \
+	go list $(VULN_PKGS_TO_TEST) \
+	;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
+else ifeq ($(CI_TEST_PKG), fast)
+	CI_PKG_TO_TEST=$(FAST_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), fleetctl)
 	CI_PKG_TO_TEST=$(FLEETCTL_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), mysql)
