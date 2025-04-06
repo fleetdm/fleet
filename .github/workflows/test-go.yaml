@@ -89,7 +89,7 @@ jobs:
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
-          echo "RUN_TESTS_ARG='-run=^TestIntegrations' '-skip \"^(TestIntegrationsMDM|TestIntegrationsEnterprise)\"'" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-run=^TestIntegrations -skip '^(TestIntegrationsMDM|TestIntegrationsEnterprise)'" >> $GITHUB_ENV
           # We re-generate test schema just in case there is an issue with the schema. We only do this for one test.
           echo "GENERATE_TEST_SCHEMA=1" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
