@@ -42,7 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration-core", "integration-enterprise", "integration-mdm", "core", "mysql", "fleetctl", "vuln"]
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "core", "service", "mysql", "fleetctl", "vuln"]
         os: [ubuntu-latest]
         mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
         isCron:
@@ -70,15 +70,18 @@ jobs:
       run: |
         if [[ "${{ matrix.suite }}" == "core" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=''" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "service" ]]; then
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG='-skip=^TestIntegrations'" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
-          echo "CI_TEST_PKG=integration" >> $GITHUB_ENV
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG='-run=^TestIntegrations -skip \"^(TestIntegrationsMDM|TestIntegrationsEnterprise)\"'"
         elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
-          echo "CI_TEST_PKG=integration" >> $GITHUB_ENV
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG='-run=^TestIntegrationsMDM'" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
-          echo "CI_TEST_PKG=integration" >> $GITHUB_ENV
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'" >> $GITHUB_ENV
         else
           echo "CI_TEST_PKG='${{ matrix.suite }}'" >> $GITHUB_ENV
@@ -141,6 +144,14 @@ jobs:
 
     - name: Run Go Tests
       run: |
+        echo 1
+        echo $CI_TEST_PKG
+        echo 2
+        echo ${{ env.CI_TEST_PKG }}
+        echo 3
+        echo $RUN_TEST_ARG
+        echo 4
+        echo ${{ env.RUN_TEST_ARG }}
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
