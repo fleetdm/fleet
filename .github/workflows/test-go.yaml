@@ -136,7 +136,6 @@ jobs:
 
     # TODO: Who needs this?
     - name: Generate static files
-      if: ${{ env.NEED_STATIC_FILES }}
       run: |
         export PATH=$PATH:~/go/bin
         make generate-go
