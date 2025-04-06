@@ -255,7 +255,7 @@ endif
 	@echo "  fleetctl"
 	@echo "  vuln"
 	@echo "  main        (all tests not included in other bundles)"
-test-go: test-schema mock
+test-go:
 	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:

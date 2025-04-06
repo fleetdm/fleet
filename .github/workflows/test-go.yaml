@@ -165,6 +165,19 @@ jobs:
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
+        echo GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TEST_ARG }}" \
+          TEST_LOCK_FILE_PATH=$(pwd)/lock \
+          TEST_CRON_NO_RECOVER=1 \
+          NETWORK_TEST=1 \
+          REDIS_TEST=1 \
+          MYSQL_TEST=1 \
+          MYSQL_REPLICA_TEST=1 \
+          MINIO_STORAGE_TEST=1 \
+          SAML_IDP_TEST=1 \
+          MAIL_TEST=1 \
+          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
+          CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
+          make test-go --dry-run 2>&1 | tee /tmp/gotest.log
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TEST_ARG }}" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
