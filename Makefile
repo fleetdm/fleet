@@ -270,6 +270,7 @@ endif
 	@echo "The test package bundle to run.  If not specified, all Go tests will run."
 .help-extra--test-go:
 	@echo "AVAILABLE TEST BUNDLES:"
+	@echo "  fast"
 	@echo "  service"
 	@echo "  scripts"
 	@echo "  mysql"

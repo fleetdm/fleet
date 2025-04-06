@@ -85,7 +85,7 @@ jobs:
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "service" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
-          echo "RUN_TESTS_ARG='-skip=^TestIntegrations'" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-skip=^TestIntegrations" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
@@ -95,11 +95,11 @@ jobs:
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
-          echo "RUN_TESTS_ARG='-run=^TestIntegrationsMDM'" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-run=^TestIntegrationsMDM" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
-          echo "RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-run=^TestIntegrationsEnterprise" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "scripts" ]]; then
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
@@ -144,7 +144,6 @@ jobs:
       if: ${{ env.NEED_ZSH }}
       run: sudo apt update && sudo apt install -y zsh
 
-    # TODO: Who needs this?
     - name: Generate static files
       run: |
         export PATH=$PATH:~/go/bin
