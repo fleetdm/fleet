@@ -66,6 +66,31 @@ jobs:
       with:
         egress-policy: audit
 
+    - name: Configure job
+      run: |
+        if [[ "${{ matrix.suite }}" == "core" ]]; then
+          echo "CI_TEST_PKG=main" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG='-skip=^TestIntegrations'" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
+          echo "CI_TEST_PKG=integration" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG='-run=^TestIntegrations -skip \"^(TestIntegrationsMDM|TestIntegrationsEnterprise)\"'"
+        elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
+          echo "CI_TEST_PKG=integration" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG='-run=^TestIntegrationsMDM'" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
+          echo "CI_TEST_PKG=integration" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'" >> $GITHUB_ENV
+        else
+          echo "CI_TEST_PKG='${{ matrix.suite }}'" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=''" >> $GITHUB_ENV
+        fi
+
+    - name: Set Go race setting on schedule
+      if: github.event.schedule == '0 4 * * *'
+      run: |
+        echo "RACE_ENABLED=true" >> $GITHUB_ENV
+        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
+
     - name: Checkout Code
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -78,7 +103,6 @@ jobs:
     - name: Start Infra Dependencies
       # Use & to background this
       run: |
-        /usr/bin/zsh --version
         FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
     - name: Add TLS certificate for SMTP Tests
@@ -90,16 +114,15 @@ jobs:
     - name: Install Go Dependencies
       run: make deps-go
 
+    # This step takes >20 seconds and should be skipped for jobs that don't need it. https://github.com/fleetdm/fleet/issues/27435
+    - name: Install ZSH
+      run: sudo apt update && sudo apt install -y zsh
+
+    # TODO: Who needs this?
     - name: Generate static files
       run: |
         export PATH=$PATH:~/go/bin
         make generate-go
-
-    - name: Set Go race setting on schedule
-      if: github.event.schedule == '0 4 * * *'
-      run: |
-        echo "RACE_ENABLED=true" >> $GITHUB_ENV
-        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
     - name: Wait for mysql
       run: |
@@ -118,22 +141,6 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        if [[ "${{ matrix.suite }}" == "core" ]]; then
-          CI_TEST_PKG=main
-          RUN_TESTS_ARG='-skip=^TestIntegrations'
-        elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
-          CI_TEST_PKG=integration
-          RUN_TESTS_ARG='-run=^TestIntegrations -skip "^(TestIntegrationsMDM|TestIntegrationsEnterprise)"'
-        elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
-          CI_TEST_PKG=integration
-          RUN_TESTS_ARG='-run=^TestIntegrationsMDM'
-        elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
-          CI_TEST_PKG=integration
-          RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'
-        else
-          CI_TEST_PKG="${{ matrix.suite }}"
-          RUN_TESTS_ARG=''
-        fi
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
