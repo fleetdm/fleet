@@ -50,13 +50,14 @@ jobs:
         exclude:
           - isCron: false
             mysql: "mysql:9.1.0" # Only run MySQL 9 tests on cron schedule
-          - suite: "fast" # These suite does not need MySQL
+          # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
+          - suite: "fast"
             mysql: "mysql:8.4.3"
-          - suite: "fast" # These suite does not need MySQL
+          - suite: "fast"
             mysql: "mysql:9.1.0"
-          - suite: "scripts" # These suite does not need MySQL
+          - suite: "scripts"
             mysql: "mysql:8.4.3"
-          - suite: "scripts" # These suite does not need MySQL
+          - suite: "scripts"
             mysql: "mysql:9.1.0"
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
@@ -79,13 +80,16 @@ jobs:
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "fast" ]]; then
+          # DO NOT add any dependencies in this test suite.
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "service" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG='-skip=^TestIntegrations'" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
           echo "CI_TEST_PKG=service" >> $GITHUB_ENV
-          echo "RUN_TESTS_ARG='-run=^TestIntegrations -skip \"^(TestIntegrationsMDM|TestIntegrationsEnterprise)\"'" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG='-run=^TestIntegrations' '-skip \"^(TestIntegrationsMDM|TestIntegrationsEnterprise)\"'" >> $GITHUB_ENV
           # We re-generate test schema just in case there is an issue with the schema. We only do this for one test.
           echo "GENERATE_TEST_SCHEMA=1" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
