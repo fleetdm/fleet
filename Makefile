@@ -218,19 +218,22 @@ debug-go-tests:
 
 # Set up packages for CI testing.
 DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
-SERVICE_PKGS_TO_TEST := ./server/service
-MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/... ./server/mdm/android/mysql
 FLEETCTL_PKGS_TO_TEST := ./cmd/fleetctl/...
+MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/... ./server/mdm/android/mysql
+SCRIPTS_PKGS_TO_TEST := ./orbit/pkg/scripts
+SERVICE_PKGS_TO_TEST := ./server/service
 VULN_PKGS_TO_TEST := ./server/vulnerabilities/...
 ifeq ($(CI_TEST_PKG), main)
     # This is the bucket of all the tests that are not in a specific group. We take a diff between DEFAULT_PKG_TO_TEST and all the specific *_PKGS_TO_TEST.
-	CI_PKG_TO_TEST=$(shell comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ go list $(SERVICE_PKGS_TO_TEST) && go list $(MYSQL_PKGS_TO_TEST) && go list $(FLEETCTL_PKGS_TO_TEST) && go list $(VULN_PKGS_TO_TEST) ;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g')
-else ifeq ($(CI_TEST_PKG), service)
-	CI_PKG_TO_TEST=$(SERVICE_PKGS_TO_TEST)
-else ifeq ($(CI_TEST_PKG), mysql)
-	CI_PKG_TO_TEST=$(MYSQL_PKGS_TO_TEST)
+	CI_PKG_TO_TEST=$(shell comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ go list $(FLEETCTL_PKGS_TO_TEST) && go list $(MYSQL_PKGS_TO_TEST) && go list $(SCRIPTS_PKGS_TO_TEST) && go list $(SERVICE_PKGS_TO_TEST) && go list $(VULN_PKGS_TO_TEST) ;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g')
 else ifeq ($(CI_TEST_PKG), fleetctl)
 	CI_PKG_TO_TEST=$(FLEETCTL_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), mysql)
+	CI_PKG_TO_TEST=$(MYSQL_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), scripts)
+	CI_PKG_TO_TEST=$(SCRIPTS_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), service)
+	CI_PKG_TO_TEST=$(SERVICE_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), vuln)
 	CI_PKG_TO_TEST=$(VULN_PKGS_TO_TEST)
 else
@@ -246,7 +249,8 @@ endif
 	@echo "The test package bundle to run.  If not specified, all Go tests will run."
 .help-extra--test-go:
 	@echo "AVAILABLE TEST BUNDLES:"
-	@echo "  integration"
+	@echo "  service"
+	@echo "  scripts"
 	@echo "  mysql"
 	@echo "  fleetctl"
 	@echo "  vuln"

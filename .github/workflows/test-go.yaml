@@ -42,7 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration-core", "integration-enterprise", "integration-mdm", "core", "service", "mysql", "fleetctl", "vuln"]
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
         mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
         isCron:
@@ -68,7 +68,7 @@ jobs:
 
     - name: Configure job
       run: |
-        if [[ "${{ matrix.suite }}" == "core" ]]; then
+        if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
           echo "RUN_TESTS_ARG=''" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "service" ]]; then
@@ -152,7 +152,7 @@ jobs:
         echo $RUN_TEST_ARG
         echo 4
         echo ${{ env.RUN_TEST_ARG }}
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
+        echo GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TEST_ARG }}" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
           NETWORK_TEST=1 \
@@ -163,7 +163,20 @@ jobs:
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
-          CI_TEST_PKG="${CI_TEST_PKG}" \
+          CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
+          make test-go 2>&1 | tee /tmp/gotest.log
+        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TEST_ARG }}" \
+          TEST_LOCK_FILE_PATH=$(pwd)/lock \
+          TEST_CRON_NO_RECOVER=1 \
+          NETWORK_TEST=1 \
+          REDIS_TEST=1 \
+          MYSQL_TEST=1 \
+          MYSQL_REPLICA_TEST=1 \
+          MINIO_STORAGE_TEST=1 \
+          SAML_IDP_TEST=1 \
+          MAIL_TEST=1 \
+          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
+          CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Create mysql identifier without colon
