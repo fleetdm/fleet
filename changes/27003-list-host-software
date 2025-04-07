@@ -1,1 +1,1 @@
-* Host software endpoint query parameter searches cve name as well as by software name.
+* Added CVE ID as matching criteria for host software queries, in addition to software name. Also rebuild host software querying for better maintainability.
