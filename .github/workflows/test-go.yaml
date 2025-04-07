@@ -135,10 +135,6 @@ jobs:
         sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
         sudo update-ca-certificates
 
-    # Go dependencies should be cached by actions/setup-go
-    - name: Install Go Dependencies
-      run: make deps-go
-
     - name: Install ZSH
       if: ${{ env.NEED_ZSH }}
       run: sudo apt update && sudo apt install -y zsh
