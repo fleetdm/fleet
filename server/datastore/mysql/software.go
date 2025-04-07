@@ -423,11 +423,11 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 			return ctxerr.Wrap(ctx, err, "update software names")
 		}
 
-		// hostSoftwareStmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES (?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1) ,?)`)
-		// fmt.Printf("attempting to update host_software software_name: %v hostID: %v software_id: %v last_opened_at: %v\n", v.Name, k, hostID, v.ID, v.LastOpenedAt)
-		// if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
-		// 	return ctxerr.Wrap(ctx, err, "insert host software")
-		// }
+		hostSoftwareStmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES (?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1) ,?)`)
+		fmt.Printf("attempting to update host_software software_name: %v hostID: %v software_id: %v last_opened_at: %v\n", v.Name, k, hostID, v.ID, v.LastOpenedAt)
+		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host software")
+		}
 	}
 	return nil
 }
