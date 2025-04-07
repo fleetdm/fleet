@@ -1318,3 +1318,7 @@ ORDER BY
 	}
 	return nil
 }
+
+func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
+	panic("unimplemented")
+}

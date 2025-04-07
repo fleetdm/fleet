@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 )
 
 //go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
@@ -48,6 +49,35 @@ type UpcomingActivity struct {
 	// this struct used to have an additional field for upcoming activities, but
 	// it has since been removed. Keeping the distinct struct as a useful type
 	// indication that the value is an upcoming, not past, activity.
+}
+
+// WellKnownActionType defines the special actions that an upcoming activity
+// may correspond to, such as Lock, Wipe, etc.
+type WellKnownActionType int
+
+// List of well-known action types.
+const (
+	WellKnownActionNone WellKnownActionType = iota
+	WellKnownActionLock
+	WellKnownActionUnlock
+	WellKnownActionWipe
+)
+
+// UpcomingActivityMeta is the metadata related to a host's upcoming
+// activity.
+type UpcomingActivityMeta struct {
+	// ExecutionID is the unique identifier of the activity.
+	ExecutionID string
+	// ActivatedAt is the timestamp when the activity was "activated" (made ready
+	// to process by the host). Nil if not activated yet (still waiting for
+	// previous activities to complete).
+	ActivatedAt *time.Time
+	// UpcomingActivityType is the string value of the "activity_type" enum
+	// column of the upcoming_activities table.
+	UpcomingActivityType string
+	// WellKnownAction is the special action that this activity corresponds to,
+	// if any (default is WellKnownActionNone).
+	WellKnownAction WellKnownActionType
 }
 
 // ActivityDetailsList is used to generate documentation.
