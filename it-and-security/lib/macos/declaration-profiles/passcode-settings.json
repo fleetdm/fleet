@@ -4,7 +4,6 @@
     "Payload": {
         "RequireAlphanumericPasscode": true,
         "MinimumLength": 10,
-        "MinimumComplexCharacters": 1,
         "MaximumFailedAttempts": 11,
         "MaximumGracePeriodInMinutes": 1,
         "MaximumInactivityInMinutes": 15
