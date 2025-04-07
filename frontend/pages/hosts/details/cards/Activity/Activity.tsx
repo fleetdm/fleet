@@ -70,7 +70,7 @@ const Activity = ({
     >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
-          <Spinner />
+          <Spinner centered />
         </div>
       )}
       <CardHeader header="Activity" />

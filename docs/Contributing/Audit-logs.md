@@ -930,18 +930,6 @@ Generated when a user disables automatic MDM migration for Windows hosts, if Win
 
 This activity does not contain any detail fields.
 
-## enabled_android_mdm
-
-Generated when a user turns on MDM features for all Android hosts.
-
-This activity does not contain any detail fields.
-
-## disabled_android_mdm
-
-Generated when a user turns off MDM features for all Android hosts.
-
-This activity does not contain any detail fields.
-
 ## ran_script
 
 Generated when a script is sent to be run for a host.
