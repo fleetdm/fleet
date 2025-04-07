@@ -26,7 +26,6 @@ import {
   IHostResponse,
   IHostMdmData,
   IPackStats,
-  IHostEndUser,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
@@ -109,8 +108,8 @@ import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import AddEndUserModal from "../cards/User/components/AddEndUserModal";
 import {
-  generateChromeProfilesValue,
-  generateOtherEmailsValue,
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
 } from "../cards/User/helpers";
 
 const baseClass = "host-details";
@@ -865,10 +864,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const showUsersCard =
-    isDarwinHost ||
-    generateChromeProfilesValue(host.end_users ?? []).length > 0 ||
-    generateOtherEmailsValue(host.end_users ?? []).length > 0;
+  const showUsersCard = false;
+  // isDarwinHost ||
+  // generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
+  // generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
