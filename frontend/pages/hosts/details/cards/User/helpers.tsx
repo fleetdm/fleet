@@ -35,7 +35,7 @@ export const generateGroupsValues = (endUsers: IHostEndUser[]) => {
   });
 };
 
-export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
+export const generateChromeProfilesValues = (endUsers: IHostEndUser[]) => {
   if (endUsers.length === 0) {
     return [];
   }
@@ -48,7 +48,7 @@ export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
   }, []);
 };
 
-export const generateOtherEmailsValue = (endUsers: IHostEndUser[]) => {
+export const generateOtherEmailsValues = (endUsers: IHostEndUser[]) => {
   if (endUsers.length === 0) {
     return [];
   }

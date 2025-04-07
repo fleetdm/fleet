@@ -445,10 +445,10 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const showUsersCard = false;
-    // host?.platform === "darwin" ||
-    // generateChromeProfilesValue(testEndUserData).length > 0 ||
-    // generateOtherEmailsValue(testEndUserData).length > 0;
+    const showUsersCard =
+      host?.platform === "darwin" ||
+      generateChromeProfilesValue(host?.end_users ?? []).length > 0 ||
+      generateOtherEmailsValue(host?.end_users ?? []).length > 0;
 
     return (
       <div className="core-wrapper">

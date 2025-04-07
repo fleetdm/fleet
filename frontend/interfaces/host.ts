@@ -292,7 +292,7 @@ export interface IHost {
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
   device_mapping: IDeviceUser[] | null;
-  end_users: IHostEndUser[];
+  end_users?: IHostEndUser[];
 }
 
 /*
