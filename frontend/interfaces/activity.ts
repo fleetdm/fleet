@@ -111,6 +111,11 @@ export enum ActivityType {
   CanceledSoftwareInstall = "canceled_software_install",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
+  ConfiguredMSEntraConditionalAccess = "added_conditional_access_microsoft",
+  DeletedMSEntraConditionalAccess = "deleted_conditional_access_microsoft",
+  // enable/disable above feature for a team
+  EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
+  DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
