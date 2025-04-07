@@ -330,7 +330,7 @@ const ConditionalAccess = () => {
               onClick={toggleDeleteConditionalAccessModal}
             >
               Delete
-              <Icon name="trash" color="ui-fleet-black-75" />
+              <Icon name="trash" />
             </Button>
           </InfoBanner>
         );

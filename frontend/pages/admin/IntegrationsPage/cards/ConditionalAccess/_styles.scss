@@ -7,13 +7,11 @@
       overflow: hidden;
       width: 100%;
       justify-content: space-between;
+      padding: 0 $pad-medium;
       .tenant-id {
         display: flex;
         align-items: center;
         gap: 4px;
-      }
-      .button--text-icon {
-        // TODO - figure out coloring
       }
     }
   }
