@@ -1,3 +1,5 @@
+// Used on: Dashboard > activity, Host details > past activity
+
 import React from "react";
 import { useQuery } from "react-query";
 
@@ -116,15 +118,17 @@ export const AppInstallDetails = ({
         {showCommandPayload && (
           <div className={`${baseClass}__script-output`}>
             Request payload:
-            <Textarea className={`${baseClass}__output-textarea`}>
+            <Textarea label="Request payload:" variant="code">
               {result.payload}
             </Textarea>
           </div>
         )}
         {showCommandResponse && (
           <div className={`${baseClass}__script-output`}>
-            The response from {formattedHost}:
-            <Textarea className={`${baseClass}__output-textarea`}>
+            <Textarea
+              label={`The response from ${formattedHost}:`}
+              variant="code"
+            >
               {result.result}
             </Textarea>
           </div>

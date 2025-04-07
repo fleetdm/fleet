@@ -1,0 +1,8 @@
+// This file imports all the variable files in the variables directory
+// and makes them available for use in other SCSS files.
+@import "fonts";
+@import "colors";
+@import "breakpoints";
+@import "padding";
+@import "mixins";
+@import "tables";
