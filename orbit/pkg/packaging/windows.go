@@ -222,7 +222,10 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	filename := fmt.Sprintf("fleet-osquery_%s_%s.msi", opt.Version, opt.Architecture)
+	filename := "fleet-osquery.msi"
+	if opt.Architecture == ArchArm64 {
+		filename = fmt.Sprintf("fleet-osquery_%s_%s.msi", opt.Version, opt.Architecture)
+	}
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
