@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 
-import createMockActivity from "__mocks__/activityMock";
+import { createMockActivity } from "__mocks__/activityMock";
 import { baseUrl } from "test/test-utils";
 
 export const defaultActivityHandler = http.get(baseUrl("/activities"), () => {
