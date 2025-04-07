@@ -2,9 +2,16 @@ import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
+import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { QueryContext } from "context/query";
+import useTeamIdParam from "hooks/useTeamIdParam";
+
+import debounce from "utilities/debounce";
+import deepDifference from "utilities/deep_difference";
+import { getPathWithQueryParams } from "utilities/url";
 import {
   DEFAULT_QUERY,
   DOCUMENT_TITLE_SUFFIX,
@@ -28,16 +35,6 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 import BackLink from "components/BackLink";
 import InfoBanner from "components/InfoBanner";
-
-import useTeamIdParam from "hooks/useTeamIdParam";
-
-import { NotificationContext } from "context/notification";
-
-import PATHS from "router/paths";
-import debounce from "utilities/debounce";
-import deepDifference from "utilities/deep_difference";
-import { buildQueryStringFromParams } from "utilities/url";
-
 import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
@@ -58,6 +55,9 @@ const EditQueryPage = ({
   location,
 }: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+  const hostId = location.query.host_id
+    ? parseInt(location.query.host_id as string, 10)
+    : undefined;
 
   const {
     currentTeamName: teamNameForQuery,
@@ -80,6 +80,7 @@ const EditQueryPage = ({
     isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     editingExistingQuery,
@@ -90,6 +91,7 @@ const EditQueryPage = ({
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryFrequency,
+    lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryLoggingType,
     lastEditedQueryMinOsqueryVersion,
@@ -100,6 +102,7 @@ const EditQueryPage = ({
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
     setLastEditedQueryFrequency,
+    setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
@@ -149,6 +152,7 @@ const EditQueryPage = ({
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
         setLastEditedQueryFrequency(returnedQuery.interval);
+        setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
         setLastEditedQueryPlatforms(returnedQuery.platform);
         setLastEditedQueryLoggingType(returnedQuery.logging);
         setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
@@ -157,6 +161,26 @@ const EditQueryPage = ({
       onError: (error) => handlePageError(error),
     }
   );
+
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    storedQuery?.team_id &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      getPathWithQueryParams(location.pathname, {
+        team_id: storedQuery?.team_id?.toString(),
+      })
+    );
+  }
 
   // Used to set host's team in AppContext for RBAC actions
   useEffect(() => {
@@ -175,10 +199,13 @@ const EditQueryPage = ({
   };
 
   /* Observer/Observer+ cannot edit existing query (O+ has access to edit new query to run live),
+  Team admin/team maintainer cannot edit existing query,
  reroute edit existing query page (/:queryId/edit) to query report page (/:queryId) */
   useEffect(() => {
     const canEditExistingQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
     if (
       !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
@@ -186,7 +213,13 @@ const EditQueryPage = ({
       queryId > 0 &&
       !canEditExistingQuery
     ) {
-      router.push(PATHS.QUERY_DETAILS(queryId));
+      // Reroute to query report page still maintains query params for live query purposes
+      router.push(
+        getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
+          host_id: location.query.host_id,
+          team_id: location.query.team_id,
+        })
+      );
     }
   }, [queryId, isTeamMaintainerOrTeamAdmin, isStoredQueryLoading]);
 
@@ -199,6 +232,7 @@ const EditQueryPage = ({
       // Persist lastEditedQueryBody through live query flow instead of resetting to DEFAULT_QUERY.query
       setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
       setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
+      setLastEditedQueryAutomationsEnabled(DEFAULT_QUERY.automations_enabled);
       setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
       setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
       setLastEditedQueryPlatforms(DEFAULT_QUERY.platform);
@@ -231,7 +265,11 @@ const EditQueryPage = ({
       setIsQuerySaving(true);
       try {
         const { query } = await queryAPI.create(formData);
-        router.push(PATHS.QUERY_DETAILS(query.id, query.team_id));
+        router.push(
+          getPathWithQueryParams(PATHS.QUERY_DETAILS(query.id), {
+            team_id: query.team_id,
+          })
+        );
         renderFlash("success", "Query created!");
         setBackendValidators({});
       } catch (createError: any) {
@@ -269,6 +307,7 @@ const EditQueryPage = ({
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
       lastEditedQueryFrequency,
+      lastEditedQueryAutomationsEnabled,
       lastEditedQueryPlatforms,
       lastEditedQueryLoggingType,
       lastEditedQueryMinOsqueryVersion,
@@ -331,17 +370,16 @@ const EditQueryPage = ({
   };
 
   // Function instead of constant eliminates race condition
-  const backToQueriesPath = () => {
-    const manageQueryPage =
-      filteredQueriesPath ||
-      `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
-        team_id: currentTeamId,
-      })}`;
-
-    return queryId
-      ? PATHS.QUERY_DETAILS(queryId, currentTeamId)
-      : manageQueryPage;
-  };
+  // Returns to queries details page, manage queries page with filters, or default manage queries page
+  const backToQueriesPath = () =>
+    queryId
+      ? getPathWithQueryParams(PATHS.QUERY_DETAILS(queryId), {
+          team_id: currentTeamId,
+        })
+      : filteredQueriesPath ||
+        getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
+          team_id: currentTeamId,
+        });
 
   const showSidebar =
     isSidebarOpen &&
@@ -378,7 +416,7 @@ const EditQueryPage = ({
             backendValidators={backendValidators}
             isQuerySaving={isQuerySaving}
             isQueryUpdating={isQueryUpdating}
-            hostId={parseInt(location.query.host_id as string, 10)}
+            hostId={hostId}
             queryReportsDisabled={
               appConfig?.server_settings.query_reports_disabled
             }

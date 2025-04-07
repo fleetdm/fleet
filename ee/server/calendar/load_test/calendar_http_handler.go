@@ -9,15 +9,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	_ "github.com/mattn/go-sqlite3"
-	"google.golang.org/api/calendar/v3"
 	"hash/fnv"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	_ "github.com/mattn/go-sqlite3"
+	"google.golang.org/api/calendar/v3"
 )
 
 // This calendar does not support all-day events.
@@ -106,7 +107,7 @@ func getSetting(w http.ResponseWriter, r *http.Request) {
 
 // The timezone is determined by the user's email address
 func getTimezone(email string) string {
-	index := hash(email) % uint32(len(timezones))
+	index := hash(email) % uint32(len(timezones)) //nolint:gosec // dismiss G115 (only used for tests)
 	timezone := timezones[index]
 	return timezone
 }

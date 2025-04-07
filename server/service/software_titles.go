@@ -28,9 +28,9 @@ type listSoftwareTitlesResponse struct {
 	Err             error                           `json:"error,omitempty"`
 }
 
-func (r listSoftwareTitlesResponse) error() error { return r.Err }
+func (r listSoftwareTitlesResponse) Error() error { return r.Err }
 
-func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareTitlesRequest)
 	titles, count, meta, err := svc.ListSoftwareTitles(ctx, req.SoftwareTitleListOptions)
 	if err != nil {
@@ -41,6 +41,13 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 	for _, sw := range titles {
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
+		}
+		// we dont want to include the InstallDuringSetup field in the response
+		// for software titles list.
+		if sw.SoftwarePackage != nil {
+			sw.SoftwarePackage.InstallDuringSetup = nil
+		} else if sw.AppStoreApp != nil {
+			sw.AppStoreApp.InstallDuringSetup = nil
 		}
 	}
 	if len(titles) == 0 {
@@ -68,14 +75,17 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, err
 	}
 
-	if opt.TeamID != nil && *opt.TeamID != 0 {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
-		}
-		if !lic.IsPremium() {
-			return nil, 0, nil, fleet.ErrMissingLicense
-		}
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get license")
+	}
+
+	if opt.TeamID != nil && *opt.TeamID != 0 && !lic.IsPremium() {
+		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
 	// always include metadata for software titles
@@ -114,9 +124,9 @@ type getSoftwareTitleResponse struct {
 	Err           error                `json:"error,omitempty"`
 }
 
-func (r getSoftwareTitleResponse) error() error { return r.Err }
+func (r getSoftwareTitleResponse) Error() error { return r.Err }
 
-func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareTitleRequest)
 
 	software, err := svc.SoftwareTitleByID(ctx, req.ID, req.TeamID)
@@ -132,7 +142,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
@@ -165,7 +175,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
 
-			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
@@ -175,20 +185,85 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
 	if license.IsPremium() {
-		// add software installer data
-		meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
-		}
-		if meta != nil {
-			summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+		// add software installer data if needed
+		if software.SoftwareInstallersCount > 0 {
+			meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 			}
-			meta.Status = summary
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+				}
+				meta.Status = summary
+			}
+			software.SoftwarePackage = meta
 		}
-		software.SoftwarePackage = meta
+
+		// add VPP app data if needed
+		if software.VPPAppsCount > 0 {
+			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+			}
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+				}
+				meta.Status = summary
+			}
+			software.AppStoreApp = meta
+		}
 	}
 
 	return software, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Update a software title's name
+/////////////////////////////////////////////////////////////////////////////////
+
+type updateSoftwareNameRequest struct {
+	ID   uint   `url:"id"`
+	Name string `json:"name"`
+}
+
+type updateSoftwareNameResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateSoftwareNameResponse) Error() error { return r.Err }
+func (r updateSoftwareNameResponse) Status() int  { return http.StatusResetContent }
+
+func updateSoftwareNameEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateSoftwareNameRequest)
+	return updateSoftwareNameResponse{Err: svc.UpdateSoftwareName(ctx, req.ID, req.Name)}, nil
+}
+
+func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	// get software by id including team_id data from software_title_host_counts
+	software, err := svc.ds.SoftwareTitleByID(ctx, titleID, nil, fleet.TeamFilter{
+		User: vc.User,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software title by id")
+	}
+	if software.BundleIdentifier == nil || *software.BundleIdentifier == "" {
+		return fleet.NewInvalidArgumentError("id", "only titles with a bundle ID can have their name modified")
+	}
+	if name == "" {
+		return fleet.NewInvalidArgumentError("name", "cannot be empty")
+	}
+
+	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
 }

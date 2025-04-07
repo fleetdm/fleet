@@ -9,6 +9,7 @@ export interface ISearchFieldProps {
   defaultValue?: string;
   onChange: (value: string) => void;
   onClick?: (e: React.MouseEvent) => void;
+  clearButton?: boolean;
   icon?: IconNames;
 }
 
@@ -16,6 +17,7 @@ const SearchField = ({
   placeholder,
   defaultValue = "",
   onChange,
+  clearButton,
   onClick,
   icon = "search",
 }: ISearchFieldProps): JSX.Element => {
@@ -37,6 +39,7 @@ const SearchField = ({
       value={searchQueryInput}
       onChange={onInputChange}
       onClick={onClick}
+      clearButton={clearButton}
       iconPosition="start"
       iconSvg={icon}
     />

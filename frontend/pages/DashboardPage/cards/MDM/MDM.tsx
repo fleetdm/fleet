@@ -2,13 +2,10 @@ import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 
-import {
-  IMdmStatusCardData,
-  IMdmSolution,
-  IMdmSummaryMdmSolution,
-} from "interfaces/mdm";
+import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
@@ -143,11 +140,15 @@ const Mdm = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>Solutions</Tab>
-              <Tab>Status</Tab>
+              <Tab>
+                <TabText>Solutions</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Status</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {error ? (
@@ -193,7 +194,7 @@ const Mdm = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

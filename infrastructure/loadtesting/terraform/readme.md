@@ -13,9 +13,8 @@ These are set via [variables](https://github.com/fleetdm/fleet/blob/main/infrast
 # When first applying.  Assuming tag exists
 terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small
 
-# When adding loadtest containers. 
-terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10 
-
+# When adding loadtest containers.
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10
 ```
 
 ### Deploying your code to the loadtesting environment
@@ -23,7 +22,7 @@ terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_
 > IMPORTANT:
 > - We advice to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
 > - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
-> - These scripts were tested with terraform 1.5.X.
+> - These scripts were tested with terraform 1.10.4.
 
 1. Push your `$BRANCH_NAME` branch to https://github.com/fleetdm/fleet and trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch).
 1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
@@ -61,13 +60,14 @@ If you need to run a load test with MDM enabled and configured you will need to 
 
 2. Then set the `fleet_config` terraform var the following way (make sure to add any extra configuration you need to this JSON):
 ```sh
-export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_MDM_APPLE_SCEP_CHALLENGE":"foobar","FLEET_MDM_APPLE_SCEP_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_SCEP_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_CERT_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.pem | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_KEY_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES":"'$(cat /Users/foobar/mdm/downloadtoken.p7m | gsed -z 's/\n/\\n/g' | gsed 's/"smime\.p7m"/\\"smime.p7m\\"/g' | tr -d '\r\n')'","FLEET_MDM_APPLE_BM_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-public-key.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-private.key | gsed -z 's/\n/\\n/g')'"}'
+export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY":"1","FLEET_MDM_APPLE_SCEP_CHALLENGE":"foobar","FLEET_MDM_APPLE_SCEP_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_SCEP_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-mdm-apple-scep.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_CERT_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.pem | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_APNS_KEY_BYTES":"'$(cat /Users/foobar/mdm/mdmcert.download.push.key | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES":"'$(cat /Users/foobar/mdm/downloadtoken.p7m | gsed -z 's/\n/\\n/g' | gsed 's/"smime\.p7m"/\\"smime.p7m\\"/g' | tr -d '\r\n')'","FLEET_MDM_APPLE_BM_CERT_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-public-key.crt | gsed -z 's/\n/\\n/g')'","FLEET_MDM_APPLE_BM_KEY_BYTES":"'$(cat /Users/foobar/mdm/fleet-apple-mdm-bm-private.key | gsed -z 's/\n/\\n/g')'"}'
 ```
 
 - The above is needed because the newline characters in the certificate/key/token files.
-- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument. 
+- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument.
 - The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
+- Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY=1` to skip verification of Apple certificates for OTA enrollments.
 This has an impact on real devices because they will not be notified of any command to execute (it may take a reboot for them to reach out to Fleet for more commands).
 
 3. Add the following `osquery-perf` arguments to [loadtesting.tf](./loadtesting.tf)
@@ -86,6 +86,8 @@ With the variable `loadtest_containers` you can specify how many containers of 5
 
 ### Monitoring the infrastructure
 
+This [document](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0) covers the load test key metrics to capture or keep an eye on. Results are collected in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?gid=0#gid=0) for release-specific load tests.
+
 There are a few main places of interest to monitor the load and resource usage:
 
 * The Application Performance Monitoring (APM) dashboard: access it on your Fleet load-testing URL on port `:5601` and path `/app/apm`, e.g. `https://loadtest.fleetdm.com:5601/app/apm`.  Note to do this without the VPN you will need to add your public IP Address to the load balancer for TCP Port 5601.  At the time of this writing, [this](https://us-east-2.console.aws.amazon.com/vpc/home?region=us-east-2#SecurityGroup:groupId=sg-0e67d910a662720f8) will take you directly to the security group for the load balancer if logged into the Load Testing account.
@@ -97,8 +99,8 @@ There are a few main places of interest to monitor the load and resource usage:
 
 You can deploy new code changes to an environment the following way:
 
-1. Push the code changes to the `BRANCH_NAME` and wait for the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) action to complete.
-2. Find the docker image ID corresponding to your branch:
+1. Push the code changes to the `BRANCH_NAME`, trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch) and wait for it to complete.
+2. Find the docker image IDs corresponding to your branch:
 ```sh
 docker images | grep 'BRANCH_NAME' | awk '{print $3}'
 ```
@@ -149,3 +151,54 @@ See https://www.terraform.io/internals/debugging for more details.
 In a few instances, it is possible for an ECR repository to still have images left, preventing a full `terraform destroy` of a Loadtesting instance.  Use the following one-liner to clean these up before re-running `terraform destroy`:
 
 `REPOSITORY_NAME=fleet-$(terraform workspace show); aws ecr list-images --repository-name ${REPOSITORY_NAME} --query 'imageIds[*]' --output text | while read digest tag; do aws ecr batch-delete-image --repository-name ${REPOSITORY_NAME} --image-ids imageDigest=${digest}; done`
+
+#### Errors with macOS Docker Desktop
+
+If you are getting the following error when running `terraform apply`:
+```sh
+│ Error: Error pinging Docker server: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+│
+│   with provider["registry.terraform.io/kreuzwerker/docker"],
+│   on init.tf line 45, in provider "docker":
+│   45: provider "docker" {
+```
+Run:
+```sh
+$ docker context ls
+NAME              DESCRIPTION                               DOCKER ENDPOINT                             ERROR
+default           Current DOCKER_HOST based configuration   unix:///var/run/docker.sock
+desktop-linux *   Docker Desktop                            unix:///Users/foobar/.docker/run/docker.sock
+```
+Then add the entry with `*`, in this case `host = unix:///Users/foobar/.docker/run/docker.sock` to `infrastructure/loadtesting/terraform/init.tf`:
+```sh
+[...]
+provider "docker" {
+  # Configuration options
+  registry_auth {
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-2.amazonaws.com"
+    username = data.aws_ecr_authorization_token.token.user_name
+    password = data.aws_ecr_authorization_token.token.password
+  }
+  host = "unix:///Users/foobar/.docker/run/docker.sock"
+}
+[...]
+```
+
+If you are getting the following error when running `terraform apply`:
+
+```sh
+│ Error: Error building docker image: 1: The command '/bin/sh -c git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .' returned a non-zero code: 1
+│
+│   with docker_registry_image.loadtest,
+│   on ecr.tf line 46, in resource "docker_registry_image" "loadtest":
+│   46: resource "docker_registry_image" "loadtest" {
+```
+
+1. Check your Docker virtual machine settings. Open Docker Desktop, then open the settings (`cmd-,`
+   or the gear in the top right of the screen). Scroll down to the "Virtual Machine Options"
+   section.
+
+2. If you currently have the "Apple virtualization framework" setting selected, select the "Docker
+   VMM" option instead. Click "Apply & restart" in the bottom right.
+
+Once Docker has restarted, re-run `terraform apply` and you should be good to go!

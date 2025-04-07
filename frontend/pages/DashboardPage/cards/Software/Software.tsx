@@ -1,13 +1,15 @@
-import React, { useContext, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
-import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router";
 
-import { AppContext } from "context/app";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
+import { ISoftwareResponse } from "interfaces/software";
 
-import TabsWrapper from "components/TabsWrapper";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -17,16 +19,17 @@ import generateTableHeaders from "./SoftwareTableConfig";
 
 interface ISoftwareCardProps {
   errorSoftware: Error | null;
-  isCollectingInventory: boolean;
   isSoftwareFetching: boolean;
   isSoftwareEnabled?: boolean;
-  software: any;
+  software?: ISoftwareResponse;
   teamId?: number;
-  pageIndex: number;
-  navTabIndex: any;
-  onTabChange: any;
-  onQueryChange: any;
+  navTabIndex: number;
+  onTabChange: (index: number, last: number, event: Event) => boolean | void;
+  onQueryChange?:
+    | ((queryData: ITableQueryData) => void)
+    | ((queryData: ITableQueryData) => number);
   router: InjectedRouter;
+  softwarePageIndex: number;
 }
 
 interface IRowProps extends Row {
@@ -43,7 +46,6 @@ const baseClass = "home-software";
 
 const Software = ({
   errorSoftware,
-  isCollectingInventory,
   isSoftwareFetching,
   isSoftwareEnabled,
   navTabIndex,
@@ -52,17 +54,15 @@ const Software = ({
   software,
   teamId,
   router,
+  softwarePageIndex,
 }: ISoftwareCardProps): JSX.Element => {
-  const { noSandboxHosts } = useContext(AppContext);
-
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = { software_id: row.original.id, team_id: teamId };
-
-    const path = queryParams
-      ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(queryParams)}`
-      : PATHS.MANAGE_HOSTS;
+    const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+      software_id: row.original.id,
+      team_id: teamId,
+    });
 
     router.push(path);
   };
@@ -78,11 +78,15 @@ const Software = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>All</Tab>
-              <Tab>Vulnerable</Tab>
+              <Tab>
+                <TabText>All</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Vulnerable</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
@@ -92,14 +96,11 @@ const Software = ({
                   columnConfigs={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
+                  pageIndex={softwarePageIndex}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
-                  emptyComponent={() => (
-                    <EmptySoftwareTable
-                      isCollectingSoftware={isCollectingInventory}
-                    />
-                  )}
+                  emptyComponent={() => <EmptySoftwareTable />}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
                   disableCount
@@ -118,14 +119,12 @@ const Software = ({
                   columnConfigs={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
+                  pageIndex={softwarePageIndex}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
                   emptyComponent={() => (
-                    <EmptySoftwareTable
-                      isCollectingSoftware={isCollectingInventory}
-                      softwareFilter="vulnerableSoftware"
-                    />
+                    <EmptySoftwareTable vulnFilters={{ vulnerable: true }} />
                   )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
@@ -138,7 +137,7 @@ const Software = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

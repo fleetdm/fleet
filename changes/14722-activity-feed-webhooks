@@ -1,2 +1,0 @@
-Added `activities_webhook` configuration option to allow for a webhook to be called when an activity is recorded. This can be used to send activity data to external services.
-If the webhook response is a 429 error code, the webhook retries for up to 30 minutes.

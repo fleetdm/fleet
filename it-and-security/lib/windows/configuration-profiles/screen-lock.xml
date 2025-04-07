@@ -1,0 +1,24 @@
+<Replace>
+  <!-- Enforce screenlock -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enforce screenlock after 15 minutes -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI>
+    </Target>
+    <Data>15</Data>
+  </Item>
+</Replace>

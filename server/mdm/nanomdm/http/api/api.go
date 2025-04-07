@@ -11,14 +11,16 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	mdmhttp "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // enrolledAPIResult is a per-enrollment API result.
@@ -139,12 +141,23 @@ func PushHandler(pusher push.Pusher, logger log.Logger) http.HandlerFunc {
 // using. Also note we expose Go errors to the output as this is meant
 // for "API" users.
 func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Pusher, logger log.Logger) http.HandlerFunc {
+	if enqueuer == nil {
+		panic("nil enqueuer")
+	}
+	if logger == nil {
+		panic("nil logger")
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		ids := strings.Split(r.URL.Path, ",")
 		ctx, logger := setupCtxLog(r.Context(), ids, logger)
 		b, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
 			logger.Info("msg", "reading body", "err", err)
+			var toErr interface{ Timeout() bool }
+			if errors.As(err, &toErr) && toErr.Timeout() {
+				http.Error(w, http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -168,7 +181,7 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 		logs := []interface{}{
 			"msg", "enqueue",
 		}
-		idErrs, err := enqueuer.EnqueueCommand(ctx, ids, command)
+		idErrs, err := enqueuer.EnqueueCommand(ctx, ids, &mdm.CommandWithSubtype{Command: *command, Subtype: mdm.CommandSubtypeNone})
 		ct := len(ids) - len(idErrs)
 		if err != nil {
 			logs = append(logs, "err", err)
@@ -199,14 +212,14 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 		// optionally send pushes
 		pushResp := make(map[string]*push.Response)
 		var pushErr error
-		if !nopush {
+		if !nopush && pusher != nil {
 			pushResp, pushErr = pusher.Push(ctx, ids)
 			if err != nil {
 				logger.Info("msg", "push", "err", err)
 				output.PushError = err.Error()
 			}
-		} else {
-			pushErr = nil
+		} else if !nopush && pusher == nil {
+			pushErr = errors.New("nil pusher")
 		}
 		// loop through our push errors, if any, and add to output
 		var pushCt, pushErrCt int
@@ -272,17 +285,17 @@ func readPEMCertAndKey(input []byte) (cert []byte, key []byte, err error) {
 		if block == nil {
 			break
 		}
-		if block.Type == "CERTIFICATE" {
+		switch {
+		case block.Type == "CERTIFICATE":
 			cert = pem.EncodeToMemory(block)
-		} else if block.Type == "PRIVATE KEY" || strings.HasSuffix(block.Type, " PRIVATE KEY") {
+		case block.Type == "PRIVATE KEY" || strings.HasSuffix(block.Type, " PRIVATE KEY"):
 			if x509.IsEncryptedPEMBlock(block) {
 				err = errors.New("private key PEM appears to be encrypted")
 				break
 			}
 			key = pem.EncodeToMemory(block)
-		} else {
+		default:
 			err = fmt.Errorf("unrecognized PEM type: %q", block.Type)
-			break
 		}
 	}
 	return
@@ -299,26 +312,39 @@ func StorePushCertHandler(storage storage.PushCertStore, logger log.Logger) http
 		b, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
 			logger.Info("msg", "reading body", "err", err)
+			var toErr interface{ Timeout() bool }
+			if errors.As(err, &toErr) && toErr.Timeout() {
+				http.Error(w, http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		cert, key, err := readPEMCertAndKey(b)
+		certPEM, keyPEM, err := readPEMCertAndKey(b)
 		if err == nil {
 			// sanity check the provided cert and key to make sure they're usable as a pair.
-			_, err = tls.X509KeyPair(cert, key)
+			_, err = tls.X509KeyPair(certPEM, keyPEM)
+		}
+		var cert *x509.Certificate
+		if err == nil {
+			cert, err = cryptoutil.DecodePEMCertificate(certPEM)
 		}
 		var topic string
 		if err == nil {
-			topic, err = cryptoutil.TopicFromPEMCert(cert)
+			topic, err = cryptoutil.TopicFromCert(cert)
 		}
 		if err == nil {
-			err = storage.StorePushCert(r.Context(), cert, key)
+			err = storage.StorePushCert(r.Context(), certPEM, keyPEM)
 		}
 		output := &struct {
-			Error string `json:"error,omitempty"`
-			Topic string `json:"topic,omitempty"`
+			Error    string    `json:"error,omitempty"`
+			Topic    string    `json:"topic,omitempty"`
+			NotAfter time.Time `json:"not_after,omitempty"`
 		}{
 			Topic: topic,
+		}
+		if cert != nil {
+			output.NotAfter = cert.NotAfter
 		}
 		if err != nil {
 			logger.Info("msg", "store push cert", "err", err)

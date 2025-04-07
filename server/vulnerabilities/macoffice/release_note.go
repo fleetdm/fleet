@@ -11,8 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
 
-const RelNotesURL = "https://learn.microsoft.com/en-us/officeupdates/release-notes-office-for-mac"
-
 type ProductType int
 
 const (

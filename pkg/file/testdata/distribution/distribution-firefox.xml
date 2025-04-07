@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <pkg-ref id="org.mozilla.firefox">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="99.0" CFBundleVersion="9922.3.24" id="org.mozilla.firefox" path="Firefox.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="org.mozilla.firefox"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="org.mozilla.firefox" visible="false">
+        <pkg-ref id="org.mozilla.firefox"/>
+    </choice>
+    <pkg-ref id="org.mozilla.firefox" version="99.0.0" onConclusion="none" installKBytes="346801">#Firefox.tmp1.pkg</pkg-ref>
+</installer-gui-script>

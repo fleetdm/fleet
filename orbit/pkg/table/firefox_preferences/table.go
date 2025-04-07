@@ -4,7 +4,6 @@ package firefox_preferences
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"os"
 	"regexp"
 	"strings"
@@ -12,14 +11,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 type Table struct {
 	name   string
-	logger log.Logger
+	logger zerolog.Logger
 }
 
 const tableName = "firefox_preferences"
@@ -36,14 +34,14 @@ const tableName = "firefox_preferences"
 // https://github.com/hansmi/go-mozpref
 var re = regexp.MustCompile(`^user_pref\("([^,]+)",\s*"?(.*?)"?\);$`)
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("path"),
 	)
 
 	t := &Table{
 		name:   tableName,
-		logger: logger,
+		logger: logger.With().Str("table", tableName).Logger(),
 	}
 
 	return table.NewPlugin(t.name, columns, t.generate)
@@ -55,10 +53,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	filePaths := tablehelpers.GetConstraints(queryContext, "path")
 
 	if len(filePaths) == 0 {
-		level.Info(t.logger).Log(
-			"msg", fmt.Sprintf("no path provided to %s", tableName),
-			"table", tableName,
-		)
+		t.logger.Info().Msgf("no path provided to %s", tableName)
 		return results, nil
 	}
 
@@ -70,12 +65,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 			file, err := os.Open(filePath)
 			if err != nil {
-				level.Info(t.logger).Log(
-					"msg", "failed to open file",
-					"table", tableName,
-					"path", filePath,
-					"err", err,
-				)
+				t.logger.Info().Err(err).Str("path", filePath).Msg("failed to open file")
 				continue
 			}
 
@@ -104,12 +94,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 			flatData, err := dataflatten.Flatten(rawKeyVals, flattenOpts...)
 			if err != nil {
-				level.Debug(t.logger).Log(
-					"msg", "failed to flatten data for path",
-					"table", tableName,
-					"path", filePath,
-					"err", err,
-				)
+				t.logger.Debug().Err(err).Str("path", filePath).Msg("failed to flatten data for path")
 				continue
 			}
 

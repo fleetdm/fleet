@@ -58,7 +58,8 @@ const HOST_ID = {
     percent_disk_space_available: 13.37,
     issues: {
       total_issues_count: 1337,
-      failing_policies_count: 1337,
+      critical_issues_count: 1330,
+      failing_policies_count: 7,
     },
     labels: [],
     packs: [],

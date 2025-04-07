@@ -2,7 +2,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import {
   formatSoftwareType,
   ISoftwareVersion,
@@ -45,12 +45,12 @@ const generateTableHeaders = (
       Cell: (cellProps: ITableStringCellProps) => {
         const { id, name, source } = cellProps.row.original;
 
-        const teamQueryParam = buildQueryStringFromParams({
-          team_id: teamId,
-        });
-        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
+        const softwareVersionDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
+          {
+            team_id: teamId,
+          }
+        );
 
         return (
           <SoftwareNameCell
@@ -64,14 +64,6 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Type",
-      disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={formatSoftwareType(cellProps.row.original)} />
-      ),
-    },
-    {
       Header: "Version",
       disableSortBy: true,
       accessor: "version",
@@ -80,12 +72,25 @@ const generateTableHeaders = (
       ),
     },
     {
+      Header: "Type",
+      disableSortBy: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
       Header: "Vulnerabilities",
       disableSortBy: true,
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnerabilitiesCellProps) => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (
+          ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
+        ) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      },
     },
     {
       Header: (cellProps: ITableHeaderProps) => (

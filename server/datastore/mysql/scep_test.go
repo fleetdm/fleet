@@ -39,7 +39,7 @@ func TestAppleMDMSCEPSerial(t *testing.T) {
 func TestAppleMDMPutAndHasCN(t *testing.T) {
 	depot := setup(t)
 
-	name := "FleetDM Identity"
+	name := "Fleet Identity"
 	serial, err := depot.Serial()
 	require.NoError(t, err)
 	cert := x509.Certificate{

@@ -1,13 +1,7 @@
-import React, {
-  ChangeEvent,
-  KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 
-interface IAutoSizeInputFieldProps {
+export interface IAutoSizeInputFieldProps {
   name: string;
   placeholder: string;
   value: string;
@@ -20,6 +14,7 @@ interface IAutoSizeInputFieldProps {
   onBlur?: () => void;
   onChange: (newSelectedValue: string) => void;
   onKeyPress: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  disableTabability?: boolean;
 }
 
 const baseClass = "component__auto-size-input-field";
@@ -37,9 +32,8 @@ const AutoSizeInputField = ({
   onBlur = () => null,
   onChange,
   onKeyPress,
+  disableTabability = false,
 }: IAutoSizeInputFieldProps): JSX.Element => {
-  const [inputValue, setInputValue] = useState(value);
-
   const inputClasses = classnames(baseClass, inputClassName, "no-hover", {
     [`${baseClass}--disabled`]: isDisabled,
     [`${baseClass}--error`]: hasError,
@@ -49,20 +43,12 @@ const AutoSizeInputField = ({
   const inputElement = useRef<any>(null);
 
   useEffect(() => {
-    onChange(inputValue);
-  }, [inputValue]);
-
-  useEffect(() => {
     if (isFocused && inputElement.current) {
       inputElement.current.focus();
-      inputElement.current.selectionStart = inputValue.length;
-      inputElement.current.selectionEnd = inputValue.length;
+      inputElement.current.selectionStart = value.length;
+      inputElement.current.selectionEnd = value.length;
     }
   }, [isFocused]);
-
-  const onInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(event.currentTarget.value);
-  };
 
   const onInputFocus = () => {
     isFocused = true;
@@ -78,20 +64,24 @@ const AutoSizeInputField = ({
     onKeyPress(event);
   };
 
+  const onInputChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(event.target.value);
+  };
+
   return (
     <div className={baseClass}>
-      <label className="input-sizer" data-value={inputValue} htmlFor={name}>
+      <label className="input-sizer" data-value={value} htmlFor={name}>
         <textarea
           name={name}
           id={name}
           onChange={onInputChange}
           placeholder={placeholder}
-          value={inputValue}
+          value={value}
           maxLength={maxLength}
           className={inputClasses}
           cols={1}
           rows={1}
-          tabIndex={0}
+          tabIndex={disableTabability ? -1 : 0}
           onFocus={onInputFocus}
           onBlur={onInputBlur}
           onKeyPress={onInputKeyPress}

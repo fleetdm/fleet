@@ -14,12 +14,11 @@ import (
 )
 
 func TestGenerateMDMAppleBM(t *testing.T) {
-	// TODO(roberto): update when the new endpoint to get a CSR is ready
-	t.Skip()
 	outdir, err := os.MkdirTemp("", t.Name())
 	require.NoError(t, err)
 	defer os.Remove(outdir)
 	publicKeyPath := filepath.Join(outdir, "public-key.crt")
+	_, _ = runServerWithMockedDS(t)
 
 	out := runAppForTest(t, []string{
 		"generate", "mdm-apple-bm",
@@ -29,18 +28,20 @@ func TestGenerateMDMAppleBM(t *testing.T) {
 	require.Contains(t, out, fmt.Sprintf("Generated your public key at %s", outdir))
 
 	// validate that the certificate is valid
-	certPEMBlock, err := os.ReadFile(publicKeyPath)
+	certPEM, err := os.ReadFile(publicKeyPath)
 	require.NoError(t, err)
 
-	parsed, err := x509.ParseCertificate(certPEMBlock)
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block)
+	require.Equal(t, "CERTIFICATE", block.Type)
+
+	parsed, err := x509.ParseCertificate(block.Bytes)
 	require.NoError(t, err)
-	require.Equal(t, "FleetDM", parsed.Issuer.CommonName)
+	require.NotNil(t, parsed)
 }
 
 func TestGenerateMDMApple(t *testing.T) {
 	t.Run("CSR API call fails", func(t *testing.T) {
-		// TODO(roberto): update when the new endpoint to get a CSR is ready
-		t.Skip()
 		_, _ = runServerWithMockedDS(t)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// fail this call
@@ -54,17 +55,15 @@ func TestGenerateMDMApple(t *testing.T) {
 			[]string{
 				"generate", "mdm-apple",
 			},
-			`POST /api/latest/fleet/mdm/apple/request_csr received status 422 Validation Failed: this email address is not valid: bad request`,
+			ErrGeneric.Error(),
 		)
 	})
 
 	t.Run("successful run", func(t *testing.T) {
-		// TODO(roberto): update when the new endpoint to get a CSR is ready
-		t.Skip()
 		_, _ = runServerWithMockedDS(t)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok"))
+			_, _ = w.Write([]byte(`{"csr": "dGVzdAo="}`))
 		}))
 		t.Setenv("TEST_FLEETDM_API_URL", srv.URL)
 		t.Cleanup(srv.Close)
@@ -80,16 +79,11 @@ func TestGenerateMDMApple(t *testing.T) {
 			"--context", "default",
 		})
 
-		require.Contains(t, out, fmt.Sprintf("Generated your SCEP key at %s", csrPath))
+		require.Contains(t, out, fmt.Sprintf("Generated your certificate signing request (CSR) at %s", csrPath))
 
 		// validate that the CSR is valid
 		csrPEM, err := os.ReadFile(csrPath)
 		require.NoError(t, err)
-
-		block, _ := pem.Decode(csrPEM)
-		require.NotNil(t, block)
-		require.Equal(t, "CERTIFICATE REQUEST", block.Type)
-		_, err = x509.ParseCertificateRequest(block.Bytes)
-		require.NoError(t, err)
+		require.Equal(t, "test\n", string(csrPEM))
 	})
 }

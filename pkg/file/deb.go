@@ -15,12 +15,13 @@ import (
 	"strings"
 
 	"github.com/blakesmith/ar"
+	"github.com/klauspost/compress/zstd"
 	"github.com/xi2/xz"
 )
 
 // ExtractDebMetadata extracts the name and version metadata from a .deb file ,
 // a debian installer package which is in archive format.
-func ExtractDebMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+func ExtractDebMetadata(r io.Reader) (*InstallerMetadata, error) {
 	h := sha256.New()
 	r = io.TeeReader(r, h)
 	rr := ar.NewReader(r)
@@ -30,35 +31,40 @@ func ExtractDebMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return "", "", nil, fmt.Errorf("failed to advance to next file in archive: %w", err)
+			return nil, fmt.Errorf("failed to advance to next file in archive: %w", err)
 		}
 
-		name := path.Clean(hdr.Name)
-		if strings.HasPrefix(name, "control.tar") {
-			ext := filepath.Ext(name)
+		filename := path.Clean(hdr.Name)
+		if strings.HasPrefix(filename, "control.tar") {
+			ext := filepath.Ext(filename)
 			if ext == ".tar" {
 				ext = ""
 			}
-			name, version, err = parseControl(rr, ext)
+			name, version, err := parseControl(rr, ext)
 			if err != nil {
-				return "", "", nil, err
+				return nil, err
 			}
 
 			// ensure the whole file is read to get the correct hash
 			if _, err := io.Copy(io.Discard, r); err != nil {
-				return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+				return nil, fmt.Errorf("failed to read all content: %w", err)
 			}
-			return name, version, h.Sum(nil), nil
+			return &InstallerMetadata{
+				Name:       name,
+				Version:    version,
+				PackageIDs: []string{name},
+				SHASum:     h.Sum(nil),
+			}, nil
 		}
 	}
 
 	// ensure the whole file is read to get the correct hash
 	if _, err := io.Copy(io.Discard, r); err != nil {
-		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+		return nil, fmt.Errorf("failed to read all content: %w", err)
 	}
 
 	// no control.tar file found, return empty information
-	return "", "", h.Sum(nil), nil
+	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
 }
 
 // parseControl adapted from
@@ -96,6 +102,13 @@ func parseControl(r io.Reader, ext string) (name, version string, err error) {
 		if err != nil {
 			return "", "", fmt.Errorf("failed to create xz reader: %w", err)
 		}
+	case ".zst":
+		zr, err := zstd.NewReader(r)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create zstd reader: %w", err)
+		}
+		defer zr.Close()
+		r = zr
 	case "":
 		// uncompressed
 	default:

@@ -6,7 +6,7 @@ import {
   ISoftwareVulnerability,
 } from "interfaces/software";
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
@@ -17,6 +17,7 @@ import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 interface ISoftwareTitleDetailsTableConfigProps {
   router: InjectedRouter;
   teamId?: number;
+  isIPadOSOrIOSApp: boolean;
 }
 interface ICellProps {
   cell: {
@@ -48,6 +49,7 @@ interface IVulnCellProps extends ICellProps {
 const generateSoftwareTitleDetailsTableConfig = ({
   router,
   teamId,
+  isIPadOSOrIOSApp,
 }: ISoftwareTitleDetailsTableConfigProps) => {
   const tableHeaders = [
     {
@@ -56,24 +58,20 @@ const generateSoftwareTitleDetailsTableConfig = ({
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: IVersionCellProps): JSX.Element => {
+        if (!cellProps.cell.value) {
+          // renders desired empty state
+          return <TextCell />;
+        }
         const { id } = cellProps.row.original;
-        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
+        const softwareVersionDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
+          { team_id: teamId }
+        );
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          router?.push(softwareVersionDetailsPath);
-        };
-
-        // TODO: make only text clickable
         return (
           <LinkCell
             className="name-link"
             path={softwareVersionDetailsPath}
-            customOnClick={onClickSoftware}
             value={cellProps.cell.value}
           />
         );
@@ -90,10 +88,13 @@ const generateSoftwareTitleDetailsTableConfig = ({
       // With the versions data, we can sum up the vulnerabilities to get the
       // total number of vulnerabilities for the software title
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnCellProps): JSX.Element => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
+      Cell: (cellProps: IVulnCellProps): JSX.Element => {
+        if (isIPadOSOrIOSApp) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
         // TODO: tooltip
-      ),
+      },
     },
     {
       title: "Hosts",

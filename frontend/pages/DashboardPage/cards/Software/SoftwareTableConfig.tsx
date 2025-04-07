@@ -3,6 +3,7 @@ import { ISoftware } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -37,14 +38,26 @@ const generateTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: "Name",
     disableSortBy: true,
     accessor: "name",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TooltipTruncatedTextCell
+        value={cellProps.cell.value}
+        className="w150"
+        key={cellProps.cell.value}
+      />
+    ),
   },
   {
     title: "Version",
     Header: "Version",
     disableSortBy: true,
     accessor: "version",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <TooltipTruncatedTextCell
+        value={cellProps.cell.value}
+        className="w150"
+        key={`${cellProps.row.original.name}-${cellProps.cell.value}`}
+      />
+    ),
   },
   {
     title: "Hosts",

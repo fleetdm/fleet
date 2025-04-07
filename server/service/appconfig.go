@@ -13,6 +13,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
@@ -24,7 +27,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
+	"golang.org/x/text/unicode/norm"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -50,6 +54,7 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
+	AndroidEnabled bool  `json:"android_enabled,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -94,9 +99,9 @@ func (r appConfigResponse) MarshalJSON() ([]byte, error) {
 	return rawjson.CombineRoots(responseData, appConfigData)
 }
 
-func (r appConfigResponse) error() error { return r.Err }
+func (r appConfigResponse) Error() error { return r.Err }
 
-func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("could not fetch user")
@@ -126,13 +131,29 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
-	// Only the Global Admin should be able to see see SMTP, SSO and osquery agent settings.
+	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
+	isAnyTeamAdmin := false
+	if vc.User.Teams != nil {
+		// check if the user is an admin for any team
+		for _, team := range vc.User.Teams {
+			if team.Role == fleet.RoleAdmin {
+				isAnyTeamAdmin = true
+				break
+			}
+		}
+	}
+
+	// Only admins should see SMTP and SSO settings
 	var smtpSettings *fleet.SMTPSettings
 	var ssoSettings *fleet.SSOSettings
-	var agentOptions *json.RawMessage
-	if vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin {
+	if isGlobalAdmin || isAnyTeamAdmin {
 		smtpSettings = appConfig.SMTPSettings
 		ssoSettings = appConfig.SSOSettings
+	}
+
+	// Only global admins should see osquery agent settings.
+	var agentOptions *json.RawMessage
+	if isGlobalAdmin {
 		agentOptions = appConfig.AgentOptions
 	}
 
@@ -167,6 +188,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Integrations:    appConfig.Integrations,
 			MDM:             appConfig.MDM,
 			Scripts:         appConfig.Scripts,
+			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
 			UpdateInterval:  updateIntervalConfig,
@@ -175,6 +197,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:         loggingConfig,
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
+			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
 		},
 	}
 	return response, nil
@@ -211,7 +234,7 @@ type modifyAppConfigRequest struct {
 	json.RawMessage
 }
 
-func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:  req.Force,
@@ -329,6 +352,20 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// if turning off Windows MDM and Windows Migration is not explicitly set to
+	// on in the same update, set it to off (otherwise, if it is explicitly set
+	// to true, return an error that it can't be done when MDM is off, this is
+	// addressed in validateMDM).
+	if oldAppConfig.MDM.WindowsEnabledAndConfigured != appConfig.MDM.WindowsEnabledAndConfigured &&
+		!appConfig.MDM.WindowsEnabledAndConfigured && !newAppConfig.MDM.WindowsMigrationEnabled {
+		appConfig.MDM.WindowsMigrationEnabled = false
+	}
+
+	caStatus, err := svc.processAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "processing AppConfig CAs")
+	}
+
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
@@ -341,6 +378,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// 1. To get the JSON value from the database
 	// 2. To update fields with the incoming values
 	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		if newAppConfig.MDM.EnableDiskEncryption.Value && svc.config.Server.PrivateKey == "" {
+			return nil, ctxerr.New(ctx,
+				"Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
 		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
 		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
@@ -364,7 +405,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// this "warning" is returned only in dry-run mode, and if no other errors
 		// were encountered.
 		legacyUsedWarning = &fleet.BadRequestError{
-			Message: fmt.Sprintf("warning: deprecated settings were used in the configuration: %v; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings", legacyKeys),
+			Message: fmt.Sprintf("warning: deprecated settings were used in the configuration: %v; consider updating to the new settings: https://fleetdm.com/docs/using-fleet/configuration-files#settings",
+				legacyKeys),
 		}
 	}
 
@@ -375,6 +417,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 	if appConfig.ServerSettings.ServerURL == "" {
 		invalid.Append("server_url", "Fleet server URL must be present")
+	} else {
+		if err := ValidateServerURL(appConfig.ServerSettings.ServerURL); err != nil {
+			invalid.Append("server_url", "Couldn't update settings: "+err.Error())
+		}
 	}
 
 	if appConfig.ActivityExpirySettings.ActivityExpiryEnabled && appConfig.ActivityExpirySettings.ActivityExpiryWindow < 1 {
@@ -389,6 +435,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// if there were Agent Options in the new app config, then it replaced the
 		// agent options in the resulting app config, so validate those.
 		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, *appConfig.AgentOptions, license.IsPremium()); err != nil {
+			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOpts.Force && !applyOpts.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply appConfig agent options with validation errors")
@@ -409,8 +456,23 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
+	}
+
+	abmAssignments, err := svc.validateABMAssignments(ctx, &newAppConfig.MDM, &oldAppConfig.MDM, invalid, license)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating ABM token assignments")
+	}
+
+	var vppAssignments map[uint][]uint
+	vppAssignmentsDefined := newAppConfig.MDM.VolumePurchasingProgram.Set && newAppConfig.MDM.VolumePurchasingProgram.Valid
+	if vppAssignmentsDefined {
+		vppAssignments, err = svc.validateVPPAssignments(ctx, newAppConfig.MDM.VolumePurchasingProgram.Value, invalid, license)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating VPP token assignments")
+		}
 	}
 
 	if invalid.HasErrors() {
@@ -423,6 +485,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	appConfig.MDM.AppleBMTermsExpired = oldAppConfig.MDM.AppleBMTermsExpired
 	appConfig.MDM.AppleBMEnabledAndConfigured = oldAppConfig.MDM.AppleBMEnabledAndConfigured
 	appConfig.MDM.EnabledAndConfigured = oldAppConfig.MDM.EnabledAndConfigured
+	// ignore MDM.AndroidEnabledAndConfigured because it is set by the server only
+	appConfig.MDM.AndroidEnabledAndConfigured = oldAppConfig.MDM.AndroidEnabledAndConfigured
 
 	// do not send a test email in dry-run mode, so this is a good place to stop
 	// (we also delete the removed integrations after that, which we don't want
@@ -503,6 +567,30 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
 	}
 
+	gitopsModeEnabled, gitopsRepoURL := appConfig.UIGitOpsMode.GitopsModeEnabled, appConfig.UIGitOpsMode.RepositoryURL
+	if gitopsModeEnabled {
+		if !license.IsPremium() {
+			return nil, fleet.NewInvalidArgumentError("UI GitOpsMode: ", ErrMissingLicense.Error())
+		}
+		if gitopsRepoURL == "" {
+			return nil, fleet.NewInvalidArgumentError("UI GitOps Mode: ", "Repository URL is required when GitOps mode is enabled")
+		}
+	}
+
+	if oldAppConfig.UIGitOpsMode.GitopsModeEnabled != appConfig.UIGitOpsMode.GitopsModeEnabled {
+		// generate the activity
+		var act fleet.ActivityDetails
+		if gitopsModeEnabled {
+			act = fleet.ActivityTypeEnabledGitOpsMode{}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsMode{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+
+	}
+
 	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
 		appConfig.FleetDesktop.TransparencyURL = ""
@@ -510,6 +598,95 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	// only create activities when config change has been persisted
+
+	switch {
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable && !oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
+		act := fleet.ActivityTypeEnabledActivityAutomations{WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for enabled activity automations")
+		}
+	case !appConfig.WebhookSettings.ActivitiesWebhook.Enable && oldAppConfig.WebhookSettings.ActivitiesWebhook.Enable:
+		act := fleet.ActivityTypeDisabledActivityAutomations{}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for disabled activity automations")
+		}
+	case appConfig.WebhookSettings.ActivitiesWebhook.Enable &&
+		appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL != oldAppConfig.WebhookSettings.ActivitiesWebhook.DestinationURL:
+		act := fleet.ActivityTypeEditedActivityAutomations{
+			WebhookUrl: appConfig.WebhookSettings.ActivitiesWebhook.DestinationURL,
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited activity automations")
+		}
+	}
+
+	switch caStatus.ndes {
+	case caStatusAdded:
+		if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for added NDES SCEP proxy")
+		}
+	case caStatusEdited:
+		if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for edited NDES SCEP proxy")
+		}
+	case caStatusDeleted:
+		// Delete stored password
+		if err := svc.ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetNDESPassword); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete NDES SCEP password")
+		}
+		if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for deleted NDES SCEP proxy")
+		}
+	default:
+		// No change, no activity.
+	}
+	var caAssetsToDelete []string
+	for caName, status := range caStatus.digicert {
+		switch status {
+		case caStatusAdded:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for added DigiCert CA")
+			}
+		case caStatusEdited:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited DigiCert CA")
+			}
+		case caStatusDeleted:
+			if _, nameStillExists := caStatus.customSCEPProxy[caName]; !nameStillExists {
+				caAssetsToDelete = append(caAssetsToDelete, caName)
+			}
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedDigiCert{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted DigiCert CA")
+			}
+		}
+	}
+	for caName, status := range caStatus.customSCEPProxy {
+		switch status {
+		case caStatusAdded:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for added Custom SCEP Proxy")
+			}
+		case caStatusEdited:
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for edited Custom SCEP Proxy")
+			}
+		case caStatusDeleted:
+			if _, nameStillExists := caStatus.digicert[caName]; !nameStillExists {
+				caAssetsToDelete = append(caAssetsToDelete, caName)
+			}
+			if err = svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: caName}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for deleted Custom SCEP Proxy")
+			}
+		}
+	}
+	if len(caAssetsToDelete) > 0 {
+		err = svc.ds.DeleteCAConfigAssets(ctx, caAssetsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete CA config assets")
+		}
 	}
 
 	if oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value != appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value &&
@@ -531,6 +708,67 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// extensions.
 		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
+		}
+	}
+
+	tokensInCfg := make(map[string]struct{})
+	for _, t := range newAppConfig.MDM.AppleBusinessManager.Value {
+		tokensInCfg[t.OrganizationName] = struct{}{}
+	}
+
+	toks, err := svc.ds.ListABMTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing ABM tokens")
+	}
+
+	if newAppConfig.MDM.AppleBusinessManager.Set && len(newAppConfig.MDM.AppleBusinessManager.Value) == 0 {
+		for _, tok := range toks {
+			if _, ok := tokensInCfg[tok.OrganizationName]; !ok {
+				tok.MacOSDefaultTeamID = nil
+				tok.IOSDefaultTeamID = nil
+				tok.IPadOSDefaultTeamID = nil
+				if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+				}
+			}
+		}
+	}
+
+	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+		for _, tok := range abmAssignments {
+			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
+		}
+	}
+
+	if vppAssignmentsDefined {
+		// 1. Reset teams for VPP tokens that exist in Fleet but aren't present in the config being passed
+		clear(tokensInCfg)
+		for _, t := range newAppConfig.MDM.VolumePurchasingProgram.Value {
+			tokensInCfg[t.Location] = struct{}{}
+		}
+		vppToks, err := svc.ds.ListVPPTokens(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "listing VPP tokens")
+		}
+		for _, tok := range vppToks {
+			if _, ok := tokensInCfg[tok.Location]; !ok {
+				tok.Teams = nil
+				if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tok.ID, nil); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "saving VPP token teams")
+				}
+			}
+		}
+		// 2. Set VPP assignments that are defined in the config.
+		for tokenID, tokenTeams := range vppAssignments {
+			if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
+				var errTokConstraint fleet.ErrVPPTokenTeamConstraint
+				if errors.As(err, &errTokConstraint) {
+					return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
+				}
+				return nil, ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			}
 		}
 	}
 
@@ -558,26 +796,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// if the macOS minimum version requirement changed, create the corresponding
-	// activity
-	if oldAppConfig.MDM.MacOSUpdates.MinimumVersion.Value != appConfig.MDM.MacOSUpdates.MinimumVersion.Value ||
-		oldAppConfig.MDM.MacOSUpdates.Deadline.Value != appConfig.MDM.MacOSUpdates.Deadline.Value {
-		if license.IsPremium() {
-			// macOS updates are premium feature
-			if err := svc.EnterpriseOverrides.MDMAppleEditedMacOSUpdates(ctx, nil, appConfig.MDM.MacOSUpdates); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "update DDM profile after macOS updates change")
-			}
-		}
+	//
+	// Process OS updates config changes for Apple devices.
+	//
+	if err := svc.processAppleOSUpdateSettings(ctx, license, fleet.MacOS,
+		oldAppConfig.MDM.MacOSUpdates,
+		appConfig.MDM.MacOSUpdates,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "process macOS OS updates config change")
+	}
+	if err := svc.processAppleOSUpdateSettings(ctx, license, fleet.IOS,
+		oldAppConfig.MDM.IOSUpdates,
+		appConfig.MDM.IOSUpdates,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "process iOS OS updates config change")
+	}
+	if err := svc.processAppleOSUpdateSettings(ctx, license, fleet.IPadOS,
+		oldAppConfig.MDM.IPadOSUpdates,
+		appConfig.MDM.IPadOSUpdates,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "process iPadOS OS updates config change")
+	}
 
-		if err := svc.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeEditedMacOSMinVersion{
-				MinimumVersion: appConfig.MDM.MacOSUpdates.MinimumVersion.Value,
-				Deadline:       appConfig.MDM.MacOSUpdates.Deadline.Value,
-			},
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for app config macos min version modification")
+	if appConfig.YaraRules != nil {
+		if err := svc.ds.ApplyYaraRules(ctx, appConfig.YaraRules); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "save yara rules for app config")
 		}
 	}
 
@@ -648,7 +891,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
+	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && license.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
@@ -667,7 +911,536 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	if appConfig.MDM.WindowsEnabledAndConfigured && oldAppConfig.MDM.WindowsMigrationEnabled != appConfig.MDM.WindowsMigrationEnabled {
+		var act fleet.ActivityDetails
+		if appConfig.MDM.WindowsMigrationEnabled {
+			act = fleet.ActivityTypeEnabledWindowsMDMMigration{}
+		} else {
+			act = fleet.ActivityTypeDisabledWindowsMDMMigration{}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
 	return obfuscatedAppConfig, nil
+}
+
+func (svc *Service) processAppConfigCAs(ctx context.Context, newAppConfig *fleet.AppConfig, oldAppConfig *fleet.AppConfig,
+	appConfig *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+) (appConfigCAStatus, error) {
+	var invalidLicense bool
+	fleetLicense, _ := license.FromContext(ctx)
+	if newAppConfig.Integrations.NDESSCEPProxy.Set && newAppConfig.Integrations.NDESSCEPProxy.Valid && !fleetLicense.IsPremium() {
+		invalid.Append("integrations.ndes_scep_proxy", ErrMissingLicense.Error())
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+		invalidLicense = true
+	}
+	if newAppConfig.Integrations.DigiCert.Set && newAppConfig.Integrations.DigiCert.Valid && !fleetLicense.IsPremium() {
+		invalid.Append("integrations.digicert", ErrMissingLicense.Error())
+		appConfig.Integrations.DigiCert.Valid = false
+		invalidLicense = true
+	}
+	if newAppConfig.Integrations.CustomSCEPProxy.Set && newAppConfig.Integrations.CustomSCEPProxy.Valid && !fleetLicense.IsPremium() {
+		invalid.Append("integrations.custom_scep_proxy", ErrMissingLicense.Error())
+		appConfig.Integrations.CustomSCEPProxy.Valid = false
+		invalidLicense = true
+	}
+	result := appConfigCAStatus{
+		digicert:        make(map[string]caStatusType),
+		customSCEPProxy: make(map[string]caStatusType),
+	}
+	if invalidLicense {
+		return result, nil
+	}
+
+	// Validate NDES SCEP URLs if they changed. Validation is done in both dry run and normal mode.
+	switch {
+	case !newAppConfig.Integrations.NDESSCEPProxy.Set:
+		// Nothing is set -- keep the old value
+		appConfig.Integrations.NDESSCEPProxy = oldAppConfig.Integrations.NDESSCEPProxy
+	case !newAppConfig.Integrations.NDESSCEPProxy.Valid:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.NDESSCEPProxy.Valid = false
+		if oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+			result.ndes = caStatusDeleted
+		}
+	default:
+		// User is updating the setting
+		appConfig.Integrations.NDESSCEPProxy.Value.URL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+		appConfig.Integrations.NDESSCEPProxy.Value.AdminURL = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.AdminURL)
+		appConfig.Integrations.NDESSCEPProxy.Value.Username = fleet.Preprocess(newAppConfig.Integrations.NDESSCEPProxy.Value.Username)
+		// do not preprocess password
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.ndes_scep_proxy",
+				"Cannot encrypt NDES password. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		}
+
+		validateAdminURL, validateURL := false, false
+		newSCEPProxy := appConfig.Integrations.NDESSCEPProxy.Value
+		if !oldAppConfig.Integrations.NDESSCEPProxy.Valid {
+			result.ndes = caStatusAdded
+			validateAdminURL, validateURL = true, true
+		} else {
+			oldSCEPProxy := oldAppConfig.Integrations.NDESSCEPProxy.Value
+			if newSCEPProxy.URL != oldSCEPProxy.URL {
+				result.ndes = caStatusEdited
+				validateURL = true
+			}
+			if newSCEPProxy.AdminURL != oldSCEPProxy.AdminURL ||
+				newSCEPProxy.Username != oldSCEPProxy.Username ||
+				(newSCEPProxy.Password != "" && newSCEPProxy.Password != fleet.MaskedPassword) {
+				result.ndes = caStatusEdited
+				validateAdminURL = true
+			}
+		}
+
+		if validateAdminURL {
+			if err := svc.scepConfigService.ValidateNDESSCEPAdminURL(ctx, newSCEPProxy); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy", err.Error())
+			}
+		}
+
+		if validateURL {
+			if err := svc.scepConfigService.ValidateSCEPURL(ctx, newSCEPProxy.URL); err != nil {
+				invalid.Append("integrations.ndes_scep_proxy.url", err.Error())
+			}
+		}
+	}
+
+	var (
+		allCANames                         = make(map[string]struct{})
+		invalidCANames                     = make(map[string]struct{})
+		additionalDigiCertValidationNeeded bool
+	)
+
+	switch {
+	case !newAppConfig.Integrations.DigiCert.Set:
+		// Nothing to set -- keep the old value
+		appConfig.Integrations.DigiCert = oldAppConfig.Integrations.DigiCert
+		// Populate allCANames so we can check for uniqueness against custom SCEP proxy names
+		for _, ca := range oldAppConfig.Integrations.DigiCert.Value {
+			allCANames[ca.Name] = struct{}{}
+		}
+	case !newAppConfig.Integrations.DigiCert.Valid || len(newAppConfig.Integrations.DigiCert.Value) == 0:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.DigiCert.Valid = false
+		for _, ca := range oldAppConfig.Integrations.DigiCert.Value {
+			result.digicert[ca.Name] = caStatusDeleted
+		}
+	default:
+		// We clear DigiCert CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.DigiCert.Value = nil
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.digicert",
+				"Cannot encrypt DigiCert API token. Missing required private key. Learn how to configure the private key here: https://fleetdm."+
+					"com/learn-more-about/fleet-server-private-key")
+			break
+		}
+		additionalDigiCertValidationNeeded = true
+		for _, ca := range newAppConfig.Integrations.DigiCert.Value {
+			ca.Name = fleet.Preprocess(ca.Name)
+			if !validateCAName(ca.Name, "digicert", allCANames, invalid) ||
+				!validateCACN(ca.CertificateCommonName, invalid) ||
+				!validateSeatID(ca.CertificateSeatID, invalid) ||
+				!validateUserPrincipalNames(ca.CertificateUserPrincipalNames, invalid) {
+				invalidCANames[ca.Name] = struct{}{}
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+			// Validate URL
+			ca.URL = fleet.Preprocess(ca.URL)
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.digicert.url", err.Error())
+				additionalDigiCertValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.digicert.url", "digicert URL must be https or http")
+				additionalDigiCertValidationNeeded = false
+				continue
+			}
+
+			ca.ProfileID = fleet.Preprocess(ca.ProfileID)
+			appConfig.Integrations.DigiCert.Value = append(appConfig.Integrations.DigiCert.Value, ca)
+		}
+	}
+
+	// if additional DigiCert validation is needed, get the encrypted config assets from DB
+	if additionalDigiCertValidationNeeded {
+		remainingOldCAs := filterDeletedDigiCertCAs(oldAppConfig, newAppConfig, &result)
+
+		err := svc.populateDigiCertAPITokens(ctx, remainingOldCAs)
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "populate API tokens")
+		}
+		for i, newCA := range appConfig.Integrations.DigiCert.Value {
+			var found, needToVerify bool
+			for _, oldCA := range remainingOldCAs {
+				switch {
+				case newCA.Equals(&oldCA):
+					// we clear the APIToken since we don't need to encrypt/save it
+					appConfig.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
+					found = true
+				case newCA.Name == oldCA.Name:
+					// changed
+					found = true
+					needToVerify = newCA.NeedToVerify(&oldCA)
+					if needToVerify && (len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword) {
+						invalid.Append("integrations.digicert.api_token",
+							fmt.Sprintf("DigiCert API token must be set when modifying name, URL, or GUID of an existing CA: %s", newCA.Name))
+						break
+					}
+					result.digicert[newCA.Name] = caStatusEdited
+				}
+			}
+			if !found {
+				if len(newCA.APIToken) == 0 || newCA.APIToken == fleet.MaskedPassword {
+					invalid.Append("integrations.digicert.api_token",
+						fmt.Sprintf("DigiCert API token must be set on CA: %s", newCA.Name))
+					break
+				}
+				result.digicert[newCA.Name] = caStatusAdded
+				needToVerify = true
+			}
+			if _, ok := result.digicert[newCA.Name]; ok && needToVerify {
+				err := svc.digiCertService.VerifyProfileID(ctx, newCA)
+				if err != nil {
+					invalid.Append("integrations.digicert.profile_id",
+						fmt.Sprintf("Could not verify DigiCert profile ID %s for CA %s: %s", newCA.ProfileID, newCA.Name, err))
+				}
+			}
+		}
+	}
+
+	var additionalCustomSCEPValidationNeeded bool
+	switch {
+	case !newAppConfig.Integrations.CustomSCEPProxy.Set:
+		// Nothing to set -- keep the old value
+		appConfig.Integrations.CustomSCEPProxy = oldAppConfig.Integrations.CustomSCEPProxy
+		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+			if _, ok := allCANames[ca.Name]; ok {
+				// This issue is caused by the new DigiCert CA added above
+				invalid.Append("integrations.digicert.name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+					"\"%s\" name is already used by another DigiCert certificate authority. Please choose a different name and try again.", ca.Name))
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			allCANames[ca.Name] = struct{}{}
+		}
+	case !newAppConfig.Integrations.CustomSCEPProxy.Valid || len(newAppConfig.Integrations.CustomSCEPProxy.Value) == 0:
+		// User is explicitly clearing this setting
+		appConfig.Integrations.CustomSCEPProxy.Valid = false
+		for _, ca := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+			result.customSCEPProxy[ca.Name] = caStatusDeleted
+		}
+	default:
+		// We clear custom SCEP CAs because we will repopulate them as we diff old vs new CAs
+		appConfig.Integrations.CustomSCEPProxy.Value = nil
+		if len(svc.config.Server.PrivateKey) == 0 {
+			invalid.Append("integrations.custom_scep_proxy",
+				"Cannot encrypt SCEP challenge. Missing required private key. Learn how to configure the private key here: "+
+					"https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			break
+		}
+		additionalCustomSCEPValidationNeeded = true
+		for _, ca := range newAppConfig.Integrations.CustomSCEPProxy.Value {
+			ca.Name = fleet.Preprocess(ca.Name)
+			if !validateCAName(ca.Name, "custom_scep_proxy", allCANames, invalid) {
+				invalidCANames[ca.Name] = struct{}{}
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			ca.URL = fleet.Preprocess(ca.URL)
+			// Validate URL
+			if u, err := url.ParseRequestURI(ca.URL); err != nil {
+				invalid.Append("integrations.custom_scep_proxy.url", err.Error())
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.custom_scep_proxy.url", "custom_scep_proxy URL must be https or http")
+				additionalCustomSCEPValidationNeeded = false
+				continue
+			}
+			appConfig.Integrations.CustomSCEPProxy.Value = append(appConfig.Integrations.CustomSCEPProxy.Value, ca)
+		}
+	}
+
+	if additionalCustomSCEPValidationNeeded {
+		remainingOldCAs := filterDeletedCustomSCEPCAs(oldAppConfig, newAppConfig, &result)
+		err := svc.populateCustomSCEPChallenges(ctx, remainingOldCAs)
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "populate challenges")
+		}
+		for i, newCA := range appConfig.Integrations.CustomSCEPProxy.Value {
+			var found bool
+			for _, oldCA := range remainingOldCAs {
+				switch {
+				case newCA.Equals(&oldCA):
+					// we clear the Challenge since we don't need to encrypt/save it
+					appConfig.Integrations.CustomSCEPProxy.Value[i].Challenge = fleet.MaskedPassword
+					found = true
+				case newCA.Name == oldCA.Name:
+					// changed
+					if len(newCA.Challenge) == 0 || newCA.Challenge == fleet.MaskedPassword {
+						invalid.Append("integrations.custom_scep_proxy.challenge",
+							fmt.Sprintf("Custom SCEP challenge must be set when modifying existing CA: %s", newCA.Name))
+					} else {
+						result.customSCEPProxy[newCA.Name] = caStatusEdited
+					}
+					found = true
+				}
+			}
+			if !found {
+				if len(newCA.Challenge) == 0 || newCA.Challenge == fleet.MaskedPassword {
+					invalid.Append("integrations.custom_scep_proxy.challenge",
+						fmt.Sprintf("Custom SCEP challenge must be set on CA: %s", newCA.Name))
+				} else {
+					result.customSCEPProxy[newCA.Name] = caStatusAdded
+				}
+			}
+			// Unlike DigiCert, we always validate the connection on add/edit of custom SCEP
+			if status, ok := result.customSCEPProxy[newCA.Name]; ok && (status == caStatusEdited || status == caStatusAdded) {
+				if err := svc.scepConfigService.ValidateSCEPURL(ctx, newCA.URL); err != nil {
+					invalidCANames[newCA.Name] = struct{}{}
+					invalid.Append("integrations.custom_scep_proxy.url", err.Error())
+				}
+			}
+		}
+	}
+
+	// Remove status updates from invalid CA names
+	for caName := range invalidCANames {
+		delete(result.digicert, caName)
+		delete(result.customSCEPProxy, caName)
+	}
+
+	return result, nil
+}
+
+func (svc *Service) populateDigiCertAPITokens(ctx context.Context, remainingOldCAs []fleet.DigiCertIntegration) error {
+	assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get DigiCert CA config assets")
+	}
+	// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
+	for i, ca := range remainingOldCAs {
+		asset, ok := assets[ca.Name]
+		if !ok {
+			continue
+		}
+		remainingOldCAs[i].APIToken = string(asset.Value)
+	}
+	return nil
+}
+
+func (svc *Service) populateCustomSCEPChallenges(ctx context.Context, remainingOldCAs []fleet.CustomSCEPProxyIntegration) error {
+	assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get custom SCEP CA config assets")
+	}
+	// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
+	for i, ca := range remainingOldCAs {
+		asset, ok := assets[ca.Name]
+		if !ok {
+			continue
+		}
+		remainingOldCAs[i].Challenge = string(asset.Value)
+	}
+	return nil
+}
+
+// filterDeletedDigiCertCAs identifies deleted DigiCert integrations in the provided configs.
+// It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
+func filterDeletedDigiCertCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
+	result *appConfigCAStatus,
+) []fleet.DigiCertIntegration {
+	remainingOldCAs := make([]fleet.DigiCertIntegration, 0, len(oldAppConfig.Integrations.DigiCert.Value))
+	for _, oldCA := range oldAppConfig.Integrations.DigiCert.Value {
+		var found bool
+		for _, newCA := range newAppConfig.Integrations.DigiCert.Value {
+			if oldCA.Name == newCA.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.digicert[oldCA.Name] = caStatusDeleted
+		} else {
+			remainingOldCAs = append(remainingOldCAs, oldCA)
+		}
+	}
+	return remainingOldCAs
+}
+
+// filterDeletedCustomSCEPCAs identifies deleted custom SCEP integrations in the provided configs.
+// It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
+func filterDeletedCustomSCEPCAs(oldAppConfig *fleet.AppConfig, newAppConfig *fleet.AppConfig,
+	result *appConfigCAStatus,
+) []fleet.CustomSCEPProxyIntegration {
+	remainingOldCAs := make([]fleet.CustomSCEPProxyIntegration, 0, len(oldAppConfig.Integrations.CustomSCEPProxy.Value))
+	for _, oldCA := range oldAppConfig.Integrations.CustomSCEPProxy.Value {
+		var found bool
+		for _, newCA := range newAppConfig.Integrations.CustomSCEPProxy.Value {
+			if oldCA.Name == newCA.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.customSCEPProxy[oldCA.Name] = caStatusDeleted
+		} else {
+			remainingOldCAs = append(remainingOldCAs, oldCA)
+		}
+	}
+	return remainingOldCAs
+}
+
+func validateCAName(name string, caType string, allCANames map[string]struct{}, invalid *fleet.InvalidArgumentError) bool {
+	if name == "NDES" {
+		invalid.Append("integrations."+caType+".name", "CA name cannot be NDES")
+		return false
+	}
+	if len(name) == 0 {
+		invalid.Append("integrations."+caType+".name", "CA name cannot be empty")
+		return false
+	}
+	if len(name) > 255 {
+		invalid.Append("integrations."+caType+".name", "CA name cannot be longer than 255 characters")
+		return false
+	}
+	if !isAlphanumeric(name) {
+		invalid.Append("integrations."+caType+".name",
+			fmt.Sprintf("Couldn’t edit integrations.%s. Invalid characters in the \"name\" field. Only letters, "+
+				"numbers and underscores allowed. %s",
+				caType, name))
+		return false
+	}
+	if _, ok := allCANames[name]; ok {
+		invalid.Append("integrations."+caType+".name", fmt.Sprintf("Couldn’t edit certificate authority. "+
+			"\"%s\" name is already used by another certificate authority. Please choose a different name and try again.", name))
+		return false
+	}
+	allCANames[name] = struct{}{}
+	return true
+}
+
+func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
+	if len(strings.TrimSpace(cn)) == 0 {
+		invalid.Append("integrations.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
+		return false
+	}
+	fleetVars := findFleetVariables(cn)
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+			// ok
+		default:
+			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
+			return false
+		}
+	}
+	return true
+}
+
+func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
+	if len(strings.TrimSpace(seatID)) == 0 {
+		invalid.Append("integrations.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
+		return false
+	}
+	fleetVars := findFleetVariables(seatID)
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+			// ok
+		default:
+			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
+			return false
+		}
+	}
+	return true
+}
+
+func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.InvalidArgumentError) bool {
+	if len(userPrincipalNames) == 0 {
+		return true
+	}
+	if len(userPrincipalNames) > 1 {
+		invalid.Append("integrations.digicert.certificate_user_principal_names",
+			"DigiCert CA can only have one certificate user principal name")
+		return false
+	}
+	if len(strings.TrimSpace(userPrincipalNames[0])) == 0 {
+		invalid.Append("integrations.digicert.certificate_user_principal_names",
+			"DigiCert CA certificate user principal name cannot be empty if specified")
+		return false
+	}
+	fleetVars := findFleetVariables(userPrincipalNames[0])
+	for fleetVar := range fleetVars {
+		switch fleetVar {
+		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+			// ok
+		default:
+			invalid.Append("integrations.digicert.certificate_user_principal_names",
+				"FLEET_VAR_"+fleetVar+" is not allowed in CA User Principal Name")
+			return false
+		}
+	}
+	return true
+}
+
+type appConfigCAStatus struct {
+	ndes            caStatusType
+	digicert        map[string]caStatusType
+	customSCEPProxy map[string]caStatusType
+}
+
+type caStatusType string
+
+const (
+	caStatusAdded   caStatusType = "added"
+	caStatusEdited  caStatusType = "edited"
+	caStatusDeleted caStatusType = "deleted"
+)
+
+// processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.
+func (svc *Service) processAppleOSUpdateSettings(
+	ctx context.Context,
+	license *fleet.LicenseInfo,
+	appleDevice fleet.AppleDevice,
+	oldOSUpdateSettings fleet.AppleOSUpdateSettings,
+	newOSUpdateSettings fleet.AppleOSUpdateSettings,
+) error {
+	if oldOSUpdateSettings.MinimumVersion.Value != newOSUpdateSettings.MinimumVersion.Value ||
+		oldOSUpdateSettings.Deadline.Value != newOSUpdateSettings.Deadline.Value {
+		if license.IsPremium() {
+			if err := svc.EnterpriseOverrides.MDMAppleEditedAppleOSUpdates(ctx, nil, appleDevice, newOSUpdateSettings); err != nil {
+				return ctxerr.Wrap(ctx, err, "update DDM profile after Apple OS updates change")
+			}
+		}
+
+		var activity fleet.ActivityDetails
+		switch appleDevice {
+		case fleet.MacOS:
+			activity = fleet.ActivityTypeEditedMacOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
+		case fleet.IOS:
+			activity = fleet.ActivityTypeEditedIOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
+		case fleet.IPadOS:
+			activity = fleet.ActivityTypeEditedIPadOSMinVersion{
+				MinimumVersion: newOSUpdateSettings.MinimumVersion.Value,
+				Deadline:       newOSUpdateSettings.Deadline.Value,
+			}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for app config apple min version modification")
+		}
+	}
+	return nil
 }
 
 func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error) {
@@ -715,6 +1488,9 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
 	}
+	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
+		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
+	}
 
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
@@ -743,33 +1519,60 @@ func (svc *Service) validateMDM(
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
+	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
+		for i, prof := range customSettings {
+			count := 0
+			for _, b := range []bool{
+				len(prof.Labels) > 0,
+				len(prof.LabelsIncludeAll) > 0,
+				len(prof.LabelsIncludeAny) > 0,
+				len(prof.LabelsExcludeAny) > 0,
+			} {
+				if b {
+					count++
+				}
+			}
+			if count > 1 {
+				invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
+					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+			}
+			if len(prof.Labels) > 0 {
+				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+				customSettings[i].Labels = nil
+			}
+		}
+	}
+	checkCustomSettings("macos", mdm.MacOSSettings.CustomSettings)
 
 	if !mdm.WindowsEnabledAndConfigured {
 		if mdm.WindowsSettings.CustomSettings.Set &&
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
+				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
 		}
 	}
-
-	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
-		if !license.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil
-		}
-		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
-			invalid.Append("apple_bm_default_team", "team name not found")
-		}
-	}
+	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
 
 	// MacOSUpdates
-	updatingVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
+	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&
 		mdm.MacOSUpdates.MinimumVersion != oldMdm.MacOSUpdates.MinimumVersion
-	updatingDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
+	updatingMacOSDeadline := mdm.MacOSUpdates.Deadline.Value != "" &&
 		mdm.MacOSUpdates.Deadline != oldMdm.MacOSUpdates.Deadline
+	// IOSUpdates
+	updatingIOSVersion := mdm.IOSUpdates.MinimumVersion.Value != "" &&
+		mdm.IOSUpdates.MinimumVersion != oldMdm.IOSUpdates.MinimumVersion
+	updatingIOSDeadline := mdm.IOSUpdates.Deadline.Value != "" &&
+		mdm.IOSUpdates.Deadline != oldMdm.IOSUpdates.Deadline
+	// IPadOSUpdates
+	updatingIPadOSVersion := mdm.IPadOSUpdates.MinimumVersion.Value != "" &&
+		mdm.IPadOSUpdates.MinimumVersion != oldMdm.IPadOSUpdates.MinimumVersion
+	updatingIPadOSDeadline := mdm.IPadOSUpdates.Deadline.Value != "" &&
+		mdm.IPadOSUpdates.Deadline != oldMdm.IPadOSUpdates.Deadline
 
-	if updatingVersion || updatingDeadline {
+	if updatingMacOSVersion || updatingMacOSDeadline ||
+		updatingIOSVersion || updatingIOSDeadline ||
+		updatingIPadOSVersion || updatingIPadOSDeadline {
 		// TODO: Should we validate MDM configured on here too?
 
 		if !license.IsPremium() {
@@ -779,6 +1582,12 @@ func (svc *Service) validateMDM(
 	}
 	if err := mdm.MacOSUpdates.Validate(); err != nil {
 		invalid.Append("macos_updates", err.Error())
+	}
+	if err := mdm.IOSUpdates.Validate(); err != nil {
+		invalid.Append("ios_updates", err.Error())
+	}
+	if err := mdm.IPadOSUpdates.Validate(); err != nil {
+		invalid.Append("ipados_updates", err.Error())
 	}
 
 	// WindowsUpdates
@@ -857,16 +1666,187 @@ func (svc *Service) validateMDM(
 			return nil
 		}
 	}
+	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
+		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+	}
+	return nil
+}
 
-	// if either macOS or Windows MDM is enabled, this setting can be set.
-	if !mdm.AtLeastOnePlatformEnabledAndConfigured() {
-		if mdm.EnableDiskEncryption.Valid && mdm.EnableDiskEncryption.Value && mdm.EnableDiskEncryption.Value != oldMdm.EnableDiskEncryption.Value {
-			invalid.Append("mdm.enable_disk_encryption",
-				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
-		}
+func (svc *Service) validateABMAssignments(
+	ctx context.Context,
+	mdm, oldMdm *fleet.MDM,
+	invalid *fleet.InvalidArgumentError,
+	license *fleet.LicenseInfo,
+) ([]*fleet.ABMToken, error) {
+	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
+		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
+		return nil, nil
 	}
 
-	return nil
+	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
+			return nil, nil
+		}
+		team, err := svc.ds.TeamByName(ctx, name)
+		if err != nil {
+			invalid.Append("mdm.apple_bm_default_team", "team name not found")
+			return nil, nil
+		}
+		tokens, err := svc.ds.ListABMTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(tokens) > 1 {
+			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
+			return nil, nil
+		}
+
+		if len(tokens) == 0 {
+			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
+			return nil, nil
+		}
+
+		tok := tokens[0]
+		tok.MacOSDefaultTeamID = &team.ID
+		tok.IOSDefaultTeamID = &team.ID
+		tok.IPadOSDefaultTeamID = &team.ID
+
+		return []*fleet.ABMToken{tok}, nil
+	}
+
+	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
+		if !license.IsPremium() {
+			invalid.Append("mdm.apple_business_manager", ErrMissingLicense.Error())
+			return nil, nil
+		}
+
+		teams, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		teamsByName := map[string]*uint{"": nil, "No team": nil}
+		for _, tm := range teams {
+			teamsByName[tm.Name] = &tm.ID
+		}
+		tokens, err := svc.ds.ListABMTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tokensByName := map[string]*fleet.ABMToken{}
+		for _, token := range tokens {
+			// The default assignments for all tokens is "no team"
+			// (ie: team_id IS NULL), here we reset the assignments
+			// for all tokens, those will be re-added below.
+			//
+			// This ensures any unassignments are properly handled.
+			token.MacOSDefaultTeamID = nil
+			token.IOSDefaultTeamID = nil
+			token.IPadOSDefaultTeamID = nil
+			tokensByName[token.OrganizationName] = token
+		}
+
+		var tokensToSave []*fleet.ABMToken
+		for _, bm := range mdm.AppleBusinessManager.Value {
+			for _, tmName := range []string{bm.MacOSTeam, bm.IOSTeam, bm.IpadOSTeam} {
+				if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok {
+					invalid.Appendf("mdm.apple_business_manager", "team %s doesn't exist", tmName)
+					return nil, nil
+				}
+			}
+
+			if _, ok := tokensByName[norm.NFC.String(bm.OrganizationName)]; !ok {
+				invalid.Appendf("mdm.apple_business_manager", "token with organization name %s doesn't exist", bm.OrganizationName)
+				return nil, nil
+			}
+
+			tok := tokensByName[bm.OrganizationName]
+			tok.MacOSDefaultTeamID = teamsByName[bm.MacOSTeam]
+			tok.IOSDefaultTeamID = teamsByName[bm.IOSTeam]
+			tok.IPadOSDefaultTeamID = teamsByName[bm.IpadOSTeam]
+			tokensToSave = append(tokensToSave, tok)
+		}
+
+		return tokensToSave, nil
+	}
+
+	return nil, nil
+}
+
+func (svc *Service) validateVPPAssignments(
+	ctx context.Context,
+	volumePurchasingProgramInfo []fleet.MDMAppleVolumePurchasingProgramInfo,
+	invalid *fleet.InvalidArgumentError,
+	license *fleet.LicenseInfo,
+) (map[uint][]uint, error) {
+	// Allow clearing VPP assignments in free and premium.
+	if len(volumePurchasingProgramInfo) == 0 {
+		return nil, nil
+	}
+
+	if !license.IsPremium() {
+		invalid.Append("mdm.volume_purchasing_program", ErrMissingLicense.Error())
+		return nil, nil
+	}
+
+	teams, err := svc.ds.TeamsSummary(ctx)
+	if err != nil {
+		return nil, err
+	}
+	teamsByName := map[string]uint{fleet.TeamNameNoTeam: 0}
+	for _, tm := range teams {
+		teamsByName[tm.Name] = tm.ID
+	}
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tokensByLocation := map[string]*fleet.VPPTokenDB{}
+	for _, token := range tokens {
+		// The default assignments for all tokens is "no team"
+		// (ie: team_id IS NULL), here we reset the assignments
+		// for all tokens, those will be re-added below.
+		//
+		// This ensures any unassignments are properly handled.
+		tokensByLocation[token.Location] = token
+		token.Teams = nil
+	}
+
+	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
+	for _, vpp := range volumePurchasingProgramInfo {
+		for _, tmName := range vpp.Teams {
+			if _, ok := teamsByName[norm.NFC.String(tmName)]; !ok && tmName != fleet.TeamNameAllTeams {
+				invalid.Appendf("mdm.volume_purchasing_program", "team %s doesn't exist", tmName)
+				return nil, nil
+			}
+		}
+
+		loc := norm.NFC.String(vpp.Location)
+		if _, ok := tokensByLocation[loc]; !ok {
+			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+			return nil, nil
+		}
+
+		var tokenTeams []uint
+		for _, teamName := range vpp.Teams {
+			if teamName == fleet.TeamNameAllTeams {
+				if len(vpp.Teams) > 1 {
+					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other teams", fleet.TeamNameAllTeams)
+					return nil, nil
+				}
+				tokenTeams = []uint{}
+				break
+			}
+			teamID := teamsByName[teamName]
+			tokenTeams = append(tokenTeams, teamID)
+		}
+
+		tok := tokensByLocation[loc]
+		tokensToSave[tok.ID] = tokenTeams
+	}
+
+	return tokensToSave, nil
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
@@ -874,9 +1854,6 @@ func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, i
 		if existing.Metadata == "" && existing.MetadataURL == "" {
 			invalid.Append("metadata", "either metadata or metadata_url must be defined")
 		}
-	}
-	if incoming.Metadata != "" && incoming.MetadataURL != "" {
-		invalid.Append("metadata", "both metadata and metadata_url are defined, only one is allowed")
 	}
 	if incoming.EntityID == "" {
 		if existing.EntityID == "" {
@@ -930,9 +1907,9 @@ type applyEnrollSecretSpecResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
+func (r applyEnrollSecretSpecResponse) Error() error { return r.Err }
 
-func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
 	err := svc.ApplyEnrollSecretSpec(
 		ctx, req.Spec, fleet.ApplySpecOptions{
@@ -988,9 +1965,9 @@ type getEnrollSecretSpecResponse struct {
 	Err  error                   `json:"error,omitempty"`
 }
 
-func (r getEnrollSecretSpecResponse) error() error { return r.Err }
+func (r getEnrollSecretSpecResponse) Error() error { return r.Err }
 
-func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetEnrollSecretSpec(ctx)
 	if err != nil {
 		return getEnrollSecretSpecResponse{Err: err}, nil
@@ -1019,9 +1996,9 @@ type versionResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r versionResponse) error() error { return r.Err }
+func (r versionResponse) Error() error { return r.Err }
 
-func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	info, err := svc.Version(ctx)
 	if err != nil {
 		return versionResponse{Err: err}, nil
@@ -1047,9 +2024,9 @@ type getCertificateResponse struct {
 	Err              error  `json:"error,omitempty"`
 }
 
-func (r getCertificateResponse) error() error { return r.Err }
+func (r getCertificateResponse) Error() error { return r.Err }
 
-func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	chain, err := svc.CertificateChain(ctx)
 	if err != nil {
 		return getCertificateResponse{Err: err}, nil
@@ -1168,4 +2145,10 @@ func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.
 		return nil, err
 	}
 	return &appConfig.Features, nil
+}
+
+var alphanumeric = regexp.MustCompile(`^\w+$`)
+
+func isAlphanumeric(s string) bool {
+	return alphanumeric.MatchString(s)
 }

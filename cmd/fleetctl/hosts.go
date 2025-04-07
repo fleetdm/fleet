@@ -36,7 +36,7 @@ func transferCommand() *cli.Command {
 			},
 			&cli.StringSliceFlag{
 				Name:  hostsFlagName,
-				Usage: "Comma separated hostnames to transfer",
+				Usage: "Comma-separated hostnames to transfer",
 			},
 			&cli.StringFlag{
 				Name:  labelFlagName,

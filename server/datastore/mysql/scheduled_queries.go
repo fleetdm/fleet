@@ -113,7 +113,7 @@ func insertScheduledQueryDB(ctx context.Context, q sqlx.ExtContext, sq *fleet.Sc
 	}
 
 	id, _ := result.LastInsertId()
-	sq.ID = uint(id)
+	sq.ID = uint(id) //nolint:gosec // dismiss G115
 
 	query = `SELECT query, name FROM queries WHERE id = ? LIMIT 1`
 	metadata := []struct {
@@ -247,19 +247,19 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, batchSize int,
 
 	var indexOffset int
 	for len(packAndSchedQueryNames) > 0 {
-		max := len(packAndSchedQueryNames)
-		if max > batchSize {
-			max = batchSize
+		maxSize := len(packAndSchedQueryNames)
+		if maxSize > batchSize {
+			maxSize = batchSize
 		}
 
-		args := make([]interface{}, 0, max*3)
-		for i, psn := range packAndSchedQueryNames[:max] {
+		args := make([]interface{}, 0, maxSize*3)
+		for i, psn := range packAndSchedQueryNames[:maxSize] {
 			args = append(args, indexOffset+i, psn[0], psn[1])
 		}
-		packAndSchedQueryNames = packAndSchedQueryNames[max:]
-		indexOffset += max
+		packAndSchedQueryNames = packAndSchedQueryNames[maxSize:]
+		indexOffset += maxSize
 
-		stmt := fmt.Sprintf(stmt, strings.Repeat(additionalRows, max-1))
+		stmt := fmt.Sprintf(stmt, strings.Repeat(additionalRows, maxSize-1))
 		var rows []idxAndID
 		if err := ds.writer(ctx).SelectContext(ctx, &rows, stmt, args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select scheduled query IDs by name")

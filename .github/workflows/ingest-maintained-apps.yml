@@ -1,0 +1,118 @@
+name: Ingest maintained apps
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ee/maintained-apps/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 14 * * *'
+    - cron: '0 21 * * *'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  build:
+    permissions:
+      contents: write         # Required to push new branch
+      pull-requests: write    # Required to open PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Get current date and time
+        id: date
+        run: echo "::set-output name=date::$(date +'%y%m%d%H%M')"
+
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 1
+          ref: ${{ github.head_ref }}
+          path: fleet
+
+      - name: Setup Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          cache: false
+          go-version-file: 'fleet/go.mod'
+
+      - name: Ingest maintained apps
+        run: |
+          cd fleet
+          go mod download
+          go run cmd/maintained-apps/main.go
+
+      - name: Search for Existing PRs
+        id: search_pr
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+
+      - name: Get Assignee IDs
+        id: get_assignee_ids
+        run: |
+          # DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
+          # :-(
+          DEVS="iansltx,jahzielv,mostlikelee,ksykulev"
+          echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
+
+      - name: Log Info
+        run: |
+          echo "Will close existing PRs: ${{ steps.search_pr.outputs.result }}"          
+          echo "Will assign new PR to: ${{ steps.get_assignee_ids.outputs.github_ids }}"
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
+        with:
+          base: main
+          path: fleet
+          branch: fma-${{ steps.date.outputs.date }}
+          delete-branch: true
+          title: "Update Fleet-maintained apps"
+          commit-message: |
+            Update Fleet-maintained apps.
+
+            Generated automatically with cmd/maintained-apps.
+          body: Automated ingestion of latest Fleet-maintained app data.
+          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
+
+      - name: Close Existing PRs
+        if: steps.search_pr.outputs.result != '[]'
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            const prNumbers = JSON.parse('${{ steps.search_pr.outputs.result }}');
+            const newPrNumber = '${{ steps.create-pr.outputs.pull-request-number }}';
+            for (const prNumber of prNumbers) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: `Closing in favor of #${newPrNumber}.`,
+              });
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                state: 'closed',
+              });
+            }

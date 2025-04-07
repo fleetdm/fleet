@@ -1,1 +1,0 @@
-* Added the device-authenticated endpoint `POST /device/{token}/software/install/{software_title_id}` to self-install software.

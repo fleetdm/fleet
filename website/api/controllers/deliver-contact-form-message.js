@@ -41,10 +41,6 @@ module.exports = {
 
   exits: {
 
-    invalidEmailDomain: {
-      description: 'This email address is on a denylist of domains and was not delivered.',
-      responseType: 'badRequest'
-    },
     success: {
       description: 'The message was sent successfully.'
     }
@@ -54,35 +50,70 @@ module.exports = {
 
   fn: async function({emailAddress, firstName, lastName, message}) {
 
+
+    let userHasPremiumSubscription = false;
+    let thisSubscription;
+    if(this.req.me){
+      thisSubscription = await Subscription.findOne({user: this.req.me.id});
+      if(thisSubscription) {
+        userHasPremiumSubscription = true;
+      }
+    }
+
     if (!sails.config.custom.slackWebhookUrlForContactForm) {
       throw new Error(
         'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
+    if(userHasPremiumSubscription){
+      // If the user has a Fleet Premium subscription, prepend the message with details about their subscription.
+      let subscriptionDetails =`
+Fleet Premium subscription details:
+- Fleet Premium subscriber since: ${new Date(thisSubscription.createdAt).toISOString().split('T')[0]}
+- Next billing date: ${new Date(thisSubscription.nextBillingAt).toISOString().split('T')[0]}
+- Host count: ${thisSubscription.numberOfHosts}
+- Organization: ${this.req.me.organization}
+-----
 
-    let emailDomain = emailAddress.split('@')[1];
-    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
-      throw 'invalidEmailDomain';
+      `;
+      message = subscriptionDetails + message;
+      await sails.helpers.sendTemplateEmail.with({
+        to: sails.config.custom.fromEmailAddress,
+        replyTo: {
+          name: firstName + ' '+ lastName,
+          emailAddress: emailAddress,
+        },
+        subject: 'New contact form message',
+        layout: false,
+        template: 'email-contact-form',
+        templateData: {
+          emailAddress,
+          firstName,
+          lastName,
+          message,
+        },
+      });
     }
 
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
+      text: `New contact form message: (cc: <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
-    // Use timers.setImmediate() to update/create CRM records in the background.
-    require('timers').setImmediate(async ()=>{
-      await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
-        emailAddress: emailAddress,
-        firstName: firstName,
-        lastName: lastName,
-        leadSource: 'Website - Contact forms',
-        leadDescription: `Sent a contact form message: ${message}`,
-      }).tolerate((err)=>{
+
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: emailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      contactSource: 'Website - Contact forms',
+      description: `Sent a contact form message: ${message}`,
+    }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
+      if(err) {
         sails.log.warn(`Background task failed: When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
-      });
-    });//_∏_  (Meanwhile...)
+      }
+      return;
+    });
 
   }
 

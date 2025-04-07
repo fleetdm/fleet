@@ -1,2 +1,0 @@
-- Adds a `GET /fleet/mdm/apple/request_csr` endpoint, which returns the signed APNS CSR needed to
-  activate Apple MDM.

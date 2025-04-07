@@ -104,7 +104,7 @@ func newAttributes(defaultValue string) *Attributes {
 func WFNize(s string) (string, error) {
 	const allowedPunct = "-!\"#$%&'()+,./:;<=>@[]^`{|}!~"
 	// replace spaces with underscores
-	in := strings.Replace(s, " ", "_", -1)
+	in := strings.ReplaceAll(s, " ", "_")
 	buf := make([]byte, 0, len(in))
 	// remove illegal characters
 	for n, c := range in {

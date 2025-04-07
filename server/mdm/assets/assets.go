@@ -26,7 +26,7 @@ func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName 
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		certName,
 		keyName,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading %s, %s keypair from the database: %w", certName, keyName, err)
 	}
@@ -45,7 +45,7 @@ func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName 
 }
 
 func X509Cert(ctx context.Context, ds fleet.MDMAssetRetriever, certName fleet.MDMAssetName) (*x509.Certificate, error) {
-	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{certName})
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{certName}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading certificate %s from the database: %w", certName, err)
 	}
@@ -72,14 +72,18 @@ func APNSTopic(ctx context.Context, ds fleet.MDMAssetRetriever) (string, error) 
 	return mdmPushCertTopic, nil
 }
 
-func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.OAuth1Tokens, error) {
+func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string) (*nanodep_client.OAuth1Tokens, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMToken,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading ABM assets from the database: %w", err)
+	}
+
+	abmTok, err := ds.GetABMTokenByOrgName(ctx, abmOrgName)
+	if err != nil {
+		return nil, fmt.Errorf("get ABM token by name: %w", err)
 	}
 
 	cert, err := tls.X509KeyPair(assets[fleet.MDMAssetABMCert].Value, assets[fleet.MDMAssetABMKey].Value)
@@ -92,11 +96,16 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.
 		return nil, fmt.Errorf("parsing ABM certificate: %w", err)
 	}
 
-	return DecryptRawABMToken(
-		assets[fleet.MDMAssetABMToken].Value,
+	oAuthTok, err := DecryptRawABMToken(
+		abmTok.EncryptedToken,
 		leaf,
 		assets[fleet.MDMAssetABMKey].Value,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("decrypting ABM token: %w", err)
+	}
+
+	return oAuthTok, nil
 }
 
 func DecryptRawABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {

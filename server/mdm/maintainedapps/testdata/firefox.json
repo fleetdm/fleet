@@ -1,0 +1,169 @@
+{
+	"token": "firefox",
+	"full_token": "firefox",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Mozilla Firefox"
+	],
+	"desc": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization.",
+	"homepage": "https://www.mozilla.org/firefox/",
+	"url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/130.0/mac/en-US/Firefox%20130.0.dmg",
+	"url_specs": {
+		"verified": "download-installer.cdn.mozilla.net/pub/firefox/releases/"
+	},
+	"version": "130.0",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "c89ee9abcf7a3554959a7d2db0a5a748be3ae2c30d7c170b879de10e46127602",
+	"artifacts": [
+		{
+			"preflight": null
+		},
+		{
+			"uninstall": [
+				{
+					"quit": "org.mozilla.firefox"
+				}
+			]
+		},
+		{
+			"app": [
+				"Firefox.app"
+			]
+		},
+		{
+			"binary": [
+				"$HOMEBREW_PREFIX/Caskroom/firefox/130.0/firefox.wrapper.sh",
+				{
+					"target": "firefox"
+				}
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"/Library/Logs/DiagnosticReports/firefox_*",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/org.mozilla.firefox.sfl*",
+						"~/Library/Application Support/CrashReporter/firefox_*",
+						"~/Library/Application Support/Firefox",
+						"~/Library/Caches/Firefox",
+						"~/Library/Caches/Mozilla/updates/Applications/Firefox",
+						"~/Library/Caches/org.mozilla.crashreporter",
+						"~/Library/Caches/org.mozilla.firefox",
+						"~/Library/Preferences/org.mozilla.crashreporter.plist",
+						"~/Library/Preferences/org.mozilla.firefox.plist",
+						"~/Library/Saved Application State/org.mozilla.firefox.savedState",
+						"~/Library/WebKit/org.mozilla.firefox"
+					],
+					"rmdir": [
+						"~/Library/Application Support/Mozilla",
+						"~/Library/Caches/Mozilla",
+						"~/Library/Caches/Mozilla/updates",
+						"~/Library/Caches/Mozilla/updates/Applications"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.15"
+			]
+		}
+	},
+	"conflicts_with": {
+		"cask": [
+			"firefox@beta",
+			"firefox@cn",
+			"firefox@esr"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [
+		"af",
+		"ar",
+		"be",
+		"bg",
+		"bn",
+		"ca",
+		"cs",
+		"de",
+		"en-CA",
+		"en-GB",
+		"en",
+		"eo",
+		"es-AR",
+		"es-CL",
+		"es-ES",
+		"fa",
+		"ff",
+		"fi",
+		"fr",
+		"gl",
+		"gn",
+		"gu",
+		"he",
+		"hi",
+		"in",
+		"it",
+		"ja",
+		"ka",
+		"ko",
+		"mr",
+		"my",
+		"ne",
+		"nl",
+		"pa-IN",
+		"pl",
+		"pt-BR",
+		"pt",
+		"ru",
+		"si",
+		"sq",
+		"sr",
+		"sv",
+		"ta",
+		"te",
+		"th",
+		"tl",
+		"tr",
+		"uk",
+		"ur",
+		"zh-TW",
+		"zh"
+	],
+	"ruby_source_path": "Casks/f/firefox.rb",
+	"ruby_source_checksum": {
+		"sha256": "d50e081cb3abda7d7eecf60728b37a4d8e8f616473bd0b32d280f1327f23ac5e"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"firefox": 14543
+			},
+			"90d": {
+				"firefox": 39158
+			},
+			"365d": {
+				"firefox": 148931
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

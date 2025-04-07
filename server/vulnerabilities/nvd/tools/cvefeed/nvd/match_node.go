@@ -24,36 +24,36 @@ import (
 )
 
 // Matcher returns an object which knows how to match attributes
-func nodeMatcher(ID string, node *schema.NVDCVEFeedJSON10DefNode) (wfn.Matcher, error) {
+func nodeMatcher(id string, node *schema.NVDCVEFeedJSON10DefNode) (wfn.Matcher, error) {
 	if node == nil {
-		return nil, fmt.Errorf("%s: node is nil", ID)
+		return nil, fmt.Errorf("%s: node is nil", id)
 	}
 
 	var ms []wfn.Matcher
 	for _, match := range node.CPEMatch {
 		if match != nil {
-			if m, err := cpeMatcher(ID, match); err == nil {
+			if m, err := cpeMatcher(id, match); err == nil {
 				ms = append(ms, m)
 			}
 		}
 	}
 	for _, child := range node.Children {
 		if child != nil {
-			if m, err := nodeMatcher(ID, child); err == nil {
+			if m, err := nodeMatcher(id, child); err == nil {
 				ms = append(ms, m)
 			}
 		}
 	}
 
 	if len(ms) == 0 {
-		return nil, fmt.Errorf("%s: empty configuration for node", ID)
+		return nil, fmt.Errorf("%s: empty configuration for node", id)
 	}
 
 	var m wfn.Matcher
 
 	switch strings.ToUpper(node.Operator) {
 	default:
-		flog.Warningf("%s: unknown operator, defaulting to OR: got %q", ID, node.Operator)
+		flog.Warningf("%s: unknown operator, defaulting to OR: got %q", id, node.Operator)
 		fallthrough
 	case "OR":
 		m = wfn.MatchAny(ms...)

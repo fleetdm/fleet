@@ -94,6 +94,15 @@ func TestMatchJSON(t *testing.T) {
 				{Part: "a", Vendor: "mozilla", Product: "firefox", Version: "64\\.0"},
 			},
 		},
+		{
+			Rule: 3,
+			Inventory: []*wfn.Attributes{
+				{Part: "o", Vendor: "apple", Product: "macos", Version: "14\\.1\\.2"},
+			},
+			Matches: []*wfn.Attributes{
+				{Part: "o", Vendor: "apple", Product: "macos", Version: "14\\.1\\.2"},
+			},
+		},
 	}
 	items, err := ParseJSON(bytes.NewBufferString(testJSONdict))
 	if err != nil {
@@ -103,12 +112,51 @@ func TestMatchJSON(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			mm := items[c.Rule].Match(c.Inventory, false)
 			if len(mm) != len(c.Matches) {
-				t.Fatalf("expected %d matches, got %d matches", len(mm), len(c.Matches))
+				t.Fatalf("expected %d matches, got %d matches", len(c.Matches), len(mm))
 			}
 			if len(mm) > 0 && !matchesAll(mm, c.Matches) {
 				t.Fatalf("wrong match: expected %v, got %v", c.Matches, mm)
 			}
 		})
+	}
+}
+
+func TestTargetSWMatching(t *testing.T) {
+	inventoryAcrobat := []*wfn.Attributes{
+		{Part: "a", Vendor: "adobe", Product: "acrobat", Version: "20\\.001\\.3005", TargetSW: "macos"},
+	}
+
+	items, err := ParseJSON(bytes.NewBufferString(targetSWMatchingJSON))
+	if err != nil {
+		t.Fatalf("failed to parse the dictionary: %v", err)
+	}
+	// matches OS on targetSW
+	if mm := items[0].Match(inventoryAcrobat, true); len(mm) == 0 {
+		t.Fatal("expected Match to match, it did not")
+	}
+
+	// does not match OS on targetSW
+	if mm := items[1].Match(inventoryAcrobat, true); len(mm) != 0 {
+		t.Fatal("expected Match to not match, it did")
+	}
+
+	// matches when OS is not present
+	if mm := items[2].Match(inventoryAcrobat, true); len(mm) == 0 {
+		t.Fatal("expected Match to match, it did not")
+	}
+
+	// does not match OS on targetSW with multiple nodes
+	if mm := items[3].Match(inventoryAcrobat, true); len(mm) != 0 {
+		t.Fatal("expected Match to not match, it did")
+	}
+
+	inventoryWrongOS := []*wfn.Attributes{
+		{Part: "a", Vendor: "adobe", Product: "acrobat", Version: "20\\.001\\.3005", TargetSW: "linux"},
+	}
+
+	// does not match OS on targetSW
+	if mm := items[0].Match(inventoryWrongOS, true); len(mm) != 0 {
+		t.Fatal("expected Match to not match, it did")
 	}
 }
 
@@ -279,8 +327,264 @@ var testJSONdict = `{
         }
       ]
     }
-  }
+  },
+  {
+	"cve": {
+	"affects": null,
+	"CVE_data_meta": {
+		"ASSIGNER": "product-security@apple.com",
+		"ID": "CVE-2023-42919"
+	},
+	"data_format": "MITRE",
+	"data_type": "CVE",
+	"data_version": "4.0"
+	},
+	"configurations": {
+	"CVE_data_version": "4.0",
+	"nodes": [
+		{
+		"cpe_match": [
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:ipados:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "16.7.3",
+			"vulnerable": true
+			},
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:ipados:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "17.2",
+			"versionStartIncluding": "17.0",
+			"vulnerable": true
+			},
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "16.7.3",
+			"vulnerable": true
+			},
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:iphone_os:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "17.2",
+			"versionStartIncluding": "17.0",
+			"vulnerable": true
+			},
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "12.7.2",
+			"versionStartIncluding": "12.0.0",
+			"vulnerable": true
+			},
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "13.6.3",
+			"versionStartIncluding": "13.0",
+			"vulnerable": true
+			},
+			{
+			"cpe23Uri": "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+			"versionEndExcluding": "14.2",
+			"versionStartIncluding": "14.0",
+			"vulnerable": true
+			}
+		],
+		"operator": "OR"
+		}
+	]
+	}
+}
 ] }`
+
+var targetSWMatchingJSON = `{
+	"CVE_data_type" : "CVE",
+	"CVE_data_format" : "MITRE",
+	"CVE_data_version" : "4.0",
+	"CVE_data_numberOfCVEs" : "7083",
+	"CVE_data_timestamp" : "2018-07-31T07:00Z",
+	"CVE_Items" : [ {
+		"cve" : {
+			"data_type" : "CVE",
+			"data_format" : "MITRE",
+			"data_version" : "4.0",
+			"CVE_data_meta" : {
+				"ID" : "CVE-2023-26369",
+				"ASSIGNER" : "psirt@adobe.com"
+			}
+			},
+			"configurations" : {
+			"CVE_data_version" : "4.0",
+			"nodes" : [ {
+				"operator" : "AND",
+				"children" : [ {
+				"operator" : "OR",
+				"children" : [ ],
+				"cpe_match" : [ {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:a:adobe:acrobat:*:*:*:*:classic:*:*:*",
+					"versionStartIncluding" : "20.001.3005",
+					"versionEndExcluding" : "20.005.30524",
+					"cpe_name" : [ ]
+				}, {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:a:adobe:acrobat_dc:*:*:*:*:continuous:*:*:*",
+					"versionStartIncluding" : "15.007.20033",
+					"versionEndExcluding" : "23.006.20320",
+					"cpe_name" : [ ]
+				}, {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:a:adobe:acrobat_reader:*:*:*:*:classic:*:*:*",
+					"versionStartIncluding" : "20.001.3005",
+					"versionEndExcluding" : "20.005.30524",
+					"cpe_name" : [ ]
+				}, {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:a:adobe:acrobat_reader_dc:*:*:*:*:continuous:*:*:*",
+					"versionStartIncluding" : "15.007.20033",
+					"versionEndExcluding" : "23.006.20320",
+					"cpe_name" : [ ]
+				} ]
+				}, {
+				"operator" : "OR",
+				"children" : [ ],
+				"cpe_match" : [ {
+					"vulnerable" : false,
+					"cpe23Uri" : "cpe:2.3:o:apple:macos:-:*:*:*:*:*:*:*",
+					"cpe_name" : [ ]
+				}, {
+					"vulnerable" : false,
+					"cpe23Uri" : "cpe:2.3:o:microsoft:windows:-:*:*:*:*:*:*:*",
+					"cpe_name" : [ ]
+				} ]
+				} ],
+				"cpe_match" : [ ]
+			} ]
+			}
+		}, {
+			"cve" : {
+			"data_type" : "CVE",
+			"data_format" : "MITRE",
+			"data_version" : "4.0",
+			"CVE_data_meta" : {
+				"ID" : "CVE-2023-27928",
+				"ASSIGNER" : "product-security@apple.com"
+			}
+			},
+			"configurations" : {
+			"CVE_data_version" : "4.0",
+			"nodes" : [ {
+				"operator" : "OR",
+				"children" : [ ],
+				"cpe_match" : [ {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+				"versionStartIncluding" : "13.0",
+				"versionEndExcluding" : "13.3",
+				"cpe_name" : [ ]
+				}, {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:o:apple:tvos:*:*:*:*:*:*:*:*",
+				"versionEndExcluding" : "16.4",
+				"cpe_name" : [ ]
+				}, {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:o:apple:watchos:*:*:*:*:*:*:*:*",
+				"versionEndExcluding" : "9.4",
+				"cpe_name" : [ ]
+				}, {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+				"versionEndExcluding" : "11.7.5",
+				"cpe_name" : [ ]
+				} ]
+			} ]
+			}
+		}, {
+			"cve" : {
+			"data_type" : "CVE",
+			"data_format" : "MITRE",
+			"data_version" : "4.0",
+			"CVE_data_meta" : {
+				"ID" : "CVE-2023-27928",
+				"ASSIGNER" : "product-security@apple.com"
+			}
+			},
+			"configurations" : {
+			"CVE_data_version" : "4.0",
+			"nodes" : [ {
+				"operator" : "OR",
+				"children" : [ ],
+				"cpe_match" : [ {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:a:adobe:acrobat:*:*:*:*:classic:*:*:*",
+				"versionStartIncluding" : "20.001.3005",
+				"versionEndExcluding" : "20.005.30524",
+				"cpe_name" : [ ]
+				}, {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:a:adobe:acrobat_dc:*:*:*:*:continuous:*:*:*",
+				"versionStartIncluding" : "15.007.20033",
+				"versionEndExcluding" : "23.006.20320",
+				"cpe_name" : [ ]
+				}, {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:a:adobe:acrobat_reader:*:*:*:*:classic:*:*:*",
+				"versionStartIncluding" : "20.001.3005",
+				"versionEndExcluding" : "20.005.30524",
+				"cpe_name" : [ ]
+				}, {
+				"vulnerable" : true,
+				"cpe23Uri" : "cpe:2.3:a:adobe:acrobat_reader_dc:*:*:*:*:continuous:*:*:*",
+				"versionStartIncluding" : "15.007.20033",
+				"versionEndExcluding" : "23.006.20320",
+				"cpe_name" : [ ]
+				} ]
+			} ]
+			}
+		}, {
+			"cve" : {
+				"data_type" : "CVE",
+				"data_format" : "MITRE",
+				"data_version" : "4.0",
+				"CVE_data_meta" : {
+				"ID" : "CVE-2023-28321",
+				"ASSIGNER" : "support@hackerone.com"
+				}
+			},
+			"configurations" : {
+				"CVE_data_version" : "4.0",
+				"nodes" : [ {
+				"operator" : "OR",
+				"children" : [ ],
+				"cpe_match" : [ {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:a:haxx:curl:*:*:*:*:*:*:*:*",
+					"versionEndExcluding" : "8.1.0",
+					"cpe_name" : [ ]
+				} ]
+				}, {
+				"operator" : "OR",
+				"children" : [ ],
+				"cpe_match" : [ {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+					"versionStartIncluding" : "13.0",
+					"versionEndExcluding" : "13.5",
+					"cpe_name" : [ ]
+				}, {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+					"versionStartIncluding" : "12.0",
+					"versionEndExcluding" : "12.6.8",
+					"cpe_name" : [ ]
+				}, {
+					"vulnerable" : true,
+					"cpe23Uri" : "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*",
+					"versionStartIncluding" : "11.0",
+					"versionEndExcluding" : "11.7.9",
+					"cpe_name" : [ ]
+				} ]
+				} ]
+			}
+		  }
+] }
+`
 
 func matchesAll(src, tgt []*wfn.Attributes) bool {
 	if len(src) != len(tgt) {

@@ -12,10 +12,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -32,7 +33,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 		ctx := token.NewContext(context.Background(), bearer)
-		v, err := authViewer(ctx, string(bearer), m.service)
+		v, err := auth.AuthViewer(ctx, string(bearer), m.service)
 		if err != nil {
 			http.Error(w, "Invalid authentication", http.StatusUnauthorized)
 			return

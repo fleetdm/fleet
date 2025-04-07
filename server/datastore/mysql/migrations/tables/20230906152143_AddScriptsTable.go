@@ -37,7 +37,7 @@ CREATE TABLE scripts (
 
     UNIQUE KEY idx_scripts_global_or_team_id_name (global_or_team_id, name),
     FOREIGN KEY fk_scripts_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create scripts table: %w", err)
 	}

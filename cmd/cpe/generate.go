@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	httpClientTimeout       = 2 * time.Minute
+	httpClientTimeout       = 3 * time.Minute
 	waitTimeBetweenRequests = 6 * time.Second
-	waitTimeForRetry        = 30 * time.Second
-	maxRetryAttempts        = 10
+	waitTimeForRetry        = 10 * time.Second
+	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
 )
 
@@ -42,7 +42,7 @@ func main() {
 	slog.SetDefault(slog.New(logHandler))
 
 	if apiKey == "" {
-		log.Fatal(fmt.Sprintf("Must set %v environment variable", apiKeyEnvVar))
+		log.Fatalf("Must set %v environment variable", apiKeyEnvVar)
 	}
 
 	cwd, err := os.Getwd()
@@ -109,12 +109,12 @@ func getCPEs(client common.HTTPClient, apiKey string, resultPath string) string 
 
 	// Sanity check
 	if totalResults <= 1 || len(cpes) != totalResults {
-		log.Fatal(fmt.Sprintf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes)))
+		log.Fatalf("Invalid number of expected results:%v or actual results:%v", totalResults, len(cpes))
 	}
 
 	slog.Info("Generating CPE sqlite DB...")
 
-	dbPath := filepath.Join(resultPath, fmt.Sprint("cpe.sqlite"))
+	dbPath := filepath.Join(resultPath, "cpe.sqlite")
 	err = nvd.GenerateCPEDB(dbPath, cpes)
 	panicIf(err)
 
@@ -215,12 +215,12 @@ func addSHA256(path string) (string, error) {
 }
 
 // replaceLast replaces the last occurrence of string
-func replaceLast(s, old, new string) (string, error) {
-	i := strings.LastIndex(s, old)
+func replaceLast(s, oldVal, newVal string) (string, error) {
+	i := strings.LastIndex(s, oldVal)
 	if i == -1 {
-		return "", fmt.Errorf("substring:%v not found in string:%v", old, s)
+		return "", fmt.Errorf("substring:%v not found in string:%v", oldVal, s)
 	}
-	return s[:i] + new + s[i+len(old):], nil
+	return s[:i] + newVal + s[i+len(oldVal):], nil
 }
 
 func closeFile(file *os.File) {

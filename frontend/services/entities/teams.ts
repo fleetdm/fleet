@@ -45,6 +45,14 @@ export interface IUpdateTeamFormData {
       minimum_version: string;
       deadline: string;
     };
+    ios_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
     windows_updates?: {
       deadline_days: number;
       grace_period_days: number;
@@ -59,6 +67,10 @@ export interface IUpdateTeamFormData {
 export default {
   create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
+
+    if (formData.name) {
+      formData.name = formData.name.trim();
+    }
 
     return sendRequest("POST", TEAMS, formData);
   },
@@ -112,7 +124,7 @@ export default {
     const path = `${TEAMS}/${teamId}`;
     const requestBody: Record<string, unknown> = {};
     if (name) {
-      requestBody.name = name;
+      requestBody.name = name.trim();
     }
     if (webhook_settings) {
       requestBody.webhook_settings = webhook_settings;

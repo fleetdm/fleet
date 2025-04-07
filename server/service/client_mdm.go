@@ -40,24 +40,29 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
+func (c *Client) CountABMTokens() (int, error) {
+	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	var responseBody countABMTokensResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	return responseBody.Count, err
+}
+
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {
-	verb, path := "GET", "/api/v1/fleet/mdm/apple/request_csr"
-	// TODO(roberto): adjust request/response type when the endpoint is ready
-	var request, resp map[string][]byte
-	err := c.authenticatedRequest(request, verb, path, &resp)
-	return resp["csr"], err
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/request_csr"
+	var resp getMDMAppleCSRResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.CSR, err
 }
 
 // RequestAppleABM requests a signed CSR from the Fleet server and returns the
 // public key bytes
 func (c *Client) RequestAppleABM() ([]byte, error) {
-	verb, path := "GET", "/api/v1/fleet/mdm/apple/abm_public_key?alt=media"
-	// TODO(roberto): adjust this request type when the endpoint is ready
-	var request, resp map[string][]byte
-	err := c.authenticatedRequest(request, verb, path, &resp)
-	return resp["public_key"], err
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	var resp generateABMKeyPairResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.PublicKey, err
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -71,6 +76,23 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 		err = c.authenticatedRequest(request, verb, path, &responseBody)
 	}
 	return responseBody.MDMAppleBootstrapPackage, err
+}
+
+func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
+	_, err := c.GetBootstrapPackageMetadata(teamID, true)
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting bootstrap package metadata: %w", err)
+	}
+
+	err = c.DeleteBootstrapPackage(teamID)
+	if err != nil {
+		return fmt.Errorf("deleting bootstrap package: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) DeleteBootstrapPackage(teamID uint) error {
@@ -124,7 +146,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	return nil
 }
 
-func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
+func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
 	isFirstTime := false
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
@@ -243,7 +265,7 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 }
 
 func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/enrollment_profile"
+	verb, path := http.MethodPost, "/api/latest/fleet/enrollment_profiles/automatic"
 	request := createMDMAppleSetupAssistantRequest{
 		TeamID:            teamID,
 		Name:              name,
@@ -252,8 +274,16 @@ func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name strin
 	return c.authenticatedRequest(request, verb, path, nil)
 }
 
-func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
-	const defaultCommandsPerPage = 1000
+func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
+	verb, path := http.MethodDelete, "/api/latest/fleet/enrollment_profiles/automatic"
+	request := deleteMDMAppleSetupAssistantRequest{
+		TeamID: teamID,
+	}
+	return c.authenticatedRequest(request, verb, path, nil)
+}
+
+func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	const defaultCommandsPerPage = 20
 
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
 
@@ -261,11 +291,13 @@ func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
 	query.Set("order_key", "updated_at")
 	query.Set("order_direction", "desc")
+	query.Set("host_identifier", opts.Filters.HostIdentifier)
+	query.Set("request_type", opts.Filters.RequestType)
 
 	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, err
 	}
 
 	return responseBody.Results, nil

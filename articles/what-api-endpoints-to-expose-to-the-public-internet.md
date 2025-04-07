@@ -11,7 +11,7 @@ If you would like to manage hosts that can travel outside your VPN or intranet, 
 
 ## Using Fleet Desktop on remote devices
 
-If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/*/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
+If you're using Fleet Desktop `/api/*/fleet/device/*/desktop` must be exposed in the API, and for the end user **Fleet Desktop > My device** page `/device/*` and `/assets/*` must be exposed.
 
 For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
@@ -57,11 +57,17 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 - `/api/mdm/microsoft/auth`: If you use automatic enrollment, authenticates end users during out-of-the-box Windows setup. 
   - See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
 
+### SCEP proxy
+
+If you would like to use Fleet as a SCEP proxy, the following endpoint needs to be exposed:
+
+- `/mdm/scep/proxy/*`: Allows hosts to obtain a SCEP certificate from a configured SCEP server.
+
 ## Advanced
 
 The `/api/*/fleet/*` endpoints accessed by the fleetd agent can use mTLS with the certificate provided via the `--fleet-tls-client-certificate` flag in the `fleetctl package` command.
 
-The `/mdm/apple/mdm` and `/api/mdm/apple/enroll` endpoints can use mTLS with the [SCEP certificate issued by the Fleet server](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-cert-bytes).
+The `/mdm/apple/mdm` and `/api/mdm/apple/enroll` endpoints can use mTLS with the SCEP certificate issued by the Fleet server.
 
 These endpoints don't use mTLS:
 - `/mdm/apple/scep`

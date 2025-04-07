@@ -1,12 +1,16 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -137,8 +141,16 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				mdm["macos_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
+				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -271,8 +283,18 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				windowsSettings := fleet.WindowsSettings{}
+				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
+				mdm["windows_settings"] = windowsSettings
+				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -282,7 +304,7 @@ func TestExtractTeamSpecsMDMCustomSettings(t *testing.T) {
 	cases := []struct {
 		desc string
 		yaml string
-		want map[string][]fleet.MDMProfileSpec
+		want map[string]profileSpecsByPlatform
 	}{
 		{
 			"no settings",
@@ -342,7 +364,7 @@ spec:
       windows_settings:
         custom_settings:
 `,
-			map[string][]fleet.MDMProfileSpec{"Fleet": {}, "Fleet2": {}},
+			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}}},
 		},
 		{
 			"custom settings specified",
@@ -368,11 +390,15 @@ spec:
                - "foo"
                - baz
 `,
-			map[string][]fleet.MDMProfileSpec{"Fleet": {
-				{Path: "a", Labels: []string{"foo", "bar"}},
-				{Path: "b"},
-				{Path: "c"},
-				{Path: "d", Labels: []string{"foo", "baz"}},
+			map[string]profileSpecsByPlatform{"Fleet": {
+				macos: []fleet.MDMProfileSpec{
+					{Path: "a", Labels: []string{"foo", "bar"}},
+					{Path: "b"},
+				},
+				windows: []fleet.MDMProfileSpec{
+					{Path: "c"},
+					{Path: "d", Labels: []string{"foo", "baz"}},
+				},
 			}},
 		},
 		{
@@ -393,7 +419,13 @@ spec:
           - "c"
           - "d"
 `,
-			map[string][]fleet.MDMProfileSpec{"Fleet": {{Path: "a"}, {Path: "b"}, {Path: "c"}, {Path: "d"}}},
+			map[string]profileSpecsByPlatform{"Fleet": {
+				macos: []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+				windows: []fleet.MDMProfileSpec{
+					{Path: "c"},
+					{Path: "d"},
+				},
+			}},
 		},
 		{
 			"invalid custom settings",
@@ -423,7 +455,7 @@ spec:
           - path: 24
           - path: "y"
 `,
-			map[string][]fleet.MDMProfileSpec{},
+			map[string]profileSpecsByPlatform{},
 		},
 		{
 			"old invalid custom settings",
@@ -447,7 +479,7 @@ spec:
           - 24
           - "y"
 `,
-			map[string][]fleet.MDMProfileSpec{},
+			map[string]profileSpecsByPlatform{},
 		},
 	}
 	for _, c := range cases {
@@ -455,8 +487,13 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if len(specs.Teams) > 0 {
-				got := extractTmSpecsMDMCustomSettings(specs.Teams)
-				require.Equal(t, c.want, got)
+				gotSpecs := extractTmSpecsMDMCustomSettings(specs.Teams)
+				for k, wantProfs := range c.want {
+					gotProfs, ok := gotSpecs[k]
+					require.True(t, ok)
+					require.Equal(t, wantProfs.macos, gotProfs.macos)
+					require.Equal(t, wantProfs.windows, gotProfs.windows)
+				}
 			}
 		})
 	}
@@ -502,19 +539,21 @@ func TestGetProfilesContents(t *testing.T) {
 </Replace>`
 
 	tests := []struct {
-		name        string
-		baseDir     string
-		setupFiles  [][2]string
-		labels      []string
-		environment map[string]string
-		expandEnv   bool
-		expectError bool
-		want        []fleet.MDMProfileBatchPayload
+		name          string
+		baseDir       string
+		macSetupFiles [][2]string
+		winSetupFiles [][2]string
+		labels        []string
+		environment   map[string]string
+		expandEnv     bool
+		expectError   bool
+		want          []fleet.MDMProfileBatchPayload
+		wantErr       string
 	}{
 		{
 			name:    "invalid darwin xml",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
+			macSetupFiles: [][2]string{
 				{"foo.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>`},
 			},
 			expectError: true,
@@ -523,9 +562,11 @@ func TestGetProfilesContents(t *testing.T) {
 		{
 			name:    "windows and darwin files",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
-				{"foo.xml", string(windowsProfile)},
+			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
+			},
+			winSetupFiles: [][2]string{
+				{"foo.xml", string(windowsProfile)},
 			},
 			expectError: false,
 			want: []fleet.MDMProfileBatchPayload{
@@ -536,9 +577,11 @@ func TestGetProfilesContents(t *testing.T) {
 		{
 			name:    "windows and darwin files with labels",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
-				{"foo.xml", string(windowsProfile)},
+			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
+			},
+			winSetupFiles: [][2]string{
+				{"foo.xml", string(windowsProfile)},
 			},
 			labels:      []string{"foo", "bar"},
 			expectError: false,
@@ -550,9 +593,11 @@ func TestGetProfilesContents(t *testing.T) {
 		{
 			name:    "darwin files with file name != PayloadDisplayName",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
-				{"foo.xml", string(windowsProfile)},
+			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
+			},
+			winSetupFiles: [][2]string{
+				{"foo.xml", string(windowsProfile)},
 			},
 			expectError: false,
 			want: []fleet.MDMProfileBatchPayload{
@@ -563,16 +608,18 @@ func TestGetProfilesContents(t *testing.T) {
 		{
 			name:    "duplicate names across windows and darwin",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
-				{"baz.xml", string(windowsProfile)},
+			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(mobileconfigForTest("baz", "I"))},
+			},
+			winSetupFiles: [][2]string{
+				{"baz.xml", string(windowsProfile)},
 			},
 			expectError: true,
 		},
 		{
 			name:    "duplicate file names",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
+			winSetupFiles: [][2]string{
 				{"baz.xml", string(windowsProfile)},
 				{"baz.xml", string(windowsProfile)},
 			},
@@ -581,8 +628,10 @@ func TestGetProfilesContents(t *testing.T) {
 		{
 			name:    "with environment variables",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
+			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", darwinProfileWithFooEnv},
+			},
+			winSetupFiles: [][2]string{
 				{"foo.xml", windowsProfileWithBarEnv},
 			},
 			environment: map[string]string{"FOO": "42", "BAR": "24"},
@@ -634,13 +683,42 @@ func TestGetProfilesContents(t *testing.T) {
 		{
 			name:    "with environment variables but not set",
 			baseDir: tempDir,
-			setupFiles: [][2]string{
+			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", darwinProfileWithFooEnv},
+			},
+			winSetupFiles: [][2]string{
 				{"foo.xml", windowsProfileWithBarEnv},
 			},
 			environment: map[string]string{},
 			expandEnv:   true,
 			expectError: true,
+		},
+		{
+			name:    "with unprocessable json",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"bar.json", string(windowsProfile)},
+			},
+			expectError: true,
+			wantErr:     "Couldn't edit macos_settings.custom_settings (bar.json): Declaration profiles should include valid JSON",
+		},
+		{
+			name:    "with unprocessable xml",
+			baseDir: tempDir,
+			winSetupFiles: [][2]string{
+				{"bar.xml", string(darwinProfile)},
+			},
+			expectError: true,
+			wantErr:     "Couldn't edit windows_settings.custom_settings (bar.xml): Windows configuration profiles can only have <Replace> or <Add> top level elements",
+		},
+		{
+			name:    "with unsupported extension",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"bar.cfg", string(darwinProfile)},
+			},
+			expectError: true,
+			wantErr:     "Couldn't edit macos_settings.custom_settings (bar.cfg): macOS configuration profiles must be .mobileconfig or .json files",
 		},
 	}
 
@@ -658,23 +736,72 @@ func TestGetProfilesContents(t *testing.T) {
 					})
 				}
 			}
-			paths := []fleet.MDMProfileSpec{}
-			for _, fileSpec := range tt.setupFiles {
+			macPaths := []fleet.MDMProfileSpec{}
+			for _, fileSpec := range tt.macSetupFiles {
 				filePath := filepath.Join(tempDir, fileSpec[0])
 				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0o644))
-				paths = append(paths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
+				macPaths = append(macPaths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
 			}
 
-			profileContents, err := getProfilesContents(tt.baseDir, paths, tt.expandEnv)
+			winPaths := []fleet.MDMProfileSpec{}
+			for _, fileSpec := range tt.winSetupFiles {
+				filePath := filepath.Join(tempDir, fileSpec[0])
+				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0o644))
+				winPaths = append(winPaths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
+			}
+
+			profileContents, err := getProfilesContents(tt.baseDir, macPaths, winPaths, tt.expandEnv)
 
 			if tt.expectError {
 				require.Error(t, err)
+				if tt.wantErr != "" {
+					require.Contains(t, err.Error(), tt.wantErr)
+				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, profileContents)
 				require.Len(t, profileContents, len(tt.want))
 				require.ElementsMatch(t, tt.want, profileContents)
 			}
+		})
+	}
+}
+
+func TestGitOpsErrors(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	client, err := NewClient("https://foo.bar", true, "", "")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		rawJSON string
+		wantErr string
+	}{
+		{
+			name:    "invalid integrations value",
+			rawJSON: `{ "integrations": false }`,
+			wantErr: "org_settings.integrations",
+		},
+		{
+			name:    "invalid ndes_scep_proxy value",
+			rawJSON: `{ "integrations": { "ndes_scep_proxy": [] } }`,
+			wantErr: "org_settings.integrations.ndes_scep_proxy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &spec.GitOps{}
+			config.OrgSettings = make(map[string]interface{})
+			// Signal that we don't want to send any labels.
+			// This avoids this test attempting to make a request to the GetLabels endpoint.
+			config.Labels = make([]*fleet.LabelSpec, 0)
+			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
+			require.NoError(t, err)
+			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
+			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }

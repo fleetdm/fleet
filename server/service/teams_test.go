@@ -53,8 +53,9 @@ func TestTeamAuth(t *testing.T) {
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
@@ -427,28 +428,28 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 		ds.NewTeamFuncInvoked = false
 
 		// Dry run -- secret already used
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return false, nil
 		}
 		_, err := svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}},
 			fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}},
 		)
 		assert.ErrorContains(t, err, "is already being used")
 
 		// Normal dry run
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		_, err = svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}},
 			fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}},
 		)
 		assert.NoError(t, err)
 		assert.False(t, ds.NewTeamFuncInvoked)
 
 		_, err = svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
 		)
 		require.NoError(t, err)
 		require.True(t, ds.TeamByNameFuncInvoked)

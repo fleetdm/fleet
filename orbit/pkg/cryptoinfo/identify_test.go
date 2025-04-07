@@ -59,7 +59,7 @@ func TestIdentify(t *testing.T) {
 			expectedSubjects: []string{"www.example.com"},
 		},
 		{
-			in:               []string{filepath.Join("testdata", "test-enc.p12")}, //password is test123
+			in:               []string{filepath.Join("testdata", "test-enc.p12")}, // password is test123
 			password:         "test123",
 			expectedCount:    2,
 			expectedSubjects: []string{"www.example.com"},

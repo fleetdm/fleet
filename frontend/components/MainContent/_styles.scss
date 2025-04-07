@@ -10,4 +10,23 @@
   > :not(.main-content--animation-disabled) {
     animation: fade-in 250ms ease-out;
   }
+
+  &__warning-banner {
+    margin-bottom: $pad-large;
+    // TODO: figure out if sticky styling is needed?
+    position: sticky; // Needed for settings page scroll
+    z-index: 4; // Needed for settings page scroll
+  }
+}
+
+@media (max-width: ($break-xs - 1)) {
+  .main-content {
+    padding: $pad-large;
+  }
+}
+
+@media (max-width: ($break-mobile-md - 1)) {
+  .main-content {
+    padding: 20px;
+  }
 }

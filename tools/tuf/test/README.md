@@ -20,7 +20,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
-SYSTEMS="macos windows linux" \
+SYSTEMS="macos windows linux linux-arm64" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
 DEB_FLEET_URL=https://host.docker.internal:8080 \
@@ -31,7 +31,9 @@ MSI_FLEET_URL=https://host.docker.internal:8080 \
 MSI_TUF_URL=http://host.docker.internal:8081 \
 GENERATE_PKG=1 \
 GENERATE_DEB=1 \
+GENERATE_DEB_ARM64=1 \
 GENERATE_RPM=1 \
+GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
@@ -59,10 +61,28 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 To build for a specific architecture, you can pass the `GOARCH` environment variable:
 ``` shell
 [...]
-GOARCH=arm64 # defaults to amd64
+# defaults to amd64
+GOARCH=arm64 \
 [...]
 ./tools/tuf/test/main.sh
 ```
+
+# Test fleetd with expired signatures on a TUF repository
+
+To generate a TUF repository with shorter expiration time for roles you can set the following environment variables:
+```shell
+[...]
+KEY_EXPIRATION_DURATION=5m \
+TARGETS_EXPIRATION_DURATION=5m \
+SNAPSHOT_EXPIRATION_DURATION=5m \
+TIMESTAMP_EXPIRATION_DURATION=5m \
+[...]
+./tools/tuf/test/main.sh
+```
+
+> NOTE: The duration has to be enough time to generate the packages (otherwise the `fleetctl package` command will fail).
+
+> `KEY_EXPIRATION_DURATION` is used to set the expiration of the `root.json` signature.
 
 # Add new updates
 
@@ -77,7 +97,7 @@ GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
 ```
 
-If the script was executed on a macOS host, the Orbit binary will be an universal binary. To push updates you can do:
+If the script was executed on a macOS host, the Orbit binary will be a universal binary. To push updates you can do:
 
 ```sh
 # Compile a universal binary of Orbit:
@@ -124,3 +144,16 @@ Solution: Set the `MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest 
 ```
 export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version
 ```
+
+#### Issue generating linux-arm64 packages when running Docker Desktop on macOS using Apple Silicon
+
+When running Docker Desktop on macOS using Apple Silicon, enrollment packages for ARM Linux may fail to generate and you may see a warning similar to:
+
+```
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+[...]
+/usr/local/go/pkg/tool/linux_amd64/compile: signal: illegal instruction
+make: *** [desktop-linux] Error 1
+```
+
+Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.

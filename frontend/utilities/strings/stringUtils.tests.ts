@@ -1,4 +1,10 @@
-import { enforceFleetSentenceCasing, pluralize } from "./stringUtils";
+import {
+  enforceFleetSentenceCasing,
+  pluralize,
+  strToBool,
+  stripQuotes,
+  isIncompleteQuoteQuery,
+} from "./stringUtils";
 
 describe("string utilities", () => {
   describe("enforceFleetSentenceCasing utility", () => {
@@ -42,6 +48,47 @@ describe("string utilities", () => {
       expect(pluralize(0, "hero")).toEqual("heros");
       expect(pluralize(2, "hero")).toEqual("heros");
       expect(pluralize(100, "hero")).toEqual("heros");
+    });
+  });
+
+  describe("strToBool utility", () => {
+    it("converts 'true' to true and 'false' to false", () => {
+      expect(strToBool("true")).toBe(true);
+      expect(strToBool("false")).toBe(false);
+    });
+
+    it("returns false for undefined, null, or empty string", () => {
+      expect(strToBool(undefined)).toBe(false);
+      expect(strToBool(null)).toBe(false);
+      expect(strToBool("")).toBe(false);
+    });
+  });
+
+  describe("stripQuotes utility", () => {
+    it("removes matching single or double quotes from the start and end of a string", () => {
+      expect(stripQuotes('"Hello, World!"')).toEqual("Hello, World!");
+      expect(stripQuotes("'Hello, World!'")).toEqual("Hello, World!");
+    });
+    it("does not modify a string without quotes or mismatched quotes", () => {
+      expect(stripQuotes("No quotes here")).toEqual("No quotes here");
+      expect(stripQuotes(`'Mismatched quotes"`)).toEqual(`'Mismatched quotes"`);
+    });
+  });
+
+  describe("isIncompleteQuoteQuery utility", () => {
+    it("returns true for a string starting with a quote but not ending with one", () => {
+      expect(isIncompleteQuoteQuery('"incomplete')).toBe(true);
+      expect(isIncompleteQuoteQuery("'incomplete")).toBe(true);
+    });
+
+    it("returns false for a string with matching quotes", () => {
+      expect(isIncompleteQuoteQuery('"complete"')).toBe(false);
+      expect(isIncompleteQuoteQuery("'complete'")).toBe(false);
+    });
+
+    it("returns false for a string without any quotes or an empty string", () => {
+      expect(isIncompleteQuoteQuery("no quotes")).toBe(false);
+      expect(isIncompleteQuoteQuery("")).toBe(false);
     });
   });
 });

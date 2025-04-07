@@ -1,0 +1,20 @@
+.vpp-table {
+  // The desired behavior is to remove the location header and cell as the
+  // viewport gets smaller. This is achieved by using the max-width media query
+  // with the breakpoint value taken from when the table content starts to overflow.
+  @media (max-width: $break-md) {
+    .location__header,
+    .location__cell {
+      display: none;
+    }
+  }
+
+  // this is a special case where the org name cell is too long at smaller widths.
+  // We dont want to remove any more columns so we need to reduce the width of
+  // the org name cell content to prevent table content overflow.
+  @media (max-width: $break-sm) {
+    .org_name__cell > span {
+      width: 140px;
+    }
+  }
+}

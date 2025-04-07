@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	ErrUnauthenticated = errors.New("unauthenticated, or invalid token")
-	ErrMissingLicense  = errors.New("missing or invalid license")
+	ErrUnauthenticated       = errors.New("unauthenticated, or invalid token")
+	ErrPasswordResetRequired = errors.New("Password reset required. Please sign into the Fleet UI to update your password, then log in again with: fleetctl login.")
+	ErrMissingLicense        = errors.New("missing or invalid license")
 )
 
 type SetupAlreadyErr interface {
@@ -104,17 +105,40 @@ type serverError struct {
 }
 
 func extractServerErrorText(body io.Reader) string {
+	_, reason := extractServerErrorNameReason(body)
+	return reason
+}
+
+func extractServerErrorNameReason(body io.Reader) (string, string) {
 	var serverErr serverError
 	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
-		return "unknown"
+		return "", "unknown"
 	}
 
-	errText := serverErr.Message
+	errName := ""
+	errReason := serverErr.Message
 	if len(serverErr.Errors) > 0 {
-		errText += ": " + serverErr.Errors[0].Reason
+		errReason += ": " + serverErr.Errors[0].Reason
+		errName = serverErr.Errors[0].Name
 	}
 
-	return errText
+	return errName, errReason
+}
+
+func extractServerErrorNameReasons(body io.Reader) ([]string, []string) {
+	var serverErr serverError
+	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
+		return []string{""}, []string{"unknown"}
+	}
+
+	var errName []string
+	var errReason []string
+	for _, err := range serverErr.Errors {
+		errName = append(errName, err.Name)
+		errReason = append(errReason, err.Reason)
+	}
+
+	return errName, errReason
 }
 
 type statusCodeErr struct {

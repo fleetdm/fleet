@@ -1,6 +1,17 @@
 .data-set {
   font-size: $x-small;
-  min-width: max-content;
+
+  &__horizontal {
+    display: flex;
+    gap: $pad-small;
+  }
+
+  // ff only
+  @-moz-document url-prefix() {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
   dt {
     font-weight: $bold;

@@ -11,45 +11,33 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 
 import { ignoreAxiosError } from "interfaces/errors";
+import {
+  isLinuxLike,
+  Platform,
+  VULN_SUPPORTED_PLATFORMS,
+} from "interfaces/platform";
 
 import osVersionsAPI, {
   IOSVersionResponse,
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  PLATFORM_DISPLAY_NAMES,
+} from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
+import { VulnsNotSupported } from "../components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-os-details-page";
-
-interface INotSupportedVulnProps {
-  platform: string;
-}
-
-const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
-  return (
-    <EmptyTable
-      header="Vulnerabilities are not supported for this type of host"
-      info={
-        <>
-          Interested in vulnerability management for{" "}
-          {platform === "chrome" ? "Chromebooks" : "Linux hosts"}?{" "}
-          <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-        </>
-      }
-    />
-  );
-};
 
 interface ISoftwareOSDetailsRouteParams {
   id: string;
@@ -80,17 +68,17 @@ const SoftwareOSDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
-    data: osVersionDetails,
+    data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
   } = useQuery<
     IOSVersionResponse,
     AxiosError,
-    IOperatingSystemVersion,
+    IOSVersionResponse,
     IGetOsVersionQueryKey[]
   >(
     [
@@ -105,7 +93,10 @@ const SoftwareOSDetailsPage = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
       enabled: !!osVersionIdFromURL,
-      select: (data) => data.os_version,
+      select: (data) => ({
+        os_version: data.os_version,
+        counts_updated_at: data.counts_updated_at,
+      }),
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
@@ -127,10 +118,13 @@ const SoftwareOSDetailsPage = ({
     }
 
     if (
-      osVersionDetails.platform !== "darwin" &&
-      osVersionDetails.platform !== "windows"
+      // TODO - detangle platform typing here
+      !VULN_SUPPORTED_PLATFORMS.includes(osVersionDetails.platform as Platform)
     ) {
-      return <NotSupportedVuln platform={osVersionDetails.platform} />;
+      const platformText = isLinuxLike(osVersionDetails.platform)
+        ? "Linux"
+        : PLATFORM_DISPLAY_NAMES[osVersionDetails.platform];
+      return <VulnsNotSupported platformText={platformText} />;
     }
 
     return (
@@ -163,18 +157,17 @@ const SoftwareOSDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        {isOsVersionError ? (
+        {isOsVersionError || !osVersionDetails ? (
           <DetailsNoHosts
             header="OS not detected"
-            details={`No hosts ${
-              teamIdForApi ? "on this team " : ""
-            }have this OS installed.`}
+            details="No hosts have this OS installed."
           />
         ) : (
           <>
             <SoftwareDetailsSummary
               title={osVersionDetails.name}
               hosts={osVersionDetails.hosts_count}
+              countsUpdatedAt={counts_updated_at}
               queryParams={{
                 os_name: osVersionDetails.name_only,
                 os_version: osVersionDetails.version,

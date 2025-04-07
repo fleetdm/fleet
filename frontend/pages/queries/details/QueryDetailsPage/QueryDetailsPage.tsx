@@ -22,7 +22,7 @@ import {
   isTeamObserver,
 } from "utilities/permissions/permissions";
 import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
@@ -42,7 +42,6 @@ import NoResults from "../components/NoResults/NoResults";
 import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
-  QUERY_REPORT_RESULTS_LIMIT,
 } from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
@@ -50,7 +49,12 @@ interface IQueryDetailsPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { team_id?: string; order_key?: string; order_direction?: string };
+    query: {
+      team_id?: string;
+      order_key?: string;
+      order_direction?: string;
+      host_id?: string;
+    };
     search: string;
   };
 }
@@ -67,6 +71,12 @@ const QueryDetailsPage = ({
     router.push(PATHS.MANAGE_QUERIES);
   }
   const queryParams = location.query;
+
+  // Present when observer is redirected from host details > query
+  // since observer does not have access to edit page
+  const hostId = queryParams?.host_id
+    ? parseInt(queryParams.host_id, 10)
+    : undefined;
 
   const { currentTeamId } = useTeamIdParam({
     location,
@@ -92,11 +102,11 @@ const QueryDetailsPage = ({
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
-    isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -155,6 +165,26 @@ const QueryDetailsPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    storedQuery?.team_id &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      getPathWithQueryParams(location.pathname, {
+        team_id: storedQuery?.team_id?.toString(),
+      })
+    );
+  }
+
   const {
     isLoading: isQueryReportLoading,
     data: queryReport,
@@ -163,6 +193,7 @@ const QueryDetailsPage = ({
     [],
     () =>
       queryReportAPI.load({
+        teamId: currentTeamId,
         sortBy: serverSortBy,
         id: queryId,
       }),
@@ -199,21 +230,30 @@ const QueryDetailsPage = ({
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
-  const isClipped =
-    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const isClipped = queryReport?.report_clipped;
+  const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
+    // Team admins/maintainers can only edit queries assigned to a team
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+
+    const canLiveQuery =
+      lastEditedQueryObserverCanRun ||
+      isObserverPlus ||
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
       return (
         filteredQueriesPath ||
-        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+        getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
           team_id: currentTeamId,
-        })}`
+        })
       );
     };
 
@@ -245,7 +285,11 @@ const QueryDetailsPage = ({
                   <Button
                     onClick={() => {
                       queryId &&
-                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
+                        router.push(
+                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
+                            team_id: currentTeamId,
+                          })
+                        );
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -253,10 +297,7 @@ const QueryDetailsPage = ({
                     Edit query
                   </Button>
                 )}
-                {(lastEditedQueryObserverCanRun ||
-                  isObserverPlus ||
-                  isAnyTeamObserverPlus ||
-                  canEditQuery) && (
+                {canLiveQuery && (
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
@@ -264,7 +305,7 @@ const QueryDetailsPage = ({
                       data-tip
                       data-for="live-query-button"
                       // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!disabledLiveQuery}
+                      data-tip-disable={!isLiveQueryDisabled}
                     >
                       <Button
                         className={`${baseClass}__run`}
@@ -272,10 +313,16 @@ const QueryDetailsPage = ({
                         onClick={() => {
                           queryId &&
                             router.push(
-                              PATHS.LIVE_QUERY(queryId, currentTeamId)
+                              getPathWithQueryParams(
+                                PATHS.LIVE_QUERY(queryId),
+                                {
+                                  host_id: hostId,
+                                  team_id: currentTeamId,
+                                }
+                              )
                             );
                         }}
-                        disabled={disabledLiveQuery}
+                        disabled={isLiveQueryDisabled}
                       >
                         Live query
                       </Button>

@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import { trimEnd, upperFirst } from "lodash";
 
 import hostAPI, {
   IGetHostSoftwareResponse,
@@ -12,21 +11,36 @@ import deviceAPI, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
-import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
+import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase } from "utilities/url";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
 
+import {
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
+import {
+  getHostSoftwareFilterFromQueryParams,
+  getInstallErrorMessage,
+  getUninstallErrorMessage,
+} from "./helpers";
 
 const baseClass = "software-card";
 
@@ -37,15 +51,18 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  isFleetdHost: boolean;
+  platform: HostPlatform;
+  softwareUpdatedAt?: string;
+  hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
-  hostPlatform: string;
-  onShowSoftwareDetails?: (software: IHostSoftware) => void;
+  onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
+  hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
+  hostMDMEnrolled?: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -59,6 +76,11 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   query?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
+  vulnerable?: string;
+  exploit?: string;
+  min_cvss_score?: string;
+  max_cvss_score?: string;
+  available_for_install?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -67,6 +89,10 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
+  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
+    queryParams
+  );
+  const availableForInstall = queryParams.available_for_install === "true";
 
   return {
     page,
@@ -74,20 +100,28 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
+    vulnerable: softwareVulnFilters.vulnerable,
+    min_cvss_score: softwareVulnFilters.minCvssScore,
+    max_cvss_score: softwareVulnFilters.maxCvssScore,
+    exploit: softwareVulnFilters.exploit,
+    available_for_install: availableForInstall,
   };
 };
 
 const HostSoftware = ({
   id,
-  isFleetdHost,
+  platform,
+  softwareUpdatedAt,
+  hostCanWriteSoftware,
+  hostScriptsEnabled,
   router,
   queryParams,
   pathname,
   hostTeamId = 0,
-  hostPlatform,
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
+  hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
@@ -95,13 +129,20 @@ const HostSoftware = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isPremiumTier,
   } = useContext(AppContext);
 
-  const [installingSoftwareId, setInstallingSoftwareId] = useState<
+  const isUnsupported =
+    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
+  const softwareFilter = getHostSoftwareFilterFromQueryParams(queryParams);
+
+  // disables install/uninstall actions after click
+  const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
     number | null
   >(null);
-
-  const isIosOrIpadOs = hostPlatform === "ipados" || hostPlatform === "ios";
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
 
   const {
     data: hostSoftwareRes,
@@ -119,6 +160,7 @@ const HostSoftware = ({
       {
         scope: "host_software",
         id: id as number,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
@@ -127,7 +169,7 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && !isMyDevicePage && !isIosOrIpadOs, // if disabled, we'll always show a generic "No software detected" message
+      enabled: isSoftwareEnabled && !isMyDevicePage && !isUnsupported,
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -149,13 +191,14 @@ const HostSoftware = ({
       {
         scope: "device_software",
         id: id as string,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage,
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -166,13 +209,13 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const canInstallSoftware = Boolean(
+  const userHasSWWritePermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
   const installHostSoftwarePackage = useCallback(
     async (softwareId: number) => {
-      setInstallingSoftwareId(softwareId);
+      setSoftwareIdActionPending(softwareId);
       try {
         await hostAPI.installHostSoftwarePackage(id as number, softwareId);
         renderFlash(
@@ -180,29 +223,101 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        const reason = upperFirst(trimEnd(getErrorReason(e), "."));
-        if (reason.includes("fleetd installed")) {
-          renderFlash("error", `Couldn't install. ${reason}.`);
-        } else if (reason.includes("can be installed only on")) {
-          renderFlash(
-            "error",
-            `Couldn't install. ${reason.replace("darwin", "macOS")}.`
-          );
-        } else {
-          renderFlash("error", "Couldn't install. Please try again.");
-        }
+        renderFlash("error", getInstallErrorMessage(e));
       }
-      setInstallingSoftwareId(null);
+      setSoftwareIdActionPending(null);
       refetchSoftware();
     },
     [id, renderFlash, refetchSoftware]
   );
+
+  const uninstallHostSoftwarePackage = useCallback(
+    async (softwareId: number) => {
+      setSoftwareIdActionPending(softwareId);
+      try {
+        await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
+        renderFlash(
+          "success",
+          <>
+            Software is uninstalling or will uninstall when the host comes
+            online. To see details, go to <b>Details &gt; Activity</b>.
+          </>
+        );
+      } catch (e) {
+        renderFlash("error", getUninstallErrorMessage(e));
+      }
+      setSoftwareIdActionPending(null);
+      refetchSoftware();
+    },
+    [id, renderFlash, refetchSoftware]
+  );
+
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
+
+  /**  Compares vuln filters to current vuln query params */
+  const determineVulnFilterChange = useCallback(
+    (vulnFilters: ISoftwareVulnFiltersParams) => {
+      const changedEntry = Object.entries(vulnFilters).find(([key, val]) => {
+        switch (key) {
+          case "vulnerable":
+          case "exploit": {
+            // Normalize values: undefined → false, then compare
+            const current = queryParams[key] ?? false;
+            const incoming = val ?? false;
+            return incoming !== current;
+          }
+          case "minCvssScore":
+            return val !== queryParams.min_cvss_score;
+          case "maxCvssScore":
+            return val !== queryParams.max_cvss_score;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [queryParams]
+  );
+
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+    const newQueryParams = {
+      query: queryParams.query,
+      orderDirection: queryParams.order_direction,
+      orderKey: queryParams.order_key,
+      perPage: queryParams.per_page,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
+    // We want to determine which query param has changed in order to
+    // reset the page index to 0 if any other param has changed.
+    const changedParam = determineVulnFilterChange(vulnFilters);
+
+    // Update the route only if a change is detected
+    if (changedParam) {
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          routeTemplate: "",
+          queryParams: convertParamsToSnakeCase(newQueryParams),
+        })
+      );
+    }
+
+    toggleSoftwareFiltersModal();
+  };
 
   const onSelectAction = useCallback(
     (software: IHostSoftware, action: string) => {
       switch (action) {
         case "install":
           installHostSoftwarePackage(software.id);
+          break;
+        case "uninstall":
+          uninstallHostSoftwarePackage(software.id);
           break;
         case "showDetails":
           onShowSoftwareDetails?.(software);
@@ -211,28 +326,36 @@ const HostSoftware = ({
           break;
       }
     },
-    [installHostSoftwarePackage, onShowSoftwareDetails]
+    [
+      installHostSoftwarePackage,
+      onShowSoftwareDetails,
+      uninstallHostSoftwarePackage,
+    ]
   );
 
   const tableConfig = useMemo(() => {
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
+          userHasSWWritePermission,
+          hostScriptsEnabled,
+          hostCanWriteSoftware,
+          hostMDMEnrolled,
+          softwareIdActionPending,
           router,
-          installingSoftwareId,
-          canInstall: canInstallSoftware,
-          onSelectAction,
           teamId: hostTeamId,
-          isFleetdHost,
+          onSelectAction,
         });
   }, [
     isMyDevicePage,
     router,
-    installingSoftwareId,
-    canInstallSoftware,
+    softwareIdActionPending,
+    userHasSWWritePermission,
+    hostScriptsEnabled,
     onSelectAction,
     hostTeamId,
-    isFleetdHost,
+    hostCanWriteSoftware,
+    hostMDMEnrolled,
   ]);
 
   const isLoading = isMyDevicePage
@@ -247,22 +370,10 @@ const HostSoftware = ({
     if (isLoading) {
       return <Spinner />;
     }
-
-    if (isIosOrIpadOs) {
-      return (
-        <EmptyTable
-          header="Software is not supported for this host"
-          info={
-            <>
-              Interested in viewing software for{" "}
-              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
-              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-            </>
-          }
-        />
-      );
+    // will never be the case - to handle `platform` typing discrepancy with DeviceUserPage
+    if (!platform) {
+      return null;
     }
-
     return (
       <>
         {isError && <DataError />}
@@ -272,6 +383,7 @@ const HostSoftware = ({
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
             data={data}
+            platform={platform}
             router={router}
             tableConfig={tableConfig}
             sortHeader={queryParams.order_key}
@@ -279,6 +391,21 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
+            hostSoftwareFilter={softwareFilter}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            onAddFiltersClick={toggleSoftwareFiltersModal}
+            pathPrefix={pathname}
+            // for my device software details modal toggling
+            isMyDevicePage={isMyDevicePage}
+            onShowSoftwareDetails={onShowSoftwareDetails}
+          />
+        )}
+        {showSoftwareFiltersModal && (
+          <SoftwareFiltersModal
+            onExit={toggleSoftwareFiltersModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </>
@@ -287,12 +414,17 @@ const HostSoftware = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xxlarge"
-      includeShadow
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Software</p>
+      <CardHeader
+        header="Software"
+        subheader={
+          isMyDevicePage ? "Software installed on your device." : undefined
+        }
+      />
       {renderHostSoftware()}
     </Card>
   );

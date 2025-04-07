@@ -1,2 +1,0 @@
-- Fix a bug where the manage query automations modal would lose its state when the user clicks
-  "Preview data"

@@ -7,55 +7,72 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	update = flag.Bool("update", false, "update the golden files of this test")
-)
+var update = flag.Bool("update", false, "update the golden files of this test")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
 	os.Exit(m.Run())
 }
 
-// Note: to update the goldens, run the tests with `-update`:
+// Note: to update the goldens, delete testdata/scripts/* and run the tests with `-update`:
 //
 // go test ./pkg/file/... -update
 func TestGetInstallAndRemoveScript(t *testing.T) {
-	scriptsByType := map[string][2]string{
+	t.Parallel()
+	scriptsByType := map[string]map[string]string{
 		"msi": {
-			"./scripts/install_msi.ps1",
-			"./scripts/remove_msi.ps1",
+			"install":   "./scripts/install_msi.ps1",
+			"remove":    "./scripts/remove_msi.ps1",
+			"uninstall": "./scripts/uninstall_msi.ps1",
 		},
 		"pkg": {
-			"./scripts/install_pkg.sh",
-			"./scripts/remove_pkg.sh",
+			"install":   "./scripts/install_pkg.sh",
+			"remove":    "./scripts/remove_pkg.sh",
+			"uninstall": "./scripts/uninstall_pkg.sh",
 		},
 		"deb": {
-			"./scripts/install_deb.sh",
-			"./scripts/remove_deb.sh",
+			"install":   "./scripts/install_deb.sh",
+			"remove":    "./scripts/remove_deb.sh",
+			"uninstall": "./scripts/uninstall_deb.sh",
+		},
+		"rpm": {
+			"install":   "./scripts/install_rpm.sh",
+			"remove":    "./scripts/remove_rpm.sh",
+			"uninstall": "./scripts/uninstall_rpm.sh",
 		},
 		"exe": {
-			"./scripts/install_exe.ps1",
-			"./scripts/remove_exe.ps1",
+			"install":   "",
+			"remove":    "./scripts/remove_exe.ps1",
+			"uninstall": "",
 		},
 	}
 
 	for itype, scripts := range scriptsByType {
 		gotScript := GetInstallScript(itype)
-		assertGoldenMatches(t, scripts[0], gotScript, *update)
+		assertGoldenMatches(t, scripts["install"], gotScript, *update)
 
 		gotScript = GetRemoveScript(itype)
-		assertGoldenMatches(t, scripts[1], gotScript, *update)
+		assertGoldenMatches(t, scripts["remove"], gotScript, *update)
+
+		gotScript = GetUninstallScript(itype)
+		assertGoldenMatches(t, scripts["uninstall"], gotScript, *update)
 	}
 }
 
 func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update bool) {
 	t.Helper()
+	if goldenFile == "" {
+		require.Empty(t, actual)
+		return
+	}
+
 	goldenPath := filepath.Join("testdata", goldenFile+".golden")
 
-	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0644)
+	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644)
 	require.NoError(t, err)
 	defer f.Close()
 
@@ -67,5 +84,5 @@ func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update 
 
 	content, err := io.ReadAll(f)
 	require.NoError(t, err)
-	require.Equal(t, string(content), actual)
+	assert.Equal(t, string(content), actual)
 }

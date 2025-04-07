@@ -1,15 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
+import { AppContext } from "context/app";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import { ShowActivityDetailsHandler } from "../Activity";
 import { upcomingActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "upcoming-activity-feed";
@@ -17,7 +16,8 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -25,10 +25,17 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
+  onCancel,
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
+  const {
+    isTeamMaintainerOrTeamAdmin,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+  } = useContext(AppContext);
+
   if (isError) {
     return <DataError />;
   }
@@ -43,15 +50,18 @@ const UpcomingActivityFeed = ({
     return (
       <EmptyFeed
         title="No pending activity "
-        message="When you run a script on an offline host, it will appear here."
+        message="Pending actions will appear here (scripts, software, lock, and wipe)."
         className={`${baseClass}__empty-feed`}
       />
     );
   }
 
+  const canCancel =
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+
   return (
     <div className={baseClass}>
-      <div>
+      <div className={`${baseClass}__feed-list`}>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
@@ -60,33 +70,20 @@ const UpcomingActivityFeed = ({
               key={activity.id}
               tab="upcoming"
               activity={activity}
-              onShowDetails={onDetailsClick}
+              onShowDetails={onShowDetails}
+              hideCancel={!canCancel}
+              onCancel={() => onCancel(activity)}
             />
           );
         })}
       </div>
-      <div className={`${baseClass}__pagination`}>
-        <Button
-          disabled={!meta.has_previous_results}
-          onClick={onPreviousPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            <FleetIcon name="chevronleft" /> Previous
-          </>
-        </Button>
-        <Button
-          disabled={!meta.has_next_results}
-          onClick={onNextPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            Next <FleetIcon name="chevronright" />
-          </>
-        </Button>
-      </div>
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_previous_results && !meta.has_next_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

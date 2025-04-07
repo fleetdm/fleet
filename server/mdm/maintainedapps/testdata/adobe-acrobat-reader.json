@@ -1,0 +1,97 @@
+{
+	"token": "adobe-acrobat-reader",
+	"full_token": "adobe-acrobat-reader",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Adobe Acrobat Reader"
+	],
+	"desc": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents.",
+	"homepage": "https://www.adobe.com/acrobat/pdf-reader.html",
+	"url": "https://ardownload2.adobe.com/pub/adobe/reader/mac/AcrobatDC/2400221005/AcroRdrDC_2400221005_MUI.dmg",
+	"url_specs": {},
+	"version": "24.002.21005",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "55a53014b5e060658921f6d3a6d20fa64aae5b09fc9f6ea3d78e9c2378dab934",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": [
+						"com.adobe.ARMDC.Communicator",
+						"com.adobe.ARMDC.SMJobBlessHelper",
+						"com.adobe.ARMDCHelper.cc24aef4a1b90ed56a725c38014c95072f92651fb65e1bf9c8e43c37a23d420d"
+					],
+					"quit": [
+						"com.adobe.AdobeRdrCEF",
+						"com.adobe.AdobeRdrCEFHelper",
+						"com.adobe.Reader"
+					],
+					"pkgutil": [
+						"com.adobe.acrobat.DC.reader.*",
+						"com.adobe.armdc.app.pkg",
+						"com.adobe.RdrServicesUpdater"
+					],
+					"delete": [
+						"/Applications/Adobe Acrobat Reader.app",
+						"/Library/Preferences/com.adobe.reader.DC.WebResource.plist"
+					]
+				}
+			]
+		},
+		{
+			"pkg": [
+				"AcroRdrDC_2400221005_MUI.pkg"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Caches/com.adobe.Reader",
+						"~/Library/HTTPStorages/com.adobe.Reader.binarycookies",
+						"~/Library/Preferences/com.adobe.AdobeRdrCEFHelper.plist",
+						"~/Library/Preferences/com.adobe.crashreporter.plist",
+						"~/Library/Preferences/com.adobe.Reader.plist"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/a/adobe-acrobat-reader.rb",
+	"ruby_source_checksum": {
+		"sha256": "8d9c2e12ab57cb1c4c33ef523a35caf2a5ae923631fdf8d3eae2162a901d44ad"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"adobe-acrobat-reader": 1826
+			},
+			"90d": {
+				"adobe-acrobat-reader": 6682
+			},
+			"365d": {
+				"adobe-acrobat-reader": 36717
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

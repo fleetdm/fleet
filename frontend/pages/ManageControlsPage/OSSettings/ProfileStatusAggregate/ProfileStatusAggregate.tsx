@@ -1,7 +1,7 @@
 import React from "react";
 
 import paths from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { MdmProfileStatus } from "interfaces/mdm";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 import { ProfileStatusSummaryResponse } from "services/entities/mdm";
@@ -10,6 +10,7 @@ import Spinner from "components/Spinner";
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
 } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import DataError from "components/DataError";
 
 import AGGREGATE_STATUS_DISPLAY_OPTIONS from "./ProfileStatusAggregateOptions";
 
@@ -32,12 +33,12 @@ const ProfileStatusCount = ({
   hostCount,
   tooltipText,
 }: IProfileStatusCountProps) => {
-  const linkHostsByStatus = `${paths.MANAGE_HOSTS}?${buildQueryStringFromParams(
-    {
-      team_id: teamId,
-      [HOSTS_QUERY_PARAMS.OS_SETTINGS]: statusValue,
-    }
-  )}`;
+  const hostsByStatusParams = {
+    team_id: teamId,
+    [HOSTS_QUERY_PARAMS.OS_SETTINGS]: statusValue,
+  };
+
+  const path = getPathWithQueryParams(paths.MANAGE_HOSTS, hostsByStatusParams);
 
   return (
     <div className={`${baseClass}__profile-status-count`}>
@@ -48,24 +49,24 @@ const ProfileStatusCount = ({
         layout="vertical"
         valueClassName={`${baseClass}__status-indicator-value`}
       />
-      <a href={linkHostsByStatus}>{hostCount} hosts</a>
+      <a href={path}>{hostCount} hosts</a>
     </div>
   );
 };
 
 interface ProfileStatusAggregateProps {
   isLoading: boolean;
+  isError: boolean;
   teamId: number;
   aggregateProfileStatusData?: ProfileStatusSummaryResponse;
 }
 
 const ProfileStatusAggregate = ({
   isLoading,
+  isError,
   teamId,
   aggregateProfileStatusData,
 }: ProfileStatusAggregateProps) => {
-  if (!aggregateProfileStatusData) return null;
-
   if (isLoading) {
     return (
       <div className={baseClass}>
@@ -73,6 +74,12 @@ const ProfileStatusAggregate = ({
       </div>
     );
   }
+
+  if (isError) {
+    return <DataError />;
+  }
+
+  if (!aggregateProfileStatusData) return null;
 
   const indicators = AGGREGATE_STATUS_DISPLAY_OPTIONS.map((status) => {
     const { value, text, iconName, tooltipText } = status;

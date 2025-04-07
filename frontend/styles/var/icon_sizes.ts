@@ -5,6 +5,7 @@ export const ICON_SIZES = {
   "small-medium": "14",
   medium: "16",
   large: "24",
+  "large-card": "36",
   "extra-large": "48",
 };
 

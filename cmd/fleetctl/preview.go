@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -48,6 +49,8 @@ const (
 	previewConfigPathFlagName = "preview-config-path"
 	disableOpenBrowser        = "disable-open-browser"
 
+	licenseError = "License key is invalid. Please check your license key and try again, or run `fleetctl preview` without the --license-key option to try Fleet Free."
+
 	dockerComposeV1 dockerComposeVersion = 1
 	dockerComposeV2 dockerComposeVersion = 2
 )
@@ -74,7 +77,7 @@ func (d dockerCompose) Command(arg ...string) *exec.Cmd {
 
 func newDockerCompose() (dockerCompose, error) {
 	// first, check if `docker compose` is available
-	if err := exec.Command("docker compose").Run(); err == nil {
+	if err := exec.Command("docker", "compose").Run(); err == nil {
 		return dockerCompose{dockerComposeV2}, nil
 	}
 
@@ -158,6 +161,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 		},
 		Action: func(c *cli.Context) error {
+			licenseKey := c.String(licenseKeyFlagName)
+			if _, err := licensing.LoadLicense(licenseKey); err != nil {
+				return errors.New(licenseError)
+			}
+
 			if err := checkDocker(); err != nil {
 				return err
 			}
@@ -273,7 +281,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Starting Docker containers...")
 			cmd := compose.Command("up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+licenseKey)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -289,7 +297,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
 			cmd = compose.Command("up", "-d", "--remove-orphans", "fleet02")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+licenseKey)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -387,7 +395,10 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			_, err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplyClientSpecOptions{})
+			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsScripts := make(map[string][]fleet.ScriptResponse)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+			_, _, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 			if err != nil {
 				return err
 			}
@@ -407,8 +418,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error retrieving enroll secret: %w", err)
 			}
 
-			if len(secrets.Secrets) != 1 {
-				return errors.New("Expected 1 active enroll secret")
+			if len(secrets.Secrets) == 0 {
+				return errors.New("Expected at least one enroll secret")
 			}
 
 			// disable analytics collection for preview
@@ -455,11 +466,9 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 					fmt.Println(string(out))
 					return fmt.Errorf("Failed to run %s", compose)
 				}
-			} else {
-				if !c.Bool(disableOpenBrowser) {
-					if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
-						fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
-					}
+			} else if !c.Bool(disableOpenBrowser) {
+				if err := open.Browser("http://localhost:1337/previewlogin"); err != nil {
+					fmt.Println("Automatic browser open failed. Please navigate to http://localhost:1337/previewlogin.")
 				}
 			}
 
@@ -754,7 +763,7 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
-			if err := os.RemoveAll(filepath.Join(orbitDir, "tuf-metadata.json")); err != nil {
+			if err := os.RemoveAll(filepath.Join(orbitDir, update.MetadataFileName)); err != nil {
 				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
 			}
 			if err := os.RemoveAll(filepath.Join(orbitDir, "bin")); err != nil {
@@ -827,8 +836,8 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	updateOpt := update.DefaultOptions
 
 	// Override default channels with the provided values.
-	updateOpt.Targets.SetTargetChannel("orbit", orbitChannel)
-	updateOpt.Targets.SetTargetChannel("osqueryd", osquerydChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, orbitChannel)
+	updateOpt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, osquerydChannel)
 
 	updateOpt.RootDirectory = destDir
 
@@ -843,9 +852,9 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 		return fmt.Errorf("initialize updates: %w", err)
 	}
 
-	orbitPath, err := update.NewDisabled(updateOpt).ExecutableLocalPath("orbit")
+	orbitPath, err := update.NewDisabled(updateOpt).ExecutableLocalPath(constant.OrbitTUFTargetName)
 	if err != nil {
-		return fmt.Errorf("failed to locate executable for orbit: %w", err)
+		return fmt.Errorf("failed to locate executable for %s: %w", constant.OrbitTUFTargetName, err)
 	}
 
 	cmd := exec.Command(orbitPath,

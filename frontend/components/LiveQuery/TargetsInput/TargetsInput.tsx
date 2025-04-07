@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Row } from "react-table";
 import { isEmpty, pullAllBy } from "lodash";
 
@@ -12,7 +12,6 @@ import TableContainer from "components/TableContainer";
 import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
-  tabIndex?: number;
   searchText: string;
   searchResults: IHost[];
   isTargetsLoading: boolean;
@@ -35,7 +34,6 @@ const baseClass = "targets-input";
 const DEFAULT_LABEL = "Target specific hosts";
 
 const TargetsInput = ({
-  tabIndex,
   searchText,
   searchResults,
   isTargetsLoading,
@@ -50,12 +48,39 @@ const TargetsInput = ({
   handleRowSelect,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
   const dropdownHosts =
-    searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
-  const isActiveSearch =
-    !isEmpty(searchText) && (!hasFetchError || isTargetsLoading);
+    searchResults && pullAllBy(searchResults, targetedHosts, "id");
+
+  const [isActiveSearch, setIsActiveSearch] = useState(false);
+
   const isSearchError = !isEmpty(searchText) && hasFetchError;
 
+  // Closes target search results when clicking outside of results
+  // But not during API loading state as it will reopen on API return
+  useEffect(() => {
+    if (!isTargetsLoading) {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          setIsActiveSearch(false);
+        }
+      };
+
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }
+  }, [isTargetsLoading]);
+
+  useEffect(() => {
+    setIsActiveSearch(
+      !isEmpty(searchText) && (!hasFetchError || isTargetsLoading)
+    );
+  }, [searchText, hasFetchError, isTargetsLoading]);
   return (
     <div>
       <div className={baseClass}>
@@ -64,23 +89,24 @@ const TargetsInput = ({
           type="search"
           iconSvg="search"
           value={searchText}
-          tabIndex={tabIndex}
           iconPosition="start"
           label={label}
           placeholder={placeholder}
           onChange={setSearchText}
         />
         {isActiveSearch && (
-          <div className={`${baseClass}__hosts-search-dropdown`}>
+          <div
+            className={`${baseClass}__hosts-search-dropdown`}
+            ref={dropdownRef}
+          >
             <TableContainer<Row<IHost>>
               columnConfigs={searchResultsTableConfig}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
-              resultsTitle=""
               emptyComponent={() => (
                 <div className="empty-search">
                   <div className="empty-search__inner">
-                    <h4>No hosts match the current search criteria.</h4>
+                    <h4>No matching hosts.</h4>
                     <p>
                       Expecting to see hosts? Try again in a few seconds as the
                       system catches up.
@@ -94,6 +120,7 @@ const TargetsInput = ({
               disablePagination
               disableMultiRowSelect
               onClickRow={handleRowSelect}
+              keyboardSelectableRows
             />
           </div>
         )}
@@ -107,7 +134,6 @@ const TargetsInput = ({
             columnConfigs={selectedHostsTableConifg}
             data={targetedHosts}
             isLoading={false}
-            resultsTitle=""
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount

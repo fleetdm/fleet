@@ -13,7 +13,7 @@ import (
 // OverwriteQueryResultRows overwrites the query result rows for a given query and host
 // in a single transaction, ensuring that the number of rows for the given query
 // does not exceed the maximum allowed
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) (err error) {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (err error) {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -31,7 +31,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 			return ctxerr.Wrap(ctx, err, "counting existing query results")
 		}
 
-		if countExisting >= fleet.MaxQueryReportRows {
+		if countExisting >= maxQueryReportRows {
 			// do not delete any rows if we are already at the limit
 			return nil
 		}
@@ -53,7 +53,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 		// Calculate how many new rows can be added given the maximum limit
 		netRowsAfterDeletion := countExisting - int(countDeleted)
-		allowedNewRows := fleet.MaxQueryReportRows - netRowsAfterDeletion
+		allowedNewRows := maxQueryReportRows - netRowsAfterDeletion
 		if allowedNewRows == 0 {
 			return nil
 		}

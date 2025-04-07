@@ -54,9 +54,9 @@ func SignalProcessBeforeTerminate(processName string) error {
 	return nil
 }
 
-// GetProcessByName gets a single running process object by its name.
+// GetProcessesByName gets all running processes by its name.
 // Returns ErrProcessNotFound if the process was not found running.
-func GetProcessByName(name string) (*gopsutil_process.Process, error) {
+func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	if name == "" {
 		return nil, errors.New("process name should not be empty")
 	}
@@ -66,7 +66,7 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 		return nil, err
 	}
 
-	var foundProcess *gopsutil_process.Process
+	var foundProcesses []*gopsutil_process.Process
 	for _, process := range processes {
 		processName, err := process.Name()
 		if err != nil {
@@ -75,16 +75,16 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 		}
 
 		if strings.HasPrefix(processName, name) {
-			foundProcess = process
+			foundProcesses = append(foundProcesses, process)
 			break
 		}
 	}
 
-	if foundProcess == nil {
+	if len(foundProcesses) == 0 {
 		return nil, ErrProcessNotFound
 	}
 
-	return foundProcess, nil
+	return foundProcesses, nil
 }
 
 func GetSMBiosUUID() (string, UUIDSource, error) {

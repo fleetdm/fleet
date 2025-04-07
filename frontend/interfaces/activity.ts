@@ -1,3 +1,5 @@
+import { ILabelSoftwareTitle } from "./label";
+import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
@@ -32,13 +34,28 @@ export enum ActivityType {
   UserDeletedGlobalRole = "deleted_user_global_role",
   UserChangedTeamRole = "changed_user_team_role",
   UserDeletedTeamRole = "deleted_user_team_role",
+  FleetEnrolled = "fleet_enrolled",
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
+  EditedIosMinVersion = "edited_ios_min_version",
+  EditedIpadosMinVersion = "edited_ipados_min_version",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
-  CreatedMacOSProfile = "created_macos_profile",
-  DeletedMacOSProfile = "deleted_macos_profile",
-  EditedMacOSProfile = "edited_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  CreatedAppleOSProfile = "created_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  DeletedAppleOSProfile = "deleted_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  EditedAppleOSProfile = "edited_macos_profile",
+  AddedNdesScepProxy = "added_ndes_scep_proxy",
+  DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
+  EditedNdesScepProxy = "edited_ndes_scep_proxy",
+  AddedDigicert = "added_digicert",
+  DeletedDigicert = "deleted_digicert",
+  EditedDigicert = "edited_digicert",
+  AddedCustomScepProxy = "added_custom_scep_proxy",
+  DeletedCustomScepProxy = "deleted_custom_scep_proxy",
+  EditedCustomScepProxy = "edited_custom_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -59,8 +76,13 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledGitOpsMode = "enabled_gitops_mode",
+  DisabledGitOpsMode = "disabled_gitops_mode",
+  EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
+  DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   AddedScript = "added_script",
+  UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",
@@ -72,21 +94,46 @@ export enum ActivityType {
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
   AddedSoftware = "added_software",
+  EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  UninstalledSoftware = "uninstalled_software",
+  EnabledVpp = "enabled_vpp",
+  DisabledVpp = "disabled_vpp",
+  AddedAppStoreApp = "added_app_store_app",
+  EditedAppStoreApp = "edited_app_store_app",
+  DeletedAppStoreApp = "deleted_app_store_app",
+  InstalledAppStoreApp = "installed_app_store_app",
+  EnabledActivityAutomations = "enabled_activity_automations",
+  EditedActivityAutomations = "edited_activity_automations",
+  DisabledActivityAutomations = "disabled_activity_automations",
+  CanceledRunScript = "canceled_run_script",
+  CanceledInstallAppStoreApp = "canceled_install_app_store_app",
+  CanceledInstallSoftware = "canceled_install_software",
+  CanceledUninstallSoftware = "canceled_uninstall_software",
+  EnabledAndroidMdm = "enabled_android_mdm",
+  DisabledAndroidMdm = "disabled_android_mdm",
 }
 
-// This is a subset of ActivityType that are shown only for the host past activities
+/** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
-  | ActivityType.InstalledSoftware;
+  | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.CanceledRunScript
+  | ActivityType.CanceledInstallAppStoreApp
+  | ActivityType.CanceledInstallSoftware
+  | ActivityType.CanceledUninstallSoftware;
 
-// This is a subset of ActivityType that are shown only for the host upcoming activities
+/** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
-  | ActivityType.InstalledSoftware;
+  | ActivityType.InstalledSoftware
+  | ActivityType.UninstalledSoftware
+  | ActivityType.InstalledAppStoreApp;
 
 export interface IActivity {
   created_at: string;
@@ -96,6 +143,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 
@@ -105,52 +153,61 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
 };
 
 export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+  uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
 };
 
 export interface IActivityDetails {
+  app_store_id?: number;
+  bootstrap_package_name?: string;
+  command_uuid?: string;
+  deadline_days?: number;
+  deadline?: string;
+  email?: string;
+  global?: boolean;
+  grace_period_days?: number;
+  host_display_name?: string;
+  host_display_names?: string[];
+  host_id?: number;
+  host_ids?: number[];
+  host_platform?: string;
+  host_serial?: string;
+  install_uuid?: string;
+  installed_from_dep?: boolean;
+  labels_exclude_any?: ILabelSoftwareTitle[];
+  labels_include_any?: ILabelSoftwareTitle[];
+  location?: string; // name of location associated with VPP token
+  mdm_platform?: "microsoft" | "apple";
+  minimum_version?: string;
+  name?: string;
   pack_id?: number;
   pack_name?: string;
+  platform?: Platform; // software platform
   policy_id?: number;
   policy_name?: string;
+  profile_identifier?: string;
+  profile_name?: string;
+  public_ip?: string;
   query_id?: number;
+  query_ids?: number[];
   query_name?: string;
   query_sql?: string;
-  query_ids?: number[];
+  role?: UserRole;
+  script_execution_id?: string;
+  script_name?: string;
+  self_service?: boolean;
+  software_package?: string;
+  software_title_id?: number;
+  software_title?: string;
+  specs?: IQuery[] | IPolicy[];
+  stats?: ISchedulableQueryStats;
+  status?: string;
+  targets_count?: number;
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
-  targets_count?: number;
-  specs?: IQuery[] | IPolicy[];
-  global?: boolean;
-  public_ip?: string;
-  user_id?: number;
   user_email?: string;
-  email?: string;
-  role?: UserRole;
-  host_serial?: string;
-  host_display_name?: string;
-  host_display_names?: string[];
-  host_ids?: number[];
-  host_id?: number;
-  host_platform?: string;
-  installed_from_dep?: boolean;
-  mdm_platform?: "microsoft" | "apple";
-  minimum_version?: string;
-  deadline?: string;
-  profile_name?: string;
-  profile_identifier?: string;
-  bootstrap_package_name?: string;
-  name?: string;
-  script_execution_id?: string;
-  script_name?: string;
-  deadline_days?: number;
-  grace_period_days?: number;
-  stats?: ISchedulableQueryStats;
-  software_title?: string;
-  software_package?: string;
-  status?: string;
-  install_uuid?: string;
-  self_service?: boolean;
+  user_id?: number;
+  webhook_url?: string;
 }

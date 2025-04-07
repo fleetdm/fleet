@@ -240,6 +240,43 @@ without necessarily having a billing card.`
       defaultsTo: '2 - Aware'
     },
 
+    psychologicalStageLastChangedAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s psychological stage changed.',
+      extendedDescription: 'Used when deciding whether or not to send a nuture email to this user',
+    },
+
+    stageThreeNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+    },
+
+    stageFourNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+    },
+
+    stageFiveNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+    },
+
+    fleetPremiumTrialLicenseKey: {
+      type: 'string',
+      description: 'A Fleet Premium license key that was generated for this user when they progressed through the get started questionnaire.',
+    },
+
+    fleetPremiumTrialLicenseKeyExpiresAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s Fleet Premium trial license key expires.',
+    },
+
+    canUseQueryGenerator: {
+      type: 'boolean',
+      description: 'Whether or not this user can access the query generator page',
+      defaultsTo: false,
+    },
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

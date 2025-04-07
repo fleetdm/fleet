@@ -1,4 +1,4 @@
-# Tales from Fleet security: securing Google Workspace
+# Tales from Fleet security: Securing Google Workspace
 
 ![Securing Google Workspace](../website/assets/images/articles/tales-from-fleet-security-securing-google-workspace-cover-1600x900@2x.jpg)
 
@@ -27,9 +27,9 @@ Configuring Google Workspace is straightforward, but we did encounter a few chal
 3. Retroactively controlling third-party apps with access to Google Workspace can be challenging, as many workflows are already in place and many apps already have access to data.
 4. Third-party email clients do not have good security UX compared to Gmail, which adds handy messages on top of suspicious messages.
 
-## Overcoming Those Challenges
+## Overcoming those challenges
 
-### 2FA/MFA/Two-Step Verification
+### 2FA/MFA/Two-step verification
 
 We started by disabling the most unsafe methods (SMS and voice) and promoting the use of hardware security keys and [phones and tablets](https://support.google.com/accounts/answer/9289445?hl=en&co=GENIE.Platform%3DAndroid) as hardware security keys for access to Google. By the end of next week, all privileged access at Fleet will require hardware security keys, thanks to Yubico shipping to an extensive list of countries, making this easy to achieve in an international remote company.
 
@@ -39,7 +39,7 @@ To support MDM enrollment, we limit the generation of codes to the user’s loca
 
 >Note: GitHub supports using your Mac with Touch ID as a key in Chrome. That is awesome.
 
-### SSO and Lack of SSO
+### SSO and lack of SSO
 
 Where it makes sense, we will upgrade to the tier needed to get proper SSO from other SaaS vendors. The extra spending is an annoyance, but having to disable 17 accounts manually every time someone leaves the company and worrying about password re-use and 2FA settings on all the same applications is not worth it.
 

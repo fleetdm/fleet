@@ -1,8 +1,22 @@
 .tooltip-truncated-cell {
+  display: flex;
+  align-items: center; // For badges, etc
+
   .text-muted {
     color: $ui-fleet-black-50;
   }
+
+  .data-table__tooltip-truncated-text-container {
+    display: flex; // Flex container for text and suffix
+    align-items: center; // Keep text and suffix aligned
+    min-width: 0; // Prevent flex child from growing beyond container
+  }
+
   .data-table__tooltip-truncated-text {
+    white-space: nowrap; /* Prevent wrapping */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Add ellipsis for truncated text */
+
     &--cell {
       display: inline-block;
       overflow: hidden;
@@ -10,9 +24,20 @@
       text-overflow: ellipsis;
       max-width: 101%;
     }
+
+    .truncated {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
   }
 
   .truncated-tooltip {
+    text-wrap: wrap;
+    overflow-wrap: break-word;
+
     .safari-hack {
       height: 0px;
     }
@@ -23,5 +48,10 @@
     .truncated-tooltip {
       word-break: normal;
     }
+  }
+
+  .data-table__suffix {
+    margin-left: 8px; /* Add spacing between text and suffix */
+    flex-shrink: 0; /* Prevent suffix from shrinking */
   }
 }

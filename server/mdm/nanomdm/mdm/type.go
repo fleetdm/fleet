@@ -2,7 +2,7 @@ package mdm
 
 import (
 	"errors"
-	"strconv"
+	"fmt"
 )
 
 // Shared iPad users have a static UserID that they connect to MDM with.
@@ -40,7 +40,7 @@ func (et EnrollType) String() string {
 	case SharediPad:
 		return "Shared iPad"
 	default:
-		return "unknown enroll type value " + strconv.Itoa(int(et))
+		return "unknown enroll type value " + fmt.Sprint(uint(et))
 	}
 }
 

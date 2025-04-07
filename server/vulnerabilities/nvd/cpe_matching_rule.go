@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
@@ -42,6 +43,7 @@ type CPEMatchingRule struct {
 	// IgnoreAll will cause all CPEs to not match hence ignoring a CVE.
 	IgnoreAll bool
 	// IgnoreIf is a function that can determine if a CPE matching rule should be ignored or not.
+	// If IgnoreIf is set, CPESpecs will not be evaluated.
 	IgnoreIf func(cpeMeta *wfn.Attributes) bool
 }
 
@@ -55,11 +57,11 @@ func (rule CPEMatchingRule) CPEMatches(cpeMeta *wfn.Attributes) bool {
 		return false
 	}
 
-	if rule.IgnoreIf != nil && rule.IgnoreIf(cpeMeta) {
-		return false
+	if rule.IgnoreIf != nil {
+		return !rule.IgnoreIf(cpeMeta)
 	}
 
-	ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))
+	ver, err := fleet.VersionToSemverVersion(wfn.StripSlashes(cpeMeta.Version))
 	if err != nil {
 		return false
 	}

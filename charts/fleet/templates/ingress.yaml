@@ -1,6 +1,7 @@
 {{- if .Values.ingress.enabled -}}
 {{- $fullName := include "fleet.fullname" . -}}
-{{- $svcPort := .Values.fleet.listenPort -}}
+{{- $serviceName := include "fleet.servicename" . -}}
+{{- $svcPort := ternary .Values.fleet.listenPort .Values.fleet.servicePort (eq .Values.fleet.servicePort nil) -}}
 {{- if and .Values.ingress.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
   {{- if not (hasKey .Values.ingress.annotations "kubernetes.io/ingress.class") }}
   {{- $_ := set .Values.ingress.annotations "kubernetes.io/ingress.class" .Values.ingress.className}}
@@ -49,11 +50,11 @@ spec:
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
               service:
-                name: {{ $fullName }}
+                name: {{ $serviceName }}
                 port:
                   number: {{ $svcPort }}
               {{- else }}
-              serviceName: {{ $fullName }}
+              serviceName: {{ $serviceName }}
               servicePort: {{ $svcPort }}
               {{- end }}
           {{- end }}

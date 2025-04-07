@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - "main"
-      - "prepare-*"
-      - "patch-*"
+      - "rc-minor-*"
+      - "rc-patch-*"
     paths-ignore:
       - "handbook/**"
       - "website/**"
@@ -37,7 +37,7 @@ jobs:
     #
     # Also not run if author is dependabot (it doesn't have access to Github secrets).
     if: ${{ (github.repository == 'fleetdm/fleet') && (github.actor != 'dependabot[bot]') }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     environment: Docker Hub
     steps:
       - name: Harden Runner
@@ -57,23 +57,23 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: "go.mod"
 
       # Set the Node.js version
-      - name: Set up Node.js ${{ vars.NODE_VERSION }}
+      - name: Set up Node.js
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
-          node-version: ${{ vars.NODE_VERSION }}
+          node-version-file: package.json
 
       - name: Install Dependencies
         run: make deps
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
+        uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
           distribution: goreleaser-pro
-          version: latest
-          args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
+          version: "~> 2"
+          args: release --snapshot --clean -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
 

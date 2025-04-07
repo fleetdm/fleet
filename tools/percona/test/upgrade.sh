@@ -12,7 +12,7 @@ docker volume rm fleet_mysql-persistent-volume
 
 # Start dependencies using Percona XtraDB as MySQL server.
 # NOTE: To troubleshoot, remove `>/dev/null`.
-FLEET_MYSQL_IMAGE=percona/percona-xtradb-cluster:5.7.25 docker compose up >/dev/null 2>&1 &
+FLEET_MYSQL_IMAGE=percona/percona-xtradb-cluster:8.0.36 docker compose up >/dev/null 2>&1 &
 
 export MYSQL_PWD=toor
 

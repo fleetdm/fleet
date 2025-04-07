@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { invert } from "lodash";
 
+import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
 import {
   formatOperatingSystemDisplayName,
@@ -15,7 +16,7 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
-import { SoftwareInstallStatus } from "interfaces/software";
+import { SoftwareAggregateStatus } from "interfaces/software";
 
 import {
   HOSTS_QUERY_PARAMS,
@@ -24,6 +25,7 @@ import {
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
+  PLATFORM_TYPE_ICONS,
   isPlatformLabelNameFromAPI,
   PolicyResponse,
 } from "utilities/constants";
@@ -40,6 +42,8 @@ import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
 const baseClass = "hosts-filter-block";
+
+type PlatformLabelNameFromAPI = keyof typeof PLATFORM_TYPE_ICONS;
 
 interface IHostsFilterBlockProps {
   /**
@@ -72,7 +76,7 @@ interface IHostsFilterBlockProps {
     osSettingsStatus?: MdmProfileStatus;
     diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
-    softwareStatus?: SoftwareInstallStatus;
+    softwareStatus?: SoftwareAggregateStatus;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -88,11 +92,10 @@ interface IHostsFilterBlockProps {
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => void;
   onChangeSoftwareInstallStatusFilter: (
-    newStatus: SoftwareInstallStatus
+    newStatus: SoftwareAggregateStatus
   ) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
-  isSandboxMode?: boolean;
 }
 
 /**
@@ -137,8 +140,9 @@ const HostsFilterBlock = ({
   onChangeSoftwareInstallStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
-  isSandboxMode = false,
 }: IHostsFilterBlockProps) => {
+  const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
       const { description, display_text, label_type } = selectedLabel;
@@ -147,6 +151,16 @@ const HostsFilterBlock = ({
           PLATFORM_LABEL_DISPLAY_NAMES[display_text]) ||
         display_text;
 
+      // Hide built-in labels supported in label dropdown
+      if (
+        label_type === "builtin" &&
+        Object.keys(PLATFORM_TYPE_ICONS).includes(
+          display_text as PlatformLabelNameFromAPI
+        )
+      ) {
+        return <></>;
+      }
+
       return (
         <>
           <FilterPill
@@ -154,16 +168,18 @@ const HostsFilterBlock = ({
             tooltipDescription={description}
             onClear={handleClearRouteParam}
           />
-          {label_type !== "builtin" && !isOnlyObserver && (
-            <>
-              <Button onClick={onClickEditLabel} variant="small-icon">
-                <Icon name="pencil" size="small" />
-              </Button>
-              <Button onClick={onClickDeleteLabel} variant="small-icon">
-                <Icon name="trash" size="small" />
-              </Button>
-            </>
-          )}
+          {label_type !== "builtin" &&
+            !isOnlyObserver &&
+            (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
+              <>
+                <Button onClick={onClickEditLabel} variant="small-icon">
+                  <Icon name="pencil" size="small" />
+                </Button>
+                <Button onClick={onClickDeleteLabel} variant="small-icon">
+                  <Icon name="trash" size="small" />
+                </Button>
+              </>
+            )}
         </>
       );
     }
@@ -253,6 +269,8 @@ const HostsFilterBlock = ({
           className={`${baseClass}__macsettings-dropdown`}
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
+          searchable={false}
+          iconName="filter-alt"
         />
         <FilterPill
           label={label}
@@ -402,10 +420,7 @@ const HostsFilterBlock = ({
       <FilterPill
         label="Low disk space"
         tooltipDescription={TooltipDescription}
-        premiumFeatureTooltipDelayHide={1000}
         onClear={() => handleClearFilter(["low_disk_space"])}
-        isSandboxMode={isSandboxMode}
-        sandboxPremiumOnlyIcon
       />
     );
   };
@@ -419,6 +434,8 @@ const HostsFilterBlock = ({
           className={`${baseClass}__os_settings-dropdown`}
           options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeOsSettingsFilter}
+          searchable={false}
+          iconName="filter-alt"
         />
         <FilterPill
           label={label}
@@ -477,7 +494,9 @@ const HostsFilterBlock = ({
           value={softwareStatus}
           className={`${baseClass}__sw-install-status-dropdown`}
           options={OPTIONS}
+          searchable={false}
           onChange={onChangeSoftwareInstallStatusFilter}
+          iconName="filter-alt"
         />
         {renderSoftwareFilterBlock([HOSTS_QUERY_PARAMS.SOFTWARE_STATUS])}
       </>

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/bzip2"
 	cryptorand "crypto/rand"
+	"crypto/sha1" // nolint:gosec
 	"crypto/tls"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -18,6 +20,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +29,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/osquery_perf"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -39,7 +46,7 @@ var (
 	//go:embed *.tmpl
 	templatesFS embed.FS
 
-	//go:embed macos_vulnerable.software
+	//go:embed macos_vulnerable-software.json.bz2
 	macOSVulnerableSoftwareFS embed.FS
 
 	//go:embed vscode_extensions_vulnerable.software
@@ -54,26 +61,29 @@ var (
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
+
+	installerMetadataCache installer_cache.Metadata
+
+	linuxRandomBuildNumber = randomString(8)
 )
 
 func loadMacOSVulnerableSoftware() {
-	macOSVulnerableSoftwareData, err := macOSVulnerableSoftwareFS.ReadFile("macos_vulnerable.software")
+	bz2, err := macOSVulnerableSoftwareFS.Open("macos_vulnerable-software.json.bz2")
 	if err != nil {
-		log.Fatal("reading vulnerable macOS software file: ", err)
+		log.Fatal("open vulnerable macOS software file: ", err)
 	}
-	lines := bytes.Split(macOSVulnerableSoftwareData, []byte("\n"))
-	for _, line := range lines {
-		parts := bytes.Split(line, []byte("##"))
-		if len(parts) < 2 {
-			log.Println("skipping", string(line))
-			continue
-		}
-		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
-			Name:    strings.TrimSpace(string(parts[0])),
-			Version: strings.TrimSpace(string(parts[1])),
-			Source:  "apps",
-		})
+
+	type vulnerableSoftware struct {
+		Software []fleet.Software `json:"software"`
 	}
+
+	var vs vulnerableSoftware
+	if err := json.NewDecoder(bzip2.NewReader(bz2)).Decode(&vs); err != nil { //nolint:gosec
+		log.Fatal("unmarshaling vulnerable macOS software: ", err)
+	}
+
+	macosVulnerableSoftware = vs.Software
+
 	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
 }
 
@@ -99,7 +109,7 @@ func loadExtraVulnerableSoftware() {
 	log.Printf("Loaded %d vulnerable vscode_extensions software", len(vsCodeExtensionsVulnerableSoftware))
 }
 
-func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
+func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]string {
 	bz2, err := fs.Open(path)
 	if err != nil {
 		panic(err)
@@ -122,7 +132,7 @@ func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
 		softwareRows = append(softwareRows, map[string]string{
 			"name":    s.Name,
 			"version": s.Version,
-			"source":  "programs",
+			"source":  source,
 		})
 	}
 	return softwareRows
@@ -131,242 +141,8 @@ func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
 func init() {
 	loadMacOSVulnerableSoftware()
 	loadExtraVulnerableSoftware()
-	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2")
-	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2")
-}
-
-type Stats struct {
-	startTime                  time.Time
-	errors                     int
-	osqueryEnrollments         int
-	orbitEnrollments           int
-	mdmEnrollments             int
-	mdmSessions                int
-	distributedWrites          int
-	mdmCommandsReceived        int
-	distributedReads           int
-	configRequests             int
-	configErrors               int
-	resultLogRequests          int
-	orbitErrors                int
-	mdmErrors                  int
-	ddmDeclarationItemsErrors  int
-	ddmConfigurationErrors     int
-	ddmActivationErrors        int
-	ddmStatusErrors            int
-	ddmDeclarationItemsSuccess int
-	ddmConfigurationSuccess    int
-	ddmActivationSuccess       int
-	ddmStatusSuccess           int
-	desktopErrors              int
-	distributedReadErrors      int
-	distributedWriteErrors     int
-	resultLogErrors            int
-	bufferedLogs               int
-
-	l sync.Mutex
-}
-
-func (s *Stats) IncrementErrors(errors int) {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.errors += errors
-}
-
-func (s *Stats) IncrementEnrollments() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.osqueryEnrollments++
-}
-
-func (s *Stats) IncrementOrbitEnrollments() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.orbitEnrollments++
-}
-
-func (s *Stats) IncrementMDMEnrollments() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.mdmEnrollments++
-}
-
-func (s *Stats) IncrementMDMSessions() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.mdmSessions++
-}
-
-func (s *Stats) IncrementDistributedWrites() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.distributedWrites++
-}
-
-func (s *Stats) IncrementMDMCommandsReceived() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.mdmCommandsReceived++
-}
-
-func (s *Stats) IncrementDistributedReads() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.distributedReads++
-}
-
-func (s *Stats) IncrementConfigRequests() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.configRequests++
-}
-
-func (s *Stats) IncrementConfigErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.configErrors++
-}
-
-func (s *Stats) IncrementResultLogRequests() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.resultLogRequests++
-}
-
-func (s *Stats) IncrementOrbitErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.orbitErrors++
-}
-
-func (s *Stats) IncrementMDMErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.mdmErrors++
-}
-
-func (s *Stats) IncrementDDMDeclarationItemsErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmDeclarationItemsErrors++
-}
-
-func (s *Stats) IncrementDDMConfigurationErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmConfigurationErrors++
-}
-
-func (s *Stats) IncrementDDMActivationErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmActivationErrors++
-}
-
-func (s *Stats) IncrementDDMStatusErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmStatusErrors++
-}
-
-func (s *Stats) IncrementDDMDeclarationItemsSuccess() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmDeclarationItemsSuccess++
-}
-
-func (s *Stats) IncrementDDMConfigurationSuccess() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmConfigurationSuccess++
-}
-
-func (s *Stats) IncrementDDMActivationSuccess() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmActivationSuccess++
-}
-
-func (s *Stats) IncrementDDMStatusSuccess() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.ddmStatusSuccess++
-}
-
-func (s *Stats) IncrementDesktopErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.desktopErrors++
-}
-
-func (s *Stats) IncrementDistributedReadErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.distributedReadErrors++
-}
-
-func (s *Stats) IncrementDistributedWriteErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.distributedWriteErrors++
-}
-
-func (s *Stats) IncrementResultLogErrors() {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.resultLogErrors++
-}
-
-func (s *Stats) UpdateBufferedLogs(v int) {
-	s.l.Lock()
-	defer s.l.Unlock()
-	s.bufferedLogs += v
-	if s.bufferedLogs < 0 {
-		s.bufferedLogs = 0
-	}
-}
-
-func (s *Stats) Log() {
-	s.l.Lock()
-	defer s.l.Unlock()
-
-	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, ddm declaration items success: %d, ddm declaration items errors: %d, ddm activation success: %d, ddm activation errors: %d, ddm configuration success: %d, ddm configuration errors: %d, ddm status success: %d, ddm status errors: %d, buffered logs: %d",
-		time.Since(s.startTime).Round(time.Second),
-		float64(s.errors)/float64(s.osqueryEnrollments),
-		s.osqueryEnrollments,
-		s.orbitEnrollments,
-		s.mdmEnrollments,
-		s.distributedReads,
-		s.distributedWrites,
-		s.configRequests,
-		s.resultLogRequests,
-		s.mdmSessions,
-		s.mdmCommandsReceived,
-		s.configErrors,
-		s.distributedReadErrors,
-		s.distributedWriteErrors,
-		s.resultLogErrors,
-		s.orbitErrors,
-		s.desktopErrors,
-		s.mdmErrors,
-		s.ddmDeclarationItemsSuccess,
-		s.ddmDeclarationItemsErrors,
-		s.ddmActivationSuccess,
-		s.ddmActivationErrors,
-		s.ddmConfigurationSuccess,
-		s.ddmConfigurationErrors,
-		s.ddmStatusSuccess,
-		s.ddmStatusErrors,
-		s.bufferedLogs,
-	)
-}
-
-func (s *Stats) runLoop() {
-	ticker := time.Tick(10 * time.Second)
-	for range ticker {
-		s.Log()
-	}
+	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
+	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
 }
 
 type nodeKeyManager struct {
@@ -424,6 +200,27 @@ func (n *nodeKeyManager) Add(nodekey string) {
 	}
 }
 
+type mdmAgent struct {
+	agentIndex         int
+	MDMCheckInInterval time.Duration
+	model              string
+	serverAddress      string
+	softwareCount      softwareEntityCount
+	stats              *osquery_perf.Stats
+	strings            map[string]string
+}
+
+// stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
+
+func (a *mdmAgent) CachedString(key string) string {
+	if val, ok := a.strings[key]; ok {
+		return val
+	}
+	val := randomString(12)
+	a.strings[key] = val
+	return val
+}
+
 type agent struct {
 	agentIndex                    int
 	softwareCount                 softwareEntityCount
@@ -436,7 +233,7 @@ type agent struct {
 	liveQueryNoResultsProb        float64
 	strings                       map[string]string
 	serverAddress                 string
-	stats                         *Stats
+	stats                         *osquery_perf.Stats
 	nodeKeyManager                *nodeKeyManager
 	nodeKey                       string
 	templates                     *template.Template
@@ -469,6 +266,14 @@ type agent struct {
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 
+	softwareInstaller softwareInstaller
+
+	linuxUniqueSoftwareVersion bool
+	linuxUniqueSoftwareTitle   bool
+
+	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
+	installedSoftware sync.Map
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -476,14 +281,18 @@ type agent struct {
 	EnrollSecret          string
 	UUID                  string
 	SerialNumber          string
+	defaultSerialProb     float64
 	ConfigInterval        time.Duration
 	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
 
-	scheduledQueriesMu sync.Mutex // protects the below members
-	scheduledQueryData map[string]scheduledQuery
+	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
+	// because we read and write the field itself (not data in the map) from
+	// different goroutines (the write is in a.config).
+	scheduledQueryMapMutex sync.RWMutex
+	scheduledQueryData     *sync.Map
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -491,6 +300,20 @@ type agent struct {
 	// increase indefinitely (we sacrifice accuracy of logs but that's
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
+
+	// cache of certificates returned by this agent. Note that this requires
+	// a mutex even though only used in a.processQuery, that's because both
+	// the runLoop and the live query goroutines may call DistributedWrite
+	// (which calls processQuery).
+	certificatesMutex sync.RWMutex
+	certificatesCache []map[string]string
+}
+
+func (a *agent) GetSerialNumber() string {
+	if rand.Float64() <= a.defaultSerialProb {
+		return "-1"
+	}
+	return a.SerialNumber
 }
 
 type entityCount struct {
@@ -515,6 +338,12 @@ type softwareExtraEntityCount struct {
 	uniqueSoftwareUninstallCount int
 	uniqueSoftwareUninstallProb  float64
 }
+type softwareInstaller struct {
+	preInstallFailureProb  float64
+	installFailureProb     float64
+	postInstallFailureProb float64
+	mu                     *sync.Mutex
+}
 
 func newAgent(
 	agentIndex int,
@@ -523,6 +352,7 @@ func newAgent(
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
+	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	userCount entityCount,
@@ -530,6 +360,7 @@ func newAgent(
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
 	emptySerialProb float64,
+	defaultSerialProb float64,
 	mdmProb float64,
 	mdmSCEPChallenge string,
 	liveQueryFailProb float64,
@@ -537,6 +368,8 @@ func newAgent(
 	disableScriptExec bool,
 	disableFleetDesktop bool,
 	loggerTLSMaxLines int,
+	linuxUniqueSoftwareVersion bool,
+	linuxUniqueSoftwareTitle bool,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -567,7 +400,7 @@ func newAgent(
 				SCEPChallenge: mdmSCEPChallenge,
 				SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 				MDMURL:        serverAddress + apple_mdm.MDMPath,
-			})
+			}, "MacBookPro16,1")
 			// Have the osquery agent match the MDM device serial number and UUID.
 			serialNumber = macMDMClient.SerialNumber
 			hostUUID = macMDMClient.UUID
@@ -608,9 +441,14 @@ func newAgent(
 		MDMCheckInInterval:            mdmCheckInInterval,
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
+		defaultSerialProb:             defaultSerialProb,
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
+		softwareInstaller:                softwareInstaller,
+
+		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
+		linuxUniqueSoftwareTitle:   linuxUniqueSoftwareTitle,
 
 		macMDMClient: macMDMClient,
 		winMDMClient: winMDMClient,
@@ -619,6 +457,7 @@ func newAgent(
 		disableFleetDesktop: disableFleetDesktop,
 		loggerTLSMaxLines:   loggerTLSMaxLines,
 		bufferedResults:     make(map[resultLog]int),
+		scheduledQueryData:  new(sync.Map),
 	}
 }
 
@@ -728,9 +567,21 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		// check if we have any scheduled queries that should be returning results
 		var results []resultLog
 		now := time.Now().Unix()
-		a.scheduledQueriesMu.Lock()
 		prevCount := a.countBuffered()
-		for queryName, query := range a.scheduledQueryData {
+
+		// NOTE The goroutine that pulls in new configurations
+		// MAY replace this map if it happens to run at the
+		// exact same time. The result would be. The result
+		// would be that the query lastRun does not get
+		// updated and cause the query to run more times than
+		// expected.
+		a.scheduledQueryMapMutex.RLock()
+		queryData := a.scheduledQueryData
+		a.scheduledQueryMapMutex.RUnlock()
+		queryData.Range(func(key, value any) bool {
+			queryName := key.(string)
+			query := value.(scheduledQuery)
+
 			if query.lastRun == 0 || now >= (query.lastRun+int64(query.ScheduleInterval)) {
 				results = append(results, resultLog{
 					packName:  query.packName,
@@ -738,18 +589,18 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 					numRows:   int(query.numRows),
 				})
 				// Update lastRun
-				v := a.scheduledQueryData[queryName]
-				v.lastRun = now
-				a.scheduledQueryData[queryName] = v
+				query.lastRun = now
+				queryData.Store(queryName, query)
 			}
-		}
+
+			return true
+		})
 		if prevCount+len(results) < 1_000_000 { // osquery buffered_log_max is 1M
 			a.addToBuffer(results)
 		}
 		a.sendLogsBatch()
 		newBufferedCount := a.countBuffered() - prevCount
 		a.stats.UpdateBufferedLogs(newBufferedCount)
-		a.scheduledQueriesMu.Unlock()
 	}
 }
 
@@ -883,9 +734,9 @@ func (a *agent) runOrbitLoop() {
 	// happens in the real world as there are delays that are not accounted by
 	// the way this simulation is arranged.
 	checkToken := func() {
-		min := 1
-		max := 5
-		numberOfRequests := rand.Intn(max-min+1) + min
+		minVal := 1
+		maxVal := 5
+		numberOfRequests := rand.Intn(maxVal-minVal+1) + minVal
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 
@@ -935,6 +786,11 @@ func (a *agent) runOrbitLoop() {
 				// there are pending scripts to execute on this host, start a goroutine
 				// that will simulate executing them.
 				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+			}
+			if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
+				// there are pending software installations on this host, start a
+				// goroutine that will download the software
+				go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
 			}
 			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
 				!a.mdmEnrolled() &&
@@ -1183,9 +1039,11 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			continue
 		}
 
+		a.stats.IncrementScriptExecs()
 		script, err := orbitClient.GetHostScript(execID)
 		if err != nil {
 			log.Println("get host script:", err)
+			a.stats.IncrementScriptExecErrs()
 			return
 		}
 
@@ -1205,9 +1063,141 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			ExitCode:    exitCode,
 		}); err != nil {
 			log.Println("save host script result:", err)
+			a.stats.IncrementScriptExecErrs()
 			return
 		}
 		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
+	}
+}
+
+func (a *agent) installSoftware(installerIDs []string, orbitClient *service.OrbitClient) {
+	// Only allow one software install to happen at a time.
+	if a.softwareInstaller.mu.TryLock() {
+		defer a.softwareInstaller.mu.Unlock()
+		for _, installerID := range installerIDs {
+			a.installSoftwareItem(installerID, orbitClient)
+		}
+	}
+}
+
+func (a *agent) installSoftwareItem(installerID string, orbitClient *service.OrbitClient) {
+	a.stats.IncrementSoftwareInstalls()
+
+	payload := &fleet.HostSoftwareInstallResultPayload{}
+	payload.InstallUUID = installerID
+	installer, err := orbitClient.GetInstallerDetails(installerID)
+	if err != nil {
+		log.Println("get installer details:", err)
+		a.stats.IncrementSoftwareInstallErrs()
+		return
+	}
+	failed := false
+	if installer.PreInstallCondition != "" {
+		time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+		if installer.PreInstallCondition == "select 1" { //nolint:gocritic // ignore ifElseChain
+			// Always pass
+			payload.PreInstallConditionOutput = ptr.String("1")
+		} else if installer.PreInstallCondition == "select 0" ||
+			a.softwareInstaller.preInstallFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.preInstallFailureProb {
+			// Fail
+			payload.PreInstallConditionOutput = ptr.String("")
+			failed = true
+		} else {
+			payload.PreInstallConditionOutput = ptr.String("1")
+		}
+	}
+
+	var meta *file.InstallerMetadata
+	if !failed {
+		var cacheMiss bool
+		// Download the file if needed to get its metadata
+		meta, cacheMiss, err = installerMetadataCache.Get(installer, orbitClient)
+		if err != nil {
+			a.stats.IncrementSoftwareInstallErrs()
+			return
+		}
+
+		if !cacheMiss && installer.SoftwareInstallerURL == nil {
+			// If we didn't download and analyze the file, AND we did not use a CDN URL to get the file,
+			// we do a download now and don't save the result. Doing this download adds realistic load on the server.
+			err = orbitClient.DownloadAndDiscardSoftwareInstaller(installer.InstallerID)
+			if err != nil {
+				log.Println("download and discard software installer:", err)
+				a.stats.IncrementSoftwareInstallErrs()
+				return
+			}
+		}
+
+		time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
+		if installer.InstallScript == "exit 0" { //nolint:gocritic // ignore ifElseChain
+			// Always pass
+			payload.InstallScriptExitCode = ptr.Int(0)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always pass)")
+		} else if installer.InstallScript == "exit 1" {
+			payload.InstallScriptExitCode = ptr.Int(1)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always fail)")
+			failed = true
+		} else if a.softwareInstaller.installFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.installFailureProb {
+			payload.InstallScriptExitCode = ptr.Int(1)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (fail)")
+			failed = true
+		} else {
+			payload.InstallScriptExitCode = ptr.Int(0)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (pass)")
+		}
+	}
+	if !failed {
+		if meta.Name == "" {
+			log.Printf("WARNING: installer metadata is missing a name for installer:%d\n", installer.InstallerID)
+		} else {
+			key := meta.Name + "+" + meta.Version + "+" + meta.BundleIdentifier
+			if _, ok := a.installedSoftware.Load(key); !ok {
+				source := ""
+				switch a.os {
+				case "macos":
+					source = "apps"
+				case "windows":
+					source = "programs"
+				case "ubuntu":
+					source = "deb_packages"
+				default:
+					log.Printf("unknown OS to software installer: %s", a.os)
+					return
+				}
+				a.installedSoftware.Store(key, map[string]string{
+					"name":              meta.Name,
+					"version":           meta.Version,
+					"bundle_identifier": meta.BundleIdentifier,
+					"source":            source,
+					"installed_path":    os.DevNull,
+				})
+			}
+		}
+
+		if installer.PostInstallScript != "" {
+			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+			if installer.PostInstallScript == "exit 0" { //nolint:gocritic // ignore ifElseChain
+				// Always pass
+				payload.PostInstallScriptExitCode = ptr.Int(0)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always pass)")
+			} else if installer.PostInstallScript == "exit 1" {
+				payload.PostInstallScriptExitCode = ptr.Int(1)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always fail)")
+			} else if a.softwareInstaller.postInstallFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.postInstallFailureProb {
+				payload.PostInstallScriptExitCode = ptr.Int(1)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (fail)")
+			} else {
+				payload.PostInstallScriptExitCode = ptr.Int(0)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (pass)")
+			}
+		}
+	}
+
+	err = orbitClient.SaveInstallerResult(payload)
+	if err != nil {
+		log.Println("save installer result:", err)
+		a.stats.IncrementSoftwareInstallErrs()
+		return
 	}
 }
 
@@ -1235,6 +1225,7 @@ func (a *agent) orbitEnroll() error {
 		EnrollSecret:   a.EnrollSecret,
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
+		Hostname:       a.CachedString("hostname"),
 	}
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
@@ -1339,7 +1330,19 @@ func (a *agent) config() error {
 		return fmt.Errorf("json parse at config: %w", err)
 	}
 
-	scheduledQueryData := make(map[string]scheduledQuery)
+	existingLastRunData := make(map[string]int64)
+
+	a.scheduledQueryMapMutex.RLock()
+	queryData := a.scheduledQueryData
+	a.scheduledQueryMapMutex.RUnlock()
+	queryData.Range(func(key, value any) bool {
+		existingLastRunData[key.(string)] = value.(scheduledQuery).lastRun
+
+		return true
+	})
+
+	newScheduledQueryData := new(sync.Map)
+
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
 			m, ok := query.(map[string]interface{})
@@ -1367,17 +1370,16 @@ func (a *agent) config() error {
 			q.Query = m["query"].(string)
 
 			scheduledQueryName := packName + "_" + queryName
-			if existingEntry, ok := a.scheduledQueryData[scheduledQueryName]; ok {
-				// Keep lastRun if the query is already scheduled.
-				q.lastRun = existingEntry.lastRun
+			if lastRun, ok := existingLastRunData[scheduledQueryName]; ok {
+				q.lastRun = lastRun
 			}
-			scheduledQueryData[scheduledQueryName] = q
+			newScheduledQueryData.Store(scheduledQueryName, q)
 		}
 	}
 
-	a.scheduledQueriesMu.Lock()
-	a.scheduledQueryData = scheduledQueryData
-	a.scheduledQueriesMu.Unlock()
+	a.scheduledQueryMapMutex.Lock()
+	a.scheduledQueryData = newScheduledQueryData
+	a.scheduledQueryMapMutex.Unlock()
 
 	return nil
 }
@@ -1425,7 +1427,8 @@ func (a *agent) hostUsers() []map[string]string {
 			"shell":     shells[i%len(shells)],
 		}
 	}
-	users := append(commonUsers, uniqueUsers...)
+	users := commonUsers
+	users = append(users, uniqueUsers...)
 	rand.Shuffle(len(users), func(i, j int) {
 		users[i], users[j] = users[j], users[i]
 	})
@@ -1433,6 +1436,7 @@ func (a *agent) hostUsers() []map[string]string {
 }
 
 func (a *agent) softwareMacOS() []map[string]string {
+	// Common Software
 	var lastOpenedCount int
 	commonSoftware := make([]map[string]string, a.softwareCount.common)
 	for i := 0; i < len(commonSoftware); i++ {
@@ -1455,6 +1459,8 @@ func (a *agent) softwareMacOS() []map[string]string {
 		})
 		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
 	}
+
+	// Unique Software
 	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
 	for i := 0; i < len(uniqueSoftware); i++ {
 		var lastOpenedAt string
@@ -1476,28 +1482,113 @@ func (a *agent) softwareMacOS() []map[string]string {
 		})
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
-	randomVulnerableSoftware := make([]map[string]string, a.softwareCount.vulnerable)
-	for i := 0; i < len(randomVulnerableSoftware); i++ {
-		sw := macosVulnerableSoftware[rand.Intn(len(macosVulnerableSoftware))]
+
+	// Vulnerable Software
+	var vCount int
+	if a.softwareCount.vulnerable < 0 {
+		vCount = len(macosVulnerableSoftware)
+	} else {
+		vCount = a.softwareCount.vulnerable
+	}
+
+	vulnerableSoftware := make([]map[string]string, 0, vCount)
+	randomIndices := rand.Perm(len(macosVulnerableSoftware)) // Randomize software selection
+	var softwareLimit int
+
+	switch {
+	case a.softwareCount.vulnerable < 0: // Sequential assignment
+		softwareLimit = len(macosVulnerableSoftware)
+	case a.softwareCount.vulnerable == 0: // No vulnerable software
+		softwareLimit = 0
+	default: // Random assignment
+		softwareLimit = min(a.softwareCount.vulnerable, len(macosVulnerableSoftware)) // Limit to available software
+	}
+
+	for i := range softwareLimit {
+		var sw fleet.Software
+
+		if a.softwareCount.vulnerable < 0 {
+			sw = macosVulnerableSoftware[i]
+		} else {
+			sw = macosVulnerableSoftware[randomIndices[i]]
+		}
+
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
-		randomVulnerableSoftware[i] = map[string]string{
+
+		vulnerableSoftware = append(vulnerableSoftware, map[string]string{
 			"name":              sw.Name,
 			"version":           sw.Version,
 			"bundle_identifier": sw.BundleIdentifier,
 			"source":            sw.Source,
 			"last_opened_at":    lastOpenedAt,
 			"installed_path":    fmt.Sprintf("/some/path/%s", sw.Name),
-		}
+		})
 	}
-	software := append(commonSoftware, uniqueSoftware...)
-	software = append(software, randomVulnerableSoftware...)
+
+	// Combine all software
+	software := commonSoftware
+	software = append(software, uniqueSoftware...)
+	software = append(software, vulnerableSoftware...)
+	a.installedSoftware.Range(func(key, value interface{}) bool {
+		software = append(software, value.(map[string]string))
+		return true
+	})
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
+
 	return software
+}
+
+func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
+	commonSoftware := make([]map[string]string, a.softwareCount.common)
+	for i := 0; i < len(commonSoftware); i++ {
+		commonSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Common_%d", i),
+			"version":           "0.0.1",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
+			"source":            source,
+		}
+	}
+	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonSoftware), func(i, j int) {
+			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
+		})
+		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
+	}
+	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
+	for i := 0; i < len(uniqueSoftware); i++ {
+		uniqueSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           "1.1.1",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
+			"source":            source,
+		}
+	}
+	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniqueSoftware), func(i, j int) {
+			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
+		})
+		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
+	}
+	software := commonSoftware
+	software = append(software, uniqueSoftware...)
+	rand.Shuffle(len(software), func(i, j int) {
+		software[i], software[j] = software[j], software[i]
+	})
+	fleetSoftware := make([]fleet.Software, len(software))
+	for i, s := range software {
+		fleetSoftware[i] = fleet.Software{
+			Name:             s["name"],
+			Version:          s["version"],
+			BundleIdentifier: s["bundle_identifier"],
+			Source:           s["source"],
+		}
+	}
+	return fleetSoftware
 }
 
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
@@ -1538,7 +1629,8 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 			"source":  vsCodeExtension.Source,
 		})
 	}
-	software := append(commonVSCodeExtensionsSoftware, uniqueVSCodeExtensionsSoftware...)
+	software := commonVSCodeExtensionsSoftware
+	software = append(software, uniqueVSCodeExtensionsSoftware...)
 	software = append(software, vulnerableVSCodeExtensionsSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
@@ -1618,13 +1710,16 @@ func (a *agent) runPolicy(query string) []map[string]string {
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
-	a.scheduledQueriesMu.Lock()
-	defer a.scheduledQueriesMu.Unlock()
-
 	var stats []map[string]string
-	for scheduledQuery := range a.scheduledQueryData {
+	a.scheduledQueryMapMutex.RLock()
+	queryData := a.scheduledQueryData
+	a.scheduledQueryMapMutex.RUnlock()
+
+	queryData.Range(func(key, value any) bool {
+		queryName := key.(string)
+
 		stats = append(stats, map[string]string{
-			"name":           scheduledQuery,
+			"name":           queryName,
 			"delimiter":      "_",
 			"average_memory": fmt.Sprint(rand.Intn(200) + 10),
 			"denylisted":     "false",
@@ -1637,7 +1732,9 @@ func (a *agent) randomQueryStats() []map[string]string {
 			"wall_time":      fmt.Sprint(rand.Intn(4) + 1),
 			"wall_time_ms":   fmt.Sprint(rand.Intn(4000) + 10),
 		})
-	}
+
+		return true
+	})
 	return stats
 }
 
@@ -1755,18 +1852,14 @@ func (a *agent) batteries() []map[string]string {
 	count := rand.Intn(3) // return between 0 and 2 batteries
 	result := make([]map[string]string, count)
 	for i := range result {
-		health := "Good"
-		cycleCount := rand.Intn(2000)
-		switch {
-		case cycleCount > 1500:
-			health = "Poor"
-		case cycleCount > 1000:
-			health = "Fair"
-		}
+		max_capacity := 700 + rand.Intn(300) // between 700 and 1000 to ensure most batteries are healthy
+		cycleCount := rand.Intn(1200)
+
 		result[i] = map[string]string{
-			"serial_number": fmt.Sprintf("%04d", i),
-			"cycle_count":   strconv.Itoa(cycleCount),
-			"health":        health,
+			"serial_number":     fmt.Sprintf("%04d", i),
+			"cycle_count":       strconv.Itoa(cycleCount),
+			"max_capacity":      strconv.Itoa(max_capacity),
+			"designed_capacity": "1000",
 		}
 	}
 	return result
@@ -1812,6 +1905,50 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
+func (a *agent) certificates() []map[string]string {
+	a.certificatesMutex.RLock()
+	cache := a.certificatesCache
+	a.certificatesMutex.RUnlock()
+
+	// 90% of the time certificates do not change
+	if rand.Intn(100) < 90 && len(cache) > 0 {
+		return cache
+	}
+
+	// between 2 and 10 certificates (probably impossible to have 0, quick check
+	// on dogfood gives between 4-7)
+	count := rand.Intn(9) + 2
+
+	const day = 24 * time.Hour
+	results := make([]map[string]string, count)
+	for i := range count {
+		m := make(map[string]string, 12)
+		m["ca"] = fmt.Sprint(rand.Intn(2))
+		m["common_name"] = uuid.NewString()
+		m["issuer"] = fmt.Sprintf("/C=US/O=Issuer %d Inc./CN=Issuer %d Common Name", i, i)
+		m["subject"] = fmt.Sprintf("/C=US/O=Subject %d Inc./OU=Subject %d Org Unit/CN=Subject %d Common Name", i, i, i)
+		m["key_algorithm"] = "rsaEncryption"
+		m["key_strength"] = "2048"
+		m["key_usage"] = "Data Encipherment, Key Encipherment, Digital Signature"
+		m["serial"] = uuid.NewString()
+		m["signing_algorithm"] = "sha256WithRSAEncryption"
+		// generate so that it may be expired
+		m["not_valid_after"] = fmt.Sprint(time.Now().Add(-1 * day).Add(time.Duration(rand.Intn(100)) * day).Unix())
+		// notBefore is always in the past (1-10 days in the past)
+		m["not_valid_before"] = fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * day).Unix())
+		rawHash := sha1.Sum([]byte(m["serial"])) //nolint: gosec
+		hash := hex.EncodeToString(rawHash[:])
+		m["sha1"] = hash
+
+		results[i] = m
+	}
+
+	a.certificatesMutex.Lock()
+	a.certificatesCache = results
+	a.certificatesMutex.Unlock()
+	return results
+}
+
 func (a *agent) orbitInfo() []map[string]string {
 	version := "1.22.0"
 	desktopVersion := version
@@ -1843,10 +1980,89 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 		ss := fleet.OsqueryStatus(1)
 		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar"), nil
 	}
-	ss := fleet.OsqueryStatus(0)
 	if a.liveQueryNoResultsProb > 0.0 && rand.Float64() <= a.liveQueryNoResultsProb {
+		ss := fleet.OsqueryStatus(0)
 		return []map[string]string{}, &ss, nil, nil
 	}
+
+	// Switch based on contents of the query.
+	lcQuery := strings.ToLower(query)
+	switch {
+	case strings.Contains(lcQuery, "from yara") && strings.Contains(lcQuery, "sigurl"):
+		return a.runLiveYaraQuery(query)
+	default:
+		return a.runLiveMockQuery(query)
+	}
+}
+
+func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
+	// Get the URL of the YARA rule to request (i.e. the sigurl).
+	urlRegex := regexp.MustCompile(`sigurl=(["'])([^"']*)["']`)
+	matches := urlRegex.FindStringSubmatch(query)
+	var url string
+	if len(matches) > 2 {
+		url = matches[2]
+	} else {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live yara query failed because a valid sigurl could not be found"), nil
+	}
+
+	// Osquery validates that the sigurl is one of a configured set, so that it's not
+	// sending requests to just anywhere. We'll check that it's at least the same host
+	// as the Fleet server.
+	if !strings.HasPrefix(url, a.serverAddress) {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live yara query failed because sigurl host did not match server address"), nil
+	}
+
+	// Make the request.
+	body := []byte(`{"node_key": "` + a.nodeKey + `"}`)
+	request, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	if err != nil {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String("live yara query failed due to error creating request"), nil
+	}
+	request.Header.Add("Content-type", "application/json")
+
+	// Make the request.
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("yara request failed to run: %v", err)), nil
+	}
+	defer response.Body.Close()
+
+	// For load testing purposes we don't actually care about the response, but check that we at least got one.
+	if _, err := io.Copy(io.Discard, response.Body); err != nil {
+		ss := fleet.OsqueryStatus(1)
+		return []map[string]string{}, &ss, ptr.String(fmt.Sprintf("error reading response from yara API: %v", err)), nil
+	}
+
+	// Return a response indicating that the file is clean.
+	ss := fleet.OsqueryStatus(0)
+	return []map[string]string{
+			{
+				"count":     "0",
+				"matches":   "",
+				"strings":   "",
+				"tags":      "",
+				"sig_group": "",
+				"sigfile":   "",
+				"sigrule":   "",
+				"sigurl":    url,
+				// Could pull this from the query, but not necessary for load testing.
+				"path": "/some/path",
+			},
+		}, &ss, nil, &fleet.Stats{
+			WallTimeMs: uint64(rand.Intn(1000) * 1000),
+			UserTime:   uint64(rand.Intn(1000)),
+			SystemTime: uint64(rand.Intn(1000)),
+			Memory:     uint64(rand.Intn(1000)),
+		}
+}
+
+func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
+	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
 			{
 				"admindir":   "/var/lib/dpkg",
@@ -1869,8 +2085,9 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 		}
 }
 
-func (a *agent) processQuery(name, query string) (
-	handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
+func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
+	handled bool, results []map[string]string,
+	status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
 ) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
@@ -1936,6 +2153,33 @@ func (a *agent) processQuery(name, query string) (
 		}
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
+			cachedResults.software = results
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_macos_codesign":
+		// Given queries run in lexicographic order software_macos already run and
+		// cachedResults.software should have its results.
+		ss := fleet.StatusOK
+		if a.softwareQueryFailureProb > 0.0 && rand.Float64() <= a.softwareQueryFailureProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			if len(cachedResults.software) > 0 {
+				for _, s := range cachedResults.software {
+					if s["source"] != "apps" {
+						continue
+					}
+					installedPath := s["installed_path"]
+					teamIdentifier := s["name"] // use name to be fixed (more realistic than changing often).
+					if len(teamIdentifier) > 10 {
+						teamIdentifier = teamIdentifier[:10]
+					}
+					results = append(results, map[string]string{
+						"path":            installedPath,
+						"team_identifier": teamIdentifier,
+					})
+				}
+			}
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
@@ -1945,6 +2189,10 @@ func (a *agent) processQuery(name, query string) (
 		}
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
+			a.installedSoftware.Range(func(key, value interface{}) bool {
+				results = append(results, value.(map[string]string))
+				return true
+			})
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
@@ -1953,9 +2201,29 @@ func (a *agent) processQuery(name, query string) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			switch a.os {
+			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
 			case "ubuntu":
-				results = ubuntuSoftware
+				results = make([]map[string]string, 0, len(ubuntuSoftware))
+				for _, s := range ubuntuSoftware {
+					softwareName := s["name"]
+					if a.linuxUniqueSoftwareTitle {
+						softwareName = fmt.Sprintf("%s-%d-%s", softwareName, a.agentIndex, linuxRandomBuildNumber)
+					}
+					version := s["version"]
+					if a.linuxUniqueSoftwareVersion {
+						version = fmt.Sprintf("1.2.%d-%s", a.agentIndex, linuxRandomBuildNumber)
+					}
+					m := map[string]string{
+						"name":    softwareName,
+						"source":  s["source"],
+						"version": version,
+					}
+					results = append(results, m)
+				}
+				a.installedSoftware.Range(func(key, value interface{}) bool {
+					results = append(results, value.(map[string]string))
+					return true
+				})
 			}
 		}
 		return true, results, &ss, nil, nil
@@ -1999,6 +2267,14 @@ func (a *agent) processQuery(name, query string) (
 			return true, nil, &statusNotOK, nil, nil
 		}
 		return true, a.orbitInfo(), &statusOK, nil, nil
+	case strings.HasPrefix(name, hostDetailQueryPrefix+"certificates_darwin"):
+		// NOTE: feels exaggerated to fail osquery 50% of the time but this is how
+		// most other osquery queries are handled.
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.certificates()
+		}
+		return true, results, &ss, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
@@ -2018,6 +2294,10 @@ func (a *agent) processQuery(name, query string) (
 	}
 }
 
+type cachedResults struct {
+	software []map[string]string
+}
+
 func (a *agent) DistributedWrite(queries map[string]string) error {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
@@ -2026,8 +2306,21 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		Stats:    make(map[string]*fleet.Stats),
 	}
 	r.NodeKey = a.nodeKey
-	for name, query := range queries {
-		handled, results, status, message, stats := a.processQuery(name, query)
+
+	cachedResults := cachedResults{}
+
+	// Sort queries to be executed by lexicographic name order (for result processing
+	// to be more predictable). This aligns to how osquery executes the queries.
+	queryNames := make([]string, 0, len(queries))
+	for name := range queries {
+		queryNames = append(queryNames, name)
+	}
+	sort.Strings(queryNames)
+
+	for _, name := range queryNames {
+		query := queries[name]
+
+		handled, results, status, message, stats := a.processQuery(name, query, &cachedResults)
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.
@@ -2150,6 +2443,63 @@ func (a *agent) submitLogs(results []resultLog) error {
 	return nil
 }
 
+func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
+	udid := mdmtest.RandUDID()
+
+	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: mdmSCEPChallenge,
+		SCEPURL:       a.serverAddress + apple_mdm.SCEPPath,
+		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
+	}, a.model)
+	mdmClient.UUID = udid
+	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
+	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
+	productName := a.model
+	softwareSource := "ios_apps"
+	if strings.HasPrefix(a.model, "iPad") {
+		softwareSource = "ipados_apps"
+	}
+
+	if err := mdmClient.Enroll(); err != nil {
+		log.Printf("%s MDM enroll failed: %s", a.model, err)
+		a.stats.IncrementMDMErrors()
+		return
+	}
+
+	a.stats.IncrementMDMEnrollments()
+
+	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+
+	for range mdmCheckInTicker {
+		mdmCommandPayload, err := mdmClient.Idle()
+		if err != nil {
+			log.Printf("MDM Idle request failed: %s: %s", a.model, err)
+			a.stats.IncrementMDMErrors()
+			continue
+		}
+		a.stats.IncrementMDMSessions()
+
+		for mdmCommandPayload != nil {
+			a.stats.IncrementMDMCommandsReceived()
+			switch mdmCommandPayload.Command.RequestType {
+			case "DeviceInformation":
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName)
+			case "InstalledApplicationList":
+				software := a.softwareIOSandIPadOS(softwareSource)
+				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
+			default:
+				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			}
+			if err != nil {
+				log.Printf("MDM Acknowledge request failed: %s: %s", a.model, err)
+				a.stats.IncrementMDMErrors()
+				break
+			}
+		}
+	}
+}
+
 // rows returns a set of rows for use in tests for query results.
 func rows(num int) string {
 	b := strings.Builder{}
@@ -2197,6 +2547,8 @@ func main() {
 		"windows_11_22H2_2861.tmpl": true,
 		"windows_11_22H2_3007.tmpl": true,
 		"ubuntu_22.04.tmpl":         true,
+		"iphone_14.6.tmpl":          true,
+		"ipad_13.18.tmpl":           true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -2214,7 +2566,7 @@ func main() {
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
-		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
+		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -2223,6 +2575,13 @@ func main() {
 		// during hosts enroll.
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
+
+		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
+			"Probability of the pre-install query failing")
+		softwareInstallerInstallFailureProb = flag.Float64("software_installer_install_fail_prob", 0.05,
+			"Probability of the install script failing")
+		softwareInstallerPostInstallFailureProb = flag.Float64("software_installer_post_install_fail_prob", 0.05,
+			"Probability of the post-install script failing")
 
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")
@@ -2238,7 +2597,21 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
-		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
+		// WARNING: This will generate massive amounts of entries in the software table,
+		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
+		//
+		// This flag can be used to load test software ingestion for Linux during enrollment (during enrollment all devices
+		// report software to Fleet, so the initial reads/inserts can be expensive).
+		linuxUniqueSoftwareVersion = flag.Bool("linux_unique_software_version", false, "Make version of software items on linux hosts unique. WARNING: This will generate massive amounts of entries in the software table, because linux devices report many individual software items (compared to Windows/macOS).")
+		// WARNING: This will generate massive amounts of entries in the software and software_titles tables,
+		//
+		// This flag can be used to load test software ingestion for Linux during enrollment (during enrollment all devices
+		// report software to Fleet, so the initial reads/inserts can be expensive).
+		linuxUniqueSoftwareTitle = flag.Bool("linux_unique_software_title", false, "Make name of software items on linux hosts unique. WARNING: This will generate massive amounts of titles which is not realistic but serves to test performance of software ingestion when processing large number of titles.")
+
+		// This flag can be used to set the number of vulnerable software items reported by each host picked randomly from the
+		// list of vulnerable software.  Use -1 to load all vulnerable software.
+		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet.  Use -1 to load all vulnerable software.")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
 		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.1, "Probability of last opened timestamp to be reported as changed [0, 1]")
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
@@ -2249,8 +2622,10 @@ func main() {
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
 		// `-os_templates=windows_11.tmpl:3,macos_14.1.2.tmpl:4,ubuntu_22.04.tmpl:3`
-		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		osTemplates       = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma-separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb   = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
+			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
@@ -2262,7 +2637,8 @@ func main() {
 
 		disableFleetDesktop = flag.Bool("disable_fleet_desktop", false, "Disable Fleet Desktop")
 		// logger_tls_max_lines is simulating the osquery setting with the same name.
-		loggerTLSMaxLines = flag.Int("", 1024, "Maximum number of buffered result log lines to send on every log request")
+		loggerTLSMaxLines = flag.Int("logger_tls_max_lines", 1024,
+			"Maximum number of buffered result log lines to send on every log request")
 	)
 
 	flag.Parse()
@@ -2316,10 +2692,11 @@ func main() {
 	// Spread starts over the interval to prevent thundering herd
 	sleepTime := *startPeriod / time.Duration(*hostCount)
 
-	stats := &Stats{
-		startTime: time.Now(),
+	stats := &osquery_perf.Stats{
+		StartTime: time.Now(),
 	}
-	go stats.runLoop()
+	go stats.RunLoop()
+	installerMetadataCache.Stats = stats
 
 	nodeKeyManager := &nodeKeyManager{}
 	if nodeKeyFile != nil {
@@ -2338,7 +2715,7 @@ func main() {
 			for tmpl_, hostCount := range tmplsm {
 				if hostCount > 0 {
 					tmpl = tmpl_
-					tmplsm[tmpl_] = tmplsm[tmpl_] - 1
+					tmplsm[tmpl_]--
 					break
 				}
 			}
@@ -2347,6 +2724,35 @@ func main() {
 			}
 		} else {
 			tmpl = tmplss[i%len(tmplss)]
+		}
+
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+			model := "iPhone 14,6"
+			if tmpl.Name() == "ipad_13.18.tmpl" {
+				model = "iPad 13,18"
+			}
+			mobileDevice := mdmAgent{
+				agentIndex:         i + 1,
+				MDMCheckInInterval: *mdmCheckInInterval,
+				model:              model,
+				serverAddress:      *serverURL,
+				softwareCount: softwareEntityCount{
+					entityCount: entityCount{
+						common: *commonSoftwareCount,
+						unique: *uniqueSoftwareCount,
+					},
+					vulnerable:                   *vulnerableSoftwareCount,
+					commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
+					commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
+					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
+					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
+				},
+				stats:   stats,
+				strings: make(map[string]string),
+			}
+			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
+			time.Sleep(sleepTime)
+			continue
 		}
 
 		a := newAgent(i+1,
@@ -2359,6 +2765,12 @@ func main() {
 			*mdmCheckInInterval,
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
+			softwareInstaller{
+				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
+				installFailureProb:     *softwareInstallerInstallFailureProb,
+				postInstallFailureProb: *softwareInstallerPostInstallFailureProb,
+				mu:                     new(sync.Mutex),
+			},
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,
@@ -2391,6 +2803,7 @@ func main() {
 			*munkiIssueProb,
 			*munkiIssueCount,
 			*emptySerialProb,
+			*defaultSerialProb,
 			*mdmProb,
 			*mdmSCEPChallenge,
 			*liveQueryFailProb,
@@ -2398,6 +2811,8 @@ func main() {
 			*disableScriptExec,
 			*disableFleetDesktop,
 			*loggerTLSMaxLines,
+			*linuxUniqueSoftwareVersion,
+			*linuxUniqueSoftwareTitle,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

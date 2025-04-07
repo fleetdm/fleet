@@ -1,15 +1,19 @@
 import { IDeviceUserResponse } from "interfaces/host";
+import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
+import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
 import { IHostSoftwareQueryParams } from "./hosts";
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "device_software";
   id: string;
+  softwareUpdatedAt?: string;
 }
 
 export interface IGetDeviceSoftwareResponse {
@@ -21,11 +25,33 @@ export interface IGetDeviceSoftwareResponse {
   };
 }
 
-export default {
-  loadHostDetails: (deviceAuthToken: string): Promise<IDeviceUserResponse> => {
-    const { DEVICE_USER_DETAILS } = endpoints;
-    const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}`;
+interface IGetDeviceDetailsRequest {
+  token: string;
+  exclude_software?: boolean;
+}
 
+export interface IGetDeviceCertificatesResponse {
+  certificates: IHostCertificate[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface IGetDeviceCertsRequestParams extends IListOptions {
+  token: string;
+}
+
+export default {
+  loadHostDetails: ({
+    token,
+    exclude_software,
+  }: IGetDeviceDetailsRequest): Promise<IDeviceUserResponse> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    let path = `${DEVICE_USER_DETAILS}/${token}`;
+    if (exclude_software) {
+      path += "?exclude_software=true";
+    }
     return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (
@@ -62,5 +88,23 @@ export default {
     const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
 
     return sendRequest("POST", path);
+  },
+
+  getDeviceCertificates: ({
+    token,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetDeviceCertsRequestParams): Promise<IGetDeviceCertificatesResponse> => {
+    const { DEVICE_CERTIFICATES } = endpoints;
+    const path = `${DEVICE_CERTIFICATES(token)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    })}`;
+
+    return sendRequest("GET", path);
   },
 };

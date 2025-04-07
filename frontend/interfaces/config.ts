@@ -15,7 +15,7 @@ export interface ILicense {
   organization: string;
 }
 
-interface IEndUserAuthentication {
+export interface IEndUserAuthentication {
   entity_id: string;
   idp_name: string;
   issuer_uri: string;
@@ -29,20 +29,42 @@ export interface IMacOsMigrationSettings {
   webhook_url: string;
 }
 
+interface ICustomSetting {
+  path: string;
+  labels_include_all?: string[];
+  labels_exclude_any?: string[];
+}
+
+export interface IAppleDeviceUpdates {
+  minimum_version: string;
+  deadline: string;
+}
+
 export interface IMdmConfig {
+  /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
+  apple_server_url: string;
   enable_disk_encryption: boolean;
+  /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
+  configured correctly. The naming is slightly confusing but at one point we
+  only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
   apple_bm_default_team?: string;
+  /**
+   * @deprecated
+   * Refer to needsAbmTermsRenewal from AppContext instead of config.apple_bm_terms_expired.
+   * https://github.com/fleetdm/fleet/pull/21043/files#r1705977965
+   */
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
+  windows_migration_enabled: boolean;
+  android_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
-  macos_updates: {
-    minimum_version: string | null;
-    deadline: string | null;
-  };
+  macos_updates: IAppleDeviceUpdates;
+  ios_updates: IAppleDeviceUpdates;
+  ipados_updates: IAppleDeviceUpdates;
   macos_settings: {
-    custom_settings: null;
+    custom_settings: null | ICustomSetting[];
     enable_disk_encryption: boolean;
   };
   macos_setup: {
@@ -58,8 +80,12 @@ export interface IMdmConfig {
   };
 }
 
+// Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
+// values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
+// team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
   mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 
 export interface IFleetDesktopSettings {
@@ -82,6 +108,7 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
+  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;
@@ -142,10 +169,6 @@ export interface IConfig {
     disable_data_sync: boolean;
     recent_vulnerability_max_age: number;
   };
-  // Note: `vulnerability_settings` is deprecated and should not be used
-  // vulnerability_settings: {
-  //   databases_path: string;
-  // };
   webhook_settings: IWebhookSettings;
   integrations: IGlobalIntegrations;
   logging: {
@@ -182,6 +205,7 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
+  gitops: IGitOpsModeConfig;
 }
 
 export interface IWebhookSettings {
@@ -197,3 +221,11 @@ export type IAutomationsConfig = Pick<
 >;
 
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
+
+export interface IUserSettings {
+  hidden_host_columns: string[];
+}
+export interface IGitOpsModeConfig {
+  gitops_mode_enabled: boolean;
+  repository_url: string;
+}

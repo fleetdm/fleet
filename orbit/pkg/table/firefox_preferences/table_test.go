@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +49,7 @@ func Test_generate(t *testing.T) {
 		},
 	}
 
-	table := Table{logger: log.NewNopLogger()}
+	table := Table{logger: zerolog.Nop()}
 
 	for _, tt := range tests {
 		tt := tt

@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -20,7 +21,7 @@ import (
 const (
 	defaultFleetDMAPIURL     = "https://fleetdm.com"
 	getSignedAPNSCSRPath     = "/api/v1/deliver-apple-csr"
-	depCertificateCommonName = "FleetDM"
+	depCertificateCommonName = "Fleet"
 	depCertificateExpiryDays = 30
 )
 
@@ -60,7 +61,7 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
-func GenerateAPNSCSR(org, email string, key *rsa.PrivateKey) (*x509.CertificateRequest, error) {
+func GenerateAPNSCSR(org, email string, key crypto.PrivateKey) (*x509.CertificateRequest, error) {
 	subj := pkix.Name{
 		Organization: []string{org},
 		ExtraNames: []pkix.AttributeTypeAndValue{{
@@ -208,7 +209,7 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 
 	caCert := depot.NewCACert(
 		depot.WithYears(10),
-		depot.WithCommonName("FleetDM"),
+		depot.WithCommonName("Fleet"),
 	)
 
 	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)

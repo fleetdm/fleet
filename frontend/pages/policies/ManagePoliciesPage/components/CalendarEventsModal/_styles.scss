@@ -32,10 +32,35 @@
     box-sizing: border-box;
     margin: 0;
   }
+
+  &__hide-main {
+    visibility: hidden;
+  }
 }
 
 .calendar-event-preview {
   p {
     margin: 24px 0;
   }
+}
+
+.policy-row {
+  &__preview-button {
+    flex: 0 0 auto;
+    /* This prevents growing and shrinking */
+    width: fit-content;
+    /* This ensures button isn't cut off */
+    visibility: hidden;
+  }
+
+  &:hover {
+    &__preview-button {
+      visibility: visible;
+    }
+  }
+}
+
+// If we're hiding the modal (because the preview is showing), hide the background as well.
+.modal__background:has(.calendar-events-modal.calendar-events-modal__hide-main) {
+  visibility: hidden;
 }

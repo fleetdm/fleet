@@ -3,8 +3,10 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -71,12 +73,12 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	args = append(args, cve, cve)
 
 	if teamID != nil {
-		eeSelectStmt += " AND vhc.team_id = ?"
-		freeSelectStmt += " AND vhc.team_id = ?"
+		eeSelectStmt += " AND vhc.team_id = ? AND vhc.global_stats = 0"
+		freeSelectStmt += " AND vhc.team_id = ? AND vhc.global_stats = 0"
 		args = append(args, *teamID)
 	} else {
-		eeSelectStmt += " AND vhc.team_id = 0"
-		freeSelectStmt += " AND vhc.team_id = 0"
+		eeSelectStmt += " AND vhc.team_id = 0 AND vhc.global_stats = 1"
+		freeSelectStmt += " AND vhc.team_id = 0 AND vhc.global_stats = 1"
 	}
 
 	var selectStmt string
@@ -117,12 +119,15 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
 	}
 
-	updatedAt = osvs.CountsUpdatedAt
+	if osvs == nil {
+		return nil, updatedAt, nil
+	}
 
-	var osVersionWithResolved []struct {
+	type osVersionWithResolvedType struct {
 		OSVersionID     uint    `db:"os_version_id"`
 		ResolvedVersion *string `db:"resolved_in_version"`
 	}
+	var osVersionWithResolved []osVersionWithResolvedType
 
 	selectStmt := `
 		SELECT os.os_version_id, osv.resolved_in_version
@@ -138,8 +143,27 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS version and resolved version by CVE")
 	}
 
+	// Remove duplicates, which may occur since the same OS can be installed on multiple architectures (amd64, arm64, etc.)
+	type osVersionKey struct {
+		OSVersionID     uint
+		ResolvedVersion string
+	}
+	seen := make(map[osVersionKey]struct{}, len(osVersionWithResolved))
+	verResolvedDedup := make([]osVersionWithResolvedType, 0, len(osVersionWithResolved))
+	for _, id := range osVersionWithResolved {
+		var resolved string
+		if id.ResolvedVersion != nil {
+			resolved = *id.ResolvedVersion
+		}
+		key := osVersionKey{OSVersionID: id.OSVersionID, ResolvedVersion: resolved}
+		if _, ok := seen[key]; !ok {
+			verResolvedDedup = append(verResolvedDedup, id)
+			seen[key] = struct{}{}
+		}
+	}
+
 	for _, osv := range osvs.OSVersions {
-		for _, id := range osVersionWithResolved {
+		for _, id := range verResolvedDedup {
 			if osv.OSVersionID == id.OSVersionID {
 				vos = append(vos, &fleet.VulnerableOS{
 					OSVersion:         osv,
@@ -172,11 +196,14 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 		`
 	args = append(args, cve)
 
-	if teamID != nil {
-		selectStmt += " AND shc.team_id = ?"
+	switch {
+	case teamID != nil && *teamID > 0:
+		selectStmt += " AND shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *teamID)
-	} else {
-		selectStmt += " AND shc.team_id = 0"
+	case teamID != nil && *teamID == 0:
+		selectStmt += " AND shc.team_id = 0 AND shc.global_stats = 0"
+	case teamID == nil:
+		selectStmt += " AND shc.team_id = 0 AND shc.global_stats = 1"
 	}
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vs, selectStmt, args...)
@@ -239,11 +266,11 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 
 	// Prepare arguments for the query
 	var args []interface{}
-	if opt.TeamID == 0 {
-		selectStmt += " AND vhc.team_id = 0"
+	if opt.TeamID == nil {
+		selectStmt += " AND vhc.global_stats = 1"
 	} else {
-		selectStmt += " AND vhc.team_id = ?"
-		args = append(args, opt.TeamID)
+		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
+		args = append(args, *opt.TeamID)
 	}
 
 	if opt.KnownExploit {
@@ -270,7 +297,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(vulns) > int(opt.ListOptions.PerPage) {
+		if len(vulns) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			vulns = vulns[:len(vulns)-1]
 		}
@@ -293,15 +320,15 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 		WHERE vhc.host_count > 0
 	`
 	var args []interface{}
-	if opt.TeamID == 0 {
-		selectStmt = selectStmt + " AND vhc.team_id = 0"
+	if opt.TeamID == nil {
+		selectStmt += " AND global_stats = 1"
 	} else {
-		selectStmt = selectStmt + " AND vhc.team_id = ?"
+		selectStmt += " AND global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
 
 	if opt.KnownExploit {
-		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
+		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
 
 	if match := opt.ListOptions.MatchQuery; match != "" {
@@ -316,30 +343,193 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 	return count, nil
 }
 
-func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
+func (ds *Datastore) distinctCVEs(ctx context.Context) ([]string, error) {
+	uniqueCVEQuery := `
+        SELECT DISTINCT cve FROM (
+            SELECT cve FROM software_cve
+            UNION
+            SELECT cve FROM operating_system_vulnerabilities
+        ) AS combined_cves;
+    `
+
+	var cves []string
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &cves, uniqueCVEQuery)
+	if err != nil {
+		return nil, err
+	}
+	return cves, nil
+}
+
+type CountScope int
+
+const (
+	GlobalCount CountScope = iota
+	NoTeamCount
+	TeamCount
+)
+
+func (ds *Datastore) batchFetchVulnerabilityCounts(
+	ctx context.Context,
+	scope CountScope,
+	maxRoutines int,
+) ([]hostCount, error) {
+	const (
+		batchSize = 10
+	)
+
+	// Fetch distinct CVEs
+	allCVEs, err := ds.distinctCVEs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fetching distinct CVEs: %w", err)
+	}
+
+	query := getVulnHostCountQuery(scope)
+	if query == "" {
+		return nil, ctxerr.Errorf(ctx, "invalid scope: %d", scope)
+	}
+
+	var (
+		hostCounts []hostCount
+		mu         sync.Mutex
+		wg         sync.WaitGroup
+		sem        = make(chan struct{}, maxRoutines)
+		errChan    = make(chan error, len(allCVEs)/batchSize+1)
+	)
+
+	// Process CVEs in batches concurrently
+	for i := 0; i < len(allCVEs); i += batchSize {
+		end := i + batchSize
+		if end > len(allCVEs) {
+			end = len(allCVEs)
+		}
+
+		batchCVEs := allCVEs[i:end]
+		wg.Add(1)
+		sem <- struct{}{} // Acquire semaphore
+
+		go func(cves []string) {
+			defer wg.Done()
+			defer func() { <-sem }() // Release semaphore
+
+			counts, err := ds.fetchBatchCounts(ctx, cves, query)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			mu.Lock()
+			hostCounts = append(hostCounts, counts...)
+			mu.Unlock()
+		}(batchCVEs)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return hostCounts, nil
+}
+
+// fetchBatchCounts executes the query for a batch of CVEs.
+func (ds *Datastore) fetchBatchCounts(
+	ctx context.Context,
+	batchCVEs []string,
+	scopeConfig string,
+) ([]hostCount, error) {
+	query, args, err := sqlx.In(scopeConfig, batchCVEs, batchCVEs)
+	if err != nil {
+		return nil, err
+	}
+
+	var counts []hostCount
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return counts, nil
+}
+
+// getScopeConfig returns the query configuration for the given scope.
+func getVulnHostCountQuery(scope CountScope) string {
+	switch scope {
+	case GlobalCount:
+		return `
+				SELECT 0 as team_id, 1 as global_stats, combined_results.cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+
+					UNION
+
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				GROUP BY cve
+			`
+	case NoTeamCount:
+		return `
+				SELECT 0 as team_id, 0 as global_stats, combined_results.cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+
+					UNION
+
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				INNER JOIN hosts h ON combined_results.host_id = h.id
+				WHERE h.team_id IS NULL
+				GROUP BY cve
+			`
+	case TeamCount:
+		return `
+				SELECT h.team_id as team_id, 0 as global_stats, combined_results.cve, COUNT(*) AS host_count
+				FROM (
+					SELECT sc.cve, hs.host_id
+					FROM software_cve sc
+					INNER JOIN host_software hs ON sc.software_id = hs.software_id
+					WHERE sc.cve IN (?)
+
+					UNION
+
+					SELECT osv.cve, hos.host_id
+					FROM operating_system_vulnerabilities osv
+					INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+					WHERE osv.cve IN (?)
+				) AS combined_results
+				INNER JOIN hosts h ON combined_results.host_id = h.id
+				WHERE h.team_id IS NOT NULL
+				GROUP BY h.team_id, combined_results.cve
+			`
+	default:
+		return ""
+	}
+}
+
+func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context, maxRoutines int) error {
 	// set all counts to 0 to later identify rows to delete
 	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
 	}
 
-	globalSelectStmt := `
-		SELECT 0 as team_id, cve, COUNT(*) AS host_count
-		FROM (
-			SELECT sc.cve, hs.host_id
-			FROM software_cve sc
-			INNER JOIN host_software hs ON sc.software_id = hs.software_id
-		
-			UNION
-		
-			SELECT osv.cve, hos.host_id
-			FROM operating_system_vulnerabilities osv
-			INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-		) AS combined_results
-		GROUP BY cve;
-	`
-
-	globalHostCounts, err := ds.fetchHostCounts(ctx, globalSelectStmt)
+	globalHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, GlobalCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
@@ -349,30 +539,22 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
 
-	teamSelectStmt := `
-		SELECT h.team_id, combined_results.cve, COUNT(*) AS host_count
-		FROM (
-			SELECT hs.host_id, sc.cve
-			FROM software_cve sc
-			INNER JOIN host_software hs ON sc.software_id = hs.software_id
-
-			UNION
-
-			SELECT hos.host_id, osv.cve
-			FROM operating_system_vulnerabilities osv
-			INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-		) AS combined_results
-		INNER JOIN hosts h ON combined_results.host_id = h.id
-		WHERE h.team_id IS NOT NULL
-		GROUP BY h.team_id, combined_results.cve
-	`
-
-	teamHostCounts, err := ds.fetchHostCounts(ctx, teamSelectStmt)
+	teamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, TeamCount, maxRoutines)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
 
 	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
+	}
+
+	noTeamHostCounts, err := ds.batchFetchVulnerabilityCounts(ctx, NoTeamCount, maxRoutines)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching no team vulnerability host counts")
+	}
+
+	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
@@ -386,9 +568,10 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 }
 
 type hostCount struct {
-	TeamID    uint   `db:"team_id"`
-	CVE       string `db:"cve"`
-	HostCount uint   `db:"host_count"`
+	TeamID      uint   `db:"team_id"`
+	CVE         string `db:"cve"`
+	HostCount   uint   `db:"host_count"`
+	GlobalStats bool   `db:"global_stats"`
 }
 
 func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
@@ -400,21 +583,12 @@ func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
 	return nil
 }
 
-func (ds *Datastore) fetchHostCounts(ctx context.Context, query string) ([]hostCount, error) {
-	var hostCounts []hostCount
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCounts, query)
-	if err != nil {
-		return nil, err
-	}
-	return hostCounts, nil
-}
-
 func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCount) error {
 	if len(counts) == 0 {
 		return nil
 	}
 
-	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
+	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
 	var insertArgs []interface{}
 
 	chunkSize := 100
@@ -426,8 +600,8 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 
 		valueStrings := make([]string, 0, chunkSize)
 		for _, count := range counts[i:end] {
-			valueStrings = append(valueStrings, "(?, ?, ?)")
-			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount)
+			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
+			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
 		}
 
 		insertStmt += strings.Join(valueStrings, ", ")
@@ -438,9 +612,18 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 			return fmt.Errorf("inserting host counts: %w", err)
 		}
 
-		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
+		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
 		insertArgs = nil
 	}
 
 	return nil
+}
+
+func (ds *Datastore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
+	var count uint
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, "SELECT 1 FROM cve_meta WHERE cve = ?", cve)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
+	return count > 0, nil
 }

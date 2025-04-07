@@ -1,1 +1,0 @@
-* Added query parameter `self_service` to filter the list of software titles and the list of a host's software so that only those available to install via self-service are returned.

@@ -127,7 +127,9 @@ def sched_update_subparser(parser):
 
 def dev_info_subparser(parser):
     dev_info_parser = parser.add_parser(
-        "DeviceInformation", help="DeviceInformation MDM command"
+        "DeviceInformation",
+        help="DeviceInformation MDM command",
+        aliases=["DeviceInfo", "DevInfo"],
     )
     dev_info_parser.add_argument(
         "query",

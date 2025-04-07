@@ -56,7 +56,7 @@ const DiskEncryptionStatusFilter = ({
     <div className={baseClass}>
       <Dropdown
         value={value}
-        className={`${baseClass}__status_dropdown`}
+        className={`${baseClass}__status-filter`}
         options={DISK_ENCRYPTION_STATUS_OPTIONS}
         searchable={false}
         onChange={onChange}

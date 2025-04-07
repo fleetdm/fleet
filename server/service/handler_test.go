@@ -12,7 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -26,7 +26,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	cfg := config.TestConfig()
-	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore)
+	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore, nil)
 	router := h.(*mux.Router)
 
 	type testCase struct {
@@ -37,7 +37,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	}
 	var cases []testCase
 
-	// build the test cases: for each route, generate a request designed to match
+	// Build the test cases: for each route, generate a request designed to match
 	// it, and override its handler to return a unique status code. If the
 	// request doesn't result in that status code, then some other route
 	// conflicts with it and took precedence - a route conflict. The route's name
@@ -76,12 +76,11 @@ func TestAPIRoutesConflicts(t *testing.T) {
 }
 
 func TestAPIRoutesMetrics(t *testing.T) {
-	t.Skip()
 	ds := new(mock.Store)
 
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
+	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore, nil)
 	router := h.(*mux.Router)
 
 	// replace all handlers with mocks, and collect the requests to make to each
@@ -108,7 +107,8 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	routeNames := make(map[string]bool)
 	err = router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		if _, ok := routeNames[route.GetName()]; ok {
-			t.Errorf("duplicate route name: %s", route.GetName())
+			path, _ := route.GetPathTemplate()
+			t.Errorf("duplicate route name: %s (%s)", route.GetName(), path)
 		}
 		routeNames[route.GetName()] = true
 		return nil
@@ -194,7 +194,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 		"go_memstats_alloc_bytes_total":              1,
 		"go_memstats_buck_hash_sys_bytes":            1,
 		"go_memstats_frees_total":                    1,
-		"go_memstats_gc_cpu_fraction":                1,
+		"go_memstats_gc_cpu_fraction":                0, // does not appear to be reported anymore
 		"go_memstats_gc_sys_bytes":                   1,
 		"go_memstats_heap_alloc_bytes":               1,
 		"go_memstats_heap_idle_bytes":                1,

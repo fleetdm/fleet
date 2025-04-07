@@ -1,0 +1,95 @@
+{
+	"token": "cloudflare-warp",
+	"full_token": "cloudflare-warp",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Cloudflare WARP"
+	],
+	"desc": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy.",
+	"homepage": "https://cloudflarewarp.com/",
+	"url": "https://1111-releases.cloudflareclient.com/mac/Cloudflare_WARP_2024.6.474.0.pkg",
+	"url_specs": {
+		"verified": "1111-releases.cloudflareclient.com/mac/"
+	},
+	"version": "2024.6.474.0",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "2a07e1c509fc3d95f7fe9b90362b4d853fcc0433808a1d68aaabf10406145be0",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": [
+						"com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp",
+						"com.cloudflare.1dot1dot1dot1.macos.warp.daemon"
+					],
+					"quit": "com.cloudflare.1dot1dot1dot1.macos",
+					"pkgutil": "com.cloudflare.1dot1dot1dot1.macos"
+				}
+			]
+		},
+		{
+			"pkg": [
+				"Cloudflare_WARP_2024.6.474.0.pkg"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Scripts/com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp",
+						"~/Library/Application Support/com.cloudflare.1dot1dot1dot1.macos",
+						"~/Library/Caches/com.cloudflare.1dot1dot1dot1.macos",
+						"~/Library/Caches/com.plausiblelabs.crashreporter.data/com.cloudflare.1dot1dot1dot1.macos",
+						"~/Library/Containers/com.cloudflare.1dot1dot1dot1.macos.loginlauncherapp",
+						"~/Library/HTTPStorages/com.cloudflare.1dot1dot1dot1.macos",
+						"~/Library/HTTPStorages/com.cloudflare.1dot1dot1dot1.macos.binarycookies",
+						"~/Library/Preferences/com.cloudflare.1dot1dot1dot1.macos.plist"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.15"
+			]
+		}
+	},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/c/cloudflare-warp.rb",
+	"ruby_source_checksum": {
+		"sha256": "1b01184ffd16b49e97843b1cd3f7f7435199bac35487bea61d892b992b1f95f5"
+	},
+	"variations": {},
+	"analytics": {
+		"install": {
+			"30d": {
+				"cloudflare-warp": 675
+			},
+			"90d": {
+				"cloudflare-warp": 2045
+			},
+			"365d": {
+				"cloudflare-warp": 8333
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

@@ -1,4 +1,4 @@
-type IPlatformDisplayName = "macOS" | "Windows" | "linux";
+type IPlatformDisplayName = "macOS" | "Windows" | "Linux";
 
 const getFileExtension = (file: File) => {
   const nameParts = file.name.split(".");
@@ -15,7 +15,8 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   exe: "Windows",
   msi: "Windows",
   xml: "Windows",
-  deb: "linux",
+  deb: "Linux",
+  rpm: "Linux",
 };
 
 /**
@@ -35,3 +36,8 @@ export const getFileDetails = (file: File) => {
     platform: getPlatformDisplayName(file),
   };
 };
+
+export interface IFileDetails {
+  name: string;
+  platform?: string;
+}

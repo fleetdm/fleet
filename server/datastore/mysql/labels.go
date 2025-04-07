@@ -10,10 +10,15 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/jmoiron/sqlx"
 )
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
+	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
+}
+
+func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
@@ -27,8 +32,9 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			query,
 			platform,
 			label_type,
-			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ?, ?)
+			label_membership_type,
+			author_id
+		) VALUES ( ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -36,7 +42,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
 			label_membership_type = VALUES(label_membership_type)
-	`
+		`
 
 		prepTx, ok := tx.(sqlx.PreparerContext)
 		if !ok {
@@ -52,7 +58,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType)
+			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
@@ -119,6 +125,67 @@ func batchHostnames(hostnames []string) [][]string {
 		hostnames, batches = hostnames[batchSize:], append(batches, hostnames[0:batchSize:batchSize])
 	}
 	batches = append(batches, hostnames)
+	return batches
+}
+
+func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// delete all label membership
+		sql := `
+	DELETE FROM label_membership WHERE label_id = ?
+	`
+		_, err := tx.ExecContext(ctx, sql, labelID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear membership for ID")
+		}
+
+		if len(hostIds) == 0 {
+			return nil
+		}
+
+		// Split hostIds into batches to avoid parameter limit in MySQL.
+		for _, hostIds := range batchHostIds(hostIds) {
+			// Use ignore because duplicate hostIds could appear in
+			// different batches and would result in duplicate key errors.
+			values := []interface{}{}
+			placeholders := []string{}
+
+			for _, hostID := range hostIds {
+				values = append(values, labelID, hostID)
+				placeholders = append(placeholders, "(?, ?)")
+			}
+
+			// Build the final SQL query with the dynamically generated placeholders
+			sql := `
+INSERT IGNORE INTO label_membership (label_id, host_id)
+VALUES ` + strings.Join(placeholders, ", ")
+			sql, args, err := sqlx.In(sql, values...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build membership IN statement")
+			}
+			_, err = tx.ExecContext(ctx, sql, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "execute membership INSERT")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostIDs transaction")
+	}
+
+	return ds.labelDB(ctx, labelID, teamFilter, ds.writer(ctx))
+}
+
+func batchHostIds(hostIds []uint) [][]uint {
+	// same functionality as `batchHostnames`, but for host IDs
+	const batchSize = 50000 // Large, but well under the undocumented limit
+	batches := make([][]uint, 0, (len(hostIds)+batchSize-1)/batchSize)
+
+	for batchSize < len(hostIds) {
+		hostIds, batches = hostIds[batchSize:], append(batches, hostIds[0:batchSize:batchSize])
+	}
+	batches = append(batches, hostIds)
 	return batches
 }
 
@@ -198,8 +265,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		query,
 		platform,
 		label_type,
-		label_membership_type
-	) VALUES ( ?, ?, ?, ?, ?, ?)
+		label_membership_type,
+		author_id
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -210,13 +278,14 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.Platform,
 		label.LabelType,
 		label.LabelMembershipType,
+		label.AuthorID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")
 	}
 
 	id, _ := result.LastInsertId()
-	label.ID = uint(id)
+	label.ID = uint(id) //nolint:gosec // dismiss G115
 	return label, nil
 }
 
@@ -226,6 +295,14 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilt
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "saving label")
 	}
+
+	// Update the label name in mdm_configuration_profile_labels
+	query = `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`
+	_, err = ds.writer(ctx).ExecContext(ctx, query, label.Name, label.ID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "updating mdm configuration profile label")
+	}
+
 	return ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
 }
 
@@ -243,6 +320,9 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string) error {
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, labelID)
 		if err != nil {
+			if isMySQLForeignKey(err) {
+				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
+			}
 			return ctxerr.Wrapf(ctx, err, "delete label")
 		}
 
@@ -540,18 +620,16 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     %s
 		%s
 `
-	failingPoliciesSelect := `,
-		COALESCE(failing_policies.count, 0) AS failing_policies_count,
-		COALESCE(failing_policies.count, 0) AS total_issues_count
+	failingIssuesSelect := `,
+		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
+		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
+		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
 	`
-	failingPoliciesJoin := `LEFT JOIN (
-		SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
-		GROUP BY host_id
-	) as failing_policies ON (h.id=failing_policies.host_id)`
+	failingIssuesJoin := `LEFT JOIN host_issues ON h.id = host_issues.host_id`
 
-	if opt.DisableFailingPolicies {
-		failingPoliciesSelect = ""
-		failingPoliciesJoin = ""
+	if opt.DisableIssues {
+		failingIssuesSelect = ""
+		failingIssuesJoin = ""
 	}
 
 	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
@@ -572,7 +650,9 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	COALESCE(dm.device_mapping, 'null') as device_mapping`
 	}
 
-	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, deviceMappingSelect, hostMDMJoin, failingPoliciesJoin, deviceMappingJoin)
+	query := fmt.Sprintf(
+		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin,
+	)
 
 	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
 	if err != nil {
@@ -603,20 +683,52 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// 	// TODO: Do we currently support filtering by software version ID and label?
 	// }
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
-		// get the installer id
-		meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-		if err != nil {
+		// check for software installer metadata
+		_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+		switch {
+		case fleet.IsNotFound(err):
+			vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+			}
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+			}
+			softwareStatusJoin = vppAppJoin
+			joinParams = append(joinParams, vppAppParams...)
+
+		case err != nil:
 			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+
+		default:
+			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+			}
+			softwareStatusJoin = installerJoin
+			joinParams = append(joinParams, installerParams...)
 		}
-		installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
-		if err != nil {
-			return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-		}
-		softwareStatusJoin = installerJoin
-		joinParams = append(joinParams, installerParams...)
 	}
 	if softwareStatusJoin != "" {
 		query += softwareStatusJoin
+	}
+
+	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter ||
+		opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
+		opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		query += `
+		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
+		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
+		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
+	}
+
+	if opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() {
+		query += sqlJoinMDMAppleProfilesStatus()
+		query += sqlJoinMDMAppleDeclarationsStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
@@ -637,7 +749,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
-	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+	if enableDiskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
 		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, enableDiskEncryption)
@@ -650,6 +762,9 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, whereParams, _ = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
+	if opt.ListOptions.OrderKey == "issues" {
+		opt.ListOptions.OrderKey = "host_issues.total_issues_count"
+	}
 	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
 	return query, append(joinParams, whereParams...), nil
 }

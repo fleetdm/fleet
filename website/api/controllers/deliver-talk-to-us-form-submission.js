@@ -74,21 +74,38 @@ module.exports = {
       throw 'invalidEmailDomain';
     }
 
-    // Use timers.setImmediate() to update/create CRM records in the background.
-    require('timers').setImmediate(async ()=>{
-      await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+    if(numberOfHosts >= 300){
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: emailAddress,
         firstName: firstName,
         lastName: lastName,
         organization: organization,
-        numberOfHosts: numberOfHosts,
         primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        leadSource: 'Website - Contact forms',
-        leadDescription: `Submitted the "Talk to us" form.`,
-      }).tolerate((err)=>{
-        sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
+        contactSource: 'Website - Contact forms',
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Number of hosts: ${numberOfHosts}`,
+        psychologicalStage: '4 - Has use case',
+        psychologicalStageChangeReason: 'Website - Contact forms'
+      }).exec((err)=>{
+        if(err) {
+          sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
+        }
       });
-    });//_∏_  (Meanwhile...)
+    } else {
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: emailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        organization: organization,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        contactSource: 'Website - Contact forms',
+        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Number of hosts: ${numberOfHosts}`,
+      }).exec((err)=>{
+        if(err) {
+          sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
+        }
+      });
+      // FUTURE: create POV here
+    }
 
     return;
   }

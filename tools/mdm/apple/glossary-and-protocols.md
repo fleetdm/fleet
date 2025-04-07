@@ -1,3 +1,50 @@
+## Overview
+
+```mermaid
+sequenceDiagram
+    participant apns as APNS
+    participant mac as Mac
+    participant server as fleet server
+
+    note over server: Server sends automatic enrollment<br/>endpoint details to ABM as part of a<br/>ADE/DEP configuration cron job
+    alt Automatic Authenticated Enrollment
+        mac->>server: GET /api/v1/fleet/sso<br/>(endpoint configured using ADE)<br/>Opens authetication webpage in a webview
+        server->>mac: Enrollment Profile (specific response headers)
+    else Automatic Enrollment
+        mac->>server: GET /api/mdm/apple/enroll<br/>(endpoint configured using ADE)
+        server->>mac: Enrollment profile
+    else Manual Enrollment
+        note over mac,server: User downloads a profile<br/>containing the OTA endpoint
+        mac->>server: POST /api/latest/fleet/ota_enrollment
+        mac->server: Throw-away SCEP flow
+        server->>mac: Enrollment profile
+    end
+
+    mac->>server: GET /mdm/apple/scep?operation=GetCACaps<br/>SCEP Catability Check
+    server->>mac: List of SCEP catabilities
+
+    mac->>server: POST /mdm/apple/scep?operation=PKIOperation<br/>Certificate Signing Request
+    server->>mac: Signed Certificate
+
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: Authenticate<br/>Push notification token
+    server->>mac: 200 OK
+
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: Bootstrap Token<br/>Used to help grant Secure Tokens<br/>and erase the device
+    server->>mac: 200 OK
+
+    mac->>server: POST /mdm/apple/mdm<br/>MessageType: TokenUpdate
+    server->>mac: 200 OK
+
+    loop MDM mTLS
+        server->>apns: MDM Push Notification
+        apns->>mac: Push Notification
+        mac->>server: PUT /mdm/apple/mdm<br/>Status: Idle
+        server->>mac: Command
+        mac->>server: PUT /mdm/apple/mdm<br/>Acknowledged
+        server-->>mac: More commands...
+    end
+```
+
 ## Glossary
 
 ### SCEP: Simple Certificate Enrollment Protocol
@@ -11,19 +58,19 @@ Resources:
 - [SCEP summary](#scep-summary) below
 - [RFC 8894](https://datatracker.ietf.org/doc/html/rfc8894)
 
-### DEP: Device Enrollment Program
+### ADE: Automatic Device Enrollment (formerly DEP)
 
-A device enrolled via DEP prompts the user to enroll in MDM during the initial
+A device enrolled via ADE prompts the user to enroll in MDM during the initial
 device setup process (right after macOS is installed.)
 
-DEP is also called "automatic" enrollment because it doesn't require user
+ADE is also called "automatic" enrollment because it doesn't require user
 action to download and activate a profile like [manual
 enrollment](#manual-enrollment) does.
 
 Resources:
 
-- [DEP Workflow Summary](#dep-workflow-summary)
-- [MDM protocol specification](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf)
+- [ADE Workflow Summary](#ade-workflow-summary)
+- [MDM protocol specification](https://developer.apple.com/documentation/devicemanagement)
 
 ### Manual enrollment
 
@@ -33,8 +80,8 @@ profile](#enrollment-profile).
 
 ### ABM: Apple Business Manager
 
-Interface to administer Devices and MDM servers, mainly used for [DEP
-enrollment](#dep-enrollment).
+Interface to administer Devices and MDM servers, mainly used for [ADE
+enrollment](#ade-enrollment).
 
 Can be accessed at https://business.apple.com/ .
 
@@ -73,9 +120,9 @@ to enroll a device to an MDM server.
 For [manual enrollment](#manual-enrollment) the profile needs to be downloaded
 and installed by the user.
 
-For [DEP enrollment](#dep-device-enrollment-program) the enrollment profile is downloaded from the MDM server specified in the DEP JSON profile (see below), fields `url` and `configuration_web_url`.
+For [ADE enrollment](#ade-device-enrollment-program) the enrollment profile is downloaded from the MDM server specified in the ADE JSON profile (see below), fields `url` and `configuration_web_url`.
 
-### DEP profile
+### ADE profile
 
 This (JSON) profile is used to configure a device in Apple Business Manager.
 It contains all the necessary information that a device needs to automatically enroll to an MDM server during device setup.
@@ -213,9 +260,9 @@ out a push notification to the device, then:
 To see all available commands, look under "Support for macOS Requests" in the
 MDM Protocol Reference.
 
-### DEP Workflow Summary
+### ADE Workflow Summary
 
-In order to get information about devices enrolled through DEP, the MDM server
+In order to get information about devices enrolled through ADE, the MDM server
 needs to communicate with Apple servers periodically.
 
 The workflow looks like:
@@ -228,10 +275,10 @@ The workflow looks like:
    `GET https://mdmenrollment.apple.com/devices/sync` to get
    information about newly enrolled devices and changes on devices already
    enrolled.
-3. The MDM server defines and assigns DEP profiles (JSON) to devices using `POST
+3. The MDM server defines and assigns [ADE profiles](https://developer.apple.com/documentation/devicemanagement/profile) (JSON) to devices using `POST
    https://mdmenrollment.apple.com/profile` and `PUT
    https://mdmenrollment.apple.com/profile/devices`
-4. The MDM server removes DEP profiles (JSON) from a device using `DELETE
+4. The MDM server removes ADE profiles (JSON) from a device using `DELETE
    https://mdmenrollment.apple.com/profile/devices`
 
 ### DDM: Declarative Device Management

@@ -1,7 +1,7 @@
 import React from "react";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
+import ActionsDropdown from "components/ActionsDropdown";
 
 import {
   IJiraIntegration,
@@ -31,7 +31,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IDropdownCellProps extends IRowProps {
+interface IActionsDropdownProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -43,7 +43,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IDropdownCellProps) => JSX.Element);
+    | ((props: IActionsDropdownProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -90,7 +90,7 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} classes="w400" />
+        <TextCell value={cellProps.cell.value} className="w400" />
       ),
     },
     {
@@ -98,8 +98,8 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
+      Cell: (cellProps: IActionsDropdownProps) => (
+        <ActionsDropdown
           options={cellProps.cell.value}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)

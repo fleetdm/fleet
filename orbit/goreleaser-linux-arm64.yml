@@ -1,0 +1,39 @@
+version: 2
+
+project_name: orbit
+
+#################################################################################################
+# If this is updated make sure to update the "How to build from source" section in the README.md.
+#################################################################################################
+
+builds:
+  - id: orbit
+    dir: ./orbit/cmd/orbit/
+    binary: orbit
+    # NOTE: We tried building with CGO_ENABLED=1 but it caused failures
+    # in CI so for now we'll stick to building linux arm64 without cgo enabled.
+    goos:
+      - linux
+    goarch:
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
+      - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
+
+archives:
+  - id: orbit
+    builds:
+      - orbit
+    name_template: orbit_{{.Version}}_{{.Os}}
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ .Tag }}-untagged"
+
+changelog:
+  disable: true

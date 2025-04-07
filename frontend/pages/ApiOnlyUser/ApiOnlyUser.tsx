@@ -5,8 +5,8 @@ import paths from "router/paths";
 import usersAPI from "services/entities/users";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 
 interface IApiOnlyUserProps {
   router: InjectedRouter;
@@ -39,26 +39,23 @@ const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
-      <div className={`${baseClass}__wrap`}>
-        <div className={`${baseClass}__lead-wrapper`}>
-          <p className={`${baseClass}__lead-text`}>
-            You attempted to access Fleet with an API only user.
-          </p>
-          <p className={`${baseClass}__sub-lead-text`}>
-            This user doesn&apos;t have access to the Fleet UI.
-          </p>
-        </div>
-        <div className="login-button-wrap">
-          <Button
-            onClick={handleClick}
-            variant="brand"
-            className={`${baseClass}__login-button`}
-          >
-            Back to login
-          </Button>
-        </div>
-      </div>
+      <AuthenticationFormWrapper>
+        <StackedWhiteBoxes router={router}>
+          <>
+            <p>You attempted to access Fleet with an API only user.</p>
+            <p className={`${baseClass}__sub-lead-text`}>
+              This user doesn&apos;t have access to the Fleet UI.
+            </p>
+            <Button
+              onClick={handleClick}
+              variant="brand"
+              className={`${baseClass}__login-button`}
+            >
+              Back to login
+            </Button>
+          </>
+        </StackedWhiteBoxes>
+      </AuthenticationFormWrapper>
     </div>
   );
 };

@@ -1,13 +1,15 @@
-import React from "react";
+import React, { useContext } from "react";
+import FileSaver from "file-saver";
 
-import endpoints from "utilities/endpoints";
+import mdmAPI from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-
-const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
+import { NotificationContext } from "context/notification";
+import { IDeviceUserResponse } from "interfaces/host";
 
 interface IManualEnrollMdmModalProps {
+  host: IDeviceUserResponse["host"];
   onCancel: () => void;
   token?: string;
 }
@@ -15,13 +17,44 @@ interface IManualEnrollMdmModalProps {
 const baseClass = "manual-enroll-mdm-modal";
 
 const ManualEnrollMdmModal = ({
+  host: { platform, os_version },
   onCancel,
   token = "",
 }: IManualEnrollMdmModalProps): JSX.Element => {
-  const renderModalBody = () => {
-    const downloadUrl = `/api${DEVICE_USER_MDM_ENROLLMENT_PROFILE(token)}`;
+  const { renderFlash } = useContext(NotificationContext);
 
-    return (
+  const onDownload = async () => {
+    try {
+      const profileContent = await mdmAPI.downloadManualEnrollmentProfile(
+        token
+      );
+      const file = new File(
+        [profileContent],
+        "fleet-mdm-enrollment-profile.mobileconfig"
+      );
+      FileSaver.saveAs(file);
+    } catch (e) {
+      renderFlash("error", "Failed to download the profile. Please try again.");
+    }
+  };
+
+  let isMacOsSequoiaOrLater = false;
+  if (platform === "darwin" && os_version.startsWith("macOS ")) {
+    const [major] = os_version
+      .replace("macOS ", "")
+      .split(".")
+      .map((s) => parseInt(s, 10));
+    isMacOsSequoiaOrLater = major >= 15;
+  }
+
+  return (
+    <Modal
+      title="Turn on MDM"
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
@@ -32,29 +65,38 @@ const ManualEnrollMdmModal = ({
             <span>Download your profile.</span>
             <br />
             {/* TODO: make a link component that appears as a button. */}
-            <a
-              className={`${baseClass}__download-link`}
-              href={downloadUrl}
-              download
+            <Button
+              className={`${baseClass}__download-button`}
+              onClick={onDownload}
             >
               Download
-            </a>
+            </Button>
           </li>
           <li>Open the profile you just downloaded.</li>
           <li>
             From the Apple menu in the top left corner of your screen, select{" "}
-            <b>System Settings</b> or <b>System Preferences</b>.
+            <b>System Settings</b>.
           </li>
           <li>
-            In the search bar, type “Profiles”. Select <b>Profiles</b>, double
-            click <b>Enrollment Profile</b>, and select <b>Install</b>.
+            {isMacOsSequoiaOrLater ? (
+              <>
+                In the sidebar menu, select <b>Profile Downloaded</b>, find and
+                double-click the <b>[Organization name] enrollment</b> profile.
+              </>
+            ) : (
+              <>
+                In the search bar, type “Profiles”. Select <b>Profiles</b>, find
+                and double click the <b>[Organization name] enrollment</b>{" "}
+                profile.
+              </>
+            )}
           </li>
           <li>
-            Select <b>Enroll</b> then enter your password.
+            Select <b>Install</b> then enter your password.
           </li>
           <li>
-            Close this window and select <b>Refetch</b> on your My device page
-            to tell your organization that MDM is on.
+            Select <b>Done</b> to close this window and select <b>Refetch</b> on
+            your My device page to tell your organization that MDM is on.
           </li>
         </ol>
         <div className="modal-cta-wrap">
@@ -63,17 +105,6 @@ const ManualEnrollMdmModal = ({
           </Button>
         </div>
       </div>
-    );
-  };
-
-  return (
-    <Modal
-      title="Turn on MDM"
-      onExit={onCancel}
-      className={baseClass}
-      width="xlarge"
-    >
-      {renderModalBody()}
     </Modal>
   );
 };

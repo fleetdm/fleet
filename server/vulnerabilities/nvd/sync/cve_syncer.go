@@ -199,6 +199,9 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
@@ -234,6 +237,8 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	return nil
 }
 
+var cachedCVEFeeds = map[int]*schema.NVDCVEFeedJSON10{}
+
 func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, addCount *int) error {
 	// The NVD legacy feed files start at year 2002.
 	// This is assumed by the facebookincubator/nvdtools package.
@@ -241,14 +246,25 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 		year = 2002
 	}
 
-	storedCVEFeed, err := readCVEsLegacyFormat(s.dbDir, year)
-	if err != nil {
-		return err
+	updateStart := time.Now()
+
+	var storedCVEFeed *schema.NVDCVEFeedJSON10
+	var err error
+	if feed, ok := cachedCVEFeeds[year]; ok && feed != nil {
+		storedCVEFeed = feed
+	} else {
+		storedCVEFeed, err = readCVEsLegacyFormat(s.dbDir, year)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
@@ -258,7 +274,6 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	//
 	// This loop iterates the existing slice and, if there's an update for the item, it will
 	// update the item in place. The next for loop takes care of adding the newly reported CVEs.
-	updateStart := time.Now()
 	counter := 0
 	for i, storedCVE := range storedCVEFeed.CVEItems {
 		if newLegacyCVE, ok := newLegacyCVEs[storedCVE.CVE.CVEDataMeta.ID]; ok {
@@ -277,12 +292,12 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 		}
 	}
 	*modCount += counter
-	level.Debug(s.logger).Log("msg", "updating vulncheck cves", "year", year, "count", counter, "duration", time.Since(updateStart))
+	level.Debug(s.logger).Log("msg", "updating vulncheck cves", "year", year, "count", counter)
 
 	// Add any new CVEs (e.g. a new vulnerability has been found since last time so a new CVE number was reported).
 	//
 	// Any leftover items from the previous loop in newLegacyCVEs are new CVEs.
-	level.Debug(s.logger).Log("msg", "adding new vulncheck cves", "year", year, "count", len(newLegacyCVEs))
+	level.Debug(s.logger).Log("msg", "adding new vulncheck cves", "year", year, "count", len(newLegacyCVEs), "duration", time.Since(updateStart))
 	*addCount += len(newLegacyCVEs)
 	for _, cve := range newLegacyCVEs {
 		storedCVEFeed.CVEItems = append(storedCVEFeed.CVEItems, cve)
@@ -290,10 +305,7 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	storedCVEFeed.CVEDataNumberOfCVEs = strconv.FormatInt(int64(len(storedCVEFeed.CVEItems)), 10)
 
 	// Store the file for the year.
-	if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
-		return err
-	}
-
+	cachedCVEFeeds[year] = storedCVEFeed
 	return nil
 }
 
@@ -615,6 +627,8 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 		return zipReader.File[i].Name > zipReader.File[j].Name
 	})
 
+	cachedCVEFeeds = map[int]*schema.NVDCVEFeedJSON10{} // clear feeds cache for consistency
+
 	// files are in reverse chronological order by modification date
 	// so we can stop processing files once we find one that is older
 	// than the configured vulnCheckStartDate
@@ -622,7 +636,6 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 	var modCount int
 	for _, file := range zipReader.File {
 		cvesByYear := make(map[int][]VulnCheckCVE)
-		var stopProcessing bool
 
 		gzFile, err := file.Open()
 		if err != nil {
@@ -649,9 +662,8 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			}
 
 			// Stop processing files if the last modified date is older than the vulncheck start
-			// date in order to avoid processing unnecessary files.
+			// date in order to avoid processing unnecessary CVEs.
 			if lastMod.Before(vulnCheckStartDate) {
-				stopProcessing = true
 				continue
 			}
 
@@ -671,15 +683,19 @@ func (s *CVE) processVulnCheckFile(fileName string) error {
 			}
 		}
 
-		if stopProcessing {
-			break
-		}
-
 		gReader.Close()
 		gzFile.Close()
 	}
 
-	level.Debug(s.logger).Log("total updated", modCount, "total added", addCount)
+	// only save updated files post-vulncheck-hydration
+	storeStart := time.Now()
+	for year, storedCVEFeed := range cachedCVEFeeds {
+		if err := storeCVEsInLegacyFormat(s.dbDir, year, storedCVEFeed); err != nil {
+			return err
+		}
+	}
+
+	level.Debug(s.logger).Log("total updated", modCount, "total added", addCount, "store duration", time.Since(storeStart))
 
 	return nil
 }
@@ -774,13 +790,32 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 
 	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
 	for _, description := range cve.Descriptions {
-		// Keep only english descriptions to match the legacy.
-		if description.Lang != "en" {
+		// Keep only English descriptions to match the legacy format.
+		var lang string
+		switch description.Lang {
+		case "en":
+			lang = description.Lang
+		case "en-US": // This occurred starting with Microsoft CVE-2024-38200.
+			lang = "en"
+		// non-English descriptions with known language tags are ignored.
+		case "es": // This occurred in a number of 2004 CVEs
+			continue
+		// non-English descriptions with unknown language tags are ignored and warned.
+		default:
+			level.Warn(logger).Log("msg", "Unknown CVE description language tag", "lang", description.Lang)
 			continue
 		}
 		descriptions = append(descriptions, &schema.CVEJSON40LangString{
-			Lang:  description.Lang,
+			Lang:  lang,
 			Value: description.Value,
+		})
+	}
+
+	if len(descriptions) == 0 {
+		// Populate a blank description to prevent Fleet cron job from crashing: https://github.com/fleetdm/fleet/issues/21239
+		descriptions = append(descriptions, &schema.CVEJSON40LangString{
+			Lang:  "en",
+			Value: "",
 		})
 	}
 
@@ -1106,8 +1141,6 @@ func updateWithVulnCheckConfigurations(cve *schema.NVDCVEFeedJSON10DefCVEItem, v
 		CVEDataVersion: "4.0", // All entries seem to have this version string.
 		Nodes:          nodes,
 	}
-
-	return
 }
 
 // convertAPI20TimeToLegacy converts the timestamps from API 2.0 format to the expected legacy feed time format.

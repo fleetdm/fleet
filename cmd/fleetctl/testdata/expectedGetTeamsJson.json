@@ -35,6 +35,14 @@
 					"minimum_version": null,
 					"deadline": null
 				},
+				"ios_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"ipados_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
 				"windows_updates": {
 					"deadline_days": null,
 					"grace_period_days": null
@@ -46,14 +54,15 @@
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
 					"macos_setup_assistant": null,
-					"enable_release_device_manually": false
+					"enable_release_device_manually": false,
+					"script": null,
+					"software": null
 				},
 				"windows_settings": {
 					"custom_settings": null
 				}
 			},
 			"scripts": null,
-			"software": null,
 			"user_count": 99,
 			"host_count": 42
 		}
@@ -111,6 +120,14 @@
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
 				},
+				"ios_updates": {
+					"minimum_version": "17.5",
+					"deadline": "2022-11-15"
+				},
+				"ipados_updates": {
+					"minimum_version": "18.0",
+					"deadline": "2023-01-01"
+				},
 				"windows_updates": {
 					"deadline_days": 7,
 					"grace_period_days": 3
@@ -122,14 +139,15 @@
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
 					"macos_setup_assistant": null,
-					"enable_release_device_manually": false
+					"enable_release_device_manually": false,
+					"script": null,
+					"software": null
 				},
 				"windows_settings": {
 					"custom_settings": null
 				}
 			},
 			"scripts": null,
-			"software": null,
 			"user_count": 87,
 			"host_count": 43
 		}

@@ -320,6 +320,7 @@ const DEFAULT_QUERY_REPORT_MOCK: IQueryReport = {
       },
     },
   ],
+  report_clipped: false,
 };
 
 const createMockQueryReport = (

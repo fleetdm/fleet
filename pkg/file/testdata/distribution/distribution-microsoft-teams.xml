@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Microsoft Teams</title>
+    <pkg-ref id="com.microsoft.teams2" version="24124.1412.2911.3341" onConclusion="none">#MicrosoftTeams_app.pkg</pkg-ref>
+    <pkg-ref id="com.microsoft.teams2" installKBytes="955944">
+        <must-close>
+            <app id="com.microsoft.teams2"/>
+        </must-close>
+        <bundle-version>
+            <bundle CFBundleShortVersionString="24124.1412.2911.3341" CFBundleVersion="24124.1412.2911.3341" id="com.microsoft.teams2" path="Microsoft Teams.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.microsoft.autoupdate" packageIdentifier="com.microsoft.package.Microsoft_AutoUpdate.app" version="4.68.24021116" installKBytes="12694">#Office16_all_autoupdate.pkg</pkg-ref>
+    <pkg-ref id="com.microsoft.MSTeamsAudioDevice" version="2023.31.1" installKBytes="539">#MSTeamsAudioDevice.pkg</pkg-ref>
+    <options customize="always" require-scripts="true" hostArchitectures="arm64,x86_64"/>
+    <choice id="MicrosoftTeams" title="Microsoft Teams" start_enabled="false" start_selected="true" start_visible="true" selected="true"/>
+    <choice id="com.microsoft.teams2" title="Microsoft Teams" start_enabled="false" start_selected="true" start_visible="false" selected="true" customLocation="/Applications">
+        <pkg-ref id="com.microsoft.teams2"/>
+    </choice>
+    <choice id="com.microsoft.autoupdate" visible="true" title="Microsoft AutoUpdate" selected="choices['com.microsoft.autoupdate'].selected &amp;&amp; shouldInstallMicrosoftAutoUpdate()" enabled="shouldInstallMicrosoftAutoUpdate()" description="Microsoft AutoUpdate">
+        <pkg-ref id="com.microsoft.autoupdate">
+            <must-close>
+                <app id="com.microsoft.autoupdate2"/>
+            </must-close>
+        </pkg-ref>
+    </choice>
+    <choice id="AudioDevice" title="Teams Audio Driver" selected="shouldInstallSSADriver()">
+        <pkg-ref id="com.microsoft.MSTeamsAudioDevice"/>
+    </choice>
+    <choices-outline>
+        <line choice="MicrosoftTeams">
+            <line choice="com.microsoft.teams2"/>
+            <line choice="com.microsoft.autoupdate"/>
+        </line>
+        <line choice="AudioDevice"/>
+    </choices-outline>
+    <allowed-os-versions>
+        <os-version min="12.0"/>
+    </allowed-os-versions>
+    <script><![CDATA[
+    function shouldInstallMicrosoftAutoUpdate()
+    {
+        if (!shouldInstall('InstallAutoUpdate')) {
+            return false;
+        }
+        var mau_app_path = '/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app'
+        return !system.files.fileExistsAtPath(mau_app_path)
+    }
+    /*
+    check to see if IT admins have blocked the deployment of an app
+    */
+    function shouldInstall(app_key)
+    {
+        var pref_path = '/Library/Managed Preferences/com.microsoft.office.plist';
+        if ( ! system.files.fileExistsAtPath(pref_path) )
+        {
+            return true;
+        }
+
+        var pref_dict = system.files.plistAtPath(pref_path);
+        if ( pref_dict == null )
+        {
+            return true;
+        }
+
+        var pref_value = getPlistDictValue(app_key, pref_dict);
+        if ( pref_value == null )
+        {
+            return true;
+        }
+
+        system.log('shouldInstall returning ' + pref_value + ' for ' + app_key);
+        return pref_value;
+    }
+
+    function shouldInstallSSADriver()
+    {
+        return !system.files.fileExistsAtPath('/Applications/Microsoft Teams (work or school).app')
+            && !system.files.fileExistsAtPath('/Applications/Microsoft Teams (work preview).app')
+            && !system.files.fileExistsAtPath('/Applications/Microsoft Teams.app');
+    }
+
+    function getPlistDictValue(key, plist_dict)
+    {
+        var value = null;
+
+        try {
+            value = plist_dict[key];
+        } catch (e) {
+            system.log('Error reading key ' + key + ' from plist dictionary /Library/Managed Preferences/com.microsoft.office.plist');
+        }
+
+        return value;
+    }
+    ]]></script>
+    <pkg-ref id="com.microsoft.autoupdate">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="4.68" CFBundleVersion="4.68.24021116" id="com.microsoft.autoupdate.fba" path="Microsoft AutoUpdate.app/Contents/MacOS/Microsoft Update Assistant.app"/>
+            <bundle CFBundleShortVersionString="16.82" CFBundleVersion="16.82.24021116" id="com.microsoft.errorreporting" path="Microsoft AutoUpdate.app/Contents/SharedSupport/Microsoft Error Reporting.app"/>
+            <bundle CFBundleShortVersionString="4.68" CFBundleVersion="4.68.24021116" id="com.microsoft.autoupdate2" path="Microsoft AutoUpdate.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.microsoft.MSTeamsAudioDevice">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="2023.31.01.2" CFBundleVersion="1" id="com.microsoft.MSTeamsAudioDevice" path="MSTeamsAudioDevice.driver"/>
+        </bundle-version>
+    </pkg-ref>
+    <product version="24124.1412.2911.3341"/>
+</installer-gui-script>

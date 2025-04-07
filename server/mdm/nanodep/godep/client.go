@@ -119,8 +119,14 @@ func NewClient(store ClientStorage, client *http.Client, opts ...ClientOption) *
 }
 
 func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string, in interface{}, out interface{}) error {
-	err := c.do(ctx, name, method, path, in, out)
+	req, err := c.do(ctx, name, method, path, in, out)
 	if c.afterHook != nil {
+		// ensure the afterHook is always called with the same context as the one
+		// used for the request (the DEP client will add the name argument to that
+		// context, which we care about in the after hook).
+		if req != nil {
+			ctx = req.Context()
+		}
 		err = c.afterHook(ctx, err)
 	}
 	return err
@@ -130,19 +136,19 @@ func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string,
 // should be using the NanoDEP transport (which handles authentication).
 // This frees us to only be concerned about the actual DEP API request.
 // We encode in to JSON and decode any returned body as JSON to out.
-func (c *Client) do(ctx context.Context, name, method, path string, in interface{}, out interface{}) error {
+func (c *Client) do(ctx context.Context, name, method, path string, in interface{}, out interface{}) (*http.Request, error) {
 	var body io.Reader
 	if in != nil {
 		bodyBytes, err := json.Marshal(in)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		body = bytes.NewBuffer(bodyBytes)
 	}
 
 	req, err := depclient.NewRequestWithContext(ctx, name, c.store, method, path, body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 	if body != nil {
@@ -154,22 +160,22 @@ func (c *Client) do(ctx context.Context, name, method, path string, in interface
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return err
+		return req, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("unhandled auth error: %w", depclient.NewAuthError(resp))
+		return req, fmt.Errorf("unhandled auth error: %w", depclient.NewAuthError(resp))
 	} else if resp.StatusCode != http.StatusOK {
-		return NewHTTPError(resp)
+		return req, NewHTTPError(resp)
 	}
 
 	if out != nil {
 		err := json.NewDecoder(resp.Body).Decode(out)
 		if err != nil {
-			return err
+			return req, err
 		}
 	}
 
-	return nil
+	return req, nil
 }

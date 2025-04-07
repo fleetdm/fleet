@@ -1,4 +1,4 @@
-import { IScript, IHostScript } from "interfaces/script";
+import { IHostScript, IScript } from "interfaces/script";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -39,6 +39,7 @@ export interface IScriptResultResponse {
   message: string;
   runtime: number;
   host_timeout: boolean;
+  created_at: string;
 }
 
 /**
@@ -128,6 +129,17 @@ export default {
       alt: "media",
     })}`;
     return sendRequest("GET", path);
+  },
+
+  updateScript(id: number, contents: string, name: string) {
+    const { SCRIPT } = endpoints;
+    const path = `${SCRIPT(id)}`;
+
+    const file = new File([contents], name);
+    const formData = new FormData();
+    formData.append("script", file);
+
+    return sendRequest("PATCH", path, formData);
   },
 
   deleteScript(id: number) {

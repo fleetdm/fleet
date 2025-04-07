@@ -1,8 +1,15 @@
 .software-os-table {
-  &__count {
-    display: flex;
-    gap: 12px;
-    align-items: center;
+  &__platform-dropdown {
+    width: 175px;
+
+    .Select-menu-outer {
+      width: 160px;
+      max-height: min-content;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
   }
 
   .hosts-cell__wrapper {

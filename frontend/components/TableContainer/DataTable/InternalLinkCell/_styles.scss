@@ -1,10 +1,16 @@
 .internal-link-cell {
-
   &__content {
-    font: $x-small;
+    font-size: $x-small;
     color: $core-vibrant-blue;
     font-weight: $bold;
     display: inline-flex;
+    gap: $pad-small;
+
+    span {
+      display: inline-flex;
+      gap: $pad-small;
+      align-items: center;
+    }
 
     &:hover {
       cursor: pointer;

@@ -13,8 +13,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 )
 
 // Client defines the methods required for the API requests to the server. The
@@ -30,6 +30,7 @@ type Client interface {
 type Runner struct {
 	Client                 Client
 	ScriptExecutionEnabled bool
+	ScriptExecutionTimeout time.Duration
 
 	// tempDirFn is the function to call to get the temporary directory to use,
 	// inside of which the script-specific subdirectories will be created. If nil,
@@ -51,6 +52,7 @@ func (r *Runner) Run(execIDs []string) error {
 	var errs []error
 
 	for _, execID := range execIDs {
+		log.Info().Msgf("processing script %v", execID)
 		if !r.ScriptExecutionEnabled {
 			if err := r.runOneDisabled(execID); err != nil {
 				errs = append(errs, err)
@@ -58,6 +60,7 @@ func (r *Runner) Run(execIDs []string) error {
 			continue
 		}
 
+		log.Info().Msgf("getting script %v", execID)
 		script, err := r.Client.GetHostScript(execID)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("get host script: %w", err))
@@ -65,6 +68,7 @@ func (r *Runner) Run(execIDs []string) error {
 			break
 		}
 
+		log.Info().Msgf("proceeding to execution of script %v", execID)
 		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
@@ -112,7 +116,9 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), scripts.MaxHostExecutionTime)
+	log.Info().Msgf("ready to execute script %v", script.ExecutionID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), r.ScriptExecutionTimeout)
 	defer cancel()
 
 	execCmdFn := r.execCmdFn
@@ -120,7 +126,9 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		execCmdFn = ExecCmd
 	}
 	start := time.Now()
+	log.Debug().Msgf("starting script execution of %v with timeout of %v", script.ExecutionID, r.ScriptExecutionTimeout)
 	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
+	log.Debug().Msgf("after script execution of %v", script.ExecutionID)
 	duration := time.Since(start)
 
 	// report the output or the error
@@ -135,11 +143,13 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
 	}
 
+	log.Info().Msgf("saving script result %v with exit code %d", script.ExecutionID, exitCode)
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 		ExecutionID: script.ExecutionID,
 		Output:      string(output),
 		Runtime:     int(duration.Seconds()),
 		ExitCode:    exitCode,
+		Timeout:     int(r.ScriptExecutionTimeout.Seconds()),
 	})
 	if err != nil {
 		return fmt.Errorf("save script result: %w", err)

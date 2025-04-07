@@ -1,0 +1,21 @@
+.software-install-details {
+  overflow-wrap: anywhere; // Prevent long software name overflow
+
+  &__status-message {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    margin: 0;
+    .icon {
+      padding-top: 3px;
+      align-self: flex-start;
+    }
+  }
+  &__script-output {
+    padding-top: $pad-xlarge;
+    .textarea {
+      margin-top: $pad-medium;
+      overflow-wrap: break-word;
+    }
+  }
+}

@@ -1,0 +1,60 @@
+name: Test bulk operations dashboard changes
+
+on:
+  pull_request:
+    paths:
+      - 'ee/bulk-operations-dashboard/**'
+      - '.github/workflows/test-bulk-operations-dashboard-changes.yml'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+    # Set the Node.js version
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+      with:
+        node-version: ${{ matrix.node-version }}
+
+
+    # Now start building!
+    # > …but first, get a little crazy for a sec and delete the top-level package.json file
+    # > i.e. the one used by the Fleet server.  This is because require() in node will go
+    # > hunting in ancestral directories for missing dependencies, and since some of the
+    # > bundled transpiler tasks sniff for package availability using require(), this trips
+    # > up when it encounters another Node universe in the parent directory.
+    - run: rm -rf package.json package-lock.json node_modules/
+    # > Turns out there's a similar issue with how eslint plugins are looked up, so we
+    # > delete the top level .eslintrc file too.
+    - run: rm -f .eslintrc.js
+
+    # Get dependencies (including dev deps)
+    - run: cd ee/bulk-operations-dashboard/ && npm install
+
+    # Run sanity checks
+    - run: cd ee/bulk-operations-dashboard/ && npm test
+
+    # Compile assets
+    - run: cd ee/bulk-operations-dashboard/ && npm run build-for-prod

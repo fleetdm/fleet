@@ -1,17 +1,21 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"time"
 
 	"fyne.io/systray"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -21,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/gofrs/flock"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -59,6 +64,11 @@ func setupRunners() {
 }
 
 func main() {
+	// FIXME: we need to do a better job of graceful shutdown, releasing resources, stopping
+	// tickers, etc. (https://github.com/fleetdm/fleet/issues/21256)
+	// This context will be used as a general context to handle graceful shutdown in the future.
+	offlineWatcherCtx, cancelOfflineWatcherCtx := context.WithCancel(context.Background())
+
 	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
 		// Must work with update.GetVersion
@@ -101,10 +111,34 @@ func main() {
 		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
 	}
 
+	// We've only seen this bug appear on Linux under certain very
+	// specific conditions
+	if runtime.GOOS == "linux" {
+		// Ensure only one instance of Fleet Desktop is running at a time
+		lockFile, err := getLockfile()
+		if err != nil {
+			log.Fatal().Err(err).Msg("could not secure lock file")
+		}
+		defer func() {
+			if err := lockFile.Unlock(); err != nil {
+				log.Error().Err(err).Msg("unlocking lockfile")
+			}
+		}()
+	}
+
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
 
 	var mdmMigrator useraction.MDMMigrator
+	// swiftDialogCh is a channel shared by the migrator and the offline watcher to
+	// coordinate the display of the dialog and ensure only one dialog is shown at a time.
+	var swiftDialogCh chan struct{}
+	var offlineWatcher useraction.MDMOfflineWatcher
+
+	// This ticker is used for fetching the desktop summary. It is initialized here because it is
+	// stopped in `OnExit.`
+	const checkInterval = 5 * time.Minute
+	summaryTicker := time.NewTicker(checkInterval)
 
 	onReady := func() {
 		log.Info().Msg("ready")
@@ -128,12 +162,13 @@ func main() {
 		myDeviceItem := systray.AddMenuItem("Connecting...", "")
 		myDeviceItem.Disable()
 
-		transparencyItem := systray.AddMenuItem("Transparency", "")
-		transparencyItem.Disable()
-		systray.AddSeparator()
-
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
+		selfServiceItem.Hide()
+		systray.AddSeparator()
+
+		transparencyItem := systray.AddMenuItem("About Fleet", "")
+		transparencyItem.Disable()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -156,6 +191,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
+
 		client.WithInvalidTokenRetry(func() string {
 			log.Debug().Msg("refetching token from disk for API retry")
 			newToken, err := tokenReader.Read()
@@ -167,21 +203,53 @@ func main() {
 			return newToken
 		})
 
-		refetchToken := func() {
-			if _, err := tokenReader.Read(); err != nil {
-				log.Error().Err(err).Msg("refetch token")
-			}
-			log.Debug().Msg("successfully refetched the token from disk")
-		}
-
 		disableTray := func() {
 			log.Debug().Msg("disabling tray items")
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Disable()
 			transparencyItem.Disable()
 			selfServiceItem.Disable()
+			selfServiceItem.Hide()
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
+		}
+
+		reportError := func(err error, info map[string]any) {
+			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
+				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
+				return
+			}
+
+			fleetdErr := fleet.FleetdError{
+				ErrorSource:         "fleet-desktop",
+				ErrorSourceVersion:  version,
+				ErrorTimestamp:      time.Now(),
+				ErrorMessage:        err.Error(),
+				ErrorAdditionalInfo: info,
+			}
+
+			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
+				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
+			}
+		}
+
+		if runtime.GOOS == "darwin" {
+			m, s, o, err := mdmMigrationSetup(offlineWatcherCtx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			if err != nil {
+				go reportError(err, nil)
+				log.Error().Err(err).Msg("setting up MDM migration resources")
+			}
+
+			mdmMigrator = m
+			swiftDialogCh = s
+			offlineWatcher = o
+		}
+
+		refetchToken := func() {
+			if _, err := tokenReader.Read(); err != nil {
+				log.Error().Err(err).Msg("refetch token")
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
 		}
 
 		// checkToken performs API test calls to enable the "My device" item as
@@ -196,14 +264,23 @@ func main() {
 
 				for {
 					refetchToken()
-					_, err := client.DesktopSummary(tokenReader.GetCached())
+					summary, err := client.DesktopSummary(tokenReader.GetCached())
 
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
-						selfServiceItem.Enable()
+
+						// Hide Self-Service for Free tier
+						if errors.Is(err, service.ErrMissingLicense) || (summary.SelfService != nil && !*summary.SelfService) {
+							selfServiceItem.Disable()
+							selfServiceItem.Hide()
+						} else {
+							selfServiceItem.Enable()
+							selfServiceItem.Show()
+						}
+
 						return
 					}
 
@@ -242,50 +319,15 @@ func main() {
 			}
 		}()
 
-		if runtime.GOOS == "darwin" {
-			_, swiftDialogPath, _ := update.LocalTargetPaths(
-				tufUpdateRoot,
-				"swiftDialog",
-				update.SwiftDialogMacOSTarget,
-			)
-			mdmMigrator = useraction.NewMDMMigrator(
-				swiftDialogPath,
-				15*time.Minute,
-				&mdmMigrationHandler{
-					client:      client,
-					tokenReader: &tokenReader,
-				},
-			)
-		}
-
-		reportError := func(err error, info map[string]any) {
-			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
-				log.Info().Msg("skipped reporting error to the server as it doesn't have the capability enabled")
-				return
-			}
-
-			fleetdErr := fleet.FleetdError{
-				ErrorSource:         "fleet-desktop",
-				ErrorSourceVersion:  version,
-				ErrorTimestamp:      time.Now(),
-				ErrorMessage:        err.Error(),
-				ErrorAdditionalInfo: info,
-			}
-
-			if err := client.ReportError(tokenReader.GetCached(), fleetdErr); err != nil {
-				log.Error().Err(err).EmbedObject(fleetdErr).Msg("reporting error to Fleet server")
-			}
-		}
-
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(5 * time.Minute)
-			defer tic.Stop()
 
 			for {
-				<-tic.C
+				<-summaryTicker.C
+				// Reset the ticker to the intended interval, in case we reset it to 1ms
+				summaryTicker.Reset(checkInterval)
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
@@ -298,37 +340,26 @@ func main() {
 					<-checkToken()
 					continue
 				default:
-					log.Error().Err(err).Msg("get failing policies")
+					log.Error().Err(err).Msg("get desktop summary")
 					continue
 				}
 
-				failingPolicies := 0
-				if sum.FailingPolicies != nil {
-					failingPolicies = int(*sum.FailingPolicies)
-				}
-
-				if failingPolicies > 0 {
-					if runtime.GOOS == "windows" {
-						// Windows (or maybe just the systray library?) doesn't support color emoji
-						// in the system tray menu, so we use text as an alternative.
-						if failingPolicies == 1 {
-							myDeviceItem.SetTitle("My device (1 issue)")
-						} else {
-							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
-						}
-					} else {
-						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
-					}
-				} else {
-					if runtime.GOOS == "windows" {
-						myDeviceItem.SetTitle("My device")
-					} else {
-						myDeviceItem.SetTitle("🟢 My device")
-					}
-				}
+				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
 
-				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
+				// Check our file to see if we should migrate
+				var migrationType string
+				if runtime.GOOS == "darwin" {
+					migrationType, err = mdmMigrator.MigrationInProgress()
+					if err != nil {
+						go reportError(err, nil)
+						log.Error().Err(err).Msg("checking if MDM migration is in progress")
+					}
+				}
+
+				migrationInProgress := migrationType != ""
+
+				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrationInProgress
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
 					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
@@ -363,18 +394,28 @@ func main() {
 						})
 
 						// enable tray items
-						migrateMDMItem.Enable()
-						migrateMDMItem.Show()
+						if migrationType != constant.MDMMigrationTypeADE {
+							migrateMDMItem.Enable()
+							migrateMDMItem.Show()
+						}
 
 						// if the device is unmanaged or we're in force mode and the device needs
 						// migration, enable aggressive mode.
-						if isUnmanaged || forceModeEnabled {
+						if isUnmanaged || forceModeEnabled || migrationInProgress {
 							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
 							if err := mdmMigrator.ShowInterval(); err != nil {
 								go reportError(err, nil)
 								log.Error().Err(err).Msg("showing MDM migration dialog at interval")
 							}
 						}
+					} else {
+						// we're done with the migration, so mark it as complete.
+						if err := mdmMigrator.MarkMigrationCompleted(); err != nil {
+							go reportError(err, nil)
+							log.Error().Err(err).Msg("failed to mark MDM migration as completed")
+						}
+						migrateMDMItem.Disable()
+						migrateMDMItem.Hide()
 					}
 				} else {
 					migrateMDMItem.Disable()
@@ -391,6 +432,8 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
 					}
+					// Also refresh the device status by forcing the polling ticker to fire
+					summaryTicker.Reset(1 * time.Millisecond)
 				case <-transparencyItem.ClickedCh:
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
@@ -401,7 +444,13 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
+					// Also refresh the device status by forcing the polling ticker to fire
+					summaryTicker.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
+					if offline := offlineWatcher.ShowIfOffline(offlineWatcherCtx); offline {
+						continue
+					}
+
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
 						log.Error().Err(err).Msg("showing MDM migration dialog on user action")
@@ -410,14 +459,98 @@ func main() {
 			}
 		}()
 	}
+
+	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
+	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {
+		log.Info().Msg("exiting")
 		if mdmMigrator != nil {
+			log.Debug().Err(err).Msg("exiting mdmMigrator")
 			mdmMigrator.Exit()
 		}
-		log.Info().Msg("exit")
+		if swiftDialogCh != nil {
+			log.Debug().Err(err).Msg("exiting swiftDialogCh")
+			close(swiftDialogCh)
+		}
+		log.Debug().Msg("stopping ticker")
+		summaryTicker.Stop()
+		log.Debug().Msg("canceling offline watcher ctx")
+		cancelOfflineWatcherCtx()
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(
+		sigChan,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Catch signals and exit gracefully
+	go func() {
+		s := <-sigChan
+		log.Info().Stringer("signal", s).Msg("Caught signal, exiting")
+		systray.Quit()
+	}()
+
+	// Check for the system tray icon periodically and kill the process if it's missing,
+	// forcing the parent to restart it. This may happen if a Linux display manager
+	// is restarted.
+	if runtime.GOOS == "linux" {
+		log.Debug().Msg("starting tray icon checker")
+		go func() {
+			checkTrayIconTicker := time.NewTicker(5 * time.Second)
+
+			for {
+				<-checkTrayIconTicker.C
+				if !trayIconExists() {
+					log.Warn().Msg("system tray icon missing, exiting")
+					// Cleanly stop systray.
+					systray.Quit()
+					// Exit to trigger restart.
+					os.Exit(75)
+				}
+			}
+		}()
 	}
 
 	systray.Run(onReady, onExit)
+}
+
+func refreshMenuItems(sum fleet.DesktopSummary, selfServiceItem *systray.MenuItem, myDeviceItem *systray.MenuItem) {
+	// Check for null for backward compatibility with an old Fleet server
+	if sum.SelfService != nil && !*sum.SelfService {
+		selfServiceItem.Disable()
+		selfServiceItem.Hide()
+	} else {
+		selfServiceItem.Enable()
+		selfServiceItem.Show()
+	}
+
+	failingPolicies := 0
+	if sum.FailingPolicies != nil {
+		failingPolicies = int(*sum.FailingPolicies) //nolint:gosec // dismiss G115
+	}
+
+	if failingPolicies > 0 {
+		if runtime.GOOS == "windows" {
+			// Windows (or maybe just the systray library?) doesn't support color emoji
+			// in the system tray menu, so we use text as an alternative.
+			if failingPolicies == 1 {
+				myDeviceItem.SetTitle("My device (1 issue)")
+			} else {
+				myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
+			}
+		} else {
+			myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
+		}
+	} else {
+		if runtime.GOOS == "windows" {
+			myDeviceItem.SetTitle("My device")
+		} else {
+			myDeviceItem.SetTitle("🟢 My device")
+		}
+	}
 }
 
 type mdmMigrationHandler struct {
@@ -441,10 +574,36 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
-		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		log.Error().Err(err).Str("url", openURL).Msg("open browser my device (mdm migration handler)")
 		return err
 	}
 	return nil
+}
+
+// getLockfile checks for the fleet desktop lock file, and returns an error if it can't secure it.
+func getLockfile() (*flock.Flock, error) {
+	dir, err := logDir()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get logdir for lock: %w", err)
+	}
+	// Same as the log dir in setupLogs()
+	dir = filepath.Join(dir, "Fleet")
+
+	lockFilePath := filepath.Join(dir, "fleet-desktop.lock")
+	log.Debug().Msgf("acquiring fleet desktop lockfile: %s", lockFilePath)
+
+	lock := flock.New(lockFilePath)
+	locked, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("error getting lock on %s: %w", lockFilePath, err)
+	}
+	if !locked {
+		return nil, errors.New("another instance of fleet desktop has the lock")
+	}
+
+	log.Debug().Msgf("lock acquired on %s", lockFilePath)
+
+	return lock, nil
 }
 
 // setupLogs configures our logging system to write logs to rolling files, if for some
@@ -549,4 +708,37 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}, useraction.MDMOfflineWatcher, error) {
+	dir, err := migration.Dir()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
+
+	// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
+	swiftDialogCh := make(chan struct{}, 1)
+
+	_, swiftDialogPath, _ := update.LocalTargetPaths(
+		tufUpdateRoot,
+		"swiftDialog",
+		update.SwiftDialogMacOSTarget,
+	)
+	mdmMigrator := useraction.NewMDMMigrator(
+		swiftDialogPath,
+		15*time.Minute,
+		&mdmMigrationHandler{
+			client:      client,
+			tokenReader: tokenReader,
+		},
+		mrw,
+		fleetURL,
+		swiftDialogCh,
+	)
+
+	offlineWatcher := useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+
+	return mdmMigrator, swiftDialogCh, offlineWatcher, nil
 }

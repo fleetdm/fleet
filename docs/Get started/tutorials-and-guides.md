@@ -1,71 +1,57 @@
 # Tutorials and guides
 
-A collection of guides to help you get up and running with Fleet.
+A collection of guides to help you with Fleet.
 
-## Deployment guides
+## Get set up
 
-- [Deploy Fleet on Render](http://fleetdm.com/deploy/deploying-fleet-on-render)
+<!--Deploying Fleet-->
+[MDM migration](https://fleetdm.com/guides/mdm-migration)
 
-- [Deploy Fleet on AWS](http://fleetdm.com/deploy/deploying-fleet-on-aws-with-terraform)
+[Deploy Fleet](https://fleetdm.com/docs/deploy)
 
-- [Deploy Fleet on Hetzner Cloud](http://fleetdm.com/deploy/deploy-fleet-on-hetzner-cloud)
+[macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
 
-- [Deploy Fleet on AWS ECS](https://fleetdm.com/docs/deploy/deploy-fleet-on-aws-ecs)
+[Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup)
 
-- [Deploy Fleet on CentOS](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos)
+[Enroll hosts](https://fleetdm.com/guides/enroll-hosts)
 
-- [Deploy Fleet on Cloud.gov](https://fleetdm.com/docs/deploy/cloudgov)
+## Further learning
+<!--Highest level organizational unit-->
+[Teams](https://fleetdm.com/guides/teams)
 
-- [Deploy Fleet on Kubernetes](https://fleetdm.com/docs/deploy/deploy-fleet-on-kubernetes)
+[Enroll BYOD iOS/iPadOS hosts](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts)
 
-## How-to guides
+[Queries](https://fleetdm.com/guides/queries)
 
-- [Querying process_file_events on CentOS 7](https://fleetdm.com/guides/querying-process-file-events-table-on-centos-7)
+[Labels](https://fleetdm.com/guides/managing-labels-in-fleet)
 
-- [Using GitHub Actions to apply configuration profiles with Fleet](https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet)
+[Policies](https://fleetdm.com/securing/what-are-fleet-policies)
 
-- [Building an effective dashboard with Fleet's REST API, Flask, and Plotly: A step-by-step guide](https://fleetdm.com/guides/building-an-effective-dashboard-with-fleet-rest-api-flask-and-plotly)
+<!--Controls-->
 
-- [Discovering Geacon using Fleet](https://fleetdm.com/guides/discovering-geacon-using-fleet)
+[Enforce disk encryption](https://fleetdm.com/guides/enforce-disk-encryption)
 
-- [Using Fleet and Okta Workflows to generate a daily OS report](https://fleetdm.com/guides/using-fleet-and-okta-workflows-to-generate-a-daily-os-report)
+[Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script)
 
-- [Using Fleet and Tines together](https://fleetdm.com/guides/using-fleet-and-tines-together)
+<!--Installing software-->
+[Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
 
-- [How to use Fleet for zero trust attestation](https://fleetdm.com/guides/zero-trust-attestation-with-fleet)
+[Deploy software](https://fleetdm.com/guides/deploy-software-packages)
 
-- [How to use osquery evented tables](https://fleetdm.com/guides/osquery-evented-tables-overview)
+[Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet)
 
-- [Enrolling a DigitalOcean Droplet on a Fleet instance](https://fleetdm.com/guides/enrolling-a-digital-ocean-droplet-on-a-fleet-instance)
+[Install App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet)
+<!--Admin-->
+[Fleetctl](https://fleetdm.com/guides/fleetctl)
 
-- [Osquery: a tool to easily ask questions about operating systems](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems)
+[Fleetd updates](https://fleetdm.com/guides/fleetd-updates)
 
-- [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet)
+[How to uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd)
 
-- [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet)
+[How to configure logging destinations](https://fleetdm.com/guides/how-to-configure-logging-destinations)  
 
-- [Delivering data to Snowflake from Fleet and osquery.](https://fleetdm.com/guides/delivering-data-to-snowflake-from-fleet-and-osquery)
 
-- [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet)
-
-- [How to uninstall osquery](https://fleetdm.com/guides/how-to-uninstall-osquery)
-
-- [Converting unix timestamps with osquery](https://fleetdm.com/guides/converting-unix-timestamps-with-osquery)
-
-- [Correlate network connections with community ID in osquery.](https://fleetdm.com/guides/correlate-network-connections-with-community-id-in-osquery)
-
-- [Using Elasticsearch and Kibana to visualize osquery performance](https://fleetdm.com/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance)
-
-- [Fleet quick tips — identify systems where the ProcDump EULA has been accepted](https://fleetdm.com/guides/fleet-quick-tips-querying-procdump-eula-has-been-accepted)
-
-- [Locate device assets in the event of an emergency.](https://fleetdm.com/guides/locate-assets-with-osquery)
-
-- [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
-
-- [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)
-
-- [Generate process trees with osquery](https://fleetdm.com/guides/generate-process-trees-with-osquery)
-
+<a style="text-decoration: none;" href="https://fleetdm.com/guides"><animated-arrow-button>See all guides</animated-arrow-button></a>
 
 <meta name="description" value="Links to deployment tutorials and guides for using Fleet.">
 <meta name="pageOrderInSection" value="300">

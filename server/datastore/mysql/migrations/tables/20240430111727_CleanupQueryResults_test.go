@@ -13,7 +13,7 @@ func TestUp_20240430111727(t *testing.T) {
 
 	hostID := 1
 	newTeam := func(name string) uint {
-		return uint(execNoErrLastID(t, db,
+		return uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 			`INSERT INTO teams (name) VALUES (?);`,
 			name,
 		))
@@ -21,13 +21,13 @@ func TestUp_20240430111727(t *testing.T) {
 	newHost := func(teamID *uint) uint {
 		id := fmt.Sprintf("%d", hostID)
 		hostID++
-		return uint(execNoErrLastID(t, db,
+		return uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 			`INSERT INTO hosts (osquery_host_id, node_key, team_id) VALUES (?, ?, ?);`,
 			id, id, teamID,
 		))
 	}
 	newQuery := func(name string, teamID *uint) uint {
-		return uint(execNoErrLastID(t, db,
+		return uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 			`INSERT INTO queries (name, description, logging_type, team_id, query, saved) VALUES (?, '', 'snapshot', ?, 'SELECT 1;', 1);`,
 			name, teamID,
 		))

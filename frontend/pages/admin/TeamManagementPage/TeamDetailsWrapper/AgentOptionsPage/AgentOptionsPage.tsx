@@ -6,6 +6,8 @@ import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
@@ -18,6 +20,7 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
@@ -29,6 +32,8 @@ const AgentOptionsPage = ({
   router,
 }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
     location,
@@ -68,6 +73,7 @@ const AgentOptionsPage = ({
         setTeamName(data.name);
       },
       onError: (error) => handlePageError(error),
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -110,21 +116,21 @@ const AgentOptionsPage = ({
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
-
+        const reason = response.data.errors[0].reason;
         const agentOptionsInvalid =
-          response.data.errors[0].reason.includes("unsupported key provided") ||
-          response.data.errors[0].reason.includes("invalid value type");
+          reason.includes("unsupported key provided") ||
+          reason.includes("invalid value type");
 
-        return renderFlash(
+        renderFlash(
           "error",
           <>
-            Could not update {teamName} team agent options.{" "}
-            {response.data.errors[0].reason}
+            Couldn&apos;t update {teamName} team agent options:
+            {reason}
             {agentOptionsInvalid && (
               <>
                 <br />
-                If you’re not using the latest osquery, use the fleetctl apply
-                --force command to override validation.
+                If you&apos;re not using the latest osquery, use the fleetctl
+                apply --force command to override validation.
               </>
             )}
           </>
@@ -147,7 +153,7 @@ const AgentOptionsPage = ({
         Fleet.
         <br />
         <CustomLink
-          url="https://fleetdm.com/docs/configuration/configuration-files#team-agent-options"
+          url="https://fleetdm.com/learn-more-about/agent-options"
           text="Learn more about agent options"
           newTab
           multiline
@@ -169,15 +175,21 @@ const AgentOptionsPage = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
+            disabled={gitOpsModeEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            className="save-loading"
-            isLoading={isUpdatingAgentOptions}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={disableChildren}
+                className="save-loading"
+                isLoading={isUpdatingAgentOptions}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       )}
     </div>

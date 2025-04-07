@@ -7,44 +7,69 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanolib/log"
 )
 
-func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) error {
+func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.CommandWithSubtype) error {
 	if len(ids) < 1 {
 		return errors.New("no id(s) supplied to queue command to")
 	}
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, ?, ?);`,
-		cmd.CommandUUID, cmd.Command.RequestType, cmd.Raw,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES (?, ?, ?, ?)`,
+		cmd.CommandUUID, cmd.Command.Command.RequestType, cmd.Raw, cmd.Subtype,
 	)
 	if err != nil {
 		return err
 	}
-	query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
-	query += strings.Repeat(", (?, ?)", len(ids)-1)
-	args := make([]interface{}, len(ids)*2)
-	for i, id := range ids {
-		args[i*2] = id
-		args[i*2+1] = cmd.CommandUUID
+	const mySQLPlaceholderLimit = 65536 - 1
+	const placeholdersPerInsert = 2
+	const batchSize = mySQLPlaceholderLimit / placeholdersPerInsert
+	for i := 0; i < len(ids); i += batchSize {
+		end := i + batchSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		idsBatch := ids[i:end]
+
+		// Process batch
+		query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
+		query += strings.Repeat(", (?, ?)", len(idsBatch)-1)
+		args := make([]interface{}, len(idsBatch)*placeholdersPerInsert)
+		for i, id := range idsBatch {
+			args[i*2] = id
+			args[i*2+1] = cmd.CommandUUID
+		}
+		_, err = tx.ExecContext(ctx, query+";", args...)
+		if err != nil {
+			return err
+		}
 	}
-	_, err = tx.ExecContext(ctx, query+";", args...)
-	return err
+	return nil
 }
 
-func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command) (map[string]error, error) {
-	tx, err := m.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	if err = enqueue(ctx, tx, ids, cmd); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return nil, fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
-		}
-		return nil, err
-	}
-	return nil, tx.Commit()
+type loggerWrapper struct {
+	logger log.Logger
+}
+
+func (l loggerWrapper) Log(keyvals ...interface{}) error {
+	l.logger.Info(keyvals...)
+	return nil
+}
+
+func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+	error) {
+	// We need to retry because this transaction may deadlock with updates to nano_enrollment.last_seen_at
+	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
+		return enqueue(ctx, tx, ids, cmd)
+	}, loggerWrapper{m.logger})
+	return nil, err
 }
 
 func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid string) error {
@@ -52,7 +77,7 @@ func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid s
 	// trying to each delete it do not race
 	_, err := tx.ExecContext(
 		ctx, `
-SELECT command_uuid FROM commands WHERE command_uuid = ? FOR UPDATE;
+SELECT command_uuid FROM nano_commands WHERE command_uuid = ? FOR UPDATE;
 `,
 		uuid,
 	)
@@ -119,6 +144,23 @@ func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 	if result.Status == "Idle" {
 		return nil
 	}
+
+	// ensure there's a matching command
+	matchingRow := m.db.QueryRowContext(
+		r.Context,
+		`SELECT 1 FROM nano_commands WHERE command_uuid = ?`,
+		result.CommandUUID,
+	)
+	var matchingCount int
+	if err := matchingRow.Scan(&matchingCount); err != nil {
+		return err
+	}
+	// this should be already handed by the error value in Scan above, but
+	// just to be safe
+	if matchingCount == 0 {
+		return sql.ErrNoRows
+	}
+
 	if m.rm && result.Status != "NotNow" {
 		return m.deleteCommandTx(r, result)
 	}
@@ -149,25 +191,38 @@ UPDATE
 	return err
 }
 
-func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
-	command := new(mdm.Command)
-	err := m.db.QueryRowContext(
-		r.Context, `
-SELECT c.command_uuid, c.request_type, c.command
+func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
+	command := new(mdm.CommandWithSubtype)
+	id := "?"
+	var args []interface{}
+	// This performance optimization eliminates the prepare statement for this frequent query for macOS devices.
+	// For macOS devices, UDID is a UUID, so we can validate it and use it directly in the query.
+	if err := uuid.Validate(r.ID); err == nil {
+		id = "'" + r.ID + "'"
+	} else {
+		// iOS devices have a UDID that is not a valid UUID.
+		// User enrollments have their own identifier, which is not a UUID.
+		// We use a prepared statement for these cases to avoid SQL injection.
+		args = append(args, r.ID)
+	}
+	err := m.reader(r.Context).QueryRowxContext(
+		r.Context, fmt.Sprintf(
+			// The query should use the ANTIJOIN (NOT EXISTS) optimization on the nano_command_results table.
+			`
+SELECT c.command_uuid, c.request_type, c.command, c.subtype
 FROM nano_enrollment_queue AS q
     INNER JOIN nano_commands AS c
         ON q.command_uuid = c.command_uuid
     LEFT JOIN nano_command_results r
-        ON r.command_uuid = q.command_uuid AND r.id = q.id
-WHERE q.id = ?
+        ON r.command_uuid = q.command_uuid AND r.id = q.id AND (r.status != 'NotNow' OR %t)
+WHERE q.id = %s
     AND q.active = 1
-    AND (r.status IS NULL OR (r.status = 'NotNow' AND NOT ?))
+    AND r.status IS NULL
 ORDER BY
     q.priority DESC,
     q.created_at
-LIMIT 1;`,
-		r.ID, skipNotNow,
-	).Scan(&command.CommandUUID, &command.Command.RequestType, &command.Raw)
+LIMIT 1;`, skipNotNow, id), args...,
+	).Scan(&command.CommandUUID, &command.Command.Command.RequestType, &command.Raw, &command.Subtype)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -205,4 +260,55 @@ WHERE
 		r.ID,
 	)
 	return err
+}
+
+// BulkDeleteHostUserCommandsWithoutResults deletes all commands without results for the given host/user IDs.
+// This is used to clean up the queue when a profile is deleted from Fleet.
+func (m *MySQLStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
+	if len(commandToIDs) == 0 {
+		return nil
+	}
+	return common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
+		return m.bulkDeleteHostUserCommandsWithoutResults(ctx, tx, commandToIDs)
+	}, loggerWrapper{m.logger})
+}
+
+func (m *MySQLStorage) bulkDeleteHostUserCommandsWithoutResults(ctx context.Context, tx sqlx.ExtContext,
+	commandToIDs map[string][]string) error {
+	stmt := `
+DELETE
+    eq
+FROM
+    nano_enrollment_queue AS eq
+	LEFT JOIN nano_command_results AS cr
+		ON cr.command_uuid = eq.command_uuid AND cr.id = eq.id
+WHERE
+	cr.command_uuid IS NULL AND eq.command_uuid = ? AND eq.id IN (?);`
+
+	// We process each commandUUID one at a time, in batches of hostUserIDs.
+	// This is because the number of hostUserIDs can be large, and number of unique commands is normally small.
+	// If we have a use case where each host has a unique command, we can create a separate method for that use case.
+	for commandUUID, hostUserIDs := range commandToIDs {
+		if len(hostUserIDs) == 0 {
+			continue
+		}
+
+		batchSize := 10000
+		err := common_mysql.BatchProcessSimple(hostUserIDs, batchSize, func(hostUserIDsToProcess []string) error {
+			expanded, args, err := sqlx.In(stmt, commandUUID, hostUserIDsToProcess)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "expanding bulk delete nano commands")
+			}
+			_, err = tx.ExecContext(ctx, expanded, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "bulk delete nano commands")
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestIntegrationLiveQueriesTestSuite(t *testing.T) {
+func TestIntegrationsLiveQueriesTestSuite(t *testing.T) {
 	testingSuite := new(liveQueriesTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
@@ -130,7 +130,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		oneLiveQueryResp := runOneLiveQueryResponse{}
 		liveQueryResp := runLiveQueryResponse{}
 		liveQueryOnHostResp := runLiveQueryOnHostResponse{}
-		if endpoint == oneQueryEndpoint {
+		if endpoint == oneQueryEndpoint { //nolint:gocritic // ignore ifElseChain
 			liveQueryRequest := runOneLiveQueryRequest{
 				HostIDs: []uint{host.ID},
 			}
@@ -237,7 +237,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		wg.Wait()
 
 		var result fleet.QueryResult
-		if endpoint == oneQueryEndpoint {
+		if endpoint == oneQueryEndpoint { //nolint:gocritic // ignore ifElseChain
 			assert.Equal(t, q1.ID, oneLiveQueryResp.QueryID)
 			assert.Equal(t, 1, oneLiveQueryResp.TargetedHostCount)
 			assert.Equal(t, 1, oneLiveQueryResp.RespondedHostCount)
@@ -251,7 +251,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			require.Len(t, liveQueryResp.Results[0].Results, 1)
 			result = liveQueryResp.Results[0].Results[0]
 		} else { // customQueryOneHostId(.*)Endpoint
-			assert.Empty(t, liveQueryOnHostResp.Error)
+			assert.Empty(t, liveQueryOnHostResp.Err)
 			assert.Equal(t, host.ID, liveQueryOnHostResp.HostID)
 			assert.Equal(t, fleet.StatusOnline, liveQueryOnHostResp.Status)
 			assert.Equal(t, query, liveQueryOnHostResp.Query)
@@ -999,14 +999,14 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	// wait to prevent duplicate name for new query
 	time.Sleep(200 * time.Millisecond)
 
-	// create by host name
-	req2 := createDistributedQueryCampaignByNamesRequest{
+	req2 := createDistributedQueryCampaignByIdentifierRequest{
 		QuerySQL: "SELECT 3",
-		Selected: distributedQueryCampaignTargetsByNames{
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
 			Hosts: []string{h1.Hostname},
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", req2, http.StatusOK, &createResp)
+
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req2, http.StatusOK, &createResp)
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts)
 
@@ -1014,13 +1014,24 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	time.Sleep(200 * time.Millisecond)
 
 	// create by unknown host name - it ignores the unknown names. Must have at least 1 valid host
-	req2 = createDistributedQueryCampaignByNamesRequest{
+	req2 = createDistributedQueryCampaignByIdentifierRequest{
 		QuerySQL: "SELECT 3",
-		Selected: distributedQueryCampaignTargetsByNames{
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
 			Hosts: []string{h1.Hostname, h2.Hostname + "ZZZZZ"},
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", req2, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req2, http.StatusOK, &createResp)
+
+	// create with invalid label
+	req3 := createDistributedQueryCampaignByIdentifierRequest{
+		QuerySQL: "SELECT 4",
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
+			Hosts:  []string{h1.Hostname},
+			Labels: []string{"label1"},
+		},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req3, http.StatusBadRequest, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {

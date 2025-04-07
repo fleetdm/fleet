@@ -2,9 +2,11 @@ import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
-import Mdm from "./cards/MdmSettings/MdmSettings";
-import AutomaticEnrollment from "./cards/AutomaticEnrollment/AutomaticEnrollment";
-import Calendars from "./cards/Calendars/Calendars";
+import MdmSettings from "./cards/MdmSettings";
+import Calendars from "./cards/Calendars";
+import ChangeManagement from "./cards/ChangeManagement";
+import CertificateAuthorities from "./cards/CertificateAuthorities";
+import IdentityProviders from "./cards/IdentityProviders";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -18,19 +20,31 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     title: "Mobile device management (MDM)",
     urlSection: "mdm",
     path: PATHS.ADMIN_INTEGRATIONS_MDM,
-    Card: Mdm,
-  },
-  {
-    title: "Automatic enrollment",
-    urlSection: "automatic-enrollment",
-    path: PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT,
-    Card: AutomaticEnrollment,
+    Card: MdmSettings,
   },
   {
     title: "Calendars",
     urlSection: "calendars",
     path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
     Card: Calendars,
+  },
+  {
+    title: "Change management",
+    urlSection: "change-management",
+    path: PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT,
+    Card: ChangeManagement,
+  },
+  {
+    title: "Certificates",
+    urlSection: "certificates",
+    path: PATHS.ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES,
+    Card: CertificateAuthorities,
+  },
+  {
+    title: "Identity provider (IdP)",
+    urlSection: "identity-provider",
+    path: PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER,
+    Card: IdentityProviders,
   },
 ];
 

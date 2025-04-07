@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -21,6 +22,7 @@ func TestRunScriptCommand(t *testing.T) {
 			License: &fleet.LicenseInfo{
 				Tier: fleet.TierPremium,
 			},
+			NoCacheDatastore: true,
 		},
 		&service.TestServerOpts{
 			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
@@ -42,14 +44,20 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
+	ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+		return &fleet.Host{}, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
 	ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
 		return 1, nil
 	}
-	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) ([]*uint, error) {
-		return []*uint{}, nil
+	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) (bool, error) {
+		return false, nil
 	}
 
 	generateValidPath := func() string {
@@ -91,15 +99,9 @@ hello world
 
 	cases := []testCase{
 		{
-			name:          "host offline",
-			scriptPath:    generateValidPath,
-			expectErrMsg:  fleet.RunScriptHostOfflineErrMsg,
-			expectOffline: true,
-		},
-		{
 			name:           "host not found",
 			scriptPath:     generateValidPath,
-			expectErrMsg:   fleet.RunScriptHostNotFoundErrMsg,
+			expectErrMsg:   fleet.HostNotFoundErrMsg,
 			expectNotFound: true,
 		},
 		{
@@ -110,12 +112,12 @@ hello world
 		{
 			name:         "invalid hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#! /foo/bar", ".sh") },
-			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`,
 		},
 		{
 			name:         "unsupported hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#!/bin/ksh", ".sh") },
-			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`,
 		},
 		{
 			name:       "posix shell hashbang",
@@ -218,12 +220,6 @@ hello world
 			expectErrMsg: `Wrong data format. Only plain text allowed.`,
 		},
 		{
-			name:          "script already running",
-			scriptPath:    generateValidPath,
-			expectErrMsg:  fleet.RunScriptAlreadyRunningErrMsg,
-			expectPending: true,
-		},
-		{
 			name:       "script successful",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
@@ -267,10 +263,10 @@ Output:
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-1),
 				Output:   "Oh no!",
-				Message:  fleet.RunScriptScriptTimeoutErrMsg,
+				Message:  fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			expectOutput: `
-Error: Timeout. Fleet stopped the script after 5 minutes to protect host performance.
+Error: Timeout. Fleet stopped the script after 300 seconds to protect host performance.
 
 Output before timeout:
 
@@ -317,11 +313,11 @@ Fleet records the last 10,000 characters to prevent downtime.
 		},
 		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
 		// but can be useful to have around for manual testing.
-		//{
+		// {
 		//	name:         "host timeout",
 		//	scriptPath:   generateValidPath,
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
-		//},
+		// },
 		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
 	}
 
@@ -342,7 +338,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil
@@ -364,6 +360,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 				Hostname:       "host1",
 				HostID:         req.HostID,
 				ScriptContents: req.ScriptContents,
+				ExecutionID:    "123",
 			}, nil
 		}
 		if c.name == "disabled scripts globally" {

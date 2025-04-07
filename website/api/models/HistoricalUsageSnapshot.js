@@ -37,6 +37,17 @@ module.exports = {
     mdmWindowsEnabled: {required: true, type: 'boolean'},
     liveQueryDisabled: {required: true, type: 'boolean'},
     hostExpiryEnabled: {required: true, type: 'boolean'},
+    numSoftwareVersions: {required: true, type: 'number'},
+    numHostSoftwares: {required: true, type: 'number'},
+    numSoftwareTitles: {required: true, type: 'number'},
+    numHostSoftwareInstalledPaths: {required: true, type: 'number'},
+    numSoftwareCPEs: {required: true, type: 'number'},
+    numSoftwareCVEs: {required: true, type: 'number'},
+    aiFeaturesDisabled: {required: true, type: 'boolean'},
+    maintenanceWindowsEnabled: {required: true, type: 'boolean'},
+    maintenanceWindowsConfigured: {required: true, type: 'boolean'},
+    numHostsFleetDesktopEnabled: {required: true, type: 'number'},
+    numQueries: {required: true, type: 'number' },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

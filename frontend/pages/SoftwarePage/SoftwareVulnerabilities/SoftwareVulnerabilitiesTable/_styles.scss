@@ -1,4 +1,8 @@
 .software-vulnerabilities-table {
+  &__exploited-vulnerabilities-filter {
+    min-width: 250px;
+  }
+
   &__count {
     display: flex;
     gap: 12px;

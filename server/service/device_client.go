@@ -225,15 +225,7 @@ func (dc *DeviceClient) ReportError(token string, fleetdErr fleet.FleetdError) e
 	return retry.Do(
 		func() error {
 			err := dc.request(verb, path, token, "", req, nil)
-			scerr, ok := err.(*statusCodeErr)
-
-			// as backwards as this seems, this endpoint returns a
-			// `500` status code when we post an error (it might
-			// return `4xx` errors if the request is malformed or
-			// unauthenticated)
-			//
-			// see https://github.com/fleetdm/fleet/issues/13238#issuecomment-1671769460 for more details
-			if !ok || scerr.code != http.StatusInternalServerError {
+			if err != nil {
 				return err
 			}
 

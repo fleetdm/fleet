@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -13,26 +14,26 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
-			{"empty", MacOSUpdates{}},
+			{"empty", AppleOSUpdateSettings{}},
 			{
 				"with full version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"without patch version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"only major version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
@@ -49,25 +50,25 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("invalid deadline", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
 			{
 				"version but no deadline",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString(""),
 				},
 			},
 			{
 				"deadline with timestamp",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01T00:00:00Z"),
 				},
 			},
 			{
 				"incomplete date",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01"),
 				},
@@ -84,25 +85,25 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("invalid version", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
 			{
 				"deadline but no version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString(""),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"version with build info",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0 (19A583)"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"version with patch info",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0-patch1"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
@@ -171,63 +172,25 @@ func TestWindowsUpdatesEqual(t *testing.T) {
 	}
 }
 
-func TestWIndowsUpdatesEnabledForHost(t *testing.T) {
-	hostWithRequirements := &Host{
-		OsqueryHostID: ptr.String("notempty"),
-		Platform:      "windows",
-		MDMInfo: &HostMDM{
-			IsServer: false,
-			Enrolled: true,
-			Name:     WellKnownMDMFleet,
-		},
-	}
-	cases := []struct {
-		w    WindowsUpdates
-		host *Host
-		want bool
-	}{
-		{WindowsUpdates{}, &Host{}, false},
-		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
-		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
-		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: true}}, hostWithRequirements, true},
-		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, &Host{}, false},
-		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, hostWithRequirements, true},
-	}
-
-	for _, tc := range cases {
-		require.Equal(t, tc.want, tc.w.EnabledForHost(tc.host))
-	}
-}
-
-func TestMacOSUpdatesEnabledForHost(t *testing.T) {
-	hostWithRequirements := &Host{
-		OsqueryHostID: ptr.String("notempty"),
-		MDMInfo: &HostMDM{
-			IsServer: false,
-			Enrolled: true,
-			Name:     WellKnownMDMFleet,
-		},
-	}
+func TestMacOSUpdatesConfigured(t *testing.T) {
 	cases := []struct {
 		version  string
 		deadline string
-		host     *Host
 		out      bool
 	}{
-		{"", "", &Host{}, false},
-		{"", "", hostWithRequirements, false},
-		{"12.3", "", hostWithRequirements, false},
-		{"", "12-03-2022", hostWithRequirements, false},
-		{"12.3", "12-03-2022", &Host{}, false},
-		{"12.3", "12-03-2022", hostWithRequirements, true},
+		{"", "", false},
+		{"", "", false},
+		{"12.3", "", false},
+		{"", "12-03-2022", false},
+		{"12.3", "12-03-2022", true},
 	}
 
 	for _, tc := range cases {
-		m := MacOSUpdates{
+		m := AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString(tc.version),
 			Deadline:       optjson.SetString(tc.deadline),
 		}
-		require.Equal(t, tc.out, m.EnabledForHost(tc.host))
+		require.Equal(t, tc.out, m.Configured())
 	}
 }
 
@@ -304,10 +267,8 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			diskEncryption, exists := mdm["enable_disk_encryption"]
 			require.True(t, exists)
 			require.EqualValues(t, c.wantDiskEncryption, diskEncryption)
-
 		})
 	}
-
 }
 
 func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
@@ -394,10 +355,57 @@ func TestFeaturesCopy(t *testing.T) {
 		}
 		clone := f.Copy()
 		require.NotNil(t, clone.DetailQueryOverrides)
-		require.NotSame(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
+		require.NotEqual(t,
+			reflect.ValueOf(f.DetailQueryOverrides).Pointer(),
+			reflect.ValueOf(clone.DetailQueryOverrides).Pointer(),
+		)
 		// map values are pointers, check that they have been cloned
 		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
 		// the map content itself is equal
 		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
 	})
+}
+
+func TestMDMUrl(t *testing.T) {
+	cases := []struct {
+		name      string
+		mdmURL    string
+		serverURL string
+		want      string
+	}{
+		{
+			name:      "mdm url set",
+			mdmURL:    "https://mdm.example.com",
+			serverURL: "https://fleet.example.com",
+			want:      "https://mdm.example.com",
+		},
+		{
+			name:      "mdm url not set",
+			mdmURL:    "",
+			serverURL: "https://mdm.example.com",
+			want:      "https://mdm.example.com",
+		},
+		{
+			name:      "mdm url and server url not set",
+			mdmURL:    "",
+			serverURL: "",
+			want:      "",
+		},
+		{
+			name:      "server url not set",
+			mdmURL:    "https://mdm.example.com",
+			serverURL: "",
+			want:      "https://mdm.example.com",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			appConfig := AppConfig{
+				MDM:            MDM{AppleServerURL: tc.mdmURL},
+				ServerSettings: ServerSettings{ServerURL: tc.serverURL},
+			}
+			require.Equal(t, tc.want, appConfig.MDMUrl())
+		})
+	}
 }

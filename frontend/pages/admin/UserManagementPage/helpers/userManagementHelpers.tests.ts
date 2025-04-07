@@ -1,7 +1,8 @@
-import { userStub, userTeamStub } from "test/stubs";
+import { userTeamStub } from "test/stubs";
+import createMockUser from "__mocks__/userMock";
 import { IUserUpdateBody } from "interfaces/user";
 
-import { IFormData, NewUserType } from "../components/UserForm/UserForm";
+import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
 import userManagementHelpers from "./userManagementHelpers";
 
 describe("userManagementHelpers module", () => {
@@ -17,16 +18,16 @@ describe("userManagementHelpers module", () => {
         role: "observer",
       };
 
-      const formData: IFormData = {
+      const formData: IUserFormData = {
         email: "newemail@test.com",
         sso_enabled: false,
-        name: "Gnar Mike",
+        name: "Test User",
         newUserType: NewUserType.AdminCreated, // TODO revisit test
         global_role: "admin",
         teams: [updatedTeam, newTeam],
       };
       const updatedData = userManagementHelpers.generateUpdateData(
-        userStub,
+        createMockUser({ role: "Observer", global_role: null }),
         formData
       );
 

@@ -6,8 +6,8 @@ export default PropTypes.shape({
   id: PropTypes.oneOfType([PropTypes.number]),
   name: PropTypes.string,
   query: PropTypes.string,
-  label_type: PropTypes.string,
-  label_membership_type: PropTypes.string,
+  label_type: PropTypes.oneOf(["regular", "builtin"]),
+  label_membership_type: PropTypes.oneOf(["dynamic", "manual"]),
   hosts_count: PropTypes.number,
   display_text: PropTypes.string,
   count: PropTypes.number, // seems to be a repeat of hosts_count issue #1618
@@ -24,6 +24,21 @@ export interface ILabelSummary {
   label_type: LabelType;
 }
 
+export interface ILabelSoftwareTitle {
+  id: number;
+  name: string;
+}
+
+export interface ILabelQuery {
+  id: number;
+  name: string;
+}
+
+export interface ILabelPolicy {
+  id: number;
+  name: string;
+}
+
 export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;
@@ -38,6 +53,7 @@ export interface ILabel extends ILabelSummary {
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
   platform: string;
+  author_id?: number;
 }
 
 // corresponding to fleet>server>fleet>labels.go>LabelSpec

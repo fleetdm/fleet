@@ -9,27 +9,28 @@ import (
 	"io"
 	"strings"
 
-	"github.com/sassoftware/relic/v7/lib/comdoc"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/sassoftware/relic/v8/lib/comdoc"
 )
 
-func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
+	// compute its hash
 	h := sha256.New()
-	r = io.TeeReader(r, h)
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+	_, _ = io.Copy(h, tfr) // writes to a hash cannot fail
+
+	if err := tfr.Rewind(); err != nil {
+		return nil, err
 	}
 
-	rr := bytes.NewReader(b)
-	c, err := comdoc.ReadFile(rr)
+	c, err := comdoc.ReadFile(tfr)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("reading msi file: %w", err)
+		return nil, fmt.Errorf("reading msi file: %w", err)
 	}
 	defer c.Close()
 
 	e, err := c.ListDir(nil)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("listing files in msi: %w", err)
+		return nil, fmt.Errorf("listing files in msi: %w", err)
 	}
 
 	// the product name and version are stored in the Property table, but the
@@ -51,7 +52,7 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		if _, ok := targetedTables[name]; ok {
 			rr, err := c.ReadStream(ee)
 			if err != nil {
-				return "", "", nil, fmt.Errorf("opening file stream %s: %w", name, err)
+				return nil, fmt.Errorf("opening file stream %s: %w", name, err)
 			}
 			targetedTables[name] = rr
 		}
@@ -60,24 +61,30 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 	// all tables must've been found
 	for k, v := range targetedTables {
 		if v == nil {
-			return "", "", nil, fmt.Errorf("table %s not found in the .msi", k)
+			return nil, fmt.Errorf("table %s not found in the .msi", k)
 		}
 	}
 
 	allStrings, err := decodeStrings(targetedTables["Table._StringData"], targetedTables["Table._StringPool"])
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 	propTbl, err := decodePropertyTableColumns(targetedTables["Table._Columns"], allStrings)
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 	props, err := decodePropertyTable(targetedTables["Table.Property"], propTbl, allStrings)
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 
-	return strings.TrimSpace(props["ProductName"]), strings.TrimSpace(props["ProductVersion"]), h.Sum(nil), nil
+	// MSI installer product information properties: https://learn.microsoft.com/en-us/windows/win32/msi/property-reference#product-information-properties
+	return &InstallerMetadata{
+		Name:       strings.TrimSpace(props["ProductName"]),
+		Version:    strings.TrimSpace(props["ProductVersion"]),
+		PackageIDs: []string{strings.TrimSpace(props["ProductCode"])},
+		SHASum:     h.Sum(nil),
+	}, nil
 }
 
 type msiTable struct {
@@ -226,6 +233,7 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 	}
 	var stringEntry entry
 	var stringTable []string
+	var buf bytes.Buffer
 	for {
 		err := binary.Read(poolReader, binary.LittleEndian, &stringEntry)
 		if err != nil {
@@ -234,11 +242,25 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 			}
 			return nil, fmt.Errorf("failed to read pool entry: %w", err)
 		}
-		buf := make([]byte, stringEntry.Size)
-		if _, err := io.ReadFull(dataReader, buf); err != nil {
+		stringEntrySize := uint32(stringEntry.Size)
+
+		// For string pool entries too long for the size to fit in a single uint16, the format sets the size as zero,
+		// maintains the reference count location in the structure, then uses the following four bytes (little-endian)
+		// to store the string size. See https://github.com/binref/refinery/issues/72.
+		if stringEntry.Size == 0 && stringEntry.RefCount != 0 {
+			err := binary.Read(poolReader, binary.LittleEndian, &stringEntrySize)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read size of large string in string pool: %w", err)
+			}
+		}
+
+		buf.Reset()
+		buf.Grow(int(stringEntrySize))
+		_, err = io.CopyN(&buf, dataReader, int64(stringEntrySize))
+		if err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)
 		}
-		stringTable = append(stringTable, string(buf))
+		stringTable = append(stringTable, buf.String())
 	}
 	return stringTable, nil
 }
@@ -246,15 +268,16 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 func msiDecodeName(msiName string) string {
 	out := ""
 	for _, x := range msiName {
-		if x >= 0x3800 && x < 0x4800 {
+		switch {
+		case x >= 0x3800 && x < 0x4800:
 			x -= 0x3800
 			out += string(msiDecodeRune(x&0x3f)) + string(msiDecodeRune(x>>6))
-		} else if x >= 0x4800 && x < 0x4840 {
+		case x >= 0x4800 && x < 0x4840:
 			x -= 0x4800
 			out += string(msiDecodeRune(x))
-		} else if x == 0x4840 {
+		case x == 0x4840:
 			out += "Table."
-		} else {
+		default:
 			out += string(x)
 		}
 	}
@@ -262,7 +285,7 @@ func msiDecodeName(msiName string) string {
 }
 
 func msiDecodeRune(x rune) rune {
-	if x < 10 {
+	if x < 10 { //nolint:gocritic // ignore ifElseChain
 		return x + '0'
 	} else if x < 10+26 {
 		return x - 10 + 'A'

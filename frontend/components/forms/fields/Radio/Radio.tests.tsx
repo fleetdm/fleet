@@ -73,7 +73,7 @@ describe("Radio - component", () => {
 
     // Also adds a disabled class to the componet
     const radioComponent = screen.getByTestId("radio-input");
-    expect(radioComponent).toHaveClass("disabled");
+    expect(radioComponent).toHaveClass("radio__disabled");
   });
 
   it("render a tooltip from the tooltip prop", async () => {

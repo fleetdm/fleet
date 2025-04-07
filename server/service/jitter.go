@@ -63,7 +63,7 @@ func (jh *jitterHashTable) jitterForHost(hostID uint) time.Duration {
 	}
 
 	for i := 0; i < jh.bucketCount; i++ {
-		possibleBucket := (int(hostID) + i) % jh.bucketCount
+		possibleBucket := (int(hostID) + i) % jh.bucketCount //nolint:gosec // dismiss G115
 
 		// if the next bucket has capacity, great!
 		if jh.buckets[possibleBucket] < jh.maxCapacity {

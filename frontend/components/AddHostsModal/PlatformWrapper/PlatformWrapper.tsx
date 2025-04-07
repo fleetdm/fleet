@@ -12,13 +12,16 @@ import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
+import Radio from "components/forms/fields/Radio";
+import TabText from "components/TabText";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
+import IosIpadosPanel from "./IosIpadosPanel";
+import AndroidPanel from "./AndroidPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -35,16 +38,20 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "msi",
   },
   {
-    name: "Linux (RPM)",
-    type: "rpm",
-  },
-  {
-    name: "Linux (deb)",
+    name: "Linux",
     type: "deb",
   },
   {
     name: "ChromeOS",
     type: "chromeos",
+  },
+  {
+    name: "iOS & iPadOS",
+    type: "ios-ipados",
+  },
+  {
+    name: "Android",
+    type: "android",
   },
   {
     name: "Advanced",
@@ -74,7 +81,9 @@ const PlatformWrapper = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
-  const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
+  const [hostType, setHostType] = useState<"workstation" | "server">(
+    "workstation"
+  );
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
 
@@ -223,7 +232,7 @@ const PlatformWrapper = ({
           config && !config.server_settings.scripts_disabled
             ? "--enable-scripts "
             : ""
-        }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${
+        }${hostType === "workstation" ? "--fleet-desktop " : ""}--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
@@ -256,13 +265,13 @@ const PlatformWrapper = ({
             Run this command with the{" "}
             <a
               className={`${baseClass}__command-line-tool`}
-              href="https://fleetdm.com/docs/using-fleet/fleetctl-cli"
+              href="https://fleetdm.com/learn-more-about/installing-fleetctl"
               target="_blank"
               rel="noopener noreferrer"
             >
               Fleet command-line tool
-            </a>{" "}
-            installed:
+            </a>
+            :
           </span>
         )}{" "}
         <span className="buttons">
@@ -324,7 +333,7 @@ const PlatformWrapper = ({
     );
   };
 
-  const renderTab = (packageType: string) => {
+  const renderPanel = (packageType: string) => {
     const CHROME_OS_INFO = {
       extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
       installationUrl: "https://chrome.fleetdm.com/updates.xml",
@@ -337,6 +346,17 @@ const PlatformWrapper = ({
   }
 }`,
     };
+
+    let packageTypeHelpText = "";
+    if (packageType === "deb") {
+      packageTypeHelpText =
+        "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
+    } else if (packageType === "msi") {
+      packageTypeHelpText =
+        "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
+    } else if (packageType === "pkg") {
+      packageTypeHelpText = "Install this package to add hosts to Fleet.";
+    }
 
     if (packageType === "chromeos") {
       return (
@@ -360,7 +380,7 @@ const PlatformWrapper = ({
             </InfoBanner>
           </div>
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
             label={renderChromeOSLabel(
@@ -370,7 +390,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.extensionId}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
             label={renderChromeOSLabel(
@@ -380,7 +400,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.installationUrl}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
             label={renderChromeOSLabel(
@@ -393,13 +413,22 @@ const PlatformWrapper = ({
         </>
       );
     }
+
+    if (packageType === "ios-ipados") {
+      return <IosIpadosPanel enrollSecret={enrollSecret} />;
+    }
+
+    if (packageType === "android") {
+      return <AndroidPanel enrollSecret={enrollSecret} />;
+    }
+
     if (packageType === "advanced") {
       return (
         <>
           {renderFleetCertificateBlock("tooltip")}
           <div className={`${baseClass}__advanced--installer`}>
             <InputField
-              disabled
+              readOnly
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
               label={renderLabel(
@@ -495,7 +524,7 @@ const PlatformWrapper = ({
                   require sudo or Run as Administrator privileges):
                 </p>
                 <InputField
-                  disabled
+                  readOnly
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
                   label={renderLabel(
@@ -513,41 +542,48 @@ const PlatformWrapper = ({
     }
 
     return (
-      <>
+      // "form" className applies the global form styling
+      <div className="form">
         {packageType !== "pkg" && (
-          <Checkbox
-            name="include-fleet-desktop"
-            onChange={(value: boolean) => setIncludeFleetDesktop(value)}
-            value={includeFleetDesktop}
-          >
-            <>
-              Include&nbsp;
-              <TooltipWrapper
-                tipContent={
-                  "Include Fleet Desktop if you're adding workstations."
-                }
-              >
-                Fleet Desktop
-              </TooltipWrapper>
-            </>
-          </Checkbox>
+          // Windows & Linux
+          <div className="form-field">
+            <div className="form-field__label">Type</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Workstation"
+              id="workstation-host"
+              checked={hostType === "workstation"}
+              value="workstation"
+              name="host-typ"
+              onChange={() => setHostType("workstation")}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Server"
+              id="server-host"
+              checked={hostType === "server"}
+              value="server"
+              name="host-type"
+              onChange={() => setHostType("server")}
+            />
+          </div>
         )}
         <InputField
-          disabled
+          readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText="Distribute your package to add hosts to Fleet."
+          helpText={packageTypeHelpText}
         />
-      </>
+      </div>
     );
   };
 
   return (
     <div className={baseClass}>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           onSelect={(index) => setSelectedTabIndex(index)}
           selectedIndex={selectedTabIndex}
@@ -558,7 +594,7 @@ const PlatformWrapper = ({
               // so we add a hidden pseudo element with the same text string
               return (
                 <Tab key={navItem.name} data-text={navItem.name}>
-                  {navItem.name}
+                  <TabText>{navItem.name}</TabText>
                 </Tab>
               );
             })}
@@ -569,13 +605,13 @@ const PlatformWrapper = ({
             return (
               <TabPanel className={`${baseClass}__info`} key={navItem.type}>
                 <div className={`${baseClass} form`}>
-                  {renderTab(navItem.type)}
+                  {renderPanel(navItem.type)}
                 </div>
               </TabPanel>
             );
           })}
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       <div className="modal-cta-wrap">
         <Button onClick={onCancel} variant="brand">
           Done

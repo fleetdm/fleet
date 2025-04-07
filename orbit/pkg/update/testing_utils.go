@@ -85,6 +85,7 @@ func (ts *withTUF) SetupSuite() {
 	ts.mockFiles = map[string][]byte{
 		"nudge/macos/stable/nudge.app.tar.gz":       ts.memTarGz("/Nudge.app/Contents/MacOS/Nudge", "nudge"),
 		"osqueryd/macos/stable/osqueryd.app.tar.gz": ts.memTarGz("osqueryd", "osqueryd"),
+		"escrowBuddy/macos/stable/escrowBuddy.pkg":  {},
 	}
 	ts.store = tuf.MemoryStore(nil, ts.mockFiles)
 

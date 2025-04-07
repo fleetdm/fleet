@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -45,9 +46,9 @@ func (c *Client) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 }
 
 // DeletePolicies deletes several policies.
-func (c *Client) DeletePolicies(teamID *uint, IDs []uint) error {
+func (c *Client) DeletePolicies(teamID *uint, ids []uint) error {
 	verb, path := "POST", ""
-	req := deleteTeamPoliciesRequest{IDs: IDs}
+	req := deleteTeamPoliciesRequest{IDs: ids}
 	if teamID != nil {
 		path = fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", *teamID)
 		req.TeamID = *teamID

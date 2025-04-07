@@ -1,5 +1,9 @@
 import PropTypes from "prop-types";
-import { IConfigFeatures, IWebhookSettings } from "./config";
+import {
+  IAppleDeviceUpdates,
+  IConfigFeatures,
+  IWebhookSettings,
+} from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
 import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
@@ -45,10 +49,9 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
-    macos_updates: {
-      minimum_version: string | null;
-      deadline: string | null;
-    };
+    macos_updates: IAppleDeviceUpdates;
+    ios_updates: IAppleDeviceUpdates;
+    ipados_updates: IAppleDeviceUpdates;
     macos_settings: {
       custom_settings: null; // TODO: types?
       enable_disk_encryption: boolean;
@@ -129,7 +132,7 @@ export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
-export const APP_CONTEX_NO_TEAM_SUMMARY: ITeamSummary = {
+export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
   name: "No team",
 } as const;

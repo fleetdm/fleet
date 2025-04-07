@@ -13,7 +13,7 @@
   &__item-topline {
     display: flex;
     flex-direction: row;
-    height: 64px;
+    height: 66px;
     align-items: center;
     gap: 16px;
     overflow: hidden;
@@ -21,8 +21,6 @@
 
   &__item-icon {
     display: flex;
-    height: 64px;
-    min-width: 64px;
   }
 
   &__item-name-version {
@@ -89,9 +87,5 @@
 
   &__item-action-button {
     height: auto;
-
-    &--installing {
-      display: none;
-    }
   }
 }

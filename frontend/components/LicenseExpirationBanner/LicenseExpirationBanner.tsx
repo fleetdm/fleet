@@ -15,8 +15,7 @@ const LicenseExpirationBanner = (): JSX.Element => {
           url="https://fleetdm.com/learn-more-about/downgrading"
           text="Downgrade or renew"
           newTab
-          iconColor="core-fleet-black"
-          color="core-fleet-black"
+          variant="banner-link"
         />
       }
     >

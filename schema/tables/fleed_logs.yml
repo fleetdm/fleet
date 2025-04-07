@@ -1,0 +1,39 @@
+name: fleetd_logs
+evented: false
+platforms:
+  - darwin
+  - windows
+  - linux
+description: |-
+  Returns the logs from fleetd's current session. Logs are stored in memory, so they are erased when it restarts.
+examples: |-
+  ```
+  SELECT * FROM fleetd_logs
+  ```
+
+  Return only log entries with errors attached
+
+  ```
+  SELECT * FROM fleetd_logs WHERE error != ""
+  ```
+columns:
+  - name: time
+    description: The time the event was captured, UTC.
+    type: text
+    required: false
+  - name: level
+    description: The log-level of the event. Info, Debug, etc.
+    type: text
+    required: false
+  - name: error
+    description: The error attached to the event
+    type: text
+    required: false
+  - name: message
+    description: The message attached to the event
+    type: text
+    required: false
+  - name: payload
+    description: Any extra data attached to the event, JSON
+    type: text
+    required: false

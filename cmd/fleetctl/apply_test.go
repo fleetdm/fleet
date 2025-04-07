@@ -23,14 +23,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 var userRoleSpecList = []*fleet.User{
@@ -138,7 +141,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	i := 1
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		team.ID = uint(i)
+		team.ID = uint(i) //nolint:gosec // dismiss G115
 		i++
 		teamsByName[team.Name] = team
 		return team, nil
@@ -166,12 +169,15 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	ds.NewActivityFunc = func(
@@ -181,8 +187,17 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		require.Len(t, labels, 1)
+		switch labels[0] {
+		case fleet.BuiltinLabelMacOS14Plus:
+			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		case fleet.BuiltinLabelIOS:
+			return map[string]uint{fleet.BuiltinLabelIOS: 2}, nil
+		case fleet.BuiltinLabelIPadOS:
+			return map[string]uint{fleet.BuiltinLabelIPadOS: 3}, nil
+		default:
+			return nil, &notFoundError{}
+		}
 	}
 
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -192,6 +207,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	filename := writeTmpYml(t, `
@@ -221,7 +239,7 @@ spec:
 
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	newMDMSettings := fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -257,7 +275,7 @@ spec:
 `)
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -285,7 +303,7 @@ spec:
 `, mobileCfgPath))
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -324,14 +342,28 @@ spec:
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
+      ios_updates:
+        minimum_version: 11.11.11
+        deadline: 1993-04-02
+      ipados_updates:
+        minimum_version: 12.12.12
+        deadline: 1994-05-03
     secrets:
       - secret: BBB
 `)
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("11.11.11"),
+			Deadline:       optjson.SetString("1993-04-02"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("12.12.12"),
+			Deadline:       optjson.SetString("1994-05-03"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -397,6 +429,12 @@ spec:
       macos_updates:
         minimum_version:
         deadline:
+      ios_updates:
+        minimum_version:
+        deadline:
+      ipados_updates:
+        minimum_version:
+        deadline:
       windows_updates:
         deadline_days:
         grace_period_days:
@@ -405,7 +443,15 @@ spec:
 `)
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
 		},
@@ -548,6 +594,10 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -585,8 +635,9 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -601,6 +652,24 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
+	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{Name: "team1", ID: 1}}, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -621,9 +690,9 @@ spec:
 `)
 
 	newMDMSettings := fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
-		MacOSUpdates: fleet.MacOSUpdates{
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
@@ -676,9 +745,9 @@ spec:
 `)
 
 	newMDMSettings = fleet.MDM{
-		AppleBMDefaultTeam:  "team1",
-		AppleBMTermsExpired: false,
-		MacOSUpdates: fleet.MacOSUpdates{
+		DeprecatedAppleBMDefaultTeam: "team1",
+		AppleBMTermsExpired:          false,
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
@@ -726,6 +795,18 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		currentAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	// first, set the default app config's agent options as set after fleetctl setup
@@ -858,6 +939,18 @@ func TestApplyAppConfigDeprecatedFields(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
 		return nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
 
 	name := writeTmpYml(t, `---
@@ -1119,6 +1212,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
+	// Mock Apple DEP API
+	depStorage := SetupMockDEPStorageAndMockDEPServer(t)
+
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
@@ -1126,6 +1222,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		MDMStorage:  enqueuer,
 		MDMPusher:   mockPusher{},
 		FleetConfig: &fleetCfg,
+		DEPStorage:  depStorage,
 	})
 
 	gitOps := &fleet.User{
@@ -1189,8 +1286,8 @@ func TestApplyAsGitOps(t *testing.T) {
 		return savedTeam, nil
 	}
 
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Equal(t, uint(123), *teamID)
 		return true, nil
 	}
@@ -1202,11 +1299,14 @@ func TestApplyAsGitOps(t *testing.T) {
 		teamEnrollSecrets = secrets
 		return nil
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 		return nil, &notFoundError{}
@@ -1220,7 +1320,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 		return nil, &notFoundError{}
 	}
-	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 		return nil
 	}
 	ds.SetOrUpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
@@ -1239,6 +1339,31 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
+	}
+
+	ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+		return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+	}
+	ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+
+	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+		return []string{"foobar"}, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{{ID: 1}}, nil
+	}
+
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return document, nil, nil
 	}
 
 	// Apply global config.
@@ -1302,10 +1427,11 @@ spec:
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
-	assert.Equal(t, "[+] would've applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+	assert.Equal(t, "[+] would've applied fleet config\n[+] would've applied MDM profiles\n",
+		runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
 
 	// then apply for real
-	assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied fleet config\n[+] applied MDM profiles\n", runAppForTest(t, []string{"apply", "-f", name}))
 	// features left untouched, not provided
 	assert.True(t, currentAppConfig.Features.EnableHostUsers)
 	assert.Equal(t, fleet.MDM{
@@ -1314,7 +1440,7 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
@@ -1357,7 +1483,7 @@ spec:
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
@@ -1408,7 +1534,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1450,7 +1576,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1487,7 +1613,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1533,13 +1659,13 @@ spec:
 
 	// Apply labels.
 	var appliedLabels []*fleet.LabelSpec
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
 	}
 	name = writeTmpYml(t, labelsSpec)
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
@@ -1577,6 +1703,34 @@ spec:
 	assert.Equal(t, "select * from app_schemes;", appliedQueries[0].Query)
 }
 
+func SetupMockDEPStorageAndMockDEPServer(t *testing.T) *nanodep_mock.Storage {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/server/devices"):
+			_, err := w.Write([]byte("{}"))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/session"):
+			_, err := w.Write([]byte(`{"auth_session_token": "yoo"}`))
+			require.NoError(t, err)
+		case strings.Contains(r.URL.Path, "/profile"):
+			_, err := w.Write([]byte(`{"profile_uuid": "profile123"}`))
+			require.NoError(t, err)
+		}
+	}))
+	depStorage := &nanodep_mock.Storage{}
+	depStorage.RetrieveConfigFunc = func(context.Context, string) (*nanodep_client.Config, error) {
+		return &nanodep_client.Config{
+			BaseURL: ts.URL,
+		}, nil
+	}
+	depStorage.RetrieveAuthTokensFunc = func(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
+		return &nanodep_client.OAuth1Tokens{}, nil
+	}
+	t.Cleanup(func() { ts.Close() })
+
+	return depStorage
+}
+
 func TestApplyEnrollSecrets(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
@@ -1600,7 +1754,7 @@ func TestApplyLabels(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
-	ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 		appliedLabels = specs
 		return nil
 	}
@@ -1608,35 +1762,35 @@ func TestApplyLabels(t *testing.T) {
 	name := writeTmpYml(t, labelsSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
 
 	appliedLabels = nil
-	ds.ApplyLabelSpecsFuncInvoked = false
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	name = writeTmpYml(t, manualLabelSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "manual_label", appliedLabels[0].Name)
 	assert.Empty(t, appliedLabels[0].Query)
 
 	appliedLabels = nil
-	ds.ApplyLabelSpecsFuncInvoked = false
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	name = writeTmpYml(t, emptyManualLabelSpec)
 
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
 	assert.Empty(t, appliedLabels[0].Query)
 
 	appliedLabels = nil
-	ds.ApplyLabelSpecsFuncInvoked = false
+	ds.ApplyLabelSpecsWithAuthorFuncInvoked = false
 
 	name = writeTmpYml(t, nohostsManualLabelSpec)
 
@@ -1663,7 +1817,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, builtinLabelSpec)
 	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.False(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	assert.True(t, ds.LabelsByNameFuncInvoked)
 
 	// Apply built-in label (with changes)
@@ -1672,7 +1826,6 @@ func TestApplyLabels(t *testing.T) {
 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "cannot modify or add built-in label")
-
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -1771,6 +1924,18 @@ func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1806,6 +1971,18 @@ func TestCanApplyIntervalsUsingDurations(t *testing.T) {
 		return nil
 	}
 
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{}, nil
+	}
+
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
+	}
+
 	name := writeTmpYml(t, `---
 apiVersion: v1
 kind: config
@@ -1831,7 +2008,8 @@ func TestApplyMacosSetup(t *testing.T) {
 			tier = fleet.TierPremium
 		}
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
-		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
 		teamsByName := map[string]*fleet.Team{
@@ -1860,7 +2038,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		tmID := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			tmID++
-			team.ID = uint(tmID)
+			team.ID = uint(tmID) //nolint:gosec // dismiss G115
 			clone := *team
 			teamsByName[team.Name] = &clone
 			teamsByID[team.ID] = &clone
@@ -1920,7 +2098,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			return nil
 		}
 
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -1933,7 +2111,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		asstID := 0
 		ds.SetOrUpdateMDMAppleSetupAssistantFunc = func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 			asstID++
-			asst.ID = uint(asstID)
+			asst.ID = uint(asstID) //nolint:gosec // dismiss G115
 			asst.UploadedAt = time.Now()
 
 			var tmID uint
@@ -1964,7 +2142,7 @@ func TestApplyMacosSetup(t *testing.T) {
 			}
 			return nil, &notFoundError{}
 		}
-		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			return nil
 		}
 		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
@@ -1973,6 +2151,33 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
 			return nil, nil
 		}
+
+		ds.GetMDMAppleEnrollmentProfileByTypeFunc = func(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
+			return &fleet.MDMAppleEnrollmentProfile{Token: "foobar"}, nil
+		}
+		ds.CountABMTokensWithTermsExpiredFunc = func(ctx context.Context) (int, error) {
+			return 0, nil
+		}
+
+		ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
+			return []string{"foobar"}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{{ID: 1}}, nil
+		}
+
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
+		}
+
 		return ds
 	}
 
@@ -2350,7 +2555,7 @@ spec:
 			t.Run(c.pkgName, func(t *testing.T) {
 				srv, pkgLen := serveMDMBootstrapPackage(t, filepath.Join("../../server/service/testdata/bootstrap-packages", c.pkgName), c.pkgName)
 				ds := setupServer(t, true)
-				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 					require.Equal(t, len(bp.Bytes), pkgLen)
 					return nil
 				}
@@ -2409,7 +2614,7 @@ spec:
 		defer srv.Close()
 
 		ds := setupServer(t, true)
-		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			mockStore.Lock()
 			defer mockStore.Unlock()
 			require.Equal(t, pkgName, bp.Name)
@@ -2562,12 +2767,13 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
+	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 
 	setupDS := func(ds *mock.Store) {
 		// labels
-		ds.ApplyLabelSpecsFunc = func(ctx context.Context, specs []*fleet.LabelSpec) error {
+		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 			return nil
 		}
 
@@ -2591,7 +2797,7 @@ func TestApplySpecs(t *testing.T) {
 		i := 1 // new teams will start at 2
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			i++
-			team.ID = uint(i)
+			team.ID = uint(i) //nolint:gosec // dismiss G115
 			teamsByName[team.Name] = team
 			return team, nil
 		}
@@ -2606,7 +2812,7 @@ func TestApplySpecs(t *testing.T) {
 			return team, nil
 		}
 
-		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 			return true, nil
 		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -2644,6 +2850,17 @@ func TestApplySpecs(t *testing.T) {
 		}
 		ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
 			return nil
+		}
+
+		// VPP/AMB
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+			return nil
+		}
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{}, nil
+		}
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{}, nil
 		}
 	}
 
@@ -3571,7 +3788,9 @@ spec:
     macos_settings:
       enable_disk_encryption: true
 `,
-			wantErr: `Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on`,
+
+			// Since Linux disk encryption does not use MDM, we allow enabling it even without MDM enabled and configured
+			wantOutput: `[+] applied fleet config`,
 		},
 		{
 			desc: "app config macos_settings.enable_disk_encryption false",
@@ -3756,6 +3975,84 @@ spec:
 				require.Empty(t, got)
 			} else {
 				require.Contains(t, got, c.wantOutput)
+			}
+		})
+	}
+}
+
+func TestApplyFileExtensionValidation(t *testing.T) {
+	cases := []struct {
+		desc     string
+		filename string
+		wantErr  string
+	}{
+		{
+			desc:     "Valid .yml extension",
+			filename: "test_file.yml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Valid .yaml extension",
+			filename: "test_file.yaml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Invalid .txt extension",
+			filename: "test_file.txt",
+			wantErr:  "Invalid file extension .txt: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "Invalid .json extension",
+			filename: "test_file.json",
+			wantErr:  "Invalid file extension .json: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "No extension",
+			filename: "test_file",
+			wantErr:  "Missing file extension: only .yml or .yaml files can be applied",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			// Create a temporary directory
+			tmpDir, err := os.MkdirTemp("", "test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir) // clean up
+
+			// Create the file with the exact name in the temporary directory
+			tmpFilePath := filepath.Join(tmpDir, c.filename)
+			tmpFile, err := os.Create(tmpFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tmpFile.Close()
+
+			// Create a new cli.App for each test
+			app := &cli.App{
+				Commands: []*cli.Command{
+					applyCommand(),
+				},
+			}
+
+			// Set up arguments
+			args := []string{"fleetctl", "apply", "-f", tmpFilePath}
+
+			// Run the command
+			err = app.Run(args)
+
+			if c.wantErr == "" {
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, but got none")
+				} else if err.Error() != c.wantErr {
+					t.Errorf("Expected error message '%s', but got '%s'", c.wantErr, err.Error())
+				}
 			}
 		})
 	}

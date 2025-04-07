@@ -35,7 +35,7 @@ Learn more about customizing the [macOS Setup Assistant](https://fleetdm.com/doc
 
 ## More new features, improvements, and bug fixes
 
-* Added support to add a EULA as part of the AEP/DEP unboxing flow.
+* Added support to add an EULA as part of the AEP/DEP unboxing flow.
 * DEP enrollments configured with SSO now pre-populate the username/fullname fields during account creation.
 * Integrated the macOS setup assistant feature with Apple DEP so that the setup assistants are assigned to the enrolled devices.
 * Re-assign and update the macOS setup assistants (and the default one) whenever required, such as when it is modified, when a host is transferred, a team is deleted, etc.

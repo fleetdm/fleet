@@ -28,6 +28,10 @@ const (
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
 	SoftwareArchMaxLength    = 16
+
+	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
+	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
+	SoftwareTeamIdentifierMaxLength = 10
 )
 
 type Vulnerabilities []CVE
@@ -114,11 +118,16 @@ type VulnerableSoftware struct {
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
 }
 
+type VulnSoftwareFilter struct {
+	HostID *uint
+	Name   string // LIKE filter
+	Source string // exact match
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
-	switch tv := v.(type) {
-	case []byte:
+	if tv, ok := v.([]byte); ok {
 		return json.Unmarshal(tv, &c)
 	}
 	return errors.New("unsupported type")
@@ -157,9 +166,23 @@ type SoftwareTitle struct {
 	Versions []SoftwareVersion `json:"versions" db:"-"`
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
-	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	CountsUpdatedAt *time.Time `json:"counts_updated_at" db:"counts_updated_at"`
+	// SoftwareInstallersCount is 0 or 1, indicating if the software title has an
+	// installer. This is an internal field for an optimization so that the extra
+	// queries to fetch installer information is done only if necessary.
+	SoftwareInstallersCount int `json:"-" db:"software_installers_count"`
+	// VPPAppsCount is 0 or 1, indicating if the software title has a VPP app.
+	// This is an internal field for an optimization so that the extra queries to
+	// fetch app information is done only if necessary.
+	VPPAppsCount int `json:"-" db:"vpp_apps_count"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
+	// AppStoreApp is the VPP app information for this title.
+	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -182,20 +205,33 @@ type SoftwareTitleListResult struct {
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
-	// SoftwarePackage is the filename of the installer for this software title.
-	SoftwarePackage *string `json:"software_package" db:"software_package"`
-	// SelfService indicates if the end user can initiate the installation
-	SelfService bool `json:"self_service" db:"self_service"`
+
+	// SoftwarePackage provides software installer package information, it is
+	// only present if a software installer is available for the software title.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+
+	// AppStoreApp provides VPP app information, it is only present if a VPP app
+	// is available for the software title.
+	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint `query:"team_id,optional"`
-	VulnerableOnly      bool  `query:"vulnerable,optional"`
-	AvailableForInstall bool  `query:"available_for_install,optional"`
-	SelfServiceOnly     bool  `query:"self_service,optional"`
+	TeamID              *uint   `query:"team_id,optional"`
+	VulnerableOnly      bool    `query:"vulnerable,optional"`
+	AvailableForInstall bool    `query:"available_for_install,optional"`
+	SelfServiceOnly     bool    `query:"self_service,optional"`
+	KnownExploit        bool    `query:"exploit,optional"`
+	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
+	PackagesOnly        bool    `query:"packages_only,optional"`
+	Platform            string  `query:"platform,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -211,6 +247,19 @@ type HostSoftwareTitleListOptions struct {
 	// service layer to indicate to the datastore if software available for
 	// install (but not currently installed on the host) should be returned.
 	IncludeAvailableForInstall bool
+
+	// OnlyAvailableForInstall is set via a query argument that limits the
+	// returned software titles to only those that are available for install on
+	// the host.
+	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
+
+	VulnerableOnly bool    `query:"vulnerable,optional"`
+	KnownExploit   bool    `query:"exploit,optional"`
+	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
+
+	// Non-MDM-enabled hosts cannot install VPP apps
+	IsMDMEnrolled bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -229,7 +278,13 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths"`
+	InstalledPaths           []string                   `json:"installed_paths"`
+	PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+}
+
+type PathSignatureInformation struct {
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -253,10 +308,14 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID           *uint
-	TeamID           *uint `query:"team_id,optional"`
-	VulnerableOnly   bool  `query:"vulnerable,optional"`
-	IncludeCVEScores bool
+	HostID                      *uint
+	TeamID                      *uint `query:"team_id,optional"`
+	VulnerableOnly              bool  `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool
+	KnownExploit                bool    `query:"exploit,optional"`
+	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
@@ -267,6 +326,8 @@ type SoftwareListOptions struct {
 type SoftwareIterQueryOptions struct {
 	ExcludedSources []string // what sources to exclude
 	IncludedSources []string // what sources to include
+	NameMatch       string   // mysql regex to filter software by name
+	NameExclude     string   // mysql regex to filter software by name
 }
 
 // IsValid checks that either ExcludedSources or IncludedSources is specified but not both
@@ -306,9 +367,7 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 		}
 	}
 
-	for _, i := range uhsdbr.Inserted {
-		r = append(r, i)
-	}
+	r = append(r, uhsdbr.Inserted...)
 
 	return r
 }
@@ -338,9 +397,10 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
-	*Software, error,
-) {
+func SoftwareFromOsqueryRow(
+	name, version, source, vendor, installedPath, release, arch,
+	bundleIdentifier, extensionId, browser, lastOpenedAt string,
+) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}
@@ -380,4 +440,21 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		software.LastOpenedAt = &lastOpenedAtTime
 	}
 	return &software, nil
+}
+
+type VPPBatchPayload struct {
+	AppStoreID         string   `json:"app_store_id"`
+	SelfService        bool     `json:"self_service"`
+	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string `json:"labels_include_any"`
+}
+
+type VPPBatchPayloadWithPlatform struct {
+	AppStoreID         string              `json:"app_store_id"`
+	SelfService        bool                `json:"self_service"`
+	Platform           AppleDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string            `json:"labels_include_any"`
 }

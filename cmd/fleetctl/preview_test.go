@@ -12,7 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPreview(t *testing.T) {
+func TestPreviewFailsOnInvalidLicenseKey(t *testing.T) {
+	_, err := runAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
+	require.ErrorContains(t, err, "--license-key")
+}
+
+func TestIntegrationsPreview(t *testing.T) {
 	nettest.Run(t)
 
 	t.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
@@ -74,6 +79,7 @@ func gitRootPath(t *testing.T) string {
 }
 
 func TestDockerCompose(t *testing.T) {
+	t.Parallel()
 	t.Run("returns the right command according to the version", func(t *testing.T) {
 		v1 := dockerCompose{dockerComposeV1}
 		cmd1 := v1.Command("up")

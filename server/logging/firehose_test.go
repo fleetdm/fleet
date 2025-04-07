@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -187,7 +187,7 @@ func TestFirehoseRecordTooBig(t *testing.T) {
 	ctx := context.Background()
 	newLogs := make([]json.RawMessage, len(logs))
 	copy(newLogs, logs)
-	newLogs[0] = make(json.RawMessage, firehoseMaxSizeOfRecord+1, firehoseMaxSizeOfRecord+1)
+	newLogs[0] = make(json.RawMessage, firehoseMaxSizeOfRecord+1)
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {
 		callCount += 1
@@ -208,7 +208,7 @@ func TestFirehoseSplitBatchBySize(t *testing.T) {
 	// just under 4 MB each
 	logs := make([]json.RawMessage, 12)
 	for i := 0; i < len(logs); i++ {
-		logs[i] = make(json.RawMessage, firehoseMaxSizeOfRecord-1, firehoseMaxSizeOfRecord-1)
+		logs[i] = make(json.RawMessage, firehoseMaxSizeOfRecord-1)
 	}
 	callCount := 0
 	putFunc := func(input *firehose.PutRecordBatchInput) (*firehose.PutRecordBatchOutput, error) {

@@ -18,10 +18,10 @@ import (
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	"github.com/smallstep/scep"
 )
 
 // version info
@@ -50,6 +50,7 @@ type runCfg struct {
 	debug           bool
 	logfmt          string
 	caCertMsg       string
+	dnsName         string
 }
 
 func run(cfg runCfg) error {
@@ -69,7 +70,7 @@ func run(cfg runCfg) error {
 	}
 	lginfo := level.Info(logger)
 
-	client, err := scepclient.New(cfg.serverURL, logger)
+	client, err := scepclient.New(cfg.serverURL, logger, nil)
 	if err != nil {
 		return err
 	}
@@ -88,6 +89,7 @@ func run(cfg runCfg) error {
 		province:  cfg.province,
 		challenge: cfg.challenge,
 		key:       key,
+		dnsName:   cfg.dnsName,
 	}
 
 	csr, err := loadOrMakeCSR(cfg.csrPath, opts)
@@ -113,15 +115,15 @@ func run(cfg runCfg) error {
 	if err != nil {
 		return err
 	}
-	var certs []*x509.Certificate
+	var caCerts []*x509.Certificate
 	{
 		if certNum > 1 {
-			certs, err = scep.CACerts(resp)
+			caCerts, err = scep.CACerts(resp)
 			if err != nil {
 				return err
 			}
 		} else {
-			certs, err = x509.ParseCertificates(resp)
+			caCerts, err = x509.ParseCertificates(resp)
 			if err != nil {
 				return err
 			}
@@ -129,7 +131,7 @@ func run(cfg runCfg) error {
 	}
 
 	if cfg.debug {
-		logCerts(level.Debug(logger), certs)
+		logCerts(level.Debug(logger), caCerts)
 	}
 
 	var signerCert *x509.Certificate
@@ -153,7 +155,7 @@ func run(cfg runCfg) error {
 
 	tmpl := &scep.PKIMessage{
 		MessageType: msgType,
-		Recipients:  certs,
+		Recipients:  caCerts,
 		SignerKey:   key,
 		SignerCert:  signerCert,
 	}
@@ -180,7 +182,7 @@ func run(cfg runCfg) error {
 			return errors.Join(err, fmt.Errorf("PKIOperation for %s", msgType))
 		}
 
-		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(msg.Recipients))
+		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(caCerts))
 		if err != nil {
 			return errors.Join(err, fmt.Errorf("parsing pkiMessage response %s", msgType))
 		}
@@ -251,7 +253,7 @@ func validateFingerprint(fingerprint string) (hash []byte, err error) {
 	return
 }
 
-func validateFlags(keyPath, serverURL string) error {
+func validateFlags(keyPath, serverURL, caFingerprint string, useKeyEnciphermentSelector bool) error {
 	if keyPath == "" {
 		return errors.New("must specify private key path")
 	}
@@ -261,6 +263,9 @@ func validateFlags(keyPath, serverURL string) error {
 	_, err := url.Parse(serverURL)
 	if err != nil {
 		return fmt.Errorf("invalid server-url flag parameter %s", err)
+	}
+	if caFingerprint != "" && useKeyEnciphermentSelector {
+		return errors.New("ca-fingerprint and key-encipherment-selector can't be used at the same time")
 	}
 	return nil
 }
@@ -280,14 +285,19 @@ func main() {
 		flProvince          = flag.String("province", "", "province for certificate")
 		flCountry           = flag.String("country", "US", "country code in certificate")
 		flCACertMessage     = flag.String("cacert-message", "", "message sent with GetCACert operation")
+		flDNSName           = flag.String("dnsname", "", "DNS name to be included in the certificate (SAN)")
 
 		// in case of multiple certificate authorities, we need to figure out who the recipient of the encrypted
-		// data is.
-		flCAFingerprint = flag.String("ca-fingerprint", "", "SHA-256 digest of CA certificate for NDES server. Note: Changed from MD5.")
+		// data is. This can be done using either the CA fingerprint, or based on the key usage encoded in the
+		// certificates returned by the authority.
+		flCAFingerprint = flag.String("ca-fingerprint", "",
+			"SHA-256 digest of CA certificate for NDES server. Note: Changed from MD5.")
+		flKeyEnciphermentSelector = flag.Bool("key-encipherment-selector", false, "Filter CA certificates by key encipherment usage")
 
 		flDebugLogging = flag.Bool("debug", false, "enable debug logging")
 		flLogJSON      = flag.Bool("log-json", false, "use JSON for log output")
 	)
+
 	flag.Parse()
 
 	// print version information
@@ -296,19 +306,22 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := validateFlags(*flPKeyPath, *flServerURL); err != nil {
+	if err := validateFlags(*flPKeyPath, *flServerURL, *flCAFingerprint, *flKeyEnciphermentSelector); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	caCertsSelector := scep.NopCertsSelector()
-	if *flCAFingerprint != "" {
+	switch {
+	case *flCAFingerprint != "":
 		hash, err := validateFingerprint(*flCAFingerprint)
 		if err != nil {
 			fmt.Printf("invalid fingerprint: %s\n", err)
 			os.Exit(1)
 		}
 		caCertsSelector = scep.FingerprintCertsSelector(fingerprintHashType, hash)
+	case *flKeyEnciphermentSelector:
+		caCertsSelector = scep.EnciphermentCertsSelector()
 	}
 
 	dir := filepath.Dir(*flPKeyPath)
@@ -341,6 +354,7 @@ func main() {
 		debug:           *flDebugLogging,
 		logfmt:          logfmt,
 		caCertMsg:       *flCACertMessage,
+		dnsName:         *flDNSName,
 	}
 
 	if err := run(cfg); err != nil {

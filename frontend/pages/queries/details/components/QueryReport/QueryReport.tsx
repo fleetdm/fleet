@@ -8,12 +8,13 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { getTableColumnsFromSql } from "utilities/helpers";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyTable from "components/EmptyTable";
 
@@ -53,11 +54,8 @@ const QueryReport = ({
 
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
-      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
-
       const newColumnConfigs = generateReportColumnConfigsFromResults(
-        flattenResults(queryReport.results),
-        tableColumns
+        flattenResults(queryReport.results)
       );
 
       // Update tableHeaders if new headers are found
@@ -102,7 +100,7 @@ const QueryReport = ({
 
     if (isClipped) {
       return (
-        <div className={`${baseClass}__count `}>
+        <>
           <TooltipWrapper
             tipContent={
               <>
@@ -115,16 +113,13 @@ const QueryReport = ({
               </>
             }
           >
-            {`${count} result${count === 1 ? "" : "s"}`}
+            {generateResultsCountText("results", count)}
           </TooltipWrapper>
-        </div>
+        </>
       );
     }
-    return (
-      <div className={`${baseClass}__count `}>
-        <span>{`${count} result${count === 1 ? "" : "s"}`}</span>
-      </div>
-    );
+
+    return <TableCount name="results" count={count} />;
   }, [filteredResults.length, isClipped]);
 
   const renderTable = () => {

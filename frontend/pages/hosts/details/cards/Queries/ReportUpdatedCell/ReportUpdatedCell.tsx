@@ -6,7 +6,9 @@ import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { Link } from "react-router";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import PATHS from "router/paths";
 
 const baseClass = "report-updated-cell";
 
@@ -16,6 +18,8 @@ interface IReportUpdatedCell {
   discard_data?: boolean;
   automations_enabled?: boolean;
   should_link_to_hqr?: boolean;
+  hostId?: number;
+  queryId?: number;
 }
 
 const ReportUpdatedCell = ({
@@ -24,6 +28,8 @@ const ReportUpdatedCell = ({
   discard_data,
   automations_enabled,
   should_link_to_hqr,
+  hostId,
+  queryId,
 }: IReportUpdatedCell) => {
   const renderCellValue = () => {
     // if this query doesn't have an interval, it either has a stored report from previous runs
@@ -34,7 +40,7 @@ const ReportUpdatedCell = ({
         // query runs, sends results to a logging dest, doesn't cache
         return (
           <TextCell
-            classes={`${baseClass}__value no-report`}
+            className={`${baseClass}__value no-report`}
             formatter={(val) => {
               const tooltipId = uniqueId();
               return (
@@ -87,8 +93,9 @@ const ReportUpdatedCell = ({
                 </ReactTooltip>
               </>
             )}
-            greyed
-            classes={`${baseClass}__value`}
+            grey
+            italic
+            className={`${baseClass}__value`}
           />
         );
       }
@@ -101,7 +108,7 @@ const ReportUpdatedCell = ({
           // last_fetched will be truthy at this point
           value={{ timeString: last_fetched ?? "" }}
           formatter={HumanTimeDiffWithFleetLaunchCutoff}
-          classes={`${baseClass}__value`}
+          className={`${baseClass}__value`}
         />
       </>
     );
@@ -110,11 +117,12 @@ const ReportUpdatedCell = ({
   return (
     <span className={baseClass}>
       {renderCellValue()}
-      {should_link_to_hqr && (
-        // actual link functionality handled by clickable parent row
-        <span
+      {should_link_to_hqr && hostId && queryId && (
+        // parent row has same onClick functionality but link here is required for keyboard accessibility
+        <Link
           className={`${baseClass}__link`}
           title="link to host query report"
+          to={PATHS.HOST_QUERY_REPORT(hostId, queryId)}
         >
           <span className={`${baseClass}__link-text`}>View report</span>
           <Icon
@@ -122,7 +130,7 @@ const ReportUpdatedCell = ({
             className={`${baseClass}__link-icon`}
             color="core-fleet-blue"
           />
-        </span>
+        </Link>
       )}
     </span>
   );

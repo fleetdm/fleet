@@ -5,6 +5,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
@@ -72,22 +74,24 @@ const Statistics = ({
             name="enableUsageStatistics"
             value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
             parseTarget
-            wrapperClassName={
-              isPremiumTier
-                ? `${baseClass}__disabled-usage-statistics-checkbox`
-                : ""
-            }
+            disabled={isPremiumTier}
           >
             Enable usage statistics
           </Checkbox>
-          <Button
-            type="submit"
-            variant="brand"
-            className="button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                disabled={disableChildren}
+                className="button-wrap"
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </div>
     </div>

@@ -115,7 +115,7 @@ const AutocompleteDropdown = ({
   return (
     <div className={wrapperClass}>
       <Async
-        noResultsText={"Nothing found"}
+        noResultsText="Nothing found"
         autoload={false}
         cache={false}
         id={id}

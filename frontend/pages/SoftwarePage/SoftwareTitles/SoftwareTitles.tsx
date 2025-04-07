@@ -21,7 +21,8 @@ import TableDataError from "components/DataError";
 import SoftwareTable from "./SoftwareTable";
 import {
   ISoftwareDropdownFilterVal,
-  getSoftwareFilterForQueryKey,
+  ISoftwareVulnFilters,
+  buildSoftwareFilterQueryParams,
 } from "./SoftwareTable/helpers";
 
 const baseClass = "software-titles";
@@ -40,9 +41,11 @@ interface ISoftwareTitlesProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
-  resetPageIndex: boolean;
+  addedSoftwareToken: string | null;
+  onAddFiltersClick: () => void;
 }
 
 const SoftwareTitles = ({
@@ -53,13 +56,15 @@ const SoftwareTitles = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
-  resetPageIndex,
+  addedSoftwareToken,
+  onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
-  // request to get software data
+  // for Titles view, request to get software data
   const {
     data: titlesData,
     isFetching: isTitlesFetching,
@@ -80,7 +85,9 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        ...getSoftwareFilterForQueryKey(softwareFilter),
+        addedSoftwareToken,
+        ...vulnFilters,
+        ...buildSoftwareFilterQueryParams(softwareFilter),
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -91,7 +98,9 @@ const SoftwareTitles = ({
     }
   );
 
-  // request to get software versions data
+  // For Versions view, request software versions data. If empty, request titles available for
+  // install to determine empty state copy
+
   const {
     data: versionsData,
     isFetching: isVersionsFetching,
@@ -112,7 +121,9 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        vulnerable: softwareFilter === "vulnerableSoftware",
+        addedSoftwareToken,
+        ...vulnFilters,
+        ...(showVersions ? { without_vulnerability_details: true } : {}),
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -123,11 +134,46 @@ const SoftwareTitles = ({
     }
   );
 
-  if (isTitlesLoading || isVersionsLoading) {
+  const {
+    data: titlesAvailableForInstallResponse,
+    isFetching: isTitlesAFIFetching,
+    isLoading: isTitlesAFILoading,
+    isError: isTitlesAFIError,
+  } = useQuery<
+    ISoftwareTitlesResponse,
+    Error,
+    ISoftwareTitlesResponse,
+    [ISoftwareTitlesQueryKey]
+  >(
+    [
+      {
+        scope: "software-titles",
+        page: 0,
+        perPage,
+        query: "",
+        orderDirection,
+        orderKey,
+        teamId,
+        availableForInstall: true,
+        ...vulnFilters,
+      },
+    ],
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
+    {
+      ...QUERY_OPTIONS,
+      enabled:
+        location.pathname === PATHS.SOFTWARE_VERSIONS &&
+        versionsData &&
+        versionsData.count === 0,
+    }
+  );
+
+  if (isTitlesLoading || isVersionsLoading || isTitlesAFILoading) {
     return <Spinner />;
   }
 
-  if (isTitlesError || isVersionsError) {
+  if (isTitlesError || isVersionsError || isTitlesAFIError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
@@ -137,6 +183,7 @@ const SoftwareTitles = ({
         router={router}
         data={showVersions ? versionsData : titlesData}
         showVersions={showVersions}
+        installableSoftwareExists={!!titlesAvailableForInstallResponse?.count}
         isSoftwareEnabled={isSoftwareEnabled}
         query={query}
         perPage={perPage}
@@ -145,8 +192,11 @@ const SoftwareTitles = ({
         softwareFilter={softwareFilter}
         currentPage={currentPage}
         teamId={teamId}
-        isLoading={isTitlesFetching || isVersionsFetching}
-        resetPageIndex={resetPageIndex}
+        isLoading={
+          isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
+        }
+        onAddFiltersClick={onAddFiltersClick}
+        vulnFilters={vulnFilters}
       />
     </div>
   );

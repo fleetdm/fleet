@@ -10,16 +10,20 @@ import (
 	"net/http/httptest"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
@@ -33,10 +37,13 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,18 +69,26 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage        nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
 		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
 		c                 clock.Clock                   = clock.C
+		scepConfigService                               = eeservice.NewSCEPConfigService(logger, nil)
+		digiCertService                                 = digicert.NewService(digicert.WithLogger(logger))
 
-		is                   fleet.InstallerStore
-		mdmStorage           fleet.MDMAppleStore
-		mdmPusher            nanomdm_push.Pusher
-		ssoStore             sso.SessionStore
-		profMatcher          fleet.ProfileMatcher
-		softwareInstallStore fleet.SoftwareInstallerStore
+		mdmStorage            fleet.MDMAppleStore
+		mdmPusher             nanomdm_push.Pusher
+		ssoStore              sso.SessionStore
+		profMatcher           fleet.ProfileMatcher
+		softwareInstallStore  fleet.SoftwareInstallerStore
+		bootstrapPackageStore fleet.MDMBootstrapPackageStore
+		distributedLock       fleet.Lock
+		keyValueStore         fleet.KeyValueStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
 			c = opts[0].Clock
 		}
+	}
+
+	if len(opts) > 0 && opts[0].KeyValueStore != nil {
+		keyValueStore = opts[0].KeyValueStore
 	}
 
 	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
@@ -95,6 +110,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
+			distributedLock = redis_lock.NewLock(opts[0].Pool)
+			keyValueStore = redis_key_value.New(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -112,9 +129,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareInstallStore != nil {
 			softwareInstallStore = opts[0].SoftwareInstallStore
 		}
+		if opts[0].BootstrapPackageStore != nil {
+			bootstrapPackageStore = opts[0].BootstrapPackageStore
+		}
 
-		// allow to explicitly set installer store to nil
-		is = opts[0].Is
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
 		if opts[0].DEPStorage != nil {
@@ -128,11 +146,24 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 	cronSchedulesService := fleet.NewCronSchedules()
 
-	if len(opts) > 0 && opts[0].StartCronSchedules != nil {
-		for _, fn := range opts[0].StartCronSchedules {
-			err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
-			require.NoError(t, err)
+	var eh *errorstore.Handler
+	if len(opts) > 0 {
+		if opts[0].Pool != nil {
+			eh = errorstore.NewHandler(ctx, opts[0].Pool, logger, time.Minute*10)
+			ctx = ctxerr.NewContext(ctx, eh)
 		}
+		if opts[0].StartCronSchedules != nil {
+			for _, fn := range opts[0].StartCronSchedules {
+				err = cronSchedulesService.StartCronSchedule(fn(ctx, ds))
+				require.NoError(t, err)
+			}
+		}
+	}
+	if len(opts) > 0 && opts[0].SCEPConfigService != nil {
+		scepConfigService = opts[0].SCEPConfigService
+	}
+	if len(opts) > 0 && opts[0].DigiCertService != nil {
+		digiCertService = opts[0].DigiCertService
 	}
 
 	var wstepManager microsoft_mdm.CertManager
@@ -159,7 +190,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		ssoStore,
 		lq,
 		ds,
-		is,
 		failingPolicySet,
 		&fleet.NoOpGeoIP{},
 		enrollHostLimiter,
@@ -168,6 +198,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		cronSchedulesService,
 		wstepManager,
+		scepConfigService,
+		digiCertService,
 	)
 	if err != nil {
 		panic(err)
@@ -185,7 +217,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
-			kitlog.NewNopLogger(),
+			logger,
 			fleetConfig,
 			mailer,
 			c,
@@ -194,6 +226,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ssoStore,
 			profMatcher,
 			softwareInstallStore,
+			bootstrapPackageStore,
+			distributedLock,
+			keyValueStore,
 		)
 		if err != nil {
 			panic(err)
@@ -220,15 +255,11 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	userID := uint(1)
 	for _, key := range keys {
 		u := testUsers[key]
-		role := fleet.RoleObserver
-		if strings.Contains(u.Email, "admin") {
-			role = fleet.RoleAdmin
-		}
 		user := &fleet.User{
 			ID:         userID, // We need to set this in case ds is a mocked Datastore.
 			Name:       "Test Name " + u.Email,
 			Email:      u.Email,
-			GlobalRole: &role,
+			GlobalRole: u.GlobalRole,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
 		require.Nil(t, err)
@@ -240,6 +271,12 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	return users
 }
 
+const (
+	TestAdminUserEmail      = "admin1@example.com"
+	TestMaintainerUserEmail = "user1@example.com"
+	TestObserverUserEmail   = "user2@example.com"
+)
+
 var testUsers = map[string]struct {
 	Email             string
 	PlaintextPassword string
@@ -247,17 +284,17 @@ var testUsers = map[string]struct {
 }{
 	"admin1": {
 		PlaintextPassword: test.GoodPassword,
-		Email:             "admin1@example.com",
+		Email:             TestAdminUserEmail,
 		GlobalRole:        ptr.String(fleet.RoleAdmin),
 	},
 	"user1": {
 		PlaintextPassword: test.GoodPassword,
-		Email:             "user1@example.com",
+		Email:             TestMaintainerUserEmail,
 		GlobalRole:        ptr.String(fleet.RoleMaintainer),
 	},
 	"user2": {
 		PlaintextPassword: test.GoodPassword,
-		Email:             "user2@example.com",
+		Email:             TestObserverUserEmail,
 		GlobalRole:        ptr.String(fleet.RoleObserver),
 	},
 }
@@ -280,52 +317,67 @@ func (svc *mockMailService) SendEmail(e fleet.Email) error {
 	return svc.SendEmailFn(e)
 }
 
+func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return smtpSettings.SMTPConfigured
+}
+
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
-	Logger               kitlog.Logger
-	License              *fleet.LicenseInfo
-	SkipCreateTestUsers  bool
-	Rs                   fleet.QueryResultStore
-	Lq                   fleet.LiveQueryStore
-	Pool                 fleet.RedisPool
-	FailingPolicySet     fleet.FailingPolicySet
-	Clock                clock.Clock
-	Task                 *async.Task
-	EnrollHostLimiter    fleet.EnrollHostLimiter
-	Is                   fleet.InstallerStore
-	FleetConfig          *config.FleetConfig
-	MDMStorage           fleet.MDMAppleStore
-	DEPStorage           nanodep_storage.AllDEPStorage
-	SCEPStorage          scep_depot.Depot
-	MDMPusher            nanomdm_push.Pusher
-	HTTPServerConfig     *http.Server
-	StartCronSchedules   []TestNewScheduleFunc
-	UseMailService       bool
-	APNSTopic            string
-	ProfileMatcher       fleet.ProfileMatcher
-	EnableCachedDS       bool
-	NoCacheDatastore     bool
-	SoftwareInstallStore fleet.SoftwareInstallerStore
+	Logger                kitlog.Logger
+	License               *fleet.LicenseInfo
+	SkipCreateTestUsers   bool
+	Rs                    fleet.QueryResultStore
+	Lq                    fleet.LiveQueryStore
+	Pool                  fleet.RedisPool
+	FailingPolicySet      fleet.FailingPolicySet
+	Clock                 clock.Clock
+	Task                  *async.Task
+	EnrollHostLimiter     fleet.EnrollHostLimiter
+	Is                    fleet.InstallerStore
+	FleetConfig           *config.FleetConfig
+	MDMStorage            fleet.MDMAppleStore
+	DEPStorage            nanodep_storage.AllDEPStorage
+	SCEPStorage           scep_depot.Depot
+	MDMPusher             nanomdm_push.Pusher
+	HTTPServerConfig      *http.Server
+	StartCronSchedules    []TestNewScheduleFunc
+	UseMailService        bool
+	APNSTopic             string
+	ProfileMatcher        fleet.ProfileMatcher
+	EnableCachedDS        bool
+	NoCacheDatastore      bool
+	SoftwareInstallStore  fleet.SoftwareInstallerStore
+	BootstrapPackageStore fleet.MDMBootstrapPackageStore
+	KeyValueStore         fleet.KeyValueStore
+	EnableSCEPProxy       bool
+	WithDEPWebview        bool
+	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
+	SCEPConfigService     fleet.SCEPConfigService
+	DigiCertService       fleet.DigiCertService
+	EnableSCIM            bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	if len(opts) > 0 && opts[0].EnableCachedDS {
 		ds = cached_mysql.New(ds)
 	}
-	var rs fleet.QueryResultStore
-	if len(opts) > 0 && opts[0].Rs != nil {
-		rs = opts[0].Rs
-	}
-	var lq fleet.LiveQueryStore
-	if len(opts) > 0 && opts[0].Lq != nil {
-		lq = opts[0].Lq
-	}
 	cfg := config.TestConfig()
 	if len(opts) > 0 && opts[0].FleetConfig != nil {
 		cfg = *opts[0].FleetConfig
 	}
-	svc, ctx := newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
+	svc, ctx := NewTestService(t, ds, cfg, opts...)
+	return RunServerForTestsWithServiceWithDS(t, ctx, ds, svc, opts...)
+}
+
+func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fleet.Datastore, svc fleet.Service,
+	opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	var cfg config.FleetConfig
+	if len(opts) > 0 && opts[0].FleetConfig != nil {
+		cfg = *opts[0].FleetConfig
+	} else {
+		cfg = config.TestConfig()
+	}
 	users := map[string]fleet.User{}
 	if len(opts) == 0 || (len(opts) > 0 && !opts[0].SkipCreateTestUsers) {
 		users = createTestUsers(t, ds)
@@ -357,18 +409,61 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 					ds:     ds,
 					logger: logger,
 				},
+				commander,
+			)
+			require.NoError(t, err)
+		}
+		if opts[0].EnableSCEPProxy {
+			var timeout *time.Duration
+			if opts[0].SCEPConfigService != nil {
+				scepConfig, ok := opts[0].SCEPConfigService.(*eeservice.SCEPConfigService)
+				if ok {
+					// In tests, we share the same Timeout pointer between SCEPConfigService and SCEPProxy
+					timeout = scepConfig.Timeout
+				}
+			}
+			err := RegisterSCEPProxy(
+				rootMux,
+				ds,
+				logger,
+				timeout,
 			)
 			require.NoError(t, err)
 		}
 	}
 
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, WithLoginRateLimit(throttled.PerMin(1000)))
+	if len(opts) > 0 && opts[0].WithDEPWebview {
+		frontendHandler := WithMDMEnrollmentMiddleware(svc, logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// do nothing and return 200
+			w.WriteHeader(http.StatusOK)
+		}))
+		rootMux.Handle("/", frontendHandler)
+	}
+
+	var featureRoutes []endpoint_utils.HandlerRoutesFunc
+	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
+		featureRoutes = opts[0].FeatureRoutes
+	}
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, WithLoginRateLimit(throttled.PerMin(1000)))
 	rootMux.Handle("/api/", apiHandler)
-	debugHandler := MakeDebugHandler(svc, cfg, logger, nil, ds)
+	var errHandler *errorstore.Handler
+	ctxErrHandler := ctxerr.FromContext(ctx)
+	if ctxErrHandler != nil {
+		errHandler = ctxErrHandler.(*errorstore.Handler)
+	}
+	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
+
+	if len(opts) > 0 && opts[0].EnableSCIM {
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger))
+	}
 
 	server := httptest.NewUnstartedServer(rootMux)
 	server.Config = cfg.Server.DefaultHTTPServer(ctx, rootMux)
+	// WriteTimeout is set for security purposes.
+	// If we don't set it, (bugy or malignant) clients making long running
+	// requests could DDOS Fleet.
+	require.NotZero(t, server.Config.WriteTimeout)
 	if len(opts) > 0 && opts[0].HTTPServerConfig != nil {
 		server.Config = opts[0].HTTPServerConfig
 		// make sure we use the application handler we just created
@@ -379,6 +474,18 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 		server.Close()
 	})
 	return users, server
+}
+
+func NewTestService(t *testing.T, ds fleet.Datastore, cfg config.FleetConfig, opts ...*TestServerOpts) (fleet.Service, context.Context) {
+	var rs fleet.QueryResultStore
+	if len(opts) > 0 && opts[0].Rs != nil {
+		rs = opts[0].Rs
+	}
+	var lq fleet.LiveQueryStore
+	if len(opts) > 0 && opts[0].Lq != nil {
+		lq = opts[0].Lq
+	}
+	return newTestServiceWithConfig(t, ds, cfg, rs, lq, opts...)
 }
 
 func testSESPluginConfig() config.FleetConfig {
@@ -524,9 +631,7 @@ func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, e
 	defer m.mMu.RUnlock()
 
 	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	for i := range m.m[policyID] {
-		hosts[i] = m.m[policyID][i]
-	}
+	copy(hosts, m.m[policyID])
 	return hosts, nil
 }
 
@@ -595,7 +700,7 @@ func newMockAPNSPushProviderFactory() (*mock.APNSPushProviderFactory, *mock.APNS
 	return factory, provider
 }
 
-func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
+func mockSuccessfulPush(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 	res := make(map[string]*push.Response, len(pushes))
 	for _, p := range pushes {
 		res[p.Token.String()] = &push.Response{
@@ -622,23 +727,17 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/dep/devices", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/profiles/summary", false, false},
-		{"GET", "/api/latest/fleet/mdm/profiles/summary", false, false},
-		{"GET", "/api/latest/fleet/configuration_profiles/summary", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/hosts/1/unenroll", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
-		{"GET", "/api/latest/fleet/mdm/hosts/1/encryption_key", false, false},
-		{"GET", "/api/latest/fleet/hosts/1/encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/hosts/1/profiles", false, true},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/lock", false, false},
 		{"POST", "/api/latest/fleet/mdm/hosts/1/wipe", false, false},
 		{"PATCH", "/api/latest/fleet/mdm/apple/settings", false, false},
-		{"POST", "/api/latest/fleet/disk_encryption", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple", false, false},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
@@ -668,8 +767,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"GET", "/api/latest/fleet/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
-		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
-		{"GET", "/api/latest/fleet/disk_encryption", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles/1", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
@@ -678,12 +775,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a
 		// better way to test these endpoints.
-		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
-		//{"POST", "/api/latest/fleet/configuration_profiles", false, false},
-		//{"POST", "/api/latest/fleet/mdm/setup/eula"},
-		//{"POST", "/api/latest/fleet/setup_experience/eula"},
-		//{"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
-		//{"POST", "/api/latest/fleet/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		// {"POST", "/api/latest/fleet/configuration_profiles", false, false},
+		// {"POST", "/api/latest/fleet/mdm/setup/eula"},
+		// {"POST", "/api/latest/fleet/setup_experience/eula"},
+		// {"POST", "/api/latest/fleet/mdm/bootstrap", false, true},
+		// {"POST", "/api/latest/fleet/bootstrap", false, true},
 		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 		{"GET", "/api/latest/fleet/configuration_profiles", false, false},
 		{"GET", "/api/latest/fleet/mdm/manual_enrollment_profile", false, true},
@@ -699,6 +796,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/bootstrap/summary", false, true},
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
+		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
 	}
 }
 

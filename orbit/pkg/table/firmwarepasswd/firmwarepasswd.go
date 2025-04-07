@@ -14,17 +14,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 type Table struct {
-	logger log.Logger
+	logger zerolog.Logger
 	parser *OutputParser
 }
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := []table.ColumnDefinition{
 		table.IntegerColumn("option_roms_allowed"),
 		table.IntegerColumn("password_enabled"),
@@ -36,28 +35,28 @@ func TablePlugin(logger log.Logger) *table.Plugin {
 	return table.NewPlugin("firmwarepasswd", columns, t.generate)
 }
 
-func New(logger log.Logger) *Table {
+func New(logger zerolog.Logger) *Table {
 	parser := NewParser(logger,
 		[]Matcher{
 			{
 				Match:   func(in string) bool { return strings.HasPrefix(in, "Password Enabled: ") },
 				KeyFunc: func(_ string) (string, error) { return "password_enabled", nil },
-				ValFunc: func(in string) (string, error) { return passwordValue(in) },
+				ValFunc: passwordValue,
 			},
 			{
 				Match:   func(in string) bool { return strings.HasPrefix(in, "Mode: ") },
 				KeyFunc: func(_ string) (string, error) { return "mode", nil },
-				ValFunc: func(in string) (string, error) { return modeValue(in) },
+				ValFunc: modeValue,
 			},
 			{
 				Match:   func(in string) bool { return strings.HasPrefix(in, "Option roms ") },
 				KeyFunc: func(_ string) (string, error) { return "option_roms_allowed", nil },
-				ValFunc: func(in string) (string, error) { return optionRomValue(in) },
+				ValFunc: optionRomValue,
 			},
 		})
 
 	return &Table{
-		logger: level.NewFilter(logger, level.AllowInfo()),
+		logger: logger.With().Str("table", "firmwarepasswd").Logger(),
 		parser: parser,
 	}
 }
@@ -68,11 +67,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	for _, mode := range []string{"-check", "-mode"} {
 		output := new(bytes.Buffer)
 		if err := t.runFirmwarepasswd(ctx, mode, output); err != nil {
-			level.Info(t.logger).Log(
-				"msg", "Error running firmware password",
-				"command", mode,
-				"err", err,
-			)
+			t.logger.Info().Err(err).Str("command", mode).Msg("Error running firmware password")
 			continue
 		}
 
@@ -110,12 +105,12 @@ func (t *Table) runFirmwarepasswd(ctx context.Context, subcommand string, output
 	cmd.Stdout = output
 
 	if err := cmd.Run(); err != nil {
-		level.Debug(t.logger).Log(
-			"msg", "Error running firmwarepasswd",
-			"stderr", strings.TrimSpace(stderr.String()),
-			"stdout", strings.TrimSpace(output.String()),
-			"err", err,
-		)
+
+		t.logger.Debug().
+			Err(err).
+			Str("stderr", strings.TrimSpace(stderr.String())).
+			Str("stdout", strings.TrimSpace(output.String())).
+			Msg("Error running firmwarepasswd")
 		return fmt.Errorf("running firmwarepasswd: %w", err)
 	}
 	return nil

@@ -17,7 +17,13 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
+    render(
+      <ActivityFeed
+        setShowActivityFeedTitle={noop}
+        setRefetchActivities={noop}
+        isPremiumTier
+      />
+    );
 
     // waiting for the activity data to render
     await screen.findByText("Test User");
@@ -27,17 +33,24 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Test User 3")).toBeInTheDocument();
   });
 
-  it("disables next pagination when there are no more activities", async () => {
+  it("hides pagination when there are only one page of activities", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
+    render(
+      <ActivityFeed
+        setShowActivityFeedTitle={noop}
+        setRefetchActivities={noop}
+        isPremiumTier
+      />
+    );
 
     // waiting for the activity data to render
     await screen.findByText("Test User");
 
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.queryByText(/previous/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/next/i)).not.toBeInTheDocument();
   });
 
   it("enables next pagination when there are more activities", async () => {
@@ -47,25 +60,18 @@ describe("Activity Feed", () => {
       withBackendMock: true,
     });
 
-    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
+    render(
+      <ActivityFeed
+        setShowActivityFeedTitle={noop}
+        setRefetchActivities={noop}
+        isPremiumTier
+      />
+    );
 
-    // waiting for the activity data to render
-    await screen.findAllByText("Test User");
+    // waiting for the activity data to render and pagination to be present
+    await screen.findByRole("button", { name: "Next" });
 
     expect(screen.getByRole("button", { name: "Next" })).toBeEnabled();
-  });
-
-  it("disables previous pagination when there are not previous activities", async () => {
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    render(<ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />);
-
-    // waiting for the activity data to render
-    await screen.findAllByText("Test User");
-
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
   });
 
   it("enables previous pagination when there are more previous activities", async () => {
@@ -76,7 +82,11 @@ describe("Activity Feed", () => {
     });
 
     const { user } = render(
-      <ActivityFeed setShowActivityFeedTitle={noop} isPremiumTier />
+      <ActivityFeed
+        setShowActivityFeedTitle={noop}
+        setRefetchActivities={noop}
+        isPremiumTier
+      />
     );
 
     // waiting for the activity data to render

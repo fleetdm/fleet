@@ -3,12 +3,12 @@
 .platform-wrapper {
   padding: 0; // different to pad sticky subnav properly
 
-  .component__tabs-wrapper {
+  .tab-nav {
     // negate problematic sticky positioning
     position: initial;
     .react-tabs {
       &__tab-list {
-        margin: 0 0 1.25rem;
+        margin: 0 0 $pad-large;
       }
     }
   }
@@ -26,8 +26,7 @@
       min-height: 88px;
     }
 
-    &__textarea,
-    &--disabled {
+    &__textarea {
       font-family: "SourceCodePro", $monospace;
       font-weight: $bold;
       font-size: 13px;
@@ -107,8 +106,13 @@
   &__chromeos-policy-for-extension {
     height: 230px;
 
-    .input-field--disabled {
-      height: 190px;
+    .input-field {
+      &__textarea {
+        height: 190px;
+      }
+      &--disabled {
+        height: 190px;
+      }
     }
   }
 

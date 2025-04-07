@@ -59,7 +59,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
-          go-version: ${{ vars.GO_VERSION }}
+          go-version-file: 'go.mod'
 
       - name: Build, codesign and notarize orbit
         run: go run ./orbit/tools/build/build.go 
@@ -73,7 +73,7 @@ jobs:
           ORBIT_COMMIT: ${{ github.sha }}
 
       - name: Upload orbit
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: orbit
           path: |

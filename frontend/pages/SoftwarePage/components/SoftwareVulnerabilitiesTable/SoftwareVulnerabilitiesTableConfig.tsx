@@ -2,7 +2,7 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 
 import { formatSeverity } from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { ISoftwareVulnerability } from "interfaces/software";
 
 import paths from "router/paths";
@@ -10,7 +10,6 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
@@ -49,7 +48,6 @@ interface IDataColumn {
 
 const generateTableConfig = (
   isPremiumTier: boolean,
-  isSandboxMode: boolean,
   router: InjectedRouter,
   teamId?: number
 ): IDataColumn[] => {
@@ -61,27 +59,14 @@ const generateTableConfig = (
       Header: "Vulnerability",
       Cell: ({ cell: { value } }: ITextCellProps) => {
         const cveName = value.toString();
-        const teamQueryParam = buildQueryStringFromParams({
-          team_id: teamId,
-        });
 
-        const softwareVulnerabilityDetailsPath = `${paths.SOFTWARE_VULNERABILITY_DETAILS(
-          cveName
-        )}?${teamQueryParam}`;
-
-        const onClickCVE = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareVulnerabilityDetailsPath);
-        };
+        const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
+          paths.SOFTWARE_VULNERABILITY_DETAILS(cveName),
+          { team_id: teamId }
+        );
 
         return (
-          <LinkCell
-            value={cveName}
-            path={softwareVulnerabilityDetailsPath}
-            customOnClick={onClickCVE}
-          />
+          <LinkCell value={cveName} path={softwareVulnerabilityDetailsPath} />
         );
       },
     },
@@ -94,8 +79,8 @@ const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                The worst case impact across different environments (CVSS base
-                score).
+                The worst case impact across different environments (CVSS
+                version 3.x base score).
               </>
             }
           >
@@ -108,7 +93,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -131,6 +115,7 @@ const generateTableConfig = (
                 This data is reported by FIRST.org.
               </>
             }
+            fixedPositionStrategy
           >
             Probability of exploit
           </TooltipWrapper>
@@ -141,7 +126,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -175,7 +159,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -209,7 +192,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -252,7 +234,8 @@ const generateTableConfig = (
     return tableHeaders.filter(
       (header) =>
         header.accessor !== "epss_probability" &&
-        header.accessor !== "cve_published"
+        header.accessor !== "cve_published" &&
+        header.accessor !== "cvss_score"
     );
   }
 

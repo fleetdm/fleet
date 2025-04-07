@@ -1,0 +1,61 @@
+<div id="account-overview" v-cloak>
+  <div class="container pt-5 pb-5">
+    <h1>My account</h1>
+    <hr/>
+    <div class="row mb-3">
+      <div class="col-sm-6">
+        <h4>Personal information</h4>
+      </div>
+      <div class="col-sm-6">
+        <span class="float-sm-right">
+          <a style="width: 150px" class="btn btn-sm btn-outline-info" href="/account/profile">Edit profile</a>
+        </span>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-3">Name:</div>
+      <div class="col"><strong>{{me.fullName}}</strong></div>
+    </div>
+    <div class="row">
+      <div class="col-3">Email:</div>
+      <div class="col">
+        <strong :class="[me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested' ? 'text-muted' : '']">{{me.emailChangeCandidate ? me.emailChangeCandidate : me.emailAddress}}</strong>
+        <span v-if="me.emailStatus === 'unconfirmed' || me.emailStatus === 'change-requested'" class="badge badge-pill badge-warning">Unverified</span>
+      </div>
+    </div>
+    <hr/ v-if="!replaceBuiltInAuthWithEntra">
+    <div class="row mb-3" v-if="!replaceBuiltInAuthWithEntra">
+      <div class="col-sm-6">
+        <h4>Password</h4>
+      </div>
+      <div class="col-sm-6">
+        <span class="float-sm-right">
+          <a style="width: 150px" class="btn btn-sm btn-outline-info" :disabled="replaceBuiltInAuthWithEntra" href="/account/password">Change password</a>
+        </span>
+      </div>
+    </div>
+    <div class="row" v-if="!replaceBuiltInAuthWithEntra">
+      <div class="col-3">Password:</div>
+      <div class="col"><strong>••••••••••</strong></div>
+    </div>
+    <hr/>
+    <div class="row mb-3" v-if="isBillingEnabled">
+      <div class="col-sm-6">
+        <h4>Billing</h4>
+      </div>
+      <div class="col-sm-6">
+        <span class="float-sm-right">
+          <button style="width: 150px;" class="btn btn-sm btn-outline-info" @click="clickUpdateBillingCardButton()">{{ me.hasBillingCard ? 'Change card' : '+ Add card' }}</button>
+        </span>
+      </div>
+    </div>
+    <div class="alert alert-danger" v-else-if="isBillingEnabled && cloudError">
+      There was an error updating your credit card information. Please check your information and try again, or <a href="/contact">contact support</a> if the error persists.
+    </div>
+    <div class="alert alert-secondary" v-else-if="isBillingEnabled">
+      You have not linked a payment source to your account. In order to access paid features, you'll need to provide your credit card information. (Don't worry: you will only be charged when you've reached the limit of your free plan.)
+    </div>
+  </div>
+
+</div>
+<%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

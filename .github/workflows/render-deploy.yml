@@ -1,0 +1,48 @@
+name: Render deploy
+
+# Re-deploy Fleet servers on Render to update to the latest Fleet release.
+#
+# Render (https://render.com/) is hosting 2 Fleet servers that are used by our gitops repos:
+# - https://github.com/fleetdm/fleet-gitops
+# - https://gitlab.com/fleetdm/fleet-gitops
+#
+# The premium server (fleet-gitops-ci-premium) is used by GitHub CI and the free server (fleet-gitops-ci-free) is used by GitLab CI.
+# Both servers share a MySQL service (fleet-gitops-ci-mysql).
+# - fleet-gitops-ci-premium uses fleet database
+# - fleet-gitops-ci-free uses fleet_free database
+#
+# Both servers share a Redis service (fleet-gitops-ci-redis).
+# - fleet-gitops-ci-premium uses database 0 (the default)
+# - fleet-gitops-ci-free uses database 1
+
+on:
+  workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 2 * * *' # Nightly 2AM UTC
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  render-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Trigger deploy
+        run: |
+          curl "${{ secrets.RENDER_GITOPS_FREE_DEPLOY_HOOK }}"
+          curl "${{ secrets.RENDER_GITOPS_PREMIUM_DEPLOY_HOOK }}"

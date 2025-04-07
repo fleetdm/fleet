@@ -65,7 +65,7 @@ const SecretField = ({ secret }: ISecretFieldProps): JSX.Element | null => {
   return (
     <div className={`${baseClass}__secret`} key={secret}>
       <InputField
-        disabled
+        readOnly
         inputWrapperClass={`${baseClass}__secret-input`}
         name="secret-field"
         type={showSecret ? "text" : "password"}

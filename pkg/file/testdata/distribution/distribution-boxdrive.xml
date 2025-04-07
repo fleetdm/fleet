@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Box</title>
+    <options rootVolumeOnly="true" hostArchitectures="x86_64,arm64"/>
+    <product id="com.box.desktop.installer.package" version="2.38.173"/>
+    <pkg-ref id="com.box.desktop.installer.desktop">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="2.38.173" CFBundleVersion="2.38.173" id="com.box.desktop" path="Box.app"/>
+            <bundle CFBundleShortVersionString="3.11.7, (c) 2001-2023 Python Software Foundation." CFBundleVersion="3.11.7" id="org.python.python" path="Box.app/Contents/Frameworks/Python.framework"/>
+            <bundle CFBundleShortVersionString="2.38.173" CFBundleVersion="2.38.173" id="com.box.desktop.ui" path="Box.app/Contents/Resources/Box UI.app"/>
+            <bundle CFBundleShortVersionString="2.38.173" CFBundleVersion="2.38.173" id="com.box.desktop.boxfileprovider" path="Box.app/Contents/PlugIns/boxfileprovider.appex"/>
+            <bundle CFBundleShortVersionString="2.38.173" CFBundleVersion="2.38.173" id="com.box.desktop.findersyncext" path="Box.app/Contents/PlugIns/FinderSyncExt.appex"/>
+            <bundle CFBundleShortVersionString="0.12.0" CFBundleVersion="1" id="com.box.thrift" path="Box.app/Contents/Resources/Box UI.app/Contents/Frameworks/thrift.framework"/>
+            <bundle CFBundleShortVersionString="1.0" CFBundleVersion="1" id="com.box.BoxLoggerFramework" path="Box.app/Contents/Resources/Box UI.app/Contents/Frameworks/BoxLogger.framework"/>
+        </bundle-version>
+    </pkg-ref>
+    <pkg-ref id="com.box.desktop.installer.scripts">
+        <bundle-version/>
+    </pkg-ref>
+    <pkg-ref id="com.box.desktop.installer.local.appsupport">
+        <bundle-version/>
+    </pkg-ref>
+    <pkg-ref id="com.box.desktop.installer.autoupdater">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="1.0" CFBundleVersion="1" id="com.box.BoxLoggerFramework" path="Box Autoupdater.app/Contents/Frameworks/BoxLogger.framework"/>
+            <bundle CFBundleShortVersionString="2.38.173" CFBundleVersion="2.38.173" id="com.box.desktop.helper" path="Box Helper.app"/>
+            <bundle CFBundleShortVersionString="2.38.173" CFBundleVersion="2.38.173" id="com.box.desktop.autoupdater" path="Box Autoupdater.app"/>
+        </bundle-version>
+    </pkg-ref>
+    <allowed-os-versions>
+        <os-version min="10.11"/>
+    </allowed-os-versions>
+    <background file="boxDriveInstallerBackground.tiff" uti="public.tiff" alignment="bottomleft"/>
+    <background-darkAqua file="boxDriveInstallerDarkBackground.tiff" uti="public.tiff" alignment="bottomleft"/>
+    <options customize="never" require-scripts="false"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.box.desktop.installer.desktop"/>
+            <line choice="com.box.desktop.installer.scripts"/>
+            <line choice="com.box.desktop.installer.local.appsupport"/>
+            <line choice="com.box.desktop.installer.autoupdater"/>
+            <line choice="com.box.desktop.installer.osxfuse"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.box.desktop.installer.desktop" visible="false">
+        <pkg-ref id="com.box.desktop.installer.desktop"/>
+    </choice>
+    <pkg-ref id="com.box.desktop.installer.desktop" version="2.38.173" installKBytes="148804">#BoxDesktopDrive.pkg</pkg-ref>
+    <choice id="com.box.desktop.installer.scripts" visible="false">
+        <pkg-ref id="com.box.desktop.installer.scripts"/>
+    </choice>
+    <pkg-ref id="com.box.desktop.installer.scripts" version="2.38.173" installKBytes="0">#BoxDesktopScripts.pkg</pkg-ref>
+    <choice id="com.box.desktop.installer.local.appsupport" visible="false">
+        <pkg-ref id="com.box.desktop.installer.local.appsupport"/>
+    </choice>
+    <pkg-ref id="com.box.desktop.installer.local.appsupport" version="2.38.173" installKBytes="162">#BoxDesktopLocalAppSupport.pkg</pkg-ref>
+    <choice id="com.box.desktop.installer.autoupdater" visible="false">
+        <pkg-ref id="com.box.desktop.installer.autoupdater"/>
+    </choice>
+    <pkg-ref id="com.box.desktop.installer.autoupdater" version="2.38.173" installKBytes="31275">#BoxDesktopAutoupdater.pkg</pkg-ref>
+    <choice id="com.box.desktop.installer.osxfuse" visible="false">
+        <pkg-ref id="com.box.desktop.installer.osxfuse"/>
+    </choice>
+    <pkg-ref id="com.box.desktop.installer.osxfuse" version="2.38.173" active="enableFuse()" installKBytes="2096">#BoxDesktopOSXFuse.pkg</pkg-ref>
+    <script><![CDATA[
+
+    function enableFuse() {
+        return !isFpeEnabled()
+    }
+
+    function fpeRequiredVersion() {
+        FPE_REQUIRED_VERSION = '12.0'; // If changed, update equivalent in Context.swift (in Installer project)
+        return FPE_REQUIRED_VERSION;
+    }
+
+    function isFpeEnabled() {
+        return isSystemVersionEqualToOrGreaterThan(fpeRequiredVersion());
+    }
+
+    function isSystemVersionEqualToOrGreaterThan(version) {
+        return system.compareVersions(system.version.ProductVersion, version) >= 0;
+    }
+
+    ]]></script>
+    <pkg-ref id="com.box.desktop.installer.osxfuse">
+        <bundle-version>
+            <bundle CFBundleVersion="403.11.2" id="com.box.filesystems.osxfuse" path="Contents/Extensions/10.11/osxfuse.kext"/>
+        </bundle-version>
+    </pkg-ref>
+</installer-gui-script>

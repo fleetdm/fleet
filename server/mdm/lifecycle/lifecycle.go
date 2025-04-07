@@ -32,13 +32,14 @@ const (
 // Not all options are required for all actions, each individual action should
 // validate that it receives the required information.
 type HostOptions struct {
-	Action          HostAction
-	Platform        string
-	UUID            string
-	HardwareSerial  string
-	HardwareModel   string
-	EnrollReference string
-	Host            *fleet.Host
+	Action                  HostAction
+	Platform                string
+	UUID                    string
+	HardwareSerial          string
+	HardwareModel           string
+	EnrollReference         string
+	Host                    *fleet.Host
+	HasSetupExperienceItems bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -148,6 +149,20 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 		!nanoEnroll.Enabled ||
 		nanoEnroll.Type != "Device" ||
 		nanoEnroll.TokenUpdateTally != 1 {
+		// something unexpected, so we skip the turn on
+		// and log the details for debugging
+		keyvals := []interface{}{"debug", "skipping turn on darwin", "host_uuid", opts.UUID}
+		if nanoEnroll == nil {
+			keyvals = append(keyvals, "nano_enroll", "nil")
+		} else {
+			keyvals = append(keyvals,
+				"enabled", nanoEnroll.Enabled,
+				"type", nanoEnroll.Type,
+				"token_update_tally", nanoEnroll.TokenUpdateTally,
+			)
+		}
+		t.logger.Log(keyvals...)
+
 		return nil
 	}
 
@@ -174,12 +189,14 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			!opts.HasSetupExperienceItems,
 		)
 		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}
 
 	// manual MDM enrollments
 	if !info.InstalledFromDEP {
+		t.logger.Log("info", "queueing post-enroll task for manual enrolled device", "host_uuid", opts.UUID)
 		if err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
@@ -189,6 +206,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			false,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")
 		}
@@ -224,7 +242,7 @@ func (t *HostLifecycle) deleteDarwin(ctx context.Context, opts HostOptions) erro
 	}
 
 	if dep != nil && dep.DeletedAt == nil {
-		return t.restorePendingDEPHost(ctx, opts.Host, ac)
+		return t.restorePendingDEPHost(ctx, opts.Host, dep.ABMTokenID)
 	}
 
 	// no DEP assignment was found or the DEP assignment was deleted in ABM
@@ -232,8 +250,12 @@ func (t *HostLifecycle) deleteDarwin(ctx context.Context, opts HostOptions) erro
 	return nil
 }
 
-func (t *HostLifecycle) restorePendingDEPHost(ctx context.Context, host *fleet.Host, appCfg *fleet.AppConfig) error {
-	tmID, err := t.getConfigAppleBMDefaultTeamID(ctx, appCfg)
+func (t *HostLifecycle) restorePendingDEPHost(ctx context.Context, host *fleet.Host, abmTokenID *uint) error {
+	if abmTokenID == nil {
+		return ctxerr.New(ctx, "cannot restore pending dep host without valid ABM token id")
+	}
+
+	tmID, err := t.getDefaultTeamForABMToken(ctx, host, *abmTokenID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "restore pending dep host")
 	}
@@ -251,25 +273,43 @@ func (t *HostLifecycle) restorePendingDEPHost(ctx context.Context, host *fleet.H
 	return nil
 }
 
-func (t *HostLifecycle) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *fleet.AppConfig) (*uint, error) {
-	var tmID *uint
-	if name := appCfg.MDM.AppleBMDefaultTeam; name != "" {
-		team, err := t.ds.TeamByName(ctx, name)
-		switch {
-		case fleet.IsNotFound(err):
-			level.Debug(t.logger).Log(
-				"msg",
-				"unable to find default team assigned in config, mdm devices won't be assigned to a team",
-				"team_name",
-				name,
-			)
-			return nil, nil
-		case err != nil:
-			return nil, ctxerr.Wrap(ctx, err, "get default team for mdm devices")
-		case team != nil:
-			tmID = &team.ID
-		}
+func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fleet.Host, abmTokenID uint) (*uint, error) {
+	var abmDefaultTeamID *uint
+	tok, err := t.ds.GetABMTokenByID(ctx, abmTokenID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting ABM token by id")
 	}
 
-	return tmID, nil
+	switch host.FleetPlatform() {
+	case "darwin":
+		abmDefaultTeamID = tok.MacOSDefaultTeamID
+	case "ios":
+		abmDefaultTeamID = tok.IOSDefaultTeamID
+	case "ipados":
+		abmDefaultTeamID = tok.IPadOSDefaultTeamID
+	default:
+		return nil, ctxerr.NewWithData(ctx, "attempting to get default ABM team for host with invalid platform", map[string]any{"host_platform": host.FleetPlatform(), "host_id": host.ID})
+	}
+
+	if abmDefaultTeamID == nil {
+		// The default team is "No team", so we can return nil
+		return nil, nil
+	}
+
+	exists, err := t.ds.TeamExists(ctx, *abmDefaultTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get default team for mdm devices")
+	}
+
+	if !exists {
+		level.Debug(t.logger).Log(
+			"msg",
+			"unable to find default team assigned to abm token, mdm devices won't be assigned to a team",
+			"team_id",
+			abmDefaultTeamID,
+		)
+		return nil, nil
+	}
+
+	return abmDefaultTeamID, nil
 }

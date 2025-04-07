@@ -6,14 +6,15 @@ import React, {
   useMemo,
 } from "react";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
+import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -46,15 +47,14 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import {
-  isValidSoftwareInstallStatus,
-  SoftwareInstallStatus,
+  isValidSoftwareAggregateStatus,
+  SoftwareAggregateStatus,
 } from "interfaces/software";
-import { API_NO_TEAM_ID, ITeam } from "interfaces/team";
+import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -72,11 +72,13 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -94,11 +96,11 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
-  getHostSelectStatuses,
+  hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
-import { isAcceptableStatus } from "./helpers";
+import { getDeleteLabelErrorMessages, isAcceptableStatus } from "./helpers";
 
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
@@ -118,6 +120,12 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3 TODO: Improve this type
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -141,7 +149,7 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    isSandboxMode,
+    userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
@@ -168,16 +176,11 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
-      // remove the software status filter when selecting all teams or no team
+      // remove the software status filter when selecting All teams
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-        !newTeamId || newTeamId < 1,
+        newTeamId === API_ALL_TEAMS_ID,
     },
   });
-
-  const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
-  const storedHiddenColumns = hostHiddenColumns
-    ? JSON.parse(hostHiddenColumns)
-    : null;
 
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
@@ -193,7 +196,7 @@ const ManageHostsPage = ({
     return [{ key, direction }];
   })();
   const initialQuery = (() => queryParams.query ?? "")();
-  const initialPage = (() =>
+  const curPageFromURL = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
@@ -211,17 +214,15 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    storedHiddenColumns || defaultHiddenColumns
+    userSettings?.hidden_host_columns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
     false
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [page, setPage] = useState(initialPage);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
@@ -242,10 +243,12 @@ const ManageHostsPage = ({
     queryParams?.software_title_id !== undefined
       ? parseInt(queryParams.software_title_id, 10)
       : undefined;
-  const softwareStatus = isValidSoftwareInstallStatus(
+  const softwareStatus = isValidSoftwareAggregateStatus(
     queryParams?.[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]
   )
-    ? (queryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] as SoftwareInstallStatus)
+    ? (queryParams[
+        HOSTS_QUERY_PARAMS.SOFTWARE_STATUS
+      ] as SoftwareAggregateStatus)
     : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
@@ -289,7 +292,9 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
+  const canAddNewLabels =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
@@ -405,8 +410,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : 50,
+        page: curPageFromURL || DEFAULT_PAGE_INDEX,
+        perPage: DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -463,6 +468,29 @@ const ManageHostsPage = ({
       select: (data) => data.count,
     }
   );
+
+  // migrate users with current local storage based solution to db persistence
+  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
+  if (locallyHiddenCols) {
+    console.log("found local hidden columns: ", locallyHiddenCols);
+    console.log("migrating to server persistence...");
+    (async () => {
+      if (!currentUser) {
+        // for type checker
+        return;
+      }
+      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      try {
+        await usersAPI.update(currentUser.id, {
+          settings: { ...userSettings, hidden_host_columns: parsed },
+        });
+        localStorage.removeItem("hostHiddenColumns");
+      } catch {
+        // don't remove local storage, proceed with setting context with local storage value
+      }
+      setHiddenColumns(parsed);
+    })();
+  }
 
   const refetchHosts = () => {
     refetchHostsAPI();
@@ -580,27 +608,7 @@ const ManageHostsPage = ({
     return true;
   };
 
-  // NOTE: Solution also used on ManagePoliciesPage.tsx
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    setTableQueryData(
-      (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
-    );
-    setResetPageIndex(true);
-  };
-
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -619,8 +627,6 @@ const ManageHostsPage = ({
   const handleChangeDiskEncryptionStatusFilter = (
     newStatus: DiskEncryptionStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -636,8 +642,6 @@ const ManageHostsPage = ({
   };
 
   const handleChangeOsSettingsFilter = (newStatus: MdmProfileStatus) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -655,8 +659,6 @@ const ManageHostsPage = ({
   const handleChangeBootstrapPackageStatusFilter = (
     newStatus: BootstrapPackageStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -668,8 +670,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearRouteParam = () => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -684,8 +684,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearFilter = (omitParams: string[]) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -699,9 +697,9 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleStatusDropdownChange = (statusName: string) => {
-    handleResetPageIndex();
-
+  const handleStatusDropdownChange = (
+    statusName: SingleValue<CustomOptionType>
+  ) => {
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -709,7 +707,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName,
+          status: statusName?.value,
           page: 0, // resets page index
         },
       })
@@ -719,8 +717,6 @@ const ManageHostsPage = ({
   const handleMacSettingsStatusDropdownChange = (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -735,11 +731,9 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleSoftwareInstallStatausChange = (
-    newStatus: SoftwareInstallStatus
+  const handleSoftwareInstallStatusChange = (
+    newStatus: SoftwareAggregateStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -754,6 +748,14 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.HOST_DETAILS(row.original.id);
+
+      router.push(path);
+    }
+  };
+
   const onAddLabelClick = () => {
     router.push(`${PATHS.NEW_LABEL}`);
   };
@@ -763,10 +765,23 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
-  const onSaveColumns = (newHiddenColumns: string[]) => {
-    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
-    setHiddenColumns(newHiddenColumns);
-    setShowEditColumnsModal(false);
+  const onSaveColumns = async (newHiddenColumns: string[]) => {
+    if (!currentUser) {
+      return;
+    }
+    try {
+      await usersAPI.update(currentUser.id, {
+        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
+      });
+      // No success renderFlash, to make column setting more seamless
+      // only set state and close modal if server persist succeeds, keeping UI and server state in
+      // sync.
+      // Can also add local storage fallback behavior in next iteration if we want.
+      setHiddenColumns(newHiddenColumns);
+      setShowEditColumnsModal(false);
+    } catch (response) {
+      renderFlash("error", "Couldn't save column settings. Please try again.");
+    }
   };
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -815,10 +830,6 @@ const ManageHostsPage = ({
         setSearchQuery(searchText);
       }
 
-      if (!isEqual(page, pageIndex)) {
-        setPage(pageIndex);
-      }
-
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
       if (!isEmpty(searchText)) {
@@ -845,8 +856,8 @@ const ManageHostsPage = ({
         newQueryParams.software_version_id = softwareVersionId;
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
-        if (softwareStatus && teamIdForApi && teamIdForApi > 0) {
-          // software_status is only valid when software_title_id is present and a team is selected
+        if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
+          // software_status is only valid when software_title_id is present and a subset of hosts ('No team' or a team) is selected
           newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
         }
       } else if (mdmId) {
@@ -908,7 +919,6 @@ const ManageHostsPage = ({
       osVersionId,
       osName,
       osVersion,
-      page,
       router,
       routeTemplate,
       routeParams,
@@ -924,7 +934,7 @@ const ManageHostsPage = ({
       // TODO(sarah): refactor so that this doesn't trigger two api calls (reset page index updates
       // tableQueryData)
       handleTeamChange(teamId);
-      handleResetPageIndex();
+
       // Must clear other page paths or the team might accidentally switch
       // When navigating from host details
       setFilteredSoftwarePath("");
@@ -1058,12 +1068,7 @@ const ManageHostsPage = ({
       );
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
-      console.error(error);
-      if (getErrorReason(error).includes("built-in")) {
-        renderFlash("error", "Built-in labels can’t be modified or deleted.");
-      } else {
-        renderFlash("error", "Could not delete label. Please try again.");
-      }
+      renderFlash("error", getDeleteLabelErrorMessages(error));
     } finally {
       setIsUpdatingLabel(false);
     }
@@ -1196,7 +1201,6 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
-      isSandboxMode={isSandboxMode}
     />
   );
 
@@ -1257,21 +1261,15 @@ const ManageHostsPage = ({
   );
 
   const renderAddHostsModal = () => {
-    const enrollSecret =
-      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
-      // additional precaution/reminder to revisit this in connection with future changes.
-      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      isAnyTeamSelected && !isSandboxMode
-        ? teamSecrets?.[0].secret
-        : globalSecrets?.[0].secret;
+    const enrollSecret = isAnyTeamSelected
+      ? teamSecrets?.[0].secret
+      : globalSecrets?.[0].secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
         openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
@@ -1382,7 +1380,10 @@ const ManageHostsPage = ({
       teamId: teamIdForApi,
     };
 
-    if (queryParams.team_id) {
+    if (
+      queryParams.team_id !== API_ALL_TEAMS_ID &&
+      queryParams.team_id !== ""
+    ) {
       options.teamId = queryParams.team_id;
     }
 
@@ -1403,18 +1404,10 @@ const ManageHostsPage = ({
   };
 
   const renderHostCount = useCallback(() => {
-    const count = hostsCount;
-
     return (
-      <div
-        className={`${baseClass}__count ${
-          isLoadingHostsCount ? "count-loading" : ""
-        }`}
-      >
-        {count !== undefined && (
-          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        )}
-        {!!count && (
+      <>
+        <TableCount name="hosts" count={hostsCount} />
+        {!!hostsCount && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1426,7 +1419,7 @@ const ManageHostsPage = ({
             </>
           </Button>
         )}
-      </div>
+      </>
     );
   }, [isLoadingHostsCount, hostsCount]);
 
@@ -1439,20 +1432,15 @@ const ManageHostsPage = ({
         ? selectedLabel
         : undefined;
 
-    const statusDropdownClassnames = classNames(
-      `${baseClass}__status_dropdown`,
-      { [`${baseClass}__status-dropdown-sandbox`]: isSandboxMode }
-    );
-
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
-        <Dropdown
+        <DropdownWrapper
+          name="status-filter"
           value={status || ""}
-          className={statusDropdownClassnames}
-          options={getHostSelectStatuses(isSandboxMode)}
-          searchable={false}
+          className={`${baseClass}__status-filter`}
+          options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          tableFilterDropdown
+          variant="table-filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1532,7 +1520,6 @@ const ManageHostsPage = ({
         variant: "text-icon",
         iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
-        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
@@ -1565,7 +1552,6 @@ const ManageHostsPage = ({
       softwareId ||
       softwareTitleId ||
       softwareVersionId ||
-      softwareStatus ||
       osName ||
       osVersionId ||
       osVersion ||
@@ -1591,9 +1577,9 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
-        defaultPageIndex={page || DEFAULT_PAGE_INDEX}
+        pageIndex={curPageFromURL}
         defaultSearchQuery={searchQuery}
-        pageSize={50}
+        pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{
@@ -1625,7 +1611,7 @@ const ManageHostsPage = ({
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
-        resetPageIndex={resetPageIndex}
+        onClickRow={handleRowSelect}
         disableNextPage={isLastPage}
       />
     );
@@ -1670,10 +1656,10 @@ const ManageHostsPage = ({
     <>
       <MainContent>
         <div className={`${baseClass}`}>
-          <div className="header-wrap">
+          <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode && canEnrollHosts && !hasErrors && (
+              {canEnrollHosts && !hasErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
@@ -1737,11 +1723,10 @@ const ManageHostsPage = ({
             }
             onChangeMacSettingsFilter={handleMacSettingsStatusDropdownChange}
             onChangeSoftwareInstallStatusFilter={
-              handleSoftwareInstallStatausChange
+              handleSoftwareInstallStatusChange
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
-            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

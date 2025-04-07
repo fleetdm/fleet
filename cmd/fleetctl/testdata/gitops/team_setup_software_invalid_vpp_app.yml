@@ -1,0 +1,25 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "ABC"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+  macos_setup:
+    software:
+      - app_store_id: "no_such_app"
+      - package_path: lib/software_ruby.yml
+    script: lib/setup_script.sh
+policies:
+queries:
+software:
+  app_store_apps:
+    - app_store_id: "1"
+  packages:
+    - path: lib/software_ruby.yml
+    - path: lib/software_other.yml

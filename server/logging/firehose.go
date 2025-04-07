@@ -16,8 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 const (
@@ -91,7 +91,7 @@ func (f *firehoseLogWriter) validateStream() error {
 		return fmt.Errorf("describe stream %s: %w", f.stream, err)
 	}
 
-	if (*(*out.DeliveryStreamDescription).DeliveryStreamStatus) != firehose.DeliveryStreamStatusActive {
+	if (*out.DeliveryStreamDescription.DeliveryStreamStatus) != firehose.DeliveryStreamStatusActive {
 		return fmt.Errorf("delivery stream %s not active", f.stream)
 	}
 

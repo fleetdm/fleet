@@ -1,0 +1,14 @@
+- name: macOS - Enrollment profile up to date
+  query: SELECT 1 FROM mdm where topic = "com.apple.mgmt.External.8a3367bf-49d7-4dc3-ae41-c9de95f7b424";
+  critical: true
+  description: Recently we had to update files used for managing Apple devices. This policy checks to see if you have the most recent enrollment profile installed. Not having this profile means this device is no longer communicating with Fleet via MDM.
+  resolution: |-
+    You must manually remove your enrollment profile to fix this issue by following these steps: 
+
+     > System Settings > General > Device Management > Click on the profile "Fleet enrollment" followed by the "-" (minus) button 
+
+    After a few minutes, your device may initiate automatic re-enrollment. If it does not, open Fleet Desktop and follow the steps for manually enabling MDM. 
+
+    If you encounter any issues, please reach out via #help-dogfooding. 
+  platform: darwin
+  calendar_events_enabled: true

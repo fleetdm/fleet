@@ -1,7 +1,13 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React, { useMemo, useEffect, useCallback, useContext } from "react";
+import React, {
+  useMemo,
+  useEffect,
+  useCallback,
+  useContext,
+  useRef,
+} from "react";
 import classnames from "classnames";
 import {
   Column,
@@ -22,9 +28,8 @@ import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
+import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -40,12 +45,14 @@ interface IDataTableProps {
   sortDirection: any;
   onSort: any; // TODO: an event type
   disableMultiRowSelect: boolean;
+  keyboardSelectableRows?: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
-  resultsTitle: string;
+  resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
+  defaultSelectedRows?: Record<string, boolean>;
   primarySelectAction?: IActionButtonProps;
   secondarySelectActions?: IActionButtonProps[];
   isClientSidePagination?: boolean;
@@ -55,19 +62,22 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
+  /** Set to true to persist the row selections across table data filters */
+  persistSelectedRows?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
-  renderFooter?: () => JSX.Element | null;
+  /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
+   * rows of data are present. */
+  renderTableHelpText?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
+  onClearSelection?: () => void;
 }
 
 interface IHeaderGroup extends HeaderGroup {
   title?: string;
 }
-
-const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
 // This data table uses react-table for implementation. The relevant v7 documentation of the library
 // can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
@@ -82,12 +92,14 @@ const DataTable = ({
   sortDirection,
   onSort,
   disableMultiRowSelect,
+  keyboardSelectableRows,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
-  resultsTitle,
+  resultsTitle = "results",
   defaultPageSize,
   defaultPageIndex,
+  defaultSelectedRows = {},
   primarySelectAction,
   secondarySelectActions,
   isClientSidePagination,
@@ -97,13 +109,18 @@ const DataTable = ({
   searchQuery,
   searchQueryColumn,
   selectedDropdownFilter,
+  persistSelectedRows = false,
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
-  renderFooter,
+  renderTableHelpText,
   renderPagination,
   setExportRows,
+  onClearSelection = noop,
 }: IDataTableProps): JSX.Element => {
+  // used to track the initial mount of the component.
+  const isInitialRender = useRef(true);
+
   const { isOnlyObserver } = useContext(AppContext);
 
   const columns = useMemo(() => {
@@ -149,6 +166,7 @@ const DataTable = ({
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
+        selectedRowIds: defaultSelectedRows,
       },
       disableMultiSort: true,
       disableSortRemove: true,
@@ -254,10 +272,16 @@ const DataTable = ({
   }, [isClientSideFilter, onResultsCountChange, rows.length]);
 
   useEffect(() => {
-    if (isClientSideFilter && searchQueryColumn) {
-      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
+    if (!isInitialRender.current && isClientSideFilter && searchQueryColumn) {
       setDebouncedClientFilter(searchQueryColumn, searchQuery || "");
     }
+
+    // we only want to reset the selected rows if we are not persisting them
+    // across table data filters
+    if (!isInitialRender.current && !persistSelectedRows) {
+      toggleAllRowsSelected(false); // Resets row selection on query change (client-side)
+    }
+    isInitialRender.current = false;
   }, [searchQuery, searchQueryColumn]);
 
   useEffect(() => {
@@ -295,7 +319,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize);
   }, [setPageSize]);
 
   useDeepEffect(() => {
@@ -312,9 +336,10 @@ const DataTable = ({
   }, [toggleAllPagesSelected]);
 
   const onClearSelectionClick = useCallback(() => {
-    toggleAllRowsSelected(false);
-    toggleAllPagesSelected(false);
-  }, [toggleAllPagesSelected, toggleAllRowsSelected]);
+    onClearSelection();
+    toggleAllRowsSelected?.(false);
+    toggleAllPagesSelected?.(false);
+  }, [onClearSelection, toggleAllPagesSelected, toggleAllRowsSelected]);
 
   const onSelectRowClick = useCallback(
     (row: any) => {
@@ -337,10 +362,13 @@ const DataTable = ({
   };
 
   const renderSelectedCount = (): JSX.Element => {
+    const selectedCount = Object.entries(selectedRowIds).filter(
+      ([, value]) => value
+    ).length;
     return (
       <p>
         <span>
-          {selectedFlatRows.length}
+          {selectedCount}
           {isAllPagesSelected && "+"}
         </span>{" "}
         selected
@@ -371,7 +399,6 @@ const DataTable = ({
       hideButton,
       iconSvg,
       iconPosition,
-      indicatePremiumFeature,
     } = actionButtonProps;
     return (
       <div className={`${baseClass}__${kebabCase(name)}`}>
@@ -383,7 +410,6 @@ const DataTable = ({
           targetIds={targetIds}
           variant={variant}
           hideButton={hideButton}
-          indicatePremiumFeature={indicatePremiumFeature}
           iconSvg={iconSvg}
           iconPosition={iconPosition}
         />
@@ -430,19 +456,9 @@ const DataTable = ({
 
   const pageOrRows = isClientSidePagination ? page : rows;
 
-  const previousButton = (
-    <>
-      <FleetIcon name="chevronleft" /> Previous
-    </>
-  );
-  const nextButton = (
-    <>
-      Next <FleetIcon name="chevronright" />
-    </>
-  );
-
   const tableStyles = classnames({
     "data-table__table": true,
+    "data-table__no-rows": !rows.length,
     "is-observer": isOnlyObserver,
   });
 
@@ -520,6 +536,7 @@ const DataTable = ({
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
                 "disable-highlight": disableHighlightOnHover,
+                "clickable-row": !!onClickRow,
               });
               return (
                 <tr
@@ -530,18 +547,41 @@ const DataTable = ({
                       (onSelectRowClick &&
                         disableMultiRowSelect &&
                         onSelectRowClick(row)) ||
-                        (onClickRow && onClickRow(row));
+                        (disableMultiRowSelect &&
+                          onClickRow &&
+                          onClickRow(row));
+                    },
+                    // For accessibility when tabable
+                    onKeyDown: (e: KeyboardEvent) => {
+                      if (e.key === "Enter") {
+                        (onSelectRowClick &&
+                          disableMultiRowSelect &&
+                          onSelectRowClick(row)) ||
+                          (disableMultiRowSelect &&
+                            onClickRow &&
+                            onClickRow(row));
+                      }
                     },
                   })}
+                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
+                  tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
-                  {row.cells.map((cell: any) => {
+                  {row.cells.map((cell: any, index: number) => {
+                    // Only allow row click behavior on first cell
+                    // if the first cell is not a checkbox
+                    const cellProps = cell.getCellProps();
+                    const multiRowSelectEnabled = !disableMultiRowSelect;
+
                     return (
                       <td
                         key={cell.column.id}
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }
-                        {...cell.getCellProps()}
+                        style={
+                          multiRowSelectEnabled ? { cursor: "initial" } : {}
+                        }
+                        {...cellProps}
                       >
                         {cell.render("Cell")}
                       </td>
@@ -554,36 +594,29 @@ const DataTable = ({
         </table>
       </div>
       <div className={`${baseClass}__footer`}>
-        {renderFooter && (
-          <div className={`${baseClass}__footer-text`}>{renderFooter()}</div>
+        {renderTableHelpText && !!rows?.length && (
+          <div className={`${baseClass}__table-help-text`}>
+            {renderTableHelpText()}
+          </div>
         )}
         {isClientSidePagination ? (
-          <div className={`${baseClass}__pagination`}>
-            <Button
-              variant="unstyled"
-              onClick={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-                onClientSidePaginationChange &&
-                  onClientSidePaginationChange(pageIndex - 1);
-                previousPage();
-              }}
-              disabled={!canPreviousPage}
-            >
-              {previousButton}
-            </Button>
-            <Button
-              variant="unstyled"
-              onClick={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-                onClientSidePaginationChange &&
-                  onClientSidePaginationChange(pageIndex + 1);
-                nextPage();
-              }}
-              disabled={!canNextPage}
-            >
-              {nextButton}
-            </Button>
-          </div>
+          <Pagination
+            disablePrev={!canPreviousPage}
+            disableNext={!canNextPage}
+            onPrevPage={() => {
+              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+              onClientSidePaginationChange &&
+                onClientSidePaginationChange(pageIndex - 1);
+              previousPage();
+            }}
+            onNextPage={() => {
+              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+              onClientSidePaginationChange &&
+                onClientSidePaginationChange(pageIndex + 1);
+              nextPage();
+            }}
+            hidePagination={!canPreviousPage && !canNextPage}
+          />
         ) : (
           renderPagination && renderPagination()
         )}

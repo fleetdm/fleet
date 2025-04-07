@@ -12,3 +12,10 @@ foreach ($user in $localUsers) {
 }
 
 Write-Host "All disabled user accounts have been enabled."
+
+
+# Re-enable additional AD logins
+New-ItemProperty -Path "HKLM:\Software\Microsoft\PolicyManager\default\Settings\AllowSignInOptions" -Name 'value' -Value 0 -PropertyType DWORD -Force
+
+# Re-enable cached logins for AD/Azure/Entra accounts
+New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\" -Name 'CachedLogonsCount' -Value 10 -PropertyType String -Force

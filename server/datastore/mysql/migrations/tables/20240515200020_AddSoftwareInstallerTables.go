@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS host_software_installs (
   -- this index can be used to lookup results for a specific
   -- execution (execution ids, e.g. when updating the row for results)
   UNIQUE KEY idx_host_software_installs_execution_id (execution_id)
-)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
   `)
 	if err != nil {
 		return fmt.Errorf("creating host_software_installs table: %w", err)

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+	<title>Fleet osquery</title>
+	<choices-outline>
+	    <line choice="choiceBase"/>
+    </choices-outline>
+    <choice id="choiceBase" title="Fleet osquery" enabled="false" selected="true" description="Standard installation for Fleet osquery.">
+        <pkg-ref id="com.fleetdm.orbit.base.pkg"/>
+    </choice>
+    
+    <pkg-ref id="com.fleetdm.orbit.base.pkg" version="42.0.0" auth="root">#base.pkg</pkg-ref>
+    
+    <pkg-ref id="com.fleetdm.orbit.base.pkg">
+      <bundle-version>
+        <bundle id="com.fleetdm.orbit" path="" />
+      </bundle-version>
+    </pkg-ref>
+	<options customize="never" hostArchitectures="arm64,x86_64" require-scripts="false" allow-external-scripts="false" />
+</installer-gui-script>

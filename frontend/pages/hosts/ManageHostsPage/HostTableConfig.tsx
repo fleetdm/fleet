@@ -6,8 +6,10 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
+import { isAndroid, isMobilePlatform } from "interfaces/platform";
+
 import Checkbox from "components/forms/fields/Checkbox";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
@@ -23,6 +25,7 @@ import {
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
+  tooltipTextWithLineBreaks,
 } from "utilities/helpers";
 import { COLORS } from "styles/var/colors";
 import {
@@ -69,17 +72,6 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     : condensed;
 };
 
-const tooltipTextWithLineBreaks = (lines: string[]) => {
-  return lines.map((line) => {
-    return (
-      <span key={Math.random().toString().slice(2)}>
-        {line}
-        <br />
-      </span>
-    );
-  });
-};
-
 const lastSeenTime = (status: string, seenTime: string): string => {
   if (status !== "online") {
     return `Last Seen: ${humanHostLastSeen(seenTime)} UTC`;
@@ -100,7 +92,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         indeterminate: props.indeterminate,
         onChange: () => cellProps.toggleAllRowsSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     Cell: (cellProps: ISelectionCellProps) => {
       const props = cellProps.row.getToggleRowSelectedProps();
@@ -108,7 +100,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value: props.checked,
         onChange: () => cellProps.row.toggleRowSelected(),
       };
-      return <Checkbox {...checkboxProps} />;
+      return <Checkbox {...checkboxProps} enableEnterToCheck />;
     },
     disableHidden: true,
   },
@@ -148,9 +140,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
               <span className={`tooltip__tooltip-text`}>
                 This host was ordered using <br />
                 Apple Business Manager <br />
-                (ABM). You can&apos;t see host <br />
-                vitals until it&apos;s unboxed and <br />
-                automatically enrolls to Fleet.
+                (ABM). You will see host <br />
+                vitals when it is enrolled in Fleet <br />
               </span>
             </ReactTooltip>
           </>
@@ -236,10 +227,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       const value = cellProps.cell.value;
@@ -251,15 +239,14 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     title: "Issues",
-    Header: "Issues",
-    disableSortBy: true,
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
     accessor: "issues",
     id: "issues",
+    sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -290,7 +277,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         return NotSupported;
       }
       return (
-        <DiskSpaceGraph
+        <DiskSpaceIndicator
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
@@ -311,6 +298,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "os_version",
     id: "os_version",
     Cell: (cellProps: IHostTableStringCellProps) => (
+      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -325,10 +313,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "osquery_version",
     id: "osquery_version",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -341,36 +326,26 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "device_mapping",
     id: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps) => {
+      // TODO(android): is android supported?
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
-      if (users.length) {
-        const tooltipText = tooltipTextWithLineBreaks(users);
+      if (users.length > 1) {
         return (
-          <>
-            <span
-              className={`text-cell ${
-                users.length > 1 ? "text-muted tooltip" : ""
-              }`}
-              data-tip
-              data-for={`device_mapping__${cellProps.row.original.id}`}
-              data-tip-disable={users.length <= 1}
-            >
-              {numUsers === 1 ? users[0] : `${numUsers} users`}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`device_mapping__${cellProps.row.original.id}`}
-              data-html
-              clickable
-              delayHide={300}
-            >
-              <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
-            </ReactTooltip>
-          </>
+          <TooltipWrapper
+            tipContent={tooltipTextWithLineBreaks(users)}
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            <TextCell italic value={`${numUsers} users`} />
+          </TooltipWrapper>
         );
       }
-      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+      if (users.length === 1) {
+        return <TextCell value={users[0]} />;
+      }
+      return <TextCell />;
     },
   },
   {
@@ -384,10 +359,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "primary_ip",
     id: "primary_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -462,10 +434,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "public_ip",
     id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -498,6 +467,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "detail_updated_at",
     id: "detail_updated_at",
     Cell: (cellProps: IHostTableStringCellProps) => (
+      // TODO(android): android doesn't support refetch?
       <TextCell
         value={{ timeString: cellProps.cell.value }}
         formatter={HumanTimeDiffWithFleetLaunchCutoff}
@@ -529,10 +499,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "seen_time",
     id: "seen_time",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -550,9 +517,8 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "uuid",
     id: "uuid",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} />
-    ),
+    Cell: ({ cell: { value } }: IHostTableStringCellProps) =>
+      value ? <TooltipTruncatedTextCell value={value} /> : <TextCell />,
   },
   {
     title: "Last restarted",
@@ -567,11 +533,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (
-        platform === "ios" ||
-        platform === "ipados" ||
-        platform === "chrome"
-      ) {
+      if (isMobilePlatform(platform) || platform === "chrome") {
         return NotSupported;
       }
       return (
@@ -629,9 +591,13 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "primary_mac",
     id: "primary_mac",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "Serial number",
@@ -643,9 +609,13 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "hardware_serial",
     id: "hardware_serial",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "Hardware model",
@@ -695,15 +665,14 @@ const generateAvailableTableHeaders = ({
   return allHostTableHeaders.reduce(
     (columns: Column<IHost>[], currentColumn: Column<IHost>) => {
       // skip over column headers that are not shown in free observer tier
-      if (isFreeTier && isOnlyObserver) {
+      if (isFreeTier) {
         if (
-          currentColumn.id === "team_name" ||
-          currentColumn.id === "selection"
+          isOnlyObserver &&
+          ["selection", "team_name"].includes(currentColumn.id || "")
         ) {
           return columns;
+          // skip over column headers that are not shown in free admin/maintainer
         }
-        // skip over column headers that are not shown in free admin/maintainer
-      } else if (isFreeTier) {
         if (
           currentColumn.id === "team_name" ||
           currentColumn.id === "mdm.server_url" ||
@@ -711,11 +680,9 @@ const generateAvailableTableHeaders = ({
         ) {
           return columns;
         }
-      } else if (isOnlyObserver) {
+      } else if (isOnlyObserver && currentColumn.id === "selection") {
         // In premium tier, we want to check user role to enable/disable select column
-        if (currentColumn.id === "selection") {
-          return columns;
-        }
+        return columns;
       }
 
       columns.push(currentColumn);

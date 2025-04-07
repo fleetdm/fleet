@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -81,6 +82,11 @@ func TestValidateShebang(t *testing.T) {
 			directExecute: true,
 		},
 		{
+			name:          "bash shebang",
+			contents:      "#!/bin/bash\necho hi",
+			directExecute: true,
+		},
+		{
 			name:          "zsh shebang with args",
 			contents:      "#!/bin/zsh -x\necho hi",
 			directExecute: true,
@@ -97,7 +103,6 @@ func TestValidateShebang(t *testing.T) {
 			directExecute, err := ValidateShebang(tc.contents)
 			require.Equal(t, tc.directExecute, directExecute)
 			require.ErrorIs(t, tc.err, err)
-
 		})
 	}
 }
@@ -143,12 +148,22 @@ func TestValidateHostScriptContents(t *testing.T) {
 		},
 		{
 			name:    "unsupported interpreter",
-			script:  "#!/bin/bash\necho 'hello'",
+			script:  "#!/bin/ksh\necho 'hello'",
 			wantErr: ErrUnsupportedInterpreter,
 		},
 		{
 			name:    "valid script",
 			script:  "#!/bin/sh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid bash script",
+			script:  "#!/bin/bash\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid bash script",
+			script:  "#!/usr/bin/bash\necho 'hello'",
 			wantErr: nil,
 		},
 		{
@@ -227,4 +242,47 @@ func TestHostTimeout(t *testing.T) {
 			require.Equal(t, tt.expectedResult, result)
 		})
 	}
+}
+
+func TestUserMessage(t *testing.T) {
+	hsr := HostScriptResult{}
+
+	// host timeout true
+	m := hsr.UserMessage(true, ptr.Int(0))
+	require.Equal(t, RunScriptHostTimeoutErrMsg, m)
+
+	// nil exit code with timeout
+	hsr.SyncRequest = true
+	hsr.CreatedAt = time.Now().Add(-10 * time.Minute)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptHostTimeoutErrMsg, m)
+
+	// nil exit code without timeout
+	hsr.SyncRequest = true
+	hsr.CreatedAt = time.Now().Add(-3 * time.Minute)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptAlreadyRunningErrMsg, m)
+
+	// exit code set, sync request false
+	hsr.SyncRequest = false
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptAsyncScriptEnqueuedMsg, m)
+
+	// use default timeout value in err if 0
+	hsr.ExitCode = ptr.Int64(-1)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, "Timeout. Fleet stopped the script after 300 seconds to protect host performance.", m)
+
+	// use default timeout value in err if nil
+	m = hsr.UserMessage(false, nil)
+	require.Equal(t, "Timeout. Fleet stopped the script after 300 seconds to protect host performance.", m)
+
+	// use provided timeout value in err
+	m = hsr.UserMessage(false, ptr.Int(30))
+	require.Equal(t, "Timeout. Fleet stopped the script after 30 seconds to protect host performance.", m)
+
+	// run script disabled error
+	hsr.ExitCode = ptr.Int64(-2)
+	m = hsr.UserMessage(false, ptr.Int(0))
+	require.Equal(t, RunScriptDisabledErrMsg, m)
 }

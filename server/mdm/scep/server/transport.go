@@ -11,8 +11,9 @@ import (
 	"net/http"
 	"net/url"
 
-	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
+	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/groob/finalizer/logutil"
 )
@@ -33,6 +34,29 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 	r.Methods("POST").Handler(kithttp.NewServer(
 		e.PostEndpoint,
 		decodeSCEPRequest,
+		encodeSCEPResponse,
+		opts...,
+	))
+
+	return r
+}
+
+func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.Logger) http.Handler {
+	opts := []kithttp.ServerOption{
+		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+	}
+
+	r := mux.NewRouter()
+	r.Path(rootPath + "{identifier}").Methods("GET").Handler(kithttp.NewServer(
+		e.GetEndpoint,
+		decodeSCEPRequestWithIdentifier,
+		encodeSCEPResponse,
+		opts...,
+	))
+	r.Path(rootPath + "{identifier}").Methods("POST").Handler(kithttp.NewServer(
+		e.PostEndpoint,
+		decodeSCEPRequestWithIdentifier,
 		encodeSCEPResponse,
 		opts...,
 	))
@@ -98,6 +122,30 @@ func decodeSCEPRequest(ctx context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
+func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interface{}, error) {
+	msg, err := message(r)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Body.Close()
+
+	operation := r.URL.Query().Get("operation")
+	identifier := mux.Vars(r)["identifier"]
+	if len(operation) == 0 {
+		return nil, &BadRequestError{Message: "missing operation"}
+	}
+
+	request := SCEPRequestWithIdentifier{
+		SCEPRequest: SCEPRequest{
+			Message:   msg,
+			Operation: operation,
+		},
+		Identifier: identifier,
+	}
+
+	return request, nil
+}
+
 // extract message from request
 func message(r *http.Request) ([]byte, error) {
 	switch r.Method {
@@ -145,6 +193,19 @@ func (e *BadRequestError) Error() string {
 
 // StatusCode implements the kithttp StatusCoder interface
 func (e *BadRequestError) StatusCode() int { return http.StatusBadRequest }
+
+// TimeoutError is an error type that generates a 408 status code.
+type TimeoutError struct {
+	Message string
+}
+
+// Error returns the error message.
+func (e *TimeoutError) Error() string {
+	return e.Message
+}
+
+// StatusCode implements the kithttp StatusCoder interface
+func (e *TimeoutError) StatusCode() int { return http.StatusRequestTimeout }
 
 // EncodeSCEPResponse writes a SCEP response back to the SCEP client.
 func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {

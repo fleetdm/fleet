@@ -2,15 +2,22 @@ import { getPlatformDisplayName } from "./fileUtils";
 
 describe("fileUtils", () => {
   describe("getPlatformDisplayName", () => {
-    it("should return the correct platform display name depending on the file extension", () => {
-      const file = new File([""], "test.pkg");
-      expect(getPlatformDisplayName(file)).toEqual("macOS");
+    const testCases = [
+      { extension: "pkg", platform: "macOS" },
+      { extension: "json", platform: "macOS" },
+      { extension: "mobileconfig", platform: "macOS" },
+      { extension: "exe", platform: "Windows" },
+      { extension: "msi", platform: "Windows" },
+      { extension: "xml", platform: "Windows" },
+      { extension: "deb", platform: "Linux" },
+      { extension: "rpm", platform: "Linux" },
+    ];
 
-      const file2 = new File([""], "test.exe");
-      expect(getPlatformDisplayName(file2)).toEqual("Windows");
-
-      const file3 = new File([""], "test.deb");
-      expect(getPlatformDisplayName(file3)).toEqual("linux");
+    testCases.forEach(({ extension, platform }) => {
+      it(`should return ${platform} for .${extension} files`, () => {
+        const file = new File([""], `test.${extension}`);
+        expect(getPlatformDisplayName(file)).toEqual(platform);
+      });
     });
   });
 });

@@ -8,6 +8,8 @@ The existing documentation data lives in the osquery repo at: https://github.com
 
 You can open PRs against a table's YAML file in the `tables/` folder or the osquery schema file. Just note that the data in a table's YAML file overwrites the osquery data whenever there is a conflict.
 
+After adding or modifying the table's YAML file, move to the `website` directory in the project root and run `node ./node_modules/sails/bin/sails run generate-merged-schema` to generate the merged JSON schema.
+
 When adding a new YAML override to Fleet's osquery schema you can use this template:
 
 ```yaml

@@ -153,7 +153,7 @@ func TestQueryResultsStore(t *testing.T) {
 		go func() {
 			defer readerWg.Done()
 			for res := range channel1 {
-				switch res := res.(type) {
+				switch res := res.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case fleet.DistributedQueryResult:
 					results1 = append(results1, res)
 				}
@@ -163,7 +163,7 @@ func TestQueryResultsStore(t *testing.T) {
 		go func() {
 			defer readerWg.Done()
 			for res := range channel2 {
-				switch res := res.(type) {
+				switch res := res.(type) { //nolint:gocritic // ignore singleCaseSwitch
 				case fleet.DistributedQueryResult:
 					results2 = append(results2, res)
 				}

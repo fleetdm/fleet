@@ -1,10 +1,9 @@
 import URL_PREFIX from "router/url_prefix";
-import { OsqueryPlatform } from "interfaces/platform";
-import paths from "router/paths";
+import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IconNames } from "components/icons";
+import { ICampaign } from "interfaces/campaign";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -60,7 +59,13 @@ export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
 
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
-export const SUPPORT_LINK = "https://fleetdm.com/support";
+
+/** website links */
+export const FLEET_WEBSITE_URL = "https://fleetdm.com";
+export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
+export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
+export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
+export const FLEET_GUIDES_BASE_LINK = `${FLEET_WEBSITE_URL}/guides`;
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -78,15 +83,23 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.16.0 +", value: "5.16.0" },
+  { label: "5.15.0 +", value: "5.15.0" },
+  { label: "5.14.1 +", value: "5.14.1" },
+  { label: "5.13.1 +", value: "5.13.1" },
+  { label: "5.12.2 +", value: "5.12.2" },
+  { label: "5.12.1 +", value: "5.12.1" },
+  { label: "5.11.0 +", value: "5.11.0" },
   { label: "5.10.2 +", value: "5.10.2" },
   { label: "5.9.1 +", value: "5.9.1" },
   { label: "5.8.2 +", value: "5.8.2" },
   { label: "5.8.1 +", value: "5.8.1" },
   { label: "5.7.0 +", value: "5.7.0" },
   { label: "5.6.0 +", value: "5.6.0" },
+  { label: "5.5.1 +", value: "5.5.1" },
   { label: "5.4.0 +", value: "5.4.0" },
   { label: "5.3.0 +", value: "5.3.0" },
-  { label: "5.2.3 +", value: "5.2.4" },
+  { label: "5.2.3 +", value: "5.2.3" },
   { label: "5.2.2 +", value: "5.2.2" },
   { label: "5.2.1 +", value: "5.2.1" },
   { label: "5.2.0 +", value: "5.2.0" },
@@ -158,26 +171,34 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
 
 export const DEFAULT_CAMPAIGN = {
   created_at: "",
-  errors: [],
-  hosts: [],
-  hosts_count: {
-    total: 0,
-    successful: 0,
-    failed: 0,
-  },
-  id: 0,
-  query_id: 0,
-  query_results: [],
-  status: "",
+
   totals: {
     count: 0,
     missing_in_action: 0,
     offline: 0,
     online: 0,
   },
+
+  errors: [],
+  hosts: [],
+  uiHostCounts: {
+    total: 0,
+    successful: 0,
+    failed: 0,
+  },
+  queryResults: [],
+
+  status: "",
+  serverHostCounts: {
+    countOfHostsWithResults: 0,
+    countOfHostsWithNoResults: 0,
+  },
+
+  id: 0,
+  query_id: 0,
   updated_at: "",
   user_id: 0,
-};
+} as ICampaign;
 
 export const DEFAULT_CAMPAIGN_STATE = {
   observerShowSql: false,
@@ -200,9 +221,12 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "Red Hat Linux",
   "Ubuntu Linux",
   "chrome",
+  "iOS",
+  "iPadOS",
+  "Android",
 ] as const;
 
-type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
+export type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
 
 export const isPlatformLabelNameFromAPI = (
   s: string
@@ -210,7 +234,7 @@ export const isPlatformLabelNameFromAPI = (
   return PLATFORM_LABEL_NAMES_FROM_API.includes(s as PlatformLabelNameFromAPI);
 };
 
-export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
+export const PLATFORM_DISPLAY_NAMES: Record<string, DisplayPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
   windows: "Windows",
@@ -219,6 +243,10 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   Linux: "Linux",
   chrome: "ChromeOS",
   ChromeOS: "ChromeOS",
+  ios: "iOS",
+  ipados: "iPadOS",
+  android: "Android",
+  Android: "Android",
 } as const;
 
 // as returned by the TARGETS API; based on display_text
@@ -234,16 +262,10 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
   chrome: "ChromeOS",
+  iOS: "iOS",
+  iPadOS: "iPadOS",
+  Android: "Android",
 } as const;
-
-export const PLATFORM_LABEL_DISPLAY_ORDER = [
-  "macOS",
-  "All Linux",
-  "CentOS Linux",
-  "Red Hat Linux",
-  "Ubuntu Linux",
-  "MS Windows",
-] as const;
 
 export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   PlatformLabelNameFromAPI,
@@ -257,65 +279,57 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
   chrome: "platform",
+  iOS: "platform",
+  iPadOS: "platform",
+  Android: "platform",
 } as const;
 
-export const PLATFORM_TYPE_ICONS: Record<
-  Extract<
-    PlatformLabelNameFromAPI,
-    "All Linux" | "macOS" | "MS Windows" | "chrome"
-  >,
-  IconNames
+// For some builtin labels, display different strings than what API returns
+export const LABEL_DISPLAY_MAP: Partial<
+  Record<PlatformLabelNameFromAPI, string>
 > = {
+  "All Hosts": "All hosts",
+  "All Linux": "Linux",
+  chrome: "ChromeOS",
+  "MS Windows": "Windows",
+};
+
+export const PLATFORM_TYPE_ICONS = {
   "All Linux": "linux",
   macOS: "darwin",
   "MS Windows": "windows",
   chrome: "chrome",
+  iOS: "iOS",
+  iPadOS: "iPadOS",
+  Android: "android",
 } as const;
 
 export const hasPlatformTypeIcon = (
   s: string
-): s is Extract<
-  PlatformLabelNameFromAPI,
-  "All Linux" | "macOS" | "MS Windows" | "chrome"
-> => {
+): s is Extract<PlatformLabelNameFromAPI, keyof typeof PLATFORM_TYPE_ICONS> => {
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
-interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
-  value: "all" | "windows" | "linux" | "darwin" | "chrome" | "";
-  path?: string;
-}
-export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
-  { label: "All", value: "all", path: paths.DASHBOARD },
-  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
-  { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
-  { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
-  { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
-];
+export type PlatformLabelOptions = DisplayPlatform | "All";
 
-// Schedules does not support ChromeOS
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
+export type PlatformValueOptions = Platform | "all";
+
+/** Scheduled queries do not support ChromeOS, iOS, iPadOS, or Android */
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
-];
-
-// Builtin label names returned from API
-export const PLATFORM_NAME_TO_LABEL_NAME = {
-  all: "",
-  darwin: "macOS",
-  windows: "MS Windows",
-  linux: "All Linux",
-  chrome: "chrome",
-};
+] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, hostname, UUID, serial number, or private IP address";
 
 export const HOSTS_SEARCH_BOX_TOOLTIP =
   "Search hosts by name, hostname, UUID, serial number, or private IP address";
+
+export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
+  'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
 
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
@@ -327,7 +341,10 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
+    <span>
+      MDM was turned on manually (macOS), or hosts were automatically migrated
+      with fleetd (Windows). End users can turn MDM off.
+    </span>
   ),
   Off: undefined, // no tooltip specified
   Pending: (
@@ -339,11 +356,25 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const DEFAULT_CREATE_USER_ERRORS = {
-  email: "",
-  name: "",
-  password: "",
-  sso_enabled: null,
+export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
+  Normal: (
+    <span>
+      Current maximum capacity is at least
+      <br />
+      80% of its designed capacity and the
+      <br />
+      cycle count is below 1000.
+    </span>
+  ),
+  "Service recommended": (
+    <span>
+      Current maximum capacity has fallen
+      <br />
+      below 80% of its designed capacity
+      <br />
+      or the cycle count has reached 1000.
+    </span>
+  ),
 };
 
 /** Must pass agent options config as empty object */
@@ -373,6 +404,7 @@ export const HOST_SUMMARY_DATA = [
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
+  "maintenance_window", // Not rendered on my device page
 ];
 
 export const HOST_ABOUT_DATA = [
@@ -397,8 +429,15 @@ export const HOST_OSQUERY_DATA = [
 ];
 
 export const DEFAULT_USE_QUERY_OPTIONS = {
-  retry: 3,
   refetchOnWindowFocus: false,
+  retry: (failureCount: number, error: unknown) => {
+    const err = error as any;
+    let isBadRequestErr = false;
+    if (err.status !== undefined) {
+      isBadRequestErr = err.status >= 400 && err.status < 500;
+    }
+    return failureCount < 4 && !isBadRequestErr;
+  },
 };
 
 export const INVALID_PLATFORMS_REASON =
@@ -406,3 +445,8 @@ export const INVALID_PLATFORMS_REASON =
 
 export const INVALID_PLATFORMS_FLASH_MESSAGE =
   "Couldn't save query. Please update platforms and try again.";
+
+export const DATE_FNS_FORMAT_STRINGS = {
+  dateAtTime: "E, MMM d 'at' p",
+  hoursAndMinutes: "HH:mm",
+};

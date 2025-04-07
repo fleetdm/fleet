@@ -1,40 +1,15 @@
 import React from "react";
-import { uniqueId } from "lodash";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ReactTooltip from "react-tooltip";
-
-const baseClass = "version-cell";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const generateText = <T extends { version: string }>(versions: T[] | null) => {
   if (!versions) {
-    return <TextCell value="---" greyed />;
+    return <TextCell value="---" grey />;
   }
   const text =
     versions.length !== 1 ? `${versions.length} versions` : versions[0].version;
-  return <TextCell value={text} greyed={versions.length !== 1} />;
-};
-
-const generateTooltip = <T extends { version: string }>(
-  versions: T[],
-  tooltipId: string
-) => {
-  if (!versions) {
-    return null;
-  }
-
-  const versionNames = versions.map((version) => version.version);
-
-  return (
-    <ReactTooltip
-      effect="solid"
-      backgroundColor="#3e4771"
-      id={tooltipId}
-      data-html
-    >
-      <p className={`${baseClass}__versions`}>{versionNames.join(", ")}</p>
-    </ReactTooltip>
-  );
+  return <TextCell value={text} italic={versions.length !== 1} />;
 };
 
 interface IVersionCellProps<T extends { version: string }> {
@@ -50,20 +25,16 @@ const VersionCell = <T extends { version: string }>({
     return <>{cellText}</>;
   }
 
-  const tooltipId = uniqueId();
-
-  const versionTooltip = generateTooltip(versions, tooltipId);
   return (
-    <>
-      <div
-        className={`${baseClass}__version-text-with-tooltip`}
-        data-tip
-        data-for={tooltipId}
-      >
-        {cellText}
-      </div>
-      {versionTooltip}
-    </>
+    <TooltipWrapper
+      tipContent={<>{versions.map((version) => version.version).join(", ")}</>}
+      tipOffset={14}
+      position="top"
+      showArrow
+      underline={false}
+    >
+      {cellText}
+    </TooltipWrapper>
   );
 };
 

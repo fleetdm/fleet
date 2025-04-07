@@ -2,11 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import {
-  formatDistanceToNowStrict,
-  millisecondsToHours,
-  millisecondsToMinutes,
-} from "date-fns";
+import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
@@ -15,11 +11,15 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import Icon from "components/Icon";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
+
+import { getPathWithQueryParams } from "utilities/url";
 import sortUtils from "utilities/sort";
 import { PolicyResponse } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -60,18 +60,6 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const createHostsByPolicyPath = (
-  policyId: number,
-  policyResponse: PolicyResponse,
-  teamId?: number | null
-) => {
-  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    policy_id: policyId,
-    policy_response: policyResponse,
-    team_id: teamId,
-  })}`;
-};
-
 const getPolicyRefreshTime = (ms: number): string => {
   const seconds = ms / 1000;
   if (seconds < 60) {
@@ -103,27 +91,10 @@ const generateTableHeaders = (
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
   },
-  policiesList: IPolicyStats[] = [],
   isPremiumTier?: boolean
 ): IDataColumn[] => {
   const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
-  // Figure the time since the host counts were updated.
-  // First, find first policy item with host_count_updated_at.
-  const updatedAt =
-    policiesList.find((p) => !!p.host_count_updated_at)
-      ?.host_count_updated_at || "";
-  let timeSinceHostCountUpdate = "";
-  if (updatedAt) {
-    try {
-      timeSinceHostCountUpdate = formatDistanceToNowStrict(
-        new Date(updatedAt),
-        { addSuffix: true }
-      );
-    } catch (e) {
-      // Do nothing.
-    }
-  }
 
   const tableHeaders: IDataColumn[] = [
     {
@@ -135,90 +106,92 @@ const generateTableHeaders = (
         />
       ),
       accessor: "name",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <LinkCell
-          className="w250 policy-name-cell"
-          value={
-            <>
-              <div className="policy-name-text">{cellProps.cell.value}</div>
-              {isPremiumTier && cellProps.row.original.critical && (
-                <div className="critical-badge">
-                  <span
-                    className="critical-badge-icon"
-                    data-tooltip-id={`critical-tooltip-${cellProps.row.original.id}`}
-                  >
-                    <Icon
-                      className="critical-policy-icon"
-                      name="policy"
-                      size="small"
-                      color="core-fleet-blue"
-                    />
-                  </span>
-                  <ReactTooltip5
-                    className="critical-tooltip"
-                    disableStyleInjection
-                    place="top"
-                    opacity={1}
-                    id={`critical-tooltip-${cellProps.row.original.id}`}
-                    offset={8}
-                    positionStrategy="fixed"
-                  >
-                    This policy has been marked as critical.
-                  </ReactTooltip5>
-                </div>
-              )}
-              {viewingTeamPolicies && !cellProps.row.original.team_id && (
-                <InheritedBadge tooltipContent="This policy runs on all hosts." />
-              )}
-            </>
-          }
-          path={PATHS.EDIT_POLICY(cellProps.row.original)}
-        />
-      ),
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const { critical, id, team_id } = cellProps.row.original;
+        return (
+          <LinkCell
+            className="w250 policy-name-cell"
+            value={
+              <>
+                <div className="policy-name-text">{cellProps.cell.value}</div>
+                {isPremiumTier && critical && (
+                  <div className="critical-badge">
+                    <span
+                      className="critical-badge-icon"
+                      data-tooltip-id={`critical-tooltip-${id}`}
+                    >
+                      <Icon
+                        className="critical-policy-icon"
+                        name="policy"
+                        size="small"
+                        color="core-fleet-blue"
+                      />
+                    </span>
+                    <ReactTooltip5
+                      className="critical-tooltip"
+                      disableStyleInjection
+                      place="top"
+                      opacity={1}
+                      id={`critical-tooltip-${id}`}
+                      offset={8}
+                      positionStrategy="fixed"
+                    >
+                      This policy has been marked as critical.
+                    </ReactTooltip5>
+                  </div>
+                )}
+                {viewingTeamPolicies && team_id === null && (
+                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                )}
+              </>
+            }
+            path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
+              team_id,
+            })}
+          />
+        );
+      },
       sortType: "caseInsensitive",
     },
     {
       title: "Yes",
-      Header: () => (
-        <PassingColumnHeader
-          isPassing
-          timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+      Header: (cellProps) => (
+        <HeaderCell
+          value={<PassingColumnHeader isPassing />}
+          isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      disableSortBy: true,
       accessor: "passing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        if (cellProps.row.original.has_run) {
+        const { has_run, id, next_update_ms } = cellProps.row.original;
+
+        if (has_run) {
           return (
             <LinkCell
               value={`${cellProps.cell.value} host${
                 cellProps.cell.value.toString() === "1" ? "" : "s"
               }`}
-              path={createHostsByPolicyPath(
-                cellProps.row.original.id,
-                PolicyResponse.PASSING,
-                selectedTeamId
-              )}
+              path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                policy_id: id,
+                policy_response: PolicyResponse.PASSING,
+                team_id: selectedTeamId,
+              })}
             />
           );
         }
         return (
           <div className="policy-has-not-run">
-            <span
-              data-tooltip-id={`passing_${cellProps.row.original.id.toString()}`}
-            >
-              ---
-            </span>
+            <span data-tooltip-id={`passing_${id.toString()}`}>---</span>
             <ReactTooltip5
               className="policy-has-not-run-tooltip"
               disableStyleInjection
               place="top"
               opacity={1}
-              id={`passing_${cellProps.row.original.id.toString()}`}
+              id={`passing_${id.toString()}`}
               offset={8}
               positionStrategy="fixed"
             >
-              {getTooltip(cellProps.row.original.next_update_ms)}
+              {getTooltip(next_update_ms)}
             </ReactTooltip5>
           </div>
         );
@@ -228,48 +201,41 @@ const generateTableHeaders = (
       title: "No",
       Header: (cellProps) => (
         <HeaderCell
-          value={
-            <PassingColumnHeader
-              isPassing={false}
-              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
-            />
-          }
+          value={<PassingColumnHeader isPassing={false} />}
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       accessor: "failing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        if (cellProps.row.original.has_run) {
+        const { has_run, id, next_update_ms } = cellProps.row.original;
+
+        if (has_run) {
           return (
             <LinkCell
               value={`${cellProps.cell.value} host${
                 cellProps.cell.value.toString() === "1" ? "" : "s"
               }`}
-              path={createHostsByPolicyPath(
-                cellProps.row.original.id,
-                PolicyResponse.FAILING,
-                selectedTeamId
-              )}
+              path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                policy_id: id,
+                policy_response: PolicyResponse.FAILING,
+                team_id: selectedTeamId,
+              })}
             />
           );
         }
         return (
           <div className="policy-has-not-run">
-            <span
-              data-tooltip-id={`passing_${cellProps.row.original.id.toString()}`}
-            >
-              ---
-            </span>
+            <span data-tooltip-id={`passing_${id.toString()}`}>---</span>
             <ReactTooltip5
               className="policy-has-not-run-tooltip"
               disableStyleInjection
               place="top"
               opacity={1}
-              id={`passing_${cellProps.row.original.id.toString()}`}
+              id={`passing_${id.toString()}`}
               offset={8}
               positionStrategy="fixed"
             >
-              {getTooltip(cellProps.row.original.next_update_ms)}
+              {getTooltip(next_update_ms)}
             </ReactTooltip5>
           </div>
         );
@@ -282,7 +248,7 @@ const generateTableHeaders = (
     tableHeaders.unshift({
       id: "selection",
       Header: (headerProps: any) => {
-        // When viewing team policies select all checkbox accounts for not selecting inherited policies
+        // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) => row.original.team_id !== null,
@@ -306,10 +272,23 @@ const generateTableHeaders = (
         const checkboxProps = viewingTeamPolicies
           ? teamCheckboxProps
           : regularCheckboxProps;
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
+            )}
+          />
+        );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const inheritedPolicy = !cellProps.row.original.team_id;
+        const inheritedPolicy = cellProps.row.original.team_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,
@@ -321,7 +300,20 @@ const generateTableHeaders = (
           return <></>;
         }
 
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
+            )}
+          />
+        );
       },
       disableHidden: true,
     });

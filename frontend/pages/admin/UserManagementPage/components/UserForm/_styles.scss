@@ -1,21 +1,20 @@
-.create-user-form {
+.user-form {
+  max-height: 581px;
+  overflow-y: auto;
+
+  .form {
+    width: 100%;
+  }
+
   &__sso-input {
     .fleet-checkbox {
       margin-top: 5px;
-
-      &__tick--disabled {
-        @include disabled;
-      }
 
       &__label {
         font-size: $x-small;
         font-weight: $bold;
         color: $core-fleet-black;
       }
-    }
-
-    &--disabled {
-      @include disabled;
     }
   }
 

@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -14,27 +13,28 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VividCortex/mysqlerr"
 	"github.com/WatchBeam/clock"
 	"github.com/XSAM/otelsql"
-	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mysql "github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
+	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	"github.com/ngrok/sqlmw"
-	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 const (
@@ -45,24 +45,17 @@ const (
 // Matches all non-word and '-' characters for replacement
 var columnCharsRegexp = regexp.MustCompile(`[^\w-.]`)
 
-// dbReader is an interface that defines the methods required for reads.
-type dbReader interface {
-	sqlx.QueryerContext
-	sqlx.PreparerContext
-
-	Close() error
-	Rebind(string) string
-}
-
 // Datastore is an implementation of fleet.Datastore interface backed by
 // MySQL
 type Datastore struct {
-	replica dbReader // so it cannot be used to perform writes
+	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
 	logger log.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
+	pusher nano_push.Pusher
+	android.Datastore
 
 	// nil if no read replica
 	readReplicaConfig *config.MysqlConfig
@@ -82,6 +75,8 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+	// for tests set to override the default batch size.
+	testSelectMDMProfilesBatchSize int
 
 	// set this in tests to simulate an error at various stages in the
 	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
@@ -105,15 +100,27 @@ type Datastore struct {
 	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
 	testBatchSetMDMWindowsProfilesErr string
 
+	// set this to the execution ids of activities that should be activated in
+	// the next call to activateNextUpcomingActivity, instead of picking the next
+	// available activity based on normal prioritization and creation date
+	// ordering.
+	testActivateSpecificNextActivities []string
+
 	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
 	// certificates and keys.
 	serverPrivateKey string
 }
 
+// WithPusher sets an APNs pusher for the datastore, used when activating
+// next activities that require MDM commands.
+func (ds *Datastore) WithPusher(p nano_push.Pusher) {
+	ds.pusher = p
+}
+
 // reader returns the DB instance to use for read-only statements, which is the
 // replica unless the primary has been explicitly required via
 // ctxdb.RequirePrimary.
-func (ds *Datastore) reader(ctx context.Context) dbReader {
+func (ds *Datastore) reader(ctx context.Context) fleet.DBReader {
 	if ctxdb.IsPrimaryRequired(ctx) {
 		return ds.primary
 	}
@@ -160,13 +167,27 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 	return stmt
 }
 
+func (ds *Datastore) deleteCachedStmt(query string) {
+	ds.stmtCacheMu.Lock()
+	defer ds.stmtCacheMu.Unlock()
+	stmt, ok := ds.stmtCache[query]
+	if ok {
+		if err := stmt.Close(); err != nil {
+			level.Error(ds.logger).Log(
+				"msg", "failed to close prepared statement before deleting it",
+				"query", query,
+				"err", err,
+			)
+		}
+		delete(ds.stmtCache, query)
+	}
+}
+
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 	return newSCEPDepot(ds.primary.DB, ds)
 }
-
-type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
 	name string
@@ -181,123 +202,21 @@ var (
 	usersTable    = entity{"users"}
 )
 
-var doRetryErr = errors.New("fleet datastore retry")
-
-// retryableError determines whether a MySQL error can be retried. By default
-// errors are considered non-retryable. Only errors that we know have a
-// possibility of succeeding on a retry should return true in this function.
-func retryableError(err error) bool {
-	base := ctxerr.Cause(err)
-	if b, ok := base.(*mysql.MySQLError); ok {
-		switch b.Number {
-		// Consider lock related errors to be retryable
-		case mysqlerr.ER_LOCK_DEADLOCK, mysqlerr.ER_LOCK_WAIT_TIMEOUT:
-			return true
-		}
-	}
-	if errors.Is(err, doRetryErr) {
-		return true
-	}
-
-	return false
-}
-
-func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
-	return withRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
-}
-
-// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
-func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) (err error) {
-	operation := func() error {
-		tx, err := db.BeginTxx(ctx, nil)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "create transaction")
-		}
-
-		defer func() {
-			if p := recover(); p != nil {
-				if err := tx.Rollback(); err != nil {
-					logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
-				}
-				panic(p)
-			}
-		}()
-
-		if err := fn(tx); err != nil {
-			rbErr := tx.Rollback()
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				// Consider rollback errors to be non-retryable
-				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
-			}
-
-			if retryableError(err) {
-				return err
-			}
-
-			// Consider any other errors to be non-retryable
-			return backoff.Permanent(err)
-		}
-
-		if err := tx.Commit(); err != nil {
-			err = ctxerr.Wrap(ctx, err, "commit transaction")
-
-			if retryableError(err) {
-				return err
-			}
-
-			return backoff.Permanent(err)
-		}
-
-		return nil
-	}
-
-	expBo := backoff.NewExponentialBackOff()
-	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
-	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
-	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
-	// 'Context cancelled' errors when the server drops long-lasting connections.
-	expBo.MaxElapsedTime = 1 * time.Minute
-	bo := backoff.WithMaxRetries(expBo, 5)
-	return backoff.Retry(operation, bo)
+func (ds *Datastore) withRetryTxx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	return common_mysql.WithRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
 // withTx provides a common way to commit/rollback a txFn
-func (ds *Datastore) withTx(ctx context.Context, fn txFn) (err error) {
-	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create transaction")
-	}
-
-	defer func() {
-		if p := recover(); p != nil {
-			if err := tx.Rollback(); err != nil {
-				ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
-			}
-			panic(p)
-		}
-	}()
-
-	if err := fn(tx); err != nil {
-		rbErr := tx.Rollback()
-		if rbErr != nil && rbErr != sql.ErrTxDone {
-			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
-		}
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return ctxerr.Wrap(ctx, err, "commit transaction")
-	}
-
-	return nil
+func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
-	options := &dbOptions{
-		minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-		maxAttempts:         defaultMaxAttempts,
-		logger:              log.NewNopLogger(),
+	options := &common_mysql.DBOptions{
+		MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+		MaxAttempts:         defaultMaxAttempts,
+		Logger:              log.NewNopLogger(),
 	}
 
 	for _, setOpt := range opts {
@@ -311,19 +230,19 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	if err := checkConfig(&config); err != nil {
 		return nil, err
 	}
-	if options.replicaConfig != nil {
-		if err := checkConfig(options.replicaConfig); err != nil {
+	if options.ReplicaConfig != nil {
+		if err := checkConfig(options.ReplicaConfig); err != nil {
 			return nil, fmt.Errorf("replica: %w", err)
 		}
 	}
 
-	dbWriter, err := newDB(&config, options)
+	dbWriter, err := NewDB(&config, options)
 	if err != nil {
 		return nil, err
 	}
 	dbReader := dbWriter
-	if options.replicaConfig != nil {
-		dbReader, err = newDB(options.replicaConfig, options)
+	if options.ReplicaConfig != nil {
+		dbReader, err = NewDB(options.ReplicaConfig, options)
 		if err != nil {
 			return nil, err
 		}
@@ -332,14 +251,15 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 	ds := &Datastore{
 		primary:             dbWriter,
 		replica:             dbReader,
-		logger:              options.logger,
+		logger:              options.Logger,
 		clock:               c,
 		config:              config,
-		readReplicaConfig:   options.replicaConfig,
+		readReplicaConfig:   options.ReplicaConfig,
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
-		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
-		serverPrivateKey:    options.privateKey,
+		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
+		serverPrivateKey:    options.PrivateKey,
+		Datastore:           android_mysql.New(options.Logger, dbWriter, dbReader),
 	}
 
 	go ds.writeChanLoop()
@@ -381,56 +301,40 @@ var otelTracedDriverName string
 
 func init() {
 	var err error
-	otelTracedDriverName, err = otelsql.Register("mysql", semconv.DBSystemMySQL.Value.AsString())
+	otelTracedDriverName, err = otelsql.Register("mysql",
+		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithSpanOptions(otelsql.SpanOptions{
+			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
+			// when certain optional methods or paths are not implemented/taken.
+			// For example: interpolateParams=false (the secure default) will not do a parametrized sql.conn.query directly without preparing it first, causing driver.ErrSkip
+			DisableErrSkip: true,
+			// Omitting span for sql.conn.reset_session since it takes ~1us and doesn't provide useful information
+			OmitConnResetSession: true,
+			// Omitting span for sql.rows since it is very quick and typically doesn't provide useful information beyond what's already reported by prepare/exec/query
+			OmitRows: true,
+		}),
+		// WithSpanNameFormatter allows us to customize the span name, which is especially useful for SQL queries run outside an HTTPS transaction,
+		// which do not belong to a parent span, show up as their own trace, and would otherwise be named "sql.conn.query" or "sql.conn.exec".
+		otelsql.WithSpanNameFormatter(func(ctx context.Context, method otelsql.Method, query string) string {
+			if query == "" {
+				return string(method)
+			}
+			// Append query with extra whitespaces removed
+			query = strings.Join(strings.Fields(query), " ")
+			const maxQueryLen = 100
+			if len(query) > maxQueryLen {
+				query = query[:maxQueryLen] + "..."
+			}
+			return string(method) + ": " + query
+		}),
+	)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
-	driverName := "mysql"
-	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
-		if opts.tracingConfig.TracingType == "opentelemetry" {
-			driverName = otelTracedDriverName
-		} else {
-			driverName = "apm/mysql"
-		}
-	}
-	if opts.interceptor != nil {
-		driverName = "mysql-mw"
-		sql.Register(driverName, sqlmw.Driver(mysql.MySQLDriver{}, opts.interceptor))
-	}
-	if opts.sqlMode != "" {
-		conf.SQLMode = opts.sqlMode
-	}
-
-	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxIdleConns(conf.MaxIdleConns)
-	db.SetMaxOpenConns(conf.MaxOpenConns)
-	db.SetConnMaxLifetime(time.Second * time.Duration(conf.ConnMaxLifetime))
-
-	var dbError error
-	for attempt := 0; attempt < opts.maxAttempts; attempt++ {
-		dbError = db.Ping()
-		if dbError == nil {
-			// we're connected!
-			break
-		}
-		interval := time.Duration(attempt) * time.Second
-		opts.logger.Log("mysql", fmt.Sprintf(
-			"could not connect to db: %v, sleeping %v", dbError, interval))
-		time.Sleep(interval)
-	}
-
-	if dbError != nil {
-		return nil, dbError
-	}
-	return db, nil
+func NewDB(conf *config.MysqlConfig, opts *common_mysql.DBOptions) (*sqlx.DB, error) {
+	return common_mysql.NewDB(conf, opts, otelTracedDriverName)
 }
 
 func checkConfig(conf *config.MysqlConfig) error {
@@ -474,7 +378,7 @@ func (ds *Datastore) MigrateData(ctx context.Context) error {
 func (ds *Datastore) loadMigrations(
 	ctx context.Context,
 	writer *sql.DB,
-	reader dbReader,
+	reader fleet.DBReader,
 ) (tableRecs []int64, dataRecs []int64, err error) {
 	// We need to run the following to trigger the creation of the migration status tables.
 	_, err = tables.MigrationClient.GetDBVersion(writer)
@@ -868,7 +772,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -901,7 +805,7 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
-	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	globalFilter := fmt.Sprintf("%s.team_id = 0 AND %[1]s.global_stats = 1", filterTableAlias)
 	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
 	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
 }
@@ -944,7 +848,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
 			}
@@ -1003,7 +907,7 @@ func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) s
 			team.Role == fleet.RoleGitOps ||
 			team.Role == fleet.RoleObserverPlus ||
 			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
-			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			idStrs = append(idStrs, fmt.Sprint(team.ID))
 		}
 	}
 
@@ -1024,10 +928,21 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 
 	var idStrs []string
 	for _, id := range omit {
-		idStrs = append(idStrs, strconv.Itoa(int(id)))
+		idStrs = append(idStrs, fmt.Sprint(id))
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
+}
+
+func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
+	if identifier == "" {
+		return stmt, params
+	}
+
+	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
+	params = append(params, identifier)
+
+	return stmt, params
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.
@@ -1048,43 +963,6 @@ func registerTLS(conf config.MysqlConfig) error {
 	return nil
 }
 
-// generateMysqlConnectionString returns a MySQL connection string using the
-// provided configuration.
-func generateMysqlConnectionString(conf config.MysqlConfig) string {
-	params := url.Values{
-		// using collation implicitly sets the charset too
-		// and it's the recommended way to do it per the
-		// driver documentation:
-		// https://github.com/go-sql-driver/mysql#charset
-		"collation":            []string{"utf8mb4_unicode_ci"},
-		"parseTime":            []string{"true"},
-		"loc":                  []string{"UTC"},
-		"time_zone":            []string{"'-00:00'"},
-		"clientFoundRows":      []string{"true"},
-		"allowNativePasswords": []string{"true"},
-		"group_concat_max_len": []string{"4194304"},
-		"multiStatements":      []string{"true"},
-	}
-	if conf.TLSConfig != "" {
-		params.Set("tls", conf.TLSConfig)
-	}
-	if conf.SQLMode != "" {
-		params.Set("sql_mode", conf.SQLMode)
-	}
-
-	dsn := fmt.Sprintf(
-		"%s:%s@%s(%s)/%s?%s",
-		conf.Username,
-		conf.Password,
-		conf.Protocol,
-		conf.Address,
-		conf.Database,
-		params.Encode(),
-	)
-
-	return dsn
-}
-
 // isForeignKeyError checks if the provided error is a MySQL child foreign key
 // error (Error #1452)
 func isChildForeignKeyError(err error) bool {
@@ -1103,8 +981,8 @@ type patternReplacer func(string) string
 
 // likePattern returns a pattern to match m with LIKE.
 func likePattern(m string) string {
-	m = strings.Replace(m, "_", "\\_", -1)
-	m = strings.Replace(m, "%", "\\%", -1)
+	m = strings.ReplaceAll(m, "_", "\\_")
+	m = strings.ReplaceAll(m, "%", "\\%")
 	return "%" + m + "%"
 }
 
@@ -1213,21 +1091,7 @@ func (ds *Datastore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, err
 	return processList, nil
 }
 
-func insertOnDuplicateDidInsert(res sql.Result) bool {
-	// Note that connection string sets CLIENT_FOUND_ROWS (see
-	// generateMysqlConnectionString in this package), so LastInsertId is 0
-	// and RowsAffected 1 when a row is set to its current values.
-	//
-	// See [the docs][1] or @mna's comment in `insertOnDuplicateDidUpdate`
-	// below for more details
-	//
-	// [1]: https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
-	lastID, _ := res.LastInsertId()
-	affected, _ := res.RowsAffected()
-	return lastID != 0 && affected == 1
-}
-
-func insertOnDuplicateDidUpdate(res sql.Result) bool {
+func insertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
 	// From mysql's documentation:
 	//
 	// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
@@ -1237,7 +1101,10 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// connecting to mysqld, the affected-rows value is 1 (not 0) if an
 	// existing row is set to its current values.
 	//
-	// https://dev.mysql.com/doc/refman/5.7/en/insert-on-duplicate.html
+	// If a table contains an AUTO_INCREMENT column and INSERT ... ON DUPLICATE KEY UPDATE
+	// inserts or updates a row, the LAST_INSERT_ID() function returns the AUTO_INCREMENT value.
+	//
+	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
 	//
 	// Note that connection string sets CLIENT_FOUND_ROWS (see
 	// generateMysqlConnectionString in this package), so it does return 1 when
@@ -1252,7 +1119,8 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()
-	return lastID == 0 || aff != 1
+	// something was updated (lastID != 0) AND row was found (aff == 1 or higher if more rows were found)
+	return lastID != 0 && aff > 0
 }
 
 type parameterizedStmt struct {
@@ -1271,6 +1139,13 @@ type parameterizedStmt struct {
 //
 // The read statement must only SELECT the id column.
 func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insertStmt *parameterizedStmt) (id uint, err error) {
+	return ds.optimisticGetOrInsertWithWriter(ctx, ds.writer(ctx), readStmt, insertStmt)
+}
+
+// optimisticGetOrInsertWithWriter is the same as optimisticGetOrInsert but it
+// uses the provided writer to perform the insert or second read operations.
+// This makes it possible to use this from inside a transaction.
+func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer sqlx.ExtContext, readStmt, insertStmt *parameterizedStmt) (id uint, err error) { //nolint: gocritic // it's ok in this case to use ds.reader even if we receive an ExtContext
 	readID := func(q sqlx.QueryerContext) (uint, error) {
 		var id uint
 		err := sqlx.GetContext(ctx, q, &id, readStmt.Statement, readStmt.Args...)
@@ -1282,12 +1157,12 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// this does not exist yet, try to insert it
-			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			res, err := writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
 				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
-					id, err := readID(ds.writer(ctx))
+					id, err := readID(writer)
 					if err != nil {
 						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
 					}
@@ -1296,7 +1171,7 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 				return 0, ctxerr.Wrap(ctx, err, "insert")
 			}
 			id, _ := res.LastInsertId()
-			return uint(id), nil
+			return uint(id), nil //nolint:gosec // dismiss G115
 		}
 		return 0, ctxerr.Wrap(ctx, err, "get id from reader")
 	}

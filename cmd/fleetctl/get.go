@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beevik/etree"
@@ -320,13 +321,22 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 		minOsqueryVersion = query.MinOsqueryVersion
 	}
 
-	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
+	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
 		query.Interval,
 		platform,
 		minOsqueryVersion,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
+
+	if len(query.LabelsIncludeAny) > 0 {
+		scheduleInfo += "\nlabels_include_any:"
+
+		for _, label := range query.LabelsIncludeAny {
+			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
+		}
+	}
 
 	teamNameOut := teamName
 	if teamName == "" {
@@ -371,7 +381,7 @@ func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
-		Usage:   "List information about one or more queries",
+		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
@@ -450,6 +460,10 @@ func getQueriesCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
+						labelsAny := []string{}
+						for _, label := range query.LabelsIncludeAny {
+							labelsAny = append(labelsAny, label.LabelName)
+						}
 						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
@@ -463,6 +477,7 @@ func getQueriesCommand() *cli.Command {
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
 							DiscardData:        query.DiscardData,
+							LabelsIncludeAny:   labelsAny,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
@@ -651,7 +666,7 @@ func getLabelsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "labels",
 		Aliases: []string{"label", "l"},
-		Usage:   "List information about one or more labels",
+		Usage:   "List information about labels",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -793,7 +808,7 @@ func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
 		Aliases: []string{"host", "h"},
-		Usage:   "List information about one or more hosts",
+		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     "team",
@@ -843,9 +858,7 @@ func getHostsCommand() *cli.Command {
 					}
 
 					if c.Bool("mdm") {
-						// hosts enrolled (automatic or manual) in Fleet's MDM server
-						query.Set("mdm_name", fleet.WellKnownMDMFleet)
-						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+						query.Set("connected_to_fleet", "true")
 					}
 					if c.Bool("mdm-pending") {
 						// hosts pending enrollment in Fleet's MDM server
@@ -1547,6 +1560,8 @@ func getMDMCommandsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			byHostIdentifier(),
+			byMDMCommandRequestType(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1559,11 +1574,21 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
-			results, err := client.MDMListCommands()
+			opts := fleet.MDMCommandListOptions{
+				Filters: fleet.MDMCommandFilters{
+					HostIdentifier: c.String("host"),
+					RequestType:    c.String("type"),
+				},
+			}
+
+			results, err := client.MDMListCommands(opts)
 			if err != nil {
+				if strings.Contains(err.Error(), fleet.HostIdentiferNotFound) {
+					return errors.New(fleet.HostIdentiferNotFound)
+				}
 				return err
 			}
-			if len(results) == 0 {
+			if len(results) == 0 && opts.Filters.HostIdentifier == "" && opts.Filters.RequestType == "" {
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}
@@ -1583,7 +1608,8 @@ func getMDMCommandsCommand() *cli.Command {
 					r.Hostname,
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			columns := []string{"UUID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			fmt.Fprintf(c.App.Writer, "\nThe list of %d most recent commands:\n\n", len(results))
 			printTable(c, columns, data)
 
 			return nil

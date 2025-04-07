@@ -1,61 +1,61 @@
 -
-  task: "Prioritize for next sprint" # Title that will actually show in rituals table
-  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Triweekly" # must be supported by
-  description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
-  dri: "noahtalerman" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-endpoint-ops" ] # label to be applied to issue
-    repo: "confidential"
--
-  task: "Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
+  task: "🦢📊 Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Clear out the drafting board of all issues that are not estimated but leave the items we want to take in the next sprint on the drafting board. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline)." 
+  description: "1. For all stories that are not estimated, move them on the roadmap chart and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board and roadmap chart, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
   task: "🎁 Feature fest" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "We make a decision regarding which customer and community feature requests can be committed to in the next six weeks." 
+  description: "We make a decision regarding which feature requests can be prioritized." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#feature-fest"
   dri: "noahtalerman" 
 -
   task: "Design sprint kickoff" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Add stories prioritized during Feature fest to Drafting board, assign stories to product designers, and align on priorities." 
+  description: "Review stories (and, as needed, create engineering research stories) for feature requests prioritized during Feature fest; assign Engineering DRIs to stories; align on priorities; and create an upcoming reference docs release branch."
   moreInfoUrl: 
   dri: "noahtalerman"
 -
   task: "Sprint kickoff review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Identify stories that did not make it into this sprint and remove them from the board. Notify relevant requesters/stakeholders. Ensure bugs have been effectively prioritized across teams. Recommend highlights for next release notes. Record the number of drops for KPI reporting. Consider product group staffing. Are we scheduling what we prioritized?  Did we finish what we scheduled in the sprint?  (Look at org chart.)" 
+  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. After the call, the Head of Product Design @ mentions the API design DRI in #help-design about stories that didn't make it into the sprint so that they can update the reference docs release branches." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
-  task: "🦢🗣 Design review (#g-mdm)"
+  task: "🦢🗣 Design review"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
+  description: "On Mondays, contributors present wireframes in 'Feedback' mode and anyone can give feedback. 'Final review' mode during all other days and only Head of Product Design + CTO + Product Designers give feedback." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
-  dri: "marko-lisica"
+  dri: "noahtalerman"
 -
-  task: "🦢🗣 Design review (#g-endpoint-ops)"
-  startedOn: "2024-03-07" 
+  task: "🦢📨 Unpacking the 'why'"
+  startedOn: "2024-09-30" 
   frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
-  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
-  dri: "rachaelshaw"
+  description: "Break down the 'why' for new customer requests in the 'Inbox' column on the drafting board." 
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#unpacking-the-why" 
+  dri: "noahtalerman"
 -
-  task: "🦢🔄 Product design sync"
+  task: "Quarterly roadmap blog post"
+  startedOn: "2024-11-05" 
+  frequency: "Monthly" 
+  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this." 
+  moreInfoUrl: "" 
+  dri: "noahtalerman"
+  autoIssue:   
+    labels: [ ":product" ]
+    repo: "fleet"
+-
+  task: "🦢👁️ Product design check-in"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 
-  description: "Weekly time to chat about product design work (design reviews, conventions & best practices, using Figma, etc.)" 
-  moreInfoUrl: "https://docs.google.com/document/d/1GDEcXuTUjHI2CD9Jqega_GyF9DL6-PBmcyJpj55Lmos/edit" # 2024-03-06 TODO: Add responsibility to README and link to it here
+  description: "The Head of Product Design summarizes the current week's design reviews to discuss with the CEO" 
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#product-design-check-in" # 2024-03-06 TODO: Add responsibility to README and link to it here
   dri: "noahtalerman"
 -
   task: "🦢🗣 Product office hours"
@@ -69,19 +69,30 @@
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
   description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #g-mdm and #g-endpoint-ops Slack channel." 
-  moreInfoUrl: 
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -
-  task: "Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
+  task: "🦢✅🎉Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
-  frequency: "Weekly" 
-  description: "Review user stories we shipped but haven't closed/ Confirm all the loose ends are tied up: docs, internal and external comms, guides, pricing page, transparency page, user permissions." 
+  frequency: "Triweekly" 
+  description: "Review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
   task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
-  frequency: "Triweekly" 
-  description: "The Head of Product Design and each group's EM meet before each sprint to align on priorities and discuss what stories weren't completed in the previous sprint. Head of Product Design records number of stories that weren't completed in the “Stories dropped” product KPI." 
-  moreInfoUrl: 
+  frequency: "Triweekly"
+  description: "Decide which stories and bugs to bring in to the upcoming sprint. Ahead of the call, Engineering Managers (EM) for each product group prepare their team's estimated capacity that factors in time off (PTO) and the on-call rotation."
   dri: "noahtalerman"
+-
+  task: "User story review"
+  startedOn: "2025-01-16"
+  frequency: "Weekly"
+  description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
+  dri: "noahtalerman"
+- 
+  task: "🦢🚀🔄 Design sync"
+  startedOn: "2025-04-23"
+  frequency: "Triweekly"
+  description: "Product Designers and Frontend Engineers meet to discuss proposed changes to design conventions, UI components, and potential overlap/collisions between in progress wireframes."
+  dri: "rachaelshaw"

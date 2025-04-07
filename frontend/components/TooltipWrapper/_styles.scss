@@ -1,4 +1,8 @@
 .component__tooltip-wrapper {
+  &.show-arrow {
+    @include tooltip5-arrow-styles;
+  }
+
   display: inline-flex;
 
   &__element {

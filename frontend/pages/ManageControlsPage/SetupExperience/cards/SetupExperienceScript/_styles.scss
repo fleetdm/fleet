@@ -1,0 +1,28 @@
+.setup-experience-script {
+  &__content {
+    max-width: $break-xxl;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $pad-xxlarge;
+  }
+
+  &__description {
+    margin: 0;
+  }
+
+  &__learn-how-link {
+  margin-bottom: $pad-large;
+  }
+
+  &__run-message {
+    margin: 0 0 $pad-small;
+    font-weight: $bold;
+  }
+
+  @media (max-width: $break-md) {
+    &__content {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

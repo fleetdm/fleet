@@ -55,6 +55,18 @@ module.exports = {
       example: 'Nola Thacker',
     },
 
+    replyTo: {
+      description: 'The reply to email address.',
+      example: {
+        emailAddress: 'anne.m.martin@example.com',
+        name: 'Anne M. Martin'
+      },
+      type: {
+        emailAddress: 'string',
+        name: 'string',
+      }
+    },
+
     subject: {
       description: 'The subject of the email.',
       example: 'Hello there.',
@@ -122,7 +134,7 @@ module.exports = {
   },
 
 
-  fn: async function({template, templateData, to, toName, subject, from, fromName, layout, ensureAck, bcc, attachments}) {
+  fn: async function({template, templateData, to, toName, subject, from, fromName, layout, replyTo, ensureAck, bcc, attachments}) {
 
     var path = require('path');
     var url = require('url');
@@ -247,6 +259,7 @@ module.exports = {
         subject: subjectLinePrefix+subject,
         from: from,
         fromName: fromName,
+        replyTo: replyTo,
         attachments
       };
 

@@ -4,18 +4,19 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"github.com/cenkalti/backoff/v4"
-	"golang.org/x/oauth2/google"
-	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/googleapi"
-	"google.golang.org/api/option"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/jwt"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 )
 
 // Move all events with eventTitle from the primary calendar of the user to the new time.
@@ -35,6 +36,8 @@ func main() {
 	if serviceEmail == "" || privateKey == "" {
 		log.Fatal("FLEET_TEST_GOOGLE_CALENDAR_SERVICE_EMAIL and FLEET_TEST_GOOGLE_CALENDAR_PRIVATE_KEY must be set")
 	}
+	// Strip newlines from private key
+	privateKey = strings.ReplaceAll(privateKey, "\\n", "\n")
 	userEmails := flag.String("users", "", "Comma-separated list of user emails to impersonate")
 	dateTimeStr := flag.String("datetime", "", "Event time in "+time.RFC3339+" format")
 	flag.Parse()
@@ -79,16 +82,20 @@ func main() {
 			}
 
 			numberMoved := 0
+			var maxResults int64 = 1000
+			pageToken := ""
+			now := time.Now()
 			for {
 				list, err := withRetry(
 					func() (any, error) {
 						return service.Events.List("primary").EventTypes("default").
-							MaxResults(1000).
+							MaxResults(maxResults).
 							OrderBy("startTime").
 							SingleEvents(true).
 							ShowDeleted(false).
 							TimeMin(dateTimeEndStr).
 							Q(eventTitle).
+							PageToken(pageToken).
 							Do()
 					},
 				)
@@ -99,7 +106,17 @@ func main() {
 				if len(list.(*calendar.Events).Items) == 0 {
 					break
 				}
+				foundNewEvents := false
 				for _, item := range list.(*calendar.Events).Items {
+					created, err := time.Parse(time.RFC3339, item.Created)
+					if err != nil {
+						log.Fatalf("Unable to parse event created time: %v", err)
+					}
+					if created.After(now) {
+						// Found events created after we started moving events, so we should stop
+						foundNewEvents = true
+						continue // Skip this event but finish the loop to make sure we don't miss something
+					}
 					if item.Summary == eventTitle {
 						item.Start.DateTime = dateTime.Format(time.RFC3339)
 						item.End.DateTime = dateTime.Add(30 * time.Minute).Format(time.RFC3339)
@@ -117,6 +134,10 @@ func main() {
 						}
 
 					}
+				}
+				pageToken = list.(*calendar.Events).NextPageToken
+				if pageToken == "" || foundNewEvents {
+					break
 				}
 			}
 			log.Printf("DONE. Moved total %d events for %s", numberMoved, userEmail)

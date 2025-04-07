@@ -20,6 +20,8 @@ SCEPSERVER=\
 
 my: scepclient-$(OSARCH) scepserver-$(OSARCH)
 
+win: scepclient-$(OSARCH).exe scepserver-$(OSARCH).exe
+
 docker: scepclient-linux-amd64 scepserver-linux-amd64
 
 $(SCEPCLIENT):
@@ -48,4 +50,4 @@ test:
 test-race:
 	go test -cover -race ./...
 
-.PHONY: my docker $(SCEPCLIENT) $(SCEPSERVER) release clean test test-race
+.PHONY: my mywin docker $(SCEPCLIENT) $(SCEPSERVER) release clean test test-race

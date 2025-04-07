@@ -1,0 +1,12 @@
+name: No team
+controls:
+policies:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      install_script:
+        path: lib/install_ruby.sh
+      pre_install_query:
+        path: lib/query_multiple.yml
+      post_install_script:
+        path: lib/post_install_ruby.sh

@@ -30,5 +30,5 @@ func TestUp_20230503101418(t *testing.T) {
 	require.NotZero(t, j.NotBefore)
 	j.UpdatedAt = time.Time{}
 	j.NotBefore = time.Time{}
-	require.Equal(t, job{ID: uint(id), Name: "Test"}, j)
+	require.Equal(t, job{ID: uint(id), Name: "Test"}, j) //nolint:gosec // dismiss G115
 }

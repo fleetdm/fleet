@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -63,6 +64,23 @@ var userRoleList = []*fleet.User{
 			},
 		},
 	},
+}
+
+var setCurrentUserSession = func(t *testing.T, ds *mock.Store, user *fleet.User) {
+	user, err := ds.NewUser(context.Background(), user)
+	require.NoError(t, err)
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return &fleet.Session{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			ID:              1,
+			AccessedAt:      time.Now(),
+			UserID:          user.ID,
+			Key:             key,
+		}, nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return user, nil
+	}
 }
 
 func TestGetUserRoles(t *testing.T) {
@@ -166,9 +184,17 @@ func TestGetTeams(t *testing.T) {
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
-								MacOSUpdates: fleet.MacOSUpdates{
+								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
+								},
+								IOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("17.5"),
+									Deadline:       optjson.SetString("2022-11-15"),
+								},
+								IPadOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("18.0"),
+									Deadline:       optjson.SetString("2023-01-01"),
 								},
 								WindowsUpdates: fleet.WindowsUpdates{
 									DeadlineDays:    optjson.SetInt(7),
@@ -331,6 +357,9 @@ func TestGetHosts(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
 	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
 	defaultPolicyQuery := "select 1 from osquery_info where start_time > 1;"
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return []*fleet.HostPolicy{
@@ -442,9 +471,7 @@ func TestGetHosts(t *testing.T) {
 		{
 			name:       "get hosts --yaml test_host",
 			goldenFile: "expectedHostDetailResponseYaml.yml",
-			scanner: func(s string) []string {
-				return spec.SplitYaml(s)
-			},
+			scanner:    spec.SplitYaml,
 			args:       []string{"get", "hosts", "--yaml", "test_host"},
 			prettifier: yamlPrettify,
 		},
@@ -515,6 +542,9 @@ func TestGetHostsMDM(t *testing.T) {
 		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -615,6 +645,70 @@ func TestGetConfig(t *testing.T) {
 		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
 		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
+
+	t.Run("AppConfigAsTeamUsers", func(t *testing.T) {
+		// test as team admin
+		setCurrentUserSession(t, ds, &fleet.User{
+			ID:         5,
+			Name:       "Admin of team 1",
+			Password:   []byte("p4ssw0rd.123"),
+			Email:      "omt2@example.com",
+			GlobalRole: nil,
+			Teams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleAdmin,
+				},
+				{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleMaintainer,
+				},
+			},
+		})
+
+		b, err := os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigYaml.yml"))
+		require.NoError(t, err)
+		expectedYaml := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigJson.json"))
+		require.NoError(t, err)
+		expectedJson := string(b)
+
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+
+		// test as team maintainer
+		setCurrentUserSession(t, ds, &fleet.User{
+			ID:         6,
+			Name:       "Maintainer of team 1",
+			Password:   []byte("p4ssw0rd.123"),
+			Email:      "omt3@example.com",
+			GlobalRole: nil,
+			Teams: []fleet.UserTeam{
+				{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleMaintainer,
+				},
+				{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleMaintainer,
+				},
+			},
+		})
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigTeamMaintainerYaml.yml"))
+		require.NoError(t, err)
+		expectedYaml = string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "expectedGetConfigAppConfigTeamMaintainerJson.json"))
+		require.NoError(t, err)
+		expectedJson = string(b)
+
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+	})
 }
 
 func TestGetSoftwareTitles(t *testing.T) {
@@ -678,10 +772,10 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- hosts_count: 2
+- app_store_app: null
+  hosts_count: 2
   id: 0
   name: foo
-  self_service: false
   software_package: null
   source: chrome_extensions
   versions:
@@ -699,10 +793,10 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- hosts_count: 0
+- app_store_app: null
+  hosts_count: 0
   id: 0
   name: bar
-  self_service: false
   software_package: null
   source: deb_packages
   versions:
@@ -747,8 +841,8 @@ spec:
           ]
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     },
     {
       "id": 0,
@@ -760,11 +854,11 @@ spec:
         {
           "id": 0,
           "version": "0.0.3",
-		  "vulnerabilities": null
+      "vulnerabilities": null
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     }
   ]
 }
@@ -785,8 +879,8 @@ func TestGetSoftwareVersions(t *testing.T) {
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
-			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
-			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
@@ -830,8 +924,10 @@ spec:
   vulnerabilities:
   - cve: cve-321-432-543
     details_link: https://nvd.nist.gov/vuln/detail/cve-321-432-543
+    created_at: "2021-01-01T00:00:00Z"
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
+    created_at: "2021-01-01T00:00:00Z"
 - generated_cpe: ""
   id: 0
   name: foo
@@ -872,11 +968,13 @@ spec:
       "vulnerabilities": [
         {
           "cve": "cve-321-432-543",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543",
+		  "created_at": "2021-01-01T00:00:00Z"
         },
         {
           "cve": "cve-333-444-555",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555",
+		  "created_at": "2021-01-01T00:00:00Z"
         }
       ]
     },
@@ -1234,8 +1332,8 @@ func TestGetQueries(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		if opt.TeamID == nil {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID == nil { //nolint:gocritic // ignore ifElseChain
 			return []*fleet.Query{
 				{
 					ID:             33,
@@ -1252,6 +1350,11 @@ func TestGetQueries(t *testing.T) {
 					Query:          "select 2;",
 					Saved:          true, // ListQueries always returns the saved ones.
 					ObserverCanRun: false,
+					DiscardData:    true,
+					LabelsIncludeAny: []fleet.LabelIdent{
+						{LabelName: "label1", LabelID: 1},
+						{LabelName: "label2", LabelID: 2},
+					},
 				},
 				{
 					ID:                 14,
@@ -1266,7 +1369,7 @@ func TestGetQueries(t *testing.T) {
 					Saved:              true, // ListQueries always returns the saved ones.
 					ObserverCanRun:     true,
 				},
-			}, nil
+			}, 3, nil, nil
 		} else if *opt.TeamID == 1 {
 			return []*fleet.Query{
 				{
@@ -1283,11 +1386,11 @@ func TestGetQueries(t *testing.T) {
 					TeamID:             ptr.Uint(1),
 					ObserverCanRun:     true,
 				},
-			}, nil
+			}, 1, nil, nil
 		} else if *opt.TeamID == 2 {
-			return []*fleet.Query{}, nil
+			return []*fleet.Query{}, 0, nil, nil
 		}
-		return nil, errors.New("invalid team ID")
+		return nil, 0, nil, errors.New("invalid team ID")
 	}
 
 	expectedGlobal := `+--------+-------------+-----------+-----------+--------------------------------+
@@ -1302,6 +1405,8 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           | automations_enabled: false     |
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: false            |
 +--------+-------------+-----------+-----------+--------------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                    |
 |        |             |           |           |                                |
@@ -1312,6 +1417,14 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           | automations_enabled: false     |
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: true             |
+|        |             |           |           |                                |
+|        |             |           |           | labels_include_any:            |
+|        |             |           |           |                                |
+|        |             |           |           |   - label1                     |
+|        |             |           |           |                                |
+|        |             |           |           |   - label2                     |
 +--------+-------------+-----------+-----------+--------------------------------+
 | query4 | some desc 4 | select 4; | All teams | interval: 60                   |
 |        |             |           |           |                                |
@@ -1323,6 +1436,8 @@ func TestGetQueries(t *testing.T) {
 |        |             |           |           |                                |
 |        |             |           |           | logging:                       |
 |        |             |           |           | differential_ignore_removals   |
+|        |             |           |           |                                |
+|        |             |           |           | discard_data: false            |
 +--------+-------------+-----------+-----------+--------------------------------+
 `
 
@@ -1347,8 +1462,11 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
-  discard_data: false
+  discard_data: true
   interval: 0
+  labels_include_any:
+  - label1
+  - label2
   logging: ""
   min_osquery_version: ""
   name: query2
@@ -1373,7 +1491,7 @@ spec:
   team: ""
 `
 	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":true,"labels_include_any":["label1","label2"]}}
 {"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals","discard_data":false}}
 `
 
@@ -1389,6 +1507,8 @@ spec:
 |        |             |           |        | automations_enabled: false |
 |        |             |           |        |                            |
 |        |             |           |        | logging: snapshot          |
+|        |             |           |        |                            |
+|        |             |           |        | discard_data: false        |
 +--------+-------------+-----------+--------+----------------------------+
 `
 
@@ -1530,24 +1650,7 @@ spec:
 func TestGetQueriesAsObserver(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
-	setCurrentUserSession := func(user *fleet.User) {
-		user, err := ds.NewUser(context.Background(), user)
-		require.NoError(t, err)
-		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
-			return &fleet.Session{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-				ID:              1,
-				AccessedAt:      time.Now(),
-				UserID:          user.ID,
-				Key:             key,
-			}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return user, nil
-		}
-	}
-
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1570,7 +1673,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 				Query:          "select 3;",
 				ObserverCanRun: false,
 			},
-		}, nil
+		}, 3, nil, nil
 	}
 
 	for _, tc := range []struct {
@@ -1620,7 +1723,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			setCurrentUserSession(tc.user)
+			setCurrentUserSession(t, ds, tc.user)
 
 			expected := `+--------+-------------+-----------+-----------+----------------------------+
 |  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
@@ -1634,6 +1737,8 @@ func TestGetQueriesAsObserver(t *testing.T) {
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 			expectedYaml := `---
@@ -1662,7 +1767,7 @@ spec:
 	}
 
 	// Test with a user that is observer of a team, but maintainer of another team (should not filter the queries).
-	setCurrentUserSession(&fleet.User{
+	setCurrentUserSession(t, ds, &fleet.User{
 		ID:         4,
 		Name:       "Not observer of all teams",
 		Password:   []byte("p4ssw0rd.123"),
@@ -1692,6 +1797,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1702,6 +1809,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query3 | some desc 3 | select 3; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1712,6 +1821,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 	expectedYaml := `---
@@ -1770,7 +1881,7 @@ spec:
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
 
 	// No queries are returned if none is observer_can_run.
-	setCurrentUserSession(&fleet.User{
+	setCurrentUserSession(t, ds, &fleet.User{
 		ID:         2,
 		Name:       "Team observer",
 		Password:   []byte("p4ssw0rd.123"),
@@ -1778,7 +1889,7 @@ spec:
 		GlobalRole: nil,
 		Teams:      []fleet.UserTeam{{Role: fleet.RoleObserver}},
 	})
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1794,12 +1905,12 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: false,
 			},
-		}, nil
+		}, 2, nil, nil
 	}
 	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries"}))
 
 	// No filtering is performed if all are observer_can_run.
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
 			{
 				ID:             42,
@@ -1815,7 +1926,7 @@ spec:
 				Query:          "select 2;",
 				ObserverCanRun: true,
 			},
-		}, nil
+		}, 2, nil, nil
 	}
 	expected = `+--------+-------------+-----------+-----------+----------------------------+
 |  NAME  | DESCRIPTION |   QUERY   |   TEAM    |          SCHEDULE          |
@@ -1829,6 +1940,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 | query2 | some desc 2 | select 2; | All teams | interval: 0                |
 |        |             |           |           |                            |
@@ -1839,6 +1952,8 @@ spec:
 |        |             |           |           | automations_enabled: false |
 |        |             |           |           |                            |
 |        |             |           |           | logging:                   |
+|        |             |           |           |                            |
+|        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -2042,8 +2157,13 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, err.Error(), expected)
 	})
 
-	t.Run("premium license", func(t *testing.T) {
-		runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+	t.Run("premium license, single token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+			}, nil
+		}
 
 		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
 		assert.Contains(t, out, "Apple ID:")
@@ -2051,6 +2171,29 @@ func TestGetAppleBM(t *testing.T) {
 		assert.Contains(t, out, "MDM server URL:")
 		assert.Contains(t, out, "Renew date:")
 		assert.Contains(t, out, "Default team:")
+	})
+
+	t.Run("premium license, no token", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return nil, nil
+		}
+
+		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		assert.Contains(t, out, "No Apple Business Manager server token found.")
+	})
+
+	t.Run("premium license, multiple tokens", func(t *testing.T) {
+		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+			return []*fleet.ABMToken{
+				{ID: 1},
+				{ID: 2},
+			}, nil
+		}
+
+		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint")
 	})
 }
 
@@ -2215,7 +2358,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				AdditionalQueries: &additionalQueries,
 			},
 			MDM: fleet.TeamMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
 				},
@@ -2251,14 +2394,17 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration) error {
-		return nil
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
-		return nil
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string,
+	) (updates fleet.MDMProfilesUpdates, err error) {
+		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
-		return nil
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		return []fleet.ScriptResponse{}, nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
@@ -2681,10 +2827,26 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
+	var noHostErr error
+	var expectIdentifier bool
+	var expectRequestType bool
 	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
+
+		if noHostErr != nil {
+			return nil, errors.New(fleet.HostIdentiferNotFound)
+		}
+
+		if expectIdentifier {
+			require.NotEmpty(t, listOpts.Filters.HostIdentifier)
+		}
+
+		if expectRequestType {
+			require.NotEmpty(t, listOpts.Filters.RequestType)
+		}
+
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -2728,16 +2890,56 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+---------------------------------------+--------------+----------+
-| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u3 | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
-+----+----------------------+---------------------------------------+--------------+----------+
+
+The list of 3 most recent commands:
+
++------+----------------------+---------------------------------------+--------------+----------+
+| UUID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++------+----------------------+---------------------------------------+--------------+----------+
+| u1   | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++------+----------------------+---------------------------------------+--------------+----------+
+| u2   | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++------+----------------------+---------------------------------------+--------------+----------+
+| u3   | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
++------+----------------------+---------------------------------------+--------------+----------+
 `))
+
+	// Test with invalid option
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
+	require.Error(t, err)
+
+	// Test with host identifier filter
+	listErr = nil
+	empty = false
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = false
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type and host identifier filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
+	require.NoError(t, err)
+
+	// No Host Identifier found
+	listErr = nil
+	empty = false
+	expectRequestType = false
+	expectIdentifier = true
+	noHostErr = errors.New(fleet.HostIdentiferNotFound)
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
 }
 
 func TestUserIsObserver(t *testing.T) {
@@ -2845,23 +3047,6 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 		}, nil
 	}
 
-	setCurrentUserSession := func(user *fleet.User) {
-		user, err := ds.NewUser(context.Background(), user)
-		require.NoError(t, err)
-		ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
-			return &fleet.Session{
-				CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-				ID:              1,
-				AccessedAt:      time.Now(),
-				UserID:          user.ID,
-				Key:             key,
-			}, nil
-		}
-		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
-			return user, nil
-		}
-	}
-
 	for _, tc := range []struct {
 		name        string
 		user        *fleet.User
@@ -2909,7 +3094,7 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			setCurrentUserSession(tc.user)
+			setCurrentUserSession(t, ds, tc.user)
 
 			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
 			require.True(t, ok)

@@ -1,0 +1,102 @@
+[
+	{
+		"name": "1Password",
+		"version": "8.10.44",
+		"platform": "darwin"
+	},
+	{
+		"name": "Adobe Acrobat Reader",
+		"version": "24.002.21005",
+		"platform": "darwin"
+	},
+	{
+		"name": "Box Drive",
+		"version": "2.40.345",
+		"platform": "darwin"
+	},
+	{
+		"name": "Brave",
+		"version": "1.69.162.0",
+		"platform": "darwin"
+	},
+	{
+		"name": "Cloudflare WARP",
+		"version": "2024.6.474.0",
+		"platform": "darwin"
+	},
+	{
+		"name": "Docker Desktop",
+		"version": "4.34.0,165256",
+		"platform": "darwin"
+	},
+	{
+		"name": "Figma",
+		"version": "124.3.2",
+		"platform": "darwin"
+	},
+	{
+		"name": "Mozilla Firefox",
+		"version": "130.0",
+		"platform": "darwin"
+	},
+	{
+		"name": "Google Chrome",
+		"version": "128.0.6613.120",
+		"platform": "darwin"
+	},
+	{
+		"name": "Microsoft Edge",
+		"version": "128.0.2739.67,be6d4c8f-ec75-405e-a5f7-fec66b2898a2",
+		"platform": "darwin"
+	},
+	{
+		"name": "Microsoft Excel",
+		"version": "16.88.24081116",
+		"platform": "darwin"
+	},
+	{
+		"name": "Microsoft Teams",
+		"version": "24215.1002.3039.5089",
+		"platform": "darwin"
+	},
+	{
+		"name": "Microsoft Word",
+		"version": "16.88.24081116",
+		"platform": "darwin"
+	},
+	{
+		"name": "Notion",
+		"version": "3.14.0",
+		"platform": "darwin"
+	},
+	{
+		"name": "Postman",
+		"version": "11.12.0",
+		"platform": "darwin"
+	},
+	{
+		"name": "Slack",
+		"version": "4.40.126",
+		"platform": "darwin"
+	},
+	{
+		"name": "TeamViewer",
+		"version": "15.57.5",
+		"platform": "darwin"
+	},
+	{
+		"name": "Microsoft Visual Studio Code",
+		"version": "1.93.0",
+		"platform": "darwin"
+	},
+	{
+		"name": "WhatsApp",
+		"version": "2.24.16.80",
+		"platform": "darwin"
+	},
+	{
+		"name": "Zoom for IT Admins",
+		"version": "6.2.11.43613",
+		"platform": "darwin"
+	}
+]

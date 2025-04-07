@@ -1,8 +1,5 @@
 #start {
   background: linear-gradient(180deg, #E8F1F6 0%, #FFF 16.49%);
-  a {
-    color: @core-fleet-black-75;
-  }
   h1 {
     font-size: 32px;
     font-weight: 800;
@@ -13,6 +10,13 @@
     font-size: 24px;
     font-weight: 800;
     line-height: 120%;
+  }
+  ul {
+    margin-top: 32px;
+    padding-inline-start: 16px;
+    li {
+      margin-bottom: 24px;
+    }
   }
   [purpose='logo-container'] {
     max-width: 524px;
@@ -29,15 +33,87 @@
     }
   }
   [purpose='form-container'] {
-    width: 528px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-  [purpose='page-container'] {
-    padding-top: 64px;
+    min-width: 632px;
+    max-width: 632px;
     padding-left: 64px;
     padding-right: 64px;
-    padding-bottom: 64px;
+    padding-top: 32px;
+    margin-right: 20px;
+  }
+  [purpose='form-with-video-container'] {
+    width: 100%;
+    max-width: 1200px;
+    padding-left: 64px;
+    padding-right: 64px;
+    padding-top: 32px;
+  }
+  [purpose='embedded-video'] {
+    position: relative;
+    margin-bottom: 40px;
+    width: 100%;
+    padding-bottom: 56%;
+    iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 12px;
+    }
+  }
+  [purpose='form-tip'] {
+    margin-top: 32px;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #E6E3D0;
+    background: #FFFEF9;
+    p {
+      margin-bottom: 0px;
+      font-size: 14px;
+      line-height: 150%;
+    }
+    img {
+      height: 32px;
+      width: 32px;
+      margin-right: 12px;
+    }
+  }
+  [purpose='form-image'] {
+    width: 100%;
+    height: 680px;
+    max-width: 568px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 16px;
+    &.stage-one {
+      background-image: url('/images/psystage-1-unaware-558x680@2x.png');
+    }
+    &.stage-two {
+      background-image: url('/images/psystage-2-aware-508x784@2x.png');
+    }
+    &.stage-three {
+      background-image: url('/images/psystage-3-intrigued-558x680@2x.png');
+    }
+    &.stage-four {
+      background-image: url('/images/psystage-4-has-use-case-508x784@2x.png');
+    }
+    &.stage-five {
+      background-image: url('/images/psystage-5-feeling-confident-504x784@2x.png');
+    }
+    &.stage-six {
+      background-image: url('/images/psystage-6-has-team-buy-in-504x784@2x.png');
+    }
+    &.cloud-city {
+      background-image: url('/images/cropped-fleet-cloud-city-504x784@2x.png');
+    }
+  }
+  [purpose='page-container'] {
+    padding-top: 20px;
+    padding-left: 20px;
+    padding-right: 24px;
+    padding-bottom: 24px;
     max-width: unset;
     display: flex;
     flex-direction: column;
@@ -49,7 +125,7 @@
     align-items: center;
     margin-bottom: 32px;
     img {
-      height: 18px;
+      height: 16px;
       display: inline;
       margin-left: 10px;
     }
@@ -129,10 +205,10 @@
     }
   }
 
-  [purpose='contact-link'] {
-    text-decoration: underline;
-    text-underline-offset: 3.5px;
-  }
+  // [purpose='contact-link'] {
+  //   text-decoration: underline;
+  //   text-underline-offset: 3.5px;
+  // }
   [purpose='form-buttons'] {
     margin-top: 32px;
     display: flex;
@@ -140,6 +216,9 @@
     align-items: center;
     justify-content: start;
     user-select: none;
+    a {
+      text-decoration: none;
+    }
   }
   [purpose='submit-button'] {
     padding: 12px;
@@ -169,7 +248,7 @@
     margin-bottom: 40px;
   }
   [purpose='card'] {
-    width: 252px;
+    width: 256px;
     height: 200px;
     display: flex;
     flex-direction: column;
@@ -177,7 +256,7 @@
     align-items: center;
     text-decoration: none;
     cursor: pointer;
-    padding: 24px;
+    padding: 32px;
     background: #FFF;
     color: @core-fleet-black-75;
     border-radius: 12px;
@@ -207,6 +286,9 @@
       box-shadow: 0px 4px 16px 0px rgba(0, 0, 0, 0.10);
     }
 
+  }
+  [parasails-component='logo-carousel'] {
+    margin-bottom: 0px;
   }
   [purpose='quote'] {
     display: flex;
@@ -257,7 +339,22 @@
       padding-top: 60px;
       padding-left: 40px;
       padding-right: 40px;
-      max-width: 600px;
+      // max-width: 600px;
+    }
+    [purpose='form-with-video-container'] {
+      padding: 0;
+      margin-left: auto;
+      margin-right: auto;
+
+    }
+    [purpose='form-container'] {
+      padding: 0;
+      max-width: 504px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    [purpose='form-image'] {
+      display: none;
     }
 
   }
@@ -267,7 +364,10 @@
       padding-left: 24px;
       padding-right: 24px;
     }
-
+    [purpose='form-container'], [purpose='form-with-video-container'] {
+      min-width: unset;
+      width: 100%;
+    }
   }
   @media (max-width: 575px) {
     [purpose='logo-container'] {
@@ -283,8 +383,8 @@
       margin-right: unset;
       margin-bottom: 20px;
     }
-    [purpose='form-container'] {
-      width: unset;
+    [purpose='form-container'], [purpose='form-with-video-container'] {
+      width: 100%;
       margin-left: 0;
       margin-right: 0;
     }

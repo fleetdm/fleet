@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -33,10 +32,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +68,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
 		}
@@ -180,7 +180,7 @@ func TestGetClientConfig(t *testing.T) {
 	// Check scheduled queries are loaded properly
 	conf, err = svc.GetClientConfig(ctx3)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{ 
+	assert.JSONEq(t, `{
 		"pack_by_label": {
 			"queries":{
 				"time":{"query":"select * from time","interval":30,"removed":false}
@@ -209,7 +209,7 @@ func TestGetClientConfig(t *testing.T) {
 					"version": ""
 				}
 			}
-		} 
+		}
 	}`,
 		string(conf["packs"].(json.RawMessage)),
 	)
@@ -585,6 +585,13 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
+		case teamID == nil && name == "All USB devices":
+			return &fleet.Query{
+				ID:                 777,
+				Name:               name,
+				AutomationsEnabled: true,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
 		case teamID == nil && name == "query_should_be_saved_and_submitted_with_custom_pack_delimiter":
 			return &fleet.Query{
 				ID:                 1234,
@@ -614,9 +621,22 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		return 0, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		if len(rows) == 0 {
 			return nil
+		}
+		if rows[0].QueryID == 777 {
+			require.Len(t, rows, 3)
+
+			for i := 0; i < 3; i++ {
+				require.NotZero(t, rows[i].LastFetched)
+				require.Equal(t, uint(999), rows[i].HostID)
+				require.Equal(t, uint(777), rows[i].QueryID)
+			}
+
+			require.JSONEq(t, `{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[0].Data))
+			require.JSONEq(t, `{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[1].Data))
+			require.JSONEq(t, `{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[2].Data))
 		}
 		switch {
 		case rows[0].QueryID == 4242:
@@ -678,6 +698,12 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 
 		// Query results of a query that belongs to a different team than the host's team (can happen when host is transferred from one team to another or no team).
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		// Query results in event format (this is received for scheduled query results when the host is configured with `--logger_snapshot_event_type=true`).
+		// The "event format" contains one result for each row returned by the query and the columns in the "columns" key.
+		`{"name":"pack/Global/All USB devices","hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
+		`{"name":"pack/Global/All USB devices","hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
+		`{"name":"pack/Global/All USB devices","hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
 
@@ -766,7 +792,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
@@ -777,13 +803,13 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
@@ -825,7 +851,7 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -876,7 +902,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -933,14 +959,14 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1054,13 +1080,18 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":     {},
-		hostDetailQueryPrefix + "mdm":                        {},
-		hostDetailQueryPrefix + "munki_info":                 {},
-		hostDetailQueryPrefix + "windows_update_history":     {},
-		hostDetailQueryPrefix + "kubequery_info":             {},
-		hostDetailQueryPrefix + "orbit_info":                 {},
-		hostDetailQueryPrefix + "software_vscode_extensions": {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
+		hostDetailQueryPrefix + "mdm":                                     {},
+		hostDetailQueryPrefix + "munki_info":                              {},
+		hostDetailQueryPrefix + "windows_update_history":                  {},
+		hostDetailQueryPrefix + "kubequery_info":                          {},
+		hostDetailQueryPrefix + "orbit_info":                              {},
+		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_python_packages":                {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
+		hostDetailQueryPrefix + "software_macos_firefox":                  {},
+		hostDetailQueryPrefix + "battery":                                 {},
+		hostDetailQueryPrefix + "software_macos_codesign":                 {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1163,8 +1194,12 @@ func TestHostDetailQueries(t *testing.T) {
 	host.RefetchCriticalQueriesUntil = ptr.Time(mockClock.Now().Add(1 * time.Minute))
 	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
 	require.NoError(t, err)
-	require.Equal(t, len(criticalDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// host is darwin so it gets only the darwin critical query
+	require.Equal(t, 1, len(queries), distQueriesMapKeys(queries))
 	for name := range criticalDetailQueries {
+		if strings.HasSuffix(name, "_windows") {
+			continue
+		}
 		assert.Contains(t, queries, hostDetailQueryPrefix+name)
 	}
 	verifyDiscovery(t, queries, discovery)
@@ -1599,7 +1634,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "ABCDEFGH",
+      "hardware_serial": "NEW_HW_SRL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1666,6 +1701,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	assert.Equal(t, "NEW_HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1710,8 +1746,9 @@ func TestDetailQueries(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "linux",
+		ID:             1,
+		Platform:       "linux",
+		HardwareSerial: "HW_SRL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1834,7 +1871,7 @@ func TestDetailQueries(t *testing.T) {
         "cpu_subtype": "Intel x86-64h Haswell",
         "cpu_type": "x86_64h",
         "hardware_model": "MacBookPro11,4",
-        "hardware_serial": "ABCDEFGH",
+        "hardware_serial": "-1",
         "hardware_vendor": "Apple Inc.",
         "hardware_version": "1.0",
         "hostname": "computer.local",
@@ -1974,6 +2011,8 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
+	assert.Equal(t, "HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -2227,11 +2266,11 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
-			strconv.Itoa(int(campaign.ID)): "select * from time",
+			fmt.Sprint(campaign.ID): "select * from time",
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -2457,7 +2496,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(errors.New("failed"))
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(errors.New("failed"))
 
 	host := fleet.Host{ID: 1}
 
@@ -2494,7 +2533,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(nil)
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(nil)
 
 	host := fleet.Host{ID: 1}
 
@@ -2520,7 +2559,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(errors.New("fail"))
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2551,7 +2590,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2570,15 +2609,15 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
 	}
 
 	testCases := []struct {
@@ -2735,7 +2774,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*osqueryError).NodeInvalid())
+	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
@@ -2753,7 +2792,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*osqueryError).NodeInvalid())
+	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2762,7 +2801,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*osqueryError).NodeInvalid())
+	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -3672,9 +3711,28 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"installed_path":    "/some/override/path",
 	}
 
-	for _, tc := range []struct {
-		name string
+	pythonPackageOne := map[string]string{
+		"name":           "cryptography",
+		"version":        "41.0.7",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/usr/lib/python3/dist-packages",
+	}
+	pythonPackageTwo := map[string]string{
+		"name":           "pip",
+		"version":        "25.0.1",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/Users/fleetdm/.pyenv/versions/3.13.1/lib/python3.13/site-packages",
+	}
 
+	for _, tc := range []struct {
+		name       string
+		host       *fleet.Host
 		resultsIn  fleet.OsqueryDistributedQueryResults
 		statusesIn map[string]fleet.OsqueryStatus
 		messagesIn map[string]string
@@ -3682,6 +3740,50 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
+		{
+			name: "python packages using original query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":           fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages": []map[string]string{
+					pythonPackageOne,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageOne,
+				},
+			},
+		},
+		{
+			name: "python packages using user query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                          fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": []map[string]string{
+					pythonPackageTwo,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageTwo,
+				},
+			},
+		},
 		{
 			name: "software query works and there are vs code extensions in extra",
 
@@ -3893,10 +3995,185 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ubuntu dpkg installed python packages are filtered out",
+			host: &fleet.Host{ID: 1, Platform: "ubuntu"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Twisted", // duplicate of python3-twisted
+						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-setuptools",
+						"version": "50.3.2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "setuptools",
+						"version": "50.3.2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "pillow",
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "deb_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-setuptools",
+						"version": "50.3.2",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-pillow", // renamed from pillow
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "deb_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "debian dpkg installed python packages are filtered out",
+			host: &fleet.Host{ID: 1, Platform: "debian"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "22.4.0-4",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Twisted", // duplicate of python3-twisted
+						"version": "22.4.0-4",
+						"source":  "python_packages",
+					},
+					// known issue below: names don't match so we don't deduplicate
+					{
+						"name":    "python3-attr", // osquery source column is python-attrs
+						"version": "22.2.0-1",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Attrs",
+						"version": "22.2.0",
+						"source":  "python_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "22.4.0-4",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-attr",
+						"version": "22.2.0-1",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-attrs",
+						"version": "22.2.0",
+						"source":  "python_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "non-ubuntu/debian installed python packages are NOT filtered out",
+			host: &fleet.Host{ID: 1, Platform: "rhel"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "rpm_packages",
+					},
+					{
+						"name":    "twisted", // duplicate of python3-twisted
+						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "pillow",
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "rpm_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "20.3.0-2",
+						"source":  "rpm_packages",
+					},
+					{
+						"name":    "twisted", // duplicate of python3-twisted
+						"version": "20.3.0-2",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "pillow",
+						"version": "8.1.0",
+						"source":  "python_packages",
+					},
+					{
+						"name":    "python3-urllib3",
+						"version": "1.26.2-2",
+						"source":  "rpm_packages",
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
+			host := &fleet.Host{ID: 1}
+			if tc.host != nil {
+				host = tc.host
+			}
+			preProcessSoftwareResults(host, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
 			require.Equal(t, tc.resultsOut, tc.resultsIn)
 		})
 	}
@@ -3936,5 +4213,49 @@ func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		findPackDelimiterString(input)
+	}
+}
+
+func mockUbuntuResults() *fleet.OsqueryDistributedQueryResults {
+	results := &fleet.OsqueryDistributedQueryResults{
+		hostDetailQueryPrefix + "software_linux": make([]map[string]string, 0),
+	}
+
+	// Adding 40 python packages with matching deb packages
+	// Adding 2 python packages without matching deb packages
+	for i := 1; i <= 42; i++ {
+		pythonPkg := fmt.Sprintf("package%d", i)
+		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+			"source": "python_packages",
+			"name":   pythonPkg,
+		})
+	}
+
+	// Adding 1500 deb packages, with the first 40 matching python packages
+	for i := 1; i <= 1500; i++ {
+		var debPkg string
+		if i <= 38 { // Match first 38 python packages
+			debPkg = fmt.Sprintf("python3-package%d", i)
+		} else { // Non-python packages
+			debPkg = fmt.Sprintf("unrelated_package%d", i)
+		}
+		(*results)[hostDetailQueryPrefix+"software_linux"] = append((*results)[hostDetailQueryPrefix+"software_linux"], map[string]string{
+			"source": "deb_packages",
+			"name":   debPkg,
+		})
+	}
+
+	return results
+}
+
+func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
+	platform := "ubuntu"
+	results := mockUbuntuResults()
+	statuses := &map[string]fleet.OsqueryStatus{
+		hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+	}
+
+	for i := 0; i < b.N; i++ {
+		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
 	}
 }

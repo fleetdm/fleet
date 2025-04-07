@@ -377,6 +377,17 @@ func main() {
 		fatal(err)
 	}
 
+	// Remove duplicates from fns
+	uniqueFns := make(map[string]Func, len(fns))
+	dedupedFns := make([]Func, 0, len(fns))
+	for _, fn := range fns {
+		if _, exists := uniqueFns[fn.Name]; !exists {
+			uniqueFns[fn.Name] = fn
+			dedupedFns = append(dedupedFns, fn)
+		}
+	}
+	fns = dedupedFns
+
 	src := genStubs(recv, fns)
 	recName := strings.SplitN(recv, " ", 2)
 	name := strings.TrimPrefix(recName[1], "*")
@@ -413,7 +424,7 @@ func main() {
 		defer f.Close()
 		_, err = f.Write(imp)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal(err) //nolint:gocritic // ignore exitAfterDefer
 		}
 	}
 }

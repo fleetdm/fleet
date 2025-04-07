@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	tmock "github.com/stretchr/testify/mock"
 )

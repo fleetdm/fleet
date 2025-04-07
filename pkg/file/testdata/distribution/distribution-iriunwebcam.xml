@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+    <pkg-ref id="com.iriun.pkg.webcam.tmp">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="1.0" CFBundleVersion="1" id="com.iriun.macwebcam.extension4" path="Applications/IriunWebcam.app/Contents/Library/SystemExtensions/com.iriun.macwebcam.extension4.systemextension"/>
+            <bundle CFBundleShortVersionString="2.8.8" id="com.iriun.macwebcam" path="Applications/IriunWebcam.app"/>
+            <bundle CFBundleShortVersionString="1.1" CFBundleVersion="2" id="com.iriun.macwebcam.extension" path="Applications/IriunWebcam.app/Contents/Library/SystemExtensions/com.iriun.macwebcam.extension.systemextension"/>
+            <bundle CFBundleShortVersionString="1.5" CFBundleVersion="6" id="com.iriun.mic" path="Library/Audio/Plug-Ins/HAL/IriunMic.driver"/>
+        </bundle-version>
+    </pkg-ref>
+    <options customize="allow" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+    <options rootVolumeOnly="true"/>
+    <domains enable_localSystem="true"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="12.3"/>
+        </allowed-os-versions>
+    </volume-check>
+    <installation-check script="pm_install_check();"/>
+    <script><![CDATA[
+            function pm_install_check() {
+                if (system.version.ProductVersion < '12.3') {
+                    my.result.title = "Error";
+                    my.result.message = "macOS must be 12.3 or newer.";
+                    my.result.type = 'Fatal';
+                    return false;
+                }
+            return true;
+            }
+        ]]></script>
+    <title>Iriun Webcam</title>
+    <license file="LICENSE.txt"/>
+    <choices-outline>
+        <line choice="default"/>
+        <line choice="multicam"/>
+    </choices-outline>
+    <choice id="default" enabled="false" visible="false">
+        <pkg-ref id="com.iriun.pkg.webcam.tmp"/>
+    </choice>
+    <choice id="multicam" title="Multiple camera support" description="Allow up to 4 simultaneous cameras. Please note this may reduce performance and decrease the video quality." start_selected="false">
+        <pkg-ref id="com.iriun.pkg.multicam" onConclusion="none"/>
+    </choice>
+    <pkg-ref id="com.iriun.pkg.multicam" version="1.0" onConclusion="none" installKBytes="2">#multicam.pkg</pkg-ref>
+    <pkg-ref id="com.iriun.pkg.webcam.tmp" version="0" onConclusion="none" installKBytes="20009">#webcam.pkg</pkg-ref>
+    <pkg-ref id="com.iriun.pkg.multicam">
+        <bundle-version/>
+    </pkg-ref>
+</installer-gui-script>

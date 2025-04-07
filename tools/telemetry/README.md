@@ -17,6 +17,6 @@ OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317" \
   --logging_tracing_enabled=true \
   --logging_tracing_type=opentelemetry \
   --dev --logging_debug
-``` 
+```
 
-Afterward, you can navigate to http://localhost:16686/ to access the Jaeger UI.
+Afterwards, you can navigate to http://localhost:16686/ to access the Jaeger UI.

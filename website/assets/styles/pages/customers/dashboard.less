@@ -94,48 +94,6 @@
     cursor: pointer;
   }
 
-  [purpose='animated-arrow-button-red'] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    line-height: 24px;
-    padding-right: 24px;
-    cursor: pointer;
-    position: relative;
-    width: fit-content;
-    font-weight: bold;
-    user-select: none;
-    transition: 0.2s ease-in-out;
-    -o-transition: 0.2s ease-in-out;
-    -ms-transition: 0.2s ease-in-out;
-    -moz-transition: 0.2s ease-in-out;
-    -webkit-transition: 0.2s ease-in-out;
-    color: @core-fleet-black;
-    text-decoration: none;
-    &:hover {
-      color: #000;
-    }
-    &:after {
-      content: url('/images/arrow-right-red-16x16@2x.png');
-      transform: scale(0.5);
-      position: absolute;
-      top: -5px;
-      left: 75%; // <--- here
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-    }
-    &:hover:after {
-      left: 82%; // <--- here
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-    }
-  }
   [purpose='deploy-button'] {
     height: 48px;
     padding: 16px 32px;

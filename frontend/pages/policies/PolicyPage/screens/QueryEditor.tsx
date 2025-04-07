@@ -10,10 +10,12 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import { getPathWithQueryParams } from "utilities/url";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
 import BackLink from "components/BackLink";
 import PolicyForm from "pages/policies/PolicyPage/components/PolicyForm";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 interface IQueryEditorProps {
   router: InjectedRouter;
@@ -23,14 +25,13 @@ interface IQueryEditorProps {
   storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
-  isTeamAdmin: boolean;
-  isTeamMaintainer: boolean;
   isTeamObserver: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  teamIdForApi?: number;
 }
 
 const QueryEditor = ({
@@ -41,14 +42,13 @@ const QueryEditor = ({
   storedPolicyError,
   showOpenSchemaActionText,
   isStoredPolicyLoading,
-  isTeamAdmin,
-  isTeamMaintainer,
   isTeamObserver,
   createPolicy,
   onOsqueryTableSelect,
   goToSelectTargets,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  teamIdForApi,
 }: IQueryEditorProps): JSX.Element | null => {
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
@@ -86,7 +86,6 @@ const QueryEditor = ({
     policyAutofillData,
     setPolicyAutofillData,
   ] = useState<IAutofillPolicy | null>(null);
-  const [policyAutofillErrors, setPolicyAutofillErrors] = useState<any>({});
   const [
     isFetchingAutofillDescription,
     setIsFetchingAutofillDescription,
@@ -115,7 +114,6 @@ const QueryEditor = ({
       } catch (error) {
         console.log(error);
         renderFlash("error", "Couldn't autofill policy data.");
-        setPolicyAutofillErrors(error);
       }
       setIsFetchingAutofillDescription(false);
     }
@@ -139,14 +137,13 @@ const QueryEditor = ({
       } catch (error) {
         console.log(error);
         renderFlash("error", "Couldn't autofill policy data.");
-        setPolicyAutofillErrors(error);
       }
       setIsFetchingAutofillResolution(false);
     }
   };
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
-    if (policyTeamId) {
+    if (policyTeamId !== APP_CONTEXT_ALL_TEAMS_ID) {
       formData.team_id = policyTeamId;
     }
     setIsUpdatingPolicy(true);
@@ -156,6 +153,8 @@ const QueryEditor = ({
       query: formData.query,
       resolution: formData.resolution,
       platform: formData.platform,
+      labels_include_any: formData.labels_include_any,
+      labels_exclude_any: formData.labels_exclude_any,
     };
     if (isPremiumTier) {
       payload.critical = formData.critical;
@@ -167,7 +166,11 @@ const QueryEditor = ({
         (data) => data.policy
       );
       setIsUpdatingPolicy(false);
-      router.push(PATHS.EDIT_POLICY(policy));
+      router.push(
+        getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
+          team_id: policy.team_id,
+        })
+      );
       renderFlash("success", "Policy created!");
     } catch (createError: any) {
       console.error(createError);
@@ -204,9 +207,9 @@ const QueryEditor = ({
 
     const updateAPIRequest = () => {
       // storedPolicy.team_id is used for existing policies because selectedTeamId is subject to change
-      const team_id = storedPolicy?.team_id;
+      const team_id = storedPolicy?.team_id ?? undefined;
 
-      return team_id
+      return team_id !== undefined
         ? teamPoliciesAPI.update(policyIdForEdit, {
             ...updatedPolicy,
             team_id,
@@ -240,7 +243,12 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredPoliciesPath
   const backToPoliciesPath = () => {
-    return filteredPoliciesPath || PATHS.MANAGE_POLICIES;
+    const queryParams = { team_id: teamIdForApi };
+
+    return (
+      filteredPoliciesPath ||
+      getPathWithQueryParams(PATHS.MANAGE_POLICIES, queryParams)
+    );
   };
 
   return (
@@ -260,8 +268,6 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
-        isTeamAdmin={isTeamAdmin}
-        isTeamMaintainer={isTeamMaintainer}
         isTeamObserver={isTeamObserver}
         isUpdatingPolicy={isUpdatingPolicy}
         isFetchingAutofillDescription={isFetchingAutofillDescription}

@@ -2,19 +2,26 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import { formatDistanceToNow } from "date-fns";
 import PATHS from "router/paths";
 
-import permissionsUtils from "utilities/permissions";
-import { IUser } from "interfaces/user";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+
 import { secondsToDhms } from "utilities/helpers";
+import permissionsUtils from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
+import {
+  isScheduledQueryablePlatform,
+  ScheduledQueryablePlatform,
+  CommaSeparatedPlatformString,
+} from "interfaces/platform";
 import {
   IEnhancedQuery,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { SupportedPlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
+import { IUser } from "interfaces/user";
 
 import Icon from "components/Icon";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -26,7 +33,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import InheritedBadge from "components/InheritedBadge";
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
@@ -82,7 +89,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: SupportedPlatform[];
+    value: CommaSeparatedPlatformString;
   };
 }
 
@@ -102,7 +109,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface IGenerateTableHeaders {
+interface IGenerateColumnConfigs {
   currentUser: IUser;
   currentTeamId?: number;
   omitSelectionColumn?: boolean;
@@ -110,12 +117,14 @@ interface IGenerateTableHeaders {
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generateTableHeaders = ({
+const generateColumnConfigs = ({
   currentUser,
   currentTeamId,
   omitSelectionColumn = false,
-}: IGenerateTableHeaders): IDataColumn[] => {
-  const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
+}: IGenerateColumnConfigs): IDataColumn[] => {
+  const isCurrentTeamObserverOrGlobalObserver = currentTeamId
+    ? permissionsUtils.isTeamObserver(currentUser, currentTeamId)
+    : permissionsUtils.isOnlyObserver(currentUser);
   const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
 
   const tableHeaders: IDataColumn[] = [
@@ -129,17 +138,18 @@ const generateTableHeaders = ({
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
+        const { id, team_id, observer_can_run } = cellProps.row.original;
         return (
           <LinkCell
             className="w400 query-name-cell"
             value={
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>
-                {!isOnlyObserver && cellProps.row.original.observer_can_run && (
+                {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
                   <div className="observer-can-run-badge">
                     <span
                       className="observer-can-run-icon"
-                      data-tooltip-id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                      data-tooltip-id={`observer-can-run-tooltip-${id}`}
                     >
                       <Icon
                         className="observer-can-run-query-icon"
@@ -153,7 +163,7 @@ const generateTableHeaders = ({
                       disableStyleInjection
                       place="top"
                       opacity={1}
-                      id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                      id={`observer-can-run-tooltip-${id}`}
                       offset={8}
                       positionStrategy="fixed"
                     >
@@ -163,15 +173,14 @@ const generateTableHeaders = ({
                 )}
                 {viewingTeamScope &&
                   // inherited
-                  cellProps.row.original.team_id !== currentTeamId && (
+                  team_id !== currentTeamId && (
                     <InheritedBadge tooltipContent="This query runs on all hosts." />
                   )}
               </>
             }
-            path={PATHS.QUERY_DETAILS(
-              cellProps.row.original.id,
-              cellProps.row.original.team_id ?? currentTeamId
-            )}
+            path={getPathWithQueryParams(PATHS.QUERY_DETAILS(id), {
+              team_id: team_id ?? currentTeamId,
+            })}
           />
         );
       },
@@ -179,11 +188,23 @@ const generateTableHeaders = ({
     },
     {
       title: "Platform",
-      Header: "Compatible with",
+      Header: "Targeted platforms",
       disableSortBy: true,
-      accessor: "platforms",
+      accessor: "platform",
       Cell: (cellProps: IPlatformCellProps): JSX.Element => {
-        return <PlatformCell platforms={cellProps.row.original.platforms} />;
+        if (!cellProps.row.original.interval) {
+          // if the query isn't scheduled to run, return default empty call
+          return <TextCell />;
+        }
+        const platforms = cellProps.cell.value
+          .split(",")
+          .map((s) => s.trim())
+          // this casting is necessary because make generate for some reason doesn't recognize the
+          // type guarding of `isQueryablePlatform` even though the language server in VSCode does
+          .filter((s) =>
+            isScheduledQueryablePlatform(s)
+          ) as ScheduledQueryablePlatform[];
+        return <PlatformCell platforms={platforms} />;
       },
     },
     {
@@ -260,7 +281,7 @@ const generateTableHeaders = ({
       ),
     },
   ];
-  if (!isOnlyObserver && !omitSelectionColumn) {
+  if (!isCurrentTeamObserverOrGlobalObserver && !omitSelectionColumn) {
     tableHeaders.unshift({
       id: "selection",
       // TODO - improve typing of IHeaderProps instead of using any
@@ -272,7 +293,20 @@ const generateTableHeaders = ({
             (row.original.team_id ?? undefined) === currentTeamId,
         });
 
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
+            )}
+          />
+        );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const isInheritedQuery =
@@ -288,7 +322,20 @@ const generateTableHeaders = ({
           onChange: () => row.toggleRowSelected(),
         };
         // v4.35.0 Any team admin or maintainer now can add, edit, delete their team's queries
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                enableEnterToCheck
+                {...checkboxProps}
+              />
+            )}
+          />
+        );
       },
       disableHidden: true,
     });
@@ -296,4 +343,4 @@ const generateTableHeaders = ({
   return tableHeaders;
 };
 
-export default generateTableHeaders;
+export default generateColumnConfigs;

@@ -17,8 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 const (
@@ -98,7 +98,7 @@ func (k *kinesisLogWriter) validateStream() error {
 		return fmt.Errorf("describe stream %s: %w", k.stream, err)
 	}
 
-	if (*(*out.StreamDescription).StreamStatus) != kinesis.StreamStatusActive {
+	if (*out.StreamDescription.StreamStatus) != kinesis.StreamStatusActive {
 		return fmt.Errorf("stream %s not active", k.stream)
 	}
 

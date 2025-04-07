@@ -78,10 +78,19 @@ const getVulnerability = ({
   teamId,
 }: IGetVulnerabilityOptions): Promise<IVulnerabilityResponse> => {
   const endpoint = endpoints.VULNERABILITY(vulnerability);
-  const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+  const queryString = buildQueryStringFromParams({ team_id: teamId });
+  const path =
+    typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 
   return sendRequest("GET", path);
 };
+
+export type IVulnerabilitiesEmptyStateReason =
+  | "unknown-cve"
+  | "invalid-cve"
+  | "known-vuln"
+  | "no-matching-items"
+  | "no-vulns-detected";
 
 export default {
   getVulnerabilities,

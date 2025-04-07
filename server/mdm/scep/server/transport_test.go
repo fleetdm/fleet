@@ -17,7 +17,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
 
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 func TestCACaps(t *testing.T) {
@@ -34,7 +34,7 @@ func TestCACaps(t *testing.T) {
 }
 
 func TestEncodePKCSReq_Request(t *testing.T) {
-	pkcsreq := loadTestFile(t, "../scep/testdata/PKCSReq.der")
+	pkcsreq := loadTestFile(t, "../testdata/PKCSReq.der")
 	msg := scepserver.SCEPRequest{
 		Operation: "PKIOperation",
 		Message:   pkcsreq,
@@ -64,8 +64,10 @@ func TestEncodePKCSReq_Request(t *testing.T) {
 					t.Errorf("expected GET PKIOperation to have a non-empty message field")
 				}
 			}
+
 		})
 	}
+
 }
 
 func TestGetCACertMessage(t *testing.T) {
@@ -87,7 +89,7 @@ func TestGetCACertMessage(t *testing.T) {
 func TestPKIOperation(t *testing.T) {
 	server, _, teardown := newServer(t)
 	defer teardown()
-	pkcsreq := loadTestFile(t, "../scep/testdata/PKCSReq.der")
+	pkcsreq := loadTestFile(t, "../testdata/PKCSReq.der")
 	body := bytes.NewReader(pkcsreq)
 	url := server.URL + "/scep?operation=PKIOperation"
 	resp, err := http.Post(url, "", body) //nolint:gosec
@@ -102,7 +104,7 @@ func TestPKIOperation(t *testing.T) {
 func TestPKIOperationGET(t *testing.T) {
 	server, _, teardown := newServer(t)
 	defer teardown()
-	pkcsreq := loadTestFile(t, "../scep/testdata/PKCSReq.der")
+	pkcsreq := loadTestFile(t, "../testdata/PKCSReq.der")
 	message := base64.StdEncoding.EncodeToString(pkcsreq)
 	req, err := http.NewRequest("GET", server.URL+"/scep", nil)
 	if err != nil {
@@ -202,7 +204,7 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 	var err error
 	var depot depot.Depot // cert storage
 	{
-		depot, err = filedepot.NewFileDepot("../scep/testdata/testca")
+		depot, err = filedepot.NewFileDepot("../testdata/testca")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -227,8 +229,8 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 	server := httptest.NewServer(r)
 	teardown := func() {
 		server.Close()
-		os.Remove("../scep/testdata/testca/serial")
-		os.Remove("../scep/testdata/testca/index.txt")
+		os.Remove("../testdata/testca/serial")
+		os.Remove("../testdata/testca/index.txt")
 	}
 	return server, svc, teardown
 }

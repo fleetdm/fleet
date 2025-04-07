@@ -1,0 +1,5 @@
+package testonlydependency
+
+func OohNoBadCode() {
+
+}

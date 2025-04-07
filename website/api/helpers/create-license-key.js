@@ -47,7 +47,7 @@ module.exports = {
 
     let jwt = require('jsonwebtoken');
 
-    let expirationTimestampInSeconds = (expiresAt / 1000);
+    let expirationTimestampInSeconds = Math.floor(expiresAt / 1000);
     let token = jwt.sign(
       {
         iss: 'Fleet Device Management Inc.',

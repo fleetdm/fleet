@@ -1,5 +1,5 @@
 ---
-# The latest version of CIS Benchmarks for Windows 11 Enterprise is version v2.0.0 - 03-07-2023
+# The latest version of CIS Benchmarks for Windows 11 Enterprise is version v3.0.0 - 02-22-2024
 apiVersion: v1
 kind: policy
 spec:
@@ -2399,25 +2399,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Internet Connection Sharing (ICS) (SharedAccess)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Provides network access translation, addressing, name resolution and/or intrusion prevention services for a home or small office network.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Internet Connection Sharing (ICS)'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure 'Link-Layer Topology Discovery Mapper (lltdsvc)' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -3163,6 +3144,312 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure security policy processing: Do not apply during periodic background processing' is set to 'Enabled: FALSE'
+  platforms: win11
+  platform: windows
+  description: |
+    The "Do not apply during periodic background processing" option prevents the system from updating affected security policies in the background while the computer is in use. When background updates are disabled, updates to security policies will not take effect until the next user logon or system restart.
+    This setting affects all policy settings that use the built-in security template of Group Policy (e.g. Windows Settings\Security Settings).
+    The recommended state for this setting is: Enabled: FALSE (unchecked).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Do not apply during periodic background processing option to FALSE (unchecked), then set the Process even if the group policies have not changed option to TRUE (checked):
+    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure security policy processing'
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{%}\NoGPOListChanges' AND data = '0';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure security policy processing: Process even if the Group Policy objects have not changed' is set to 'Enabled: TRUE'
+  platforms: win11
+  platform: windows
+  description: |
+    The "Process even if the Group Policy objects have not changed" option updates and reapplies security policies even if the security policies have not changed.
+    This setting affects all policy settings within the built-in security template of Group Policy (e.g. Windows Settings\Security Settings).
+    The recommended state for this setting is: Enabled: TRUE (checked).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, then set the Process even if the Group Policy objects have not changed option to TRUE (checked):
+    'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure security policy processing'
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{%}\NoBackgroundPolicy' AND data = '0';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Certificate Padding' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures whether the WinVerifyTrust function performs strict Windows Authenticode signature verification for Portable Executable files (PE files). If enabled, PE files will be considered "unsigned" if Windows identifies content in them that does not conform to the Authenticode specification.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Enable Certificate Padding'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\Wintrust\Config\EnableCertPaddingCheck' and data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Automatic Data Collection' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Enhanced Phishing Protection can collect additional information such as content displayed, sounds played, and application memory when users enter their work or school password into a suspicious website or app.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Enhanced Phishing Protection\Automatic Data Collection'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WTDS\Components\CaptureThreatWindow' and data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable optional updates' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether devices are able to receive optional updates (including Controlled Feature Rollout (CFRs)). These optional updates can include non- security updates, feature enhancements, and other improvements.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage updates offered from Windows Update\Enable optional updates'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\SetAllowOptionalContent' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Windows Copilot' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the use of Windows Copilot. Windows Copilot is an artificial intelligence (AI) assistant that's integrated in Microsoft Windows workstation OSes, beginning with Windows 11 Release 23H2.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Windows Components\Windows Copilot\Turn off Windows Copilot'
+  query: |
+    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network security: Restrict NTLM: Audit Incoming NTLM Traffic' is set to 'Enable auditing for all accounts'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting allows the auditing of incoming NTLM traffic. Events for this setting are recorded in the operational event log (e.g. Applications and Services Log\Microsoft\Windows\NTLM).
+    The recommended state for this setting is: Enable auditing for all accounts.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enable auditing for all accounts:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit Incoming NTLM Traffic'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic' AND data = 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers' is set to 'Audit all' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting allows the auditing of outgoing NTLM traffic. Events for this setting are recorded in the operational event log (e.g. Applications and Services Log\Microsoft\Windows\NTLM).
+    The recommended state for this setting is: Audit all. Configuring this setting to Deny All also conforms to the benchmark.
+    Note: Configuring this setting to Deny All is more secure, however it could have a negative impact on applications that still require NTLM. Test carefully before implementing the Deny All value
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Audit all or higher:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Restrict NTLM: Outgoing NTLM traffic to remote servers'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\RestrictSendingNTLMTraffic' AND data in (1,2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Remove Personalized Website Recommendations from the Recommended section in the Start Menu' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures whether personalized website recommendations are shown in the in the Start Menu.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Start Menu and Taskbar\Remove Personalized Website Recommendations from the Recommended section in the Start Menu'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer\HideRecommendedPersonalizedSites' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure password backup directory' is set to 'Enabled: Active Directory' or 'Enabled: Azure Active Directory'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures which directory Windows LAPS will use to back up the local admin account password.
+    The recommended state for this setting is: Enabled: Active Directory or Enabled: Azure Active Directory.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note #2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+    Note #3: Windows LAPS does not support simultaneous storage of the local admin password in both directory types.
+    Note #4: If the setting is configured and the managed device is not joined to the configured directory type, the local administrator password will not be managed by Windows LAPS.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Active Directory or Enabled: Azure Active Directory:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Configure password backup directory'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\BackupDirectory' AND data in (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable password encryption' is set to 'Enabled' 
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the Windows LAPS managed password is encrypted before being sent to Active Directory.
+    The recommended state for this setting is: Enabled.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note #2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+    Note #3: This setting has no effect unless the password has been configured to be backed up to Active Directory, and the Active Directory domain functional level is at Windows Server 2016 or above.
+    Note #4: This setting has no relevance (but is harmless) when storing Windows LAPS passwords to Entra ID (formerly Azure Active Directory) as it automatically encrypts all Windows LAPS passwords.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Enable password encryption'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\ADPasswordEncryptionEnabled' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Post-authentication actions: Grace period (hours)' is set to 'Enabled: 8 or fewer hours, but not 0'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures post-authentication actions which will be executed after detecting an authentication by the Windows LAPS managed account. The Grace period refers to the amount of time (hours) to wait after an authentication before executing the specified post-authentication actions.
+    The recommended state for this setting is: Enabled: 8 or fewer hours, but not 0.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note #2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+    Note #3: If this policy is set to 0 it prevents all post-authentication actions from occurring.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 8 or fewer hours, but not 0:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Post- authentication actions: Grace period (hours)'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PostAuthenticationResetDelay' AND cast(data as integer) BETWEEN 1 AND 8);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Post-authentication actions: Actions' is set to 'Enabled: Reset the password and logoff the managed account' or higher 
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures post-authentication actions which will be executed after detecting an authentication by the LAPS managed account. The Action refers to actions to take upon expiry of the grace period before executing the specified post- authentication actions.
+    Post-authentication actions:
+    • Reset password: upon expiry of the grace period, the managed account password will be reset.
+    • Reset the password and logoff the managed account: upon expiry of the grace period, the managed account password will be reset and any interactive logon sessions using the managed account will terminated.
+    • Reset the password and reboot the device: upon expiry of the grace period, the managed account password will be reset and the managed device will be immediately rebooted.
+    Warning: After an interactive logon session is terminated, other authenticated sessions using the Windows LAPS managed account may still be active. The only way to ensure that the previous password is no longer in use is to reboot the OS.
+    The recommended state for this setting is: Enabled: Reset the password and logoff the managed account or higher.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note #2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Reset the password and logoff the managed account or higher:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Post- authentication actions: Actions'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PostAuthenticationActions' AND data in (3,5));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure Scan packed executables' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting manages whether or not Microsoft Defender Antivirus scans packed executables. Packed executables are executable files that contain compressed code.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Scan packed executables'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Scan\DisablePackedExeScanning' AND data =0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable features introduced via servicing that are off by default' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures whether or not features and enhancements that are introduced through monthly cumulative updates (servicing), are enabled on the system.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage end user experience\Enable features introduced via servicing that are off by default'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AllowTemporaryEnterpriseFeatureControl' AND data =0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Windows Firewall: Domain: Inbound connections' is set to 'Block (default)'
   platforms: win11
   platform: windows
@@ -3174,25 +3461,6 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Domain Profile\Inbound connections'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\\Policies\\Microsoft\WindowsFirewall\DomainProfile\DefaultInboundAction' and data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Windows Firewall: Domain: Outbound connections' is set to 'Allow (default)'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
-    The recommended state for this setting is: Allow (default).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Allow (default):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Domain Profile\Outbound connections'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\\Microsoft\WindowsFirewall\DomainProfile\DefaultOutboundAction' and data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: DefensiveDepth
@@ -3334,25 +3602,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Windows Firewall: Private: Outbound connections' is set to 'Allow (default)'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
-    The recommended state for this setting is: Allow (default).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Allow (default)'':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Private Profile\Outbound connections'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\DefaultOutboundAction' and data == 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: RachelElysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Windows Firewall: Private: Settings: Display a notification' is set to 'No'
   platforms: win11
   platform: windows
@@ -3478,25 +3727,6 @@ spec:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Inbound connections'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\DefaultInboundAction' and data == 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: RachelElysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Windows Firewall: Public: Outbound connections' is set to 'Allow (default)'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines the behavior for outbound connections that do not match an outbound firewall rule.
-    The recommended state for this setting is: Allow (default).
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Allow (default):
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security - Local Group Policy Object\Windows Defender Firewall Properties\Public Profile\Outbound connections'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\DefaultOutboundAction' and data == 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: RachelElysia
@@ -4436,28 +4666,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Enable Local Admin Password Management' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    In May 2015, Microsoft released the Local Administrator Password Solution (LAPS) tool, which is free and supported software that allows an organization to automatically set randomized and unique local Administrator account passwords on domain-attached workstations and Member Servers. The passwords are stored in a confidential attribute of the domain computer account and can be retrieved from Active Directory by approved Sysadmins when needed.
-    The LAPS tool requires a small Active Directory Schema update in order to implement, as well as installation of a Group Policy Client Side Extension (CSE) on targeted computers. Please see the LAPS documentation for details.
-    LAPS supports Windows Vista or newer workstation OSes, and Server 2003 or newer server OSes. LAPS does not support standalone computers - they must be joined to a domain.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\LAPS\Enable Local Admin Password Management'
-    Note: This Group Policy path does not exist by default. An additional Group Policy template (AdmPwd.admx/adml) is required - it is included with Microsoft Local Administrator Password Solution (LAPS).
-  query: |
-    SELECT 1 FROM registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft Services\\AdmPwd\\AdmPwdEnabled' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Password Settings: Password Complexity' is set to 'Enabled: Large letters + small letters + numbers + special characters'
   platforms: win11
   platform: windows
@@ -4647,14 +4855,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon (not recommended)' is set to 'Disabled'
+    CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
     This setting is separate from the Welcome screen feature in Windows XP and Windows Vista; if that feature is disabled, this setting is not disabled. If you configure a computer for automatic logon, anyone who can physically gain access to the computer can also gain access to everything that is on the computer, including any network or networks to which the computer is connected. Also, if you enable automatic logon, the password is stored in the registry in plaintext, and the specific registry key that stores this value is remotely readable by the Authenticated Users group.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (AutoAdminLogon) Enable Automatic Logon (not recommended)'
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (AutoAdminLogon) Enable Automatic Logon'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\AutoAdminLogon' AND data = 0);
@@ -4685,14 +4893,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
+    CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled' (Automated)'
   platforms: win11
   platform: windows
   description: |
     IP source routing is a mechanism that allows the sender to determine the IP route that a datagram should follow through the network.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Highest protection, source routing is completely disabled':
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)'
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters\DisableIPSourceRouting' AND data = 2);
@@ -4704,14 +4912,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)' is set to 'Enabled: Highest protection, source routing is completely disabled'
+    CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled''
   platforms: win11
   platform: windows
   description: |
     IP source routing is a mechanism that allows the sender to determine the IP route that a datagram should take through the network. It is recommended to configure this setting to Not Defined for enterprise environments and to Highest Protection for high security environments to completely disable source routing.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Highest protection, source routing is completely disabled':
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)'
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\DisableIPSourceRouting' AND data = 2);
@@ -4780,14 +4988,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)' is set to 'Disabled'
+    CIS - Ensure 'MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
     This setting is used to enable or disable the Internet Router Discovery Protocol (IRDP), which allows the system to detect and configure default gateway addresses automatically as described in RFC 1256 on a per-interface basis.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses (could lead to DoS)'
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (PerformRouterDiscovery) Allow IRDP to detect and configure Default Gateway addresses'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\PerformRouterDiscovery' AND data = 0);
@@ -4799,7 +5007,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (SafeDllSearchMode) Enable Safe DLL search mode (recommended)' is set to 'Enabled'
+    CIS - Ensure 'MSS: (SafeDllSearchMode) Enable Safe DLL search mode' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -4811,7 +5019,7 @@ spec:
     Applications will be forced to search for DLLs in the system path first. For applications that require unique versions of these DLLs that are included with the application, this entry could cause performance or stability problems.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (SafeDllSearchMode) Enable Safe DLL search mode (recommended)'
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (SafeDllSearchMode) Enable Safe DLL search mode'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\SafeDllSearchMode' AND data = 1);
@@ -4823,14 +5031,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires (0 recommended)' is set to 'Enabled: 5 or fewer seconds'
+    CIS - Ensure 'MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires' is set to 'Enabled: 5 or fewer seconds'
   platforms: win11
   platform: windows
   description: |
     Windows includes a grace period between when the screen saver is launched and when the console is actually locked automatically when screen saver locking is enabled.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: 5 or fewer seconds:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires (0 recommended)'
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (ScreenSaverGracePeriod) The time in seconds before the screen saver grace period expires'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\ScreenSaverGracePeriod' AND data <= 5);
@@ -4943,7 +5151,7 @@ spec:
   description: |
     This value controls how often TCP attempts to verify that an idle connection is still intact by sending a keep-alive packet. If the remote computer is still reachable, it acknowledges the keep-alive packet.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 300,000 or 5 minutes (recommended)':
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 300,000 or 5 minutes':
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
@@ -5065,6 +5273,25 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This setting lets you decide whether to turn on SmartScreen Filter. SmartScreen Filter provides warning messages to help protect your employees from potential phishing scams and malicious software.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
@@ -6523,7 +6750,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\Microsoft\\W32Time\\TimeProviders\\NtpClient\Enabled' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -6542,7 +6769,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\W32Time\\TimeProviders\\NtpServer' AND data = 0);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
 ---
 apiVersion: v1
@@ -6780,18 +7007,19 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Password' is set to 'Enabled: Allow 48-digit recovery password'
+    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Password' is set to 'Enabled: Allow 48-digit recovery password' or higher
   platforms: win11
   platform: windows
   description: |
     This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
     In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key.
+    The recommended state for this setting is: Enabled: Allow 48-digit recovery password or Enabled: Require 48-digit recovery password.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Allow 48-digit recovery password':
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Allow 48-digit recovery password or Enabled: Require 48-digit recovery password:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker-protected fixed drives can be recovered: Recovery Password'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVRecoveryPassword' AND data = 2);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVRecoveryPassword' AND data in (1,2));
   purpose: Informational
   tags: compliance, CIS, CIS_BitLocker
   contributors: rachelelysia
@@ -6800,18 +7028,18 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Key' is set to 'Enabled: Allow 256-bit recovery key'
+    CIS - Ensure 'Choose how BitLocker-protected fixed drives can be recovered: Recovery Key' is set to 'Enabled: Allow 256-bit recovery key or higher'
   platforms: win11
   platform: windows
   description: |
     This policy setting allows you to control how BitLocker-protected fixed data drives are recovered in the absence of the required credentials. This policy setting is applied when you turn on BitLocker.
     In "Configure user storage of BitLocker recovery information" select whether users are allowed, required, or not allowed to generate a 48-digit recovery password or a 256-bit recovery key.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Allow 256-bit recovery key':
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Allow 256-bit recovery key' or 'Enabled: Require 256-bit recovery key':
     'Computer Configuration\Policies\Administrative Templates\Windows Components\BitLocker Drive Encryption\Fixed Data Drives\Choose how BitLocker- protected fixed drives can be recovered: Recovery Key'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template VolumeEncryption.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVRecoveryKey' AND data = 2);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\FDVRecoveryKey' AND data in (1,2));
   purpose: Informational
   tags: compliance, CIS, CIS_BitLocker
   contributors: rachelelysia
@@ -8120,14 +8348,14 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Turn off files from Office.com in Quick access view' is set to 'Enabled' 
+    CIS - Ensure 'Turn off account-based insights, recent, favorite, and recommended files in File Explorer' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
     This policy setting controls whether or not File Explorer will request files from the cloud and display them in Quick access view.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Turn off files from Office.com in Quick access view'
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Turn off account-based insights, recent, favorite, and recommended files in File Explorer'
   query: |
      SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Explorer\\DisableGraphRecentItems' AND data = 1);
   purpose: Informational
@@ -8404,7 +8632,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\MpEngine\\EnableFileHashComputation' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2
+  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -9424,44 +9652,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Configure Windows Defender SmartScreen' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting lets you decide whether to turn on SmartScreen Filter. SmartScreen Filter provides warning messages to help protect your employees from potential phishing scams and malicious software.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent bypassing Windows Defender SmartScreen prompts for sites' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting lets you decide whether employees can override the SmartScreen Filter warnings about potentially malicious websites.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Prevent bypassing Windows Defender SmartScreen prompts for sites'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\PreventOverride' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Enables or disables Windows Game Recording and Broadcasting' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -9609,7 +9799,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging\\EnableScriptBlockLogging' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1
+  tags: compliance, CIS, CIS_Level2
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -10104,71 +10294,8 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription\\EnableTranscripting' AND data = 1);
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Enable screen saver' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting enables/disables the use of desktop screen savers.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Enable screen saver'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaveActive' and data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Password protect the screen saver' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines whether screen savers used on the computer are password protected.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Password protect the screen saver'
-    Note: This Group Policy path is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
-  query: |
-    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaverIsSecure' and data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Screen saver timeout' is set to 'Enabled: 900 seconds or fewer, but not 0'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting specifies how much user idle time must elapse before the screen saver is launched.
-    The recommended state for this setting is: Enabled: 900 seconds or fewer, but not 0. Note: This setting has no effect under the following circumstances:
-    -  The wait time is set to zero.
-    -  The "Enable Screen Saver" setting is disabled.
-    -  A valid screen existing saver is not selected manually or via the "Screen saver executable name" setting
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled: 900 or fewer, but not 0:
-    'User Configuration\Policies\Administrative Templates\Control Panel\Personalization\Screen saver timeout'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template ControlPanelDisplay.admx/adml that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\Control Panel\Desktop\ScreenSaveTimeOut' AND data <=900 AND data > 0 ;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy

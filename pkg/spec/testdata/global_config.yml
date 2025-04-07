@@ -13,8 +13,8 @@ queries:
     automations_enabled: true
     logging: snapshot
 policies:
-  - path: ./top.policies.yml
-  - path: ./top.policies2.yml
+  - path: ./policies/policies.yml
+  - path: ./policies/policies2.yml
   - path: ./empty.yml
   - name: 😊😊 Failing policy
     platform: linux
@@ -25,3 +25,5 @@ agent_options:
   path: ./agent-options.yml
 org_settings:
   path: ./org-settings.yml
+labels:
+  - path: ./top.labels.yml

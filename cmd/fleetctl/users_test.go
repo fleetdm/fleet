@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/csv"
+	"fmt"
 	"math/big"
 	"os"
 	"strings"
@@ -73,31 +75,63 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 	) error {
 		return nil
 	}
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		if email == "bar@example.com" {
+			apiOnlyUser := &fleet.User{
+				ID:    1,
+				Email: email,
+			}
+			err := apiOnlyUser.SetPassword(pwd, 24, 10)
+			require.NoError(t, err)
+			return apiOnlyUser, nil
+		}
+		return nil, &notFoundError{}
+	}
+	var apiOnlyUserSessionKey string
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
+		key := make([]byte, sessionKeySize)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		sessionKey := base64.StdEncoding.EncodeToString(key)
+		apiOnlyUserSessionKey = sessionKey
+		return &fleet.Session{
+			ID:     2,
+			UserID: userID,
+			Key:    sessionKey,
+		}, nil
+	}
 
 	for _, tc := range []struct {
 		name                            string
 		args                            []string
 		expectedAdminForcePasswordReset bool
+		displaysToken                   bool
 	}{
 		{
 			name:                            "sso",
 			args:                            []string{"--email", "foo@example.com", "--name", "foo", "--sso"},
 			expectedAdminForcePasswordReset: false,
+			displaysToken:                   false,
 		},
 		{
 			name:                            "api-only",
 			args:                            []string{"--email", "bar@example.com", "--password", pwd, "--name", "bar", "--api-only"},
 			expectedAdminForcePasswordReset: false,
+			displaysToken:                   true,
 		},
 		{
 			name:                            "api-only-sso",
 			args:                            []string{"--email", "baz@example.com", "--name", "baz", "--api-only", "--sso"},
 			expectedAdminForcePasswordReset: false,
+			displaysToken:                   false,
 		},
 		{
 			name:                            "non-sso-non-api-only",
 			args:                            []string{"--email", "zoo@example.com", "--password", pwd, "--name", "zoo"},
 			expectedAdminForcePasswordReset: true,
+			displaysToken:                   false,
 		},
 	} {
 		ds.NewUserFuncInvoked = false
@@ -106,10 +140,15 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 			return user, nil
 		}
 
-		require.Equal(t, "", runAppForTest(t, append(
+		stdout := runAppForTest(t, append(
 			[]string{"user", "create"},
 			tc.args...,
-		)))
+		))
+		if tc.displaysToken {
+			require.Equal(t, stdout, fmt.Sprintf("Success! The API token for your new user is: %s\n", apiOnlyUserSessionKey))
+		} else {
+			require.Empty(t, stdout)
+		}
 		require.True(t, ds.NewUserFuncInvoked)
 	}
 }
@@ -152,7 +191,7 @@ func TestCreateBulkUsers(t *testing.T) {
 		user15,user15@example.com,false,false,,1:admin
 		user16,user16@example.com,false,false,,1:admin 2:maintainer`)
 
-	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"observer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
+	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"maintainer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
 `
 
 	assert.Equal(t, "", runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
@@ -187,7 +226,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 
 		randId, err := rand.Int(rand.Reader, big.NewInt(1000))
 		require.NoError(t, err)
-		id := uint(randId.Int64())
+		id := uint(randId.Int64()) //nolint:gosec // dismiss G115
 
 		users = append(users, fleet.User{
 			Name:  name,

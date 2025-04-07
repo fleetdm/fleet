@@ -2,10 +2,10 @@
 
 ## The Fleet binary
 
-The Fleet application contains two single static binaries which provide web based administration, REST API, and CLI interface to Fleet.
+The Fleet application contains two single static binaries which provide web based administration, a REST API, and a [CLI interface](https://fleetdm.com/guides/fleetctl).
 
 The `fleet` binary contains:
-- The Fleet TLS web server (no external webserver is required but it supports a proxy if desired)
+- The [Fleet TLS web server](https://fleetdm.com/docs/configuration/fleet-server-configuration) (no external webserver is required but it supports a proxy if desired)
 - The Fleet web interface
 - The Fleet application management [REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 - The Fleet osquery API endpoints
@@ -14,6 +14,13 @@ The `fleetctl` binary is the CLI interface which allows management of your deplo
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
+Once you've downloaded the binaries, extract the files to your desired location:
+
+```
+tar -xf fleet_v*_linux.tar.gz # Extract the Fleet binary
+sudo cp fleet_v*_linux/fleet /usr/bin/ # Copy the the Fleet binary to /usr/bin
+fleet version # Sanity check to make sure it runs as expected
+```
 
 ## Infrastructure dependencies
 
@@ -24,15 +31,17 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 ### MySQL
 
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
-For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
+For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [MySQL configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql) documentation.
 
-Fleet requires at least MySQL version 5.7, and is tested using the InnoDB storage engine. 
+Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36, 8.4.3, and 9.1.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47).
 
 There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
 
+> If you use multiple databases per database server for multiple Fleet instances, you'll need to provision more resources for your database server to ensure performance. You can experiment with finding the right resourcing for your needs.
+
 ### Redis
 
-Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
+Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Many cloud providers (such as [AWS](https://aws.amazon.com/elasticache/) and [GCP](https://console.cloud.google.com/launcher/details/click-to-deploy-images/redis)) host reliable Redis services which you may consider for this purpose. A well supported Redis [Docker image](https://hub.docker.com/_/redis/) also exists if you would rather run Redis in a container. For more information on how to configure the `fleet` binary to use the correct Redis instance, see the [Redis configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#redis) documentation.
 
 ## Systemd
 
@@ -102,7 +111,7 @@ In order for osqueryd clients to connect, the connection to Fleet must use TLS. 
 
 ## Using a proxy
 
-If you are in an enterprise environment where Fleet is behind a proxy and you would like to be able to retrieve vulnerability data for [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing), it may be necessary to configure the proxy settings. Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
+In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
 
 For example, to configure the proxy in a systemd service file:
 
@@ -127,7 +136,7 @@ The HTTP request headers are checked in the following order:
 ## Reference configuration strategies
 
 You can easily run Fleet on a single VPS that would be capable of supporting hundreds if not thousands of hosts, but
-this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) of running Fleet in a production environment, as
+this page details an [opinionated view](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module) of running Fleet in a production environment, as
 well as different configuration strategies to enable High Availability (HA).
 
 ### Availability components
@@ -142,7 +151,7 @@ Fleet recommends RDS Aurora MySQL when running on AWS. More details about backup
 [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html). It is also
 possible to dynamically scale read replicas to increase performance and [enable database fail-over](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html).
 It is also possible to use [Aurora Global](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) to
-span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)_).
+span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module)_).
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
@@ -150,52 +159,51 @@ In some cases adding a read replica can increase database performance for specif
 
 #### Traffic load balancing
 Load balancing enables distributing request traffic over many instances of the backend application. Using AWS Application
-Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of it's allocated compute dedicated 
+Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of its allocated compute dedicated 
 to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
-_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations
+_**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
 
 ### Cloud providers
 
+#### Render
+
+(Or any other PaaS)
+
+###### Up to 300 hosts
+
+See https://fleetdm.com/docs/deploy/deploy-fleet#render
+
+
 #### AWS
 
 ##### Example configuration breakpoints
-###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
+###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=7a821fc049a0ecc6ead22b6720246e55498be50e)
 
 | Fleet instances | CPU Units     | RAM |
 | --------------- | ------------- | --- |
 | 1 Fargate task  | 512 CPU Units | 4GB |
 
-| Dependencies | Version                 | Instance type |
-| ------------ | ----------------------- | ------------- |
-| Redis        | 6                       | t4g.small     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium |
+| Dependencies | Version                 | Instance type   | Nodes |
+| ------------ | ----------------------- | --------------- | ----- |
+| Redis        | 6                       | cache.t4g.small | 3     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.t4g.medium   | 2     |
 
-###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
+
+###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
 | 10 Fargate task | 1024 CPU Units | 4GB |
 
-| Dependencies | Version                 | Instance type |
-| ------------ | ----------------------- | ------------- |
-| Redis        | 6                       | m6g.large     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large  |
+| Dependencies | Version                 | Instance type   | Nodes |
+| ------------ | ----------------------- | --------------- | ----- |
+| Redis        | 6                       | cache.m6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.large    | 2     |
 
 
-###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
-
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 20 Fargate task | 1024 CPU Units | 4GB |
-
-| Dependencies | Version                 | Instance type  | Nodes |
-| ------------ | ----------------------- | -------------- | ----- |
-| Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge | 1     |
-
-###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
+###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
@@ -203,10 +211,22 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6                       | m6g.large       | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.16xlarge | 2     |
+| Redis        | 6                       | cache.m6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.4xlarge  | 2     |
 
-AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/tree/main/terraform/example). This configuration includes:
+
+###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
+
+| Fleet instances | CPU Units      | RAM |
+| --------------- | -------------- | --- |
+| 20 Fargate task | 1024 CPU Units | 4GB |
+
+| Dependencies | Version                 | Instance type   | Nodes |
+| ------------ | ----------------------- | --------------- | ----- |
+| Redis        | 6                       | cache.m6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
+
+AWS reference architecture can be found [here](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
 
 - VPC
   - Subnets
@@ -223,7 +243,7 @@ AWS reference architecture can be found [here](https://github.com/fleetdm/fleet/
 - Carves/software stored in an S3 bucket
 
 Additional addons are available such as:
-- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet/tree/main/terraform/addons/monitoring)
+- [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet-terraform/tree/main/addons/monitoring)
 
 Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
 a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
@@ -277,7 +297,7 @@ The following permissions are the minimum required to apply AWS terraform resour
 GCP reference architecture can be found in [the Fleet repository](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/gcp). This configuration includes:
 
 - Cloud Run (Fleet backend)
-- Cloud SQL MySQL 5.7 (Fleet database)
+- Cloud SQL MySQL 8.0 (Fleet database)
 - Memorystore Redis (Fleet cache & live query orchestrator)
 
 GCP support for add/install software and file carve features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).

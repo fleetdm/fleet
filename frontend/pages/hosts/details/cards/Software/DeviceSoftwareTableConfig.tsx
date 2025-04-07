@@ -1,7 +1,11 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IHostSoftware, SOURCE_TYPE_CONVERSION } from "interfaces/software";
+import {
+  IHostSoftware,
+  SoftwareSource,
+  SOURCE_TYPE_CONVERSION,
+} from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -11,6 +15,7 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCe
 import VersionCell from "pages/SoftwarePage/components/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -21,7 +26,7 @@ type IInstalledVersionsCellProps = CellProps<
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
-const formatSoftwareType = (source: string) => {
+const formatSoftwareType = (source: SoftwareSource) => {
   const DICT = SOURCE_TYPE_CONVERSION;
   return DICT[source] || "Unknown";
 };
@@ -45,7 +50,7 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
         const { name, source } = cellProps.row.original;
-        return <SoftwareNameCell name={name} source={source} />;
+        return <SoftwareNameCell name={name} source={source} myDevicePage />;
       },
       sortType: "caseInsensitive",
     },

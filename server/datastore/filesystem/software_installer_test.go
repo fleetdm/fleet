@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -107,7 +108,7 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	}
 
 	// cleanup an empty store
-	n, err := store.Cleanup(ctx, nil)
+	n, err := store.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -117,14 +118,14 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	require.NoError(t, err)
 
 	// cleanup but mark it as used
-	n, err = store.Cleanup(ctx, []string{ins0})
+	n, err = store.Cleanup(ctx, []string{ins0}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
 	assertExisting([]string{ins0})
 
 	// cleanup but mark it as unused
-	n, err = store.Cleanup(ctx, []string{})
+	n, err = store.Cleanup(ctx, []string{}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
@@ -137,9 +138,15 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]})
+	// cleanup with a time in the past, nothing gets removed
+	n, err = store.Cleanup(ctx, []string{}, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	assertExisting([]string{installers[0], installers[1], installers[2], installers[3]})
+
+	// cleanup in the future, all unused get removed
+	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]}, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
-
 	assertExisting([]string{installers[0], installers[2]})
 }

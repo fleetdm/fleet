@@ -2,6 +2,7 @@ import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
 import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
+import { IAceEditor } from "react-ace/lib/types";
 
 const baseClass = "editor";
 
@@ -29,14 +30,19 @@ interface IEditorProps {
    * @default "editor"
    */
   name?: string;
+  /** Include correct styles as a form field.
+   * @default false
+   */
+  isFormField?: boolean;
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: any) => void;
+  onBlur?: () => void;
 }
 
 /**
  * This component is a generic editor that uses the AceEditor component.
- * TODO: We should move FleetAce and YamlAce into here and deprecate importing
+ * TODO: We should move SQLEditor and YamlAce into here and deprecate importing
  * them directly. This component should be used for all editor components and
  * be configurable from the props. We should look into dynmaic imports for
  * this.
@@ -52,13 +58,29 @@ const Editor = ({
   readOnly = false,
   wrapEnabled = false,
   name = "editor",
+  isFormField = false,
   maxLines = 20,
   className,
   onChange,
+  onBlur,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
+    "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
   });
+
+  const onLoadHandler = (editor: IAceEditor) => {
+    // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
+    editor.commands.addCommand({
+      name: "escapeToBlur",
+      bindKey: { win: "Esc", mac: "Esc" },
+      exec: (aceEditor) => {
+        aceEditor.blur(); // Lose focus from the editor
+        return true;
+      },
+      readOnly: true,
+    });
+  };
 
   const renderLabel = () => {
     const labelText = error || label;
@@ -75,7 +97,7 @@ const Editor = ({
         <TooltipWrapper
           className={labelClassName}
           tipContent={labelTooltip}
-          position="top"
+          position="top-start"
         >
           {labelText}
         </TooltipWrapper>
@@ -111,6 +133,8 @@ const Editor = ({
         tabSize={2}
         focus={focus}
         onChange={onChange}
+        onBlur={onBlur}
+        onLoad={onLoadHandler}
       />
       {renderHelpText()}
     </div>

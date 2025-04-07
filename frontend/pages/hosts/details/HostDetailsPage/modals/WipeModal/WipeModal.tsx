@@ -27,7 +27,10 @@ const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
     try {
       await hostAPI.wipeHost(id);
       onSuccess();
-      renderFlash("success", "Success! Host is wiping.");
+      renderFlash(
+        "success",
+        "Wiping host or will wipe when the host comes online."
+      );
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }

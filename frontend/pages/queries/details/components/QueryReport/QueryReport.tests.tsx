@@ -24,6 +24,7 @@ describe("QueryReport", () => {
             columns: { col1: "value3", col2: "value4" },
           },
         ],
+        report_clipped: false,
       },
     ];
     render(<QueryReport {...{ isClipped, queryReport }} />);
@@ -56,6 +57,7 @@ describe("QueryReport", () => {
             },
           },
         ],
+        report_clipped: false,
       },
     ];
     render(<QueryReport {...{ isClipped, queryReport }} />);
@@ -83,6 +85,7 @@ describe("QueryReport", () => {
             columns: { col1: "value1", col2: "value2" },
           },
         ],
+        report_clipped: true,
       },
     ];
     render(<QueryReport {...{ isClipped, queryReport }} />);

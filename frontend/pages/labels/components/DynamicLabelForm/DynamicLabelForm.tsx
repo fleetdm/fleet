@@ -4,7 +4,7 @@ import { IAceEditor } from "react-ace/lib/types";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -87,8 +87,8 @@ const DynamicLabelForm = ({
 
     return (
       <Button variant="text-icon" onClick={onOpenSidebar}>
+        Schema
         <Icon name="info" size="small" />
-        <span>Show schema</span>
       </Button>
     );
   };
@@ -125,7 +125,7 @@ const DynamicLabelForm = ({
         onCancel={onCancel}
         additionalFields={
           <>
-            <FleetAce
+            <SQLEditor
               error={queryError}
               name="query"
               onChange={onQueryChange}

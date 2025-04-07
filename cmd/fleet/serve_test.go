@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,12 +27,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.mozilla.org/pkcs7"
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
@@ -98,6 +100,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumSoftwareCVEs:                      105,
 			NumTeams:                             9,
 			NumPolicies:                          0,
+			NumQueries:                           200,
 			NumLabels:                            3,
 			SoftwareInventoryEnabled:             true,
 			VulnDetectionEnabled:                 true,
@@ -115,6 +118,10 @@ func TestMaybeSendStatistics(t *testing.T) {
 			HostsEnrolledByOsqueryVersion: []fleet.HostsCountByOsqueryVersion{},
 			StoredErrors:                  []byte(`[]`),
 			Organization:                  "Fleet",
+			AIFeaturesDisabled:            true,
+			MaintenanceWindowsEnabled:     true,
+			MaintenanceWindowsConfigured:  true,
+			NumHostsFleetDesktopEnabled:   1984,
 		}, true, nil
 	}
 	recorded := false
@@ -133,7 +140,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -235,6 +242,14 @@ func TestAutomationsSchedule(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			WebhookSettings: fleet.WebhookSettings{
@@ -293,6 +308,7 @@ func TestAutomationsSchedule(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
+	t.Parallel()
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
@@ -332,25 +348,50 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
-		Periodicity:           10 * time.Second,
+		Periodicity:           time.Second,
 		CurrentInstanceChecks: "auto",
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
-	require.NoError(t, err)
-	s.Start()
+	ctx, cancel := context.WithCancel(ctx)
+	lg := kitlog.NewJSONLogger(os.Stdout)
 
-	require.Eventually(t, func() bool {
+	go func() {
+		defer func() {
+			// this test may panic as we're ending it early, so we shouldn't fail our suite on this panic
+			// but depending on where we are in the cron call it may not panic, hence not checking the recover
+			// value either way
+			// nolint:errcheck
+			recover()
+		}()
+		_ = cronVulnerabilities(ctx, ds, lg, &config)
+	}()
+
+	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
-		if err != nil {
-			return false
+		return err == nil && info.IsDir()
+	}, 10*time.Second, 1*time.Second)
+
+	t.Cleanup(func() {
+		cancel()
+	})
+
+	// at this point, the assertion has succeeded or failed, try to remove the
+	// temp dir and all content instead of leaving it to the testing package to
+	// handle - the assumption is that this test used to fail because it tried to
+	// remove the temp dir while trying to write to it concurrently, and resulted
+	// in e.g.:
+	// === RUN   TestCronVulnerabilitiesCreatesDatabasesPath
+	//  testing.go:1231: TempDir RemoveAll cleanup: unlinkat /tmp/TestCronVulnerabilitiesCreatesDatabasesPath2986870230/001/something: directory not empty
+	// --- FAIL: TestCronVulnerabilitiesCreatesDatabasesPath (60.22s)
+	for err := os.RemoveAll(vulnPath); err != nil; err = os.RemoveAll(vulnPath) {
+		if strings.Contains(err.Error(), "directory not empty") {
+			time.Sleep(time.Second)
+			continue
 		}
-		if !info.IsDir() {
-			return false
-		}
-		return true
-	}, 5*time.Minute, 30*time.Second)
+		// for any other unexpected error, fail the test
+		require.NoError(t, err)
+	}
 }
 
 type softwareIterator struct {
@@ -475,7 +516,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		}
 		return []uint{}, nil
 	}
-	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
 		return []fleet.Software{
 			{
 				ID:               1,
@@ -533,6 +574,9 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	vulnPath := filepath.Join("..", "..", "server", "vulnerabilities", "testdata")
 
@@ -552,6 +596,51 @@ func TestScanVulnerabilities(t *testing.T) {
 
 	// ensure that webhook was called
 	require.Equal(t, 1, webhookCount)
+}
+
+func TestUpdateVulnHostCounts(t *testing.T) {
+	logger := kitlog.NewNopLogger()
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx := context.Background()
+
+	ds := new(mock.Store)
+
+	testCases := []struct {
+		desc                   string
+		maxConcurrency         int
+		expectedMaxConcurrency int
+	}{
+		{
+			desc:                   "invalid max concurrency count: 0",
+			maxConcurrency:         0,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "invalid max concurrency count: < 0",
+			maxConcurrency:         -1,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "valid max concurrency count",
+			maxConcurrency:         10,
+			expectedMaxConcurrency: 10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var gotMaxConcurrency int
+			ds.UpdateVulnerabilityHostCountsFunc = func(ctx context.Context, maxRoutines int) error {
+				gotMaxConcurrency = maxRoutines
+				return nil
+			}
+
+			err := updateVulnHostCounts(ctx, ds, logger, tc.maxConcurrency)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedMaxConcurrency, gotMaxConcurrency)
+		})
+	}
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
@@ -595,6 +684,18 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		return nil
 	}
 
+	ds.ReconcileSoftwareTitlesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
+	ds.SyncHostsSoftwareTitlesFunc = func(ctx context.Context, updatedAt time.Time) error {
+		return nil
+	}
+
+	ds.UpdateHostIssuesVulnerabilitiesFunc = func(ctx context.Context) error {
+		return nil
+	}
+
 	mockLocker := schedule.SetupMockLocker("vulnerabilities", "test_instance", time.Now().UTC())
 	ds.LockFunc = mockLocker.Lock
 	ds.UnlockFunc = mockLocker.Unlock
@@ -615,9 +716,14 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx, cancel := context.WithCancel(ctx)
 	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
 	require.NoError(t, err)
 	s.Start()
+	t.Cleanup(func() {
+		cancel()
+		<-s.Done()
+	})
 
 	// Every cron tick is 10 seconds ... here we just wait for a loop interation and assert the vuln
 	// dir. was not created.
@@ -650,6 +756,15 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 		}
 		return &ac, nil
 	}
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
+
 	hostStatus := make(chan struct{})
 	hostStatusClosed := false
 	failingPolicies := make(chan struct{})
@@ -713,6 +828,14 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 		value: 5 * time.Hour,
 	}
 	configLoaded := make(chan struct{}, 1)
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+
+	ds.OutdatedAutomationBatchFunc = func(ctx context.Context) ([]fleet.PolicyFailure, error) {
+		return []fleet.PolicyFailure{}, nil
+	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		select {
@@ -966,7 +1089,8 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		// two pages of ActivitiesToStreamBatchCount and one extra page of one item.
 		as := make([]*fleet.Activity, ActivitiesToStreamBatchCount*2+1)
 		for i := range as {
-			as[i] = newActivity(uint(i), "foo", uint(i), "foog", "fooe", "bar", `{"bar": "foo"}`)
+			as[i] = newActivity(uint(i), "foo", uint(i), //nolint:gosec // dismiss G115
+				"foog", "fooe", "bar", `{"bar": "foo"}`)
 		}
 
 		ds.ListActivitiesFunc = func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
@@ -991,7 +1115,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 			firstBatch[i] = as[i].ID
 		}
 		for i := range as[ActivitiesToStreamBatchCount : ActivitiesToStreamBatchCount*2] {
-			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID
+			secondBatch[i] = as[int(ActivitiesToStreamBatchCount)+i].ID //nolint:gosec // dismiss G115
 		}
 		thirdBatch := []uint{as[len(as)-1].ID}
 		ds.MarkActivitiesAsStreamedFunc = func(ctx context.Context, activityIDs []uint) error {
@@ -1012,7 +1136,7 @@ func TestCronActivitiesStreaming(t *testing.T) {
 		var auditLogger jsonLogger
 		err := cronActivitiesStreaming(context.Background(), ds, log.NewNopLogger(), &auditLogger)
 		require.NoError(t, err)
-		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1)
+		require.Len(t, auditLogger.logs, int(ActivitiesToStreamBatchCount)*2+1) //nolint:gosec // dismiss G115
 		require.Equal(t, 3, call)
 	})
 }
@@ -1053,7 +1177,9 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 		fleet.MDMAssetCACert: {Value: testCertPEM},
 		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
 	}
-	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return assets, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

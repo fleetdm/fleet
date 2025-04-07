@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -9,6 +11,9 @@ import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFre
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { CONTACT_FLEET_LINK } from "utilities/constants";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
@@ -66,6 +71,9 @@ const ManageQueryAutomationsModal = ({
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   // const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   // Client side sort queries alphabetically
   const sortedAvailableQueries =
@@ -134,8 +142,9 @@ const ManageQueryAutomationsModal = ({
                           // !isChecked &&
                           //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
+                        disabled={gitOpsModeEnabled}
                       >
-                        {name}
+                        <TooltipTruncatedText value={name} />
                       </Checkbox>
                       <QueryFrequencyIndicator
                         frequency={interval}
@@ -170,31 +179,33 @@ const ManageQueryAutomationsModal = ({
           <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
           <p>
             Interested in query automations for your Chromebooks? &nbsp;
-            <CustomLink
-              url="https://fleetdm.com/contact"
-              text="Let us know"
-              newTab
-            />
+            <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
           </p>
         </InfoBanner>
         <Button
           type="button"
-          variant="inverse"
+          variant="text-link"
           onClick={togglePreviewDataModal}
           className={`${baseClass}__preview-data`}
         >
           Preview data
         </Button>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onSubmitQueryAutomations}
-            className="save-loading"
-            isLoading={isUpdatingAutomations}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                variant="brand"
+                onClick={onSubmitQueryAutomations}
+                className="save-loading"
+                isLoading={isUpdatingAutomations}
+                disabled={disableChildren}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

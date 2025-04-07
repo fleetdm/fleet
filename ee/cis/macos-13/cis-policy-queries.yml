@@ -1,5 +1,5 @@
 ---
-# The latest version of CIS Benchmarks for macOS as of January 2023 was used which was benchmark 1.0 for macOS 13.0 https://workbench.cisecurity.org/benchmarks/10541
+# The latest version of CIS Benchmarks for macOS as of November 2024 was used which was benchmark 3.0.0 for macOS 13
 apiVersion: v1
 kind: policy
 spec:
@@ -128,6 +128,32 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-1.5
   contributors: lucasmrod
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure XProtect Is Running and Updated
+  platforms: macOS
+  platform: darwin
+  description: |
+    XProtect is Apple's native signature-based antivirus technology. XProtect both finds and blocks the execution of known malware. There are many AV and Endpoint Threat Detection and Response (ETDR) tools available for Mac OS. The native Apple provisioned tool looks for specific known malware and is completely integrated into the OS. No matter what other tools are being used, XProtect should have the latest signatures available.
+  resolution: |
+        Ask your system administrator to deploy a script that will configure:
+        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
+        /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
+  query: |
+      SELECT 1
+      WHERE (
+          SELECT COUNT(*)
+          FROM launchd
+          WHERE path IN (
+              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist',
+              '/Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist'
+          )
+      ) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: defensivedepth
 ---
 apiVersion: v1
 kind: policy
@@ -514,6 +540,23 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.3.2.1
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure the Time Service Is Enabled
+  platforms: macOS
+  platform: darwin
+  description: |
+    In macOS 10.14, Apple replace ntp with timed for time services, and is used to ensure correct time is kept. Correct date and time settings are required for authentication protocols, file creation, modification dates and log entries. 
+  resolution: |
+        Ask your system administrator to deploy a script that will configure:
+        /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.timed.plist
+  query: |
+    SELECT 1 WHERE  EXISTS(SELECT * FROM processes WHERE path = '/usr/libexec/timed');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: defensivedepth
 ---
 apiVersion: v1
 kind: policy
@@ -1366,10 +1409,10 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Location Services Is in the Menu Bar
+  name: CIS - Ensure 'Show Location Icon in Control Center when System Services Request Your Location' Is Enabled
   platforms: macOS
   platform: darwin
-  description: Checks that Location Services option is presented in the Menu Bar.
+  description: This setting provides the user an understanding of the current status of Location Services and which applications are using it.
   resolution: |
     Automated method:
     Ask your system administrator to deploy an MDM profile that enables the "location services" icon in menu bar when System Services request your location.
@@ -1383,7 +1426,7 @@ spec:
         location is set to your organization's parameters
   query:  SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.locationmenu.plist' AND key='ShowSystemServices' AND value=1;
   purpose: Informational
-  tags: compliance, CIS, CIS_Level2, CIS-macos-13-2.6.1.2
+  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -1713,15 +1756,16 @@ spec:
     that can be attempted against the RAM that has the encryption keys or the running operating system protected
     by a login screen.
 
-    Mac systems should be set to hibernate after sleeping for a risk-acceptable time period.
     MacBooks should be set so that the `standbydelay` is 15 minutes (900 seconds) or less.
+    Mac systems should be set to hibernate after sleeping for a risk-acceptable time period.
+    Organizations may still decide to use hibernate after sleeping if there is a security need 
+    (ex. international travel), but it can cause kernel panics in Apple Silicon Macs.
   resolution: |
     Ask your system administrator to deploy the following script to Macbook devices:
     if [[ $(uname -m) == 'arm64' ]]; then
             # Apple silicon
             /usr/bin/sudo /usr/bin/pmset -a standby 900
             /usr/bin/sudo /usr/bin/pmset -a destroyfvkeyonstandby 1
-            /usr/bin/sudo /usr/bin/pmset -a hibernatemode 25
     else
             # Intel
             /usr/bin/sudo /usr/bin/pmset -a standbydelaylow 900
@@ -1762,12 +1806,11 @@ spec:
             SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
           ) AND EXISTS (
             SELECT
-                CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby,
-                CAST(JSON_EXTRACT(battery, '$.hibernatemode') AS INTEGER) AS hibernatemode
+                CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby
             FROM (
                 SELECT JSON_EXTRACT(json_result, '$.Battery Power:') AS battery FROM pmset WHERE getting = 'custom'
             )
-            WHERE standby <= 900 AND hibernatemode = 25
+            WHERE standby <= 900
           )
         )
     );
@@ -2184,10 +2227,10 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log.
+    macOS's audit facility, auditd, receives notifications from the kernel when certain system calls, such as open, fork, and exit, are made. These notifications are captured and written to an audit log. Apple has deprecated auditd as of macOS 11.0 Big Sur. In macOS 14.0 Sonoma it is no longer enabled by default.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy the following script which will enable security auditing:
+    Ask your system administrator to deploy the following script which will load auditd and create the audit_control file:
     /usr/bin/sudo /bin/launchctl load -w /System/Library/LaunchDaemons/com.apple.auditd.plist
   query: | 
     SELECT 1 WHERE EXISTS (
@@ -2328,14 +2371,16 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+    The audit system on macOS writes important operational and security information that can be both useful for an attacker and a place for an attacker to attempt to obfuscate unwanted changes that were recorded. As part of defense-in-depth, the /etc/security/audit_control configuration and the files in /var/audit should be owned only by root with group wheel with read-only rights and no other access allowed. macOS ACLs should not be used for these files.
+    
+    The default folder for storing logs is /var/audit, but it can be changed. This recommendation will ensure that any target directory has appropriate access control in place even if the target directory is not the default of /var/audit.
   resolution: |
     Automated method:
     Ask your system administrator to deploy the following script which will Ensure Access to Audit Records Is Controlled:
       /usr/bin/sudo /usr/sbin/chown -R root:wheel /etc/security/audit_control
-      /usr/bin/sudo /bin/chmod -R o-rw /etc/security/audit_control
-      /usr/bin/sudo /usr/sbin/chown -R root:wheel /var/audit/
-      /usr/bin/sudo /bin/chmod -R o-rw /var/audit/
+      /usr/bin/sudo /bin/chmod -R og-rw /etc/security/audit_control
+      /usr/bin/sudo /usr/sbin/chown -R root:wheel $(/usr/bin/sudo /usr/bin/grep '^dir' /etc/security/audit_control | /usr/bin/awk -F: '{print $2}')
+      /usr/bin/sudo /bin/chmod -R og-rw $(/usr/bin/sudo /usr/bin/grep '^dir' /etc/security/audit_control | /usr/bin/awk -F: '{print $2}')
   query: |
     SELECT 1 WHERE 
       -- For all files in /var/audit:
@@ -2635,14 +2680,11 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions.
-    Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application.
-    It could also be a sign of a computer compromise and a persistent presence on the system.
-    The audit check excludes the "Drop Box" folder that is part of Apple's default user template.
+    Software sometimes insists on being installed in the /System/Volumes/Data/System Directory and has inappropriate world-writable permissions. Macs with writable files in System should be investigated forensically. A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a persistent presence on the system.
   resolution: |
     Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
     /usr/bin/sudo IFS=$'\n'
-    for sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -v "Drop Box" ); 
+    for sysPermissions in $( /usr/bin/find /System/Volumes/Data/System -type d -perm -2 | /usr/bin/grep -vE "Drop Box|locks" ); 
     do
       /bin/chmod -R o-w "$sysPermissions"
     done
@@ -2666,11 +2708,15 @@ spec:
   platform: darwin
   description: |
     Software sometimes insists on being installed in the /System/Volumes/Data/Library Directory and has inappropriate world-writable permissions.  
-    Folders in /System/Volumes/Data/Library should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
+    Folders in /System/Volumes/Data/Library should not be world-writable. Macs with writable files in System should be investigated forensically. 
+    A file with open writable permissions is a sign of at best a rogue application. It could also be a sign of a computer compromise and a 
+    persistent presence on the system.
+    
+    The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
   resolution: |
     Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
     /usr/bin/sudo IFS=$'\n'
-    for libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); 
+    for libPermissions in $(/usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -Ev "Caches|/Preferences/Audio/Data|locks");
     do
       /bin/chmod -R o-w "$libPermissions"
     done
@@ -3006,16 +3052,16 @@ spec:
   resolution: |
     Automated method:
     Ask your system administrator to deploy a script that runs the following:
-      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver use-login-window-ui
+      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver authenticate-session-owner
   query: |
     SELECT 1 WHERE EXISTS (
       SELECT JSON_EXTRACT(json_result, '$.rule') AS rule
       FROM authdb
       WHERE right_name = 'system.login.screensaver' AND 
-      rule LIKE '%use-login-window-ui%'
+      rule LIKE '%authenticate-session-owner%'
     );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS-macos-13-5.7
+  tags: compliance, CIS, CIS_Level1
   contributors: lucasmrod
 ---
 apiVersion: v1
@@ -3446,6 +3492,30 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-6.3.7
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure Show Status Bar Is Enabled (MDM Required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    The Status Bar in Safari shows the full URL of any link on hover. It protects the user from visiting sites where the domain has been obfuscated by allowing the user to review whether the link points to an unexpected location.
+  resolution: |
+    Automated method:
+    Profile Method:
+    Create or edit a configuration profile with the following information:
+      1. The PayloadType string is com.apple.Safari
+      2. The key to include is ShowOverlayStatusBar 
+      3. The key must be set to: <true/>
+  query: |
+    SELECT 1 FROM managed_policies WHERE 
+      domain='com.apple.Safari' AND 
+      name='ShowOverlayStatusBar' AND 
+      (value = 1 OR value = 'true');
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: defensivedepth
 ---
 apiVersion: v1
 kind: policy

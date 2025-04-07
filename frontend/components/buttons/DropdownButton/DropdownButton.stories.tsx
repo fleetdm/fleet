@@ -1,5 +1,5 @@
 import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
@@ -8,23 +8,6 @@ import Avatar from "components/Avatar";
 import DropdownButton from ".";
 
 import "../../../index.scss";
-
-interface IOptions {
-  disabled: boolean;
-  label: string;
-  onClick: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-}
-
-interface IDropdownButtonProps {
-  children: React.ReactChild;
-  className?: string;
-  disabled?: boolean;
-  options: IOptions[];
-  size?: string;
-  tabIndex?: number;
-  type?: string;
-  variant?: string;
-}
 
 const options = [
   {
@@ -41,7 +24,7 @@ const options = [
   },
 ];
 
-export default {
+const meta: Meta<typeof DropdownButton> = {
   component: DropdownButton,
   title: "Components/DropdownButton",
   argTypes: {
@@ -90,15 +73,23 @@ export default {
     tabIndex: 0,
     options,
   },
-} as Meta;
+};
 
-const Template: Story<IDropdownButtonProps> = (props) => (
-  <DropdownButton {...props}>
-    <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} size="small" />
-  </DropdownButton>
-);
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof DropdownButton>;
 
-export const Disabled = Template.bind({});
-Disabled.args = { ...Default.args, disabled: true };
+export const Default: Story = {
+  args: {
+    children: (
+      <Avatar user={{ gravatar_url: DEFAULT_GRAVATAR_LINK }} size="small" />
+    ),
+  },
+};
+
+export const Disabled: Story = {
+  args: {
+    ...Default.args,
+    disabled: true,
+  },
+};

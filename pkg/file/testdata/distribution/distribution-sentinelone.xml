@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<installer-gui-script authoringTool="Packages" authoringToolVersion="1.2.10" authoringToolBuild="732" minSpecVersion="1.0">
+    <options rootVolumeOnly="true" customize="never" hostArchitectures="x86_64,arm64"/>
+    <installation-check script="installation_check()"/>
+    <volume-check script="volume_check()"/>
+    <!--+==========================+
+        |       Presentation       |
+        +==========================+-->
+    <title>DISTRIBUTION_TITLE</title>
+    <background file="background" uti="public.tiff" scaling="none" alignment="bottomleft" layout-direction="natural"/>
+    <background-darkAqua file="background" uti="public.tiff" scaling="none" alignment="bottomleft" layout-direction="natural"/>
+    <!--+==========================+
+        |         Installer        |
+        +==========================+-->
+    <choices-outline>
+        <line choice="installer_choice_1"/>
+    </choices-outline>
+    <choice id="installer_choice_1" title="SentinelOne" description="">
+        <pkg-ref id="com.sentinelone.pkg.sentinel-agent"/>
+    </choice>
+    <!--+==========================+
+        |    Package References    |
+        +==========================+-->
+    <pkg-ref id="com.sentinelone.pkg.sentinel-agent" version="24.3.2.7753" auth="Root" installKBytes="151168">#SentinelOne.pkg</pkg-ref>
+    <!--+==========================+
+        |    JavaScript Scripts    |
+        +==========================+-->
+    <script>
+
+	const __IC_FLAT_DISTRIBUTION__=true;
+	const IC_OS_DISTRIBUTION_TYPE_ANY=0;
+	const IC_OS_DISTRIBUTION_TYPE_CLIENT=1;
+	const IC_DISK_TYPE_DESTINATION=0;
+	const IC_OS_DISTRIBUTION_TYPE_SERVER=2;
+	const IC_DISK_TYPE_STARTUP_DISK=1;
+
+	function IC_CheckOS(inDiskType,inMustBeInstalled,inMinimumVersion,inMaximumVersion,inDistributionType)
+	{
+		var tOSVersion=undefined;
+		
+		/* Check Version Constraints */
+		
+		if (inDiskType==IC_DISK_TYPE_DESTINATION)
+		{
+			if (my.target.systemVersion!=undefined)
+			{
+				tOSVersion=my.target.systemVersion.ProductVersion;
+			}
+			
+			/* Check if no OS is installed on the potential target */
+			
+			if (tOSVersion==undefined)
+			{
+				return (inMustBeInstalled==false);
+			}
+			
+			if (inMustBeInstalled==false)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			tOSVersion=system.version.ProductVersion;
+		}
+		
+		if (system.compareVersions(tOSVersion,inMinimumVersion)==-1)
+			return false;
+			
+		if (inMaximumVersion!=undefined &amp;&amp;
+			system.compareVersions(tOSVersion,inMaximumVersion)==1)
+			return false;
+		
+		/* Check Distribution Type */
+		
+		if (inDistributionType!=IC_OS_DISTRIBUTION_TYPE_ANY)
+		{
+			var tIsServer;
+			
+			if (system.compareVersions(tOSVersion,'10.8.0')==-1)
+			{
+				if (inDiskType==IC_DISK_TYPE_DESTINATION)
+				{
+					tIsServer=system.files.fileExistsAtPath(my.target.mountpoint+'/System/Library/CoreServices/ServerVersion.plist');
+				}
+				else
+				{
+					tIsServer=system.files.fileExistsAtPath('/System/Library/CoreServices/ServerVersion.plist');
+				}
+			}
+			else
+			{
+				if (inDiskType==IC_DISK_TYPE_DESTINATION)
+				{
+					tIsServer=system.files.fileExistsAtPath(my.target.mountpoint+'/Applications/Server.app');
+				}
+				else
+				{
+					tIsServer=system.files.fileExistsAtPath('/Applications/Server.app');
+				}
+			}
+			
+			if (inDistributionType==IC_OS_DISTRIBUTION_TYPE_CLIENT &amp;&amp; tIsServer==true)
+			{
+				return false;
+			}
+			
+			if (inDistributionType==IC_OS_DISTRIBUTION_TYPE_SERVER &amp;&amp; tIsServer==false)
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
+	function IC_CheckMinimumAvailableDiskSpace(inMinimumAvailableSpaceKB)
+	{
+		return (my.target.availableKilobytes&gt;=inMinimumAvailableSpaceKB);
+	}
+
+	function installation_check()
+	{
+		var tResult;
+
+		tResult=IC_CheckOS(IC_DISK_TYPE_STARTUP_DISK,true,'13.0','15.99.99',IC_OS_DISTRIBUTION_TYPE_ANY);
+
+		if (tResult==false)
+		{
+			my.result.title = system.localizedString('REQUIREMENT_FAILED_MESSAGE_INSTALLATION_CHECK_1');
+			my.result.message = system.localizedString('REQUIREMENT_FAILED_DESCRIPTION_INSTALLATION_CHECK_1');
+			my.result.type = 'Fatal';
+		}
+
+		return tResult;
+	}
+
+	function volume_check()
+	{
+		var tResult;
+
+		tResult=IC_CheckMinimumAvailableDiskSpace(2147483648);
+
+		if (tResult==false)
+		{
+			my.result.message = system.localizedString('REQUIREMENT_FAILED_MESSAGE_VOLUME_CHECK_2');
+			my.result.type = 'Fatal';
+		}
+
+		return tResult;
+	}
+
+    </script>
+    <product version="24.3.2.7753" id="com.sentinelone.sentinel-agent"/>
+</installer-gui-script>

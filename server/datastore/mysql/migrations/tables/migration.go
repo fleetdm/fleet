@@ -3,6 +3,8 @@ package tables
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
@@ -28,7 +30,58 @@ AND CONSTRAINT_NAME = ?
 	return count > 0
 }
 
+func constraintExists(tx *sql.Tx, table, name string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM information_schema.TABLE_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA = DATABASE() 
+AND TABLE_NAME = ?
+AND CONSTRAINT_NAME = ? 
+	`, table, name).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
 func columnExists(tx *sql.Tx, table, column string) bool {
+	return columnsExists(tx, table, column)
+}
+
+func columnsExists(tx *sql.Tx, table string, columns ...string) bool {
+	if len(columns) == 0 {
+		return false
+	}
+	inColumns := strings.TrimRight(strings.Repeat("?,", len(columns)), ",")
+	args := make([]interface{}, 0, len(columns)+1)
+	args = append(args, table)
+	for _, column := range columns {
+		args = append(args, column)
+	}
+
+	var count int
+	err := tx.QueryRow(
+		fmt.Sprintf(`
+SELECT
+    count(*)
+FROM
+    information_schema.columns
+WHERE
+    TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = ?
+    AND COLUMN_NAME IN (%s)
+`, inColumns), args...,
+	).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count == len(columns)
+}
+
+func tableExists(tx *sql.Tx, table string) bool {
 	var count int
 	err := tx.QueryRow(
 		`
@@ -39,9 +92,8 @@ FROM
 WHERE
     TABLE_SCHEMA = DATABASE()
     AND TABLE_NAME = ?
-    AND COLUMN_NAME = ?
 `,
-		table, column,
+		table,
 	).Scan(&count)
 	if err != nil {
 		return false
@@ -51,6 +103,22 @@ WHERE
 }
 
 func indexExists(tx *sqlx.DB, table, index string) bool {
+	var count int
+	err := tx.QueryRow(`
+SELECT COUNT(1)
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE table_schema = DATABASE()
+AND table_name = ?
+AND index_name = ?
+`, table, index).Scan(&count)
+	if err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
+func indexExistsTx(tx *sql.Tx, table, index string) bool {
 	var count int
 	err := tx.QueryRow(`
 SELECT COUNT(1)

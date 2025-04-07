@@ -8,23 +8,35 @@ import {
   IHostUpcomingActivity,
 } from "interfaces/activity";
 
-import { ShowActivityDetailsHandler } from "./Activity";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
+import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
+import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
+import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninstallSoftwareActivtyItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
   activity: IHostPastActivity | IHostUpcomingActivity;
   tab: "past" | "upcoming";
+  /** Set this to `true` when rendering only this activity by itself. This will
+   * change the styles for the activity item for solo rendering.
+   * @default false */
+  isSoloActivity?: boolean;
+  /** Set this to `true` to hide the close button and prevent from rendering
+   * @default false
+   */
+  hideCancel?: boolean;
 }
 
 /** Used for activity items component that need a show details handler */
 export interface IHostActivityItemComponentPropsWithShowDetails
   extends IHostActivityItemComponentProps {
   onShowDetails: ShowActivityDetailsHandler;
+  onCancel?: () => void;
 }
 
 export const pastActivityComponentMap: Record<
@@ -36,6 +48,12 @@ export const pastActivityComponentMap: Record<
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
+  [ActivityType.CanceledRunScript]: CanceledRunScriptActivityItem,
+  [ActivityType.CanceledInstallSoftware]: CanceledInstallSoftwareActivityItem,
+  [ActivityType.CanceledInstallAppStoreApp]: CanceledInstallSoftwareActivityItem,
+  [ActivityType.CanceledUninstallSoftware]: CanceledUninstallSoftwareActivtyItem,
 };
 
 export const upcomingActivityComponentMap: Record<
@@ -45,4 +63,6 @@ export const upcomingActivityComponentMap: Record<
 > = {
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,
+  [ActivityType.InstalledAppStoreApp]: InstalledSoftwareActivityItem,
 };

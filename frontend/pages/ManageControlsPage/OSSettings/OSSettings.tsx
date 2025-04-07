@@ -9,7 +9,6 @@ import mdmAPI from "services/entities/mdm";
 
 import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
 import ProfileStatusAggregate from "./ProfileStatusAggregate";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
 const baseClass = "os-settings";
 
@@ -29,7 +28,7 @@ const OSSettings = ({
   params,
 }: IOSSettingsProps) => {
   const { section } = params;
-  const { config, currentTeam } = useContext(AppContext);
+  const { currentTeam } = useContext(AppContext);
 
   // TODO: consider using useTeamIdParam hook here instead in the future
   const teamId =
@@ -40,6 +39,7 @@ const OSSettings = ({
   const {
     data: aggregateProfileStatusData,
     refetch: refetchAggregateProfileStatus,
+    isError: isErrorAggregateProfileStatus,
     isLoading: isLoadingAggregateProfileStatus,
   } = useQuery(
     ["aggregateProfileStatuses", teamId],
@@ -49,14 +49,6 @@ const OSSettings = ({
       retry: false,
     }
   );
-
-  // MDM is not on so show messaging for user to enable it.
-  if (
-    !config?.mdm.enabled_and_configured &&
-    !config?.mdm.windows_enabled_and_configured
-  ) {
-    return <TurnOnMdmMessage router={router} />;
-  }
 
   const DEFAULT_SETTINGS_SECTION = OS_SETTINGS_NAV_ITEMS[0];
 
@@ -73,6 +65,7 @@ const OSSettings = ({
       </p>
       <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
+        isError={isErrorAggregateProfileStatus}
         teamId={teamId}
         aggregateProfileStatusData={aggregateProfileStatusData}
       />

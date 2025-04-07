@@ -12,10 +12,20 @@ import (
 type Platform string
 
 // OvalFilePrefix is the file prefix used when saving an OVAL artifact.
-const OvalFilePrefix = "fleet_oval"
+const (
+	OvalFilePrefix            = "fleet_oval"
+	GovalDictionaryFilePrefix = "fleet_goval_dictionary"
+)
 
-// SupportedSoftwareSources are the software sources for which we are using OVAL for vulnerability detection.
+// SupportedSoftwareSources are the software sources for which we are using OVAL or goval-dictionary for vulnerability detection.
 var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages"}
+
+var SupportedGovalPlatforms = []string{
+	"amzn_01",
+	"amzn_02",
+	"amzn_2022",
+	"amzn_2023",
+}
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
 // ex: 'Ubuntu 20.4.0' => '(20, 04)'
@@ -69,6 +79,16 @@ func (op Platform) ToFilename(date time.Time, extension string) string {
 	return fmt.Sprintf("%s_%s-%d_%02d_%02d.%s", OvalFilePrefix, op, date.Year(), date.Month(), date.Day(), extension)
 }
 
+func (op Platform) ToGovalDictionaryFilename() string {
+	return fmt.Sprintf("%s_%s.sqlite3", GovalDictionaryFilePrefix, op)
+}
+
+// ToGovalDatabaseFilename returns the filename of the sqlite3 files downloaded using
+// the goval-dictionary fetch method in the vulnerabilities generate-cve.yml workflow
+func (op Platform) ToGovalDatabaseFilename() string {
+	return fmt.Sprintf("%s.sqlite3", op)
+}
+
 // IsSupported returns whether the given platform is currently supported.
 func (op Platform) IsSupported() bool {
 	supported := []string{
@@ -89,9 +109,17 @@ func (op Platform) IsSupported() bool {
 		"rhel_07",
 		"rhel_08",
 		"rhel_09",
-		"amzn_02",
 	}
 	for _, p := range supported {
+		if strings.HasPrefix(string(op), p) {
+			return true
+		}
+	}
+	return false
+}
+
+func (op Platform) IsGovalDictionarySupported() bool {
+	for _, p := range SupportedGovalPlatforms {
 		if strings.HasPrefix(string(op), p) {
 			return true
 		}

@@ -22,3 +22,7 @@ flag_management:
     - name: frontend
       paths:
         - frontend/
+
+ignore:
+  - "server/mock"
+  - "server/fleet/activities.go" # mostly contains code for documentation -- not interesting for tests

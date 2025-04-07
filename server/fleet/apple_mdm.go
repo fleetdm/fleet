@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -18,9 +19,10 @@ import (
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
-	DeviceLock(ctx context.Context, host *Host, uuid string) error
+	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
+	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
 // MDMAppleEnrollmentType is the type for Apple MDM enrollments.
@@ -195,23 +197,38 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum []byte `db:"checksum" json:"checksum,omitempty"`
-	// Labels are the associated labels for this profile
-	Labels     []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
-	CreatedAt  time.Time                   `db:"created_at" json:"created_at"`
-	UploadedAt time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	Checksum         []byte                      `db:"checksum" json:"checksum,omitempty"`
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
+	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	SecretsUpdatedAt *time.Time                  `db:"secrets_updated_at" json:"-"`
+}
+
+// MDMProfilesUpdates flags updates that were done during batch processing of profiles.
+type MDMProfilesUpdates struct {
+	AppleConfigProfile   bool
+	WindowsConfigProfile bool
+	AppleDeclaration     bool
 }
 
 // ConfigurationProfileLabel represents the many-to-many relationship between
 // profiles and labels.
 //
 // NOTE: json representation of the fields is a bit awkward to match the
-// required API response, as this struct is returned within profile responses.
+// required API response, as this struct is returned within profile
+// responses.
+//
+// NOTE The fields in this struct other than LabelName and LabelID
+// MAY NOT BE SET CORRECTLY, dependong on where they're being ingested from.
 type ConfigurationProfileLabel struct {
 	ProfileUUID string `db:"profile_uuid" json:"-"`
 	LabelName   string `db:"label_name" json:"name"`
 	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
 	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
+	Exclude     bool   `db:"exclude" json:"-"`               // not rendered in JSON, used to store the profile in LabelsIncludeAll, LabelsIncludeAny, or LabelsExcludeAny on the parent profile
+	RequireAll  bool   `db:"require_all" json:"-"`           // not rendered in JSON, used to store the profile in  LabelsIncludeAll, LabelsIncludeAny, or LabelsIncludeAny on the parent profile
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
@@ -268,6 +285,18 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 	}
 }
 
+// HostMDMCertificateProfile represents the status of an MDM certificate profile (SCEP payload) along with the
+// associated certificate metadata.
+type HostMDMCertificateProfile struct {
+	HostUUID             string             `db:"host_uuid"`
+	ProfileUUID          string             `db:"profile_uuid"`
+	Status               *MDMDeliveryStatus `db:"status"`
+	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+	NotValidAfter        *time.Time         `db:"not_valid_after"`
+	Type                 CAConfigAssetType  `db:"type"`
+	CAName               string             `db:"ca_name"`
+}
+
 type HostMDMProfileDetail string
 
 const (
@@ -294,16 +323,30 @@ type MDMAppleProfilePayload struct {
 	HostUUID          string             `db:"host_uuid"`
 	HostPlatform      string             `db:"host_platform"`
 	Checksum          []byte             `db:"checksum"`
+	SecretsUpdatedAt  *time.Time         `db:"secrets_updated_at"`
 	Status            *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType     MDMOperationType   `db:"operation_type"`
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
+	IgnoreError       bool               `db:"ignore_error"`
 }
 
-// FailedToInstallOnHost indicates whether this profile failed to be installed on the host (and
+// DidNotInstallOnHost indicates whether this profile was not installed on the host (and
 // therefore is not, as far as Fleet knows, currently on the host).
-func (p *MDMAppleProfilePayload) FailedToInstallOnHost() bool {
+// The profile in Pending status could be on the host, but Fleet has not received an Acknowledged status yet.
+func (p *MDMAppleProfilePayload) DidNotInstallOnHost() bool {
+	return p.Status != nil && (*p.Status == MDMDeliveryFailed || *p.Status == MDMDeliveryPending) && p.OperationType == MDMOperationTypeInstall
+}
+
+// FailedInstallOnHost indicates whether this profile failed to install on the host.
+func (p *MDMAppleProfilePayload) FailedInstallOnHost() bool {
 	return p.Status != nil && *p.Status == MDMDeliveryFailed && p.OperationType == MDMOperationTypeInstall
+}
+
+// PendingInstallOnHost indicates whether this profile is pending to install on the host.
+// The profile in Pending status could be on the host, but Fleet has not received an Acknowledged status yet.
+func (p *MDMAppleProfilePayload) PendingInstallOnHost() bool {
+	return p.Status != nil && *p.Status == MDMDeliveryPending && p.OperationType == MDMOperationTypeInstall
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
@@ -316,6 +359,8 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	Status            *MDMDeliveryStatus
 	Detail            string
 	Checksum          []byte
+	SecretsUpdatedAt  *time.Time
+	IgnoreError       bool
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -432,6 +477,8 @@ type HostDEPAssignment struct {
 	// DeletedAt is the timestamp  when Fleet was notified that device was deleted from the Fleet
 	// MDM server in Apple Busines Manager (ABM).
 	DeletedAt *time.Time `db:"deleted_at"`
+	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
+	ABMTokenID *uint `db:"abm_token_id"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -494,12 +541,11 @@ type MDMAppleCommand struct {
 // MDMAppleSetupAssistant represents the setup assistant set for a given team
 // or no team.
 type MDMAppleSetupAssistant struct {
-	ID          uint            `json:"-" db:"id"`
-	TeamID      *uint           `json:"team_id" db:"team_id"`
-	Name        string          `json:"name" db:"name"`
-	Profile     json.RawMessage `json:"enrollment_profile" db:"profile"`
-	ProfileUUID string          `json:"-" db:"profile_uuid"`
-	UploadedAt  time.Time       `json:"uploaded_at" db:"uploaded_at"`
+	ID         uint            `json:"-" db:"id"`
+	TeamID     *uint           `json:"team_id" db:"team_id"`
+	Name       string          `json:"name" db:"name"`
+	Profile    json.RawMessage `json:"enrollment_profile" db:"profile"`
+	UploadedAt time.Time       `json:"uploaded_at" db:"uploaded_at"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -530,6 +576,9 @@ type SCEPIdentityAssociation struct {
 	SHA256           string `db:"sha256"`
 	EnrollReference  string `db:"enroll_reference"`
 	RenewCommandUUID string `db:"renew_command_uuid"`
+	// EnrolledFromMigration is used for devices migrated via datababse
+	// dumps (ie: "touchless")
+	EnrolledFromMigration bool `db:"enrolled_from_migration"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -555,14 +604,18 @@ type MDMAppleDeclaration struct {
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
-	// Checksum is a checksum of the JSON contents
-	Checksum string `db:"checksum" json:"-"`
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
 
-	// Labels are the labels associated with this Declaration
-	Labels []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	// labels associated with this Declaration
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 
-	CreatedAt  time.Time `db:"created_at" json:"created_at"`
-	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
+	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time  `db:"uploaded_at" json:"uploaded_at"`
+	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
 }
 
 type MDMAppleRawDeclaration struct {
@@ -614,7 +667,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	var rawDecl MDMAppleRawDeclaration
 	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't add. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
 	}
 
 	return &rawDecl, nil
@@ -647,9 +700,26 @@ type MDMAppleHostDeclaration struct {
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
 
-	// Checksum contains the MD5 checksum of the declaration JSON uploaded
-	// by the IT admin. Fleet uses this value as the ServerToken.
-	Checksum string `db:"checksum" json:"-"`
+	// Token is used to identify if declaration needs to be re-applied.
+	// It contains the checksum of the JSON contents and secrets updated timestamp (if secret variables are present).
+	Token string `db:"token" json:"-"`
+
+	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
+	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+}
+
+func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
+	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
+	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	return statusEqual &&
+		p.HostUUID == other.HostUUID &&
+		p.DeclarationUUID == other.DeclarationUUID &&
+		p.Name == other.Name &&
+		p.Identifier == other.Identifier &&
+		p.OperationType == other.OperationType &&
+		p.Detail == other.Detail &&
+		p.Token == other.Token &&
+		secretsEqual
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
@@ -674,8 +744,9 @@ type MDMAppleDDMTokensResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
 type MDMAppleDDMDeclarationsToken struct {
-	DeclarationsToken string    `db:"checksum"`
-	Timestamp         time.Time `db:"latest_created_timestamp"`
+	DeclarationsToken string `db:"token"`
+	// Timestamp must JSON marshal to format YYYY-mm-ddTHH:MM:SSZ
+	Timestamp time.Time `db:"latest_created_timestamp"`
 }
 
 // MDMAppleDDMDeclarationItemsResponse is the response from the DDM declaration items endpoint.
@@ -711,7 +782,7 @@ type MDMAppleDDMManifest struct {
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
 	Identifier  string `db:"identifier"`
-	ServerToken string `db:"checksum"`
+	ServerToken string `db:"token"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -772,7 +843,7 @@ type MDMAppleDeclarationValidity string
 const (
 	MDMAppleDeclarationValid   MDMAppleDeclarationValidity = "valid"
 	MDMAppleDeclarationInvalid MDMAppleDeclarationValidity = "invalid"
-	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "valid"
+	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "unknown"
 )
 
 // MDMAppleDDMStatusDeclaration represents a processed declaration for the client.
@@ -834,4 +905,89 @@ type MDMAppleDDMActivation struct {
 	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
 	ServerToken string                       `json:"ServerToken"`
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
+}
+
+// MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
+// package files. Fleet supports storing to the database and to an S3 bucket.
+type MDMBootstrapPackageStore interface {
+	Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
+	Exists(ctx context.Context, packageID string) (bool, error)
+	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
+	Sign(ctx context.Context, fileID string) (string, error)
+}
+
+// MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
+type MDMAppleMachineInfo struct {
+	IMEI                        string `plist:"IMEI,omitempty"`
+	Language                    string `plist:"LANGUAGE,omitempty"`
+	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
+	MEID                        string `plist:"MEID,omitempty"`
+	OSVersion                   string `plist:"OS_VERSION"`
+	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
+	Product                     string `plist:"PRODUCT"`
+	Serial                      string `plist:"SERIAL"`
+	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
+	UDID                        string `plist:"UDID"`
+	Version                     string `plist:"VERSION"`
+}
+
+// MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired
+const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
+
+// MDMAppleSoftwareUpdateRequiredDetails is the [details][1] specified by Apple for the
+// required software update.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired/details
+type MDMAppleSoftwareUpdateRequiredDetails struct {
+	OSVersion    string `json:"OSVersion"`
+	BuildVersion string `json:"BuildVersion"`
+}
+
+// MDMAppleSoftwareUpdateRequired is the [error response][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired
+type MDMAppleSoftwareUpdateRequired struct {
+	Code    string                                `json:"code"` // "com.apple.softwareupdate.required"
+	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
+}
+
+func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
+	return &MDMAppleSoftwareUpdateRequired{
+		Code:    MDMAppleSoftwareUpdateRequiredCode,
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
+	}
+}
+
+type MDMAppleSoftwareUpdateAsset struct {
+	ProductVersion string `json:"ProductVersion"`
+	Build          string `json:"Build"`
+}
+
+type MDMBulkUpsertManagedCertificatePayload struct {
+	ProfileUUID          string
+	HostUUID             string
+	ChallengeRetrievedAt *time.Time
+	NotValidAfter        *time.Time
+	Type                 CAConfigAssetType
+	CAName               string
+}
+
+// MDMAppleEnrolledDeviceInfo represents the information of a device enrolled
+// in Apple MDM. Used by the MDM flow to re-create an iDevice that has been
+// deleted from the hosts table but is still MDM-enrolled.
+type MDMAppleEnrolledDeviceInfo struct {
+	ID           string `db:"id"`
+	SerialNumber string `db:"serial_number"`
+	Authenticate string `db:"authenticate"`
+	Platform     string `db:"platform"`
+	EnrollTeamID *uint  `db:"enroll_team_id"`
 }

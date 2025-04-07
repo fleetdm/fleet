@@ -24,7 +24,8 @@ import sortUtils from "utilities/sort";
 
 import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import BackLink from "components/BackLink";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
@@ -97,6 +98,7 @@ const TeamDetailsWrapper = ({
     isGlobalAdmin,
     isPremiumTier,
     setAvailableTeams,
+    setUserSettings,
     setCurrentUser,
   } = useContext(AppContext);
 
@@ -140,9 +142,10 @@ const TeamDetailsWrapper = ({
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 
@@ -295,13 +298,11 @@ const TeamDetailsWrapper = ({
 
     try {
       await teamsAPI.destroy(teamIdForApi);
+      router.push(PATHS.ADMIN_TEAMS);
       renderFlash("success", "Team removed");
-      // setCurrentTeam(undefined);
-      return router.push(PATHS.ADMIN_TEAMS);
     } catch (response) {
       renderFlash("error", "Something went wrong removing the team");
       console.error(response);
-      return false;
     } finally {
       toggleDeleteTeamModal();
       setIsUpdatingTeams(false);
@@ -330,6 +331,7 @@ const TeamDetailsWrapper = ({
         setBackendValidators({});
         refetchTeams();
         refetchMe();
+        toggleRenameTeamModal();
       } catch (response) {
         console.error(response);
         const errorObject = formatErrorResponse(response);
@@ -337,11 +339,18 @@ const TeamDetailsWrapper = ({
           setBackendValidators({
             name: "A team with this name already exists",
           });
+        } else if (errorObject.base.includes("all teams")) {
+          setBackendValidators({
+            name: `"All teams" is a reserved team name. Please try another name.`,
+          });
+        } else if (errorObject.base.includes("no team")) {
+          setBackendValidators({
+            name: `"No team" is a reserved team name. Please try another name.`,
+          });
         } else {
           renderFlash("error", "Could not create team. Please try again.");
         }
       } finally {
-        toggleRenameTeamModal();
         setIsUpdatingTeams(false);
       }
     },
@@ -379,66 +388,69 @@ const TeamDetailsWrapper = ({
   return (
     <MainContent className={baseClass}>
       <>
-        <TabsWrapper>
-          {isGlobalAdmin ? (
-            <div className={`${baseClass}__header-links`}>
-              <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
-            </div>
-          ) : (
-            <></>
-          )}
-          <div className={`${baseClass}__team-header`}>
-            <div className={`${baseClass}__team-details`}>
-              {userTeams?.length === 1 ? (
-                <h1>{currentTeamDetails.name}</h1>
-              ) : (
-                <TeamsDropdown
-                  selectedTeamId={currentTeamId}
-                  currentUserTeams={userTeams || []}
-                  isDisabled={isLoadingTeams}
-                  includeAll={false}
-                  onChange={handleTeamChange}
-                />
-              )}
-              {!!hostsTotalDisplay && (
-                <span className={`${baseClass}__host-count`}>
-                  {hostsTotalDisplay}
-                </span>
-              )}
-            </div>
-            <ActionButtons
-              baseClass={baseClass}
-              actions={[
-                {
-                  type: "primary",
-                  label: "Add hosts",
-                  onClick: toggleAddHostsModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Manage enroll secrets",
-                  buttonVariant: "text-icon",
-                  iconSvg: "eye",
-                  onClick: toggleManageEnrollSecretsModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Rename team",
-                  buttonVariant: "text-icon",
-                  iconSvg: "pencil",
-                  onClick: toggleRenameTeamModal,
-                },
-                {
-                  type: "secondary",
-                  label: "Delete team",
-                  buttonVariant: "text-icon",
-                  iconSvg: "trash",
-                  hideAction: !isGlobalAdmin,
-                  onClick: toggleDeleteTeamModal,
-                },
-              ]}
-            />
+        {isGlobalAdmin ? (
+          <div className={`${baseClass}__header-links`}>
+            <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
           </div>
+        ) : (
+          <></>
+        )}
+        <div className={`${baseClass}__team-header`}>
+          <div className={`${baseClass}__team-details`}>
+            {userTeams?.length === 1 ? (
+              <h1>{currentTeamDetails.name}</h1>
+            ) : (
+              <TeamsDropdown
+                selectedTeamId={currentTeamId}
+                currentUserTeams={userTeams || []}
+                isDisabled={isLoadingTeams}
+                includeAll={false}
+                onChange={handleTeamChange}
+              />
+            )}
+            {!!hostsTotalDisplay && (
+              <span className={`${baseClass}__host-count`}>
+                {hostsTotalDisplay}
+              </span>
+            )}
+          </div>
+          <ActionButtons
+            baseClass={baseClass}
+            actions={[
+              {
+                type: "primary",
+                label: "Add hosts",
+                onClick: toggleAddHostsModal,
+              },
+              {
+                type: "secondary",
+                label: "Manage enroll secrets",
+                buttonVariant: "text-icon",
+                iconSvg: "eye",
+                onClick: toggleManageEnrollSecretsModal,
+                gitOpsModeCompatible: true,
+              },
+              {
+                type: "secondary",
+                label: "Rename team",
+                buttonVariant: "text-icon",
+                iconSvg: "pencil",
+                onClick: toggleRenameTeamModal,
+                gitOpsModeCompatible: true,
+              },
+              {
+                type: "secondary",
+                label: "Delete team",
+                buttonVariant: "text-icon",
+                iconSvg: "trash",
+                hideAction: !isGlobalAdmin,
+                onClick: toggleDeleteTeamModal,
+                gitOpsModeCompatible: true,
+              },
+            ]}
+          />
+        </div>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(
               location.pathname,
@@ -452,24 +464,19 @@ const TeamDetailsWrapper = ({
                 // so we add a hidden pseudo element with the same text string
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showAddHostsModal && (
           <AddHostsModal
             currentTeamName={currentTeamName}
             enrollSecret={teamSecrets?.[0]?.secret}
             isAnyTeamSelected={isAnyTeamSelected}
             isLoading={isLoadingTeams}
-            // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-            // and Fleet Sandbox runs Fleet Free so explicitly setting isSandboxMode here is an
-            // additional precaution/reminder to revisit this in connection with future changes.
-            // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-            isSandboxMode={false}
             onCancel={toggleAddHostsModal}
             openEnrollSecretModal={toggleManageEnrollSecretsModal}
           />

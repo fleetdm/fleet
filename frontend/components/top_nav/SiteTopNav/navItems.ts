@@ -27,8 +27,7 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false,
-  isSandboxMode = false
+  isNoAccess = false
 ): INavItem[] => {
   if (!user) {
     return [];
@@ -67,7 +66,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/controls/`),
         pathname: PATHS.CONTROLS,
       },
-      exclude: isSandboxMode || !isMaintainerOrAdmin,
+      exclude: !isMaintainerOrAdmin,
       withParams: { type: "query", names: ["team_id"] },
     },
     {

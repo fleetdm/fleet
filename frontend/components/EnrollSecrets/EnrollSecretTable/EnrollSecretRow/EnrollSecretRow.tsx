@@ -8,6 +8,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Icon from "components/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "enroll-secrets";
 
@@ -93,22 +94,29 @@ const EnrollSecretRow = ({
   };
 
   const renderEditDeleteButtons = () => (
-    <div className="buttons">
-      <Button
-        onClick={onEditSecretClick}
-        className={`${baseClass}__edit-secret-icon`}
-        variant="text-icon"
-      >
-        <Icon name="pencil" />
-      </Button>
-      <Button
-        onClick={onDeleteSecretClick}
-        className={`${baseClass}__delete-secret-icon`}
-        variant="text-icon"
-      >
-        <Icon name="trash" />
-      </Button>
-    </div>
+    <GitOpsModeTooltipWrapper
+      tipOffset={8}
+      renderChildren={(disableChildren) => (
+        <div className="buttons">
+          <Button
+            disabled={disableChildren}
+            onClick={onEditSecretClick}
+            className={`${baseClass}__edit-secret-icon`}
+            variant="text-icon"
+          >
+            <Icon name="pencil" />
+          </Button>
+          <Button
+            onClick={onDeleteSecretClick}
+            disabled={disableChildren}
+            className={`${baseClass}__delete-secret-icon`}
+            variant="text-icon"
+          >
+            <Icon name="trash" />
+          </Button>
+        </div>
+      )}
+    />
   );
 
   return (
@@ -119,7 +127,7 @@ const EnrollSecretRow = ({
     >
       {/* TODO: replace with InputFieldHiddenContent component */}
       <InputField
-        disabled
+        readOnly
         inputWrapperClass={`${baseClass}__secret-input`}
         name={`osqueryd-secret-${uniqueId()}`}
         type={showSecret ? "text" : "password"}

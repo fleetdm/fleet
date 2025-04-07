@@ -10,7 +10,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable";
 
 import SETUP_EXPERIENCE_NAV_ITEMS from "./SetupExperienceNavItems";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage";
 
 const baseClass = "setup-experience";
 
@@ -39,7 +39,7 @@ const SetupEmptyState = ({ router }: ISetupEmptyState) => {
 interface ISetupExperienceProps {
   params: Params;
   location: { search: string };
-  router: any;
+  router: InjectedRouter;
   teamIdForApi: number;
 }
 
@@ -63,7 +63,14 @@ const SetupExperience = ({
 
   // MDM is not on so show messaging for user to enable it.
   if (!config?.mdm.enabled_and_configured) {
-    return <TurnOnMdmMessage router={router} />;
+    return (
+      <TurnOnMdmMessage
+        header="Manage setup experience for macOS"
+        info="To install software and run scripts when Macs first boot, first turn on automatic enrollment."
+        buttonText="Turn on"
+        router={router}
+      />
+    );
   }
   // User has not set up Apple Business Manager.
   if (!config?.mdm.apple_bm_enabled_and_configured) {
@@ -81,8 +88,9 @@ const SetupExperience = ({
   return (
     <div className={baseClass}>
       <p>
-        Customize the setup experience for hosts that automatically enroll to
-        this team.
+        Customize the setup experience for macOS hosts that automatically enroll
+        in this team. Each step runs sequentially and will be required if
+        enabled before the end user finishes setup.
       </p>
       <SideNav
         className={`${baseClass}__side-nav`}

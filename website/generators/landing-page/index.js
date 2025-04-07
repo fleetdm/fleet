@@ -220,7 +220,7 @@ module.exports = {
         <p>Vitae architecto reiciendis in temporibus consequatur doloremque reprehenderit perferendis? Eaque quod voluptates earum corporis, quo labore reprehenderit libero sint.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
           <a purpose="cta-button" href="/register">Start now</a>
-          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>
     </div>
@@ -275,7 +275,7 @@ module.exports = {
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
       <a purpose="cta-button" href="/register">Start now</a>
-      <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+      <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
     </div>
 
   </div>
@@ -297,7 +297,7 @@ module.exports = {
         <h1>Lighter than air</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
-          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>
     </div>

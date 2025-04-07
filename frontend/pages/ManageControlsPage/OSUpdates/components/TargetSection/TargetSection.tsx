@@ -2,41 +2,64 @@ import React from "react";
 
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+import { ApplePlatform } from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
-import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
 import PlatformTabs from "../PlatformTabs";
-import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+import { OSUpdatesTargetPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
 
 type GetDefaultFnParams = {
+  osType?: ApplePlatform;
   currentTeamId: number;
   appConfig: IConfig;
   teamConfig?: ITeamConfig;
 };
 
-const getDefaultMacOSVersion = ({
+const getDefaultOSVersion = ({
+  osType,
   currentTeamId,
   appConfig,
   teamConfig,
 }: GetDefaultFnParams) => {
-  return currentTeamId === API_NO_TEAM_ID
-    ? appConfig?.mdm.macos_updates.minimum_version ?? ""
-    : teamConfig?.mdm?.macos_updates.minimum_version ?? "";
+  const mdmData =
+    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+
+  switch (osType) {
+    case "darwin":
+      return mdmData?.macos_updates.minimum_version ?? "";
+    case "ios":
+      return mdmData?.ios_updates.minimum_version ?? "";
+    case "ipados":
+      return mdmData?.ipados_updates.minimum_version ?? "";
+    default:
+      return "";
+  }
 };
 
-const getDefaultMacOSDeadline = ({
+const getDefaultDeadline = ({
+  osType,
   currentTeamId,
   appConfig,
   teamConfig,
 }: GetDefaultFnParams) => {
-  return currentTeamId === API_NO_TEAM_ID
-    ? appConfig?.mdm.macos_updates.deadline || ""
-    : teamConfig?.mdm?.macos_updates.deadline || "";
+  const mdmData =
+    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+
+  switch (osType) {
+    case "darwin":
+      return mdmData?.macos_updates.deadline ?? "";
+    case "ios":
+      return mdmData?.ios_updates.deadline ?? "";
+    case "ipados":
+      return mdmData?.ipados_updates.deadline ?? "";
+    default:
+      return "";
+  }
 };
 
 const getDefaultWindowsDeadlineDays = ({
@@ -63,9 +86,9 @@ interface ITargetSectionProps {
   appConfig: IConfig;
   currentTeamId: number;
   isFetching: boolean;
-  selectedPlatform: OSUpdatesSupportedPlatform;
+  selectedPlatform: OSUpdatesTargetPlatform;
   teamConfig?: ITeamConfig;
-  onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
+  onSelectPlatform: (platform: OSUpdatesTargetPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
@@ -84,19 +107,50 @@ const TargetSection = ({
     return <Spinner />;
   }
 
-  const isMacMdmEnabled = appConfig.mdm.enabled_and_configured;
+  const isAndroidMdmEnabled = appConfig.mdm.android_enabled_and_configured;
+
+  const isAppleMdmEnabled = appConfig.mdm.enabled_and_configured;
+
   const isWindowsMdmEnabled = appConfig.mdm.windows_enabled_and_configured;
 
-  const defaultMacOSVersion = getDefaultMacOSVersion({
+  const defaultMacOSVersion = getDefaultOSVersion({
+    osType: "darwin",
     currentTeamId,
     appConfig,
     teamConfig,
   });
-  const defaultMacOSDeadline = getDefaultMacOSDeadline({
+  const defaultMacOSDeadline = getDefaultDeadline({
+    osType: "darwin",
     currentTeamId,
     appConfig,
     teamConfig,
   });
+  const defaultIOSVersion = getDefaultOSVersion({
+    osType: "ios",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+
+  const defaultIOSDeadline = getDefaultDeadline({
+    osType: "ios",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+  const defaultIPadOSOSVersion = getDefaultOSVersion({
+    osType: "ipados",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+  const defaultIPadOSDeadline = getDefaultDeadline({
+    osType: "ipados",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
+
   const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays({
     currentTeamId,
     appConfig,
@@ -109,45 +163,44 @@ const TargetSection = ({
   });
 
   const renderTargetForms = () => {
-    if (isMacMdmEnabled && isWindowsMdmEnabled) {
+    if (isWindowsMdmEnabled && !isAppleMdmEnabled && !isAndroidMdmEnabled) {
       return (
-        <PlatformTabs
+        <WindowsTargetForm
           currentTeamId={currentTeamId}
-          defaultMacOSVersion={defaultMacOSVersion}
-          defaultMacOSDeadline={defaultMacOSDeadline}
-          defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
-          defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
-          selectedPlatform={selectedPlatform}
-          onSelectPlatform={onSelectPlatform}
-          refetchAppConfig={refetchAppConfig}
-          refetchTeamConfig={refetchTeamConfig}
-        />
-      );
-    } else if (isMacMdmEnabled) {
-      return (
-        <MacOSTargetForm
-          currentTeamId={currentTeamId}
-          defaultMinOsVersion={defaultMacOSVersion}
-          defaultDeadline={defaultMacOSDeadline}
+          defaultDeadlineDays={defaultWindowsDeadlineDays}
+          defaultGracePeriodDays={defaultWindowsGracePeriodDays}
           refetchAppConfig={refetchAppConfig}
           refetchTeamConfig={refetchTeamConfig}
         />
       );
     }
     return (
-      <WindowsTargetForm
+      <PlatformTabs
         currentTeamId={currentTeamId}
-        defaultDeadlineDays={defaultWindowsDeadlineDays}
-        defaultGracePeriodDays={defaultWindowsGracePeriodDays}
+        defaultMacOSVersion={defaultMacOSVersion}
+        defaultMacOSDeadline={defaultMacOSDeadline}
+        defaultIOSVersion={defaultIOSVersion}
+        defaultIOSDeadline={defaultIOSDeadline}
+        defaultIPadOSVersion={defaultIPadOSOSVersion}
+        defaultIPadOSDeadline={defaultIPadOSDeadline}
+        defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
+        defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
+        selectedPlatform={selectedPlatform}
+        onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}
         refetchTeamConfig={refetchTeamConfig}
+        isWindowsMdmEnabled={isWindowsMdmEnabled}
+        isAndroidMdmEnabled={isAndroidMdmEnabled}
       />
     );
   };
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Target" className={`${baseClass}__header`} />
+      <SectionHeader
+        title="Target"
+        wrapperCustomClass={`${baseClass}__header`}
+      />
       {renderTargetForms()}
     </div>
   );

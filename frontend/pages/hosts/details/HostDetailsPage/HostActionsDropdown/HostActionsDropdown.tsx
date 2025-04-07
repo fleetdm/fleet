@@ -4,8 +4,7 @@ import { MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import ActionsDropdown from "components/ActionsDropdown";
 import { generateHostActionOptions } from "./helpers";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
@@ -19,7 +18,7 @@ interface IHostActionsDropdownProps {
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
@@ -31,7 +30,7 @@ const HostActionsDropdown = ({
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
   doesStoreEncryptionKey,
-  mdmName,
+  isConnectedToFleetMdm,
   hostPlatform = "",
   hostScriptsEnabled = false,
   onSelect,
@@ -68,7 +67,7 @@ const HostActionsDropdown = ({
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollmentStatus ?? ""
     ),
-    isFleetMdm: mdmName === "Fleet",
+    isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
@@ -79,18 +78,14 @@ const HostActionsDropdown = ({
   // No options to render. Exit early
   if (options.length === 0) return null;
 
-  if (hostPlatform === "ios" || hostPlatform === "ipados") {
-    return null;
-  }
-
   return (
     <div className={baseClass}>
-      <Dropdown
+      <ActionsDropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        searchable={false}
         options={options}
+        menuAlign="right"
       />
     </div>
   );

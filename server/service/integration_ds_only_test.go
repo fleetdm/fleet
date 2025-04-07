@@ -15,9 +15,9 @@ type integrationDSTestSuite struct {
 	suite.Suite
 }
 
-func TestIntegrationDSTestSuite(t *testing.T) {
+func TestIntegrationsDSTestSuite(t *testing.T) {
 	testingSuite := new(integrationDSTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withDS.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 

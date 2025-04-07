@@ -1,10 +1,4 @@
 .org-settings {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-  }
-
   &__sandbox-demo-message {
     margin-top: 3.5rem;
   }
@@ -58,22 +52,6 @@
           em {
             font-style: normal;
           }
-
-          &--configured {
-            em {
-              color: $ui-success;
-            }
-          }
-
-          &--notconfigured {
-            em {
-              color: $ui-error;
-            }
-          }
-        }
-        .button--inverse {
-          // compensate for button's padding
-          margin-left: -$pad-small;
         }
       }
 
@@ -97,10 +75,10 @@
         width: calc(90% - 50px);
         margin-bottom: $pad-medium;
       }
-
-      &__disabled-usage-statistics-checkbox {
-        @include disabled;
-      }
     }
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
   }
 }

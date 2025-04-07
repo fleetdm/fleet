@@ -6,6 +6,7 @@ import "time"
 // Desktop to operate (show/hide menu items, etc)
 type DesktopSummary struct {
 	FailingPolicies *uint                `json:"failing_policies_count,omitempty"`
+	SelfService     *bool                `json:"self_service"`
 	Notifications   DesktopNotifications `json:"notifications,omitempty"`
 	Config          DesktopConfig        `json:"config"`
 }

@@ -97,7 +97,7 @@ Thanks to automation and open source tools like osquery and Fleet, compliance is
 
 <meta name="category" value="security">
 <meta name="authorFullName" value="Drew Baker">
-<meta name="authorGitHubUsername" value="DrewBakerfdm">
+<meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="publishedOn" value="2022-03-09">
 <meta name="articleTitle" value="Get and stay compliant across your devices with Fleet.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/get-and-stay-compliant-across-your-devices-with-fleet-cover-1600x900@2x.jpg">

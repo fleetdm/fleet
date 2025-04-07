@@ -197,6 +197,95 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "visual_studio_code"
 			},
 		},
+		// Issue #18733 incorrect CPEs that should be matching
+		// visual studio code extensions
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2021-28967": {},
+				"CVE-2020-1192":  {},
+				"CVE-2020-1171":  {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
+			},
+		},
+		// CVE-2023-48795 in NVD incorrectly mentions PowerShell as vulnerable when the issue is actually with OpenSSH,
+		// which is packaged separately. It also includes a bogus resolved-in version number. See #26073.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2023-48795": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell"
+			},
+		},
+		// CVE-2025-21171 only affects RC versions of PowerShell, see https://github.com/PowerShell/Announcements/issues/72
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2025-21171": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == ""
+			},
+		},
+		// Old macos CPEs without version constraints that should be ignored
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2001-0102": {},
+				"CVE-1999-0590": {},
+				"CVE-1999-0524": {},
+			},
+			IgnoreAll: true,
+		},
+		// Windows OS vulnerabilities without version constraints that should be ignored
+		// TODO(tim): This rule is too specific and should be generalized to ignore all
+		// Windows OS vulnerabilities in NVD
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2010-3143":  {},
+				"CVE-2011-5049":  {},
+				"CVE-2012-2972":  {},
+				"CVE-2018-0598":  {},
+				"CVE-2010-3888":  {},
+				"CVE-2010-3139":  {},
+				"CVE-2021-36958": {},
+				"CVE-2008-6194":  {},
+				"CVE-2010-2157":  {},
+				"CVE-2011-3389":  {},
+				"CVE-2012-2971":  {},
+				"CVE-2018-0599":  {},
+				"CVE-2010-3889":  {},
+				"CVE-2011-0638":  {},
+			},
+			IgnoreAll: true,
+		},
+		// CVE-2024-4030 and CVE-2024-6286 only target windows operating systems
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-4030": {},
+				"CVE-2024-6286": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "windows"
+			},
+		},
+		// CVE-2024-12254 only targets Mac/Linux operating systems
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-12254": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW == "windows"
+			},
+		},
+		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-10004": {},
+				"CVE-2024-10327": {}, // also missing a CPE as of 2025-01-01
+			},
+			IgnoreAll: true,
+		},
 	}
 
 	for i, rule := range rules {

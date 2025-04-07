@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,7 +23,7 @@ func TestCopy(t *testing.T) {
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
 	expectedMode := fs.FileMode(0644)
-	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm))
+	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.WriteFile(dstPath, []byte("this should be overwritten"), expectedMode))
 
 	// Test
@@ -76,7 +77,7 @@ func TestExists(t *testing.T) {
 
 	// Setup
 	path := filepath.Join(tmp, "file")
-	require.NoError(t, os.WriteFile(path, []byte(""), os.ModePerm))
+	require.NoError(t, os.WriteFile(path, []byte(""), os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "dir", "nested"), os.ModePerm))
 
 	// Test
@@ -100,14 +101,15 @@ func TestExists(t *testing.T) {
 //
 // The filename should have the following format:
 //
-//	<software_name>$<version>$<sha256hash>[$<anything>].<extension>
+//	<software_name>$<version>$<sha256hash>$<bundle_identifier>[$<anything>].<extension>
 //
 // That is, it breaks the file name at the dollar sign and the first part is
 // the expected name, the second is the expected version, the third is the
-// hex-encoded hash. Note that by default, files in testdata/installers are NOT
-// included in git, so the test files must be added manually (for size and
-// licenses considerations). Why the dollar sign? Because dots, dashes and
-// underlines are more likely to be part of the name or version.
+// hex-encoded hash and the fourth is the bundle identifier. Note that by
+// default, files in testdata/installers are NOT included in git, so the test
+// files must be added manually (for size and licenses considerations). Why the
+// dollar sign? Because dots, dashes and underlines are more likely to be part
+// of the name or version.
 func TestExtractInstallerMetadata(t *testing.T) {
 	dents, err := os.ReadDir(filepath.Join("testdata", "installers"))
 	if err != nil {
@@ -120,22 +122,23 @@ func TestExtractInstallerMetadata(t *testing.T) {
 		}
 		t.Run(dent.Name(), func(t *testing.T) {
 			parts := strings.Split(strings.TrimSuffix(dent.Name(), filepath.Ext(dent.Name())), "$")
-			if len(parts) < 3 {
-				t.Fatalf("invalid filename, expected at least 3 sections, got %d: %s", len(parts), dent.Name())
+			if len(parts) < 4 {
+				t.Fatalf("invalid filename, expected at least 4 sections, got %d: %s", len(parts), dent.Name())
 			}
-			wantName, wantVersion, wantHash := parts[0], parts[1], parts[2]
-			wantExtension := filepath.Ext(wantName)
+			wantName, wantVersion, wantHash, wantBundleIdentifier := parts[0], parts[1], parts[2], parts[3]
+			wantExtension := strings.TrimPrefix(filepath.Ext(dent.Name()), ".")
 
-			f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
+			tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "installers", dent.Name()))
 			require.NoError(t, err)
-			defer f.Close()
+			defer tfr.Close()
 
-			name, version, ext, hash, err := file.ExtractInstallerMetadata(f)
+			meta, err := file.ExtractInstallerMetadata(tfr)
 			require.NoError(t, err)
-			assert.Equal(t, wantName, name)
-			assert.Equal(t, wantVersion, version)
-			assert.Equal(t, wantHash, hex.EncodeToString(hash))
-			assert.Equal(t, wantExtension, ext)
+			assert.Equal(t, wantName, meta.Name)
+			assert.Equal(t, wantVersion, meta.Version)
+			assert.Equal(t, wantHash, hex.EncodeToString(meta.SHASum))
+			assert.Equal(t, wantExtension, meta.Extension)
+			assert.Equal(t, wantBundleIdentifier, meta.BundleIdentifier)
 		})
 	}
 }

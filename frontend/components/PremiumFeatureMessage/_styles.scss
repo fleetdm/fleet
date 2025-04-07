@@ -4,6 +4,11 @@
   align-items: center;
   font-size: $x-small;
 
+  &__align-left {
+    justify-content: left;
+    align-items: left;
+  }
+
   .premium-feature-message {
     display: flex;
     gap: 4px;
@@ -18,10 +23,6 @@
       display: flex;
       gap: 4px;
       align-items: center;
-
-      .custom-link {
-        font-weight: normal;
-      }
     }
   }
 }

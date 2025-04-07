@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 )
@@ -99,8 +100,11 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 // the MDM protocol and updates the verification status in the datastore. It is intended to be
 // called by the Fleet MDM checkin and command service install profile request handler.
 func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
-	host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 	if status != nil && *status == fleet.MDMDeliveryFailed {
+		// Here we set the host.Platform to "darwin" but it applies to iOS/iPadOS too.
+		// The logic in GetHostMDMProfileRetryCountByCommandUUID and UpdateHostMDMProfilesVerification
+		// is the exact same when platform is "darwin", "ios" or "ipados".
+		host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
 		if err != nil {
 			return err
@@ -115,11 +119,15 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVeri
 	}
 
 	// otherwise update status and detail as usual
-	return ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+	err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 		CommandUUID:   cmdUUID,
 		HostUUID:      hostUUID,
 		Status:        status,
 		Detail:        detail,
 		OperationType: fleet.MDMOperationTypeInstall,
 	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile install result")
+	}
+	return nil
 }
