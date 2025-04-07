@@ -2,7 +2,7 @@
   &__success {
     .info-banner__info {
       display: flex;
-      gap: 4px;
+      gap: $pad-xsmall;
       white-space: nowrap;
       overflow: hidden;
       width: 100%;
@@ -11,7 +11,7 @@
       .tenant-id {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: $pad-xsmall;
       }
     }
   }
