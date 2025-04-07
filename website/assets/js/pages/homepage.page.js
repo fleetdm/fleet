@@ -43,7 +43,7 @@ parasails.registerPage('homepage', {
     }
   },
   mounted: async function() {
-    // this.animateHeroTicker();
+    this.animateHeroTicker();
     if(['mdm', 'eo-it', undefined].includes(this.primaryBuyingSituation)){
       this.animateBottomTicker();
     }

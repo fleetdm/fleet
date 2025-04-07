@@ -470,6 +470,87 @@ When it comes to performance feedback, [speak freely](https://fleetdm.com/handbo
 3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
 
 
+## Plan a Fleetie get together
+
+When several Fleeties are in the same geographic location, Fleet will sponsor a one-time or recurring in-person Fleetie get together. It is up to the Fleeties in each area to organize and plan their own events. The cost should not exceed $25 per attendee, and does not require pre-approval unless the cost exceeds your Brex limit.
+
+
+## Request a team offsite
+
+Our goal is for each team at Fleet to conduct an offsite once per year. Team offsites provide valuable opportunities to build cohesion, align on objectives for the coming year, and get to know each other outside of work. Offsites help build trust, which is the foundation of an effective team.
+
+1. Make a copy of the [offsite budget template](https://docs.google.com/spreadsheets/d/1oe1wAFzerXlKghZaZtdlA7QrWBv9iZmHThlFYqfVzRQ/edit?usp=sharing) document.
+2. Populate the document with the proposed dates and location. 
+3. Populate the table with all attendees, using the provided budget guidance for each category. 
+4. Share the document with the DRI for your department.
+
+The DRI for your department will review the proposed budget with the e-group and provide approval or request revisions. 
+
+> Look for central locations near major international airports to minimize travel. Avoid high cost areas during peak travel times to minimize cost.
+
+
+## Plan a team offsite
+
+When budget is approved, begin planning the offsite. 
+
+### 1. Decide where to stay
+
+**Hotels.** The simplest and most common option is to purchase a block of rooms from a hotel along with a conference room for the offsite. Submit a request for proposal (RFP) to multiple hotels before selecting an option. 
+
+**Airbnb.** For a more unique experience, one or more Airbnbs can be used to provide lodging and meeting space for the offsite. Ensure that every attendee has their own room, and that there are an adequate number of bathrooms.
+
+### 2. Decide how to get there.
+
+Ask each attendee to arrange their own travel using the budget guidance from the offsite planning document and the [travel guidance from our handbook](https://fleetdm.com/handbook/company/communications#travel).
+
+### 3. Plan an agenda.
+
+The primary purpose of team offsites is to build team cohesion. A large portion of the time together should be spent enjoying each other's company, sharing meals, and participating activities together. An agenda provides clear structure for all attendees so they know what to expect. 
+
+The agenda of each offsite varies based on number of days and the team. Below is a sample agenda from a product group offsite: 
+
+- **Day 1:**
+  - Arrive at location.
+- **Day 2:**
+  - Morning: 
+    - Icebreaker activity. A Fleetie favorite is the [day in the life slideshow](https://docs.google.com/presentation/d/1XykQrX0uxQoBCR2VK6C4Q_LymHL4VMQ5rfwot5yYzU4/edit?usp=sharing).
+  - Break for lunch.
+  - Afternoon: 
+    - Product Designer presents product roadmap, holds Q&A. 
+    - Engineering Manager demos real-world workflow that the product group is responsible for. 
+  - Evening:
+    - [Casual dinner](https://en.wikipedia.org/wiki/Types_of_restaurant#Casual_dining_/_slow_casual) dinner with all product groups.
+- **Day 3:**
+  - Morning: 
+    - Hackathon using expedited drafting to build real user stories. 
+  - Break for lunch.
+  - Afternoon: 
+    - Continue hackathon.
+  - Evening:
+    - [Casual dinner](https://en.wikipedia.org/wiki/Types_of_restaurant#Casual_dining_/_slow_casual) separately for each product group. 
+- **Day 4:**
+  - Morning:
+    - Create presentation for hackathon demos. 
+  - Lunch provided. 
+  - Afternoon:
+    - All product groups meet in large conference room to present hackathon projects.
+  - Break early for team activity. 
+  - Evening: 
+    - [Premium casual dinner](https://en.wikipedia.org/wiki/Types_of_restaurant#Premium_casual) for all product groups with table service. 
+- **Day 5:**
+  - Travel home.
+
+> When the agenda is complete, share it with the team in advance to set expectations for the offsite, and to provide a chance for feedback.
+
+### 4. Review with finance.
+
+Schedule a call with a [finance engineer](https://fleetdm.com/handbook/finance#team) to review total anticipated cost for the offsite. The finance engineer will assist if any cost adjustments are needed, and can provide budget guidance based on the specifics of the offsite.
+
+### 5. Purchase accommodations and make reservations.
+
+Once approved by the finance engineer, they will finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
+
+
 #### Stubs
 
 The following stubs are included only to make links backward compatible.

@@ -26,6 +26,7 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -118,6 +119,10 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -181,6 +186,13 @@ const ManageQueriesPage = ({
   useEffect(() => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
   }, []);
+
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
+  );
 
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
@@ -251,7 +263,7 @@ const ManageQueriesPage = ({
             <TeamsDropdown
               currentUserTeams={userTeams}
               selectedTeamId={currentTeamId}
-              onChange={handleTeamChange}
+              onChange={onTeamChange}
             />
           );
         } else if (!isOnGlobalTeam && userTeams.length === 1) {

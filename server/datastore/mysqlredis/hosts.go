@@ -75,17 +75,17 @@ func addHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) error 
 	defer conn.Close()
 
 	for len(hostIDs) > 0 {
-		max := len(hostIDs)
-		if max > redisSetMembersBatchSize {
-			max = redisSetMembersBatchSize
+		maxSize := len(hostIDs)
+		if maxSize > redisSetMembersBatchSize {
+			maxSize = redisSetMembersBatchSize
 		}
 
 		args := redigo.Args{enrolledHostsSetKey}
-		args = args.AddFlat(hostIDs[:max])
+		args = args.AddFlat(hostIDs[:maxSize])
 		if _, err := conn.Do("SADD", args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "enrolled limits: add hosts")
 		}
-		hostIDs = hostIDs[max:]
+		hostIDs = hostIDs[maxSize:]
 	}
 	return nil
 }
@@ -95,9 +95,9 @@ func removeHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) err
 	defer conn.Close()
 
 	for len(hostIDs) > 0 {
-		max := len(hostIDs)
-		if max > redisSetMembersBatchSize {
-			max = redisSetMembersBatchSize
+		maxSize := len(hostIDs)
+		if maxSize > redisSetMembersBatchSize {
+			maxSize = redisSetMembersBatchSize
 		}
 
 		args := redigo.Args{enrolledHostsSetKey}
@@ -105,7 +105,7 @@ func removeHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) err
 		if _, err := conn.Do("SREM", args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "enrolled limits: remove hosts")
 		}
-		hostIDs = hostIDs[max:]
+		hostIDs = hostIDs[maxSize:]
 	}
 	return nil
 }

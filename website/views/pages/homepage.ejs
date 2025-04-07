@@ -6,58 +6,37 @@
         <div class="d-flex flex-row justify-content-start align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
-            <h1 class="<%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-          <% /*
-          <h1>One agent for <br>
-            <div purpose="ticker-container" class="d-flex align-items-center flex-row text-nowrap">
-              every
-              <div purpose="option-container" class="pl-2 d-flex flex-column">
-                <span purpose="hero-ticker-option" class="visible">computer</span>
-                <span purpose="hero-ticker-option">script</span>
-                <span purpose="hero-ticker-option">config</span>
-                <span purpose="hero-ticker-option">question</span>
-                <span purpose="hero-ticker-option">laptop</span>
-                <span purpose="hero-ticker-option">desktop</span>
-                <span purpose="hero-ticker-option">phone</span>
-                <span purpose="hero-ticker-option">server</span>
-                <span purpose="hero-ticker-option">cloud instance</span>
-                <span purpose="hero-ticker-option">container</span>
-                <span purpose="hero-ticker-option">tablet</span>
-                <span purpose="hero-ticker-option">audit</span>
-                <span purpose="hero-ticker-option">report</span>
-                <span purpose="hero-ticker-option">decision</span>
-                <span purpose="hero-ticker-option">new hire</span>
-                <span purpose="hero-ticker-option">offboard</span>
-                <span purpose="hero-ticker-option">employee</span>
-<!--
-                <span purpose="hero-ticker-option" class="visible">OS</span>
-                <span purpose="hero-ticker-option">script</span>
-                <span purpose="hero-ticker-option">config</span>
-                <span purpose="hero-ticker-option">question</span>
-                <span purpose="hero-ticker-option">laptop</span>
-                <span purpose="hero-ticker-option">desktop</span>
-                <span purpose="hero-ticker-option">phone</span>
-                <span purpose="hero-ticker-option">server</span>
-                <span purpose="hero-ticker-option">cloud instance</span>
-                <span purpose="hero-ticker-option">container</span>
-                <span purpose="hero-ticker-option">robot</span>
-                <span purpose="hero-ticker-option">satellite</span>
-                <span purpose="hero-ticker-option">telescope</span>
-                <span purpose="hero-ticker-option">tablet</span>
-                <span purpose="hero-ticker-option">hospital</span>
-                <span purpose="hero-ticker-option">factory</span>
-                <span purpose="hero-ticker-option">audit</span>
-                <span purpose="hero-ticker-option">report</span>
-                <span purpose="hero-ticker-option">decision</span>
-                <span purpose="hero-ticker-option">new hire</span>
-                <span purpose="hero-ticker-option">offboard</span>
-                <span purpose="hero-ticker-option">employee</span>
-                <span purpose="hero-ticker-option">local LLM</span>
-                <span purpose="hero-ticker-option">computer</span> -->
+            <h1>One agent for <br>
+              <div purpose="ticker-container" class="d-flex align-items-center flex-row text-nowrap">
+                every
+                <div purpose="option-container" class="pl-2 d-flex flex-column">
+                  <span purpose="hero-ticker-option" class="visible">OS</span>
+                  <span purpose="hero-ticker-option">script</span>
+                  <span purpose="hero-ticker-option">config</span>
+                  <span purpose="hero-ticker-option">question</span>
+                  <span purpose="hero-ticker-option">laptop</span>
+                  <span purpose="hero-ticker-option">desktop</span>
+                  <span purpose="hero-ticker-option">phone</span>
+                  <span purpose="hero-ticker-option">server</span>
+                  <span purpose="hero-ticker-option">cloud instance</span>
+                  <span purpose="hero-ticker-option">container</span>
+                  <span purpose="hero-ticker-option">robot</span>
+                  <span purpose="hero-ticker-option">satellite</span>
+                  <span purpose="hero-ticker-option">telescope</span>
+                  <span purpose="hero-ticker-option">tablet</span>
+                  <span purpose="hero-ticker-option">hospital</span>
+                  <span purpose="hero-ticker-option">factory</span>
+                  <span purpose="hero-ticker-option">audit</span>
+                  <span purpose="hero-ticker-option">report</span>
+                  <span purpose="hero-ticker-option">decision</span>
+                  <span purpose="hero-ticker-option">new hire</span>
+                  <span purpose="hero-ticker-option">offboard</span>
+                  <span purpose="hero-ticker-option">employee</span>
+                  <span purpose="hero-ticker-option">local LLM</span>
+                  <span purpose="hero-ticker-option">computer</span>
+                </div>
               </div>
-            </div>
-          </h1>
-          */ %>
+            </h1>
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source telemetry that works the way you want' : 'lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
@@ -120,8 +99,8 @@
         <div purpose="category-text-block" class="d-flex flex-column">
           <strong>Real employee choice — even Linux</strong>
           <p>Enroll all your computing devices. Going only Apple or 50/50 Mac and Windows? What about Linux? Speak to them all in one language.</p>
-          <strong>Users have choice, you should too</strong>
-          <p>Love working in the UI? Check. Want to work in GitOps? Double check. Don't use GitOps? That's ok, plenty of people use Fleet without it.</p>
+          <strong>Define configuration as code</strong>
+          <p>Ensure consistent deployment and eliminate configuration drift while maintaining an infinite audit trail. Need to roll back? Revert any changes with a single command.</p>
           <strong>Know the state of your devices in seconds</strong>
           <p>Collect and normalize the latest details about any device, like hardware specs, installed software, and security configurations.</p>
           <div>

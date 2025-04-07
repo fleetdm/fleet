@@ -19,12 +19,17 @@ import (
 )
 
 func main() {
+	slugPtr := flag.String("slug", "", "app slug")
+	debugPtr := flag.Bool("debug", false, "enable debug logging")
+	flag.Parse()
 	ctx := context.Background()
 	logger := kitlog.NewJSONLogger(os.Stderr)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	lvl := level.AllowInfo()
+	if *debugPtr {
+		lvl = level.AllowDebug()
+	}
+	logger = level.NewFilter(logger, lvl)
 	logger = kitlog.With(logger, "ts", kitlog.DefaultTimestampUTC)
-	slugPtr := flag.String("slug", "", "app slug")
-	flag.Parse()
 
 	level.Info(logger).Log("msg", "starting maintained app ingestion")
 

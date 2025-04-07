@@ -199,6 +199,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	for _, installer := range m.Installers {
+		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
 		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
@@ -222,6 +223,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		if !isFileType(installerType) && scope == machineScope {
 			// assume we're an MSI
 			installerType = installerTypeMSI
+		}
+
+		if input.InstallerLocale == "" {
+			// We only care about the locale if one is specified
+			installer.InstallerLocale = ""
 		}
 
 		if installer.Architecture == input.InstallerArch &&
@@ -262,6 +268,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		productCode = selectedInstaller.ProductCode
 	}
 
+	productCode = strings.Split(productCode, ".")[0]
+
 	out.Name = input.Name
 	out.Slug = input.Slug
 	out.InstallerURL = selectedInstaller.InstallerURL
@@ -294,7 +302,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
 
 func preProcessUninstallScript(uninstallScript, productCode string) string {
-	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", productCode))
+	code := fmt.Sprintf("\"%s\"", productCode)
+	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
