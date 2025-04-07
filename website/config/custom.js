@@ -413,6 +413,7 @@ module.exports.custom = {
   // compliancePartnerClientId: '…',
   // compliancePartnerClientSecret: '…',
   // cloudCustomerCompliancePartnerSharedSecret: '…',
+  // sendMockProxyResponsesForDevelopment: false,
 
   //…
 
