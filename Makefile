@@ -59,6 +59,15 @@ LDFLAGS_VERSION = "\
 	-X github.com/fleetdm/fleet/v4/server/version.buildUser=${USER} \
 	-X github.com/fleetdm/fleet/v4/server/version.goVersion=${GOVERSION}"
 
+# Macro to allow targets to filter out their own arguments from the arguments
+# passed to the final command.
+# Targets may also add their own CLI arguments to the command as EXTRA_CLI_ARGS.
+# See `serve` target for an example.
+define filter_args
+$(eval FORWARDED_ARGS := $(filter-out $(TARGET_ARGS), $(CLI_ARGS)))
+$(eval FORWARDED_ARGS := $(FORWARDED_ARGS) $(EXTRA_CLI_ARGS))
+endef
+
 all: build
 
 
@@ -111,6 +120,71 @@ fdm:
 		echo "Linking to /usr/local/bin/fdm..."; \
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
+
+.help-short--serve: 
+	@echo "Start the fleet server"
+.help-short--up: 
+	@echo "Start the fleet server (alias for \`serve\`)"
+.help-long--serve: SERVE_CMD:=serve
+.help-long--up: SERVE_CMD:=up
+.help-long--serve .help-long--up:
+	@echo "Starts an instance of the Fleet web and API server." 
+	@echo
+	@echo "  By default the server will listen on localhost:8080, in development mode with a premium license."
+	@echo "  If different options are used to start the server, the options will become 'sticky' and will be used the next time \`$(TOOL_CMD) $(SERVE_CMD)\` is called."
+	@echo
+	@echo "  To see all available options, run \`$(TOOL_CMD) $(SERVE_CMD) --help\`"
+.help-options--serve .help-options--up:
+	@echo "HELP"
+	@echo "Show all options for the fleet serve command"
+	@echo "USE_IP"
+	@echo "Start the server on the IP address of the host machine"
+	@echo "NO_BUILD"
+	@echo "Don't build the fleet binary before starting the server"
+	@echo "NO_SAVE"
+	@echo "Don't save the current arguments for the next invocation"
+	@echo "SHOW"
+	@echo "Show the last arguments used to start the server"
+
+up: SERVE_CMD:=up
+up: serve
+serve: SERVE_CMD:=serve
+serve: TARGET_ARGS := --use-ip --no-save --show --no-build
+ifdef USE_IP
+serve: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
+endif
+ifdef SHOW
+serve:
+	@SAVED_ARGS=$$(cat ~/.fleet/last-serve-invocation); \
+	if [[ $$? -eq 0 ]]; then \
+		echo "$$SAVED_ARGS"; \
+	fi
+else ifdef HELP
+serve:
+	@./build/fleet serve --help
+else ifdef RESET
+serve:
+	@touch ~/.fleet/last-serve-invocation && rm ~/.fleet/last-serve-invocation
+else
+serve:
+	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
+	$(call filter_args)
+# If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
+# Unless NO_SAVE is set to true, save the command to the last invocation file.
+# IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.
+	@if [[ "$(FORWARDED_ARGS)" != "" ]]; then \
+		if [[ "$(NO_SAVE)" != "true" ]]; then \
+			echo "./build/fleet serve $(FORWARDED_ARGS)" > ~/.fleet/last-serve-invocation; \
+		fi; \
+		./build/fleet serve $(FORWARDED_ARGS); \
+	else \
+		if ! [[ -f ~/.fleet/last-serve-invocation ]]; then \
+			echo "./build/fleet serve --server_address=localhost:8080 --dev --dev_license" > ~/.fleet/last-serve-invocation; \
+		fi; \
+		cat ~/.fleet/last-serve-invocation; \
+		$$(cat ~/.fleet/last-serve-invocation); \
+	fi
+endif
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
@@ -500,13 +574,32 @@ db-restore:
 
 
 # Interactive snapshot / restore
+.help-short--snap .help-short--snapshot:
+	@echo "Snapshot the database"
+.help-long--snap .help-long--snapshot:
+	@echo "Interactively take a snapshot of the present database state. Restore snapshots with \`$(TOOL_CMD) restore\`."	
+
 SNAPSHOT_BINARY = ./build/snapshot
-snapshot: $(SNAPSHOT_BINARY)
+snap snapshot: $(SNAPSHOT_BINARY)
 	@ $(SNAPSHOT_BINARY) snapshot
 $(SNAPSHOT_BINARY): tools/snapshot/*.go
 	cd tools/snapshot && go build -o ../../build/snapshot
+
+.help-short--restore:
+	@echo "Restore a database snapshot"
+.help-long--restore:
+	@echo "Interactively restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."	
+.help-options--restore:
+	@echo "PREPARE (alias: PREP)"
+	@echo "Run migrations after restoring the snapshot"
+
 restore: $(SNAPSHOT_BINARY)
-	@ $(SNAPSHOT_BINARY) restore
+	@$(SNAPSHOT_BINARY) restore
+	@if [[ "$(PREP)" == "true" || "$(PREPARE)" == "true" ]]; then \
+		echo "Running migrations..."; \
+		./build/fleet prepare db --dev; \
+	fi
+	@echo Done!
 
 # Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
@@ -680,6 +773,3 @@ db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
 
 include ./tools/makefile-support/helpsystem-targets
-
-foo:
-	@echo $(MAKECMDGOALS)
