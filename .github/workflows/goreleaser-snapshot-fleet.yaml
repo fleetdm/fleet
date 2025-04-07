@@ -16,6 +16,8 @@ on:
       - "website/**"
       - "mdm-profiles/**"
   workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *' # Every day at 4 AM
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -80,11 +82,29 @@ jobs:
       - name: Tag image with branch name
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
+      - name: Generate tag
+        run: |
+          echo "FLEET_IMAGE_TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+        id: generate_tag
+
+      - name: Check critical vulnerabilities before publishing
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        with:
+          image-ref: "fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
 
-      - name: Get tag
+      - name: Get tags
         run: |
           echo "TAG=$(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
         id: docker
@@ -106,3 +126,15 @@ jobs:
           docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
           docker push quay.io/fleetdm/fleet:${TAG}
           done
+
+      - name: Slack notification
+        if: github.event.schedule == '0 4 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
