@@ -292,7 +292,9 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	}
 	if actMeta.ActivatedAt != nil &&
 		(actMeta.WellKnownAction == fleet.WellKnownActionLock || actMeta.WellKnownAction == fleet.WellKnownActionWipe) {
-		// prevent cancellation
+		return &fleet.BadRequestError{
+			Message: "Couldn't cancel activity. Lock and wipe can't be canceled if they're about to run to prevent you from losing access to the host.",
+		}
 	}
 
 	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)

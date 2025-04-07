@@ -67,17 +67,17 @@ const (
 // activity.
 type UpcomingActivityMeta struct {
 	// ExecutionID is the unique identifier of the activity.
-	ExecutionID string
+	ExecutionID string `db:"execution_id"`
 	// ActivatedAt is the timestamp when the activity was "activated" (made ready
 	// to process by the host). Nil if not activated yet (still waiting for
 	// previous activities to complete).
-	ActivatedAt *time.Time
+	ActivatedAt *time.Time `db:"activated_at"`
 	// UpcomingActivityType is the string value of the "activity_type" enum
 	// column of the upcoming_activities table.
-	UpcomingActivityType string
+	UpcomingActivityType string `db:"activity_type"`
 	// WellKnownAction is the special action that this activity corresponds to,
 	// if any (default is WellKnownActionNone).
-	WellKnownAction WellKnownActionType
+	WellKnownAction WellKnownActionType `db:"well_known_action"`
 }
 
 // ActivityDetailsList is used to generate documentation.

@@ -1323,5 +1323,45 @@ ORDER BY
 // such as whether it is activated or not, if the activity corresponds to a
 // lock/wipe/unlock command, etc.
 func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
-	panic("unimplemented")
+	const getStmt = `
+	SELECT
+		ua.execution_id,
+		ua.activated_at,
+		ua.activity_type,
+		CASE
+			WHEN hma.lock_ref = :execution_id THEN :lock_action
+			WHEN hma.unlock_ref = :execution_id THEN :unlock_action
+			WHEN hma.wipe_ref = :execution_id THEN :wipe_action
+			ELSE :none_action
+		END AS well_known_action
+	FROM
+		upcoming_activities ua
+		LEFT JOIN host_mdm_actions hma ON hma.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id
+`
+
+	namedArgs := map[string]any{
+		"host_id":       hostID,
+		"execution_id":  executionID,
+		"lock_action":   fleet.WellKnownActionLock,
+		"unlock_action": fleet.WellKnownActionUnlock,
+		"wipe_action":   fleet.WellKnownActionWipe,
+		"none_action":   fleet.WellKnownActionNone,
+	}
+	stmt, args, err := sqlx.Named(getStmt, namedArgs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for upcoming activity meta")
+	}
+
+	var actMeta fleet.UpcomingActivityMeta
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &actMeta, stmt, args...)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("UpcomingActivity").WithName(executionID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "lookup upcoming activity meta")
+	}
+	return &actMeta, nil
 }

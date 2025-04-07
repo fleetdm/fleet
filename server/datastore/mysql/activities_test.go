@@ -44,6 +44,7 @@ func TestActivity(t *testing.T) {
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
+		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1878,4 +1879,133 @@ func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
 	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
+}
+
+func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	host2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	host1.Platform = "linux"
+	host2.Platform = "linux"
+	err := ds.UpdateHost(ctx, host1)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, host2)
+	require.NoError(t, err)
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	// get meta with unknown host
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, 999, "non-existing")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// get meta with unknown exec ID
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, "non-existing")
+	require.ErrorAs(t, err, &nfe)
+
+	assertActivityMeta := func(want, got *fleet.UpcomingActivityMeta) {
+		require.Equal(t, want.ExecutionID, got.ExecutionID)
+		// we just assert activated vs non-activated
+		require.Equal(t, want.ActivatedAt != nil, got.ActivatedAt != nil)
+		require.Equal(t, want.UpcomingActivityType, got.UpcomingActivityType)
+		require.Equal(t, want.WellKnownAction, got.WellKnownAction)
+	}
+
+	// create an install request that is not any special command
+	swExecID := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host1, u)
+	meta, err := ds.GetHostUpcomingActivityMeta(ctx, host1.ID, swExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          swExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "software_install",
+		WellKnownAction:      fleet.WellKnownActionNone,
+	}, meta)
+
+	// create a lock request on host1
+	err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID}, "linux")
+	require.NoError(t, err)
+
+	// create a wipe request on host2
+	err = ds.WipeHostViaScript(ctx, &fleet.HostScriptRequestPayload{HostID: host2.ID}, "linux")
+	require.NoError(t, err)
+
+	// grab the exec ID of the lock
+	activities, _, err := ds.ListHostUpcomingActivities(ctx, host1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 2)
+	require.Equal(t, swExecID, activities[0].UUID)
+	lockExecID := activities[1].UUID
+
+	// grab the exec ID of the wipe
+	activities, _, err = ds.ListHostUpcomingActivities(ctx, host2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	wipeExecID := activities[0].UUID
+
+	// lock meta is as expected
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, lockExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          lockExecID,
+		ActivatedAt:          nil,
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionLock,
+	}, meta)
+
+	// wipe meta is as expected
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          wipeExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionWipe,
+	}, meta)
+
+	// set a result for the software install
+	test.SetHostSoftwareInstallResult(t, ds, host1, swExecID, 0)
+
+	// the lock script is now activated
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, lockExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          lockExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionLock,
+	}, meta)
+
+	// wipe meta on host2 is unchanged
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          wipeExecID,
+		ActivatedAt:          ptr.Time(time.Now()), // will just check nil vs non-nil
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionWipe,
+	}, meta)
+
+	// enqueue a new script activity
+	scrExecID := test.CreateHostScriptUpcomingActivity(t, ds, host1)
+	// its meta is as expected
+	meta, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, scrExecID)
+	require.NoError(t, err)
+	assertActivityMeta(&fleet.UpcomingActivityMeta{
+		ExecutionID:          scrExecID,
+		ActivatedAt:          nil,
+		UpcomingActivityType: "script",
+		WellKnownAction:      fleet.WellKnownActionNone,
+	}, meta)
+
+	// set a result for the lock action
+	test.SetHostScriptResult(t, ds, host1, lockExecID, 0)
+	// its meta is now non-existing
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, host1.ID, lockExecID)
+	require.ErrorAs(t, err, &nfe)
+
+	// set a result for the wipe action
+	test.SetHostScriptResult(t, ds, host2, wipeExecID, 0)
+	// its meta is now non-existing
+	_, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
+	require.ErrorAs(t, err, &nfe)
 }
