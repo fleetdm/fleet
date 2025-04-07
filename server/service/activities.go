@@ -15,6 +15,7 @@ import (
 	"github.com/go-kit/log/level"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -285,6 +286,11 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		return err
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
 	// prevent cancellation of lock/wipe that are already activated
 	actMeta, err := svc.ds.GetHostUpcomingActivityMeta(ctx, hostID, executionID)
 	if err != nil {
@@ -298,7 +304,14 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	}
 
 	pastAct, err := svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
-	// TODO: create pastAct
-	_ = pastAct
-	return err
+	if err != nil {
+		return err
+	}
+
+	if pastAct != nil {
+		if err := svc.NewActivity(ctx, vc.User, pastAct); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for cancelation")
+		}
+	}
+	return nil
 }

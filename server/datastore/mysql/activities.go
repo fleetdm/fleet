@@ -767,6 +767,7 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	}
 
 	var act activityToCancel
+	var pastAct fleet.ActivityDetails
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// read the activity along with the required information to create the
 		// "canceled" past activity, and check if the activity was activated or
@@ -814,6 +815,12 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 				}
 			}
 
+			pastAct = fleet.ActivityTypeCanceledRunScript{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				ScriptName:      act.CanceledName,
+			}
+
 		case "software_install":
 			// if the install was part of the setup experience, then it must be
 			// marked as "failed" for that setup experience flow (regardless of
@@ -828,6 +835,17 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
 				}
+			}
+
+			var titleID uint
+			if act.CanceledID != nil {
+				titleID = *act.CanceledID
+			}
+			pastAct = fleet.ActivityTypeCanceledInstallSoftware{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				SoftwareTitle:   act.CanceledName,
+				SoftwareTitleID: titleID,
 			}
 
 		case "software_uninstall":
@@ -846,6 +864,17 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 				if _, err := tx.ExecContext(ctx, updScriptStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
 				}
+			}
+
+			var titleID uint
+			if act.CanceledID != nil {
+				titleID = *act.CanceledID
+			}
+			pastAct = fleet.ActivityTypeCanceledUninstallSoftware{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				SoftwareTitle:   act.CanceledName,
+				SoftwareTitleID: titleID,
 			}
 
 		case "vpp_app_install":
@@ -869,6 +898,17 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 				}
 			}
 
+			var titleID uint
+			if act.CanceledID != nil {
+				titleID = *act.CanceledID
+			}
+			pastAct = fleet.ActivityTypeCanceledInstallAppStoreApp{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				SoftwareTitle:   act.CanceledName,
+				SoftwareTitleID: titleID,
+			}
+
 		default:
 			// cannot happen since activity type comes from the UNION query above,
 			// but can be useful to detect a missing case in tests
@@ -889,10 +929,9 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		return nil, err
 	}
 
-	// TODO: create canceled activity, this must be done via svc.NewActivity (not
-	// ds.NewActivity), so once canceled activities are implemented return the
-	// ready-to-insert activity struct to the caller and let svc do the rest.
-	var pastAct fleet.ActivityDetails
+	// creating the canceled activity must be done via svc.NewActivity (not
+	// ds.NewActivity), so we return the ready-to-insert activity struct to the
+	// caller and let svc do the rest.
 	return pastAct, nil
 }
 
