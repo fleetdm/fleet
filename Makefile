@@ -121,14 +121,14 @@ fdm:
 		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
 	fi
 
-.help-short--serve: 
+.help-short--serve:
 	@echo "Start the fleet server"
-.help-short--up: 
+.help-short--up:
 	@echo "Start the fleet server (alias for \`serve\`)"
 .help-long--serve: SERVE_CMD:=serve
 .help-long--up: SERVE_CMD:=up
 .help-long--serve .help-long--up:
-	@echo "Starts an instance of the Fleet web and API server." 
+	@echo "Starts an instance of the Fleet web and API server."
 	@echo
 	@echo "  By default the server will listen on localhost:8080, in development mode with a premium license."
 	@echo "  If different options are used to start the server, the options will become 'sticky' and will be used the next time \`$(TOOL_CMD) $(SERVE_CMD)\` is called."
@@ -291,19 +291,48 @@ debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
 # Set up packages for CI testing.
-DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+# fast tests are quick and do not require out-of-process dependencies (such as MySQL, etc.)
+FAST_PKGS_TO_TEST := \
+	./ee/tools/mdm \
+	./orbit/pkg/cryptoinfo \
+	./orbit/pkg/dataflatten \
+	./orbit/pkg/keystore \
+	./server/goose \
+	./server/mdm/apple/appmanifest \
+	./server/mdm/lifecycle \
+	./server/mdm/scep/challenge \
+	./server/mdm/scep/x509util \
+	./server/policies
+FLEETCTL_PKGS_TO_TEST := ./cmd/fleetctl/...
+MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/... ./server/mdm/android/mysql
+SCRIPTS_PKGS_TO_TEST := ./orbit/pkg/scripts
+SERVICE_PKGS_TO_TEST := ./server/service
+VULN_PKGS_TO_TEST := ./server/vulnerabilities/...
 ifeq ($(CI_TEST_PKG), main)
-	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
-else ifeq ($(CI_TEST_PKG), integration)
-	CI_PKG_TO_TEST="server/service"
-else ifeq ($(CI_TEST_PKG), mysql)
-	CI_PKG_TO_TEST="server/datastore/mysql/..."
+    # This is the bucket of all the tests that are not in a specific group. We take a diff between DEFAULT_PKG_TO_TEST and all the specific *_PKGS_TO_TEST.
+	CI_PKG_TO_TEST=$(shell /bin/bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ \
+	go list $(FAST_PKGS_TO_TEST) && \
+	go list $(FLEETCTL_PKGS_TO_TEST) && \
+	go list $(MYSQL_PKGS_TO_TEST) && \
+	go list $(SCRIPTS_PKGS_TO_TEST) && \
+	go list $(SERVICE_PKGS_TO_TEST) && \
+	go list $(VULN_PKGS_TO_TEST) \
+	;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
+else ifeq ($(CI_TEST_PKG), fast)
+	CI_PKG_TO_TEST=$(FAST_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), fleetctl)
-	CI_PKG_TO_TEST="cmd/fleetctl/..."
+	CI_PKG_TO_TEST=$(FLEETCTL_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), mysql)
+	CI_PKG_TO_TEST=$(MYSQL_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), scripts)
+	CI_PKG_TO_TEST=$(SCRIPTS_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), service)
+	CI_PKG_TO_TEST=$(SERVICE_PKGS_TO_TEST)
 else ifeq ($(CI_TEST_PKG), vuln)
-	CI_PKG_TO_TEST="server/vulnerabilities/..."
+	CI_PKG_TO_TEST=$(VULN_PKGS_TO_TEST)
 else
-	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
+	CI_PKG_TO_TEST=$(DEFAULT_PKGS_TO_TEST)
 endif
 # Command used in CI to run all tests.
 .help-short--test-go:
@@ -315,12 +344,14 @@ endif
 	@echo "The test package bundle to run.  If not specified, all Go tests will run."
 .help-extra--test-go:
 	@echo "AVAILABLE TEST BUNDLES:"
-	@echo "  integration"
+	@echo "  fast"
+	@echo "  service"
+	@echo "  scripts"
 	@echo "  mysql"
 	@echo "  fleetctl"
 	@echo "  vuln"
 	@echo "  main        (all tests not included in other bundles)"
-test-go: test-schema mock
+test-go:
 	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:
@@ -573,7 +604,7 @@ db-restore:
 .help-short--snap .help-short--snapshot:
 	@echo "Snapshot the database"
 .help-long--snap .help-long--snapshot:
-	@echo "Interactively take a snapshot of the present database state. Restore snapshots with \`$(TOOL_CMD) restore\`."	
+	@echo "Interactively take a snapshot of the present database state. Restore snapshots with \`$(TOOL_CMD) restore\`."
 
 SNAPSHOT_BINARY = ./build/snapshot
 snap snapshot: $(SNAPSHOT_BINARY)
@@ -584,7 +615,7 @@ $(SNAPSHOT_BINARY): tools/snapshot/*.go
 .help-short--restore:
 	@echo "Restore a database snapshot"
 .help-long--restore:
-	@echo "Interactively restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."	
+	@echo "Interactively restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."
 .help-options--restore:
 	@echo "PREPARE (alias: PREP)"
 	@echo "Run migrations after restoring the snapshot"
