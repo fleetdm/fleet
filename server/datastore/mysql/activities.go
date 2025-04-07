@@ -658,7 +658,7 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	return nil
 }
 
-func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -773,21 +773,21 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		// not.
 		stmt := strings.Join([]string{loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
 			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt}, " UNION ALL ")
-		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": upcomingActivityID})
+		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": executionID})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
 		}
 
 		if err := sqlx.GetContext(ctx, tx, &act, stmt, args...); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(upcomingActivityID))
+				return ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(executionID))
 			}
 			return ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
 		}
 
 		// in all cases, we must delete the row from upcoming_activities
 		const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
-		if _, err := tx.ExecContext(ctx, delStmt, hostID, upcomingActivityID); err != nil {
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
 		}
 
@@ -795,13 +795,13 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 			switch act.ActivityType {
 			case "script":
 				const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updStmt, upcomingActivityID); err != nil {
+				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
 				}
 
 			case "software_install":
 				const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updStmt, upcomingActivityID); err != nil {
+				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
 				}
 
@@ -809,18 +809,18 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 				// uninstall is a combination of software install and script result,
 				// with the same execution id.
 				const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updSoftwareStmt, upcomingActivityID); err != nil {
+				if _, err := tx.ExecContext(ctx, updSoftwareStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
 				}
 
 				const updScriptStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updScriptStmt, upcomingActivityID); err != nil {
+				if _, err := tx.ExecContext(ctx, updScriptStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
 				}
 
 			case "vpp_app_install":
 				const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
-				if _, err := tx.ExecContext(ctx, updVPPStmt, upcomingActivityID); err != nil {
+				if _, err := tx.ExecContext(ctx, updVPPStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
 				}
 
@@ -831,7 +831,7 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 					return ctxerr.Wrap(ctx, err, "get host uuid")
 				}
 				const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
-				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, upcomingActivityID); err != nil {
+				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
 				}
 

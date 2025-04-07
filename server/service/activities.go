@@ -270,7 +270,7 @@ func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}
 	return cancelHostUpcomingActivityResponse{}, nil
 }
 
-func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -294,5 +294,5 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	// 	// prevent cancellation
 	// }
 
-	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, upcomingActivityID)
+	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
 }
