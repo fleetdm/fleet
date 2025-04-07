@@ -22,7 +22,7 @@ const Textarea = ({ children, className, label, variant }: ITextareaProps) => {
 
   const wrapperClasses = classnames(`${baseClass}-wrapper`, className);
   const textareaClasses = classnames(baseClass, {
-    [`${baseClass}--code`]: variant === "code", // Variant modifier
+    [`${baseClass}--code`]: variant === "code",
   });
 
   return (

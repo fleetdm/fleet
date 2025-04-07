@@ -117,7 +117,6 @@ export const AppInstallDetails = ({
         </div>
         {showCommandPayload && (
           <div className={`${baseClass}__script-output`}>
-            Request payload:
             <Textarea label="Request payload:" variant="code">
               {result.payload}
             </Textarea>
