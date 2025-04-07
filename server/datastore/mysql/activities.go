@@ -790,22 +790,51 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
 		}
+		// must get the host uuid for the setup experience and nano table updates
+		const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
+		var hostUUID string
+		if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get host uuid")
+		}
 
-		if act.Activated {
-			switch act.ActivityType {
-			case "script":
+		switch act.ActivityType {
+		case "script":
+			// if the script was part of the setup experience, then it must be marked
+			// as "failed" for that setup experience flow (regardless of whether or
+			// not it was activated).
+			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND script_execution_id = ?`
+			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+			}
+
+			if act.Activated {
 				const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
 				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
 				}
+			}
 
-			case "software_install":
+		case "software_install":
+			// if the install was part of the setup experience, then it must be
+			// marked as "failed" for that setup experience flow (regardless of
+			// whether or not it was activated).
+			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND host_software_installs_execution_id = ?`
+			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+			}
+
+			if act.Activated {
 				const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
 				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
 				}
+			}
 
-			case "software_uninstall":
+		case "software_uninstall":
+			// uninstall cannot be part of setup experience, so there's no update for
+			// that in this case.
+
+			if act.Activated {
 				// uninstall is a combination of software install and script result,
 				// with the same execution id.
 				const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
@@ -817,29 +846,33 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 				if _, err := tx.ExecContext(ctx, updScriptStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
 				}
+			}
 
-			case "vpp_app_install":
+		case "vpp_app_install":
+			// if the VPP install was part of the setup experience, then it must be
+			// marked as "failed" for that setup experience flow (regardless of
+			// whether or not it was activated).
+			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ?`
+			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+			}
+
+			if act.Activated {
 				const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
 				if _, err := tx.ExecContext(ctx, updVPPStmt, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
 				}
 
-				// must get the host uuid for the nano table update
-				const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
-				var hostUUID string
-				if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
-					return ctxerr.Wrap(ctx, err, "get host uuid")
-				}
 				const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
 				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
 					return ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
 				}
-
-			default:
-				// cannot happen since activity type comes from the UNION query above,
-				// but can be useful to detect a missing case in tests
-				panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
 			}
+
+		default:
+			// cannot happen since activity type comes from the UNION query above,
+			// but can be useful to detect a missing case in tests
+			panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
 		}
 
 		// must activate the next activity, if any (this should be required only if
@@ -860,6 +893,53 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	// ds.NewActivity), so once canceled activities are implemented return the
 	// ready-to-insert activity struct to the caller and let svc do the rest.
 	return nil
+}
+
+// GetHostUpcomingActivityMeta returns metadata for an upcoming activity,
+// such as whether it is activated or not, if the activity corresponds to a
+// lock/wipe/unlock command, etc.
+func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
+	const getStmt = `
+	SELECT
+		ua.execution_id,
+		ua.activated_at,
+		ua.activity_type,
+		CASE
+			WHEN hma.lock_ref = :execution_id THEN :lock_action
+			WHEN hma.unlock_ref = :execution_id THEN :unlock_action
+			WHEN hma.wipe_ref = :execution_id THEN :wipe_action
+			ELSE :none_action
+		END AS well_known_action
+	FROM
+		upcoming_activities ua
+		LEFT JOIN host_mdm_actions hma ON hma.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id
+`
+
+	namedArgs := map[string]any{
+		"host_id":       hostID,
+		"execution_id":  executionID,
+		"lock_action":   fleet.WellKnownActionLock,
+		"unlock_action": fleet.WellKnownActionUnlock,
+		"wipe_action":   fleet.WellKnownActionWipe,
+		"none_action":   fleet.WellKnownActionNone,
+	}
+	stmt, args, err := sqlx.Named(getStmt, namedArgs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for upcoming activity meta")
+	}
+
+	var actMeta fleet.UpcomingActivityMeta
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &actMeta, stmt, args...)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("UpcomingActivity").WithName(executionID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "lookup upcoming activity meta")
+	}
+	return &actMeta, nil
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.
@@ -1317,51 +1397,4 @@ ORDER BY
 		}
 	}
 	return nil
-}
-
-// GetHostUpcomingActivityMeta returns metadata for an upcoming activity,
-// such as whether it is activated or not, if the activity corresponds to a
-// lock/wipe/unlock command, etc.
-func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
-	const getStmt = `
-	SELECT
-		ua.execution_id,
-		ua.activated_at,
-		ua.activity_type,
-		CASE
-			WHEN hma.lock_ref = :execution_id THEN :lock_action
-			WHEN hma.unlock_ref = :execution_id THEN :unlock_action
-			WHEN hma.wipe_ref = :execution_id THEN :wipe_action
-			ELSE :none_action
-		END AS well_known_action
-	FROM
-		upcoming_activities ua
-		LEFT JOIN host_mdm_actions hma ON hma.host_id = ua.host_id
-	WHERE
-		ua.host_id = :host_id AND
-		ua.execution_id = :execution_id
-`
-
-	namedArgs := map[string]any{
-		"host_id":       hostID,
-		"execution_id":  executionID,
-		"lock_action":   fleet.WellKnownActionLock,
-		"unlock_action": fleet.WellKnownActionUnlock,
-		"wipe_action":   fleet.WellKnownActionWipe,
-		"none_action":   fleet.WellKnownActionNone,
-	}
-	stmt, args, err := sqlx.Named(getStmt, namedArgs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build named query for upcoming activity meta")
-	}
-
-	var actMeta fleet.UpcomingActivityMeta
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &actMeta, stmt, args...)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notFound("UpcomingActivity").WithName(executionID)
-		}
-		return nil, ctxerr.Wrap(ctx, err, "lookup upcoming activity meta")
-	}
-	return &actMeta, nil
 }
