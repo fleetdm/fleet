@@ -9,6 +9,7 @@ type ScimUser struct {
 	FamilyName *string `db:"family_name"`
 	Active     *bool   `db:"active"`
 	Emails     []ScimUserEmail
+	Groups     []uint
 }
 
 func (su *ScimUser) AuthzType() string {
@@ -23,11 +24,15 @@ type ScimUserEmail struct {
 	Type       *string `db:"type"`
 }
 
-type ScimUsersListOptions struct {
-	// Which page to return (must be positive integer)
-	Page uint
+type ScimListOptions struct {
+	// 1-based index of the first result to return (must be positive integer)
+	StartIndex uint
 	// How many results per page (must be positive integer)
 	PerPage uint
+}
+
+type ScimUsersListOptions struct {
+	ScimListOptions
 
 	// UserNameFilter filters by userName -- max of 1 response is expected
 	// Cannot be used with other filters.
@@ -38,4 +43,11 @@ type ScimUsersListOptions struct {
 	// Cannot be used with other filters.
 	EmailTypeFilter  *string
 	EmailValueFilter *string
+}
+
+type ScimGroup struct {
+	ID          uint    `db:"id"`
+	ExternalID  *string `db:"external_id"`
+	DisplayName string  `db:"display_name"`
+	ScimUsers   []uint
 }

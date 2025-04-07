@@ -198,11 +198,11 @@ $max-width: 2560px;
   }
 }
 
-@mixin ellipse-text($width: auto) {
+@mixin ellipse-text($max-width: auto) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: $width;
+  max-width: $max-width;
 }
 
 @mixin copy-message {

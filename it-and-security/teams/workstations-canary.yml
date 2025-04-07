@@ -110,8 +110,8 @@ controls:
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2025-02-23"
-    minimum_version: "15.3"
+    deadline: "2025-04-26"
+    minimum_version: "15.4"
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
@@ -140,7 +140,7 @@ controls:
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/linux/scripts/fedora-debian-enable-fleet-desktop.sh
+    - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -157,7 +157,7 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
-  - path: ../lib/linux/policies/fedora-debian-check-fleet-desktop.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:

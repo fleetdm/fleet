@@ -153,6 +153,8 @@ const QueryEditor = ({
       query: formData.query,
       resolution: formData.resolution,
       platform: formData.platform,
+      labels_include_any: formData.labels_include_any,
+      labels_exclude_any: formData.labels_exclude_any,
     };
     if (isPremiumTier) {
       payload.critical = formData.critical;
