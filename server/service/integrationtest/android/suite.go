@@ -20,7 +20,7 @@ type Suite struct {
 }
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
-	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpDSRedisService(t, uniqueTestName)
+	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
 	logger := log.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Proxy{}
 	proxy.InitCommonMocks()

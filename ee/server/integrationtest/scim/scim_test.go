@@ -35,13 +35,11 @@ func TestSCIM(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS, tablesToTruncate...)
+			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_groups"}...)
 			c.fn(t, s)
 		})
 	}
 }
-
-var tablesToTruncate = []string{"host_scim_user", "scim_users", "scim_groups"}
 
 func testAuth(t *testing.T, s *Suite) {
 	t.Cleanup(func() {

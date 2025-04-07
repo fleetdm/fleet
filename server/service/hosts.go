@@ -1362,7 +1362,12 @@ func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostE
 	if len(deviceMapping) > 0 {
 		endUser := fleet.HostEndUser{}
 		for _, email := range deviceMapping {
-			if email.Source != fleet.DeviceMappingMDMIdpAccounts {
+			switch {
+			case email.Source == fleet.DeviceMappingMDMIdpAccounts && len(endUsers) == 0:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != fleet.DeviceMappingMDMIdpAccounts:
 				endUser.OtherEmails = append(endUser.OtherEmails, *email)
 			}
 		}
