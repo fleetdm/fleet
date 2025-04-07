@@ -2029,6 +2029,18 @@ type Datastore interface {
 	DeleteScimUser(ctx context.Context, id uint) error
 	// ListScimUsers retrieves a list of SCIM users with optional filtering
 	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
+	// CreateScimGroup creates a new SCIM group in the database
+	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
+	// ScimGroupByID retrieves a SCIM group by ID
+	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// ScimGroupByDisplayName retrieves a SCIM group by display name
+	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
+	// ReplaceScimGroup replaces an existing SCIM group in the database
+	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// DeleteScimGroup deletes a SCIM group from the database
+	DeleteScimGroup(ctx context.Context, id uint) error
+	// ListScimGroups retrieves a list of SCIM groups with pagination
+	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
 }
 
 type AndroidDatastore interface {

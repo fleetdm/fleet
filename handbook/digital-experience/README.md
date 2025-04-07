@@ -38,7 +38,7 @@ The Digital Experience department is directly responsible for the culture, train
 
 1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
 2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
+3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=0#gid=0) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
 4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
 5. Mark the Slack message as complete with the "✅" emoji.
 

@@ -8,7 +8,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "device_software";

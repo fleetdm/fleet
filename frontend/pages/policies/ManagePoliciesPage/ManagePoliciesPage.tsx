@@ -88,9 +88,9 @@ interface IManagePoliciesPageProps {
   };
 }
 
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_PAGE_SIZE = 20;
-const DEFAULT_SORT_COLUMN = "name";
+export const DEFAULT_SORT_DIRECTION = "asc";
+export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_SORT_COLUMN = "name";
 const [
   DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG,
   DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
@@ -903,6 +903,7 @@ const ManagePolicyPage = ({
               globalPolicies
             )
           }
+          count={globalPoliciesCount || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
@@ -935,6 +936,7 @@ const ManagePolicyPage = ({
             )
           }
           isPremiumTier={isPremiumTier}
+          count={teamPoliciesCountMergeInherited || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}

@@ -44,7 +44,20 @@ const (
 func addLabelMocks(ds *mock.Store) {
 	var deletedLabels []string
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
-		return nil, nil
+		return []*fleet.LabelSpec{
+			{
+				Name:                "a",
+				Description:         "A global label",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts:               []string{"host2", "host3"},
+			},
+			{
+				Name:                "b",
+				Description:         "Another global label",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Query:               "SELECT 1 from osquery_info",
+			},
+		}, nil
 	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
@@ -878,6 +891,13 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)
+	assert.Len(t, appliedPolicySpecs[0].LabelsIncludeAny, 1)
+	assert.Len(t, appliedPolicySpecs[0].LabelsExcludeAny, 0)
+	assert.Equal(t, appliedPolicySpecs[0].LabelsIncludeAny[0], "a")
+	assert.Len(t, appliedPolicySpecs[1].LabelsIncludeAny, 0)
+	assert.Len(t, appliedPolicySpecs[1].LabelsExcludeAny, 1)
+	assert.Equal(t, appliedPolicySpecs[1].LabelsExcludeAny[0], "b")
+
 	assert.True(t, queryDeleted)
 	assert.Len(t, appliedQueries, 3)
 	assert.Len(t, appliedScripts, 1)
@@ -2260,6 +2280,21 @@ software:
 		require.Len(t, (*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value, 1)
 		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
+
+		// Get applied policies for the team
+		teamAppliedPoliceSpecs := make([]*fleet.PolicySpec, 0)
+		for _, appliedPolicySpec := range appliedPolicySpecs {
+			if appliedPolicySpec.Team == teamName {
+				teamAppliedPoliceSpecs = append(teamAppliedPoliceSpecs, appliedPolicySpec)
+			}
+		}
+		assert.Len(t, teamAppliedPoliceSpecs, 5)
+		assert.Len(t, teamAppliedPoliceSpecs[0].LabelsIncludeAny, 0)
+		assert.Len(t, teamAppliedPoliceSpecs[0].LabelsExcludeAny, 1)
+		assert.Equal(t, teamAppliedPoliceSpecs[0].LabelsExcludeAny[0], "a")
+		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny, 1)
+		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsExcludeAny, 0)
+		assert.Equal(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny[0], "b")
 	})
 }
 
@@ -2714,13 +2749,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {

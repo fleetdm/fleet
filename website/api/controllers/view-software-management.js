@@ -35,6 +35,7 @@ module.exports = {
       'Nico Waisman',
       'Dan Grzelak',
       'Luis Madrigal',
+      'Justin LaBo'
     ];
 
     // Filter the testimonials by product category
