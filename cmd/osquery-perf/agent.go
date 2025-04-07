@@ -1445,8 +1445,9 @@ func (a *agent) softwareMacOS() []map[string]string {
 	for i := 0; i < len(commonSoftware); i++ {
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
+			lastOpenedAt = fmt.Sprint(l.Unix())
 		}
+		fmt.Printf("lastOpenedAt: %v\n", lastOpenedAt)
 		commonSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
 			"version":           "0.0.1",
@@ -1677,15 +1678,15 @@ var defaultQueryResult = []map[string]string{
 }
 
 func (a *agent) genLastOpenedAt(count *int) *time.Time {
-	if *count >= a.softwareCount.withLastOpened {
-		return nil
-	}
-	*count++
-	if rand.Float64() <= a.softwareCount.lastOpenedProb {
-		now := time.Now()
-		return &now
-	}
-	return nil
+	// if *count >= a.softwareCount.withLastOpened {
+	// 	return nil
+	// }
+	// *count++
+	// if rand.Float64() <= a.softwareCount.lastOpenedProb {
+	now := time.Now()
+	return &now
+	// }
+	// return nil
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
