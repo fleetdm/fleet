@@ -55,7 +55,7 @@ const DeleteConditionalAccessModal = ({
       <>
         <p>
           Fleet will be disconnected from Microsoft Entra and will stop blocking
-          end users from logging into third party apps.
+          end users from logging in with single sign-on.
         </p>
         <div className="modal-cta-wrap">
           <Button
@@ -343,7 +343,7 @@ const ConditionalAccess = () => {
     <div className={baseClass}>
       <SectionHeader title="Conditional access" />
       <p className={`${baseClass}__page-description`}>
-        Block hosts failing any policies from logging into third party apps.
+        Block hosts failing any policies from logging in with single sign-on.
         Enable or disable on the{" "}
         <CustomLink url={paths.MANAGE_POLICIES} text="Policies" /> page.
       </p>
