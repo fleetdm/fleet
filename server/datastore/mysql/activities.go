@@ -658,7 +658,7 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	return nil
 }
 
-func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
+func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -886,13 +886,14 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	})
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO: create canceled activity, this must be done via svc.NewActivity (not
 	// ds.NewActivity), so once canceled activities are implemented return the
 	// ready-to-insert activity struct to the caller and let svc do the rest.
-	return nil
+	var pastAct fleet.ActivityDetails
+	return pastAct, nil
 }
 
 // GetHostUpcomingActivityMeta returns metadata for an upcoming activity,

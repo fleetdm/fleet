@@ -1550,12 +1550,12 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	execIDUntouched := test.CreateHostScriptUpcomingActivity(t, ds, hostLeftUntouched)
 
 	// cancel an activity on a non-existing host
-	err = ds.CancelHostUpcomingActivity(ctx, 999, "non-existing")
+	_, err = ds.CancelHostUpcomingActivity(ctx, 999, "non-existing")
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
 	// cancel a non-existing activity on an existing host
-	err = ds.CancelHostUpcomingActivity(ctx, host.ID, "non-existing")
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, "non-existing")
 	require.ErrorAs(t, err, &nfe)
 
 	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
@@ -1659,7 +1659,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 
 			cancelExecID := execIDs[c.cancelIndex]
 			expectedExecIDs := append(execIDs[:c.cancelIndex], execIDs[c.cancelIndex+1:]...) // nolint: gocritic
-			err = ds.CancelHostUpcomingActivity(ctx, host.ID, cancelExecID)
+			_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, cancelExecID)
 			require.NoError(t, err)
 
 			got, _, err = ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
@@ -1799,7 +1799,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 
 			cancelExecID := execIDs[0]
 			expectedExecIDs := execIDs[1:]
-			err = ds.CancelHostUpcomingActivity(ctx, host.ID, cancelExecID)
+			_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, cancelExecID)
 			require.NoError(t, err)
 
 			got, _, err = ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
@@ -1858,25 +1858,25 @@ func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 
 	// set a script result post-cancel
 	exec := test.CreateHostScriptUpcomingActivity(t, ds, host)
-	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
 	test.SetHostScriptResult(t, ds, host, exec, 0)
 
 	// set a software install result post-cancel
 	exec = test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
-	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
 	test.SetHostSoftwareInstallResult(t, ds, host, exec, 0)
 
 	// set a software uninstall result post-cancel
 	exec = test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
-	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
 	test.SetHostSoftwareUninstallResult(t, ds, host, exec, 0)
 
 	// set a vpp app install result post-cancel
 	exec, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
-	err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
+	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
 	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
 }

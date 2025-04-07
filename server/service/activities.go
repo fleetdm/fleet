@@ -297,5 +297,8 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		}
 	}
 
-	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
+	pastAct, err := svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
+	// TODO: create pastAct
+	_ = pastAct
+	return err
 }
