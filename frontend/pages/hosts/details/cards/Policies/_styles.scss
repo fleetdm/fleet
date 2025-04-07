@@ -41,11 +41,6 @@
           .policy-info {
             width: 100%; // sets ellipsis
             justify-content: left;
-
-            &::after {
-              content: url("../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png");
-              transform: scale(0.5);
-            }
           }
         }
       }

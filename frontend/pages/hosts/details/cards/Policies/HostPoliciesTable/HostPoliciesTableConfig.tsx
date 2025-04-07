@@ -9,6 +9,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import InternalLinkCell from "components/TableContainer/DataTable/InternalLinkCell";
 
 interface IHeaderProps {
   column: {
@@ -71,20 +72,11 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
 
-        const onClickPolicyName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          togglePolicyDetails(cellProps.row.original);
-        };
-
         return (
-          <Button
+          <InternalLinkCell
             className="policy-info"
-            onClick={onClickPolicyName}
-            variant="text-icon"
-          >
-            <TooltipTruncatedText value={name} />
-          </Button>
+            value={<TooltipTruncatedText value={name} />}
+          />
         );
       },
     },

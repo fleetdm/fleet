@@ -33,10 +33,7 @@ interface IPoliciesProps {
 }
 
 interface IHostPoliciesRowProps extends Row {
-  original: {
-    id: number;
-    response: "pass" | "fail";
-  };
+  original: IHostPolicy;
 }
 
 const Policies = ({
@@ -61,18 +58,7 @@ const Policies = ({
 
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
-      const { id: policyId, response: policyResponse } = row.original;
-
-      const viewAllHostPath = getPathWithQueryParams(paths.MANAGE_HOSTS, {
-        policy_id: policyId,
-        policy_response:
-          policyResponse === "pass"
-            ? PolicyResponse.PASSING
-            : PolicyResponse.FAILING,
-        team_id: currentTeamId,
-      });
-
-      router.push(viewAllHostPath);
+      togglePolicyDetailsModal(row.original);
     },
     [router]
   );
@@ -143,9 +129,9 @@ const Policies = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
-          disableMultiRowSelect={!deviceUser} // Removes hover/click state if deviceUser
+          disableMultiRowSelect // Removes hover/click state if deviceUser
           isClientSidePagination
-          onClickRow={deviceUser ? noop : onClickRow}
+          onClickRow={onClickRow}
         />
       </>
     );
