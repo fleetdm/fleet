@@ -16,31 +16,40 @@ export const generateUsernameValues = (endUsers: IHostEndUser[]) => {
 };
 
 export const generateFullNameValues = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0 || endUsers[0].idp_info_updated_at === null) {
+  const endUser = endUsers[0];
+  if (
+    endUsers.length === 0 ||
+    endUser.idp_info_updated_at === null ||
+    endUser.idp_full_name === undefined
+  ) {
     return [];
   }
 
-  return endUsers.map((endUser) => {
-    return endUser.idp_full_name;
-  });
+  return [endUser.idp_full_name];
 };
 
 export const generateGroupsValues = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0 || endUsers[0].idp_info_updated_at === null) {
+  const endUser = endUsers[0];
+  if (
+    endUsers.length === 0 ||
+    endUser.idp_info_updated_at === null ||
+    endUser.idp_groups === undefined
+  ) {
     return [];
   }
 
-  return endUsers[0].idp_groups.sort((a, b) => {
+  return endUser.idp_groups.sort((a, b) => {
     return a.localeCompare(b);
   });
 };
 
-export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0) {
+export const generateChromeProfilesValues = (endUsers: IHostEndUser[]) => {
+  const endUser = endUsers[0];
+  if (endUsers.length === 0 || endUser.other_emails === undefined) {
     return [];
   }
 
-  return endUsers[0].other_emails.reduce<string[]>((acc, otherEmail) => {
+  return endUser.other_emails.reduce<string[]>((acc, otherEmail) => {
     if (otherEmail.source === "google_chrome_profiles") {
       acc.push(otherEmail.email);
     }
@@ -48,12 +57,13 @@ export const generateChromeProfilesValue = (endUsers: IHostEndUser[]) => {
   }, []);
 };
 
-export const generateOtherEmailsValue = (endUsers: IHostEndUser[]) => {
-  if (endUsers.length === 0) {
+export const generateOtherEmailsValues = (endUsers: IHostEndUser[]) => {
+  const endUser = endUsers[0];
+  if (endUsers.length === 0 || endUser.other_emails === undefined) {
     return [];
   }
 
-  return endUsers[0].other_emails.reduce<string[]>((acc, otherEmail) => {
+  return endUser.other_emails.reduce<string[]>((acc, otherEmail) => {
     if (otherEmail.source === "custom") {
       acc.push(otherEmail.email);
     }

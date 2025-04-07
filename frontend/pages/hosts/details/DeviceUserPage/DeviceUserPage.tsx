@@ -71,8 +71,8 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
 import {
-  generateChromeProfilesValue,
-  generateOtherEmailsValue,
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
 } from "../cards/User/helpers";
 
 const baseClass = "device-user";
@@ -447,8 +447,8 @@ const DeviceUserPage = ({
 
     const showUsersCard = false;
     // host?.platform === "darwin" ||
-    // generateChromeProfilesValue(testEndUserData).length > 0 ||
-    // generateOtherEmailsValue(testEndUserData).length > 0;
+    // generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
+    // generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
     return (
       <div className="core-wrapper">
