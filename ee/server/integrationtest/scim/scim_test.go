@@ -480,7 +480,7 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, deleteAgainResp["detail"], "not found")
 
-	// Clean up the user we created
+	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
 
@@ -644,13 +644,12 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	// Verify error response
 	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 
-	// Clean up
-	// Delete the groups
+	// Delete the groups we created
 	s.Do(t, "DELETE", scimPath("/Groups/"+emptyGroupID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Groups/"+manyMembersGroupID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Groups/"+externalIDGroupID), nil, http.StatusNoContent)
 
-	// Delete the users
+	// Delete the users we created
 	for _, userID := range userIDs {
 		s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 	}
@@ -1043,7 +1042,7 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 	assert.EqualValues(t, errorResp5["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp5["detail"], "A required value was missing")
 
-	// Clean up the created user
+	// Delete the created user
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
 
@@ -1147,7 +1146,7 @@ func testUpdateUser(t *testing.T, s *Suite) {
 	// Verify the update was successful.
 	assert.Equal(t, "FiRsT-uSeR@eXaMpLe.CoM", updateResp2["userName"])
 
-	// Clean up
+	// Delete the users we created.
 	s.Do(t, "DELETE", scimPath("/Users/"+firstUserID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+secondUserID), nil, http.StatusNoContent)
 }
@@ -1254,7 +1253,7 @@ func testUpdateGroup(t *testing.T, s *Suite) {
 	// Verify the update was successful but the displayName is normalized
 	assert.Equal(t, "FiRsT TeSt GrOuP", updateResp2["displayName"])
 
-	// Clean up
+	// Delete the users and groups we created.
 	s.Do(t, "DELETE", scimPath("/Groups/"+firstGroupID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Groups/"+secondGroupID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
@@ -1413,7 +1412,7 @@ func testUsersPagination(t *testing.T, s *Suite) {
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 10, len(allResources), "All users page should have 10 users")
 
-	// Clean up all created users
+	// Delete all created users
 	for _, userID := range userIDs {
 		s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 	}
@@ -1627,12 +1626,12 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 		}
 	}
 
-	// Clean up all created groups
+	// Delete all created groups
 	for _, groupID := range groupIDs {
 		s.Do(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNoContent)
 	}
 
-	// Clean up the user
+	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
 
@@ -1814,12 +1813,11 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	assert.Equal(t, "Test Group 1", groupDisplays[group1ID], "Group 1 display name should be correct")
 	assert.Equal(t, "Test Group 2", groupDisplays[group2ID], "Group 2 display name should be correct")
 
-	// Clean up
-	// Delete the groups
+	// Delete the groups we created
 	s.Do(t, "DELETE", scimPath("/Groups/"+group1ID), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Groups/"+group2ID), nil, http.StatusNoContent)
 
-	// Delete the users
+	// Delete the users we created
 	for _, userID := range userIDs {
 		s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 	}

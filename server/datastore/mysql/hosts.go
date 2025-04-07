@@ -3833,18 +3833,18 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 
 	// Check if a row already exists with the correct email, host_id, and source.
 	// This is an optimization to reduce load on the DB writer instance.
-	var emailExists bool
+	var emailExists uint
 	err = sqlx.GetContext(
 		ctx,
 		ds.reader(ctx),
 		&emailExists,
-		`SELECT 1 FROM host_emails WHERE email = ? AND host_id = ? AND source = ? UNION ALL SELECT 0 LIMIT 1`,
+		`SELECT COUNT(*) FROM host_emails WHERE email = ? AND host_id = ? AND source = ?`,
 		idp.Email, hostID, fleet.DeviceMappingMDMIdpAccounts,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check existing host_email")
 	}
-	if !emailExists {
+	if emailExists == 0 {
 		err = ds.updateOrInsert(
 			ctx,
 			`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
@@ -3857,18 +3857,18 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	}
 
 	// Check if a SCIM user association already exists for this host.
-	var exists bool
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT 1 FROM host_scim_user WHERE host_id = ? UNION ALL SELECT 0 LIMIT 1`, hostID)
+	var exists uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
 	}
-	if exists {
+	if exists > 0 {
 		// We do not replace/delete the association since the IdP SCIM username/email may have changed after the initial association was made.
 		// If the SCIM user is deleted, this association will be deleted via CASCADE.
 		return nil
 	}
 
-	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, idp.Username, ptr.String(idp.Email))
+	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, idp.Username, idp.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return ctxerr.Wrap(ctx, err, "get scim user")

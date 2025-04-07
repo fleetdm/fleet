@@ -1292,7 +1292,7 @@ type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error
 
 type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.ScimUser, error)
 
-type ScimUserByUserNameOrEmailFunc func(ctx context.Context, userName string, email *string) (*fleet.ScimUser, error)
+type ScimUserByUserNameOrEmailFunc func(ctx context.Context, userName string, email string) (*fleet.ScimUser, error)
 
 type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUser, error)
 
@@ -7701,7 +7701,7 @@ func (s *DataStore) ScimUserByUserName(ctx context.Context, userName string) (*f
 	return s.ScimUserByUserNameFunc(ctx, userName)
 }
 
-func (s *DataStore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email *string) (*fleet.ScimUser, error) {
+func (s *DataStore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*fleet.ScimUser, error) {
 	s.mu.Lock()
 	s.ScimUserByUserNameOrEmailFuncInvoked = true
 	s.mu.Unlock()

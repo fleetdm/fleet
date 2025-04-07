@@ -1323,7 +1323,7 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 
 	// Test 1: Find user by userName
 	email := "email.user1@example.com"
-	user, err := ds.ScimUserByUserNameOrEmail(t.Context(), "email-test-user1", &email)
+	user, err := ds.ScimUserByUserNameOrEmail(t.Context(), "email-test-user1", email)
 	assert.Nil(t, err)
 	require.NotNil(t, user)
 	assert.Equal(t, "email-test-user1", user.UserName)
@@ -1331,7 +1331,7 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	assert.False(t, user.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Test 2: Find user by email when userName is empty
-	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "", &email)
+	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "", email)
 	assert.Nil(t, err)
 	require.NotNil(t, user)
 	assert.Equal(t, "email-test-user1", user.UserName)
@@ -1339,7 +1339,7 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 
 	// Test 3: Find user by email when userName doesn't exist
 	email = "email.user2@example.com"
-	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", &email)
+	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", email)
 	assert.Nil(t, err)
 	require.NotNil(t, user)
 	assert.Equal(t, "email-test-user2", user.UserName)
@@ -1348,19 +1348,19 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 
 	// Test 4: Handle case where multiple users have the same email
 	email = "duplicate@example.com"
-	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", &email)
+	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", email)
 	assert.Nil(t, err)
 	assert.Nil(t, user, "Should return nil when multiple users have the same email")
 
 	// Test 5: Handle case where neither userName nor email match any user
 	email = "nonexistent@example.com"
-	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", &email)
+	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", email)
 	assert.NotNil(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 	assert.Nil(t, user)
 
-	// Test 6: Handle case where email is nil
-	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", nil)
+	// Test 6: Handle case where email is empty
+	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-user", "")
 	assert.NotNil(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 	assert.Nil(t, user)

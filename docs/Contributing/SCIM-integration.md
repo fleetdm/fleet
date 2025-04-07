@@ -25,7 +25,7 @@ First, create at least one SCIM user:
 
 ```
 POST https://localhost:8080/api/latest/fleet/scim/Users
-Header: Bearer <API key>
+Authorization: Bearer <API key>
 {
     "schemas": ["urn:ietf:params:scim:schemas:core:2.0:User"],
     "userName": "test.user@okta.local",

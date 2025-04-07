@@ -129,7 +129,7 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 // ScimUserByUserNameOrEmail finds a SCIM user by username. If it cannot find one, then it tries email, if set.
 // If multiple users are found with the same email, we log an error and return nil.
 // Emails and groups are NOT populated in this method.
-func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email *string) (*fleet.ScimUser, error) {
+func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*fleet.ScimUser, error) {
 	// First, try to find the user by userName
 	if userName != "" {
 		user, err := ds.ScimUserByUserName(ctx, userName)
@@ -139,9 +139,9 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 		case !fleet.IsNotFound(err):
 			return nil, ctxerr.Wrap(ctx, err, "select scim user by userName")
 		}
-		if email == nil || *email == "" {
-			return nil, notFound("scim user")
-		}
+	}
+	if email == "" {
+		return nil, notFound("scim user")
 	}
 
 	// Try to find the user by email
@@ -154,11 +154,8 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	`
 
 	var users []fleet.ScimUser
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, *email)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notFound("scim user")
-		}
 		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
 	}
 
@@ -168,7 +165,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 
 	// If multiple users found, log a message and return nil
 	if len(users) > 1 {
-		level.Error(ds.logger).Log("msg", "Multiple SCIM users found with the same email", "email", *email)
+		level.Error(ds.logger).Log("msg", "Multiple SCIM users found with the same email", "email", email)
 		return nil, nil
 	}
 
@@ -183,7 +180,7 @@ func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.
 		FROM scim_users su
 		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
 		WHERE host_scim_user.host_id = ?
-		LIMIT 1
+		ORDER BY su.id LIMIT 1
 	`
 	user := &fleet.ScimUser{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), user, query, hostID)

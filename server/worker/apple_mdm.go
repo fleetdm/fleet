@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -211,7 +210,7 @@ func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAcco
 	}
 
 	// If full name is empty, see if it exists via SCIM integration
-	scimUser, err := a.Datastore.ScimUserByUserNameOrEmail(ctx, acct.Username, ptr.String(acct.Email))
+	scimUser, err := a.Datastore.ScimUserByUserNameOrEmail(ctx, acct.Username, acct.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return "", ctxerr.Wrap(ctx, err, "getting scim user details for enroll reference %s and host_uuid %s", acct.UUID, args.HostUUID)
