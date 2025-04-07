@@ -387,6 +387,9 @@ func TestCancelHostUpcomingActivityAuth(t *testing.T) {
 	ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, execID string) error {
 		return nil
 	}
+	ds.GetHostUpcomingActivityMetaFunc = func(ctx context.Context, hostID uint, execID string) (*fleet.UpcomingActivityMeta, error) {
+		return &fleet.UpcomingActivityMeta{}, nil
+	}
 
 	cases := []struct {
 		name             string
