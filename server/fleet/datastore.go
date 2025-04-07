@@ -682,6 +682,7 @@ type Datastore interface {
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
+	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore

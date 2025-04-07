@@ -285,14 +285,15 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 		return err
 	}
 
-	// TODO: prevent cancellation of lock/wipe that are already activated
-	// isLockWipe, isActivated, err := svc.ds.IsLockWipeActivity(ctx, upcomingActivityID)
-	// if err != nil {
-	// 	// ...
-	// }
-	// if isLockWipe && isActivated {
-	// 	// prevent cancellation
-	// }
+	// prevent cancellation of lock/wipe that are already activated
+	actMeta, err := svc.ds.GetHostUpcomingActivityMeta(ctx, hostID, executionID)
+	if err != nil {
+		return err
+	}
+	if actMeta.ActivatedAt != nil &&
+		(actMeta.WellKnownAction == fleet.WellKnownActionLock || actMeta.WellKnownAction == fleet.WellKnownActionWipe) {
+		// prevent cancellation
+	}
 
 	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
 }

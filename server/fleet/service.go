@@ -607,11 +607,6 @@ type Service interface {
 	// (e.g. it did complete), it returns a not found error.
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
-	// GetHostUpcomingActivityMeta returns metadata for an upcoming activity,
-	// such as whether it is activated or not, if the activity corresponds to a
-	// lock/wipe/unlock command, etc.
-	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
-
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 

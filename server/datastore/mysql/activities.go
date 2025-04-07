@@ -1319,6 +1319,9 @@ ORDER BY
 	return nil
 }
 
+// GetHostUpcomingActivityMeta returns metadata for an upcoming activity,
+// such as whether it is activated or not, if the activity corresponds to a
+// lock/wipe/unlock command, etc.
 func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
 	panic("unimplemented")
 }
