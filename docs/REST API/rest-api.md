@@ -6690,10 +6690,11 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
-| per_page                | integer | query | Results per page.
+| Name                    | Type    | In    | Description                                                                                    |
+| ----------------------- | ------- | ----- | ---------------------------------------------------------------------------------------------- |
+| fleet_maintained        | boolean | query | If specified, filter policies to either "only Fleet-maintained" or "only not Fleet-maintained. |
+| page                    | integer | query | Page number of the results to                                                                  |
+| per_page                | integer | query | Results per page.                                                                              |
 
 #### Example
 
@@ -6761,6 +6762,7 @@ _Available in Fleet Premium_
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
+| fleet_maintained   | boolean | query | If specified, filter policies to either "only Fleet-maintained" or "only not Fleet-maintained. |
 | merge_inherited  | boolean | query | If `true`, will return both team policies **and** inherited ("All teams") policies the `policies` list, and will not return a separate `inherited_policies` list. |
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
@@ -6953,6 +6955,7 @@ _Available in Fleet Premium_
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| fleet_maintained      | boolean | query | If specified, filter policies to either "only Fleet-maintained" or "only not Fleet-maintained. |
 | query                 | string | query | Search query keywords. Searchable fields include `name`.  |
 
 #### Example
@@ -6980,9 +6983,10 @@ _Available in Fleet Premium_
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id                 | integer | path  | **Required.** Defines what team ID to operate on
-| query                 | string | query | Search query keywords. Searchable fields include `name`. |
-| merge_inherited     | boolean | query | If `true`, will include inherited ("All teams") policies in the count. |
+| team_id            | integer | path  | **Required.** Defines what team ID to operate on
+| fleet_maintained   | boolean | query | If specified, filter policies to either "only Fleet-maintained" or "only not Fleet-maintained. |
+| query              | string | query | Search query keywords. Searchable fields include `name`. |
+| merge_inherited    | boolean | query | If `true`, will include inherited ("All teams") policies in the count. |
 
 #### Example
 
@@ -9599,6 +9603,28 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 200`
+
+```json
+{
+  "software_package": {
+    "name": "FalconSensor-6.44.pkg",
+    "version": "6.44",
+    "platform": "darwin",
+    "installer_id": 23,
+    "team_id": 3,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+    "self_service": true,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
+```
 
 ### Modify package
 
