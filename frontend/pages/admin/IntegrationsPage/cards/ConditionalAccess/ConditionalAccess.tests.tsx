@@ -1,11 +1,22 @@
 import React from "react";
 
 import { screen } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 
-import createMockConfig, { DEFAULT_LICENSE_MOCK } from "__mocks__/configMock";
-import { createCustomRenderer } from "test/test-utils";
+import createMockConfig from "__mocks__/configMock";
+import mockServer from "test/mock-server";
+import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import ConditionalAccess from "./ConditionalAccess";
+
+const triggerConditionalAccessHandler = http.post(
+  baseUrl("/conditional-access/microsoft"),
+  () => {
+    return HttpResponse.json({
+      microsoft_authentication_url: "https://example.com",
+    });
+  }
+);
 
 describe("Conditional access", () => {
   describe("Not configured", () => {
@@ -25,6 +36,7 @@ describe("Conditional access", () => {
       expect(screen.getByRole("textbox")).toHaveValue("");
     });
     it("Renders the 'continue in new tab' screen when the form is submitted", async () => {
+      mockServer.use(triggerConditionalAccessHandler);
       const render = createCustomRenderer({
         withBackendMock: true,
         context: {
