@@ -2891,7 +2891,7 @@ Returns the information of the specified host.
         "shell": "/bin/zsh"
       }
     ],
-    "end_users" [
+    "end_users": [
       {
         "idp_info_updated_at": "2025-03-20T02:02:17Z",
         "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
