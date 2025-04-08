@@ -39,7 +39,7 @@
             </h1>
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'open-source telemetry that works the way you want' : 'lightning fast device management that lets employees see what\'s going on' %>.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
-              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/orchestration' : primaryBuyingSituation === 'eo-it' ? '/orchestration' : '/device-management' %>">Learn how</a>
+              <a purpose="cta-button" href="/docs/get-started/why-fleet">Learn how</a>
               <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
             </div>
           </div>
@@ -97,7 +97,7 @@
           <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Real employee choice — even Linux</strong>
+          <strong>Real employee device choice — even Linux</strong>
           <p>Enroll all your computing devices. Going only Apple or 50/50 Mac and Windows? What about Linux? Speak to them all in one language.</p>
           <strong>Define configuration as code</strong>
           <p>Ensure consistent deployment and eliminate configuration drift while maintaining an infinite audit trail. Need to roll back? Revert any changes with a single command.</p>
@@ -247,7 +247,11 @@
           <%} else {%>
             <h2>Is it any good?</h2>
           <%}%>
-          <p>Considering a move to Fleet as a cross-platform, open-source MDM alternative? See how we compare:</p>
+          <% if(primaryBuyingSituation === 'mdm'){ %>
+            <p>Considering a move to Fleet as a multi-platform, open-source MDM alternative? See how we compare:</p>
+          <% } else { %>
+            <p>Considering a move to Fleet? See how we compare:</p>
+          <% } %>
           <div purpose="desktop-comparison-table" class="d-none d-sm-block">
             <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
               <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>

@@ -1,11 +1,5 @@
 .manage-policies-page {
   .policy-run-script-modal {
-    .form-field__help-text {
-      font-size: 14px;
-      line-height: 21px;
-      margin-top: $pad-large;
-    }
-
     .form-field--dropdown {
       width: 276px;
       .Select-placeholder {
@@ -34,7 +28,7 @@
       justify-content: center;
       font-size: $small;
 
-      div  {
+      div {
         color: $ui-fleet-black-75;
         font-size: $xx-small;
         a {

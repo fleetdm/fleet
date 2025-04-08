@@ -99,6 +99,10 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
 	require.NoError(t, err)
 
+	// Testing search that returns no results; nothing inserted yet case
+	_, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.ErrorIs(t, err, &fleet.NoMaintainedAppsInDatabaseError{})
+
 	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Maintained1",
 		Slug:             "maintained1",
@@ -202,6 +206,23 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedApps[3:], apps)
 	require.False(t, meta.HasNextResults)
 	require.True(t, meta.HasPreviousResults)
+
+	// Testing search
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{MatchQuery: "Maintained4", IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.EqualValues(t, 1, meta.TotalResults)
+	require.Equal(t, expectedApps[3:], apps)
+	require.False(t, meta.HasNextResults)
+	require.False(t, meta.HasPreviousResults)
+
+	// Testing search that returns no results; non-error case
+	apps, meta, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{MatchQuery: "Maintained5", IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 0)
+	require.EqualValues(t, 0, meta.TotalResults)
+	require.False(t, meta.HasNextResults)
+	require.False(t, meta.HasPreviousResults)
 
 	//
 	// Test including software title ID for existing apps (installers)
