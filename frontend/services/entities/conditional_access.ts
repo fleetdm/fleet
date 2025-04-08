@@ -24,7 +24,7 @@ const conditionalAccessService = {
   },
   confirmMicrosoftConditionalAccess: (): Promise<ConfirmMSConditionalAccessResponse> => {
     // TODO - real one!
-    // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_CONFIRM);
+    // return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_MICROSOFT_CONFIRM);
 
     return Promise.resolve({
       configuration_completed: true,

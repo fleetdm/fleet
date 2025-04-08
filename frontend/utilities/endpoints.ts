@@ -16,8 +16,8 @@ export default {
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
 
   // Conditional access
-  CONDITIONAL_ACCESS_MICROSOFT: `${API_VERSION}/conditional-access/microsoft`,
-  CONDITIONAL_ACCESS_CONFIRM: `${API_VERSION}/conditional-access/confirm`,
+  CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
+  CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
 
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
