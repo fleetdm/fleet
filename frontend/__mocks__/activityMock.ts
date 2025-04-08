@@ -32,5 +32,3 @@ export const createMockHostPastActivity = (
 ): IHostPastActivity => {
   return { ...DEFAULT_HOST_PAST_ACTIVITY_MOCK, ...overrides };
 };
-
-export default createMockActivity;

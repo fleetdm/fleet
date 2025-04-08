@@ -3865,7 +3865,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ### Set Orbit device mapping
 
-`POST /api/fleet/orbit/device_mapping`
+`PUT /api/fleet/orbit/device_mapping`
 
 ##### Parameters
 
@@ -3876,7 +3876,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ##### Example
 
-`POST /api/fleet/orbit/device_mapping`
+`PUT /api/fleet/orbit/device_mapping`
 
 ##### Request body
 

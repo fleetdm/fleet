@@ -1,0 +1,11 @@
+.cancel-activity-modal {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    > p {
+      margin: 0;
+    }
+  }
+}
