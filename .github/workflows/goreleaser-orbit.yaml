@@ -255,5 +255,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: unsigned-windows-arm64
+          name: orbit-windows-arm64
           path: dist/orbit_windows_arm64_v1/orbit.exe
