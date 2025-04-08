@@ -2,14 +2,13 @@ import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { noop } from "lodash";
 
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import Button from "components/buttons/Button";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import InternalLinkCell from "components/TableContainer/DataTable/InternalLinkCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 interface IHeaderProps {
   column: {
@@ -72,12 +71,7 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
 
-        return (
-          <InternalLinkCell
-            className="policy-info"
-            value={<TooltipTruncatedText value={name} />}
-          />
-        );
+        return <LinkCell customOnClick={noop} tooltipTruncate value={name} />;
       },
     },
     {

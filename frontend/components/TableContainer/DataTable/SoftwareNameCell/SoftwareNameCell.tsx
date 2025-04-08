@@ -9,7 +9,6 @@ import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import LinkCell from "../LinkCell";
-import InternalLinkCell from "../InternalLinkCell";
 
 const baseClass = "software-name-cell";
 
@@ -95,7 +94,7 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
-  name?: string;
+  name: string;
   source?: string;
   /** pass in a `path` that this cell will link to */
   path?: string;
@@ -122,13 +121,10 @@ const SoftwareNameCell = ({
   // My device page
   if (myDevicePage) {
     return (
-      <InternalLinkCell
-        value={
-          <>
-            <SoftwareIcon name={name} source={source} url={iconUrl} />
-            <span className="software-name">{name}</span>
-          </>
-        }
+      <LinkCell
+        tooltipTruncate
+        prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
+        value={name}
       />
     );
   }

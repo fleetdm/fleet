@@ -8,13 +8,17 @@ import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 interface ILinkCellProps {
   value: string | JSX.Element;
-  path: string;
+  path?: string;
   className?: string;
   customOnClick?: (e: React.MouseEvent) => void;
   /** allows viewing overflow for tooltip */
   tooltipContent?: string | React.ReactNode;
   title?: string;
+  /** Used to create TooltipTruncationText on link cell */
   tooltipTruncate?: boolean;
+  /** Optionally add unstyled prefix before tooltip truncation */
+  prefix?: JSX.Element;
+  /** Optionally add unstyled suffix after tooltip truncation */
   suffix?: JSX.Element;
 }
 
@@ -22,12 +26,13 @@ const baseClass = "link-cell";
 
 const LinkCell = ({
   value,
-  path,
+  path = "",
   className,
   customOnClick,
   title,
   tooltipContent,
   tooltipTruncate = false,
+  prefix,
   suffix,
 }: ILinkCellProps): JSX.Element => {
   const cellClasses = classnames(baseClass, className);
@@ -36,18 +41,21 @@ const LinkCell = ({
     customOnClick && customOnClick(e);
   };
 
-  console.log("tooltipTruncate", tooltipTruncate);
-  console.log("suffix", suffix);
-  if (tooltipTruncate) {
-    <Link
-      className={cellClasses}
-      to={path}
-      onClick={customOnClick}
-      title={title}
-    >
-      <TooltipTruncatedTextCell value={value} suffix={suffix} />
-    </Link>;
-  }
+  if (tooltipTruncate)
+    return (
+      <Link
+        className={cellClasses}
+        to={path}
+        onClick={customOnClick}
+        title={title}
+      >
+        <TooltipTruncatedTextCell
+          value={value}
+          prefix={prefix}
+          suffix={suffix}
+        />
+      </Link>
+    );
 
   if (tooltipContent)
     return (

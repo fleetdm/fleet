@@ -18,22 +18,6 @@
           width: 140px;
         }
       }
-      tbody {
-        tr {
-          .name__cell {
-            max-width: 0; // sets ellipsis
-
-            .truncated-tooltip {
-              font-weight: $regular;
-            }
-          }
-
-          .policy-info {
-            width: 100%; // sets ellipsis
-            justify-content: left;
-          }
-        }
-      }
     }
   }
 }
