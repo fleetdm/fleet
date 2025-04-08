@@ -50,6 +50,12 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
  * the detail does not match any of the expected patterns.
  */
 const formatDetailCertificateError = (detail: IHostMdmProfile["detail"]) => {
+  const formattedCertificatesPath = (
+    <b>
+      Settings {">"} Integrations {">"} Certificates
+    </b>
+  );
+
   const matchTokenErr = detail.match(
     /get certificate from (?:DigiCert|Digicert|digicert).*token configured in (?<ca>.*) certificate authority is invalid/
   );
@@ -58,28 +64,28 @@ const formatDetailCertificateError = (detail: IHostMdmProfile["detail"]) => {
       <>
         Couldn&apos;t get certificate from DigiCert. The <b>API token</b>{" "}
         configured in <b>{matchTokenErr.groups.ca}</b> certificate authority is
-        invalid. Please go to{" "}
-        <b>
-          Settings {">"} Integrations {">"} Certificates
-        </b>
-        , correct it and resend.
+        invalid. Please go to {formattedCertificatesPath}, correct it and
+        resend.
       </>
     );
   }
 
   const matchProfileIdErr = detail.match(
-    /get certificate from (?:DigiCert|Digicert|digicert).*profile_id.*configured in (?<ca>.*) certificate authority does(?:n.t| not) exist/
+    /get certificate from (?:DigiCert|Digicert|digicert) for (?<ca>.*)\..*POST request: 410.*Profile with id.*was deleted/
   );
-  if (matchProfileIdErr?.groups) {
+  const matchDeletedProfileErr = detail.match(
+    /get certificate from (?:DigiCert|Digicert|digicert) for (?<ca>.*)\..*POST request: 400.*deleted or suspended Profile/
+  );
+  if (matchProfileIdErr?.groups || matchDeletedProfileErr?.groups) {
     return (
       <>
         Couldn&apos;t get certificate from DigiCert. The <b>Profile GUID</b>{" "}
-        configured in <b>{matchProfileIdErr.groups.ca}</b> certificate authority
-        doesn&apos;t exist. Please go to{" "}
+        configured in{" "}
         <b>
-          Settings {">"} Integrations {">"} Certificates
-        </b>
-        , correct it and resend.
+          {matchProfileIdErr?.groups?.ca || matchDeletedProfileErr?.groups?.ca}
+        </b>{" "}
+        certificate authority doesn&apos;t exist. Please go to{" "}
+        {formattedCertificatesPath}, correct it and resend.
       </>
     );
   }

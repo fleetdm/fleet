@@ -1,12 +1,11 @@
-import React from "react";
+import React, { useContext } from "react";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
+import { AppContext } from "context/app";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
@@ -31,6 +30,12 @@ const UpcomingActivityFeed = ({
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
+  const {
+    isTeamMaintainerOrTeamAdmin,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+  } = useContext(AppContext);
+
   if (isError) {
     return <DataError />;
   }
@@ -51,6 +56,9 @@ const UpcomingActivityFeed = ({
     );
   }
 
+  const canCancel =
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__feed-list`}>
@@ -63,34 +71,19 @@ const UpcomingActivityFeed = ({
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}
-              hideCancel // TODO: remove this when canceling is implemented in API
+              hideCancel={!canCancel}
               onCancel={() => onCancel(activity)}
             />
           );
         })}
       </div>
-      <div className={`${baseClass}__pagination`}>
-        <Button
-          disabled={!meta.has_previous_results}
-          onClick={onPreviousPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            <FleetIcon name="chevronleft" /> Previous
-          </>
-        </Button>
-        <Button
-          disabled={!meta.has_next_results}
-          onClick={onNextPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            Next <FleetIcon name="chevronright" />
-          </>
-        </Button>
-      </div>
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_previous_results && !meta.has_next_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

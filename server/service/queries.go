@@ -752,6 +752,23 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 	if logging == "" {
 		logging = fleet.LoggingSnapshot
 	}
+	// Find labels by name
+	var queryLabels []fleet.LabelIdent
+	if len(spec.LabelsIncludeAny) > 0 {
+		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get labels by name")
+		}
+		for labelName := range labelsMap {
+			queryLabels = append(queryLabels, fleet.LabelIdent{LabelName: labelName, LabelID: labelsMap[labelName].ID})
+		}
+		// Make sure that all labels were found
+		for _, label := range spec.LabelsIncludeAny {
+			if _, ok := labelsMap[label]; !ok {
+				return nil, ctxerr.New(ctx, "label not found")
+			}
+		}
+	}
 	return &fleet.Query{
 		Name:        spec.Name,
 		Description: spec.Description,
@@ -765,6 +782,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		AutomationsEnabled: spec.AutomationsEnabled,
 		Logging:            logging,
 		DiscardData:        spec.DiscardData,
+		LabelsIncludeAny:   queryLabels,
 	}, nil
 }
 

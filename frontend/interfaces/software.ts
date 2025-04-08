@@ -457,17 +457,29 @@ export interface IFleetMaintainedApp {
   id: number;
   name: string;
   version: string;
-  platform: Platform;
+  platform: FleetMaintainedAppPlatform;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
+export type FleetMaintainedAppPlatform = Extract<
+  Platform,
+  "darwin" | "windows"
+>;
+
+export interface ICombinedFMA {
+  name: string;
+  macos: Omit<IFleetMaintainedApp, "name"> | null;
+  windows: Omit<IFleetMaintainedApp, "name"> | null;
+}
 export interface IFleetMaintainedAppDetails {
   id: number;
   name: string;
   version: string;
-  platform: Platform;
-  pre_install_script: string; // TODO: is this needed?
+  platform: FleetMaintainedAppPlatform;
+  pre_install_script: string;
   install_script: string;
-  post_install_script: string; // TODO: is this needed?
+  post_install_script: string;
   uninstall_script: string;
   url: string;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }

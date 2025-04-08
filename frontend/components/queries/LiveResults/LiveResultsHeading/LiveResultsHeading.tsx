@@ -65,8 +65,8 @@ interface ILiveResultsHeadingProps {
   onClickDone: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickRunAgain: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickStop: (evt: React.MouseEvent<HTMLButtonElement>) => void;
-  /** Whether this is a live run of a policy. If not, it is of a query. */
-  isPolicy?: boolean;
+  /** Whether this is a live run of a policy or a query */
+  resultsType?: "query" | "policy";
 }
 
 const LiveResultsHeading = ({
@@ -79,7 +79,7 @@ const LiveResultsHeading = ({
   onClickDone,
   onClickRunAgain,
   onClickStop,
-  isPolicy = false,
+  resultsType = "query",
 }: ILiveResultsHeadingProps) => {
   const percentResponded =
     numHostsTargeted > 0
@@ -87,8 +87,8 @@ const LiveResultsHeading = ({
       : 0;
 
   const PAGE_TITLES = {
-    RUNNING: `Running ${isPolicy ? "policy" : "query"}`,
-    FINISHED: `${isPolicy ? "Policy" : "Query"} finished`,
+    RUNNING: `Running ${resultsType}`,
+    FINISHED: `${resultsType[0].toUpperCase()}${resultsType.slice(1)} finished`,
   };
 
   const pageTitle = isFinished ? PAGE_TITLES.FINISHED : PAGE_TITLES.RUNNING;

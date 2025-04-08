@@ -244,3 +244,58 @@ func (svc *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt
 
 	return svc.ds.ListHostPastActivities(ctx, hostID, opt)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Cancel host upcoming activity
+////////////////////////////////////////////////////////////////////////////////
+
+type cancelHostUpcomingActivityRequest struct {
+	HostID     uint   `url:"id"`
+	ActivityID string `url:"activity_id"`
+}
+
+type cancelHostUpcomingActivityResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r cancelHostUpcomingActivityResponse) Error() error { return r.Err }
+func (r cancelHostUpcomingActivityResponse) Status() int  { return http.StatusNoContent }
+
+func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*cancelHostUpcomingActivityRequest)
+	err := svc.CancelHostUpcomingActivity(ctx, req.HostID, req.ActivityID)
+	if err != nil {
+		return cancelHostUpcomingActivityResponse{Err: err}, nil
+	}
+	return cancelHostUpcomingActivityResponse{}, nil
+}
+
+func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionCancelHostActivity); err != nil {
+		return err
+	}
+
+	// prevent cancellation of lock/wipe that are already activated
+	actMeta, err := svc.ds.GetHostUpcomingActivityMeta(ctx, hostID, executionID)
+	if err != nil {
+		return err
+	}
+	if actMeta.ActivatedAt != nil &&
+		(actMeta.WellKnownAction == fleet.WellKnownActionLock || actMeta.WellKnownAction == fleet.WellKnownActionWipe) {
+		return &fleet.BadRequestError{
+			Message: "Couldn't cancel activity. Lock and wipe can't be canceled if they're about to run to prevent you from losing access to the host.",
+		}
+	}
+
+	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
+}

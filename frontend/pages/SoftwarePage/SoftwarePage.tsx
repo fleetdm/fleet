@@ -176,7 +176,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
   );
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
     null
   );
@@ -307,17 +306,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   }, [currentTeamId, router]);
 
-  // Used to reset page number to 0 when modifying filters
-  // Solution reused from ManageHostPage.tsx
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      // Used to reset page number to 0 when modifying filters
-      setResetPageIndex(true);
     },
     [handleTeamChange]
   );
@@ -345,8 +336,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
-
       // Only query param to persist between tabs is team id
       const teamIdParam = {
         team_id: location?.query.team_id,
@@ -394,7 +383,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                To manage automations select &ldquo;All teams&rdquo;.
+                Select &ldquo;All teams&rdquo; to manage automations.
               </div>
             }
             disableTooltip={isAllTeamsSelected}
@@ -412,9 +401,27 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </TooltipWrapper>
         )}
         {canAddSoftware && (
-          <Button onClick={onAddSoftware} variant="brand">
-            <span>Add software</span>
-          </Button>
+          <TooltipWrapper
+            underline={false}
+            tipContent={
+              <div className={`${baseClass}__header__tooltip`}>
+                {isPremiumTier
+                  ? "Select a team to add software."
+                  : "This feature is included in Fleet Premium."}
+              </div>
+            }
+            disableTooltip={!isAllTeamsSelected}
+            position="top"
+            showArrow
+          >
+            <Button
+              onClick={onAddSoftware}
+              variant="brand"
+              disabled={isAllTeamsSelected}
+            >
+              <span>Add software</span>
+            </Button>
+          </TooltipWrapper>
         )}
       </div>
     );
@@ -464,7 +471,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           vulnFilters: softwareVulnFilters,
-          resetPageIndex,
           addedSoftwareToken,
           onAddFiltersClick: toggleSoftwareFiltersModal,
         })}

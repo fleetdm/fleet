@@ -11,16 +11,6 @@
     }
   }
 
-  &__pagination {
-    position: absolute;
-    bottom: 0px;
-    right: 0px;
-
-    .button {
-      font-weight: $bold;
-    }
-  }
-
   &__load-activities-button {
     color: $core-vibrant-blue;
     vertical-align: bottom;

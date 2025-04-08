@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 		{"ListSoftwareTitlesInstallersOnly", testListSoftwareTitlesInstallersOnly},
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
+		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
@@ -1179,6 +1181,47 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{name: "vpp2", source: "ipados_apps"},
 		{name: "vpp2", source: "apps"},
 	}, names)
+}
+
+func testListSoftwareTitlesOverflow(t *testing.T, ds *Datastore) {
+	t.Skip("This test is too slow to run in CI")
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host", "", "hostkey1", "hostuuid1", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "hostkey2", "hostuuid2", time.Now())
+
+	var software []fleet.Software
+	for i := uint(0); i < 40_000; i++ {
+		software = append(software,
+			fleet.Software{Name: fmt.Sprintf("%dname", i), Version: fmt.Sprintf("0.0.%d", i), Source: "deb_packages"},
+		)
+		// UpdateHostSoftware blows up on a similar placeholder limit if we don't break it up
+		if i == 20_000 {
+			_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+			require.NoError(t, err)
+			software = []fleet.Software{}
+		}
+		if i == 39_999 {
+			_, err := ds.UpdateHostSoftware(ctx, host2.ID, software)
+			require.NoError(t, err)
+		}
+	}
+
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	_, counts, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: nil,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 40000, counts)
 }
 
 func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {

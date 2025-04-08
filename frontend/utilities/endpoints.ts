@@ -255,4 +255,7 @@ export default {
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
 
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
+
+  // idp endpoints
+  SCIM_DETAILS: `/${API_VERSION}/fleet/scim`,
 };

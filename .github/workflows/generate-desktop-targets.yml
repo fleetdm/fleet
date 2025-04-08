@@ -2,37 +2,36 @@ name: Generate Fleet Desktop targets for Orbit
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-targets.yml'
-  pull_request:
-    paths:
-      # The workflow can be triggered by modifying FLEET_DESKTOP_VERSION env.
-      - '.github/workflows/generate-desktop-targets.yml'
-  workflow_dispatch:
+    tags:
+      - "orbit-*" # For testing, use a pre-release tag like 'orbit-1.24.0-1'    
 
 defaults:
   run:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-env:
-  FLEET_DESKTOP_VERSION: 1.40.1
-
 permissions:
-  contents: write
   id-token: write
   attestations: write
-  packages: write
 
 jobs:
+  set-version:
+    runs-on: ubuntu-latest
+    outputs:
+      FLEET_DESKTOP_VERSION: ${{ steps.set-version.outputs.FLEET_DESKTOP_VERSION }}
+    steps:
+      - name: Set FLEET_DESKTOP_VERSION
+        id: set-version
+        run: |
+          VERSION="${${GITHUB_REF#refs/tags/orbit-}#v}"   # Strip 'orbit-v'
+          "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+  
   desktop-macos:
     # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
     # building the binary. This ensures compatibility with macOS version 13 and
     # later, avoiding runtime errors on systems using macOS 13 or newer.
     runs-on: macos-13
+    needs: set-version
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -74,7 +73,7 @@ jobs:
           AC_TEAM_ID=$AC_TEAM_ID \
           FLEET_DESKTOP_APPLE_AUTHORITY=$CODESIGN_IDENTITY \
           FLEET_DESKTOP_NOTARIZE=true \
-          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-app-tar-gz
 
       - name: Attest binary
@@ -90,6 +89,7 @@ jobs:
           path: desktop.app.tar.gz
 
   desktop-windows:
+    needs: set-version
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -107,7 +107,7 @@ jobs:
 
       - name: Generate fleet-desktop.exe
         run: |
-          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-windows
 
       - name: Attest binary
@@ -136,6 +136,7 @@ jobs:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   desktop-linux:
+    needs: set-version
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -153,7 +154,7 @@ jobs:
 
       - name: Generate desktop.tar.gz
         run: |
-          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-linux
 
       - name: Attest binary
@@ -169,6 +170,7 @@ jobs:
           path: desktop.tar.gz
 
   desktop-linux-arm64:
+    needs: set-version
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -186,7 +188,7 @@ jobs:
 
       - name: Generate desktop.tar.gz
         run: |
-          FLEET_DESKTOP_VERSION=$FLEET_DESKTOP_VERSION \
+          FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-linux-arm64
 
       - name: Attest binary

@@ -1,8 +1,10 @@
-# YAML files
+# GitOps
 
 Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
 Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
+
+Users that have global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only to teams they has permissions to modify.
 
 Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
@@ -19,7 +21,63 @@ org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
 ```
 
-Currently, managing labels and users is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+You may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
+
+## labels
+
+Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+### Options
+
+For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
+
+### Example
+
+#### Inline
+
+`default.yml`
+
+```yaml
+labels:
+  - name: Arm64
+    description: Hosts on the Arm64 architecture
+    query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+    label_membership_type: dynamic
+  - name: C-Suite
+    description: Hosts belonging to the C-Suite
+    label_membership_type: manual
+    hosts:
+      - "ceo-laptop"
+      - "the-CFOs-computer"
+```
+
+The `labels:` key is _optional_ in your YAML configuration:
++  If it is omitted, any existing labels created via the UI or API will remain untouched by GitOps.
++  If included, GitOps will replace all existing labels with those specified in the YAML, and any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+
+#### Separate file
+ 
+`lib/labels-name.labels.yml`
+
+```yaml
+- name: Arm64
+  description: Hosts on the Arm64 architecture
+  query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+  label_membership_type: dynamic
+- name: C-Suite
+  description: Hosts belonging to the C-Suite
+  label_membership_type: manual
+  hosts:
+    - "ceo-laptop"
+    - "the-CFOs-computer"
+```
+
+`lib/default.yml`
+
+```yaml
+labels:
+  path: ./lib/labels-name.labels.yml
+```
+
 
 ## policies
 
@@ -60,7 +118,7 @@ policies:
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
   platform: darwin
   critical: false
   calendar_events_enabled: false
@@ -390,7 +448,7 @@ Can only be configured for all teams (`default.yml`).
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
 
-Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 - `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
@@ -869,6 +927,6 @@ org_settings:
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
 
-<meta name="title" value="YAML files">
+<meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">

@@ -17,7 +17,7 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
     </a>
 </div>
 
-Want to host Fleet yourself? Check out the [reference architecture](https://fleetdm.com/docs/deploy/reference-architectures#reference-architectures).
+Want to enable premium features?  You can easily [configure your license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key) as an environment variable.
 
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 

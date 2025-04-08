@@ -9945,13 +9945,12 @@ List available Fleet-maintained apps.
     {
       "id": 1,
       "name": "1Password",
-      "platform": "darwin"
+      "platform": "darwin",
       "software_title_id": 3
     },
     {
       "id": 2,
       "name": "1Password",
-      "platform": "windows"
       "platform": "darwin",
       "software_title_id": 1
     },

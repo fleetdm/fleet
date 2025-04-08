@@ -330,7 +330,6 @@ spec:
   description: (converted from pack "p1", query "q1")
   discard_data: false
   interval: 0
-  labels_include_any: null
   logging: snapshot
   min_osquery_version: ""
   name: p1 - q1 - Jan  1 00:00:00.000
@@ -346,7 +345,6 @@ spec:
   description: (converted from pack "p2", query "q2")
   discard_data: false
   interval: 90
-  labels_include_any: null
   logging: differential
   min_osquery_version: ""
   name: p2 - q2 - t1 - Jan  1 00:00:00.000
@@ -362,7 +360,6 @@ spec:
   description: (converted from pack "p2", query "q2")
   discard_data: false
   interval: 90
-  labels_include_any: null
   logging: differential
   min_osquery_version: ""
   name: p2 - q2 - t2 - Jan  1 00:00:00.000

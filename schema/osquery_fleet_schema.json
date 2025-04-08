@@ -162,7 +162,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- This table provides information about the built-in firewall in macOS, also known as [Application Layer Firewall (ALF)](https://support.apple.com/guide/mac-help/block-connections-to-your-mac-with-a-firewall-mh34041/mac)",
+    "notes": "- This table provides information about the built-in firewall in macOS, also known as [Application Layer Firewall (ALF)](https://support.apple.com/guide/mac-help/block-connections-to-your-mac-with-a-firewall-mh34041/mac).",
     "examples": "See the state of the Application Layer Firewall on a Mac. A result of 0 means\nit is disabled, 1 means it is enabled, and 2 means it is enabled and blocking\nall inbound connections. See our standard query library for an example policy\nquery using this.\n\n```\nSELECT global_state FROM alf;\n```",
     "columns": [
       {
@@ -6010,6 +6010,37 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/curl_certificate.yml"
+  },
+  {
+    "name": "dconf_read",
+    "platforms": [
+      "linux"
+    ],
+    "description": "Returns GNOME configuration using the \"dconf read\" command.",
+    "columns": [
+      {
+        "name": "username",
+        "type": "text",
+        "required": true,
+        "description": "End user's username."
+      },
+      {
+        "name": "key",
+        "type": "text",
+        "required": true,
+        "description": "Name of the configuration key to read."
+      },
+      {
+        "name": "value",
+        "type": "text",
+        "required": false,
+        "description": "Value of the provided key."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/dconf_read",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dconf_read.yml"
   },
   {
     "name": "deb_packages",

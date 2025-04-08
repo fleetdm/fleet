@@ -20,17 +20,19 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                uint   `url:"team_id"`
-	QueryID               *uint  `json:"query_id"`
-	Query                 string `json:"query"`
-	Name                  string `json:"name"`
-	Description           string `json:"description"`
-	Resolution            string `json:"resolution"`
-	Platform              string `json:"platform"`
-	Critical              bool   `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool   `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint  `json:"software_title_id"`
-	ScriptID              *uint  `json:"script_id"`
+	TeamID                uint     `url:"team_id"`
+	QueryID               *uint    `json:"query_id"`
+	Query                 string   `json:"query"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	Resolution            string   `json:"resolution"`
+	Platform              string   `json:"platform"`
+	Critical              bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID       *uint    `json:"software_title_id"`
+	ScriptID              *uint    `json:"script_id"`
+	LabelsIncludeAny      []string `json:"labels_include_any"`
+	LabelsExcludeAny      []string `json:"labels_exclude_any"`
 }
 
 type teamPolicyResponse struct {
@@ -552,6 +554,18 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 			policy.ScriptID = nil
 		} else {
 			policy.ScriptID = &p.ScriptID.Value
+		}
+	}
+	if p.LabelsIncludeAny != nil {
+		policy.LabelsIncludeAny = make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
+		for _, label := range p.LabelsIncludeAny {
+			policy.LabelsIncludeAny = append(policy.LabelsIncludeAny, fleet.LabelIdent{LabelName: label})
+		}
+	}
+	if p.LabelsExcludeAny != nil {
+		policy.LabelsExcludeAny = make([]fleet.LabelIdent, 0, len(p.LabelsExcludeAny))
+		for _, label := range p.LabelsExcludeAny {
+			policy.LabelsExcludeAny = append(policy.LabelsExcludeAny, fleet.LabelIdent{LabelName: label})
 		}
 	}
 

@@ -2268,33 +2268,60 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		excludeVPPAppsClause = ` AND vat.id IS NULL `
 	}
 
-	var onlyVulnerableJoin string
-	var cveMetaJoin string
-	var vulnerabilityFiltersClause string
+	var vulnerableLastSoftwareInstallJoins,
+		vulnerableLastSoftwareUninstallJoins,
+		vulnerableLastVppInstall,
+		onlyVulnerableJoin,
+		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
+		cveMetaJoin string
 	var hasCVEFilters bool
 
 	if opts.VulnerableOnly {
-		onlyVulnerableJoin = `
-INNER JOIN software_cve scve ON scve.software_id = s.id
+		vulnerabilityExcludeClause = ` AND FALSE`
+		vulnerableLastSoftwareInstallJoins = `
+	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
+    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
 		`
-		cveMetaJoin = "INNER JOIN cve_meta cm ON scve.cve = cm.cve"
+		vulnerableLastSoftwareUninstallJoins = `
+	INNER JOIN software_installers ON software_installers.id = hsi.software_installer_id
+    INNER JOIN software_titles ON software_titles.id = software_installers.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
+		`
+		vulnerableLastVppInstall = `
+    INNER JOIN vpp_apps va ON va.adam_id = hvsi.adam_id
+               AND va.platform = hvsi.platform
+    INNER JOIN software_titles ON software_titles.id = va.title_id
+    INNER JOIN software ON software.title_id = software_titles.id
+    INNER JOIN software_cve ON software_cve.software_id = software.id
+		`
+		onlyVulnerableJoin = `
+INNER JOIN software_cve ON software_cve.software_id = s.id
+		`
+		cveMetaJoin = "INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
 
 		if opts.KnownExploit {
-			vulnerabilityFiltersClause += " AND cm.cisa_known_exploit = 1"
+			vulnerabilityFiltersClause += " AND cve_meta.cisa_known_exploit = 1"
 			hasCVEFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cm.cvss_score >= :min_cvss"
+			vulnerabilityFiltersClause += " AND cve_meta.cvss_score >= :min_cvss"
 			hasCVEFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
-			vulnerabilityFiltersClause += " AND cm.cvss_score <= :max_cvss"
+			vulnerabilityFiltersClause += " AND cve_meta.cvss_score <= :max_cvss"
 			hasCVEFilters = true
 		}
 
 		// Only join CVE table if there are filters
 		if hasCVEFilters {
 			onlyVulnerableJoin += cveMetaJoin
+			vulnerableLastSoftwareInstallJoins += cveMetaJoin
+			vulnerableLastSoftwareUninstallJoins += cveMetaJoin
+			vulnerableLastVppInstall += cveMetaJoin
 		}
 	}
 
@@ -2356,6 +2383,7 @@ WITH upcoming_software_install AS (
 		ua.host_id = :host_id AND
 		ua.activity_type = 'software_install' AND
 		ua2.id IS NULL
+		%s
 ),
 upcoming_software_uninstall AS (
 	SELECT
@@ -2379,6 +2407,7 @@ upcoming_software_uninstall AS (
 		ua.host_id = :host_id AND
 		ua.activity_type = 'software_uninstall' AND
 		ua2.id IS NULL
+		%s
 ),
 last_software_install AS (
 	SELECT
@@ -2389,16 +2418,19 @@ last_software_install AS (
 		hsi.status
 	FROM
 		host_software_installs hsi
+		%s
 		LEFT JOIN host_software_installs hsi2
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
 				 hsi.uninstall = hsi2.uninstall AND
 				 hsi2.removed = 0 AND
+				 hsi2.canceled = 0 AND
 				 hsi2.host_deleted_at IS NULL AND
 				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
 		hsi.host_id = :host_id AND
 		hsi.removed = 0 AND
+		hsi.canceled = 0 AND
 		hsi.uninstall = 0 AND
 		hsi.host_deleted_at IS NULL AND
 		hsi2.id IS NULL AND
@@ -2412,6 +2444,7 @@ last_software_install AS (
 				siua.software_installer_id = hsi.software_installer_id AND
 				ua.activity_type = 'software_install'
 		)
+		%s
 ),
 last_software_uninstall AS (
 	SELECT
@@ -2422,17 +2455,20 @@ last_software_uninstall AS (
 		hsi.status
 	FROM
 		host_software_installs hsi
+		%s
 		LEFT JOIN host_software_installs hsi2
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
 				 hsi.uninstall = hsi2.uninstall AND
 				 hsi2.removed = 0 AND
+				 hsi2.canceled = 0 AND
 				 hsi2.host_deleted_at IS NULL AND
 				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
 		hsi.host_id = :host_id AND
 		hsi.removed = 0 AND
 		hsi.uninstall = 1 AND
+		hsi.canceled = 0 AND
 		hsi.host_deleted_at IS NULL AND
 		hsi2.id IS NULL AND
 		NOT EXISTS (
@@ -2445,6 +2481,7 @@ last_software_uninstall AS (
 				siua.software_installer_id = hsi.software_installer_id AND
 				ua.activity_type = 'software_uninstall'
 		)
+		%s
 ),
 upcoming_vpp_install AS (
 	SELECT
@@ -2470,6 +2507,7 @@ upcoming_vpp_install AS (
 		ua.host_id = :host_id AND
 		ua.activity_type = 'vpp_app_install' AND
 		ua2.id IS NULL
+		%s
 ),
 last_vpp_install AS (
 	SELECT
@@ -2481,6 +2519,7 @@ last_vpp_install AS (
 		%s
 	FROM
 		host_vpp_software_installs hvsi
+		%s
 		LEFT JOIN nano_command_results ncr
 			ON ncr.command_uuid = hvsi.command_uuid
 		LEFT JOIN host_vpp_software_installs hvsi2
@@ -2488,10 +2527,12 @@ last_vpp_install AS (
 				 hvsi.adam_id = hvsi2.adam_id AND
 				 hvsi.platform = hvsi2.platform AND
 				 hvsi2.removed = 0 AND
+				 hvsi2.canceled = 0 AND
 				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 	WHERE
 		hvsi.host_id = :host_id AND
 		hvsi.removed = 0 AND
+		hvsi.canceled = 0 AND
 		hvsi2.id IS NULL AND
 		NOT EXISTS (
 			SELECT 1
@@ -2504,6 +2545,7 @@ last_vpp_install AS (
 				vaua.platform = hvsi.platform AND
 				ua.activity_type = 'vpp_app_install'
 		)
+		%s
 )
 		SELECT
 			st.id,
@@ -2646,7 +2688,21 @@ last_vpp_install AS (
 			)
 
 			%s
-`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), status, softwareIsInstalledOnHostClause, onlySelfServiceClause)
+`,
+		vulnerabilityExcludeClause,
+		vulnerabilityExcludeClause,
+		vulnerableLastSoftwareInstallJoins,
+		vulnerabilityFiltersClause,
+		vulnerableLastSoftwareUninstallJoins,
+		vulnerabilityFiltersClause,
+		vulnerabilityExcludeClause,
+		vppAppHostStatusNamedQuery("hvsi", "ncr", "status"),
+		vulnerableLastVppInstall,
+		vulnerabilityFiltersClause,
+		status,
+		softwareIsInstalledOnHostClause,
+		onlySelfServiceClause,
+	)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2701,7 +2757,8 @@ last_vpp_install AS (
 				WHERE
 					hsi.host_id = :host_id AND
 					hsi.software_installer_id = si.id AND
-					hsi.removed = 0
+					hsi.removed = 0 AND
+					hsi.canceled = 0
 			) AND
 			-- sofware install/uninstall is not upcoming on host
 			NOT EXISTS (
@@ -2723,7 +2780,8 @@ last_vpp_install AS (
 				WHERE
 					hvsi.host_id = :host_id AND
 					hvsi.adam_id = vat.adam_id AND
-					hvsi.removed = 0
+					hvsi.removed = 0 AND
+					hvsi.canceled = 0
 			) AND
 			-- VPP install is not upcoming on host
 			NOT EXISTS (
@@ -3215,7 +3273,7 @@ SELECT
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = :host_id AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0 AND hsi.status = :software_status_installed
+WHERE hsi.removed = 0 AND hsi.canceled = 0 AND hsi.status = :software_status_installed
 
 UNION
 
@@ -3230,7 +3288,7 @@ FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
 INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
+WHERE hvsi.removed = 0 AND hvsi.canceled = 0 AND ncr.status = :mdm_status_acknowledged
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":                   hostID,

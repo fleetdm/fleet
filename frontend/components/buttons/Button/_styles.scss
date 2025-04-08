@@ -326,6 +326,10 @@ $base-class: "button";
     color: $core-vibrant-blue;
     box-sizing: border-box;
     padding: $pad-small;
+
+    .children-wrapper {
+      gap: $pad-small; // For icons next to text like Pagination buttons
+    }
   }
 
   &--inverse-alert {

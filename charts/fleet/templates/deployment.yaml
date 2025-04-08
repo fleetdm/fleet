@@ -304,8 +304,8 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
-          runAsGroup: 3333
-          runAsUser: 3333
+          runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           runAsNonRoot: true
         livenessProbe:
           httpGet:
@@ -363,8 +363,8 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
-          runAsGroup: 3333
-          runAsUser: 3333
+          runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           runAsNonRoot: true
       {{- end }}
       hostPID: false

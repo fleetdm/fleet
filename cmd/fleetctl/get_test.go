@@ -1449,7 +1449,6 @@ spec:
   description: some desc
   discard_data: false
   interval: 0
-  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query1
@@ -1483,7 +1482,6 @@ spec:
   description: some desc 4
   discard_data: false
   interval: 60
-  labels_include_any: []
   logging: differential_ignore_removals
   min_osquery_version: 5.3.0
   name: query4
@@ -1492,9 +1490,9 @@ spec:
   query: select 4;
   team: ""
 `
-	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
+	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 {"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":true,"labels_include_any":["label1","label2"]}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals","discard_data":false,"labels_include_any":[]}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals","discard_data":false}}
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
@@ -1522,7 +1520,6 @@ spec:
   description: some desc 3
   discard_data: false
   interval: 3600
-  labels_include_any: []
   logging: snapshot
   min_osquery_version: 5.4.0
   name: query3
@@ -1531,7 +1528,7 @@ spec:
   query: select 3;
   team: Foobar
 `
-	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot","discard_data":false,"labels_include_any":[]}}
+	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot","discard_data":false}}
 `
 
 	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "queries"}))
@@ -1609,7 +1606,6 @@ spec:
   description: some desc
   discard_data: false
   interval: 0
-  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: globalQuery1
@@ -1618,7 +1614,7 @@ spec:
   query: select 1;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
@@ -1633,7 +1629,6 @@ spec:
   description: some team desc
   discard_data: false
   interval: 3600
-  labels_include_any: []
   logging: differential
   min_osquery_version: 5.2.0
   name: teamQuery1
@@ -1642,7 +1637,7 @@ spec:
   query: select 2;
   team: Foobar
 `
-	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false,"labels_include_any":[]}}
+	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
@@ -1754,7 +1749,6 @@ spec:
   description: some desc 2
   discard_data: false
   interval: 0
-  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query2
@@ -1763,7 +1757,7 @@ spec:
   query: select 2;
   team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1839,7 +1833,6 @@ spec:
   description: some desc
   discard_data: false
   interval: 0
-  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query1
@@ -1855,7 +1848,6 @@ spec:
   description: some desc 2
   discard_data: false
   interval: 0
-  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query2
@@ -1871,7 +1863,6 @@ spec:
   description: some desc 3
   discard_data: false
   interval: 0
-  labels_include_any: []
   logging: ""
   min_osquery_version: ""
   name: query3
@@ -1880,9 +1871,9 @@ spec:
   query: select 3;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false,"labels_include_any":[]}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))

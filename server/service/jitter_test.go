@@ -21,18 +21,18 @@ func TestJitterForHost(t *testing.T) {
 		jitterMinutes := int64(jitter.Minutes())
 		histogram[jitterMinutes]++
 	}
-	min, max := math.MaxInt, 0
+	minVal, maxVal := math.MaxInt, 0
 	for jitterMinutes, count := range histogram {
-		if count < min {
-			min = count
+		if count < minVal {
+			minVal = count
 		}
-		if count > max {
-			max = count
+		if count > maxVal {
+			maxVal = count
 		}
 		t.Logf("jitterMinutes=%d \t count=%d\n", jitterMinutes, count)
 	}
-	variation := max - min
-	t.Logf("min=%d \t max=%d \t variation=%d\n", min, max, variation)
+	variation := maxVal - minVal
+	t.Logf("min=%d \t max=%d \t variation=%d\n", minVal, maxVal, variation)
 
 	// check that variation is below 1% of the total amount of hosts
 	require.Less(t, variation, int(float32(hostCount)/0.01))

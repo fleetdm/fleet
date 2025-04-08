@@ -181,6 +181,8 @@ type Datastore interface {
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
+	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
+	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
 	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
 	// GetLabelSpec returns the spec for the named label.
@@ -677,8 +679,10 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
+	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -999,7 +1003,7 @@ type Datastore interface {
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
-	IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
+	IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
@@ -1498,6 +1502,16 @@ type Datastore interface {
 	// not necessarily report as "turned off" in that scenario).
 	ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
 
+	// GetMDMAppleEnrolledDeviceDeletedFromFleet returns the information of a
+	// device that is still enrolled in Fleet MDM but the corresponding host has
+	// been deleted from Fleet.
+	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+
+	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
+	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
+	// but deleted from Fleet.
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
@@ -1615,7 +1629,7 @@ type Datastore interface {
 
 	// GetMDMWindowsProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
 
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
@@ -1949,6 +1963,10 @@ type Datastore interface {
 	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
+	// ClearRemovedFleetMaintainedApps deletes all Fleet-maintained apps that are not in the given
+	// set of slugs.
+	ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error
+
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
@@ -1996,6 +2014,40 @@ type Datastore interface {
 	// Android
 
 	AndroidDatastore
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// CreateScimUser creates a new SCIM user in the database
+	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// ScimUserByID retrieves a SCIM user by ID
+	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
+	// ScimUserByUserName retrieves a SCIM user by username
+	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
+	// ScimUserByUserNameOrEmail finds a SCIM user by username. If it cannot find one, then it tries email, if set.
+	// If multiple users are found with the same email, we log an error and return nil.
+	// Emails and groups are NOT populated in this method.
+	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
+	// ScimUserByHostID retrieves a SCIM user associated with a host ID
+	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
+	// ReplaceScimUser replaces an existing SCIM user in the database
+	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	// DeleteScimUser deletes a SCIM user from the database
+	DeleteScimUser(ctx context.Context, id uint) error
+	// ListScimUsers retrieves a list of SCIM users with optional filtering
+	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
+	// CreateScimGroup creates a new SCIM group in the database
+	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
+	// ScimGroupByID retrieves a SCIM group by ID
+	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// ScimGroupByDisplayName retrieves a SCIM group by display name
+	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
+	// ReplaceScimGroup replaces an existing SCIM group in the database
+	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// DeleteScimGroup deletes a SCIM group from the database
+	DeleteScimGroup(ctx context.Context, id uint) error
+	// ListScimGroups retrieves a list of SCIM groups with pagination
+	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
 }
 
 type AndroidDatastore interface {
