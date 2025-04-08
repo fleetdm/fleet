@@ -1112,6 +1112,37 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  canceledRunScript: (activity: IActivity) => {
+    const { script_name: scriptName, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled {formatScriptNameForActivityItem(scriptName)} on{" "}
+        <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledInstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledUninstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> uninstall on <b>{hostName}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1383,6 +1414,16 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledConditionalAccessAutomations: {
       return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.CanceledRunScript: {
+      return TAGGED_TEMPLATES.canceledRunScript(activity);
+    }
+    case ActivityType.CanceledInstallSoftware:
+    case ActivityType.CanceledInstallAppStoreApp: {
+      return TAGGED_TEMPLATES.canceledInstallSoftware(activity);
+    }
+    case ActivityType.CanceledUninstallSoftware: {
+      return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
     }
 
     default: {

@@ -513,8 +513,7 @@ func (ds *Datastore) ListHostUsers(ctx context.Context, hostID uint) ([]fleet.Ho
 }
 
 // hostRefs are the tables referenced by hosts.
-//
-// Defined here for testing purposes.
+// These tables are cleared when the host is deleted.
 var hostRefs = []string{
 	"host_seen_times",
 	"host_software",
@@ -544,6 +543,7 @@ var hostRefs = []string{
 	"upcoming_activities",
 	"host_certificates",
 	"android_devices",
+	"host_scim_user",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -3822,21 +3822,78 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
-	var email *string
-	if fleetEnrollmentRef != "" {
-		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+	if fleetEnrollmentRef == "" {
+		return ctxerr.Wrap(ctx, errors.New("fleetEnrollmentRef is required"), "update host_emails")
+	}
+
+	idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+	if err != nil {
+		return err
+	}
+
+	// Check if a row already exists with the correct email, host_id, and source.
+	// This is an optimization to reduce load on the DB writer instance.
+	var emailExists uint
+	err = sqlx.GetContext(
+		ctx,
+		ds.reader(ctx),
+		&emailExists,
+		`SELECT COUNT(*) FROM host_emails WHERE email = ? AND host_id = ? AND source = ?`,
+		idp.Email, hostID, fleet.DeviceMappingMDMIdpAccounts,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check existing host_email")
+	}
+	if emailExists == 0 {
+		err = ds.updateOrInsert(
+			ctx,
+			`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
+			`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+			idp.Email, hostID, fleet.DeviceMappingMDMIdpAccounts,
+		)
 		if err != nil {
 			return err
 		}
-		email = &idp.Email
 	}
 
-	return ds.updateOrInsert(
+	// Check if a SCIM user association already exists for this host.
+	var exists uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
+	}
+	if exists > 0 {
+		// We do not replace/delete the association since the IdP SCIM username/email may have changed after the initial association was made.
+		// If the SCIM user is deleted, this association will be deleted via CASCADE.
+		return nil
+	}
+
+	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, idp.Username, idp.Email)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		return ctxerr.Wrap(ctx, err, "get scim user")
+	case fleet.IsNotFound(err) || scimUser == nil:
+		// There is no SCIM association possible at this time
+		return nil
+	}
+
+	err = ds.associateHostWithScimUser(ctx, hostID, scimUser.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "associate host with scim user")
+	}
+	return nil
+}
+
+func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
+	_, err := ds.writer(ctx).ExecContext(
 		ctx,
-		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
-		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
+		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+		hostID, scimUserID,
 	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+	}
+	return nil
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {

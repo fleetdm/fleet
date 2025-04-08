@@ -1,5 +1,4 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import classNames from "classnames";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -23,7 +22,6 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
   IHost,
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IHostResponse,
   IHostMdmData,
@@ -72,12 +70,13 @@ import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
+import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
-import UsersCard from "../cards/Users";
+import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
@@ -107,8 +106,17 @@ import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
 import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import AddEndUserModal from "../cards/User/components/AddEndUserModal";
+import {
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
+} from "../cards/User/helpers";
 
 const baseClass = "host-details";
+
+const defaultCardClass = `${baseClass}__card`;
+const fullWidthCardClass = `${baseClass}__card--full-width`;
+const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -235,6 +243,7 @@ const HostDetailsPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
+  const [showAddEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -246,19 +255,6 @@ const HostDetailsPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
-
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", hostIdFromURL],
-    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
-    {
-      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 
@@ -324,7 +320,6 @@ const HostDetailsPage = ({
   );
 
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
     mdm?.enrollment_status !== null && refetchMdm();
     hostCertificates && refetchHostCertificates();
@@ -507,6 +502,7 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
     }
@@ -674,6 +670,10 @@ const HostDetailsPage = ({
     [host?.display_name]
   );
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -764,10 +764,6 @@ const HostDetailsPage = ({
         break;
       default: // do nothing
     }
-  };
-
-  const onCancelActivity = (activity: IHostUpcomingActivity) => {
-    setSelectedCancelActivity(activity);
   };
 
   const onSelectCertificate = (certificate: IHostCertificate) => {
@@ -863,15 +859,22 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  // host.platform = "windows";
+
   const isDarwinHost = host.platform === "darwin";
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
-    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
-    [`${baseClass}__details-panel--android-grid`]: isAndroidHost,
-    [`${baseClass}__details-panel--macos-grid`]: isDarwinHost,
-  });
+  const showUsersCard = false;
+  // isDarwinHost ||
+  // generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
+  // generateOtherEmailsValues(host.end_users ?? []).length > 0;
+  const showActivityCard = !isAndroidHost;
+  const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showCertificatesCard =
+    (isIosOrIpadosHost || isDarwinHost) &&
+    !!hostCertificates?.certificates.length;
 
   return (
     <MainContent className={baseClass}>
@@ -925,15 +928,31 @@ const HostDetailsPage = ({
                 );
               })}
             </TabList>
-            <TabPanel className={detailsPanelClass}>
+            <TabPanel className={`${baseClass}__details-panel`}>
               <AboutCard
+                className={
+                  showUsersCard ? defaultCardClass : fullWidthCardClass
+                }
                 aboutData={aboutData}
-                deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              {!isAndroidHost && (
+              {showUsersCard && (
+                <UserCard
+                  className={defaultCardClass}
+                  platform={host.platform}
+                  endUsers={host.end_users ?? []}
+                  enableAddEndUser={isDarwinHost}
+                  onAddEndUser={() => setShowAddEndUserModal(true)}
+                />
+              )}
+              {showActivityCard && (
                 <ActivityCard
+                  className={
+                    showAgentOptionsCard
+                      ? doubleHeightCardClass
+                      : defaultCardClass
+                  }
                   activeTab={activeActivityTab}
                   activities={
                     activeActivityTab === "past"
@@ -958,19 +977,26 @@ const HostDetailsPage = ({
                   onCancel={onCancelActivity}
                 />
               )}
-              {!isIosOrIpadosHost && !isAndroidHost && (
+              {showAgentOptionsCard && (
                 <AgentOptionsCard
+                  className={defaultCardClass}
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
                   isChromeOS={host?.platform === "chrome"}
                 />
               )}
               <LabelsCard
+                className={
+                  !showActivityCard && !showAgentOptionsCard
+                    ? fullWidthCardClass
+                    : defaultCardClass
+                }
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              {!isIosOrIpadosHost && !isAndroidHost && (
-                <UsersCard
+              {showLocalUserAccountsCard && (
+                <LocalUserAccountsCard
+                  className={fullWidthCardClass}
                   users={host?.users || []}
                   usersState={usersState}
                   isLoading={isLoadingHost}
@@ -978,24 +1004,22 @@ const HostDetailsPage = ({
                   hostUsersEnabled={featuresConfig?.enable_host_users}
                 />
               )}
-              {(isIosOrIpadosHost || isDarwinHost) &&
-                !!hostCertificates?.certificates.length && (
-                  <CertificatesCard
-                    data={hostCertificates}
-                    hostPlatform={host.platform}
-                    onSelectCertificate={onSelectCertificate}
-                    isError={isErrorHostCertificates}
-                    page={certificatePage}
-                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
-                    onNextPage={() => setCertificatePage(certificatePage + 1)}
-                    onPreviousPage={() =>
-                      setCertificatePage(certificatePage - 1)
-                    }
-                    sortDirection={sortCerts.order_direction}
-                    sortHeader={sortCerts.order_key}
-                    onSortChange={setSortCerts}
-                  />
-                )}
+              {showCertificatesCard && (
+                <CertificatesCard
+                  className={fullWidthCardClass}
+                  data={hostCertificates}
+                  hostPlatform={host.platform}
+                  onSelectCertificate={onSelectCertificate}
+                  isError={isErrorHostCertificates}
+                  page={certificatePage}
+                  pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                  onNextPage={() => setCertificatePage(certificatePage + 1)}
+                  onPreviousPage={() => setCertificatePage(certificatePage - 1)}
+                  sortDirection={sortCerts.order_direction}
+                  sortHeader={sortCerts.order_key}
+                  onSortChange={setSortCerts}
+                />
+              )}
             </TabPanel>
             <TabPanel>
               <SoftwareCard
@@ -1179,7 +1203,8 @@ const HostDetailsPage = ({
           <CancelActivityModal
             hostId={host.id}
             activity={selectedCancelActivity}
-            onCancel={() => setSelectedCancelActivity(null)}
+            onCancelActivity={() => refetchUpcomingActivities()}
+            onExit={() => setSelectedCancelActivity(null)}
           />
         )}
         {selectedCertificate && (
@@ -1189,6 +1214,9 @@ const HostDetailsPage = ({
           />
         )}
       </>
+      {showAddEndUserModal && (
+        <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
+      )}
     </MainContent>
   );
 };

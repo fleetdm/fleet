@@ -270,7 +270,7 @@ func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}
 	return cancelHostUpcomingActivityResponse{}, nil
 }
 
-func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -284,5 +284,18 @@ func (svc *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionCancelHostActivity); err != nil {
 		return err
 	}
-	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, upcomingActivityID)
+
+	// prevent cancellation of lock/wipe that are already activated
+	actMeta, err := svc.ds.GetHostUpcomingActivityMeta(ctx, hostID, executionID)
+	if err != nil {
+		return err
+	}
+	if actMeta.ActivatedAt != nil &&
+		(actMeta.WellKnownAction == fleet.WellKnownActionLock || actMeta.WellKnownAction == fleet.WellKnownActionWipe) {
+		return &fleet.BadRequestError{
+			Message: "Couldn't cancel activity. Lock and wipe can't be canceled if they're about to run to prevent you from losing access to the host.",
+		}
+	}
+
+	return svc.ds.CancelHostUpcomingActivity(ctx, hostID, executionID)
 }

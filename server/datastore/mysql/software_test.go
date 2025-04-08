@@ -5945,13 +5945,100 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
 	result, err := ds.writer(ctx).ExecContext(ctx, `
-        INSERT INTO software (name, version, source, bundle_identifier, title_id)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID,
+		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
 	require.NoError(t, err)
 	insertedID, err := result.LastInsertId()
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure a different created_at timestamp
+
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// upcoming_software_install
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo",
+		Source:          "bar",
+		InstallScript:   "echo",
+		TeamID:          &tm.ID,
+		Filename:        "foo.pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	// insert into software without adding to host
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo")),
+	)
+	require.NoError(t, err)
+	// pending install request
+	_, err = ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// upcoming_software_uninstall
+	installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo2",
+		Source:          "bar2",
+		InstallScript:   "cat",
+		TeamID:          &tm.ID,
+		Filename:        "foo2.pkg",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	// insert into software without adding to host
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo2", "1.0.0", "bar2", &titleID, hex.EncodeToString([]byte("foo2")),
+	)
+	require.NoError(t, err)
+	// pending install request
+	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID)
+	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, software[0].Name, sw[0].Name)
+	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// upcoming_vpp_install
+	pendingVPPApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}},
+		Name:             "vpp2",
+		BundleIdentifier: "com.app.vpp2",
+	}
+	va2, err := ds.InsertVPPAppWithTeam(ctx, pendingVPPApp, &tm.ID)
+	require.NoError(t, err)
+	vpp2 := va2.AdamID
+	createVPPAppInstallRequest(t, ds, tmHost, vpp2, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), tmHost.ID, "")
+	require.NoError(t, err)
+	// Insert software entry for vpp app
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		pendingVPPApp.Name, pendingVPPApp.LatestVersion, "apps", pendingVPPApp.BundleIdentifier, pendingVPPApp.TitleID, hex.EncodeToString([]byte("vpp2")),
+	)
 	require.NoError(t, err)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 

@@ -18,7 +18,7 @@ Create a SAML app in an IdP.
 
 ## Description
 
-If the IT admin configured end user authentication, we change the `configuration_web_url` value in the [enrollment JSON profile](https://developer.apple.com/documentation/devicemanagement/profile) to be `{server_url}/api/v1/fleet/mdm/sso`. This page initiates the SSO flow in the setup assistant webview.
+If the IT admin configured end user authentication, we change the `configuration_web_url` value in the [enrollment JSON profile](https://developer.apple.com/documentation/devicemanagement/profile) to be `{server_url}/mdm/sso`. This page gets the SAML Request from `{server_url}/api/v1/fleet/mdm/sso` and initiates the SSO flow in the setup assistant web view.
 
 `end_user_authentication` setting is global, but `enable_end_user_authentication` is a team setting.
 

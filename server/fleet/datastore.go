@@ -679,9 +679,10 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
-	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
+	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -2023,12 +2024,30 @@ type Datastore interface {
 	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
 	// ScimUserByUserName retrieves a SCIM user by username
 	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
+	// ScimUserByUserNameOrEmail finds a SCIM user by username. If it cannot find one, then it tries email, if set.
+	// If multiple users are found with the same email, we log an error and return nil.
+	// Emails and groups are NOT populated in this method.
+	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
+	// ScimUserByHostID retrieves a SCIM user associated with a host ID
+	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 	// DeleteScimUser deletes a SCIM user from the database
 	DeleteScimUser(ctx context.Context, id uint) error
 	// ListScimUsers retrieves a list of SCIM users with optional filtering
 	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
+	// CreateScimGroup creates a new SCIM group in the database
+	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
+	// ScimGroupByID retrieves a SCIM group by ID
+	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// ScimGroupByDisplayName retrieves a SCIM group by display name
+	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
+	// ReplaceScimGroup replaces an existing SCIM group in the database
+	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// DeleteScimGroup deletes a SCIM group from the database
+	DeleteScimGroup(ctx context.Context, id uint) error
+	// ListScimGroups retrieves a list of SCIM groups with pagination
+	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
 }
 
 type AndroidDatastore interface {

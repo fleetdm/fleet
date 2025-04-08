@@ -7085,6 +7085,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	`, host.ID, uuid.NewString())
 	require.NoError(t, err)
 
+	// Create a SCIM user and link it to host
+	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUserID))
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
