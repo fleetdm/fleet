@@ -60,9 +60,9 @@ var (
 			Channel:    "stable",
 			TargetFile: "orbit.exe",
 		},
-		// NOTE: Currently osquery doesn't fully support ARM64, continue to use the x86 version for now
+		// NOTE: Currently osquery doesn't fully support ARM64, this is experimental
 		constant.OsqueryTUFTargetName: TargetInfo{
-			Platform:   "windows",
+			Platform:   "windows-arm64",
 			Channel:    "stable",
 			TargetFile: "osqueryd.exe",
 		},

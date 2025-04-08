@@ -46,9 +46,8 @@ for system in $SYSTEMS; do
     if [[ $system == "windows" ]]; then
         osqueryd="$osqueryd.exe"
     elif [[ $system == "windows-arm64" ]]; then
-        # TODO osquery ARM is not yet fully supported
         osqueryd="$osqueryd.exe"
-        osqueryd_system="windows"
+        osqueryd_system="windows-arm64"
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
