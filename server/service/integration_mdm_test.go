@@ -15897,8 +15897,8 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[0].UUID)),
 		http.StatusOK, &orbitPostScriptResp)
 
-	// // must not generate a past activity
-	// s.lastActivityMatches(fleet.ActivityTypeCanceledRunScript{}.ActivityName(), "", lastCanceledActID)
+	// must not generate a past activity
+	s.lastActivityMatches(fleet.ActivityTypeCanceledRunScript{}.ActivityName(), "", lastCanceledActID)
 
 	// cancel the uninstall, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[1].UUID), nil, http.StatusNoContent)
@@ -15911,8 +15911,8 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 			hostActivitiesResp.Activities[1].UUID)),
 		http.StatusOK, &orbitPostScriptResp)
 
-	// // must not generate a past activity
-	// s.lastActivityMatches(fleet.ActivityTypeCanceledRunScript{}.ActivityName(), "", lastCanceledActID)
+	// must not generate a past activity
+	s.lastActivityMatches(fleet.ActivityTypeCanceledUninstallSoftware{}.ActivityName(), "", lastCanceledActID)
 
 	// enqueue a VPP app install and software install again
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, vppAppTitleID), &installSoftwareRequest{}, http.StatusAccepted)
@@ -15939,7 +15939,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 		}`, *mdmHost.OrbitNodeKey, hostActivitiesResp.Activities[1].UUID)), http.StatusNoContent)
 
 	// must not generate a past activity
-	s.lastActivityMatches(fleet.ActivityTypeCanceledRunScript{}.ActivityName(), "", lastCanceledActID)
+	s.lastActivityMatches(fleet.ActivityTypeCanceledInstallSoftware{}.ActivityName(), "", lastCanceledActID)
 
 	// the VPP install count only sees the successful VPP app install
 	titleResponse := getSoftwareTitleResponse{}
@@ -15981,11 +15981,4 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", mdmHost.ID), nil, http.StatusOK, &scriptResp)
 	require.Len(t, scriptResp.Scripts, 1)
 	require.Nil(t, scriptResp.Scripts[0].LastExecution)
-
-	// // save a script result for host 1, as the script should've been activated
-	// // when MDM was turned off
-	// var orbitPostScriptResp orbitPostScriptResultResponse
-	// s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
-	// 	json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *mdmHost.OrbitNodeKey, scriptExecID)),
-	// 	http.StatusOK, &orbitPostScriptResp)
 }

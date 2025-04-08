@@ -853,11 +853,11 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
-
 		}
 	}
 
-	if hsr != nil {
+	// don't create a "past" activity if the result was for a canceled activity
+	if hsr != nil && !hsr.Canceled {
 		var user *fleet.User
 		if hsr.UserID != nil {
 			user, err = svc.ds.UserByID(ctx, *hsr.UserID)
@@ -1284,12 +1284,10 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	fmt.Println(">>>> set result")
-	if err := svc.ds.SetHostSoftwareInstallResult(ctx, result); err != nil {
-		fmt.Println(">>>> set result failed")
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
-	fmt.Println(">>>> set result succeeded")
 
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience software install result
@@ -1305,7 +1303,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 
-	if status := result.Status(); status != fleet.SoftwareInstallPending {
+	// do not create a "past" activity if the status is not terminal or if the activity
+	// was canceled.
+	if status := result.Status(); status != fleet.SoftwareInstallPending && !installWasCanceled {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")
