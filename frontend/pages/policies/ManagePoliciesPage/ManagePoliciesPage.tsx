@@ -365,7 +365,7 @@ const ManagePolicyPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const {
-    data: config,
+    data: globalConfig,
     isFetching: isFetchingConfig,
     refetch: refetchConfig,
   } = useQuery<IConfig, Error>(
@@ -766,20 +766,39 @@ const ManagePolicyPage = ({
   }: IConditionalAccessFormData) => {
     setIsUpdatingPolicies(true);
 
-    // const payload = {
-    //   integrations: {
-    //     ...teamConfig.integrations,
-    //     conditional_access_enabled: enableConditionalAccess,
-    //   },
-    // };
+    //     config.integrations.conditional_access_enabled <–– No team enabled/disabled
+    // teamconfig.integrations.conditional_access_enabled <-- all other teams enabled/disabled
+    // config.conditional_access <-- configuration details
+
     try {
       if (teamIdForApi === API_NO_TEAM_ID) {
-        // TODO - patch global config (No team case)
+        // patch global config (No team case)
+
+        // TODO - real API call
+
+        // const payload = {
+        //   integrations: {
+        //     ...globalConfig?.integrations,
+        //     conditional_access_enabled: enableConditionalAccess,
+        //   },
+        // };
+        // // TODO - confirm nothing getting unintentionally overwritten here
         // await configAPI.update(payload);
         Promise.resolve("nice, patched global (no team) config");
       } else {
-        // TODO - patch team config
+        // TODO - real API call
+
+        // const payload = {
+        //   integrations: {
+        //     conditional_access_enabled: enableConditionalAccess,
+        //     // These fields will never actually be changed here. See comment above
+        //     // IGlobalIntegrations definition.
+        //     zendesk: teamConfig?.integrations.zendesk || [],
+        //     jira: teamConfig?.integrations.jira || [],
+        //   },
+        // };
         // await teamsAPI.update(payload, teamIdForApi);
+
         Promise.resolve("nice, patched team config");
       }
       renderFlash(
@@ -859,7 +878,7 @@ const ManagePolicyPage = ({
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
-  const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
+  const automationsConfig = !isAllTeamsSelected ? teamConfig : globalConfig;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
   const showAutomationsDropdown = canManageAutomations;
 
@@ -993,18 +1012,19 @@ const ManagePolicyPage = ({
     );
   };
 
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = globalConfig?.gitops.gitops_mode_enabled;
 
   const isCalEventsConfigured =
-    (config?.integrations.google_calendar &&
-      config?.integrations.google_calendar.length > 0) ??
+    (globalConfig?.integrations.google_calendar &&
+      globalConfig?.integrations.google_calendar.length > 0) ??
     false;
 
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
   const isConditionalAccessConfigured =
-    config?.conditional_access.microsoft_entra_connection_configured ?? false;
+    globalConfig?.conditional_access.microsoft_entra_connection_configured ??
+    false;
 
   const isConditionalAccessEnabled =
     teamConfig?.integrations.conditional_access_enabled ?? false;
@@ -1215,10 +1235,10 @@ const ManagePolicyPage = ({
           <p>{teamsDropdownHelpText}</p>
         </div>
         {renderMainTable()}
-        {config && automationsConfig && showOtherWorkflowsModal && (
+        {globalConfig && automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
-            availableIntegrations={config.integrations}
+            availableIntegrations={globalConfig.integrations}
             availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
