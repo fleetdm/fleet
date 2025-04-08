@@ -4562,7 +4562,7 @@ param, this endpoint is considered a documented REST API endpoint
 
 Kick off authentication with Microsoft Entra to configure conditional access.
 
-`POST /api/v1/conditional-access/microsoft`
+`POST /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
@@ -4595,7 +4595,7 @@ Kick off authentication with Microsoft Entra to configure conditional access.
 
 ### Confirm Microsoft Entra conditional access configuration
 
-`POST /api/v1/conditional-access/microsoft/confirm`
+`POST /api/v1/fleet/conditional-access/microsoft/confirm`
 
 Finalize setup and confirm whether admin consent has been granted in Microsoft Entra.
 
@@ -4617,7 +4617,7 @@ The field `configuration_completed` will be `true` after the admin has consented
 
 ### Delete Microsoft Entra conditional access
 
-`DELETE /api/v1/conditional-access/microsoft`
+`DELETE /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
