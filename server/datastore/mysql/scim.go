@@ -877,3 +877,69 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOpti
 
 	return groups, totalResults, nil
 }
+
+// ScimLastRequest retrieves the last SCIM request info
+func (ds *Datastore) ScimLastRequest(ctx context.Context) (*fleet.ScimLastRequest, error) {
+	const query = `
+				SELECT
+					status, details, updated_at
+				FROM scim_last_request
+				ORDER BY id LIMIT 1
+			`
+	var lastRequest fleet.ScimLastRequest
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &lastRequest, query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim last request")
+	}
+	return &lastRequest, nil
+}
+
+// UpdateScimLastRequest updates the last SCIM request information
+// If no row exists, it creates a new one
+func (ds *Datastore) UpdateScimLastRequest(ctx context.Context, lastRequest *fleet.ScimLastRequest) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Try to update first
+		const updateQuery = `
+				UPDATE scim_last_request
+				SET status = ?, details = ?
+				`
+		result, err := tx.ExecContext(
+			ctx,
+			updateQuery,
+			lastRequest.Status,
+			lastRequest.Details,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update scim last request")
+		}
+
+		// Check if any rows were affected by the update
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for update scim last request")
+		}
+
+		// If no rows were affected, insert a new row
+		if rowsAffected == 0 {
+			const insertQuery = `
+					INSERT INTO scim_last_request (
+						status, details
+					) VALUES (?, ?)
+					`
+			_, err = tx.ExecContext(
+				ctx,
+				insertQuery,
+				lastRequest.Status,
+				lastRequest.Details,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert scim last request")
+			}
+		}
+
+		return nil
+	})
+}

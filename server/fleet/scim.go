@@ -72,3 +72,9 @@ type ScimGroup struct {
 	DisplayName string  `db:"display_name"`
 	ScimUsers   []uint
 }
+
+type ScimLastRequest struct {
+	Status      string    `db:"status"`
+	Details     string    `db:"details"`
+	RequestedAt time.Time `db:"updated_at"`
+}

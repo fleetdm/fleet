@@ -36,10 +36,11 @@ func TestScim(t *testing.T) {
 		{"ReplaceScimGroupValidation", testScimGroupReplaceValidation},
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
+		{"ScimLastRequest", testScimLastRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds, "scim_users", "scim_user_emails", "scim_groups", "scim_user_group")
+			defer TruncateTables(t, ds, "scim_users", "scim_user_emails", "scim_groups", "scim_user_group", "scim_last_request")
 			c.fn(t, ds)
 		})
 	}
@@ -1446,4 +1447,47 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 	}
 	err = ds.ReplaceScimUser(t.Context(), &validUser)
 	assert.NoError(t, err)
+}
+
+func testScimLastRequest(t *testing.T, ds *Datastore) {
+	// Initially, there should be no last request
+	initialRequest, err := ds.ScimLastRequest(t.Context())
+	assert.NoError(t, err)
+	assert.Nil(t, initialRequest)
+
+	// Create a new last request
+	newRequest := &fleet.ScimLastRequest{
+		Status:  "success",
+		Details: "Initial SCIM request",
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), newRequest)
+	assert.NoError(t, err)
+
+	// Retrieve the last request and verify it matches
+	retrievedRequest, err := ds.ScimLastRequest(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, retrievedRequest)
+	assert.Equal(t, "success", retrievedRequest.Status)
+	assert.Equal(t, "Initial SCIM request", retrievedRequest.Details)
+	assert.False(t, retrievedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
+
+	// Update the last request
+	updatedRequest := &fleet.ScimLastRequest{
+		Status:  "error",
+		Details: "Updated SCIM request with error",
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), updatedRequest)
+	assert.NoError(t, err)
+
+	// Retrieve the updated last request and verify it matches
+	retrievedUpdatedRequest, err := ds.ScimLastRequest(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, retrievedUpdatedRequest)
+	assert.Equal(t, "error", retrievedUpdatedRequest.Status)
+	assert.Equal(t, "Updated SCIM request with error", retrievedUpdatedRequest.Details)
+	assert.False(t, retrievedUpdatedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
+
+	// Verify that the updated timestamp is newer
+	assert.True(t, retrievedUpdatedRequest.RequestedAt.After(retrievedRequest.RequestedAt),
+		"Updated request timestamp should be equal to or after the original timestamp")
 }
