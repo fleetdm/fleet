@@ -47,11 +47,12 @@ func TestUp_20250403104321(t *testing.T) {
 	// macOS apps should be modified, others should not
 
 	var gotSoftware []struct {
-		Name     string `db:"name"`
-		Checksum []byte `db:"checksum"`
+		Name       string `db:"name"`
+		Checksum   []byte `db:"checksum"`
+		NameSource string `db:"name_source"`
 	}
 
-	err := db.Select(&gotSoftware, `SELECT name, checksum FROM software`)
+	err := db.Select(&gotSoftware, `SELECT name, checksum, name_source FROM software`)
 	require.NoError(t, err)
 
 	err = db.Select(&softwareTitles, "SELECT name, source, browser, bundle_identifier FROM software_titles")
@@ -89,6 +90,7 @@ func TestUp_20250403104321(t *testing.T) {
 	}
 
 	for _, got := range gotSoftware {
+		require.Equal(t, "basic", got.NameSource)
 		expectedCS, ok := expectedNames[got.Name]
 		require.True(t, ok)
 		require.NotNil(t, got.Checksum, "software without checksum: %s", got.Name)
