@@ -352,7 +352,7 @@ module.exports = {
         // Add the host to the array of macOS hosts to sync with Vanta
         windowsHostsToSyncWithVanta.push(windowsHostToSyncWithVanta);
       }).tolerate((err)=>{// If an error occurs while sending requests for each host, add the error to the errorReportById object.
-        errorReportById[connectionIdAsString].push((`When building an array of Windows hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`));
+        errorReportById[connectionIdAsString] = new Error(`When building an array of Windows hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
       });// After every Windows host
 
       if(errorReportById[connectionIdAsString]){// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
