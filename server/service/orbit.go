@@ -1284,9 +1284,12 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
+	fmt.Println(">>>> set result")
 	if err := svc.ds.SetHostSoftwareInstallResult(ctx, result); err != nil {
+		fmt.Println(">>>> set result failed")
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
+	fmt.Println(">>>> set result succeeded")
 
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// this might be a setup experience software install result
