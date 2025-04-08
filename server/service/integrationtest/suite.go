@@ -48,7 +48,7 @@ func SetUpServerURL(t *testing.T, ds *mysql.Datastore, server *httptest.Server) 
 	require.NoError(t, err)
 }
 
-func SetUpDSRedisService(t *testing.T, uniqueTestName string) (*mysql.Datastore, fleet.RedisPool, config.FleetConfig,
+func SetUpMySQLAndRedisAndService(t *testing.T, uniqueTestName string) (*mysql.Datastore, fleet.RedisPool, config.FleetConfig,
 	fleet.Service, context.Context) {
 	ds := mysql.CreateMySQLDS(t)
 	test.AddAllHostsLabel(t, ds)
