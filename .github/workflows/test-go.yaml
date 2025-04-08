@@ -50,6 +50,8 @@ jobs:
         exclude:
           - isCron: false
             mysql: "mysql:9.1.0" # Only run MySQL 9 tests on cron schedule
+          - isCron: false
+            mysql: "mysql:8.0.32" # Only run MySQL 8.0.32 tests on cron schedule
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
           - suite: "fast"
             mysql: "mysql:8.0.36"
