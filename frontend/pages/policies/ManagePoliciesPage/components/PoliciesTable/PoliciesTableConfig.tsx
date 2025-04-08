@@ -19,6 +19,7 @@ import { PolicyResponse } from "utilities/constants";
 import InheritedBadge from "components/InheritedBadge";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 import PassingColumnHeader from "../PassingColumnHeader";
 
@@ -110,40 +111,44 @@ const generateTableHeaders = (
         const { critical, id, team_id } = cellProps.row.original;
         return (
           <LinkCell
-            className="w250 policy-name-cell"
+            className="w250"
             value={
-              <>
-                <div className="policy-name-text">{cellProps.cell.value}</div>
-                {isPremiumTier && critical && (
-                  <div className="critical-badge">
-                    <span
-                      className="critical-badge-icon"
-                      data-tooltip-id={`critical-tooltip-${id}`}
-                    >
-                      <Icon
-                        className="critical-policy-icon"
-                        name="policy"
-                        size="small"
-                        color="core-fleet-blue"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="critical-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`critical-tooltip-${id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      This policy has been marked as critical.
-                    </ReactTooltip5>
-                  </div>
-                )}
-                {viewingTeamPolicies && team_id === null && (
-                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
-                )}
-              </>
+              <TooltipTruncatedTextCell
+                value={cellProps.cell.value}
+                suffix={
+                  <>
+                    {isPremiumTier && critical && (
+                      <div className="critical-badge">
+                        <span
+                          className="critical-badge-icon"
+                          data-tooltip-id={`critical-tooltip-${id}`}
+                        >
+                          <Icon
+                            className="critical-policy-icon"
+                            name="policy"
+                            size="small"
+                            color="core-fleet-blue"
+                          />
+                        </span>
+                        <ReactTooltip5
+                          className="critical-tooltip"
+                          disableStyleInjection
+                          place="top"
+                          opacity={1}
+                          id={`critical-tooltip-${id}`}
+                          offset={8}
+                          positionStrategy="fixed"
+                        >
+                          This policy has been marked as critical.
+                        </ReactTooltip5>
+                      </div>
+                    )}
+                    {viewingTeamPolicies && team_id === null && (
+                      <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                    )}
+                  </>
+                }
+              />
             }
             path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
               team_id,

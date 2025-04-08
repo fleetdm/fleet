@@ -124,7 +124,7 @@ const generatePolicyTableHeaders = (
                       : PolicyResponse.FAILING,
                   team_id: currentTeamId,
                 }}
-                className="policy-link"
+                rowHover
               />
             )}
           </>

@@ -4,6 +4,7 @@ import React from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
+import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
 
 interface ILinkCellProps {
   value: string | JSX.Element;
@@ -13,6 +14,8 @@ interface ILinkCellProps {
   /** allows viewing overflow for tooltip */
   tooltipContent?: string | React.ReactNode;
   title?: string;
+  tooltipTruncate?: boolean;
+  suffix?: JSX.Element;
 }
 
 const baseClass = "link-cell";
@@ -24,6 +27,8 @@ const LinkCell = ({
   customOnClick,
   title,
   tooltipContent,
+  tooltipTruncate = false,
+  suffix,
 }: ILinkCellProps): JSX.Element => {
   const cellClasses = classnames(baseClass, className);
 
@@ -31,16 +36,32 @@ const LinkCell = ({
     customOnClick && customOnClick(e);
   };
 
-  return tooltipContent ? (
-    <TooltipWrapper
-      className="link-cell-tooltip-wrapper"
-      tipContent={tooltipContent}
+  console.log("tooltipTruncate", tooltipTruncate);
+  console.log("suffix", suffix);
+  if (tooltipTruncate) {
+    <Link
+      className={cellClasses}
+      to={path}
+      onClick={customOnClick}
+      title={title}
     >
-      <Link className={cellClasses} to={path} onClick={onClick} title={title}>
-        {value}
-      </Link>
-    </TooltipWrapper>
-  ) : (
+      <TooltipTruncatedTextCell value={value} suffix={suffix} />
+    </Link>;
+  }
+
+  if (tooltipContent)
+    return (
+      <TooltipWrapper
+        className="link-cell-tooltip-wrapper"
+        tipContent={tooltipContent}
+      >
+        <Link className={cellClasses} to={path} onClick={onClick} title={title}>
+          {value}
+        </Link>
+      </TooltipWrapper>
+    );
+
+  return (
     <Link
       className={cellClasses}
       to={path}

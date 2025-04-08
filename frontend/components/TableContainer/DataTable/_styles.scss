@@ -278,15 +278,25 @@ $shadow-transition-width: 10px;
           padding: $pad-small 0; // larger clickable area
 
           &:hover {
-            text-decoration: underline;
+            // Underlines only the text and not the suffix like badges
+            .tooltip-truncated-cell {
+              text-decoration: none;
+            }
+            .data-table__tooltip-truncated-text {
+              text-decoration: underline;
+            }
           }
+
           > div {
-            display: block;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
           }
+          .truncated-tooltip {
+            font-weight: $regular;
+          }
         }
+
         // css to properly style link-cell with tooltip
         .link-cell-tooltip-wrapper {
           overflow: visible; // fixes tooltip overflow cut off by cell

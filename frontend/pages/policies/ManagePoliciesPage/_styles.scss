@@ -189,26 +189,16 @@
     .data-table-block {
       .data-table {
         tbody {
-          .name__cell {
-            .policy-name-cell {
-              display: flex; // required for inline icon
-              gap: $pad-xsmall;
+          // .name__cell {
+          //   // Underlines only the name text
+          //   &:hover {
+          //     text-decoration: none;
 
-              // Underlines only the name text
-              &:hover {
-                text-decoration: none;
-
-                .policy-name-text {
-                  text-decoration: underline;
-                }
-              }
-
-              .policy-name-text {
-                text-overflow: ellipsis;
-                overflow: hidden;
-              }
-            }
-          }
+          //     .data-table__tooltip-truncated-text {
+          //       text-decoration: underline;
+          //     }
+          //   }
+          // }
 
           .critical-badge,
           .policy-has-not-run {

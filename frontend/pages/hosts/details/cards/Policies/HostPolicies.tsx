@@ -132,6 +132,7 @@ const Policies = ({
           disableMultiRowSelect // Removes hover/click state if deviceUser
           isClientSidePagination
           onClickRow={onClickRow}
+          keyboardSelectableRows
         />
       </>
     );

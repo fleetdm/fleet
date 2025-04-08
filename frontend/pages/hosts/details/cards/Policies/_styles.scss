@@ -28,16 +28,6 @@
             }
           }
 
-          .policy-link {
-            opacity: 0;
-            transition: 250ms;
-            text-overflow: none;
-          }
-          &:hover {
-            .policy-link {
-              opacity: 1;
-            }
-          }
           .policy-info {
             width: 100%; // sets ellipsis
             justify-content: left;
