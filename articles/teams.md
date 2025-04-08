@@ -21,7 +21,7 @@ Fleet's best practice teams:
 - `☁️ Servers`: Security team's production servers.
 - `☁️🐣 Servers (canary)`: Security team's test servers.
 - `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
-- `📱🏢 Company-owned Mobile Devices`: iPhones and iPads purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, iPhones used by iOS Engineers.
+- `📱🏢 Company-owned Mobile Devices`: iPhones and iPads purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, iPhones used by iOS Engineers or conference room iPads.
 - `📱🔐 Personal Mobile Devices`: End users' personal Android devices or iPhones, like those enrolled through a BYOD program, that have access to company resources.
 
 If some of your hosts don't fit into the teams listed above, consider their purpose. This will help determine their risk and compliance requirements, which in turn define their security baseline and appropriate team in Fleet. If these hosts have distinct compliance needs and security baselines, it's advisable to create a new team in Fleet.
