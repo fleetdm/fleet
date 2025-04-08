@@ -176,5 +176,4 @@ software:
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
-    - app_store_id: '618783545' # Slack
-    - app_store_id: '546505307' # Zoom
+    - app_store_id: '803453959' # Slack Desktop
