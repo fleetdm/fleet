@@ -366,8 +366,8 @@ const ManagePolicyPage = ({
 
   const {
     data: globalConfig,
-    isFetching: isFetchingConfig,
-    refetch: refetchConfig,
+    isFetching: isFetchingGlobalConfig,
+    refetch: refetchGlobalConfig,
   } = useQuery<IConfig, Error>(
     ["config"],
     () => {
@@ -528,7 +528,7 @@ const ManagePolicyPage = ({
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
-      !isAllTeamsSelected ? refetchTeamConfig() : refetchConfig();
+      !isAllTeamsSelected ? refetchTeamConfig() : refetchGlobalConfig();
     }
   };
 
@@ -777,6 +777,7 @@ const ManagePolicyPage = ({
         };
         // TODO - confirm nothing getting unintentionally overwritten here
         await configAPI.update(payload);
+        refetchTeamConfig();
       } else {
         const payload = {
           integrations: {
@@ -788,6 +789,7 @@ const ManagePolicyPage = ({
           },
         };
         await teamsAPI.update(payload, teamIdForApi);
+        refetchGlobalConfig();
       }
       renderFlash(
         "success",
@@ -943,7 +945,7 @@ const ManagePolicyPage = ({
       return (
         <PoliciesTable
           policiesList={globalPolicies || []}
-          isLoading={isFetchingGlobalPolicies || isFetchingConfig}
+          isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -975,7 +977,9 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={teamPolicies || []}
           isLoading={
-            isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
+            isFetchingTeamPolicies ||
+            isFetchingTeamConfig ||
+            isFetchingGlobalConfig
           }
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
