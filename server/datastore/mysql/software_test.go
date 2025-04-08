@@ -235,7 +235,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
 
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err := ds.getExistingSoftware(
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, _, err := ds.getExistingSoftware(
 		context.Background(), make(map[string]fleet.Software), incoming,
 	)
 	require.NoError(t, err)
@@ -266,7 +266,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw
 
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err = ds.getExistingSoftware(
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, _, err = ds.getExistingSoftware(
 		context.Background(), make(map[string]fleet.Software), incoming,
 	)
 	require.NoError(t, err)
@@ -305,7 +305,7 @@ func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datast
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
 
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err := ds.getExistingSoftware(
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, _, err := ds.getExistingSoftware(
 		context.Background(), make(map[string]fleet.Software), incoming,
 	)
 	require.NoError(t, err)
@@ -336,7 +336,7 @@ func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datast
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw
 
-	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, err = ds.getExistingSoftware(
+	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, _, err = ds.getExistingSoftware(
 		context.Background(), make(map[string]fleet.Software), incoming,
 	)
 	require.NoError(t, err)
@@ -375,7 +375,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
 
-	incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, err := ds.getExistingSoftware(
+	incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, _, err := ds.getExistingSoftware(
 		context.Background(), make(map[string]fleet.Software), incoming,
 	)
 	require.NoError(t, err)
@@ -404,7 +404,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw
 
-	incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, err = ds.getExistingSoftware(
+	incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, _, err = ds.getExistingSoftware(
 		context.Background(), make(map[string]fleet.Software), incoming,
 	)
 	require.NoError(t, err)
@@ -1244,7 +1244,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(6)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("")))
+	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("", "testing")))
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -1400,9 +1400,14 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 // softwareChecksumComputedColumn computes the checksum for a software entry
 // The calculation must match the one in computeRawChecksum
-func softwareChecksumComputedColumn(tableAlias string) string {
+func softwareChecksumComputedColumn(tableAlias string, source string) string {
 	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
 		tableAlias += "."
+	}
+
+	var nameCol string
+	if source != "apps" {
+		nameCol = fmt.Sprintf("%sname,", tableAlias)
 	}
 
 	// concatenate with separator \x00
@@ -1410,18 +1415,18 @@ func softwareChecksumComputedColumn(tableAlias string) string {
 		` UNHEX(
 		MD5(
 			CONCAT_WS(CHAR(0),
-				%sname,
-				%[1]sversion,
-				%[1]ssource,
-				COALESCE(%[1]sbundle_identifier, ''),
-				`+"%[1]s`release`"+`,
-				%[1]sarch,
-				%[1]svendor,
-				%[1]sbrowser,
-				%[1]sextension_id
+				%s
+				%[2]sversion,
+				%[2]ssource,
+				COALESCE(%[2]sbundle_identifier, ''),
+				`+"%[2]s`release`"+`,
+				%[2]sarch,
+				%[2]svendor,
+				%[2]sbrowser,
+				%[2]sextension_id
 			)
 		)
-	) `, tableAlias,
+	) `, nameCol, tableAlias,
 	)
 }
 
@@ -3304,7 +3309,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 
 	checksums := make([]string, len(software))
 	for i, sw := range software {
-		checksum, err := computeRawChecksum(sw)
+		checksum, err := sw.ComputeRawChecksum()
 		require.NoError(t, err)
 		checksums[i] = hex.EncodeToString(checksum)
 	}

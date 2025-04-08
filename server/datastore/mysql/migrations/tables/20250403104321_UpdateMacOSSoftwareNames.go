@@ -37,12 +37,15 @@ func Up_20250403104321(tx *sql.Tx) error {
 		WHERE source = 'apps'
 		AND bundle_identifier IS NOT NULL
 	`
-
-	// TODO(JVE): add the new column to `software`
-
 	_, err = tx.Exec(softwareStmt)
 	if err != nil {
 		return fmt.Errorf("updating software name and checksum: %w", err)
+	}
+
+	newColStmt := `ALTER TABLE software ADD COLUMN name_source enum('basic', 'bundle_4.67') DEFAULT 'basic' NOT NULL`
+	_, err = tx.Exec(newColStmt)
+	if err != nil {
+		return fmt.Errorf("adding name_source column to software: %w", err)
 	}
 
 	return nil

@@ -1,8 +1,7 @@
 package mysql
 
 import (
-	"context"
-	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"context" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -413,18 +412,22 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 		return nil
 	}
 
-	// TODO(JVE): move the title update logic to ReconcileSoftwareTitles to avoid extra load here
-	// sort the `software` entries by ID and choose the name from the highest ID number
-	stmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
+	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
+
+	hostSoftwareStmt := `
+		INSERT IGNORE INTO host_software 
+			(host_id, software_id, last_opened_at)
+		VALUES
+			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
+
 	fmt.Printf("bundleIDsToNames: %v\n", bundleIDsToSoftware)
 
 	for k, v := range bundleIDsToSoftware {
-		if _, err := tx.ExecContext(ctx, stmt, v.Name, k); err != nil {
+		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
 			return ctxerr.Wrap(ctx, err, "update software names")
 		}
 
-		hostSoftwareStmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES (?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1) ,?)`)
-		fmt.Printf("attempting to update host_software software_name: %v hostID: %v software_id: %v last_opened_at: %v\n", v.Name, k, hostID, v.ID, v.LastOpenedAt)
+		// fmt.Printf("attempting to update host_software software_name: %v hostID: %v software_id: %v last_opened_at: %v\n", v.Name, k, hostID, v.ID, v.LastOpenedAt)
 		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host software")
 		}
@@ -516,7 +519,7 @@ func (ds *Datastore) getExistingSoftware(
 	for uniqueName, s := range incoming {
 		_, ok := current[uniqueName]
 		if !ok {
-			checksum, err := computeRawChecksum(s)
+			checksum, err := s.ComputeRawChecksum()
 			if err != nil {
 				return nil, nil, nil, nil, err
 			}
@@ -723,18 +726,6 @@ func deleteUninstalledHostSoftwareDB(
 	}
 
 	return deletedSoftware, nil
-}
-
-// computeRawChecksum computes the checksum for a software entry
-// The calculation must match the one in softwareChecksumComputedColumn
-func computeRawChecksum(sw fleet.Software) ([]byte, error) {
-	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
-	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
-	if err != nil {
-		return nil, err
-	}
-	return h.Sum(nil), nil
 }
 
 // insertNewInstalledHostSoftwareDB inserts host_software that is in softwareChecksums map,

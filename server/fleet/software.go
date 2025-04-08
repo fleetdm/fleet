@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,6 +106,23 @@ func (s Software) ToUniqueStr() string {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+// computeRawChecksum computes the checksum for a software entry
+// The calculation must match the one in softwareChecksumComputedColumn
+func (s Software) ComputeRawChecksum() ([]byte, error) {
+	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.Browser, s.ExtensionID}
+	// Only incorporate name if the Software is not a macOS app, because names on macOS are easily
+	// mutable and can lead to unintentional duplicates of Software in Fleet.
+	if s.Source != "apps" {
+		cols = append([]string{s.Name}, cols...)
+	}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
+	if err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }
 
 type VulnerableSoftware struct {
