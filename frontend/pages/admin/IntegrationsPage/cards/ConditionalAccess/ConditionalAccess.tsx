@@ -62,7 +62,6 @@ const DeleteConditionalAccessModal = ({
             type="button"
             variant="alert"
             onClick={onDelete}
-            // className="delete-loading"
             isLoading={isUpdating}
           >
             Delete
@@ -80,14 +79,14 @@ const DeleteConditionalAccessModal = ({
 };
 
 // conditions –> UI phases:
-// 	- no config.tenant id –> "form" √
+// 	- no config.tenant id –> "form"
 //  - config.tenant id:
-//    - and config.confirmed –> "configured" √
-//    - not config.confirmed –> "confirming-configured", hit confirmation endpoint √
-//      - confirmation endpoint returns false –> "form", prefilled with current tid √
-//      - confirmation endpoint returns true –> "configured" √
-//      - conf ep returns error –> DataError, under header √
-// 	- form submitted –> "form-submitted", new tab to MS stuff √
+//    - and config.confirmed –> "configured"
+//    - not config.confirmed –> "confirming-configured", hit confirmation endpoint
+//      - confirmation endpoint returns false –> "form", prefilled with current tid
+//      - confirmation endpoint returns true –> "configured"
+//      - conf ep returns error –> DataError, under header
+// 	- form submitted –> "form-submitted", new tab to MS stuff
 //
 
 interface IFormData {
@@ -153,8 +152,6 @@ const ConditionalAccess = () => {
         );
       } else {
         setPhase(Phase.Form);
-        // TODO - in e2e testing, confirm that form state still contains tenant id as expected
-        // and doesn't need to be set again
         renderFlash(
           "error",
           "Could not verify conditional access integration. Please try connecting again."
@@ -183,8 +180,6 @@ const ConditionalAccess = () => {
       }
     }
   }, [configMsetId, configMseConfigured]);
-
-  // EARLY RETURN FOR FREE TIER
 
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
@@ -231,8 +226,6 @@ const ConditionalAccess = () => {
         "success",
         "Successfully disconnected from Miscrosoft Entra."
       );
-      // TODO - confirm config values are updated on server and don't need to be explicitly set to
-      // defaults here
       setIsUpdating(false);
       toggleDeleteConditionalAccessModal();
       setPhase(Phase.Form);
@@ -303,7 +296,6 @@ const ConditionalAccess = () => {
         );
       case Phase.FormSubmitted:
         return (
-          // TODO - confirm border color
           <InfoBanner>
             To complete your integration, follow the instructions in the other
             tab, then refresh this page to verify.
@@ -320,12 +312,9 @@ const ConditionalAccess = () => {
             <div className="tenant-id">
               <Icon name="success" />
               <b>Microsoft Entra tenant ID:</b>{" "}
-              {/* TODO - address buginess with truncation –> tooltip enabling */}
               <TooltipTruncatedText value={formData[MSETID]} />
             </div>
-            {/* TODO - ensure delete button doesn't get pushed out of banner */}
             <Button
-              // className={`${baseClass}__delete-mse-integration`}
               variant="text-icon"
               onClick={toggleDeleteConditionalAccessModal}
             >

@@ -2,7 +2,6 @@ import endpoints from "utilities/endpoints";
 import {
   ActivityType,
   IActivity,
-  IActivityDetails,
   IHostPastActivity,
   IHostUpcomingActivity,
 } from "interfaces/activity";

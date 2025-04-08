@@ -1272,7 +1272,6 @@ const ManagePolicyPage = ({
             onSubmit={onUpdateConditionalAccess}
             configured={isConditionalAccessConfigured}
             enabled={isConditionalAccessEnabled}
-            teamId={currentTeamId ?? 0}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
           />

@@ -11,15 +11,6 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "conditional-access-modal";
 
-// <ConditionalAccessModal
-//   onExit={toggleConditionalAccessModal}
-//   onSubmit={onUpdateConditionalAccess}
-//   configured={isConditionalAccessConfigured}
-//   enabled={isConditionalAccessEnabled}
-//   teamId={currentTeamId ?? 0}
-//   isUpdating={isUpdatingPolicies}
-//   gitOpsModeEnabled={gitOpsModeEnabled}
-
 export interface IConditionalAccessFormData {
   enabled: boolean;
 }
@@ -29,7 +20,6 @@ interface IConditionalAccessModal {
   onSubmit: (data: IConditionalAccessFormData) => void;
   configured: boolean;
   enabled: boolean;
-  teamId: number;
   isUpdating: boolean;
   gitOpsModeEnabled?: boolean;
 }
@@ -39,7 +29,6 @@ const ConditionalAccessModal = ({
   onSubmit,
   configured,
   enabled,
-  teamId,
   isUpdating,
   gitOpsModeEnabled = false,
 }: IConditionalAccessModal) => {
