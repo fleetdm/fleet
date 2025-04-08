@@ -1,4 +1,4 @@
-import { IConfig, IMdmConfig } from "interfaces/config";
+import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
@@ -54,6 +54,15 @@ export const createMockMdmConfig = (
   overrides?: Partial<IMdmConfig>
 ): IMdmConfig => {
   return { ...DEFAULT_CONFIG_MDM_MOCK, ...overrides };
+};
+
+export const DEFAULT_LICENSE_MOCK: ILicense = {
+  tier: "free",
+  expiration: "0001-01-01T00:00:00Z",
+  device_count: 4,
+  note: "",
+  organization: "",
+  managed_cloud: true,
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
@@ -113,14 +122,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     activity_expiry_window: 90,
   },
   agent_options: "",
-  license: {
-    tier: "free",
-    expiration: "0001-01-01T00:00:00Z",
-    device_count: 4,
-    note: "",
-    organization: "",
-    managed_cloud: true,
-  },
+  license: DEFAULT_LICENSE_MOCK,
   webhook_settings: {
     host_status_webhook: {
       enable_host_status_webhook: true,
