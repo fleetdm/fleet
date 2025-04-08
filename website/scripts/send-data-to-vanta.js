@@ -465,7 +465,7 @@ module.exports = {
       } else {
         // If an error was logged for a VantaConnection, log the error, and increment the numberOfLoggedErrors
         for(let error of hostApiErrorReportById[connectionIdAsString]){
-          sails.log.warn('p1: An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+error);
+          sails.log.warn('p1: An error occurred while sending API requests to get information about a host for a VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+error);
         }
       }
     }//∞
