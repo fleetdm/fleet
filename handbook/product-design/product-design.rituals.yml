@@ -88,7 +88,7 @@
   task: "User story review"
   startedOn: "2025-01-16"
   frequency: "Weekly"
-  description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
+  description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer. If an Engineering DRI is assigned, they remain assigned through estimation, after which the ticket is assigned to the Engineering Manager. The Engineering DRI will not necessarily be the developer on the ticket."
   dri: "noahtalerman"
 - 
   task: "🦢🚀🔄 Design sync"
