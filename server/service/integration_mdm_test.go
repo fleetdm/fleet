@@ -15925,8 +15925,33 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// cancel the VPP app install, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[0].UUID), nil, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallAppStoreApp{}.ActivityName(),
+	lastCanceledActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeCanceledInstallAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "software_title": "App 1", "software_title_id": %d}`, mdmHost.ID, mdmHost.DisplayName(), vppAppTitleID), 0)
+
+	// to be able to simulate the host sending a MDM result post-cancelation,
+	// we need to re-activate the MDM command.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE nano_enrollment_queue SET active = 1 WHERE id = ? AND command_uuid = ?`, mdmHost.UUID, hostActivitiesResp.Activities[0].UUID)
+		return err
+	})
+
+	// record a result for the VPP app post-cancelation
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	assert.NotNil(t, cmd)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		case "InstallApplication":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		default:
+			require.Fail(t, "unexpected command", cmd.Command.RequestType)
+		}
+	}
+	// must not generate a past activity
+	s.lastActivityMatches(fleet.ActivityTypeCanceledInstallAppStoreApp{}.ActivityName(), "", lastCanceledActID)
 
 	// cancel the software install, confirm canceled activity
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", mdmHost.ID, hostActivitiesResp.Activities[1].UUID), nil, http.StatusNoContent)

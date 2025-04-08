@@ -1383,7 +1383,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, sw1_2, pendingActs[1].UUID)
 
 	// set a result for the software install
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
@@ -1471,7 +1471,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// set a result for the software install
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
