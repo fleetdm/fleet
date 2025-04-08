@@ -791,6 +791,15 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
 		}
+
+		// if the activity is related to lock/wipe actions, clear the status for that
+		// action as it was canceled (note that lock/wipe is prevented at the service
+		// layer from being canceled if it was already activated).
+		const clearLockWipeStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND (lock_ref = ? OR wipe_ref = ?)`
+		if _, err := tx.ExecContext(ctx, clearLockWipeStmt, hostID, executionID, executionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host_mdm_actions")
+		}
+
 		// must get the host uuid for the setup experience and nano table updates
 		const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
 		var hostUUID string

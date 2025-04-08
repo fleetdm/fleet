@@ -16007,3 +16007,97 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	require.Len(t, scriptResp.Scripts, 1)
 	require.Nil(t, scriptResp.Scripts[0].LastExecution)
 }
+
+func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	// create a couple linux hosts, which are locked/wiped via scripts
+	h1 := createOrbitEnrolledHost(t, "ubuntu", "h1", s.ds)
+	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
+
+	// enqueue a lock and a wipe respectively as immediate upcoming activities
+	var lockResp lockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h1.ID), nil, http.StatusOK, &lockResp)
+	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp.DeviceStatus)
+	require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
+	s.lastActivityMatches(fleet.ActivityTypeLockedHost{}.ActivityName(), "", 0)
+
+	var wipeResp wipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h2.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	s.lastActivityMatches(fleet.ActivityTypeWipedHost{}.ActivityName(), "", 0)
+
+	// check that all are upcoming, get the exec IDs
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h1.ID), nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	lockExecID := hostActivitiesResp.Activities[0].UUID
+
+	hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h2.ID), nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	wipeExecID := hostActivitiesResp.Activities[0].UUID
+
+	// trying to cancel those activities fail, as the action could've started
+	res := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", h1.ID, lockExecID), nil, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "Lock and wipe can't be canceled if they're about to run")
+	res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", h2.ID, wipeExecID), nil, http.StatusBadRequest)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, "Lock and wipe can't be canceled if they're about to run")
+
+	// create a couple more linux hosts, which are locked/wiped via scripts
+	h3 := createOrbitEnrolledHost(t, "ubuntu", "h3", s.ds)
+	h4 := createOrbitEnrolledHost(t, "ubuntu", "h4", s.ds)
+
+	// this time enqueue a script before the lock/wipe for each host, so that lock/wipe are cancelable
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h3.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h4.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	time.Sleep(time.Millisecond)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h3.ID), nil, http.StatusOK, &lockResp)
+	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp.DeviceStatus)
+	require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
+	lockActID := s.lastActivityMatches(fleet.ActivityTypeLockedHost{}.ActivityName(), "", 0)
+
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h4.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	wipeActID := s.lastActivityMatches(fleet.ActivityTypeWipedHost{}.ActivityName(), "", 0)
+
+	// check that all are upcoming, get the exec IDs
+	hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h3.ID), nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 2)
+	lockExecID = hostActivitiesResp.Activities[1].UUID
+
+	hostActivitiesResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h4.ID), nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 2)
+	wipeExecID = hostActivitiesResp.Activities[1].UUID
+	_, _ = lockActID, wipeActID
+
+	// cancel the lock and wipe succeeds
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", h3.ID, lockExecID), nil, http.StatusNoContent)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", h4.ID, wipeExecID), nil, http.StatusNoContent)
+
+	// host lock/wipe status should've been reset
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h3.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.EqualValues(t, fleet.DeviceStatusUnlocked, *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.EqualValues(t, fleet.PendingActionNone, *getHostResp.Host.MDM.PendingAction)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h4.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.EqualValues(t, fleet.DeviceStatusUnlocked, *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.EqualValues(t, fleet.PendingActionNone, *getHostResp.Host.MDM.PendingAction)
+
+	// past lock/wipe actions have been cleared
+}
