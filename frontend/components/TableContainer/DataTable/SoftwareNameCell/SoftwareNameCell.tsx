@@ -150,18 +150,17 @@ const SoftwareNameCell = ({
     <LinkCell
       className={baseClass}
       path={path}
+      tooltipTruncate
       customOnClick={onClickSoftware}
-      value={
-        <>
-          <SoftwareIcon name={name} source={source} url={iconUrl} />
-          <span className="software-name">{name}</span>
-          {hasPackage && (
-            <InstallIconWithTooltip
-              isSelfService={isSelfService}
-              installType={installType}
-            />
-          )}
-        </>
+      prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
+      value={name}
+      suffix={
+        hasPackage ? (
+          <InstallIconWithTooltip
+            isSelfService={isSelfService}
+            installType={installType}
+          />
+        ) : undefined
       }
     />
   );
