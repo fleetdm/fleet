@@ -6,8 +6,8 @@ This guide details which API endpoints to make publicly accessible.
 
 If you would like to manage hosts that can travel outside your VPN or intranet, we recommend only exposing the osquery endpoints to the public internet:
 
-- `/api/osquery`
-- `/api/v1/osquery`
+- `/api/osquery/*`
+- `/api/v1/osquery/*`
 
 ## Using Fleet Desktop on remote devices
 
