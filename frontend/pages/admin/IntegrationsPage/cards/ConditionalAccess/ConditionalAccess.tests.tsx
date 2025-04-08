@@ -5,7 +5,5 @@ import { render, screen } from "@testing-library/react";
 import ConditionalAccess from "./ConditionalAccess";
 
 describe("ConditionalAccess component", () => {
-  it("", () => {
-
-  });
+  it("", () => {});
 });
