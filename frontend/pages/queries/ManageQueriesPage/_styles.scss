@@ -54,6 +54,14 @@
       width: 200px;
     }
 
+    .table-container {
+      &__results-count {
+        .form-field--slider {
+          align-self: center;
+        }
+      }
+    }
+
     .data-table-block {
       .data-table {
         &__wrapper {

@@ -7,7 +7,7 @@ import { SingleValue } from "react-select-5";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { APP_CONTEXT_ALL_TEAMS_ID, API_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { getNextLocationPath } from "utilities/helpers";
@@ -20,6 +20,8 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
+import Slider from "components/forms/fields/Slider";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -42,6 +44,7 @@ export interface IQueriesTableProps {
     order_key?: string;
     order_direction?: "asc" | "desc";
     team_id?: string;
+    merge_inherited?: string;
   };
   currentTeamId?: number;
   isPremiumTier?: boolean;
@@ -171,6 +174,19 @@ const QueriesTable = ({
     ]
   );
 
+  const handleShowInheritedQueriesToggle = useCallback(() => {
+    const locationPath = getNextLocationPath({
+      pathPrefix: PATHS.MANAGE_QUERIES,
+      queryParams: {
+        ...queryParams,
+        merge_inherited:
+          queryParams?.merge_inherited === "false" ? undefined : "false",
+      },
+    });
+    console.log("locationPath", locationPath);
+    router?.push(locationPath);
+  }, [queryParams, router]);
+
   const emptyParams: IEmptyTableProps = {
     graphicName: "empty-queries",
     header: "You don't have any queries",
@@ -290,8 +306,35 @@ const QueriesTable = ({
           }}
           emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() =>
-            ((totalQueriesCount || searchQuery) && (
-              <TableCount name="queries" count={totalQueriesCount} />
+            ((totalQueriesCount ||
+              searchQuery ||
+              queryParams?.merge_inherited === "false") && (
+              <>
+                <TableCount name="queries" count={totalQueriesCount} />
+                {currentTeamId !== API_ALL_TEAMS_ID && (
+                  <Slider
+                    value={queryParams?.merge_inherited !== "false"}
+                    onChange={handleShowInheritedQueriesToggle}
+                    inactiveText={
+                      <span>
+                        {/* span required for correct spacing */}
+                        Show{" "}
+                        <TooltipWrapper tipContent="Queries that run on all hosts.">
+                          inherited queries
+                        </TooltipWrapper>
+                      </span>
+                    }
+                    activeText={
+                      <span>
+                        Show{" "}
+                        <TooltipWrapper tipContent="Queries that run on all hosts.">
+                          inherited queries
+                        </TooltipWrapper>
+                      </span>
+                    }
+                  />
+                )}
+              </>
             )) ||
             null
           }

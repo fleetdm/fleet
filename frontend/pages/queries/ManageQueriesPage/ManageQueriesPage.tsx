@@ -26,7 +26,6 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -52,6 +51,7 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       team_id?: string;
+      merge_inherited?: string;
     };
     search: string;
   };
@@ -119,10 +119,6 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
-  const [
-    tableQueryDataForApi,
-    setTableQueryDataForApi,
-  ] = useState<ITableQueryData>();
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -150,7 +146,10 @@ const ManageQueriesPage = ({
         query: location.query.query,
         orderDirection: location.query.order_direction,
         orderKey: location.query.order_key,
-        mergeInherited: teamIdForApi !== API_ALL_TEAMS_ID,
+        mergeInherited:
+          teamIdForApi !== API_ALL_TEAMS_ID
+            ? location.query.merge_inherited !== "false"
+            : false,
         targetedPlatform: location.query.platform,
       },
     ],
