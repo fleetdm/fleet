@@ -27,10 +27,8 @@ env:
   OSQUERY_VERSION: 5.16.0
 
 permissions:
-  contents: write
   id-token: write
   attestations: write
-  packages: write
 
 jobs:
   generate-macos:

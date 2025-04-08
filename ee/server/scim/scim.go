@@ -28,15 +28,13 @@ func RegisterSCIM(
 	logger kitlog.Logger,
 ) error {
 	config := scim.ServiceProviderConfig{
-		// TODO: DocumentationURI and Authentication scheme
 		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
-		SupportFiltering: true,
-		SupportPatch:     true,
 		MaxResults:       maxResults,
 	}
 
 	// The common attributes are id, externalId, and meta.
 	// In practice only meta.resourceType is required, while the other four (created, lastModified, location, and version) are not strictly required.
+	// RFC: https://tools.ietf.org/html/rfc7643#section-4.1
 	userSchema := schema.Schema{
 		ID:          "urn:ietf:params:scim:schemas:core:2.0:User",
 		Name:        optional.NewString("User"),
@@ -85,6 +83,63 @@ func RegisterSCIM(
 				Description: optional.NewString("A Boolean value indicating the User's administrative status."),
 				Name:        "active",
 			})),
+			schema.ComplexCoreAttribute(schema.ComplexParams{
+				Description: optional.NewString("A list of groups to which the user belongs, either through direct membership, through nested groups, or dynamically calculated."),
+				MultiValued: true,
+				Mutability:  schema.AttributeMutabilityReadOnly(),
+				Name:        "groups",
+				SubAttributes: []schema.SimpleParams{
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("The identifier of the User's group."),
+						Mutability:  schema.AttributeMutabilityReadOnly(),
+						Name:        "value",
+					}),
+					schema.SimpleReferenceParams(schema.ReferenceParams{
+						Description:    optional.NewString("The URI of the corresponding 'Group' resource to which the user belongs."),
+						Mutability:     schema.AttributeMutabilityReadOnly(),
+						Name:           "$ref",
+						ReferenceTypes: []schema.AttributeReferenceType{"Group"},
+					}),
+				},
+			}),
+		},
+	}
+
+	// RFC: https://tools.ietf.org/html/rfc7643#section-4.2
+	groupSchema := schema.Schema{
+		ID:          "urn:ietf:params:scim:schemas:core:2.0:Group",
+		Name:        optional.NewString("Group"),
+		Description: optional.NewString("SCIM Group"),
+		Attributes: []schema.CoreAttribute{
+			schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+				Description: optional.NewString("A human-readable name for the Group. REQUIRED."),
+				Name:        "displayName",
+				Required:    true,
+			})),
+			schema.ComplexCoreAttribute(schema.ComplexParams{
+				Description: optional.NewString("A list of members of the Group."),
+				MultiValued: true,
+				Name:        "members",
+				SubAttributes: []schema.SimpleParams{
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("Identifier of the member of this Group."),
+						Mutability:  schema.AttributeMutabilityImmutable(),
+						Name:        "value",
+					}),
+					schema.SimpleReferenceParams(schema.ReferenceParams{
+						Description:    optional.NewString("The URI corresponding to a SCIM resource that is a member of this Group."),
+						Mutability:     schema.AttributeMutabilityImmutable(),
+						Name:           "$ref",
+						ReferenceTypes: []schema.AttributeReferenceType{"User"},
+					}),
+					schema.SimpleStringParams(schema.StringParams{
+						CanonicalValues: []string{"User"},
+						Description:     optional.NewString("A label indicating the type of resource, e.g., 'User' or 'Group'."),
+						Mutability:      schema.AttributeMutabilityImmutable(),
+						Name:            "type",
+					}),
+				},
+			}),
 		},
 	}
 
@@ -97,6 +152,14 @@ func RegisterSCIM(
 			Description: optional.NewString("User Account"),
 			Schema:      userSchema,
 			Handler:     NewUserHandler(ds, scimLogger),
+		},
+		{
+			ID:          optional.NewString("Group"),
+			Name:        "Group",
+			Endpoint:    "/Groups",
+			Description: optional.NewString("Group"),
+			Schema:      groupSchema,
+			Handler:     NewGroupHandler(ds, scimLogger),
 		},
 	}
 
@@ -132,6 +195,8 @@ func RegisterSCIM(
 		return handler
 	}
 
+	// We cannot use Go URL path pattern like {version} because the http.StripPrefix method
+	// that gets us to the root SCIM path does not support wildcards: https://github.com/golang/go/issues/64909
 	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
 	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
 	return nil

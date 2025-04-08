@@ -12,7 +12,9 @@ const InstalledSoftwareActivityItem = ({
   tab,
   activity,
   onShowDetails,
+  onCancel,
   hideCancel,
+  isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
   const { self_service, software_title: title } = details;
@@ -37,6 +39,8 @@ const InstalledSoftwareActivityItem = ({
       activity={activity}
       hideCancel={hideCancel}
       onShowDetails={onShowDetails}
+      onCancel={onCancel}
+      isSoloActivity={isSoloActivity}
     >
       <>{actorDisplayName}</> {installedSoftwarePrefix} <b>{title}</b> on this
       host{self_service && " (self-service)"}.{" "}

@@ -1,11 +1,12 @@
 /** TODO: This component is similar to other UI elements that can
  * be abstracted to use a shared base component (e.g. DetailsWidget) */
 
-import React, { useLayoutEffect, useState } from "react";
+import React from "react";
 import classnames from "classnames";
 
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -13,33 +14,13 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "software-details-widget";
 
-/** TODO: pull this hook and SoftwareName component out. We could use this other places */
-function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
-  const [isTruncated, setIsTruncated] = useState(false);
-
-  useLayoutEffect(() => {
-    const element = ref.current;
-    function updateIsTruncated() {
-      if (element) {
-        const { scrollWidth, clientWidth } = element;
-        setIsTruncated(scrollWidth > clientWidth);
-      }
-    }
-    window.addEventListener("resize", updateIsTruncated);
-    updateIsTruncated();
-    return () => window.removeEventListener("resize", updateIsTruncated);
-  }, [ref]);
-
-  return isTruncated;
-}
-
 interface ISoftwareNameProps {
   name: string;
 }
 
 const SoftwareName = ({ name }: ISoftwareNameProps) => {
   const titleRef = React.useRef<HTMLDivElement>(null);
-  const isTruncated = useTruncatedElement(titleRef);
+  const isTruncated = useCheckTruncatedElement(titleRef);
 
   return (
     <TooltipWrapper

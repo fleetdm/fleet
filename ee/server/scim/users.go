@@ -28,6 +28,7 @@ const (
 	familyNameAttr = "familyName"
 	activeAttr     = "active"
 	emailsAttr     = "emails"
+	groupsAttr     = "groups"
 )
 
 type UserHandler struct {
@@ -49,8 +50,17 @@ func (u *UserHandler) Create(r *http.Request, attributes scim.ResourceAttributes
 		level.Error(u.logger).Log("msg", "failed to get userName", "err", err)
 		return scim.Resource{}, err
 	}
+	// In IETF documents, “non-empty” is generally used in the literal sense of “having at least one character.” That means if a value contains one or more spaces (and nothing else), it is still considered non-empty.
+	if len(userName) == 0 {
+		level.Info(u.logger).Log("msg", "userName is empty")
+		return scim.Resource{}, errors.ScimErrorBadParams([]string{userNameAttr})
+	}
 	_, err = u.ds.ScimUserByUserName(r.Context(), userName)
-	if !fleet.IsNotFound(err) {
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		level.Error(u.logger).Log("msg", "failed to check for userName uniqueness", userNameAttr, userName, "err", err)
+		return scim.Resource{}, err
+	case err == nil:
 		level.Info(u.logger).Log("msg", "user already exists", userNameAttr, userName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 	}
@@ -187,13 +197,13 @@ func getComplexResourceSlice(attributes scim.ResourceAttributes, key string) ([]
 }
 
 func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
-	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
+	user, err := u.ds.ScimUserByID(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user", "id", id)
@@ -208,7 +218,7 @@ func (u *UserHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 
 func createUserResource(user *fleet.ScimUser) scim.Resource {
 	userResource := scim.Resource{}
-	userResource.ID = fmt.Sprintf("%d", user.ID)
+	userResource.ID = scimUserID(user.ID)
 	if user.ExternalID != nil {
 		userResource.ExternalID = optional.NewString(*user.ExternalID)
 	}
@@ -241,10 +251,22 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		}
 		userResource.Attributes[emailsAttr] = emails
 	}
+	if len(user.Groups) > 0 {
+		groups := make([]scim.ResourceAttributes, 0, len(user.Groups))
+		for _, groupID := range user.Groups {
+			groups = append(groups, map[string]interface{}{
+				"value": scimGroupID(groupID),
+				"$ref":  "Groups/" + scimGroupID(groupID),
+			})
+		}
+		userResource.Attributes[groupsAttr] = groups
+	}
 	return userResource
 }
 
 // GetAll
+// Pagination is 1-indexed.
+//
 // Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2
 //
@@ -259,9 +281,9 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 // totalResults: The total number of results returned by the list or query operation.  The value may be larger than the number of
 // resources returned, such as when returning a single page (see Section 3.4.2.4) of results where multiple pages are available.
 func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
-	page := params.StartIndex
-	if page < 1 {
-		page = 1
+	startIndex := params.StartIndex
+	if startIndex < 1 {
+		startIndex = 1
 	}
 	count := params.Count
 	if count > maxResults {
@@ -272,8 +294,10 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 	}
 
 	opts := fleet.ScimUsersListOptions{
-		Page:    uint(page),  // nolint:gosec // ignore G115
-		PerPage: uint(count), // nolint:gosec // ignore G115
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: uint(startIndex), // nolint:gosec // ignore G115
+			PerPage:    uint(count),      // nolint:gosec // ignore G115
+		},
 	}
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
@@ -318,7 +342,7 @@ func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (sc
 }
 
 func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
@@ -329,7 +353,7 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		level.Error(u.logger).Log("msg", "failed to create user from attributes", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
-	user.ID = uint(idUint)
+	user.ID = idUint
 	err = u.ds.ReplaceScimUser(r.Context(), user)
 	switch {
 	case fleet.IsNotFound(err):
@@ -347,12 +371,12 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.6
 // MUST return a 404 (Not Found) error code for all operations associated with the previously deleted resource
 func (u *UserHandler) Delete(r *http.Request, id string) error {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return errors.ScimErrorResourceNotFound(id)
 	}
-	err = u.ds.DeleteScimUser(r.Context(), uint(idUint))
+	err = u.ds.DeleteScimUser(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to delete", "id", id)
@@ -368,12 +392,12 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 // Okta only requires patching the "active" attribute:
 // https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
-	idUint, err := strconv.ParseUint(id, 10, 64)
+	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
 		level.Info(u.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	user, err := u.ds.ScimUserByID(r.Context(), uint(idUint))
+	user, err := u.ds.ScimUserByID(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
@@ -383,6 +407,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		return scim.Resource{}, err
 	}
 
+	if len(operations) > 1 {
+		level.Info(u.logger).Log("msg", "too many patch operations")
+		return scim.Resource{}, errors.ScimErrorBadParams([]string{"Operations"})
+	}
 	for _, op := range operations {
 		if op.Op != "replace" {
 			level.Info(u.logger).Log("msg", "unsupported patch operation", "op", op.Op)
@@ -418,14 +446,16 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		}
 	}
 
-	err = u.ds.ReplaceScimUser(r.Context(), user)
-	switch {
-	case fleet.IsNotFound(err):
-		level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
-		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
-	case err != nil:
-		level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
-		return scim.Resource{}, err
+	if len(operations) != 0 {
+		err = u.ds.ReplaceScimUser(r.Context(), user)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Info(u.logger).Log("msg", "failed to find user to patch", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		case err != nil:
+			level.Error(u.logger).Log("msg", "failed to patch user", "id", id, "err", err)
+			return scim.Resource{}, err
+		}
 	}
 
 	return createUserResource(user), nil
@@ -452,4 +482,18 @@ func removeWhitespace(str string) string {
 		}
 		return r
 	}, str)
+}
+
+func scimUserID(userID uint) string {
+	return fmt.Sprintf("%d", userID)
+}
+
+// extractUserIDFromValue extracts the user ID from a value like "123"
+func extractUserIDFromValue(value string) (uint, error) {
+	id, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(id), nil
 }
