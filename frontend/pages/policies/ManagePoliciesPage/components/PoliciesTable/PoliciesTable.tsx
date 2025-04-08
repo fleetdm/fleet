@@ -4,16 +4,22 @@ import { AppContext } from "context/app";
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
-
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
+import {
+  DEFAULT_SORT_COLUMN,
+  DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
+} from "../../ManagePoliciesPage";
+
+// isLastPage is removable if/when API is updated to include meta.has_next_results
+const isLastPage = (count: number, pageSize: number, page: number) => {
+  return count <= pageSize * (page + 1);
+};
 
 const baseClass = "policies-table";
-
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_SORT_HEADER = "name";
 
 interface IPoliciesTableProps {
   policiesList: IPolicyStats[];
@@ -30,7 +36,7 @@ interface IPoliciesTableProps {
   sortHeader?: "name" | "failing_host_count";
   sortDirection?: "asc" | "desc";
   page: number;
-  resetPageIndex: boolean;
+  count: number;
 }
 
 const PoliciesTable = ({
@@ -48,7 +54,7 @@ const PoliciesTable = ({
   sortHeader,
   sortDirection,
   page,
-  resetPageIndex,
+  count,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
@@ -103,10 +109,11 @@ const PoliciesTable = ({
           config?.update_interval.osquery_policy
         )}
         isLoading={isLoading}
-        defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
+        defaultSortHeader={sortHeader || DEFAULT_SORT_COLUMN}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
         defaultSearchQuery={searchQuery}
-        defaultPageIndex={page}
+        pageIndex={page}
+        disableNextPage={isLastPage(count, DEFAULT_PAGE_SIZE, page)}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         primarySelectAction={{
@@ -129,7 +136,6 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

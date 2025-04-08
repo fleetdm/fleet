@@ -165,7 +165,8 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 	}
 	// UPN (User Principal Names) is only supported by User seat type (2025/03/10)
 	// https://docs.digicert.com/fr/trust-lifecycle-manager/inventory/certificate-attributes-and-extensions/subject-alternative-name--san--attributes.html
-	if len(config.CertificateUserPrincipalNames) > 0 {
+	// Check that UPNs are present and not empty (we only support 1 as of 2025/03/27)
+	if len(config.CertificateUserPrincipalNames) > 0 && len(strings.TrimSpace(config.CertificateUserPrincipalNames[0])) > 0 {
 		attributes, ok := reqBody["attributes"].(map[string]interface{})
 		if !ok {
 			return nil, ctxerr.Errorf(ctx, "unexpected DigiCert attributes type: %T", reqBody["attributes"])

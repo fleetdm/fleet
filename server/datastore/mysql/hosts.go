@@ -3097,10 +3097,35 @@ func (ds *Datastore) ListPoliciesForHost(ctx context.Context, host *fleet.Host) 
 	LEFT JOIN users u ON p.author_id = u.id
 	WHERE (p.team_id IS NULL OR p.team_id = COALESCE((SELECT team_id FROM hosts WHERE id = ?), 0))
 	AND (p.platforms IS NULL OR p.platforms = '' OR FIND_IN_SET(?, p.platforms) != 0)
+	AND (
+		-- Policy has no include labels
+		NOT EXISTS (
+			SELECT 1
+			FROM policy_labels pl
+			WHERE pl.policy_id = p.id
+			AND pl.exclude = 0
+		)
+		-- Policy is included in the include_any list
+		OR EXISTS (
+			SELECT 1
+			FROM policy_labels pl
+			INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
+			WHERE pl.policy_id = p.id
+			AND pl.exclude = 0
+		)
+	)
+	-- Policy is not included in the exclude_any list
+	AND NOT EXISTS (
+		SELECT 1
+		FROM policy_labels pl
+		INNER JOIN label_membership lm ON (lm.host_id = ? AND lm.label_id = pl.label_id)
+		WHERE pl.policy_id = p.id
+		AND pl.exclude = 1
+	)
 	ORDER BY FIELD(response, 'fail', '', 'pass'), p.name`
 
 	var policies []*fleet.HostPolicy
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, host.ID, host.ID, host.FleetPlatform()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, host.ID, host.ID, host.FleetPlatform(), host.ID, host.ID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host policies")
 	}
 	return policies, nil
@@ -3949,7 +3974,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			COALESCE(h.team_id, 0) as team_id,
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
-			ncaa.renew_command_uuid IS NOT NULL as scep_renewal_in_progress,
+			EXISTS (SELECT 1 FROM nano_cert_auth_associations WHERE id = h.uuid AND renew_command_uuid IS NOT NULL) AS scep_renewal_in_progress,
 			h.platform
 		FROM
 			hosts h
@@ -3962,9 +3987,6 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		LEFT JOIN
 			host_dep_assignments hda
 		ON h.id = hda.host_id
-		LEFT JOIN
-			nano_cert_auth_associations ncaa
-		ON h.uuid = ncaa.id
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -5266,7 +5288,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
       h.id,
       h.team_id,
       h.osquery_host_id,
-      h.node_key,
+      COALESCE(h.node_key, '') AS node_key,
       h.hostname,
       h.uuid,
       h.hardware_serial,

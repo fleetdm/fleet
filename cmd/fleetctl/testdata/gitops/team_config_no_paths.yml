@@ -94,11 +94,15 @@ policies:
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
     calendar_events_enabled: true
+    labels_exclude_any:
+      - a
   - name: Passing policy
     platform: linux,windows,darwin,chrome
     description: This policy should always pass.
     resolution: There is no resolution for this policy.
     query: SELECT 1;
+    labels_include_any:
+      - b
   - name: No root logins (macOS, Linux)
     platform: linux,darwin
     query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last

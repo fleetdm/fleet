@@ -13,10 +13,10 @@ import deviceUserAPI, {
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
   IHostDevice,
+  IHostEndUser,
 } from "interfaces/host";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -69,8 +69,16 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
+import UserCard from "../cards/User";
+import {
+  generateChromeProfilesValue,
+  generateOtherEmailsValue,
+} from "../cards/User/helpers";
 
 const baseClass = "device-user";
+
+const defaultCardClass = `${baseClass}__card`;
+const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
@@ -147,20 +155,6 @@ const DeviceUserPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", deviceAuthToken],
-    () =>
-      deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "device_mapping"),
-    {
-      enabled: !!deviceAuthToken,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
-    }
-  );
-
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
@@ -208,7 +202,6 @@ const DeviceUserPage = ({
   );
 
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     deviceCertificates && refetchDeviceCertificates();
   };
 
@@ -395,6 +388,38 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
+  const testEndUserData: IHostEndUser[] = [
+    {
+      idp_id: "1234567890",
+      idp_username: "test",
+      idp_full_name: "Test User",
+      idp_info_updated_at: "2023-10-01T00:00:00Z",
+      // idp_info_updated_at: null,
+      idp_groups: [
+        "apple",
+        "test group",
+        "Test Group 2",
+        "Test Group 3",
+        "test Group 4",
+        "kite",
+      ],
+      other_emails: [
+        {
+          email: "another-email@test.com",
+          source: "google_chrome_profiles",
+        },
+        {
+          email: "another-email-2@test.com",
+          source: "google_chrome_profiles",
+        },
+        {
+          email: "custom-email@test.com",
+          source: "custom",
+        },
+      ],
+    },
+  ];
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -419,6 +444,11 @@ const DeviceUserPage = ({
     // or team config (as applicable)
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
+
+    const showUsersCard = false;
+    // host?.platform === "darwin" ||
+    // generateChromeProfilesValue(testEndUserData).length > 0 ||
+    // generateOtherEmailsValue(testEndUserData).length > 0;
 
     return (
       <div className="core-wrapper">
@@ -487,12 +517,25 @@ const DeviceUserPage = ({
                 </TabList>
                 <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
+                    className={
+                      showUsersCard ? defaultCardClass : fullWidthCardClass
+                    }
                     aboutData={aboutData}
-                    deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {showUsersCard && (
+                    <UserCard
+                      className={defaultCardClass}
+                      platform={host.platform}
+                      endUsers={testEndUserData}
+                      enableAddEndUser={false}
+                      disableFullNameTooltip
+                      disableGroupsTooltip
+                    />
+                  )}
                   {isAppleHost && !!deviceCertificates?.certificates.length && (
                     <CertificatesCard
+                      className={fullWidthCardClass}
                       isMyDevicePage
                       data={deviceCertificates}
                       isError={isErrorDeviceCertificates}

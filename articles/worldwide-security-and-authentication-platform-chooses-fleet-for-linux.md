@@ -1,4 +1,4 @@
-# Worldwide security and authentication platform chooses Fleet for Linux management
+# Worldwide security and authentication platform chooses Fleet for Linux MDM
 
 <div purpose="attribution-quote">
 
@@ -88,3 +88,4 @@ To learn more about how Fleet can support your organization, visit [fleetdm.com/
 <meta name="articleTitle" value="Worldwide security and authentication platform chooses Fleet for Linux management">
 <meta name="description" value="Worldwide security and authentication platform switches to Fleet for Linux device management">
 <meta name="showOnTestimonialsPageWithEmoji" value="🚪">
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />

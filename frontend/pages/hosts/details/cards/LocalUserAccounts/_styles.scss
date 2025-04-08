@@ -1,0 +1,15 @@
+.local-user-accounts-card {
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .username__header {
+          width: $col-md;
+        }
+
+        .shell__header {
+          width: $col-md;
+        }
+      }
+    }
+  }
+}

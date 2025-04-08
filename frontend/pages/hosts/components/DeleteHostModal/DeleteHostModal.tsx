@@ -80,7 +80,8 @@ const DeleteHostModal = ({
           <li>
             {/* TODO(android): iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
             off. */}
-            iOS and iPadOS hosts will re-appear unless MDM is turned off.
+            iOS and iPadOS hosts will re-appear unless MDM is turned off. It may
+            take up to an hour to re-appear.
           </li>
         </ul>
         <div className="modal-cta-wrap">
