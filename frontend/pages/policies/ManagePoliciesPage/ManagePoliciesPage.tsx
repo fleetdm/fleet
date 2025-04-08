@@ -1023,7 +1023,7 @@ const ManagePolicyPage = ({
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
   const isConditionalAccessConfigured =
-    globalConfig?.conditional_access.microsoft_entra_connection_configured ??
+    globalConfig?.conditional_access?.microsoft_entra_connection_configured ??
     false;
 
   const isConditionalAccessEnabled =

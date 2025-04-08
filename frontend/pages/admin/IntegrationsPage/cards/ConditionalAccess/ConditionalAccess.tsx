@@ -121,8 +121,7 @@ const ConditionalAccess = () => {
 
   const [phase, setPhase] = useState<Phase>(Phase.Form);
   const [formData, setFormData] = useState<IFormData>({
-    // [msetid]: "12345",
-    [MSETID]: config?.conditional_access.microsoft_entra_tenant_id || "",
+    [MSETID]: config?.conditional_access?.microsoft_entra_tenant_id || "",
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
