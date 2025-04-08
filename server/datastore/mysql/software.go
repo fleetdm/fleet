@@ -2303,18 +2303,11 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 		INNER JOIN
 			software_titles ON software.title_id = software_titles.id
 		WHERE
-			host_software.host_id = :host_id
+			host_software.host_id = ?
 	`
-	installedSoftwareStmt, args, err := sqlx.Named(installedSoftwareStmt, map[string]any{
-		"host_id": hostID,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build named query for host installed software")
-	}
 
-	installedSoftwareStmt = ds.reader(ctx).Rebind(installedSoftwareStmt)
 	var hostInstalledSoftware []*hostSoftware
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hostInstalledSoftware, installedSoftwareStmt, args...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostInstalledSoftware, installedSoftwareStmt, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -2342,14 +2335,14 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                 ua.activity_type = ua2.activity_type AND
                 (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
             WHERE
-                ua.host_id = :host_id AND
+                ua.host_id = ? AND
                 ua.activity_type = 'software_install' AND
                 ua2.id IS NULL
         ),
         last_software_install AS (
             SELECT
                 hsi.execution_id AS last_install_install_uuid,
-                hsi.created_at AS last_install_installed_at,
+                hsi.updated_at AS last_install_installed_at,
                 hsi.software_installer_id AS installer_id,
                 hsi.status AS status
             FROM
@@ -2362,7 +2355,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
-                hsi.host_id = :host_id AND
+                hsi.host_id = ? AND
                 hsi.removed = 0 AND
                 hsi.uninstall = 0 AND
                 hsi.host_deleted_at IS NULL AND
@@ -2390,14 +2383,8 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
 		INNER JOIN
 			software_titles ON software_installers.title_id = software_titles.id
     `
-	softwareInstallsStmt, args, err := sqlx.Named(softwareInstallsStmt, map[string]any{
-		"host_id": hostID,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build named query for host software installs")
-	}
 	var softwareInstalls []*hostSoftware
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, args...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareInstalls, softwareInstallsStmt, hostID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -2425,14 +2412,14 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                 ua.activity_type = ua2.activity_type AND
                 (ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
             WHERE
-                ua.host_id = :host_id AND
+                ua.host_id = ? AND
                 ua.activity_type = 'software_uninstall' AND
                 ua2.id IS NULL
         ),
         last_software_uninstall AS (
             SELECT
                 hsi.execution_id AS last_uninstall_script_execution_id,
-                hsi.created_at AS last_uninstall_uninstalled_at,
+                hsi.updated_at AS last_uninstall_uninstalled_at,
                 hsi.software_installer_id AS installer_id,
                 hsi.status AS status
             FROM
@@ -2445,7 +2432,7 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
-                hsi.host_id = :host_id AND
+                hsi.host_id = ? AND
                 hsi.removed = 0 AND
                 hsi.uninstall = 1 AND
                 hsi.host_deleted_at IS NULL AND
@@ -2474,16 +2461,10 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
 		INNER JOIN
 			software_titles ON software_installers.title_id = software_titles.id
 		LEFT OUTER JOIN
-			host_script_results ON host_script_results.host_id = :host_id AND host_script_results.execution_id = lsua.last_uninstall_script_execution_id
+			host_script_results ON host_script_results.host_id = ? AND host_script_results.execution_id = lsua.last_uninstall_script_execution_id
     `
-	softwareUninstallsStmt, args, err := sqlx.Named(softwareUninstallsStmt, map[string]any{
-		"host_id": hostID,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build named query for host software uninstalls")
-	}
 	var softwareUninstalls []*hostSoftware
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, args...)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareUninstalls, softwareUninstallsStmt, hostID, hostID, hostID)
 	if err != nil {
 		return nil, err
 	}
@@ -2540,13 +2521,11 @@ func filterSoftwareInstallersByLabel(
 					0 AS count_host_updated_after_labels
 				FROM
 					software_installers
-				LEFT JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id
+				INNER JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = software_installer_labels.label_id
 					AND label_membership.host_id = :host_id
-				WHERE
-					software_installer_labels.exclude = 0
 				GROUP BY
 					software_installers.id
 				HAVING
@@ -2555,7 +2534,7 @@ func filterSoftwareInstallersByLabel(
 			exclude_any AS (
 				SELECT
 					software_installers.id AS installer_id,
-					COUNT(*) AS count_installer_labels,
+					COUNT(software_installer_labels.label_id) AS count_installer_labels,
 					COUNT(label_membership.label_id) AS count_host_labels,
 					SUM(
 						CASE
@@ -2565,15 +2544,13 @@ func filterSoftwareInstallersByLabel(
 					) AS count_host_updated_after_labels
 				FROM
 					software_installers
-				LEFT JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id
-				LEFT JOIN labels
+				INNER JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 1
+				INNER JOIN labels
 					ON labels.id = software_installer_labels.label_id
 				LEFT JOIN label_membership
 					ON label_membership.label_id = software_installer_labels.label_id
 					AND label_membership.host_id = :host_id
-				WHERE
-					software_installer_labels.exclude = 1
 				GROUP BY
 					software_installers.id
 				HAVING
@@ -2630,15 +2607,9 @@ func filterSoftwareInstallersByLabel(
 			return nil, ctxerr.Wrap(ctx, err, "filterSoftwareInstallersByLabel executing query")
 		}
 
-		// go through the list of softwareInstallersIDsToCheck, if the id is in the result from the query, add it to the
-		// list of software installers to return
-		for _, sid := range softwareInstallersIDsToCheck {
-			for _, validSoftwareInstaller := range validSoftwareInstallers {
-				if validSoftwareInstaller.Id == sid {
-					filteredbySoftwareTitleID[validSoftwareInstaller.TitleId] = bySoftwareTitleID[validSoftwareInstaller.TitleId]
-					break
-				}
-			}
+		// go through the returned list of validSoftwareInstaller and add all the titles that meet the label criteria to be returned
+		for _, validSoftwareInstaller := range validSoftwareInstallers {
+			filteredbySoftwareTitleID[validSoftwareInstaller.TitleId] = bySoftwareTitleID[validSoftwareInstaller.TitleId]
 		}
 	}
 
@@ -2649,13 +2620,13 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	var selfServiceFilter string
 	if selfServiceOnly {
 		if isMDMEnrolled {
-			selfServiceFilter = "(vat.self_service = 1 AND TRUE) AND "
+			selfServiceFilter = "(vat.self_service = 1) AND "
 		} else {
-			selfServiceFilter = "(vat.self_service = 1 AND FALSE) AND "
+			selfServiceFilter = "FALSE AND "
 		}
 	}
 	vppInstallsStmt := fmt.Sprintf(`
-        WITH upcoming_vpp_install AS (
+        (   -- upcoming_vpp_install
             SELECT
                 ua.execution_id AS last_install_install_uuid,
                 ua.created_at AS last_install_installed_at,
@@ -2676,16 +2647,18 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			LEFT JOIN
 				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             WHERE
+				-- selfServiceFilter
 				%s
                 ua.host_id = :host_id AND
                 ua.activity_type = 'vpp_app_install' AND
                 ua2.id IS NULL
-        ),
-        last_vpp_install AS (
+        ) UNION (
+		 	-- last_vpp_install
             SELECT
                 hvsi.command_uuid AS last_install_install_uuid,
                 hvsi.created_at AS last_install_installed_at,
                 hvsi.adam_id AS vpp_app_adam_id,
+				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
                 %s
             FROM
                 host_vpp_software_installs hvsi
@@ -2700,10 +2673,11 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			LEFT JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             WHERE
+				-- selfServiceFilter
+				%s
                 hvsi.host_id = :host_id AND
                 hvsi.removed = 0 AND
                 hvsi2.id IS NULL AND
-				%s
                 NOT EXISTS (
                     SELECT 1
                     FROM
@@ -2717,10 +2691,6 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                         ua.activity_type = 'vpp_app_install'
                 )
         )
-        SELECT
-			*
-		FROM
-            (SELECT * FROM upcoming_vpp_install UNION SELECT * FROM last_vpp_install) AS lvia
     `, selfServiceFilter, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"), selfServiceFilter)
 	vppInstallsStmt, args, err := sqlx.Named(vppInstallsStmt, map[string]any{
 		"host_id":                   hostID,
@@ -2826,18 +2796,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		globalOrTeamID = *host.TeamID
 	}
 	namedArgs := map[string]any{
-		"host_id":                   host.ID,
-		"host_platform":             host.FleetPlatform(),
-		"global_or_team_id":         globalOrTeamID,
-		"is_mdm_enrolled":           opts.IsMDMEnrolled,
-		"host_label_updated_at":     host.LabelUpdatedAt,
-		"avail":                     opts.OnlyAvailableForInstall,
-		"self_service":              opts.SelfServiceOnly,
-		"min_cvss":                  opts.MinimumCVSS,
-		"max_cvss":                  opts.MaximumCVSS,
-		"host_compatible_platforms": fleet.HostLinuxOSs,
-		"vpp_apps_platforms":        fleet.VPPAppsPlatforms,
-		"known_exploit":             1,
+		"host_id":               host.ID,
+		"host_platform":         host.FleetPlatform(),
+		"global_or_team_id":     globalOrTeamID,
+		"is_mdm_enrolled":       opts.IsMDMEnrolled,
+		"host_label_updated_at": host.LabelUpdatedAt,
+		"avail":                 opts.OnlyAvailableForInstall,
+		"self_service":          opts.SelfServiceOnly,
+		"min_cvss":              opts.MinimumCVSS,
+		"max_cvss":              opts.MaximumCVSS,
+		"vpp_apps_platforms":    fleet.VPPAppsPlatforms,
+		"known_exploit":         1,
 	}
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
@@ -2927,11 +2896,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	if (opts.OnlyAvailableForInstall && !opts.VulnerableOnly) || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
-		if fleet.IsLinux(host.Platform) {
-			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
-		} else {
-			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
-		}
+		namedArgs["host_compatible_platforms"] = host.FleetPlatform()
 
 		stmtAvailable = `
 			SELECT
@@ -2956,7 +2921,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			software_titles st
 		LEFT OUTER JOIN
 			-- filter out software that is not available for install on the host's platform
-			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
+			software_installers si ON st.id = si.title_id AND si.platform = :host_compatible_platforms AND si.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
 			-- include VPP apps only if the host is on a supported platform
 			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
@@ -3131,12 +3096,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, err
 		}
 
-		stmtAvailable = ds.reader(ctx).Rebind(stmtAvailable)
 		var availableSoftwareTitles []*hostSoftware
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &availableSoftwareTitles, stmtAvailable, args...)
 		if err != nil {
 			return nil, nil, err
 		}
+
+		// These slices are meant to keep track of software that is available for install.
+		// When we are filtering by `OnlyAvailableForInstall`, we will replace the existing
+		// software title records held in bySoftwareTitleID and byVPPAdamID.
+		// If we are just using the `IncludeAvailableForInstall` options, we will simply
+		// add these addtional software titles to bySoftwareTitleID and byVPPAdamID.
 		tempBySoftwareTitleID := make(map[uint]*hostSoftware, len(availableSoftwareTitles))
 		tmpByVPPAdamID := make(map[string]*hostSoftware, len(byVPPAdamID))
 		if opts.OnlyAvailableForInstall {
@@ -3163,7 +3133,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						tmpByVPPAdamID[*s.VPPAppAdamID] = existingVPP
 					}
 				} else {
-					// Don't overwrite the existing vpp record we found earlier
+					// We have an existing vpp record in an installed or pending state, do not overwrite with the
+					// one that's available for install. We would lose specifics about the installed version
 					if !found {
 						byVPPAdamID[*s.VPPAppAdamID] = s
 					}
@@ -3179,7 +3150,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						tempBySoftwareTitleID[s.ID] = existingSoftware
 					}
 				} else {
-					// Don't overwrite the records from software installs and software uninstalls
+					// We have an existing software record in an installed or pending state, do not overwrite with the
+					// one that's available for install. We would lose specifics about the previous record
 					if !found {
 						bySoftwareTitleID[s.ID] = s
 					}
@@ -3213,7 +3185,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if len(softwareTitleIds) > 0 || len(vppAdamIDs) > 0 {
 		var args []interface{}
 		var stmt string
-		var softwareTitleStatment string
+		var softwareTitleStatement string
 		var vppAdamStatment string
 
 		matchClause := ""
@@ -3227,33 +3199,31 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if opts.SelfServiceOnly {
 			softwareOnlySelfServiceClause = ` AND software_installers.self_service = 1 `
 			if opts.IsMDMEnrolled {
-				vppOnlySelfServiceClause = ` OR ( vpp_apps_teams.self_service = 1 AND true ) `
-			} else {
-				vppOnlySelfServiceClause = ` OR ( vpp_apps_teams.self_service = 1 AND false ) `
+				vppOnlySelfServiceClause = ` OR vpp_apps_teams.self_service = 1 `
 			}
 		}
 
 		var cveMetaFilter string
-		var hasCVEFilters bool
+		var hasCVEMetaFilters bool
 		var cveMatchClause string
 		var cveNamedArgs []interface{}
 		var cveMatchArgs []interface{}
 		if opts.KnownExploit {
 			cveMetaFilter += "\nAND cve_meta.cisa_known_exploit = :known_exploit"
-			hasCVEFilters = true
+			hasCVEMetaFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
 			cveMetaFilter += "\nAND cve_meta.cvss_score >= :min_cvss"
-			hasCVEFilters = true
+			hasCVEMetaFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
 			cveMetaFilter += "\nAND cve_meta.cvss_score <= :max_cvss"
-			hasCVEFilters = true
+			hasCVEMetaFilters = true
 		}
-		if hasCVEFilters {
+		if hasCVEMetaFilters {
 			cveMetaFilter, cveNamedArgs, err = sqlx.Named(cveMetaFilter, namedArgs)
 			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for cve filters")
+				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for cve meta filters")
 			}
 		}
 		if opts.ListOptions.MatchQuery != "" {
@@ -3285,7 +3255,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				cveMetaJoin := "\n INNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
 
 				// Only join CVE table if there are filters
-				if hasCVEFilters {
+				if hasCVEMetaFilters {
 					softwareVulnerableJoin += cveMetaJoin
 				}
 				softwareVulnerableJoin += `
@@ -3302,7 +3272,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				installedSoftwareJoinsCondition = `AND software.id IN (?)`
 			}
 
-			softwareTitleStatment = `
+			softwareTitleStatement = `
 			-- SELECT for software
 			%s
 			FROM
@@ -3323,18 +3293,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			var softwareTitleArgs []interface{}
 			if len(softwareIDs) > 0 {
-				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareIDs, softwareTitleIds)
+				softwareTitleStatement, softwareTitleArgs, err = sqlx.In(softwareTitleStatement, softwareIDs, softwareTitleIds)
 			} else {
-				softwareTitleStatment, softwareTitleArgs, err = sqlx.In(softwareTitleStatment, softwareTitleIds)
+				softwareTitleStatement, softwareTitleArgs, err = sqlx.In(softwareTitleStatement, softwareTitleIds)
 			}
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for software titles")
 			}
-			softwareTitleStatment, softwareTitleArgsNamedArgs, err := sqlx.Named(softwareTitleStatment, namedArgs)
+			softwareTitleStatement, softwareTitleArgsNamedArgs, err := sqlx.Named(softwareTitleStatement, namedArgs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for software titles")
 			}
-			softwareTitleStatment = strings.ReplaceAll(softwareTitleStatment, "AND true", matchClause)
+			softwareTitleStatement = strings.ReplaceAll(softwareTitleStatement, "AND true", matchClause)
 			args = append(args, softwareTitleArgsNamedArgs...)
 			args = append(args, softwareTitleArgs...)
 			if len(cveNamedArgs) > 0 {
@@ -3346,7 +3316,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if len(matchArgs) > 0 {
 				args = append(args, matchArgs...)
 			}
-			stmt += softwareTitleStatment
+			stmt += softwareTitleStatement
 		}
 
 		var vppVulnerableJoin string
@@ -3378,7 +3348,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				cveMetaJoin := "\nINNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
 
 				// Only join CVE table if there are filters
-				if hasCVEFilters {
+				if hasCVEMetaFilters {
 					vppVulnerableJoin += cveMetaJoin
 				}
 
