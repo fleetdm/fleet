@@ -137,7 +137,7 @@ jobs:
       DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
-  desktop-windows:
+  desktop-windows-arm64:
     needs: set-version
     runs-on: ubuntu-latest
     steps:
@@ -171,7 +171,7 @@ jobs:
           name: fleet-desktop-arm64.exe
           path: fleet-desktop.exe
 
-desktop-linux:
+  desktop-linux:
     needs: set-version
     runs-on: ubuntu-latest
     steps:
