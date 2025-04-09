@@ -1,8 +1,7 @@
-import React, { useContext } from "react";
+import React from "react";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
-import { AppContext } from "context/app";
 
 import DataError from "components/DataError";
 import Pagination from "components/Pagination";
@@ -16,6 +15,7 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
+  canCancelActivities: boolean;
   onShowDetails: ShowActivityDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
@@ -25,17 +25,12 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
+  canCancelActivities,
   onShowDetails,
   onCancel,
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
-  const {
-    isTeamMaintainerOrTeamAdmin,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-  } = useContext(AppContext);
-
   if (isError) {
     return <DataError />;
   }
@@ -56,9 +51,6 @@ const UpcomingActivityFeed = ({
     );
   }
 
-  const canCancel =
-    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__feed-list`}>
@@ -71,7 +63,7 @@ const UpcomingActivityFeed = ({
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}
-              hideCancel={!canCancel}
+              hideCancel={!canCancelActivities}
               onCancel={() => onCancel(activity)}
             />
           );
