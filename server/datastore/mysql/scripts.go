@@ -364,14 +364,15 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.user_id,
 		hsr.sync_request,
 		hsr.host_deleted_at,
-		hsr.setup_experience_script_id
+		hsr.setup_experience_script_id,
+		hsr.canceled
   FROM
 		host_script_results hsr
 	JOIN
 		script_contents sc
 	WHERE
 		hsr.execution_id = ? AND
-		hsr.script_content_id = sc.id 
+		hsr.script_content_id = sc.id
 		%s
 `, canceledCondition)
 
@@ -391,7 +392,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		ua.user_id,
 		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
 		NULL as host_deleted_at,
-		sua.setup_experience_script_id
+		sua.setup_experience_script_id,
+		0 as canceled
   FROM
 		upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua

@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -3211,7 +3213,7 @@ last_vpp_install AS (
 	return software, metaData, nil
 }
 
-func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
 	const stmt = `
 		UPDATE
 			host_software_installs
@@ -3233,7 +3235,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return output
 	}
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
 			truncateOutput(result.PreInstallConditionOutput),
 			result.InstallScriptExitCode,
@@ -3255,9 +3257,15 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 				return ctxerr.Wrap(ctx, err, "activate next activity")
 			}
 		}
+
+		// load whether or not the result was for a canceled activity
+		err = sqlx.GetContext(ctx, tx, &wasCanceled, `SELECT canceled FROM host_software_installs WHERE execution_id = ?`, result.InstallUUID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
 		return nil
 	})
-	return err
+	return wasCanceled, err
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {

@@ -65,7 +65,7 @@ func CreateHostSoftwareInstallUpcomingActivity(t *testing.T, ds fleet.Datastore,
 // queued via CreateHostSoftwareInstallUpcomingActivity.
 func SetHostSoftwareInstallResult(t *testing.T, ds fleet.Datastore, host *fleet.Host, execID string, exitCode int) {
 	ctx := context.Background()
-	err := ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err := ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           execID,
 		InstallScriptExitCode: &exitCode,
