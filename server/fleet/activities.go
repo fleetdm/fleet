@@ -1597,6 +1597,10 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 	return "wiped_host"
 }
 
+func (a ActivityTypeWipedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user sends a request to wipe a host.`,
 		`This activity contains the following fields:
