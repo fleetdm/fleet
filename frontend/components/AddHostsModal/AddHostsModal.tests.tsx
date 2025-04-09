@@ -61,9 +61,7 @@ describe("AddHostsModal", () => {
     const linuxDebText = screen.getByText(/--type=deb/i);
     expect(linuxDebText).toBeInTheDocument();
     expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
-    expect(
-      screen.queryByText(/--type=rpm/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/--type=rpm/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "ChromeOS" }));
     const extensionId = screen.getByDisplayValue(
