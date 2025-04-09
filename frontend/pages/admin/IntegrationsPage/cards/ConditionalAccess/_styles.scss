@@ -12,6 +12,10 @@
         display: flex;
         align-items: center;
         gap: $pad-xsmall;
+        max-width: 88%;
+        .tooltip-truncated-text {
+          max-width: 66%;
+        }
       }
     }
   }
