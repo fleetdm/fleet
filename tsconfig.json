@@ -7,7 +7,7 @@
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "lib": ["ES2021.String", "ES2020.Promise"]
+    "lib": ["es2019", "dom", "ES2021.String", "ES2020.Promise"]
   },
   "include": ["./frontend/**/*"],
   "exclude": ["node_modules"],
