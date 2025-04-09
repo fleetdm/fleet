@@ -253,7 +253,6 @@ jobs:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-fail
         path: /tmp/fail
 
-
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
     runs-on: 'ubuntu-latest'
