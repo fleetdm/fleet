@@ -62,7 +62,7 @@ describe("AddHostsModal", () => {
     expect(linuxDebText).toBeInTheDocument();
     expect(screen.queryByText(/--enable-scripts/i)).toBeInTheDocument();
     expect(
-      screen.queryByText(/CentOS, Red Hat, and Fedora Linux, use --type=rpm/i)
+      screen.queryByText(/--type=rpm/i)
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "ChromeOS" }));
