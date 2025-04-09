@@ -400,15 +400,9 @@ jobs:
       - name: Check for failures
         run: |
           ls -la
-          any_failed=false
-          for file in *-fail/**; do
-            echo "Reading $file"
-            any_failed=true
-            break
-          done
-          if [ "$any_failed" = true ]; then
+          for file in $(find . -type f -name '*-fail.txt'); do
+            echo "Found $file"
             echo "❌ One or more test jobs failed."
             exit 1
-          else
-            echo "✅ All test jobs succeeded."
-          fi
+          done
+          echo "✅ All test jobs succeeded."
