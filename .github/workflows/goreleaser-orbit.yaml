@@ -250,10 +250,10 @@ jobs:
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: "dist/orbit_windows_arm64_v1/orbit.exe"
+          subject-path: "dist/orbit_windows_arm64_v8.0/orbit.exe"
 
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: orbit-windows-arm64
-          path: dist/orbit_windows_arm64_v1/orbit.exe
+          path: dist/orbit_windows_arm64_v8.0/orbit.exe
