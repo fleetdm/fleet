@@ -398,8 +398,8 @@ jobs:
       - name: Check for failures
         run: |
           ls -la ./
-          for file in $(find ./ -type d -name '*-fail'); do
-            echo "Found $file"
+          for dir in $(find ./ -type d -name '*-fail'); do
+            echo "Found $dir"
             echo "❌ One or more test jobs failed."
             exit 1
           done
