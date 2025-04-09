@@ -9543,7 +9543,7 @@ Content-Type: application/octet-stream
 
 ```json
 {
-    "title_id": 123,
+  "title_id": 123,
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
     "version": "6.44",
