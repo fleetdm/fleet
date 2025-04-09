@@ -186,6 +186,15 @@ jobs:
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
+    - name: Set pass or fail status based on previous step
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "result=pass" >> $GITHUB_ENV
+        else
+          echo "result=fail" >> $GITHUB_ENV
+          echo "fail" > /tmp/fail.txt
+        fi
+
     - name: Create mysql identifier without colon
       if: always()
       run: |
@@ -199,7 +208,7 @@ jobs:
         if-no-files-found: error
 
     - name: Generate summary of errors
-      if: failure()
+      if: env.result == 'fail'
       run: |
         c1grep() { grep "$@" || test $? = 1; }
         c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
@@ -215,7 +224,7 @@ jobs:
         GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
 
     - name: Slack Notification
-      if: github.event.schedule == '0 4 * * *' && failure()
+      if: github.event.schedule == '0 4 * * *' && env.result == 'fail'
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
       with:
         payload-file-path: ./payload.json
@@ -240,6 +249,14 @@ jobs:
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
+
+    - name: Upload fail indicator
+      if: env.result == 'fail'
+      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+      with:
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-fail
+        path: /tmp/fail.txt
+
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
@@ -365,3 +382,33 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: backend
+
+  aggregate-result:
+    needs: upload-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download artifacts
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          pattern: '*-fail'
+
+      - name: Check for failures
+        run: |
+          ls -la
+          any_failed=false
+          for file in *-fail/**; do
+            echo "Reading $file"
+            any_failed=true
+            break
+          done
+          if [ "$any_failed" = true ]; then
+            echo "❌ One or more test jobs failed."
+            exit 1
+          else
+            echo "✅ All test jobs succeeded."
+          fi
