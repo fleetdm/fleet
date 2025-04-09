@@ -12,10 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHelloFail(t *testing.T) {
-	t.Fail()
-}
-
 func TestIdentify(t *testing.T) {
 	t.Parallel()
 

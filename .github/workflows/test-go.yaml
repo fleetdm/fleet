@@ -42,7 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["fast", "scripts"]
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
         mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
         isCron:
@@ -186,11 +186,6 @@ jobs:
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
-    - name: Set fail status
-      if: failure()
-      run: |
-        echo "fail" > /tmp/fail
-
     - name: Create mysql identifier without colon
       if: always()
       run: |
@@ -245,6 +240,11 @@ jobs:
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
+
+    - name: Set fail status
+      if: failure()
+      run: |
+        echo "fail" > /tmp/fail
 
     - name: Upload fail indicator
       if: failure()
@@ -397,7 +397,6 @@ jobs:
 
       - name: Check for failures
         run: |
-          ls -la ./
           for dir in $(find ./ -type d -name '*-fail'); do
             echo "Found $dir"
             echo "❌ One or more test jobs failed."
