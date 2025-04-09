@@ -4200,6 +4200,23 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
+### Confirm installer hashes exist
+
+`GET /api/v1/fleet/software/package_hashes`
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must haave global access, and hashes are checked across the entire instance. |
+| sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
+
+#### Example
+
+`GET /api/v1/fleet/software/package_hashes?sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
+
+##### Default response
+
+`200 OK`
+
 ### Update software title name
 
 `PATCH /api/v1/fleet/software/titles/:software_title_id/name`
@@ -4247,7 +4264,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
 | software.packages   | array   | body  | An array of objects with values below. |
-| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.sha256                      | string   | body  | SHA256 hash of the package. If provided, must be 64 lower-case hex characters. One or both of sha256 or url must be provided. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). If sha256 is also provided and the installer isn't already uploaded with the same hash for that URL, call will fail if the downloaded installer doesn't match the hash. |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
@@ -4309,7 +4327,8 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
     {
       "team_id": 1,
       "title_id": 2751,
-      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   ]
 }
