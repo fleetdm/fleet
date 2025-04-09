@@ -422,7 +422,7 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 		VALUES
 			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
 
-	fmt.Printf("bundleIDsToNames: %v\n", bundleIDsToSoftware)
+	// fmt.Printf("bundleIDsToNames: %v\n", bundleIDsToSoftware)
 
 	for k, v := range bundleIDsToSoftware {
 		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
@@ -536,7 +536,7 @@ func (ds *Datastore) getExistingSoftware(
 			}
 		}
 
-		fmt.Printf("uniqueName: %v ok: %v\n", uniqueName, ok)
+		// fmt.Printf("uniqueName: %v ok: %v\n", uniqueName, ok)
 	}
 
 	if len(incomingChecksumToSoftware) > 0 {
@@ -656,8 +656,9 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	existingBundleIDsToUpdate := make(map[string]fleet.Software)
 	if len(argsWithBundleIdentifier) > 0 {
 		// no-op code change
-		fmt.Println("test")
-		fmt.Printf("argsWithBundleIdentifier: %v\n", argsWithBundleIdentifier)
+		// fmt.Println("test")
+		// fmt.Println("test 2")
+		// fmt.Printf("argsWithBundleIdentifier: %v\n", argsWithBundleIdentifier)
 		incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
 		stmtBundleIdentifier := `SELECT id, name, source, browser, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
@@ -668,8 +669,8 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles with bundle_identifier")
 		}
-		fmt.Printf("stmtBundleIdentifier: %v\n", stmtBundleIdentifier)
-		fmt.Printf("existingSoftwareTitlesForNewSoftwareWithBundleIdentifier: %v\n", existingSoftwareTitlesForNewSoftwareWithBundleIdentifier)
+		// fmt.Printf("stmtBundleIdentifier: %v\n", stmtBundleIdentifier)
+		// fmt.Printf("existingSoftwareTitlesForNewSoftwareWithBundleIdentifier: %v\n", existingSoftwareTitlesForNewSoftwareWithBundleIdentifier)
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
 			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)
@@ -772,9 +773,9 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	// For software items that don't already exist in the software table, we insert them.
 	if len(softwareChecksums) > 0 {
 		keys := make([]string, 0, len(softwareChecksums))
-		for checksum, sw := range softwareChecksums {
+		for checksum := range softwareChecksums {
 			keys = append(keys, checksum)
-			fmt.Printf("sw from softwareChecksums: %v\n", sw)
+			// fmt.Printf("sw from softwareChecksums: %v\n", sw)
 		}
 		for i := 0; i < len(keys); i += softwareInsertBatchSize {
 			start := i
@@ -969,7 +970,7 @@ func updateModifiedHostSoftwareDB(
 ) error {
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
-		fmt.Printf("update host software hostID: %v key: %v sw.name: %v  sw.id: %v  sw.last_opened_at: %v\n", hostID, key, newSw.Name, newSw.ID, newSw.LastOpenedAt)
+		// fmt.Printf("update host software hostID: %v key: %v sw.name: %v  sw.id: %v  sw.last_opened_at: %v\n", hostID, key, newSw.Name, newSw.ID, newSw.LastOpenedAt)
 		curSw, ok := currentMap[key]
 		if !ok || newSw.LastOpenedAt == nil {
 			// software must also exist in current map, and new software must have a
@@ -984,7 +985,7 @@ func updateModifiedHostSoftwareDB(
 		}
 	}
 	sort.Strings(keysToUpdate)
-	fmt.Printf("in update host software keysToUpdate: %v\n", keysToUpdate)
+	// fmt.Printf("in update host software keysToUpdate: %v\n", keysToUpdate)
 
 	for i := 0; i < len(keysToUpdate); i += softwareInsertBatchSize {
 		start := i
