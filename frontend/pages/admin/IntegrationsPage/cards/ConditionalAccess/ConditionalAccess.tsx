@@ -258,7 +258,9 @@ const ConditionalAccess = () => {
         "Successfully disconnected from Miscrosoft Entra."
       );
       toggleDeleteConditionalAccessModal();
-      refetchConfig();
+      // refetchConfig();
+      setPhase(Phase.Form);
+      setIsUpdating(false);
     } catch {
       renderFlash(
         "error",

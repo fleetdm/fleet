@@ -1,5 +1,6 @@
 import endpoints from "utilities/endpoints";
 import {
+  ActivityType,
   IActivity,
   IHostPastActivity,
   IHostUpcomingActivity,
@@ -54,8 +55,69 @@ export default {
     const queryString = buildQueryStringFromParams(queryParams);
 
     const path = `${ACTIVITIES}?${queryString}`;
+    // TODO - restore real API call
 
-    return sendRequest("GET", path);
+    // return sendRequest("GET", path);
+    return sendRequest("GET", path).then((response) => {
+      const fakeBase = {
+        created_at: "2022-11-03T17:22:14Z",
+        id: 1,
+        actor_full_name: "Test User",
+        actor_id: 1,
+        actor_gravatar: "",
+        actor_email: "test@example.com",
+        fleet_initiated: false,
+        // type: ActivityType.ConfiguredMSEntraConditionalAccess,
+        // type: ActivityType.DeletedMSEntraConditionalAccess,
+        // type: ActivityType.EnabledConditionalAccessAutomations,
+        // type: ActivityType.DisabledConditionalAccessAutomations,
+        // details: {
+        //   team_name: "Test Team",
+        // },
+      };
+      const configured: IActivity = {
+        ...fakeBase,
+        type: ActivityType.ConfiguredMSEntraConditionalAccess,
+      };
+      const deleted: IActivity = {
+        ...fakeBase,
+        type: ActivityType.DeletedMSEntraConditionalAccess,
+      };
+      const enabledTeam: IActivity = {
+        ...fakeBase,
+        type: ActivityType.EnabledConditionalAccessAutomations,
+        details: {
+          team_name: "Test Team",
+        },
+      };
+      const enabledNoTeam: IActivity = {
+        ...fakeBase,
+        type: ActivityType.EnabledConditionalAccessAutomations,
+      };
+      const disabledTeam: IActivity = {
+        ...fakeBase,
+        type: ActivityType.DisabledConditionalAccessAutomations,
+        details: {
+          team_name: "Test Team",
+        },
+      };
+      const disabledNoTeam: IActivity = {
+        ...fakeBase,
+        type: ActivityType.DisabledConditionalAccessAutomations,
+      };
+      return {
+        meta: response.meta,
+        activities: [
+          deleted,
+          disabledTeam,
+          enabledTeam,
+          disabledNoTeam,
+          enabledNoTeam,
+          configured,
+          ...response.activities,
+        ],
+      };
+    });
   },
 
   getHostPastActivities: (
