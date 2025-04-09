@@ -27,7 +27,10 @@ const IntegrationsPage = ({
 
   const { section } = params;
 
-  if (!isManagedCloud && section?.includes("conditional-access")) {
+  if (
+    (!isManagedCloud && section?.includes("conditional-access")) ||
+    featureFlags.allowConditionalAccess !== "true"
+  ) {
     router.push(paths.ADMIN_SETTINGS);
   }
   const navItems = getIntegrationSettingsNavItems(isManagedCloud);

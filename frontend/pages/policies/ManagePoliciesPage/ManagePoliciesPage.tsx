@@ -1097,7 +1097,10 @@ const ManagePolicyPage = ({
       },
     ];
 
-    if (globalConfigFromContext?.license.managed_cloud) {
+    if (
+      globalConfigFromContext?.license.managed_cloud &&
+      featureFlags.allowConditionalAccess === "true"
+    ) {
       options.push({
         label: "Conditional access",
         value: "conditional_access",
