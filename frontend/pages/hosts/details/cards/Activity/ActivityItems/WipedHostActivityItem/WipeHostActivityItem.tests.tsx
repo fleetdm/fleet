@@ -14,7 +14,7 @@ describe("WipeHostActivityItem", () => {
     );
 
     expect(screen.getByText("Test User")).toBeVisible();
-    expect(screen.getByText(/locked this host/i)).toBeVisible();
+    expect(screen.getByText(/wiped this host/i)).toBeVisible();
   });
 
   it("does not render the cancel icon", () => {
