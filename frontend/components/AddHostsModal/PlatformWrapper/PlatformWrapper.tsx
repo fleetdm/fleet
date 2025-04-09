@@ -349,11 +349,18 @@ const PlatformWrapper = ({
 
     let packageTypeHelpText;
     if (packageType === "deb") {
-      packageTypeHelpText =
-        <>For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>. For ARM, use <code>--arch=arm64</code></>;
+      packageTypeHelpText = (
+        <>
+          For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
+          For ARM, use <code>--arch=arm64</code>
+        </>
+      );
     } else if (packageType === "msi") {
-      packageTypeHelpText =
-        <>For ARM, use <code>--arch=arm64</code></>;
+      packageTypeHelpText = (
+        <>
+          For ARM, use <code>--arch=arm64</code>
+        </>
+      );
     } else if (packageType === "pkg") {
       packageTypeHelpText = "Install this package to add hosts to Fleet.";
     } else {
