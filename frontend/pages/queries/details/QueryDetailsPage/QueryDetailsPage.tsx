@@ -71,13 +71,13 @@ const QueryDetailsPage = ({
     router.push(PATHS.MANAGE_QUERIES);
   }
   const queryParams = location.query;
-
+  console.log("queryParams", queryParams);
   // Present when observer is redirected from host details > query
   // since observer does not have access to edit page
   const hostId = queryParams?.host_id
     ? parseInt(queryParams.host_id, 10)
     : undefined;
-
+  debugger;
   const { currentTeamId } = useTeamIdParam({
     location,
     router,

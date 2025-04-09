@@ -14,10 +14,20 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
-/** updated value for query params. TODO: update using this value across the codebase */
-type QueryParams2<T> = { [s in keyof T]: QueryValues };
+
+// Updated version supporting arrays
+type QueryParams2<T> = {
+  [K in keyof T]?: T[K] extends QueryValues
+    ? T[K] | T[K][] // Allow single value or array
+    : never;
+};
+
+// Updated filtered types to handle arrays
 type FilteredQueryValues = string | number | boolean;
-type FilteredQueryParams = Record<string, FilteredQueryValues>;
+type FilteredQueryParams = Record<
+  string,
+  FilteredQueryValues | FilteredQueryValues[]
+>;
 
 interface IMutuallyInclusiveHostParams {
   label?: string;
@@ -81,46 +91,55 @@ const reduceQueryParams = (
   return params;
 };
 
-const filterEmptyParams = (queryParams: QueryParams) => {
-  return omitBy(
-    queryParams,
-    (value) => value === undefined || value === "" || value === null
-  ) as Dictionary<FilteredQueryValues>;
+const filterEmptyParams = <T extends QueryParams | QueryParams2<any>>(
+  queryParams: T
+): FilteredQueryParams => {
+  return omitBy(queryParams, (value) => {
+    if (value === undefined || value === null || value === "") {
+      return true;
+    }
+    if (Array.isArray(value)) {
+      return (
+        value.filter((v) => v !== undefined && v !== null && v !== "")
+          .length === 0
+      );
+    }
+    return false;
+  }) as FilteredQueryParams;
 };
 
 /**
- * creates a query string from a query params object. If a value is undefined, null,
- * or an empty string on the queryParams object, that key-value pair will be
- * excluded from the query string.
- * TODO: For UI elements, replace all instances of buildQueryStringFromParams with getPathWithQueryParams
+ * creates a query string from a query params object with support for arrays
  */
 export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
   const filteredParams = filterEmptyParams(queryParams);
 
   let queryString = "";
-  if (!isEmpty(queryParams)) {
-    queryString = reduce<FilteredQueryParams, string[]>(
-      filteredParams,
-      reduceQueryParams,
-      []
-    ).join("&");
+  if (!isEmpty(filteredParams)) {
+    queryString = Object.entries(filteredParams)
+      .reduce((params, [key, value]) => {
+        if (Array.isArray(value)) {
+          // Handle array values by pushing each element separately
+          value.forEach((v) => reduceQueryParams(params, v, key));
+        } else {
+          // Handle single values normally
+          reduceQueryParams(params, value, key);
+        }
+        return params;
+      }, [] as string[])
+      .join("&");
   }
   return queryString;
 };
 
 /**
- * creates a path string from the root path and optional query params
- * @param endpoint
- * @param queryParams
- * @returns string
+ * creates a path with query params supporting both single values and arrays
  */
 export const getPathWithQueryParams = <T>(
   endpoint: string,
   queryParams?: QueryParams2<T>
 ) => {
-  if (!queryParams) {
-    return endpoint;
-  }
+  if (!queryParams) return endpoint;
 
   const queryString = buildQueryStringFromParams(queryParams);
   return queryString ? `${endpoint}?${queryString}` : endpoint;

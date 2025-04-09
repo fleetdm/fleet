@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { filter, includes } from "lodash";
+import { filter, includes, isArray } from "lodash";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -30,7 +30,7 @@ import { getPathWithQueryParams } from "utilities/url";
 export interface ISelectQueryModalProps {
   onCancel: () => void;
   isOnlyObserver?: boolean;
-  hostId: number;
+  hostId: number | number[];
   hostTeamId: number | null;
   router: InjectedRouter; // v3
   currentTeamId: number | undefined;
@@ -73,21 +73,29 @@ const SelectQueryModal = ({
 
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, {
-        host_id: hostId,
-        team_id: currentTeamId,
-      })
-    );
+
+    // Handle both single ID and array of IDs
+    const hostIds = isArray(hostId) ? hostId : [hostId];
+    const queryParams = {
+      host_id: hostIds, // Array will be properly serialized by getPathWithQueryParams
+      team_id: currentTeamId,
+    };
+
+    router.push(getPathWithQueryParams(PATHS.NEW_QUERY, queryParams));
   };
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+
+    // Handle both single ID and array of IDs
+    const hostIds = isArray(hostId) ? hostId : [hostId];
+    const queryParams = {
+      host_id: hostIds, // Array will be properly serialized by getPathWithQueryParams
+      team_id: currentTeamId,
+    };
+
     router.push(
-      getPathWithQueryParams(PATHS.EDIT_QUERY(selectedQuery.id), {
-        host_id: hostId,
-        team_id: currentTeamId,
-      })
+      getPathWithQueryParams(PATHS.EDIT_QUERY(selectedQuery.id), queryParams)
     );
   };
 

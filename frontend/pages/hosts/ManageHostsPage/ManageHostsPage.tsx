@@ -113,6 +113,7 @@ import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
+import SelectQueryModal from "../details/HostDetailsPage/modals/SelectQueryModal";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -213,6 +214,7 @@ const ManageHostsPage = ({
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
+  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
@@ -531,6 +533,10 @@ const ManageHostsPage = ({
 
   const toggleEditColumnsModal = () => {
     setShowEditColumnsModal(!showEditColumnsModal);
+  };
+
+  const toggleSelectQueryModal = () => {
+    setShowSelectQueryModal(!showSelectQueryModal);
   };
 
   const toggleAllMatchingHosts = (shouldSelect: boolean) => {
@@ -1084,6 +1090,11 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  const onQueryHostsClick = (hostIds: number[]) => {
+    toggleSelectQueryModal();
+    setSelectedHostIds(hostIds);
+  };
+
   // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
@@ -1304,6 +1315,17 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderSelectQueryModal = () => (
+    <SelectQueryModal
+      onCancel={() => setShowSelectQueryModal(false)}
+      isOnlyObserver={isOnlyObserver}
+      hostId={selectedHostIds}
+      hostTeamId={teamIdForApi || null}
+      router={router}
+      currentTeamId={teamIdForApi}
+    />
+  );
+
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
@@ -1520,6 +1542,14 @@ const ManageHostsPage = ({
         variant: "text-icon",
         iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+      },
+      {
+        name: "query",
+        onActionButtonClick: onQueryHostsClick,
+        buttonText: "Query",
+        variant: "text-icon",
+        iconSvg: "query",
+        hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer), // TODO
       },
     ];
 
@@ -1740,6 +1770,7 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
+      {showSelectQueryModal && renderSelectQueryModal()}
     </>
   );
 };

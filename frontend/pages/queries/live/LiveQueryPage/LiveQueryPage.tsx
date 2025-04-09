@@ -29,7 +29,7 @@ interface IRunQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; team_id?: string };
+    query: { host_id: string | string[]; team_id?: string };
     search: string;
   };
 }
@@ -69,7 +69,6 @@ const RunQueryPage = ({
     setLastEditedQueryPlatforms,
   } = useContext(QueryContext);
 
-  const [queryParamHostsAdded, setQueryParamHostsAdded] = useState(false);
   const [step, setStep] = useState(LIVE_QUERY_STEPS[1]);
   const [targetedHosts, setTargetedHosts] = useState<IHost[]>(
     selectedQueryTargetsByType.hosts
@@ -119,28 +118,58 @@ const RunQueryPage = ({
     onError: (error) => handlePageError(error),
   });
 
-  useQuery<IHostResponse, Error, IHost>(
-    "hostFromURL",
-    () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_id as string, 10)),
+  const hostIds: number[] | undefined = React.useMemo(() => {
+    const hostIdParam = location.query.host_id;
+
+    if (!hostIdParam) {
+      return undefined;
+    }
+
+    if (Array.isArray(hostIdParam)) {
+      return hostIdParam
+        .map((id) => {
+          const parsedId = parseInt(id, 10);
+          return isNaN(parsedId) ? undefined : parsedId;
+        })
+        .filter((id): id is number => id !== undefined);
+    }
+    const parsedId = parseInt(hostIdParam, 10);
+    return isNaN(parsedId) ? undefined : [parsedId];
+  }, [location.query.host_id]);
+
+  // Fetch host details using a single useQuery
+  const { error: hostsError } = useQuery<IHostResponse[], Error>(
+    ["hostsFromURL", hostIds],
+    async () => {
+      if (!hostIds || hostIds.length === 0) {
+        return [];
+      }
+
+      const hostDetails = await Promise.all(
+        hostIds.map((hostId) => hostAPI.loadHostDetails(hostId))
+      );
+      return hostDetails;
+    },
     {
-      enabled: !!location.query.host_id && !queryParamHostsAdded,
-      select: (data: IHostResponse) => data.host,
-      onSuccess: (host) => {
-        setTargetedHosts((prevHosts) =>
-          prevHosts.filter((h) => h.id !== host.id).concat(host)
-        );
-        const targets = selectedQueryTargets;
-        host.target_type = "hosts";
-        targets.push(host);
-        setSelectedQueryTargets([...targets]);
-        if (!queryParamHostsAdded) {
-          setQueryParamHostsAdded(true);
-        }
-        router.replace(location.pathname);
+      enabled: !!hostIds && hostIds.length > 0,
+      onSuccess: (hostResponses) => {
+        const hosts = hostResponses.map((response) => response.host);
+        setTargetedHosts((prevHosts) => {
+          const newHosts = hosts.filter(
+            (host) => !prevHosts.some((h) => h.id === host.id)
+          );
+          return [...prevHosts, ...newHosts];
+        });
       },
+      onError: handlePageError,
     }
   );
+
+  useEffect(() => {
+    if (hostsError) {
+      handlePageError(hostsError);
+    }
+  }, [hostsError, handlePageError]);
 
   useEffect(() => {
     setSelectedQueryTargetsByType({

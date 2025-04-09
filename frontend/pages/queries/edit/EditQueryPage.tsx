@@ -42,7 +42,7 @@ interface IEditQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; team_id?: string };
+    query: { host_id?: string | string[]; team_id?: string }; // host_id can be a string or string[]
     search: string;
   };
 }
@@ -55,9 +55,25 @@ const EditQueryPage = ({
   location,
 }: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const hostId = location.query.host_id
-    ? parseInt(location.query.host_id as string, 10)
-    : undefined;
+  const { query } = location;
+
+  // Extract host_id from query params, handling both string and array cases
+  const hostId = React.useMemo(() => {
+    if (!query.host_id) {
+      return undefined;
+    }
+
+    const hostIdValues = Array.isArray(query.host_id)
+      ? query.host_id
+      : [query.host_id];
+
+    return hostIdValues
+      .map((id) => {
+        const parsedId = parseInt(id, 10);
+        return isNaN(parsedId) ? undefined : parsedId;
+      })
+      .filter((id) => id !== undefined) as number[] | undefined;
+  }, [query.host_id]);
 
   const {
     currentTeamName: teamNameForQuery,

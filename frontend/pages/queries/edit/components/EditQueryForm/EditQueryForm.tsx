@@ -96,7 +96,7 @@ interface IEditQueryFormProps {
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
   backendValidators: { [key: string]: string };
-  hostId?: number;
+  hostId?: number | number[];
   queryReportsDisabled?: boolean;
   showConfirmSaveChangesModal: boolean;
   setShowConfirmSaveChangesModal: (bool: boolean) => void;
