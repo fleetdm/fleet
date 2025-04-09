@@ -25,8 +25,9 @@ jobs:
       - name: Set FLEET_DESKTOP_VERSION
         id: set-version
         run: |
-          VERSION="${${GITHUB_REF#refs/tags/orbit-}#v}"   # Strip 'orbit-v'
-          "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          # Remove refs/tags prefix and v prefix in version.
+          VERSION=$(echo $GITHUB_REF | sed -e 's|refs/tags/.*v||')
+          echo "FLEET_DESKTOP_VERSION=$VERSION" >> "$GITHUB_OUTPUT"
   
   desktop-macos:
     # Set macOS version to '13' (previously was macos-12, and it was deprecated) for
