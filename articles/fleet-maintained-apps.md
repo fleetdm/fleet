@@ -51,6 +51,8 @@ You can track the installation process in the **Activities** section on the **De
 
 To remove the app, navigate to the **Host Details** page for the appropriate host, then to the **Software** tab. Find the app, then click on the **Actions** drop-down, then **Uninstall**.
 
+Fleet will run the uninstall script configured for the software title. For macOS, Fleet generates default scripts based on the Homebrew recipe (see `zap` in recipe). For Windows, Fleet leverages MSI or .exe data to generate default scripts.
+
 The uninstallation process is also visible in the  **Activities** section on the **Details** tab of this **Host Details** page.
 
 ## Update the app
