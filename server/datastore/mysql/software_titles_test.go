@@ -990,22 +990,24 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 
 	// create 2 software installers
 	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "installer1",
-		Source:          "apps",
-		InstallScript:   "echo",
-		Filename:        "installer1.pkg",
-		UserID:          user1.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		BundleIdentifier: "com.example.installer1",
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
 	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "installer2",
-		Source:          "apps",
-		InstallScript:   "echo",
-		Filename:        "installer2.pkg",
-		UserID:          user1.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		Title:            "installer2",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer2.pkg",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		BundleIdentifier: "com.example.installer2",
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -1047,8 +1049,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
-		{Name: "vpp1", Version: "0.0.1", Source: "apps"},
-		{Name: "installer1", Version: "0.0.1", Source: "apps"},
+		{Name: "vpp1", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.vpp1"},
+		{Name: "installer1", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.installer1"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)

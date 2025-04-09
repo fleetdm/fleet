@@ -1,7 +1,7 @@
 package fleet
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/json"
 	"errors"
 	"fmt"
