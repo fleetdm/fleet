@@ -1466,16 +1466,16 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
 
 	software := []fleet.Software{
-		{Name: "chrome", Version: "0.0.1", Source: "apps"},
-		{Name: "chrome", Version: "0.0.3", Source: "apps"},
-		{Name: "safari", Version: "0.0.3", Source: "apps"},
-		{Name: "safari", Version: "0.0.1", Source: "apps"},
-		{Name: "firefox", Version: "0.0.3", Source: "apps"},
-		{Name: "edge", Version: "0.0.3", Source: "apps"},
-		{Name: "brave", Version: "0.0.3", Source: "apps"},
-		{Name: "opera", Version: "0.0.3", Source: "apps"},
-		{Name: "internet explorer", Version: "0.0.3", Source: "apps"},
-		{Name: "netscape", Version: "0.0.3", Source: "apps"},
+		{Name: "chrome", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.chrome"},
+		{Name: "chrome", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.chrome"},
+		{Name: "safari", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.safari"},
+		{Name: "safari", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.safari"},
+		{Name: "firefox", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.firefox"},
+		{Name: "edge", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.edge"},
+		{Name: "brave", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.brave"},
+		{Name: "opera", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.opera"},
+		{Name: "internet explorer", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.ie"},
+		{Name: "netscape", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.netscape"},
 	}
 
 	sw, err := ds.UpdateHostSoftware(ctx, host.ID, software)
