@@ -5992,8 +5992,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
 	require.NoError(t, err)
-	vppInsertedID, err := result.LastInsertId()
-	require.NoError(t, err)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
@@ -6110,7 +6108,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// add vulnerabilities to last_software_install and last_vpp_install
 	vulns = []fleet.SoftwareVulnerability{
 		{SoftwareID: mutationResults.Inserted[0].ID, CVE: "CVE-file1-0003"},
-		{SoftwareID: uint(vppInsertedID), CVE: "CVE-vpp1-0004"},
 	}
 	for _, v := range vulns {
 		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
@@ -6162,9 +6159,8 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// should only return "file1" and "vpp1"
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, matchingsOpts)
 	require.NoError(t, err)
-	require.Len(t, sw, 2)
+	require.Len(t, sw, 1)
 	require.Equal(t, "file1", sw[0].Name)
-	require.Equal(t, "vpp1", sw[1].Name)
 }
 
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {

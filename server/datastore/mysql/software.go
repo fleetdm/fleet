@@ -3325,48 +3325,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			stmt += softwareTitleStatement
 		}
 
-		var vppVulnerableJoin string
-		if len(vppAdamIDs) > 0 {
-			if opts.VulnerableOnly || opts.ListOptions.MatchQuery != "" {
-				vppVulnerableJoin += " AND ( "
-				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
-					vppVulnerableJoin += `
-						NOT EXISTS (
-							SELECT 1
-							FROM
-								software
-							INNER JOIN 
-								software_cve ON software_cve.software_id = software.id
-							WHERE
-								software.title_id = software_titles.id
-						) OR
-					`
-				}
-
-				vppVulnerableJoin += `
-				EXISTS (
-					SELECT 1
-					FROM
-						software
-					INNER JOIN 
-						software_cve ON software_cve.software_id = software.id
-				`
-				cveMetaJoin := "\nINNER JOIN cve_meta ON software_cve.cve = cve_meta.cve"
-
-				// Only join CVE table if there are filters
-				if hasCVEMetaFilters {
-					vppVulnerableJoin += cveMetaJoin
-				}
-
-				vppVulnerableJoin += `
-					WHERE
-						software.title_id = software_titles.id
-				`
-				vppVulnerableJoin += cveMetaFilter
-				vppVulnerableJoin += "\n" + cveMatchClause
-				vppVulnerableJoin += "\n))"
-			}
-
+		if !opts.VulnerableOnly && len(vppAdamIDs) > 0 {
 			if len(softwareTitleIds) > 0 {
 				vppAdamStatment = ` UNION `
 			}
@@ -3381,8 +3340,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			INNER JOIN
 				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
 			WHERE
-				vpp_apps.adam_id IN (?) 
-			%s
+				vpp_apps.adam_id IN (?)
 				AND true
 			` + vppOnlySelfServiceClause + `
 			-- GROUP BY for vpp apps
@@ -3413,17 +3371,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		var countStmt string
-		if len(softwareTitleIds) > 0 && len(vppAdamIDs) > 0 {
-			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`, `SELECT software_titles.id`, vppVulnerableJoin, `GROUP BY software_titles.id`)
+		if len(softwareTitleIds) > 0 && (!opts.VulnerableOnly && len(vppAdamIDs) > 0) {
+			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
 		} else {
 			if len(softwareTitleIds) > 0 {
 				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`)
 			}
-			if len(vppAdamIDs) > 0 {
-				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, vppVulnerableJoin, `GROUP BY software_titles.id`)
+			if !opts.VulnerableOnly && len(vppAdamIDs) > 0 {
+				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
 			}
 		}
-		countStmt = ds.reader(ctx).Rebind(countStmt)
+
 		if err := sqlx.GetContext(
 			ctx,
 			ds.reader(ctx),
@@ -3469,7 +3427,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.platform
 			`)
 		}
-		if len(vppAdamIDs) > 0 {
+		if !opts.VulnerableOnly && len(vppAdamIDs) > 0 {
 			replacements = append(replacements,
 				// For vpp apps
 				`
@@ -3491,7 +3449,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					GROUP_CONCAT(vpp_apps.platform) as vpp_app_platform_list,
 					GROUP_CONCAT(vpp_apps.icon_url) AS vpp_app_icon_url_list,
 					GROUP_CONCAT(vpp_apps_teams.self_service) AS vpp_app_self_service_list
-			`, vppVulnerableJoin, `
+			`, `
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
@@ -3502,7 +3460,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
 		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
-		stmt = ds.reader(ctx).Rebind(stmt)
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
 		}
@@ -3604,10 +3561,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vppAppVersionList := strings.Split(*softwareTitleRecord.VPPAppVersionList, ",")
 				vppAppPlatformList := strings.Split(*softwareTitleRecord.VPPAppPlatformList, ",")
 				vppAppIconURLList := strings.Split(*softwareTitleRecord.VPPAppIconUrlList, ",")
-
-				if len(vppAppAdamIDList) > 1 {
-					fmt.Print("What are we going to do here???")
-				}
 
 				if storedIndex, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; ok {
 					softwareTitleRecord = deduplicatedList[storedIndex]
