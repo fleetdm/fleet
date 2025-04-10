@@ -1665,7 +1665,7 @@ const ManageHostsPage = ({
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Manage enroll secret</span>
+                  Manage enroll secret
                 </Button>
               )}
               {showAddHostsButton && (
