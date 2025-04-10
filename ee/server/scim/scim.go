@@ -1,8 +1,10 @@
 package scim
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/elimity-com/scim"
@@ -18,7 +20,7 @@ import (
 )
 
 const (
-	maxResults = 1000
+	maxResults = 100
 )
 
 func RegisterSCIM(
@@ -195,6 +197,7 @@ func RegisterSCIM(
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
+		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
@@ -205,6 +208,56 @@ func RegisterSCIM(
 	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
 	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
 	return nil
+}
+
+// LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
+// These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
+func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		multi := newMultiResponseWriter(w)
+		next.ServeHTTP(multi, r)
+
+		var status, details string
+		switch {
+		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
+			status = "success"
+		case multi.statusCode == http.StatusUnauthorized:
+			// We do not save unauthenticated error details; we simply log them.
+			level.Info(logger).Log(
+				"msg", "unauthenticated request",
+				"origin", r.Header.Get("Origin"),
+				"ip", r.RemoteAddr,
+				"method", r.Method,
+				"path", r.URL.Path,
+				"user-agent", r.UserAgent(),
+				"referer", r.Referer(),
+			)
+			return
+		case multi.statusCode >= 400:
+			status = "error"
+			// Attempt to parse the response body as a SCIM error.
+			var parsedScimError errors.ScimError
+			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
+				details = parsedScimError.Detail
+			} else {
+				details = multi.body.String()
+			}
+		default:
+			status = "error"
+			details = fmt.Sprintf("Unhandled status code: %d", multi.statusCode)
+			level.Error(logger).Log("msg", "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
+		}
+		if len(details) > fleet.SCIMMaxFieldLength {
+			details = details[:fleet.SCIMMaxFieldLength]
+		}
+		err := ds.UpdateScimLastRequest(r.Context(), &fleet.ScimLastRequest{
+			Status:  status,
+			Details: details,
+		})
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to update last scim request", "err", err)
+		}
+	})
 }
 
 func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger, next http.Handler) http.Handler {
@@ -247,4 +300,44 @@ func (l *scimErrorLogger) Error(args ...interface{}) {
 	level.Error(l.Logger).Log(
 		"error", fmt.Sprint(args...),
 	)
+}
+
+type multiResponseWriter struct {
+	body       *bytes.Buffer
+	resp       http.ResponseWriter
+	multi      io.Writer
+	statusCode int
+}
+
+const maxBodyBufferSize = 32 * 1024 // 32K
+
+func newMultiResponseWriter(resp http.ResponseWriter) *multiResponseWriter {
+	body := &bytes.Buffer{}
+	multi := io.MultiWriter(body, resp)
+	return &multiResponseWriter{
+		body:  body,
+		resp:  resp,
+		multi: multi,
+	}
+}
+
+// multiResponseWriter implements http.ResponseWriter
+// https://golang.org/pkg/net/http/#ResponseWriter
+var _ http.ResponseWriter = &multiResponseWriter{}
+
+func (w *multiResponseWriter) Header() http.Header {
+	return w.resp.Header()
+}
+
+func (w *multiResponseWriter) Write(b []byte) (int, error) {
+	// Don't write large amounts of data to our temporary buffer
+	if w.body.Len()+len(b) > maxBodyBufferSize {
+		return w.resp.Write(b)
+	}
+	return w.multi.Write(b)
+}
+
+func (w *multiResponseWriter) WriteHeader(statusCode int) {
+	w.resp.WriteHeader(statusCode)
+	w.statusCode = statusCode
 }

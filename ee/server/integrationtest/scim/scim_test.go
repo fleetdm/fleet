@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,7 +37,8 @@ func TestSCIM(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_groups"}...)
+			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
+				"scim_user_group", "scim_last_request"}...)
 			c.fn(t, s)
 		})
 	}
@@ -52,6 +55,13 @@ func testAuth(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusUnauthorized, &resp)
 	assert.Contains(t, resp["detail"], "Authentication")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	scimDetails := contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusUnauthorized, &scimDetails)
+	// Make sure unauthenticated response wasn't saved as the last SCIM request
+	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	scimDetails = contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for unauthenticated requests")
 
 	// Unauthorized
 	resp = nil
@@ -59,6 +69,15 @@ func testAuth(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
+	// Make sure unauthorized response WAS saved as the last SCIM request
+	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	scimDetails = contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	require.NotNil(t, scimDetails.LastRequest)
+	assert.Equal(t, "error", scimDetails.LastRequest.Status)
+	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
+	assert.Equal(t, authz.ForbiddenErrorMessage, scimDetails.LastRequest.Details)
 
 	// Authorized
 	resp = nil
@@ -68,9 +87,20 @@ func testAuth(t *testing.T, s *Suite) {
 }
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
+	// Make sure SCIM details.last_request DOES NOT exist
+	scimDetails := contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	assert.Nil(t, scimDetails.LastRequest)
+
 	// Test /Schemas endpoint
 	var schemasResp map[string]interface{}
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &schemasResp)
+	scimDetails = contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	require.NotNil(t, scimDetails.LastRequest)
+	assert.Equal(t, "success", scimDetails.LastRequest.Status)
+	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
+	assert.Empty(t, scimDetails.LastRequest.Details)
 
 	// Verify schemas response
 	assert.EqualValues(t, schemasResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
@@ -181,6 +211,13 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Users/99999"), nil, http.StatusNotFound, &errResp)
 	assert.Contains(t, errResp["detail"], "Resource 99999 not found")
 	assert.EqualValues(t, errResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	// Make sure the error is reflected in the last request
+	scimDetails := contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	require.NotNil(t, scimDetails.LastRequest)
+	assert.Equal(t, "error", scimDetails.LastRequest.Status)
+	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
+	assert.Equal(t, errResp["detail"], scimDetails.LastRequest.Details)
 
 	// Test listing users
 	var listResp map[string]interface{}

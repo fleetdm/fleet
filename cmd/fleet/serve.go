@@ -1278,6 +1278,11 @@ the way that the Fleet server works.
 
 				apiHandler.ServeHTTP(rw, req)
 			})
+			// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
+			// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
+			// The Fleet API was designed this way for end-user simplicity.
+			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
+			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

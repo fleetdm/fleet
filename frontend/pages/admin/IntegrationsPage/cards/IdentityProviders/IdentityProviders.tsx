@@ -74,10 +74,14 @@ const RecievedEndUserInfoCard = ({
 };
 
 interface IFailedEndUserInfoCardProps {
-  recievedAt: string;
+  receivedAt: string;
+  details: string;
 }
 
-const FailedEndUserInfoCard = ({ recievedAt }: IFailedEndUserInfoCardProps) => {
+const FailedEndUserInfoCard = ({
+  receivedAt,
+  details,
+}: IFailedEndUserInfoCardProps) => {
   return (
     <SectionCard
       iconName="error"
@@ -94,12 +98,12 @@ const FailedEndUserInfoCard = ({ recievedAt }: IFailedEndUserInfoCardProps) => {
         <TooltipWrapper
           showArrow
           position="top"
-          tipContent='Error: Missing required attributes. "userName", "givenName", and "familyName" are required. Please configure your identity provider to send required attributes to Fleet.'
+          tipContent={`Error: ${details}`}
           underline={false}
           className={`${baseClass}__recieved-tooltip`}
         >
           Failed to receive end user information from your IdP (
-          {dateAgo(recievedAt)}).
+          {dateAgo(receivedAt)}).
         </TooltipWrapper>
       </p>
     </SectionCard>
@@ -132,9 +136,12 @@ const IdentityProviders = () => {
       return (
         <RecievedEndUserInfoCard recievedAt={data.last_request.requested_at} />
       );
-    } else if (data.last_request.status === "failed") {
+    } else if (data.last_request.status === "error") {
       return (
-        <FailedEndUserInfoCard recievedAt={data.last_request.requested_at} />
+        <FailedEndUserInfoCard
+          receivedAt={data.last_request.requested_at}
+          details={data.last_request.details}
+        />
       );
     }
 
