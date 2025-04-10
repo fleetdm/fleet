@@ -3136,6 +3136,31 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			for _, s := range hostVPPInstalls {
 				tmpByVPPAdamID[*s.VPPAppAdamID] = s
 			}
+			// software installed on the host not by fleet and there exists a software installer that matches this software
+			// so that makes it available for install
+			installedInstallersSql := `
+			SELECT
+				software.title_id
+			FROM
+				host_software
+			INNER JOIN
+				software ON host_software.software_id = software.id
+			INNER JOIN
+				software_installers ON software.title_id = software_installers.title_id
+				  AND software_installers.platform = ?
+				  AND software_installers.global_or_team_id = ?
+			WHERE host_software.host_id = ?
+			`
+			var installedSoftwareTitleIDs []uint
+			err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedSoftwareTitleIDs, installedInstallersSql, namedArgs["host_compatible_platforms"], globalOrTeamID, host.ID)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, s := range installedSoftwareTitleIDs {
+				if software := bySoftwareTitleID[s]; software != nil {
+					tempBySoftwareTitleID[s] = software
+				}
+			}
 		}
 		for _, s := range availableSoftwareTitles {
 			// If it's a VPP app

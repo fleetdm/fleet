@@ -4348,6 +4348,83 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			assert.Equal(t, c.wantMeta, meta)
 		})
 	}
+
+	// Host has software installed, but not by fleet, and there is a matching software installer.
+	// Ensure it is surfaced as "available for install"
+	darwinHost := test.NewHost(t, ds, "hostD", "", "hostDkey", "hostDuuid", time.Now(), test.WithPlatform("darwin"))
+	softwareAlreadyInstalled := fleet.Software{Name: "DummyApp.app", Version: "1.0.1", Source: "apps", BundleIdentifier: "com.example.dummy"}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier)
+		if err != nil {
+			return err
+		}
+		titleID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		res, err = q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id) VALUES (?, ?, ?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID)
+		if err != nil {
+			return err
+		}
+		softwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		res, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			darwinHost.ID, softwareID)
+		if err != nil {
+			return err
+		}
+		installScript := `install 'DummyApp.app'`
+		res, err = q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+		uninstallScript := `uinstall 'DummyApp.app'`
+		resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+			uninstallScript, uninstallScript)
+		if err != nil {
+			return err
+		}
+		uninstallScriptContentID, _ := resUninstall.LastInsertId()
+		res, err = q.ExecContext(ctx, `
+							INSERT INTO software_installers
+								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service)
+							VALUES
+								(?, ?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+			darwinHost.TeamID, 0, titleID, "DummyApp.pkg", "pkg", "2.0.0",
+			scriptContentID, uninstallScriptContentID,
+			hex.EncodeToString([]byte("test")), "darwin", true)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	opts.OnlyAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, darwinHost, opts)
+	require.NoError(t, err)
+
+	var found bool
+	var index int
+	for i, s := range sw {
+		if s.Name == softwareAlreadyInstalled.Name && s.Source == softwareAlreadyInstalled.Source {
+			found = true
+			index = i
+			break
+		}
+	}
+	require.True(t, found, "Expected to find software %s in the list", softwareAlreadyInstalled.Name)
+	assert.Equal(t, sw[index].InstalledVersions[0].Version, softwareAlreadyInstalled.Version)
+	assert.Equal(t, sw[index].SoftwarePackage.Name, "DummyApp.pkg")
+	assert.Equal(t, sw[index].SoftwarePackage.Version, "2.0.0")
+	assert.Equal(t, sw[index].SoftwarePackage.Platform, "darwin")
 }
 
 func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
