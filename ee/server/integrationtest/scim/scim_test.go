@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elimity-com/scim/errors"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -710,16 +711,10 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp1 map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutGivenName, http.StatusCreated, &createResp1)
-	assert.Equal(t, "no-given-name@example.com", createResp1["userName"])
-	userID1 := createResp1["id"].(string)
-
-	// Verify name only has familyName
-	name1, ok := createResp1["name"].(map[string]interface{})
-	assert.True(t, ok, "Name should be an object")
-	assert.Equal(t, "NoGivenName", name1["familyName"])
-	assert.Nil(t, name1["givenName"], "givenName should be nil")
+	var errorResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutGivenName, http.StatusBadRequest, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
 	// Test creating a user without familyName
 	userWithoutFamilyName := map[string]interface{}{
@@ -738,16 +733,10 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp2 map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusCreated, &createResp2)
-	assert.Equal(t, "no-family-name@example.com", createResp2["userName"])
-	userID2 := createResp2["id"].(string)
-
-	// Verify name only has givenName
-	name2, ok := createResp2["name"].(map[string]interface{})
-	assert.True(t, ok, "Name should be an object")
-	assert.Equal(t, "NoFamilyName", name2["givenName"])
-	assert.Nil(t, name2["familyName"], "familyName should be nil")
+	errorResp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusBadRequest, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
 	// Test creating a user without emails
 	userWithoutEmails := map[string]interface{}{
@@ -937,8 +926,6 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.Equal(t, "external-system-123456", createResp6["externalId"])
 
 	// Make sure these users can be deleted.
-	s.Do(t, "DELETE", scimPath("/Users/"+userID1), nil, http.StatusNoContent)
-	s.Do(t, "DELETE", scimPath("/Users/"+userID2), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID3), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID4), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
@@ -1050,7 +1037,8 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 				"value": map[string]interface{}{
 					"active": false,
 					"name": map[string]interface{}{
-						"givenName": "Updated",
+						"givenName":  "Updated",
+						"familyName": "Updated",
 					},
 				},
 			},
