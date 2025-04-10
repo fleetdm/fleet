@@ -58,6 +58,8 @@ controls:
       - path: ../lib/macos/declaration-profiles/passcode-settings.json
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
+        labels_include_any:
+          - "Macs with 1Password installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
