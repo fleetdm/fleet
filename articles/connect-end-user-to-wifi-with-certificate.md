@@ -135,6 +135,8 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 ![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
 
+Fleet will automatically resend the profile to renew the certificate 30 days before expiration.
+
 #### Example configuration profile
 
 ```xml
@@ -227,6 +229,8 @@ To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the foll
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 
 When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+Fleet will automatically resend the profile to renew the certificate 30 days before expiration.
 
 #### Example configuration profile
 
