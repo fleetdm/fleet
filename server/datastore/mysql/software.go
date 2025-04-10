@@ -2354,11 +2354,13 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
                     hsi.software_installer_id = hsi2.software_installer_id AND
                     hsi.uninstall = hsi2.uninstall AND
                     hsi2.removed = 0 AND
+					hsi2.canceled = 0 AND
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
                 hsi.host_id = ? AND
                 hsi.removed = 0 AND
+				hsi.canceled = 0 AND
                 hsi.uninstall = 0 AND
                 hsi.host_deleted_at IS NULL AND
                 hsi2.id IS NULL AND
@@ -2431,12 +2433,14 @@ func hostSoftwareUninstalls(ds *Datastore, ctx context.Context, hostID uint) ([]
                     hsi.software_installer_id = hsi2.software_installer_id AND
                     hsi.uninstall = hsi2.uninstall AND
                     hsi2.removed = 0 AND
+					hsi2.canceled = 0 AND
                     hsi2.host_deleted_at IS NULL AND
                     (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
             WHERE
                 hsi.host_id = ? AND
                 hsi.removed = 0 AND
                 hsi.uninstall = 1 AND
+				hsi.canceled = 0 AND
                 hsi.host_deleted_at IS NULL AND
                 hsi2.id IS NULL AND
                 NOT EXISTS (
@@ -2671,6 +2675,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                     hvsi.adam_id = hvsi2.adam_id AND
                     hvsi.platform = hvsi2.platform AND
                     hvsi2.removed = 0 AND
+					hvsi2.canceled = 0 AND
                     (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 			LEFT JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
@@ -2679,6 +2684,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				%s
                 hvsi.host_id = :host_id AND
                 hvsi.removed = 0 AND
+				hvsi.canceled = 0 AND
                 hvsi2.id IS NULL AND
                 NOT EXISTS (
                     SELECT 1
