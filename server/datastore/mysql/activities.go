@@ -959,23 +959,23 @@ func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, h
 	lockCnt, _ := resLock.RowsAffected()
 	wipeCnt, _ := resWipe.RowsAffected()
 	if lockCnt > 0 || wipeCnt > 0 {
-		// if it did deleted host_mdm_actions, then it was a lock or wipe activity,
-		// we need to deleted the "past" activity that gets created immediately
+		// if it did delete host_mdm_actions, then it was a lock or wipe activity,
+		// we need to delete the "past" activity that gets created immediately
 		// when that command is queued.
 		actType := fleet.ActivityTypeLockedHost{}.ActivityName()
 		if wipeCnt > 0 {
 			actType = fleet.ActivityTypeWipedHost{}.ActivityName()
 		}
 
-		const findActStmt = `SELECT 
-				id 
+		const findActStmt = `SELECT
+				id
 			FROM
-				activities 
+				activities
 				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
 			WHERE
 				host_activities.host_id = ? AND
 				activities.activity_type = ?
-			ORDER BY 
+			ORDER BY
 				activities.created_at DESC
 			LIMIT 1
 `
