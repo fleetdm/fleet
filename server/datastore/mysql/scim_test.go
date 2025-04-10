@@ -1455,7 +1455,32 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Nil(t, initialRequest)
 
-	// Create a new last request
+	// Validation tests for UpdateScimLastRequest
+	// Nil request should return nil
+	err = ds.UpdateScimLastRequest(t.Context(), nil)
+	assert.NoError(t, err)
+
+	// Status exceeding max length should return error
+	longStatus := strings.Repeat("a", SCIMMaxStatusLength+1)
+	invalidStatusRequest := &fleet.ScimLastRequest{
+		Status:  longStatus,
+		Details: "Valid details",
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), invalidStatusRequest)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status exceeds maximum length")
+
+	// Details exceeding max length should return error
+	longDetails := strings.Repeat("b", fleet.SCIMMaxFieldLength+1) // 256 characters
+	invalidDetailsRequest := &fleet.ScimLastRequest{
+		Status:  "valid",
+		Details: longDetails,
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), invalidDetailsRequest)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "details exceeds maximum length")
+
+	// Create a new last request with valid values
 	newRequest := &fleet.ScimLastRequest{
 		Status:  "success",
 		Details: "Initial SCIM request",
@@ -1471,7 +1496,7 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Initial SCIM request", retrievedRequest.Details)
 	assert.False(t, retrievedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
 
-	// Update the last request
+	// Update the last request with new valid values
 	updatedRequest := &fleet.ScimLastRequest{
 		Status:  "error",
 		Details: "Updated SCIM request with error",
@@ -1489,5 +1514,5 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 
 	// Verify that the updated timestamp is newer
 	assert.True(t, retrievedUpdatedRequest.RequestedAt.After(retrievedRequest.RequestedAt),
-		"Updated request timestamp should be equal to or after the original timestamp")
+		"Updated request timestamp should be after the original timestamp")
 }
