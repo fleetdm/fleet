@@ -110,6 +110,7 @@ import AddEndUserModal from "../cards/User/components/AddEndUserModal";
 import {
   generateChromeProfilesValues,
   generateOtherEmailsValues,
+  generateUsernameValues,
 } from "../cards/User/helpers";
 
 const baseClass = "host-details";
@@ -949,7 +950,10 @@ const HostDetailsPage = ({
                   className={defaultCardClass}
                   platform={host.platform}
                   endUsers={host.end_users ?? []}
-                  enableAddEndUser={isDarwinHost}
+                  enableAddEndUser={
+                    isDarwinHost &&
+                    generateUsernameValues(host.end_users ?? []).length !== 0
+                  }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
               )}
