@@ -262,7 +262,7 @@ jobs:
     needs: goreleaser-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     with:
-      filename: orbit-arm64.exe
+      filename: orbit.exe
       upload_name: orbit-windows-arm64
       download_name: unsigned-windows-arm64
     secrets:
