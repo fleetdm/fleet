@@ -3380,21 +3380,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			%s
 			`
 
-			vppAdamStatment, vppAdamArgs, err := sqlx.In(vppAdamStatment, vppAdamIDs)
+			vppAdamStatement, vppAdamArgs, err := sqlx.In(vppAdamStatment, vppAdamIDs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for vpp titles")
 			}
-			vppAdamStatment, vppAdamArgsNamedArgs, err := sqlx.Named(vppAdamStatment, namedArgs)
+			vppAdamStatement, vppAdamArgsNamedArgs, err := sqlx.Named(vppAdamStatement, namedArgs)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for vpp titles")
 			}
-			vppAdamStatment = strings.ReplaceAll(vppAdamStatment, "AND true", matchClause)
+			vppAdamStatement = strings.ReplaceAll(vppAdamStatement, "AND true", matchClause)
 			args = append(args, vppAdamArgsNamedArgs...)
 			args = append(args, vppAdamArgs...)
 			if len(matchArgs) > 0 {
 				args = append(args, matchArgs...)
 			}
-			stmt += vppAdamStatment
+			stmt += vppAdamStatement
 		}
 
 		var countStmt string
