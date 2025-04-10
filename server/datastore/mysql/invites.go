@@ -21,12 +21,12 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStmt := `
-	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, global_role )
-	  VALUES ( ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, mfa_enabled, global_role )
+	  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 		result, err := tx.ExecContext(ctx, sqlStmt, i.InvitedBy, i.Email,
-			i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
+			i.Name, i.Position, i.Token, i.SSOEnabled, i.MFAEnabled, i.GlobalRole)
 		if err != nil && IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("Invite", i.Email))
 		} else if err != nil {
@@ -185,8 +185,8 @@ func (ds *Datastore) loadTeamsForInvites(ctx context.Context, invites []*fleet.I
 func (ds *Datastore) UpdateInvite(ctx context.Context, id uint, i *fleet.Invite) (*fleet.Invite, error) {
 	return i, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
-			`UPDATE invites SET invited_by = ?, email = ?, name = ?, position = ?, sso_enabled = ?, global_role = ? WHERE id = ?`,
-			i.InvitedBy, i.Email, i.Name, i.Position, i.SSOEnabled, i.GlobalRole, id,
+			`UPDATE invites SET invited_by = ?, email = ?, name = ?, position = ?, sso_enabled = ?, mfa_enabled = ?, global_role = ? WHERE id = ?`,
+			i.InvitedBy, i.Email, i.Name, i.Position, i.SSOEnabled, i.MFAEnabled, i.GlobalRole, id,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating invite")

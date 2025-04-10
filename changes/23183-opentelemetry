@@ -1,3 +1,0 @@
-Updated OpenTelemetry libraries to latest versions. This includes the following changes when OpenTelemetry is enabled:
-- MySQL spans outside of HTTPS transactions are now logged.
-- Renamed MySQL spans to include the query, for easier tracking/debugging.

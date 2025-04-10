@@ -6,7 +6,7 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "zayhanlon" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-customer-success" ] # label to be applied to issue
+    labels: [ ":help-customers" ] # label to be applied to issue
     repo: "confidential"
 -
   task: "Process new requests" 

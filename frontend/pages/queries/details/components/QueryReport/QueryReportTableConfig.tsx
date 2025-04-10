@@ -9,12 +9,10 @@ import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColu
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
 import {
-  getSortTypeFromColumnType,
-  getUniqueColumnNamesFromRows,
+  getUniqueColsAreNumTypeFromRows,
   humanHostLastSeen,
   internallyTruncateText,
 } from "utilities/helpers";
-import { IQueryTableColumn } from "interfaces/osquery_table";
 import { IHeaderProps, IWebSocketData } from "interfaces/datatable_config";
 
 type IQueryReportTableColumnConfig = Column<IWebSocketData>;
@@ -42,50 +40,51 @@ const _unshiftHostname = (headers: IQueryReportTableColumnConfig[]) => {
 };
 
 const generateReportColumnConfigsFromResults = (
-  results: IWebSocketData[],
-  tableColumns?: IQueryTableColumn[] | []
+  results: IWebSocketData[]
 ): IQueryReportTableColumnConfig[] => {
-  /* Results include an array of objects, each representing a table row
-  Each key value pair in an object represents a column name and value
-  To create headers, use JS set to create an array of all unique column names */
-  const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
-
-  const columnConfigs = uniqueColumnNames.map<IQueryReportTableColumnConfig>(
-    (key) => {
-      return {
-        id: key,
-        Header: (headerProps: ITableHeaderProps) => (
-          <HeaderCell
-            value={
-              // Sentence case last fetched
-              headerProps.column.id === "last_fetched"
-                ? "Last fetched"
-                : headerProps.column.id
-            }
-            isSortedDesc={headerProps.column.isSortedDesc}
-          />
-        ),
-        accessor: (data) => data[key],
-        Cell: (cellProps: ITableCellProps) => {
-          if (typeof cellProps.cell.value !== "string") return null;
-
-          // Sorts chronologically by date, but UI displays readable last fetched
-          if (cellProps.column.id === "last_fetched") {
-            return <>{humanHostLastSeen(cellProps?.cell?.value)}</>;
+  const colsAreNumTypes = getUniqueColsAreNumTypeFromRows(results) as Map<
+    string,
+    boolean
+  >;
+  const columnConfigs = Array.from(colsAreNumTypes.keys()).map<
+    Column<IWebSocketData>
+  >((colName) => {
+    return {
+      id: colName,
+      Header: (headerProps: ITableHeaderProps) => (
+        <HeaderCell
+          value={
+            headerProps.column.id === "last_fetched"
+              ? "Last fetched"
+              : headerProps.column.id
           }
-          // truncate columns longer than 300 characters
-          const val = cellProps?.cell?.value;
-          return !!val?.length && val.length > 300
-            ? internallyTruncateText(val)
-            : <>{val}</> ?? null;
-        },
-        Filter: DefaultColumnFilter, // Component hides filter for last_fetched
-        filterType: "text",
-        disableSortBy: false,
-        sortType: getSortTypeFromColumnType(key, tableColumns),
-      };
-    }
-  );
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      ),
+      accessor: (data) => data[colName],
+      Cell: (cellProps: ITableCellProps) => {
+        if (typeof cellProps.cell.value !== "string") return null;
+
+        // Sorts chronologically by date, but UI displays readable last fetched
+        if (cellProps.column.id === "last_fetched") {
+          return <>{humanHostLastSeen(cellProps?.cell?.value)}</>;
+        }
+        // truncate columns longer than 300 characters
+        const val = cellProps?.cell?.value;
+        return !!val?.length && val.length > 300 ? (
+          internallyTruncateText(val)
+        ) : (
+          <>{val}</>
+        );
+      },
+      Filter: DefaultColumnFilter, // Component hides filter for last_fetched
+      filterType: "text",
+      disableSortBy: false,
+      sortType: colsAreNumTypes.get(colName)
+        ? "alphanumeric"
+        : "caseInsensitive",
+    };
+  });
   return _unshiftHostname(columnConfigs);
 };
 

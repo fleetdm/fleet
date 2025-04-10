@@ -19,11 +19,14 @@ var (
 	ErrPasswordResetRequired = &passwordResetRequiredError{}
 	ErrMissingLicense        = &licenseError{}
 	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
+	ErrNotConfigured         = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
 	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
+	CantTurnOffMDMForWindowsHostsMessage = "Can't turn off MDM for Windows hosts."
+	CantTurnOffMDMForIOSOrIPadOSMessage  = "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -58,6 +61,14 @@ type ErrWithRetryAfter interface {
 	error
 	// RetryAfter returns the number of seconds to wait before retry.
 	RetryAfter() int
+}
+
+// ErrWithIsClientError is an interface for errors that explicitly specify
+// whether they are client errors or not. By default, errors are treated as
+// server errors.
+type ErrWithIsClientError interface {
+	error
+	IsClientError() bool
 }
 
 type invalidArgWithStatusError struct {
@@ -99,7 +110,7 @@ func (e *ErrorWithUUID) UUID() string {
 }
 
 // InvalidArgumentError is the error returned when invalid data is presented to
-// a service method.
+// a service method. It is a client error.
 type InvalidArgumentError struct {
 	Errors []InvalidArgument
 
@@ -118,6 +129,10 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	var invalid InvalidArgumentError
 	invalid.Append(name, reason)
 	return &invalid
+}
+
+func (e InvalidArgumentError) IsClientError() bool {
+	return true
 }
 
 func (e *InvalidArgumentError) Append(name, reason string) {
@@ -348,6 +363,14 @@ func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
 }
 
+// NotConfiguredError is a generic "not configured" error that can be used
+// when expected configuration is missing.
+type NotConfiguredError struct{}
+
+func (e *NotConfiguredError) Error() string {
+	return "not configured"
+}
+
 // GatewayError is an error type that generates a 502 or 504 status code.
 type GatewayError struct {
 	Message string
@@ -466,6 +489,15 @@ func IsJSONUnknownFieldError(err error) bool {
 	return rxJSONUnknownField.MatchString(err.Error())
 }
 
+func GetJSONUnknownField(err error) *string {
+	errCause := Cause(err)
+	if IsJSONUnknownFieldError(errCause) {
+		substr := rxJSONUnknownField.FindStringSubmatch(errCause.Error())
+		return &substr[1]
+	}
+	return nil
+}
+
 // UserMessage implements the user-friendly translation of the error if its
 // root cause is one of the supported types, otherwise it returns the error
 // message.
@@ -581,7 +613,7 @@ const (
 	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
 	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
 	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
-	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Please try again."
+	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
 	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
 	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
 	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
@@ -593,6 +625,11 @@ const (
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 
+	// Labels
+	InvalidLabelSpecifiedErrMsg = "Invalid label name(s):"
+
+	// Config
+	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
@@ -608,4 +645,9 @@ func (e ConflictError) Error() string {
 // StatusCode implements the kithttp.StatusCoder interface.
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
+}
+
+// Errorer interface is implemented by response structs to encode business logic errors
+type Errorer interface {
+	Error() error
 }

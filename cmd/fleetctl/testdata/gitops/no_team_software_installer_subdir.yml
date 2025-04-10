@@ -1,0 +1,6 @@
+name: No team
+controls:
+policies:
+software:
+  packages:
+    - path: subdir/installer.yml

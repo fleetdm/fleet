@@ -20,6 +20,7 @@ interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
   onCloseScriptModalGroup: () => void;
+  teamIdForApi?: number;
 }
 
 type ScriptGroupModals =
@@ -33,6 +34,7 @@ const ScriptModalGroup = ({
   currentUser,
   host,
   onCloseScriptModalGroup,
+  teamIdForApi,
 }: IScriptsProps) => {
   const [previousModal, setPreviousModal] = useState<ScriptGroupModals>(null);
   const [currentModal, setCurrentModal] = useState<ScriptGroupModals>(
@@ -117,13 +119,13 @@ const ScriptModalGroup = ({
         host={host}
         onClose={onCloseScriptModalGroup}
         onClickViewScript={(scriptId: number, scriptDetails: IHostScript) => {
-          setPreviousModal("run-script");
+          setPreviousModal(currentModal);
           setCurrentModal("view-script");
           setSelectedScriptId(scriptId);
           setSelectedScriptDetails(scriptDetails);
         }}
         onClickRunDetails={(scriptExecutionId: string) => {
-          setPreviousModal("run-script");
+          setPreviousModal(currentModal);
           setCurrentModal("run-script-details");
           scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
         }}
@@ -145,16 +147,16 @@ const ScriptModalGroup = ({
         selectedScriptDetails={selectedScriptDetails}
         selectedScriptContent={selectedScriptContent}
         onCancel={() => {
-          setCurrentModal("run-script");
+          setCurrentModal(previousModal);
           setPreviousModal(null);
         }}
         onDelete={() => {
+          setPreviousModal(currentModal);
           setCurrentModal("delete-script");
-          setPreviousModal("view-script");
         }}
         onClickRunDetails={(scriptExecutionId: string) => {
+          setPreviousModal(currentModal);
           setCurrentModal("run-script-details");
-          setPreviousModal("view-script");
           scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
         }}
         setRunScriptRequested={setRunScriptRequested}
@@ -163,6 +165,7 @@ const ScriptModalGroup = ({
         isScriptContentError={isSelectedScriptContentError}
         isHidden={currentModal !== "view-script"}
         showHostScriptActions
+        teamIdForApi={teamIdForApi}
       />
       <DeleteScriptModal
         scriptId={selectedScriptDetails?.script_id || 1}

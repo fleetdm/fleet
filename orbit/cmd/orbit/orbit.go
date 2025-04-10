@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -62,6 +63,8 @@ const (
 	logErrorLaunchServicesMsg    logError = "LaunchServices kLSServerCommunicationErr (-10822)"
 	logErrorMissingExecSubstr    logError = "The application cannot be opened because its executable is missing."
 	logErrorMissingExecMsg       logError = "bad desktop executable"
+	logErrorMissingDomainSubstr  logError = "Domain=OSLaunchdErrorDomain Code=112"
+	logErrorMissingDomainMsg     logError = "missing specified domain"
 )
 
 func main() {
@@ -102,7 +105,7 @@ func main() {
 		&cli.StringFlag{
 			Name:    "update-url",
 			Usage:   "URL for update server",
-			Value:   "https://tuf.fleetctl.com",
+			Value:   update.DefaultURL,
 			EnvVars: []string{"ORBIT_UPDATE_URL"},
 		},
 		&cli.StringFlag{
@@ -470,7 +473,26 @@ func main() {
 			}
 		}
 
-		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
+		if updateURL := c.String("update-url"); updateURL != update.OldFleetTUFURL && updateURL != update.DefaultURL {
+			// Migrate agents running with a custom TUF to use the new metadata file.
+			// We'll keep the old metadata file to support downgrades.
+			newMetadataFilePath := filepath.Join(c.String("root-dir"), update.MetadataFileName)
+			ok, err := file.Exists(newMetadataFilePath)
+			if err != nil {
+				// If we cannot stat this file then we cannot do other operations on it thus we fail with fatal error.
+				log.Fatal().Err(err).Msg("failed to check for new metadata file path")
+			}
+			if !ok {
+				oldMetadataFilePath := filepath.Join(c.String("root-dir"), update.OldMetadataFileName)
+				err := file.Copy(oldMetadataFilePath, newMetadataFilePath, constant.DefaultFileMode)
+				if err != nil {
+					// If we cannot write to this file then we cannot do other operations on it thus we fail with fatal error.
+					log.Fatal().Err(err).Msg("failed to copy new metadata file path")
+				}
+			}
+		}
+
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), update.MetadataFileName))
 		if err != nil {
 			log.Fatal().Err(err).Msg("create local metadata store")
 		}
@@ -502,6 +524,15 @@ func main() {
 
 		opt.RootDirectory = c.String("root-dir")
 		opt.ServerURL = c.String("update-url")
+		if opt.ServerURL == update.OldFleetTUFURL {
+			//
+			// This only gets executed on orbit 1.38.0+
+			// when it is configured to connect to the old TUF server
+			// (fleetd instances packaged before the migration,
+			// built by fleetctl previous to v4.63.0).
+			//
+			opt.ServerURL = update.DefaultURL
+		}
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 		opt.ServerCertificatePath = c.String("update-tls-certificate")
@@ -544,13 +575,12 @@ func main() {
 		var updater *update.Updater
 		var updateRunner *update.Runner
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err = update.NewUpdater(opt)
+			updater, err := update.NewUpdater(opt)
 			if err != nil {
 				return fmt.Errorf("create updater: %w", err)
 			}
-
 			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata, using saved metadata")
+				log.Info().Err(err).Msg("update metadata")
 			}
 
 			signaturesExpiredAtStartup := updater.SignaturesExpired()
@@ -694,6 +724,8 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+			ComputerName:   osqueryHostInfo.ComputerName,
+			HardwareModel:  osqueryHostInfo.HardwareModel,
 		}
 
 		if runtime.GOOS == "darwin" {
@@ -719,9 +751,12 @@ func main() {
 					return fmt.Errorf("removing old osquery.db: %w", err)
 				}
 
-				// We can remove this because we want it to be regenerated during the re-enrollment.
+				// We can remove these because we want them to be regenerated during the re-enrollment.
 				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
 					return fmt.Errorf("removing old orbit node key file: %w", err)
+				}
+				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName)); err != nil {
+					return fmt.Errorf("removing old Fleet Desktop identifier file: %w", err)
 				}
 
 				return errors.New("found a new hardware uuid, restarting")
@@ -732,13 +767,6 @@ func main() {
 		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
 		if c.String("host-identifier") == "instance" {
 			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
-		}
-
-		// The hardware serial was not sent when Windows MDM was implemented,
-		// thus we clear its value here to not break any existing enroll functionality
-		// on the server.
-		if runtime.GOOS == "windows" {
-			orbitHostInfo.HardwareSerial = ""
 		}
 
 		var (
@@ -770,6 +798,12 @@ func main() {
 				osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
 				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
 			)
+		}
+
+		if runtime.GOOS == "windows" {
+			if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
+				options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
+			}
 		}
 
 		var certPath string
@@ -937,6 +971,8 @@ func main() {
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
+		case "linux":
+			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 		}
 
 		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
@@ -1017,7 +1053,7 @@ func main() {
 		var trw *token.ReadWriter
 		var deviceClient *service.DeviceClient
 		if c.Bool("fleet-desktop") {
-			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), "identifier"))
+			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName))
 			if err := trw.LoadOrGenerate(); err != nil {
 				return fmt.Errorf("initializing token read writer: %w", err)
 			}
@@ -1214,6 +1250,7 @@ func main() {
 				trw,
 				startTime,
 				scriptsEnabledFn,
+				opt.ServerURL,
 			)),
 		)
 
@@ -1393,10 +1430,17 @@ func getFleetdComponentPaths(
 		log.Error().Err(err).Msg("update metadata before getting components")
 	}
 
-	// "root", "targets", or "snapshot" signatures have expired, thus
-	// we attempt to get local paths for the targets (updater.Get will fail
-	// because of the expired signatures).
-	if updater.SignaturesExpired() {
+	//
+	// updater.SignaturesExpired():
+	// 	"root", "targets", or "snapshot" signatures have expired, thus
+	// 	we attempt to get local paths for the targets (updater.Get will fail
+	// 	because of the expired signatures).
+	//
+	// updater.LookupsFail():
+	//	Any of the targets fails to load thus we resort to the local executables we have.
+	//	This could happen if the new TUF server is down during the first run of the TUF migration.
+	//
+	if updater.SignaturesExpired() || updater.LookupsFail() {
 		log.Error().Err(err).Msg("expired metadata, using local targets")
 
 		// Attempt to get local path of osqueryd.
@@ -1541,14 +1585,6 @@ func newDesktopRunner(
 func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
-	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-
-	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
-		!errors.Is(err, platform.ErrProcessNotFound) &&
-		!errors.Is(err, platform.ErrComChannelNotFound) {
-		log.Error().Err(err).Msg("desktop early terminate")
-	}
-
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -1586,14 +1622,25 @@ func (d *desktopRunner) Execute() error {
 			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
 			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
 			// for more details.
-			loggedInGui, err := user.IsUserLoggedInViaGui()
+			loggedInUser, err := user.UserLoggedInViaGui()
 			if err != nil {
 				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
 				return true
 			}
 
-			if !loggedInGui {
+			if loggedInUser == nil {
 				return true
+			}
+
+			if *loggedInUser != "" {
+				opts = append(opts, execuser.WithUser(*loggedInUser))
+			}
+
+			log.Info().Msg("killing any pre-existing fleet-desktop instances")
+			if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+				!errors.Is(err, platform.ErrProcessNotFound) &&
+				!errors.Is(err, platform.ErrComChannelNotFound) {
+				log.Error().Err(err).Msg("desktop early terminate")
 			}
 
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
@@ -1612,8 +1659,8 @@ func (d *desktopRunner) Execute() error {
 
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
-		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
-			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
+		if done := retry(15*time.Second, true, d.interruptCh, func() bool {
+			switch _, err := platform.GetProcessesByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
 			case errors.Is(err, platform.ErrProcessNotFound):
@@ -1673,7 +1720,10 @@ func (d *desktopRunner) processLog(log string) {
 		// To get this message, delete Fleet Desktop.app directory, make an empty Fleet Desktop.app directory,
 		// and kill the fleet-desktop process. Orbit will try to re-start Fleet Desktop and log this message.
 		msg = string(logErrorMissingExecMsg)
+	case strings.Contains(log, string(logErrorMissingDomainSubstr)):
+		msg = string(logErrorMissingDomainMsg)
 	}
+
 	if msg == "" {
 		return
 	}
@@ -1694,6 +1744,10 @@ type osqueryHostInfo struct {
 	HardwareSerial string `json:"hardware_serial"`
 	// Hostname is the device's hostname (extracted from `system_info` osquery table).
 	Hostname string `json:"hostname"`
+	// ComputerName is the friendly computer name (optional) (extracted from `system_info` osquery table).
+	ComputerName string `json:"computer_name"`
+	// HardwareModel is the device's hardware model (extracted from `system_info` osquery table).
+	HardwareModel string `json:"hardware_model"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
 	// InstanceID is the osquery's randomly generated instance ID
@@ -1711,7 +1765,18 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
 		return nil, err
 	}
-	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, os.version as os_version, oi.instance_id, oi.version as osquery_version FROM system_info si, os_version os, osquery_info oi"
+	const systemQuery = `
+	SELECT
+		si.uuid,
+		si.hardware_serial,
+		si.hostname,
+		si.computer_name,
+		si.hardware_model,
+		os.platform,
+		os.version as os_version,
+		oi.instance_id,
+		oi.version as osquery_version
+	FROM system_info si, os_version os, osquery_info oi`
 	args := []string{
 		"-S",
 		"--database_path", osqueryDBPath,

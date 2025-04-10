@@ -21,6 +21,10 @@ export const isWindowsMdmEnabledAndConfigured = (config: IConfig): boolean => {
   return Boolean(config.mdm.windows_enabled_and_configured);
 };
 
+export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
+  return Boolean(config.mdm.android_enabled_and_configured);
+};
+
 export const isGlobalAdmin = (user: IUser): boolean => {
   return user.global_role === "admin";
 };
@@ -148,6 +152,7 @@ export default {
   isPremiumTier,
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,

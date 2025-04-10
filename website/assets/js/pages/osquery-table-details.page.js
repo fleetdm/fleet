@@ -4,7 +4,7 @@ parasails.registerPage('osquery-table-details', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     //…
-    selectedPlatform: 'all',
+    selectedPlatform: 'apple',
     search: '',
     showTableNav: false,
     userFriendlyPlatformNames: {
@@ -14,13 +14,15 @@ parasails.registerPage('osquery-table-details', {
       'chrome': 'ChromeOS',
       'all': 'All platforms'
     },
+    modal: undefined,
   },
 
   computed: {
     filteredTables: function () {
+      let platformToFilterBy = this.selectedPlatform !== 'apple' ? this.selectedPlatform : 'darwin';
       return this.allTables.filter(
         (table) =>
-          this._isIncluded(table.platforms, this.selectedPlatform)
+          table.platforms.includes(platformToFilterBy)
       );
     },
     numberOfTablesDisplayed: function() {
@@ -32,35 +34,17 @@ parasails.registerPage('osquery-table-details', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-
+    if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
+      this.selectedPlatform = window.location.hash.split('#')[1];
+    } else {
+      // otherwise, default the filter to be the first supported platform of the currently viewed table.
+      this.selectedPlatform = this.tableToDisplay.platforms[0] === 'darwin' ? 'apple' : this.tableToDisplay.platforms[0];
+    }
+    // Note: we do not personalize the selected platform on this page based on the user's
+    // current OS because the default table that the /tables url redirects to does not support windows.
+    window.addEventListener('scroll', this.handleScrollingPlatformFilters);
   },
   mounted: async function() {
-
-    // Algolia DocSearch
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search tables',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:tables']
-        },
-      });
-    }
-
-    // Check the URL to see if a platformFilter was provided.
-    if(window.location.search) {
-      // https://caniuse.com/mdn-api_urlsearchparams_get
-      let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
-      let platformToFilterBy = possibleSearchParamsToFilterBy.get('platformFilter');
-      // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
-      if(platformToFilterBy && this.userFriendlyPlatformNames[platformToFilterBy]){
-        this.selectedPlatform = platformToFilterBy;
-      }
-    }
 
     // sort the array of all tables
     this.allTables = this.allTables.sort((a, b)=>{
@@ -73,19 +57,36 @@ parasails.registerPage('osquery-table-details', {
     keywordsForThisTable = keywordsForThisTable.sort((a,b)=>{// Sorting the array of keywords by length to match larger keywords first.
       return a.length < b.length ? 1 : -1;
     });
+    keywordsForThisTable = _.pull(keywordsForThisTable, this.tableToDisplay.title);
     (()=>{
       $('pre code').each((i, block) => {
-        let keywordsToHighlight = [];// Empty array to track the keywords that we will need to highlight
-        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerHTML.match(keyword)||[]){
-            keywordsToHighlight.push(match);
-          }
+        let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let match of block.innerHTML.match(this.tableToDisplay.title)||[]){
+          tableNamesToHighlight.push(match);
         }
         // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
         let replacementHMTL = block.innerHTML;
-        for(let keywordInExample of keywordsToHighlight) {
+        for(let keywordInExample of tableNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
           replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+keywordInExample+'</span>');
+        }
+        // $(block).html(replacementHMTL);
+        let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
+        for(let keyword of keywordsForThisTable){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
+          // Skip column names that are less than two characters long.
+          // We do this because some tables (ioreg) have columns that have single characacter names, which can be inaccuratly matched.
+          if(keyword.length < 2) {
+            continue;
+          }
+          for(let match of block.innerHTML.match(keyword)||[]){
+            columnNamesToHighlight.push(match);
+          }
+        }
+        // Now iterate through the keywordsToHighlight, replacing all matches in the elements innerHTML.
+        // let replacementHMTL = block.innerHTML;
+        for(let keywordInExample of columnNamesToHighlight) {
+          let regexForThisExample = new RegExp(keywordInExample, 'g');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-string">'+keywordInExample+'</span>');
         }
         $(block).html(replacementHMTL);
         // After we've highlighted our keywords, we'll highlight the rest of the codeblock
@@ -101,12 +102,7 @@ parasails.registerPage('osquery-table-details', {
         }
       });
     })();
-    // Adjust the height of the sidebar navigation to match the height of the html partial
-    (()=>{
-      $('[purpose="table-of-contents"]').css({'max-height': 120});
-      let tablePartialHeight = $('[purpose="table-container"]').height();
-      $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
-    })();
+
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
@@ -116,11 +112,59 @@ parasails.registerPage('osquery-table-details', {
     clickFilterByPlatform: async function(platform) {
       this.selectedPlatform = platform;
     },
+    clickSelectPlatform: function (platform) {
+      let platformToLookFor = platform;
+      if(platform === 'apple'){
+        platformToLookFor = 'darwin';
+      }
+      let currentTableAvailableOnNewPlatform = this.tableToDisplay.platforms.includes(platformToLookFor);
+      if(!currentTableAvailableOnNewPlatform){
+        if(platformToLookFor === 'chrome'){
+          this.goto('/tables/chrome_extensions#chrome');
+        } else if(platformToLookFor === 'darwin') {
+          this.goto('/tables/account_policy_data#apple');
+        } else if(platformToLookFor === 'linux') {
+          this.goto('/tables/apparmor_events#linux');
+        } else if(platformToLookFor === 'windows') {
+          this.goto('/tables/appcompat_shims#windows');
+        }
+      } else {
+        this.selectedPlatform = platform;
+      }
 
+    },
     clickToggleTableNav: function() {
       this.showTableNav = !this.showTableNav;
     },
-
+    clickOpenTablesNav: async function() {
+      this.modal = 'table-of-contents';
+      await setTimeout(()=>{
+        let activeTableLink = $('[purpose="modal-table-of-contents-link"].active')[0];
+        if(activeTableLink) {
+          $('[purpose="modal-table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop;
+        }
+      }, 250);
+    },
+    handleScrollingPlatformFilters: function () {
+      let platformFilters = document.querySelector('div[purpose="platform-filters"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (platformFilters) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          platformFilters.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          platformFilters.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
+      this.scrollDistance = scrollTop;
+    },
+    closeModal: async function() {
+      this.modal = '';
+      await this.forceRender();
+    },
     _isIncluded: function (data, selectedOption) {
       if (selectedOption.startsWith('all') || selectedOption === '') {
         return true;

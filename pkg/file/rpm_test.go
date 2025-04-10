@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/files"
 	"github.com/goreleaser/nfpm/v2/rpm"
@@ -62,14 +63,10 @@ func TestExtractRPMMetadata(t *testing.T) {
 	// Using ExtractInstallerMetadata for broader testing (for a file
 	// with rpm extension it will call ExtractRPMMetadata).
 	//
-	f, err := os.Open(rpmPath)
+	tfr, err := fleet.NewKeepFileReader(rpmPath)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		f.Close()
-	})
-	m, err := ExtractInstallerMetadata(f)
-	require.NoError(t, err)
-	err = f.Close()
+	t.Cleanup(func() { tfr.Close() })
+	m, err := ExtractInstallerMetadata(tfr)
 	require.NoError(t, err)
 	require.Empty(t, m.BundleIdentifier)
 	require.Equal(t, "rpm", m.Extension)

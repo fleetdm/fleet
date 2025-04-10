@@ -30,10 +30,10 @@ type listSoftwareResponse struct {
 	Err             error            `json:"error,omitempty"`
 }
 
-func (r listSoftwareResponse) error() error { return r.Err }
+func (r listSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: use listSoftwareVersionsEndpoint instead
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
@@ -63,9 +63,9 @@ type listSoftwareVersionsResponse struct {
 	Err             error                     `json:"error,omitempty"`
 }
 
-func (r listSoftwareVersionsResponse) error() error { return r.Err }
+func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
-func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
 	// always include pagination for new software versions endpoint (not included by default in
@@ -106,7 +106,11 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 
 	// Vulnerability filters are only available in premium (opt.IncludeCVEScores is only true in premium)
-	if !opt.IncludeCVEScores && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
 		return nil, nil, fleet.ErrMissingLicense
 	}
 
@@ -139,9 +143,9 @@ type getSoftwareResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r getSoftwareResponse) error() error { return r.Err }
+func (r getSoftwareResponse) Error() error { return r.Err }
 
-func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareRequest)
 
 	software, err := svc.SoftwareByID(ctx, req.ID, req.TeamID, false)
@@ -211,11 +215,11 @@ type countSoftwareResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countSoftwareResponse) error() error { return r.Err }
+func (r countSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {

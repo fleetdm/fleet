@@ -1,10 +1,11 @@
 # Single sign-on (SSO)
 
-Fleet supports SSO and just-in-time (JIT) user provisioning using any identity provider (IdP) that supports SAML.
-
-Fleet supports both service (SP) initiated login and IdP initiated login.
+Fleet supports [Okta](#okta), [authentik](#authentik), [Google Workspace](#google-workspace), and [Microsoft Active Directory (AD) / Entra ID](https://learn.microsoft.com/en-us/entra/architecture/auth-saml), as well as any other identity provider (IdP) that supports the SAML standard.
 
 To configure SSO, follow steps for your IdP and then complete [Fleet configuration](#fleet-configuration).
+
+> JIT? SAML implementation supports just-in-time (JIT) user provisioning, as well as both IdP-initiated login and service-initiated (SP) login.
+
 
 ## Okta
 
@@ -37,12 +38,11 @@ Create a new SAML app in Google Workspace:
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. Configure the **Service provider details**:
-
-  - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
-  - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
-  - For **Name ID format**, choose `EMAIL`.
-  - For **Name ID**, choose `Basic Information > Primary email`.
-  - All other fields can be left blank.
+    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+    - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
+    - For **Name ID format**, choose `EMAIL`.
+    - For **Name ID**, choose `Basic Information > Primary email`.
+    - All other fields can be left blank.
 
   Click **Continue** at the bottom of the page.
 
@@ -61,6 +61,67 @@ Create a new SAML app in Google Workspace:
   ![The new SAML app's service status page in Google Workspace](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-8.png)
 
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
+
+## Entra
+Create a new SAML app in Microsoft Entra Admin Center:
+1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
+2. At the top of the page, click **+ New Application**.
+3. On the next page, click **+ Create your own application** and enter the following.
+   - For **Input name**, enter `Fleet`.
+   - For **What are you looking to do with your application?**, select `Integrate any other application you don't find in the gallery (Non-gallery)`.
+   - Click **Create**.
+4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
+5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
+   - For **Identifier (Entity ID)**, click **Add identifier** and enter `fleet`.
+   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+   - Click **Save**.
+6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
+ ![The new SAML app's details page in Enta Admin Center](../images/entra-sso-configuration-step-6.png)
+
+On your Fleet server: 
+1. Navigate to **Settings > Organization settings > Single sign-on options**.
+2. On the **Single sign-on options** page:
+   - Check the box to **Enable single sign-on**.
+   - For **Identity provider name**, enter `Entra`.
+   - For **Entity ID**, enter `fleet`.
+   - In the **Metadata URL** field, paste the URL that you copied from Entra in step 6 in the previous section.
+   - Click **Save**.
+
+ ![The configuration for the SSO connection in Fleet](../images/entra-sso-configuration-fleet-config.png) 
+3. Enable SSO for a test user and try to log in with Entra.
+   
+
+
+## authentik
+
+Fleet can be configured to use authentik as an identity provider. To continue, you will need to have an authentik instance hosted on an HTTPS domain, and an admin account.
+
+
+1. Log in to authentik and click **Admin interface**.
+
+2. Navigate to **Applications -> Applications** and click **Create with Provider** to create an application and provider pair.
+
+3. Enter "Fleet" for the **App name** and click **Next**.
+
+4. Choose **SAML** as the **Provider Type** and click **Next**.
+    - For **Name**, enter "Fleet".
+    - For **Authorization flow**, choose `default-provider-authorization-implicit-consent (Authorize Application)`.
+    - In the **Protocol settings** section, configure the following:
+      - For **Assertion Consumer Service URL** use `https://<your_fleet_url>/api/v1/fleet/sso/callback`.
+        - If you're configuring **[end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
+      - For **Issuer**, use `authentik`.
+      - For **Service Provider Binding**, choose `Post`.
+      - For **audience**, use `https://<your_fleet_url>`.
+    - In the **Advanced protocol settings** section, configure the following:
+      - Choose a signing certificate and enable **Sign assertions** and **Sign responses**.
+      - For **NameID Property Mapping**, choose `default SAML Mapping: Email`.
+    - Click **Next**.
+    - Continue to the **Review and Submit Application** page and click **Submit**.
+
+5. Navigate to **Applications -> Providers** and click on the Fleet provider you just created.
+    - In the **Related objects** section, click **Copy Metadata URL** and paste the URL to a text editor for later use.
+
+6. Proceed to [Fleet configuration](#fleet-configuration).
 
 ## Other IdPs
 
@@ -90,7 +151,7 @@ If you're configuring end user authentication head to **Settings > Integrations 
   issue authorization requests to the IdP.
 
 - **Metadata** - If the IdP does not provide a metadata URL, the metadata must
-  be obtained from the IdP and entered. Coming soon to end user authentication.
+  be obtained from the IdP and entered.
 
 ![Example SSO Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/sso-setup.png)
 
@@ -142,6 +203,7 @@ If the account already exists:
   - If the `SAMLResponse` does not have any role attributes set, no role change is attempted.
 
 Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
+
 ```xml
 [...]
 <saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -164,6 +226,7 @@ Here's a `SAMLResponse` sample to set the role of SSO users to Global `admin`:
 ```
 
 Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in team with ID `1` and `maintainer` in team with ID `2`:
+
 ```xml
 [...]
 <saml2:Assertion ID="id16311976805446352575023709" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -189,6 +252,16 @@ Here's a `SAMLResponse` sample to set the role of SSO users to `observer` in tea
 ```
 
 Each IdP will have its own way of setting these SAML custom attributes, here are instructions for how to set it for Okta: https://support.okta.com/help/s/article/How-to-define-and-configure-a-custom-SAML-attribute-statement?language=en_US.
+
+## Email two-factor authentication (2FA)
+
+If you have a "break glass" Fleet user account that's used to login to Fleet when your identify provider (IdP) goes down, you can enable email 2FA, also known as multi-factor authentication (MFA), for this user. For all other users, the best practice is to enable single-sign on (SSO). Then, you can enforce any 2FA method supported by your IdP (i.e. authenticator app, security key, etc.).
+
+Users with email 2FA enabled will get this email when they login to Fleet:
+
+![Example two-factor authentication (2FA) email](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/email-two-factor-authentication-576x638@2x.png)
+
+You can't edit the authentication method for your currently logged-in user. To enable email 2FA for a user, login with a different user who has the admin role and head to **Settings > Users**.
 
 <meta name="title" value="Single sign-on (SSO)">
 <meta name="pageOrderInSection" value="200">

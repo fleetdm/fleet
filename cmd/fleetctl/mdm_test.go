@@ -274,7 +274,7 @@ func TestMDMRunCommand(t *testing.T) {
 				return res, nil
 			}
 
-			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
 			}
 
@@ -1246,7 +1246,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid windows but host is locked", []string{"--host", winEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
-		{appCfgScriptsDisabled, "valid linux but script are disabled", []string{"--host", linuxEnrolled.host.UUID}, "Can't wipe host because running scripts is disabled in organization settings."},
+		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
 	}
 
 	successfulOutput := func(ident string) string {

@@ -107,13 +107,13 @@ module.exports = {
       if(infostring === 'mermaid') {
         return `<code class="mermaid">${_.escape(code)}</code>`;
       } else if(infostring === 'js') {// Interpret `js` as `javascript`
-        return `<pre><code class="hljs javascript">${_.escape(code)}</code></pre>`;
+        return `<pre><code class="hljs javascript" v-pre>${_.escape(code)}</code></pre>`;
       } else if(infostring === 'bash' || infostring === 'sh') {// Interpret `sh` and `bash` as `bash`
-        return `<pre><code class="hljs bash">${_.escape(code)}</code></pre>`;
+        return `<pre><code class="hljs bash" v-pre>${_.escape(code)}</code></pre>`;
       } else if(infostring !== '') {// leaving the code language as-is if the infoString is anything else.
-        return `<pre><code class="hljs ${_.escape(infostring)}">${_.escape(code)}</code></pre>`;
+        return `<pre><code class="hljs ${_.escape(infostring)}" v-pre>${_.escape(code)}</code></pre>`;
       } else {// When unspecified, default to `text`
-        return `<pre><code class="nohighlight">${_.escape(code)}</code></pre>`;
+        return `<pre><code class="nohighlight" v-pre>${_.escape(code)}</code></pre>`;
       }
     };
 

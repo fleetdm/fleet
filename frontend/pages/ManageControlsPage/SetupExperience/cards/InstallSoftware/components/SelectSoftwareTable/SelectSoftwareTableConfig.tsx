@@ -8,6 +8,7 @@ import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 export interface EnhancedSoftwareTitle extends ISoftwareTitle {
   isSelected: boolean;
@@ -40,7 +41,16 @@ const generateTableConfig = (
             cellProps.toggleAllRowsSelected();
           },
         };
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={6}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox disabled={disableChildren} {...checkboxProps} />
+            )}
+          />
+        );
       },
       Cell: (cellProps: ISelectionCellProps) => {
         const { checked } = cellProps.row.getToggleRowSelectedProps();
@@ -51,7 +61,16 @@ const generateTableConfig = (
             cellProps.row.toggleRowSelected();
           },
         };
-        return <Checkbox {...checkboxProps} />;
+        return (
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={6}
+            fixedPositionStrategy
+            renderChildren={(disableChildren) => (
+              <Checkbox disabled={disableChildren} {...checkboxProps} />
+            )}
+          />
+        );
       },
     },
     {

@@ -28,7 +28,7 @@
       *,
       *:before,
       *:after {
-        box-sizing: inherit;
+        box-sizing: border-box;
       }
 
       body,
@@ -37,7 +37,9 @@
         margin: 0;
       }
 
-      .download-link {
+      .download-link,
+      .enroll-link {
+        display: inline-block;
         color: #fff;
         background-color: #6a67fe;
         padding: 8px 16px;
@@ -45,8 +47,8 @@
         text-decoration: none;
         font-weight: 700;
         font-size: 14px;
-        width: 100px;
         line-height: 21px;
+        text-align: center;
       }
 
       header {
@@ -74,11 +76,15 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
+        align-items: flex-start;
       }
 
-      li > p {
+      .android-content {
+        margin-top: 48px;
         display: flex;
-        gap: 4px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
       }
 
       .page-description {
@@ -107,15 +113,60 @@
       }
 
       #main-content {
+        margin: 0 auto;
         padding: 48px 24px;
+        max-width: 800px;
+      }
+
+      .device-enroll-message {
+        margin-top: 48px;
+        display: flex;
+        gap: 8px;
+      }
+
+      .error-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 24px;
+        font-size: 14px;
+      }
+
+      .error-description {
+        text-align: center;
+      }
+
+      @media screen and (max-width: 430px) {
+        .enroll-link {
+          width: 100%;
+        }
       }
     </style>
   </head>
   <body>
-    <header>
-      <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
-    </header>
-    <section id="main-content">
+    <!-- unsupported platform content -->
+    <template id="unsupported-template">
+      <h1>Enroll your device to Fleet</h1>
+      <p class="page-description">
+        To enroll your iPhone, iPad, or Android device, please open this page on
+        your mobile device.
+      </p>
+    </template>
+
+    <!-- android content -->
+    <template id="android-template">
+      <h1>Enroll your Android device to Fleet</h1>
+      <div class="android-content">
+        <p>
+          Select <b>Enroll</b> and follow the steps.
+        </p>
+        <a class="enroll-link" href="" target="_blank">Enroll</a>
+      </div>
+    </template>
+
+    <!-- ios, ipados content -->
+    <template id="ios-ipad-template">
       <h1>
         Enroll your
         <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
@@ -160,26 +211,114 @@
           <div class="install-profile-container">
             <img class="install-profile-img" src="" alt="select install" />
           </div>
+          <p>
+            You will see an UNVERIFIED PROFILE warning and a MOBILE DEVICE
+            MANAGEMENT warning. Click <b>Install</b> again for each warning.
+            When you see a <b>Remote Management</b> prompt, click
+            <b>Trust</b> to complete enrollment.
+          </p>
         </li>
       </ol>
-    </section>
-    <script>
-      document.addEventListener("DOMContentLoaded", function () {
-        const userAgent = navigator.userAgent;
-        const isIPhone = /iPhone/.test(userAgent);
-        const isIPad =
-          /iPad/.test(userAgent) ||
-          (/Macintosh/i.test(navigator.userAgent) &&
-            navigator.maxTouchPoints &&
-            navigator.maxTouchPoints > 1);
+      <p class="device-enroll-message">
+        <img src="{{.URLPrefix}}/assets/images/check.svg" />
+        Your device will now be enrolled in Fleet.
+      </p>
+    </template>
 
-        // update text content for device type
-        let deviceType = "iPhone or iPad";
-        if (isIPhone) {
-          deviceType = "iPhone";
+    <!-- Error content -->
+    <template id="error-template">
+      <h1 class="error-header">
+        <svg
+          width="16"
+          height="17"
+          viewBox="0 0 16 17"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M8 0.5C3.58 0.5 0 4.08 0 8.5C0 12.92 3.58 16.5 8 16.5C12.42 16.5 16 12.92 16 8.5C16 4.08 12.42 0.5 8 0.5ZM8 3.75C8.41421 3.75 8.75 4.08579 8.75 4.5V9.5C8.75 9.91421 8.41421 10.25 8 10.25C7.58579 10.25 7.25 9.91421 7.25 9.5V4.5C7.25 4.08579 7.58579 3.75 8 3.75ZM8 13.5C8.55229 13.5 9 13.0523 9 12.5C9 11.9477 8.55229 11.5 8 11.5C7.44772 11.5 7 11.9477 7 12.5C7 13.0523 7.44772 13.5 8 13.5Z"
+            fill="#D66C7B"
+          />
+        </svg>
+        <p class="error-title"></p>
+      </h1>
+      <p class="error-description"></p>
+    </template>
+
+    <header>
+      <img src="{{.URLPrefix}}/assets/images/fleet-logo.svg" />
+    </header>
+
+    <!-- container for the dynamic content -->
+    <section id="main-content"></section>
+
+    <script>
+      const ANDROID_GET_TOKEN_URL =
+        "{{.URLPrefix}}/api/v1/fleet/android_enterprise/enrollment_token";
+      // using string comparison to satisfy the linter.
+      const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
+      const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
+      // TODO: remove android feature flag
+      const ANDROID_FEATURE_ENABLED = "{{.AndroidFeatureEnabled}}" === "true";
+
+      const getPlatform = () => {
+        const userAgent = navigator.userAgent;
+        const isIPhone = /iPhone/i.test(userAgent);
+        const isIPad =
+          /iPad/i.test(userAgent) ||
+          (/Macintosh/i.test(userAgent) &&
+            navigator.maxTouchPoints !== undefined &&
+            navigator.maxTouchPoints > 1);
+        const isAndroid = /Android/i.test(userAgent);
+
+        if (isAndroid) {
+          return "android";
+        } else if (isIPhone) {
+          return "ios";
         } else if (isIPad) {
+          return "ipad";
+        }
+
+        return "unsupported";
+      };
+
+      const getTemplateIdFromPlatform = (platform) => {
+        let templateId = "";
+        if (platform === "android") {
+          templateId = "android-template";
+        } else if (platform === "ios" || platform === "ipad") {
+          templateId = "ios-ipad-template";
+        } else {
+          templateId = "unsupported-template";
+        }
+
+        return templateId;
+      };
+
+      // renders the content based on the template id
+      const renderContent = (templateId) => {
+        const template = document.getElementById(templateId);
+        if (template) {
+          document
+            .getElementById("main-content")
+            .appendChild(template.content.cloneNode(true));
+        }
+      };
+
+      const setEnrollTokenUrl = (url) => {
+        document.querySelector(".enroll-link").setAttribute("href", url);
+      };
+
+      // dynmaic content rendering for ios and ipad only
+      const setIosIpadContent = (platform) => {
+        if (platform === "ios") {
+          deviceType = "iPhone";
+        } else if (platform === "ipad") {
           deviceType = "iPad";
         }
+
         document
           .querySelectorAll('[data-attribute="dynamic-device-type"]')
           .forEach((el) => {
@@ -187,13 +326,113 @@
           });
 
         // update image src based on OS
-        const osImagePrefix = isIPhone ? "ios" : "iPadOS";
+        const osImagePrefix = platform === "ios" ? "ios" : "iPadOS";
         document.querySelector(
           ".profile-downloaded-img"
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-profile-downloaded.png`;
         document.querySelector(
           ".install-profile-img"
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
+      };
+
+      const renderError = (title, description) => {
+        const template = document.getElementById("error-template");
+        if (template) {
+          const clone = template.content.cloneNode(true);
+          clone.querySelector(".error-title").textContent = title;
+          clone.querySelector(".error-description").textContent = description;
+          document.getElementById("main-content").appendChild(clone);
+        }
+      };
+
+      const getEnrollmentSecret = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get("enroll_secret");
+      };
+
+      const getEnrollmentToken = async () => {
+        const enrollSecret = getEnrollmentSecret();
+
+        const response = await fetch(
+          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+            enrollSecret
+          )}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error("Failed to get enrollment token");
+        }
+        return await response.json();
+      };
+
+      // here we render the page content
+      document.addEventListener("DOMContentLoaded", async function () {
+        const platform = getPlatform();
+
+        // quick exit if platform is unsupported
+        if (
+          platform === "unsupported" ||
+          (!ANDROID_FEATURE_ENABLED && platform === "android") // TODO: remove android feature flag
+        ) {
+          renderContent("unsupported-template");
+          return;
+        }
+
+        // check if the enroll secret is valid.
+        if (!getEnrollmentSecret()) {
+          renderError(
+            "This URL is invalid.",
+            "Enroll secret is invalid. Please contact your IT admin."
+          );
+          return;
+        }
+
+        let templateId = getTemplateIdFromPlatform(platform);
+
+        // handle android rendering
+        if (platform === "android") {
+          if (!ANDROID_MDM_ENABLED) {
+            renderError(
+              "Android MDM is turned off.",
+              "To enroll your Android device please contact your IT admin."
+            );
+            return;
+          }
+
+          // we need to get the token and then place it in the enroll link
+          try {
+            const data = await getEnrollmentToken();
+            renderContent(templateId);
+            if (!data.android_enrollment_url) {
+              throw new Error("Failed to get enrollment token");
+            }
+            setEnrollTokenUrl(data.android_enrollment_url);
+          } catch (error) {
+            renderError(
+              "This URL is invalid.",
+              "Enroll secret is invalid. Please contact your IT admin."
+            );
+            return;
+          }
+        }
+
+        // handle rendering for ios and ipad
+        if (platform === "ios" || platform === "ipad") {
+          if (!MAC_MDM_ENABLED) {
+            const description = `To enroll your ${
+              platform === "ios" ? "iPhone" : "iPad"
+            } please contact your IT admin.`;
+            renderError("Apple MDM is turned off.", description);
+            return;
+          }
+          renderContent(templateId);
+          setIosIpadContent(platform);
+        }
       });
     </script>
   </body>

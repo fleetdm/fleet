@@ -1,6 +1,7 @@
 import React from "react";
 import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
+import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 export const parseFile = async (file: File): Promise<[string, string]> => {
   // get the file name and extension
@@ -25,7 +26,15 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
 };
 
 export const DEFAULT_ERROR_MESSAGE =
-  "Couldn’t add configuration profile. Please try again.";
+  "Couldn't add configuration profile. Please try again.";
+
+const generateUnsupportedVariableErrMsg = (errMsg: string) => {
+  const regex = /\$[A-Z0-9_]+/;
+  const varName = errMsg.match(regex);
+  return varName
+    ? `Couldn't add. Variable "${varName[0]}" doesn't exist.`
+    : DEFAULT_ERROR_MESSAGE;
+};
 
 /** We want to add some additional messageing to some of the error messages so
  * we add them in this function. Otherwise, we'll just return the error message from the
@@ -37,19 +46,35 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (
     apiReason.includes(
-      "The configuration profile can’t include BitLocker settings."
+      "The configuration profile can't include BitLocker settings."
     )
   ) {
     return (
       <span>
-        {apiReason} To control these settings, go to <b>Disk encryption</b>.
+        Couldn&apos;t add. The configuration profile can&apos;t include
+        BitLocker settings. To control these settings, go to{" "}
+        <b>Disk encryption</b>.
       </span>
     );
   }
 
   if (
     apiReason.includes(
-      "The configuration profile can’t include Windows update settings."
+      "The configuration profile can't include FileVault settings."
+    )
+  ) {
+    return (
+      <span>
+        Couldn&apos;t add. The configuration profile can&apos;t include
+        FileVault settings. To control these settings, go to{" "}
+        <b>Disk encryption</b>.
+      </span>
+    );
+  }
+
+  if (
+    apiReason.includes(
+      "The configuration profile can't include Windows update settings."
     )
   ) {
     return (
@@ -58,5 +83,17 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       </span>
     );
   }
-  return apiReason || DEFAULT_ERROR_MESSAGE;
+
+  if (apiReason.includes("Secret variable")) {
+    return generateSecretErrMsg(err);
+  }
+
+  if (
+    apiReason.includes("Fleet variable") &&
+    apiReason.includes("not supported in configuration profiles")
+  ) {
+    return generateUnsupportedVariableErrMsg(apiReason);
+  }
+
+  return `Couldn't add. ${apiReason}` || DEFAULT_ERROR_MESSAGE;
 };

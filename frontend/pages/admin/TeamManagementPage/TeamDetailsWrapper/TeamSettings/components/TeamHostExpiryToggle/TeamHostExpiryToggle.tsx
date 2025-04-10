@@ -10,6 +10,7 @@ interface ITeamHostExpiryToggle {
   globalHostExpiryWindow?: number;
   teamExpiryEnabled: boolean;
   setTeamExpiryEnabled: (value: boolean) => void;
+  gitopsModeEnabled?: boolean;
 }
 
 const TeamHostExpiryToggle = ({
@@ -17,6 +18,7 @@ const TeamHostExpiryToggle = ({
   globalHostExpiryWindow,
   teamExpiryEnabled,
   setTeamExpiryEnabled,
+  gitopsModeEnabled,
 }: ITeamHostExpiryToggle) => {
   const renderHelpText = () =>
     // this will never be rendered while globalHostExpiryWindow is undefined
@@ -49,7 +51,7 @@ const TeamHostExpiryToggle = ({
         name="enableHostExpiry"
         onChange={setTeamExpiryEnabled}
         value={teamExpiryEnabled || globalHostExpiryEnabled} // Still shows checkmark if global expiry is enabled though the checkbox will be disabled.
-        disabled={globalHostExpiryEnabled}
+        disabled={globalHostExpiryEnabled || gitopsModeEnabled}
         helpText={renderHelpText()}
         tooltipContent={
           <>

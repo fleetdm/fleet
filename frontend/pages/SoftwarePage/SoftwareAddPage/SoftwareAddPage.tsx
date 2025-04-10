@@ -4,14 +4,15 @@ import { InjectedRouter } from "react-router";
 import { Location } from "history";
 
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
@@ -28,7 +29,7 @@ const addSoftwareSubNav: IAddSoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
   },
   {
-    name: "App store (VPP)",
+    name: "App Store (VPP)",
     pathname: PATHS.SOFTWARE_ADD_APP_STORE,
   },
   {
@@ -72,11 +73,9 @@ const SoftwareAddPage = ({
     (i: number): void => {
       setSidePanelOpen(false);
       // Only query param to persist between tabs is team id
-      const teamIdParam = buildQueryStringFromParams({
+      const navPath = getPathWithQueryParams(addSoftwareSubNav[i].pathname, {
         team_id: location.query.team_id,
       });
-
-      const navPath = addSoftwareSubNav[i].pathname.concat(`?${teamIdParam}`);
       router.replace(navPath);
     },
     [location.query.team_id, router, setSidePanelOpen]
@@ -87,9 +86,9 @@ const SoftwareAddPage = ({
   // is not provieded.
   if (!location.query.team_id) {
     router.replace(
-      `${location.pathname}?${buildQueryStringFromParams({
+      getPathWithQueryParams(location.pathname, {
         team_id: APP_CONTEXT_NO_TEAM_ID,
-      })}`
+      })
     );
     return null;
   }
@@ -98,9 +97,9 @@ const SoftwareAddPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const backUrl = `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
+  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
     team_id: location.query.team_id,
-  })}`;
+  });
 
   return (
     <>
@@ -112,7 +111,7 @@ const SoftwareAddPage = ({
             className={`${baseClass}__back-to-software`}
           />
           <h1>Add software</h1>
-          <TabsWrapper>
+          <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}
               onSelect={navigateToNav}
@@ -121,13 +120,13 @@ const SoftwareAddPage = ({
                 {addSoftwareSubNav.map((navItem) => {
                   return (
                     <Tab key={navItem.name} data-text={navItem.name}>
-                      {navItem.name}
+                      <TabText>{navItem.name}</TabText>
                     </Tab>
                   );
                 })}
               </TabList>
             </Tabs>
-          </TabsWrapper>
+          </TabNav>
           {React.cloneElement(children, {
             router,
             currentTeamId: parseInt(location.query.team_id, 10),

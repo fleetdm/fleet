@@ -1,5 +1,4 @@
 <div id="edit-profile" v-cloak>
-  <account-notification-banner></account-notification-banner>
   <div class="container pt-5 pb-5">
     <h1>Update personal info</h1>
     <hr/>
@@ -14,9 +13,10 @@
         </div>
         <div class="col-sm-6">
           <div class="form-group">
-            <label for="email-address">Email address</label>
-            <input class="form-control" id="email-address" name="email-address" type="email"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="sturgeon@example.com" autocomplete="email">
+            <label for="email-address">Email address </label>
+            <input class="form-control" id="email-address" name="email-address" type="email" :disabled="replaceBuiltInAuthWithEntra" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="sturgeon@example.com" autocomplete="email">
             <div class="invalid-feedback" v-if="formErrors.emailAddress">Please enter a valid email address.</div>
+            <small class="text-danger " v-if="replaceBuiltInAuthWithEntra">Changing email addresses is currently not supported when using SSO.</small>
           </div>
         </div>
       </div>

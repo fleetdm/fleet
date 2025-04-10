@@ -1,10 +1,4 @@
 .team-management {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-    padding-bottom: $pad-medium;
-  }
   .data-table-block {
     .data-table__table {
       thead {
@@ -23,8 +17,16 @@
       }
 
       tbody {
-        .name__cell {
-          width: auto;
+        // Override data-table td max-width at low widths to fit screen
+        @media (max-width: ($break-md - 1)) {
+          .name__cell {
+            max-width: 430px;
+          }
+        }
+        @media (max-width: ($break-sm - 1)) {
+          .name__cell {
+            max-width: 330px;
+          }
         }
 
         .host_count__cell,
@@ -36,6 +38,14 @@
           width: $col-sm;
         }
       }
+    }
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
+    .actions-dropdown-select__control--is-disabled {
+      min-height: 0;
+      padding: 0;
     }
   }
 }

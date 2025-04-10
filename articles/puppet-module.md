@@ -14,17 +14,17 @@ To set up the Puppet module, we will do the following steps:
 2. Configure Puppet to talk to Fleet using Hiera
 3. Set Fleet as a reporter
 
-### Step 1: install the Puppet module
+### Step 1: Install the Puppet module
 
 Install [Fleet's Puppet module](https://forge.puppet.com/modules/fleetdm/fleetdm/readme). For more instructions on how to install Puppet modules, check out the Puppet docs [here](https://www.puppet.com/docs/puppet/8/modules_installing.html).
 
-### Step 2: configure Puppet to talk to Fleet using Heira
+### Step 2: Configure Puppet to talk to Fleet using Heira
 
-1. In Fleet, create an API-only user with the GitOps role. Instructions for creating an API-only user are [here](./fleetctl-CLI.md#create-an-api-only-user).
+1. In Fleet, create an API-only user with the GitOps role. Instructions for creating an API-only user are
+   [here](https://fleetdm.com/guides/fleetctl#create-api-only-user). 
 
-2. Get the API token for your new API-only user. Learn how [here](./fleetctl-CLI.md#get-the-api-token-of-an-api-only-user).
-
-3. Set `fleetdm::host` and `fleetdm::token` values to your Fleet server's URL and the API token respectively. Here's an example of the Hiera YAML:
+2. Set the `fleetdm::token` and `fleetdm::host` values to the API token of your API-only user and
+   your Fleet server's URL, respectively. Here's an example of the Hiera YAML:
 
 ```yaml
 fleetdm::host: https://fleet.example.com
@@ -35,7 +35,7 @@ Puppet docs on configuring Hiera are [here](https://www.puppet.com/docs/puppet/6
 
 If you have staging and production Puppet environments, you can optionally set different values for each environment. This allows you to have your staging and production environments that talk to separate staging and production Fleet servers.
 
-### Step 3: set Fleet as a reporter
+### Step 3: Set Fleet as a reporter
 
 In your Puppet configuration, set `http:fleetdm` as the value for `reports`. Here's an example of the Puppet configuration:
 
@@ -99,11 +99,11 @@ Set the `ensure` parameter to `absent` to create teams that exclude specific pro
 
 For more examples check out the `examples/` folder in Fleet's GitHub repository [here](https://github.com/fleetdm/fleet/tree/main/ee/tools/puppet/fleetdm/examples).
 
-> Note that all teams created by Puppet inherit the bootstrap package, macOS Setup Assistant settings, and end user authentication settings from "No team." Learn more about these [here](./mdm-setup.md). In addition all teams automatically enable disk encryption. Learn more about disk encryption [here](./MDM-disk-encryption.md).
+> Note that all teams created by Puppet inherit the bootstrap package, macOS Setup Assistant settings, and end user authentication settings from "No team." Learn more about these [here](https://fleetdm.com/guides/macos-setup-experience). In addition all teams automatically enable disk encryption. Learn more about disk encryption [here](https://fleetdm.com/guides/enforce-disk-encryption).
 
 ## Release host
 
-If you set `await_device_configured` to `true` in your [macOS Setup Assistant settings](./mdm-setup.md#macos-setup-assistant), you can use the `fleetdm::release_device` function to release the host from the Setup Assistant. 
+If you set `enable_release_device_manually` to `true` in your [macOS setup experience](https://fleetdm.com/docs/rest-api/rest-api#configure-setup-experience), you can use the `fleetdm::release_device` function to release the host from the Setup Assistant. 
 
 Here's what your Puppet code, with error handling, will look like:
 
@@ -149,7 +149,7 @@ if $err != '' {
 }
 ```
 
-The above example includes the XML payload for the `EnableRemoteDesktop` MDM command. Learn more about creating the payload for other custom commands [here](./MDM-commands.md).
+The above example includes the XML payload for the `EnableRemoteDesktop` MDM command. Learn more about creating the payload for other custom commands [here](https://fleetdm.com/guides/mdm-commands).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

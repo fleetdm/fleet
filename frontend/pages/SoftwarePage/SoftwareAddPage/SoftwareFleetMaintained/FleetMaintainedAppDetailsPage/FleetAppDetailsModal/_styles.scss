@@ -1,0 +1,19 @@
+.fleet-app-details-modal {
+  &__modal-content {
+    display: flex;
+    column-gap: $pad-xxlarge;
+    row-gap: $pad-xlarge;
+    flex-wrap: wrap;
+  }
+
+  .react-tooltip {
+    min-width: 120px;
+  }
+
+  // DataSet must have overflow hidden to be used in conjunction with child tooltip truncation
+  // Local fix as global fix caused DataSet width bugs across other DataSet use cases
+  .data-set {
+    max-width: min-content;
+    overflow: hidden;
+  }
+}

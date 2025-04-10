@@ -209,6 +209,25 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
 			},
 		},
+		// CVE-2023-48795 in NVD incorrectly mentions PowerShell as vulnerable when the issue is actually with OpenSSH,
+		// which is packaged separately. It also includes a bogus resolved-in version number. See #26073.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2023-48795": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell"
+			},
+		},
+		// CVE-2025-21171 only affects RC versions of PowerShell, see https://github.com/PowerShell/Announcements/issues/72
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2025-21171": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell" && cpeMeta.Update == ""
+			},
+		},
 		// Old macos CPEs without version constraints that should be ignored
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
@@ -240,14 +259,32 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreAll: true,
 		},
-		// CVE-2024-4030 only targets windows operating systems
+		// CVE-2024-4030 and CVE-2024-6286 only target windows operating systems
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
 				"CVE-2024-4030": {},
+				"CVE-2024-6286": {},
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.TargetSW != "windows"
 			},
+		},
+		// CVE-2024-12254 only targets Mac/Linux operating systems
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-12254": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW == "windows"
+			},
+		},
+		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-10004": {},
+				"CVE-2024-10327": {}, // also missing a CPE as of 2025-01-01
+			},
+			IgnoreAll: true,
 		},
 	}
 

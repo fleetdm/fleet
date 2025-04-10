@@ -14,12 +14,6 @@
         overflow-y: auto;
       }
     }
-    .policy-row {
-      height: 40px;
-      padding-top: 4px;
-      padding-bottom: 4px;
-    }
-
     &__no-software {
       display: flex;
       height: 178px;
@@ -28,7 +22,7 @@
       gap: $pad-small;
       justify-content: center;
       font-size: $small;
-      
+
       div {
         color: $ui-fleet-black-75;
         font-size: $xx-small;

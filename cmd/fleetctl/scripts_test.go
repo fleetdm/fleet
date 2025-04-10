@@ -112,12 +112,12 @@ hello world
 		{
 			name:         "invalid hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#! /foo/bar", ".sh") },
-			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`,
 		},
 		{
 			name:         "unsupported hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#!/bin/ksh", ".sh") },
-			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`,
 		},
 		{
 			name:       "posix shell hashbang",
@@ -338,7 +338,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil

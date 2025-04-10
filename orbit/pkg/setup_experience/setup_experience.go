@@ -60,9 +60,11 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	)
 
 	if _, err := os.Stat(binaryPath); err != nil {
-		log.Debug().Msg("skipping setup experience: swiftDialog is not installed")
+		log.Info().Msg("skipping setup experience: swiftDialog is not installed")
 		return nil
 	}
+
+	log.Info().Msg("checking setup experience status")
 
 	// Poll the status endpoint. This also releases the device if we're done.
 	payload, err := s.OrbitClient.GetSetupExperienceStatus()
@@ -85,7 +87,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	select {
 	case <-s.closeChan:
-		log.Debug().Str("receiver", "setup_experiencer").Msg("swiftDialog closed")
+		log.Info().Str("receiver", "setup_experiencer").Msg("swiftDialog closed")
 		return nil
 	default:
 		// ok
@@ -95,15 +97,19 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// and account configuration to verify) right off the bat, so we can just no-op if any of those
 	// are not terminal
 
+	log.Info().Msg("setup experience: checking for pending statuses")
+
 	if payload.BootstrapPackage != nil {
 		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed && payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
+			log.Info().Msg("setup experience: bootstrap package pending")
 			return nil
 		}
 	}
 
 	s.steps["bootstrap"] = true
 
-	if anyProfilePending(payload.ConfigurationProfiles) {
+	if isPending, name := anyProfilePending(payload.ConfigurationProfiles); isPending {
+		log.Info().Msg(fmt.Sprintf("setup experience: profile pending: %s", name))
 		return nil
 	}
 
@@ -113,6 +119,8 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
 			payload.AccountConfiguration.Status != fleet.MDMAppleStatusError &&
 			payload.AccountConfiguration.Status != fleet.MDMAppleStatusCommandFormatError {
+
+			log.Info().Msg("setup experience: account config pending")
 			return nil
 		}
 	}
@@ -121,6 +129,8 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// Now render the UI for the software and script.
 	if len(payload.Software) > 0 || payload.Script != nil {
+		log.Info().Msg("setup experience: rendering software and script UI")
+
 		var stepsDone int
 		var prog uint
 		var steps []*fleet.SetupExperienceStatusResult
@@ -211,20 +221,23 @@ func (s *SetupExperiencer) allStepsDone() bool {
 	return true
 }
 
-func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResult) bool {
+func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResult) (bool, string) {
 	for _, p := range profiles {
 		if p.Status == fleet.MDMDeliveryPending {
-			return true
+			return true, p.Name
 		}
 	}
 
-	return false
+	return false, ""
 }
 
 func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	if s.started {
+		log.Info().Msg("swiftDialog started")
 		return nil
 	}
+
+	log.Info().Msg("creating swiftDialog instance")
 
 	created := make(chan struct{})
 	swiftDialog, err := swiftdialog.Create(context.Background(), binaryPath)

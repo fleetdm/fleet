@@ -17,6 +17,8 @@ const (
 	// We use fleet-desktop as name to properly identify the process when listing
 	// running processes/tasks.
 	DesktopAppExecName = "fleet-desktop"
+	// DesktopTokenFileName is the filename on disk (in the orbit base dir) where we store the Fleet Desktop auth token
+	DesktopTokenFileName = "identifier"
 	// OrbitNodeKeyFileName is the filename on disk where we write the orbit node key to
 	OrbitNodeKeyFileName = "secret-orbit-node-key.txt"
 	// OrbitEnrollMaxRetries is the max number of retries when doing an enroll request.

@@ -81,7 +81,7 @@ docker-compose rm
 
 We have had no trouble running up to 100 containerized osqueryd instances on a single processor core and about 1GB of RAM.
 
-### Generating a osqueryd core file
+### Generating an osqueryd core file
 
 The docker containers are configured to allow core files to be generated if osqueryd
 crashes for some reason. You can attach to the container hosting the errant osqueryd

@@ -1,18 +1,22 @@
 .os-settings-table {
-
   // stylings for the table cells. This was the explicit width we want
   // for these cells in the table. Total width of the table cell will be
   // 240px including the padding.
-  .data-table-block .data-table tbody td {
-    .os-settings-name-cell {
-      width: 135px;
-      max-width: none;
+  .data-table-block .data-table {
+    &__wrapper {
+      width: initial;
     }
-    .os-settings-status-cell {
-      width: 200px;
-    }
-    .os-settings-error-cell {
-      width: 237px;
+    tbody td {
+      .os-settings-name-cell {
+        width: 135px;
+        max-width: none;
+      }
+      .os-settings-status-cell {
+        width: 200px;
+      }
+      .os-settings-error-cell {
+        width: 237px;
+      }
     }
   }
 

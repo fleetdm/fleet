@@ -79,7 +79,6 @@ export const generateTableHeaders = (teamId: number) => {
                   os_version: cellProps.row.original.version,
                   team_id: teamId,
                 }}
-                condensed
                 className="os-hosts-link"
                 rowHover
               />

@@ -1,1 +1,0 @@
-* Deprecated the worker-based job to release macOS devices automatically after the setup experience, replace it with the fleetd-specific "/status" endpoint that is polled by the Setup Experience dialog controlled by Fleet during the setup flow.

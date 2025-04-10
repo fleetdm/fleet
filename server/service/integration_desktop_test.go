@@ -254,7 +254,7 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
 			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst - 1,
+			burst:    forgotPasswordRateLimitMaxBurst - 2,
 			status:   http.StatusAccepted,
 		},
 		{
@@ -265,6 +265,12 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		},
 	}
 
+	// Mock working SMTP for password reset
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = true
+	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
+
 	for _, tCase := range testCases {
 		b, err := json.Marshal(tCase.payload)
 		require.NoError(s.T(), err)
@@ -274,6 +280,13 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		}
 		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
 	}
+
+	// Disable it again because integration tests leak state like a sieve
+	config, err = s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = false
+	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
+
 }
 
 func (s *integrationTestSuite) TestErrorReporting() {

@@ -2,12 +2,13 @@ import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { noop } from "lodash";
 
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import Button from "components/buttons/Button";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 interface IHeaderProps {
   column: {
@@ -70,21 +71,7 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
 
-        const onClickPolicyName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          togglePolicyDetails(cellProps.row.original);
-        };
-
-        return (
-          <Button
-            className="policy-info"
-            onClick={onClickPolicyName}
-            variant="text-icon"
-          >
-            <span className={`policy-info-text`}>{name}</span>
-          </Button>
-        );
+        return <LinkCell customOnClick={noop} tooltipTruncate value={name} />;
       },
     },
     {
@@ -131,7 +118,7 @@ const generatePolicyTableHeaders = (
                       : PolicyResponse.FAILING,
                   team_id: currentTeamId,
                 }}
-                className="policy-link"
+                rowHover
               />
             )}
           </>

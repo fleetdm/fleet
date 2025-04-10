@@ -1,21 +1,40 @@
 # API for contributors
 
+- [Authentication](#authentication)
 - [Packs](#packs)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Get or apply configuration files](#get-or-apply-configuration-files)
 - [Live query](#live-query)
 - [Trigger cron schedule](#trigger-cron-schedule)
 - [Device-authenticated routes](#device-authenticated-routes)
+- [Orbit-authenticated routes](#orbit-authenticated-routes)
 - [Downloadable installers](#downloadable-installers)
 - [Setup](#setup)
 - [Scripts](#scripts)
 - [Software](#software)
+- [Users](#users)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
 This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
+
+## Authentication
+
+### Create session
+
+`POST /api/v1/fleet/sessions`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| token | string | body | **Required**. The token retrieved from the magic link email. |
+
+#### Response
+
+See [the Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in) for the current
+successful response format.
 
 ## Packs
 
@@ -532,6 +551,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
 - [Add ABM token](#add-abm-token)
+- [Count ABM tokens](#count-abm-tokens)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
 - [Update ABM token's teams](#update-abm-tokens-teams)
 - [Renew ABM token](#renew-abm-token)
@@ -553,6 +573,14 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [SCEP proxy](#scep-proxy)
+- [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
+- [Connect Android Enterprise](#connect-android-enterprise)
+- [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android enrollment token](#get-android-enrollment-token)
+- [Create Android enrollment token](#create-android-enrollment-token)
+- [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
+- [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
 
 
 ### Generate Apple Business Manager public key (ADE)
@@ -679,6 +707,30 @@ Content-Type: application/octet-stream
   "macos_team": null,
   "ios_team": null,
   "ipados_team": null
+}
+```
+
+### Count ABM tokens
+
+`GET /api/v1/fleet/abm_tokens/count`
+
+Get the number of ABM tokens on the Fleet server.
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/abm_tokens/count`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 1
 }
 ```
 
@@ -978,7 +1030,8 @@ Content-Type: application/octet-stream
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all` or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles).                                        |
+| no_cache  | bool   | query | Do not use the cached version of Fleet's configuration. This parameter should only be used when the configuration was updated less than 1 second ago. |
+| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
 
 
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
@@ -1229,6 +1282,134 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### SCEP proxy
+
+`/mdm/scep/proxy/{identifier}`
+
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID,caName` (URL escaped).
+
+### Get Android Enterprise signup URL
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_url`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enterprise_signup_url": "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=S7512150D1D59A3BK"
+}
+```
+
+### Connect Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to connect (bind) Android Enterprise to Fleet and to turn on Android MDM features.
+
+`GET /api/v1/fleet/android_enterprise/connect/:token`
+
+This is callback URL that will be open after user completes Google's signup flow. It will self-close and return user to settings page.
+
+#### Parameters
+
+| Name | Type   | In   | Description                          |
+| ---- | ------ | ---- | ------------------------------------ |
+| token | string | path | **Required.** The signup token associated with Android Enterprise in Fleet. |
+| enterpriseToken | string | query | **Required.** The enterprise token that's returned from Google API. |
+
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/connect/6177a9cb410ff61f20015ad?enterpriseToken=FEKXFy427_jz9Nfhq19SGDOKR2nZ4ZqhSAuYqOQw1B1G2OdBkQ5IDfSkLiO0rUqL8ptAXoa5_cZdh5GBRdyLj29m5A8DcZ1dptSp6YMNY6MQv0UiqcQqRC8D`
+
+##### Default response
+
+`Status: 200`
+
+```
+<html><!-- self-closing page --></html>
+```
+
+### Delete Android Enterprise
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to delete Android Enterprise. Once deleted, hosts that belong to Android Enterprise will be un-enrolled and Android MDM features will be turned off.
+
+`DELETE /api/v1/fleet/android_enterprise/`
+
+#### Example
+
+`DELETE /api/v1/fleet/android_enterprise`
+
+##### Default response
+
+`Status: 200`
+
+### Create Android enrollment token
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+This endpoint is used to generate enrollment token and enrollment URL which opens wizard (settings app) to enroll Android host.
+
+`POST /api/v1/fleet/android_enterprise/enrollment_token`
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| enroll_secret | string | query | **Required.** The enroll secret of a team in Fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/android/enterprise/enrollment_token?enroll_secret=0Z6IuKpKU4y7xl%2BZcrp2gPcMi1kKNs3p`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "android_enrollment_token": "OJDDNCYSEZPAUZZOXHDF",
+  "android_enrollment_url": "https://enterprise.google.com/android/enroll?et=OJDDNCYSEZPAUZZOXHDF"
+}
+```
+
+### Get Android Enterprise server-sent event
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+#### Example
+
+`GET /api/v1/fleet/android_enterprise/signup_sse`
+
+##### Default response
+
+`Status: 200`
+
+```
+Android Enterprise successfully connected
+```
+
+### Android Enterprise PubSub push endpoint
+
+> **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
+
+`POST /api/v1/fleet/android_enterprise/pubsub`
+
 
 ## Get or apply configuration files
 
@@ -1247,6 +1428,7 @@ These API routes are used by the `fleetctl` CLI tool. Users can manage Fleet wit
 - [Get label](#get-label)
 - [Get enroll secrets](#get-enroll-secrets)
 - [Modify enroll secrets](#modify-enroll-secrets)
+- [Store secret variables](#store-secret-variables)
 
 ### Get queries
 
@@ -1745,19 +1927,31 @@ If the `name` is not already associated with an existing team, this API route cr
 | name                                      | string | body  | **Required.** The team's name.                                                                                                                                                                                                      |
 | agent_options                             | object | body  | The agent options spec that is applied to the hosts assigned to the specified to team. These agent options completely override the global agent options specified in the [`GET /api/v1/fleet/config API route`](#get-configuration) |
 | features                                  | object | body  | The features that are applied to the hosts assigned to the specified to team. These features completely override the global features specified in the [`GET /api/v1/fleet/config API route`](#get-configuration)                    |
-| secrets                                   | list   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
+| secrets                                   | array   | body  | A list of plain text strings is used as the enroll secrets. Existing secrets are replaced with this list, or left unmodified if this list is empty. Note that there is a limit of 50 secrets allowed.                               |
 | mdm                                       | object | body  | The team's MDM configuration options.                                                                                                                                                                                               |
 | mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.macos_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
-| scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
+| mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| scripts                                   | array   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
-| software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
-| software.app_store_apps                   | list   | body  | An array of objects. Each object consists of `app_store_id` - ID of the App Store app and `self_service` boolean. |
+| software.app_store_apps                   | array   | body  | An array of objects with values below. |
+| software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
+| software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.packages                          | array   | body  | An array of objects with values below. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
+| software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
+| software.packages.post_install_script      | string   | body  | Script that runs after software install. |
+| software.packages.uninstall_script       | string   | body  | Command that Fleet runs to uninstall software. |
+| software.packages.self_service           | boolean   | body  | If `true` lists software in the self-service. |
+| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -2088,6 +2282,41 @@ This replaces the active global enroll secrets with the secrets specified.
 
 `Status: 200`
 
+### Store secret variables
+
+Stores secret variables prefixed with `$FLEET_SECRET_` to Fleet.
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+#### Parameters
+
+| Name    | Type | In   | Description                                                                                                      |
+| ------- | ---- | ---- | ---------------------------------------------------------------------------------------------------------------- |
+| secrets | list | body | **Required.** List of objects consisting of fields: `name` and `value`
+| dry_run | boolean | body | **Optional.** If true, validates the provided secrets and returns any validation errors, but does not apply the changes.
+
+#### Example
+
+`PUT /api/v1/fleet/spec/secret_variables`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "name": "FLEET_SECRET_SOME_API_TOKEN",
+      "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
 ---
 
 ## Live query
@@ -2364,7 +2593,7 @@ Runs the specified saved query as a live query on the specified targets. Returns
 
 After the query has been initiated, [get results via WebSocket](#retrieve-live-query-results-standard-websocket-api).
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 #### Parameters
 
@@ -2372,13 +2601,13 @@ After the query has been initiated, [get results via WebSocket](#retrieve-live-q
 | -------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | query    | string  | body | The SQL of the query.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | query_id | integer | body | The saved query (if any) that will be run. The `observer_can_run` property on the query effects which targets are included.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
+| selected | object  | body | **Required.** The object includes lists of selected hostnames (`selected.hosts`), label names (`labels`). When provided, builtin label names and custom label names become `AND` filters. Within each selector, selecting two or more builtin labels, or two or more custom labels, behave as `OR` filters. If a label provided could not be found in the database, a 400 bad request will be returned specifying which label is invalid. There's one special case for the builtin label `"All hosts"`, if such label is selected, then all other label and team selectors are ignored (and all hosts will be selected). If a host's hostname is explicitly included in `selected.hosts`, then it is assured that the query will be selected to run on it (no matter the contents of `selected.labels`). See examples below. |
 
 One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2417,7 +2646,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_names`
+`POST /api/v1/fleet/queries/run_by_identifiers`
 
 ##### Request body
 
@@ -2453,6 +2682,39 @@ One of `query` and `query_id` must be specified.
   }
 }
 ```
+
+#### Example with invalid label
+
+`POST /api/v1/fleet/queries/run_by_identifiers`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT instance_id FROM system_info",
+  "selected": {
+    "labels": ["Windows", "Banana", "Apple"]
+  }
+}
+```
+
+##### Default response
+
+`Status: 400`
+
+```json
+{
+  "message": "Bad request",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "Invalid label name(s): Banana, Apple."
+    }
+  ],
+  "uuid": "303649f4-5e45-4379-bae9-64ec0ef56287"
+}
+```
+
 
 ### Retrieve live query results (standard WebSocket API)
 
@@ -2779,11 +3041,12 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
 - [Get device's software](#get-devices-software)
 - [Get device's policies](#get-devices-policies)
+- [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
 - [Get device's transparency URL](#get-devices-transparency-url)
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile)
 - [Migrate device to Fleet from another MDM solution](#migrate-device-to-fleet-from-another-mdm-solution)
-- [Trigger FileVault key escrow](#trigger-filevault-key-escrow)
+- [Trigger Linux disk encryption escrow](#trigger-linux-disk-encryption-escrow)
 - [Report an agent error](#report-an-agent-error)
 
 #### Refetch device's host
@@ -2869,7 +3132,6 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   "notifications": {
     "needs_mdm_migration": true,
     "renew_enrollment_profile": false,
-    "enforce_bitlocker_encryption": false,
   },
   "config": {
     "org_info": {
@@ -2891,8 +3153,6 @@ In regards to the `notifications` key:
 
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
-- `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
-
 
 #### Get device's software
 
@@ -3063,6 +3323,68 @@ Lists the policies applied to the current device.
 }
 ```
 
+#### Get device's certificates
+
+Available for macOS, iOS, and iPadOS hosts only. Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+
+
+Lists the certificates installed on the current device.
+
+`GET /api/v1/fleet/device/{token}/certificates`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+| order_key | string | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name`. |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/certificates`
+
+#### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificates": [
+    {
+      "id": 3,
+      "not_valid_after": "2021-08-19T02:02:17Z",
+      "not_valid_before": "2021-08-19T02:02:17Z",
+      "certificate_authority": true,
+      "common_name": "FleetDM",
+      "key_algorithm": "rsaEncryption",
+      "key_strength": 2048,
+      "key_usage": "CRL Sign, Key Cert Sign",
+      "serial": 1,
+      "signing_algorithm": "sha256WithRSAEncryption",
+      "subject": {
+        "country": "US",
+        "organization": "Fleet Device Management Inc.",
+        "organizational_unit": "Fleet Device Management Inc.",
+        "common_name": "FleetDM"
+      },
+      "issuer": {
+        "country": "US",
+        "organization": "Fleet Device Management Inc.",
+        "organizational_unit": "Fleet Device Management Inc.",
+        "common_name": "FleetDM"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
 #### Get device's API features
 
 This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
@@ -3091,7 +3413,7 @@ This supports the dynamic discovery of API features supported by the server for 
 
 #### Get device's transparency URL
 
-Returns the URL to open when clicking the "Transparency" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
+Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
 
 `GET /api/v1/fleet/device/{token}/transparency`
 
@@ -3163,57 +3485,480 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ---
 
+### Trigger Linux disk encryption escrow
+
+_Available in Fleet Premium_
+
+Signals the fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the team, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that, triggers escrow from the Orbit side.
+
+`POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/mdm/linux/trigger_escrow`
+
+##### Default response
+
+`Status: 204`
+
+---
+
 ### Report an agent error
 
 Notifies the server about an agent error, resulting in two outcomes:
 
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
-- The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
 
-> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors)
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors). `fleetd` agents will always report vital errors to Fleet.
 
 `POST /api/v1/fleet/device/{token}/debug/errors`
 
 #### Parameters
 
-| Name                  | Type     | Description                                                      |
-| --------------------- | -------- | ---------------------------------------------------------------- |
-| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop |
-| error_source_version  | string   | version of error_source                                          |
-| error_timestamp       | datetime | Time in UTC that error occured                                   |
-| error_message         | string   | error message                                                    |
-| error_additional_info | obj      | Any additional identifiers to assist debugging                   |
+| Name                  | Type     | Description                                                                                                                               |
+|-----------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop                                                                          |
+| error_source_version  | string   | version of error_source                                                                                                                   |
+| error_timestamp       | datetime | Time in UTC that error occurred                                                                                                            |
+| error_message         | string   | error message                                                                                                                             |
+| error_additional_info | obj      | Any additional identifiers to assist debugging                                                                                            |
+| vital                 | boolean  | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors. |
 
 ##### Default response
 
-`Status: 500`
+`Status: 200`
 
 ---
 
+## Orbit-authenticated routes
 
-## Downloadable installers
+- [Escrow LUKS data](#escrow-luks-data)
+- [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
+- [Set or update device token](#set-or-update-device-token)
+- [Get orbit script](#get-orbit-script)
+- [Post orbit script result](#post-orbit-script-result)
+- [Put orbit device mapping](#put-orbit-device-mapping)
+- [Post orbit software install result](#post-orbit-software-install-result)
+- [Download software installer](#download-software-installer)
+- [Get orbit software install details](#get-orbit-software-install-details)
+- [Post disk encryption key](#post-disk-encryption-key)
 
-These API routes are used by the UI in Fleet Sandbox.
+---
 
-- [Download an installer](#download-an-installer)
-- [Check if an installer exists](#check-if-an-installer-exists)
+### Escrow LUKS data
 
-### Download an installer
+`POST /api/fleet/orbit/luks_data`
 
-Downloads a pre-built fleet-osquery installer with the given parameters.
+##### Parameters
 
-`POST /api/v1/fleet/download_installer/{kind}`
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+| client_error | string | body | An error description if the LUKS key escrow process fails client-side. If provided, passphrase/salt/key slot request parameters are ignored and may be omitted. |
+| passphrase | string | body | The LUKS passphrase generated for Fleet (the end user's existing passphrase is not transmitted) |
+| key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
+| salt | string | body | The salt corresponding to the specified LUKS key slot. Provided to track cases where an end user rotates LUKS credentials (at which point we'll no longer be able to decrypt data with the escrowed passphrase). |
 
-#### Parameters
+##### Example
 
-| Name          | Type    | In                    | Description                                                        |
-| ------------- | ------- | --------------------- | ------------------------------------------------------------------ |
-| kind          | string  | path                  | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | x-www-form-urlencoded | The global enroll secret.                                          |
-| token         | string  | x-www-form-urlencoded | The authentication token.                                          |
-| desktop       | boolean | x-www-form-urlencoded | Set to `true` to ask for an installer that includes Fleet Desktop. |
+`POST /api/v1/fleet/orbit/luks_data`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "passphrase": "6e657665-7220676f-6e6e6120-67697665-20796f75-207570",
+  "salt": "d34db33f",
+  "key_slot": 1,
+  "client_error": ""
+}
+```
 
 ##### Default response
+
+`Status: 204`
+
+---
+
+### Get the status of a device in the setup experience
+
+`POST /api/fleet/orbit/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+| force_release | boolean | body | Force a host release from ADE flow, in case the setup is taking too long. |
+
+
+##### Example
+
+`POST /api/v1/fleet/orbit/setup_experience/status`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "force_release":false
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "setup_experience_results": {
+        "script": {
+            "name": "setup_script.sh",
+            "status": "success",
+            "execution_id": "b16fdd31-71cc-4258-ab27-744490809ebd"
+        },
+        "software": [
+            {
+                "name": "Zoom Workplace",
+                "status": "success",
+                "software_title_id": 957
+            },
+            {
+                "name": "Bear: Markdown Notes",
+                "status": "success",
+                "software_title_id": 287
+            },
+            {
+                "name": "Evernote",
+                "status": "success",
+                "software_title_id": 1313
+            }
+        ],
+        "configuration_profiles": [
+            {
+                "profile_uuid": "ae6a9efd5-9166-11ef-83af-0242ac12000b",
+                "name": "Fleetd configuration",
+                "status": "verified"
+            },
+            {
+                "profile_uuid": "ae6aa8108-9166-11ef-83af-0242ac12000b",
+                "name": "Fleet root certificate authority (CA)",
+                "status": "verified"
+            }
+        ],
+        "org_logo_url": ""
+    }
+}
+
+```
+
+### Set or update device token
+
+`POST /api/fleet/orbit/device_token`
+
+##### Parameters
+
+| Name              | Type   | In   | Description                                 |
+| ----------------- | ------ | ---- | ------------------------------------------- |
+| orbit_node_key    | string | body | The Orbit node key for authentication.      |
+| device_auth_token | string | body | The device auth token to set for this host. |
+
+##### Example
+
+`POST /api/v1/fleet/orbit/device_token`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "device_auth_token": "2267a440-4cfb-48af-804b-d52224a05e1b"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Get Orbit config
+
+`POST /api/fleet/orbit/config`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/config`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_execution_timeout": 3600,
+  "command_line_startup_flags": {
+    "--verbose": true
+  },
+  "extensions": {
+    "hello_world_linux": {
+      "channel": "stable",
+      "platform": "linux"
+    }
+  },
+  "nudge_config": {
+    "osVersionRequirements": [
+      {
+        "requiredInstallationDate": "2024-12-04T20:00:00Z",
+        "requiredMinimumOSVersion": "15.1.1",
+        "aboutUpdateURLs": [
+          {
+            "_language": "en",
+            "aboutUpdateURL": "https://fleetdm.com/learn-more-about/os-updates"
+          }
+        ]
+      }
+    ],
+    "userInterface": {
+      "simpleMode": true,
+      "showDeferralCount": false,
+      "updateElements": [
+        {
+          "_language": "en",
+          "actionButtonText": "Update",
+          "mainHeader": "Your device requires an update"
+        }
+      ]
+    },
+    "userExperience": {
+      "initialRefreshCycle": 86400,
+      "approachingRefreshCycle": 86400,
+      "imminentRefreshCycle": 7200,
+      "elapsedRefreshCycle": 3600
+    }
+  },
+  "notifications": {
+    "renew_enrollment_profile": true,
+    "rotate_disk_encryption_key": true,
+    "needs_mdm_migration": true,
+    "needs_programmatic_windows_mdm_enrollment": true,
+    "windows_mdm_discovery_endpoint": "/some/path/here",
+    "needs_programmatic_windows_mdm_unenrollment": true,
+    "pending_script_execution_ids": [
+      "a129a440-4cfb-48af-804b-d52224a05e1b"
+    ],
+    "enforce_bitlocker_encryption": true,
+    "pending_software_installer_ids": [
+      "2267a440-4cfb-48af-804b-d52224a05e1b"
+    ],
+    "run_setup_experience": true,
+    "run_disk_encryption_escrow": true
+  },
+  "update_channels": {
+    "orbit": "stable",
+    "osqueryd": "stable",
+    "desktop": "stable"
+  }
+}
+```
+
+### Get script execution result by execution ID
+
+`POST /api/fleet/orbit/scripts/request`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                            |
+| -------------- | ------ | ---- | -------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+| execution_id   | string | body | The UUID of the script execution.      |
+
+##### Example
+
+`POST /api/fleet/orbit/scripts/request`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "execution_id": "006112E7-7383-4F21-999C-8FA74BB3F573"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 12,
+  "execution_id": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "script_contents": "echo hello",
+  "output": "hello",
+  "runtime": 1,
+  "exit_code": 0,
+  "timeout": 30,
+  "script_id": 42,
+  "policy_id": 10,
+  "team_id": 1,
+  "message": ""
+}
+```
+
+### Upload Orbit script result
+
+`POST /api/fleet/orbit/scripts/result`
+
+##### Parameters
+
+| Name           | Type   | In     | Description                                                             |
+| -------------- | ------ | ------ | ----------------------------------------------------------------------- |
+| orbit_node_key | string | body   | The Orbit node key for authentication.                                  |
+| host_id        | number | body   | The ID of the host on which the script ran.                             |
+| execution_id   | string | body   | The UUID of the script execution.                                       |
+| output         | string | body   | The output of the script.                                               |
+| runtime        | string | number | The amount of time the script ran for (in seconds).                     |
+| exit_code      | string | number | The exit code of the script.                                            |
+| timeout        | string | number | The maximum amount of time this script was allowed to run (in seconds). |
+
+##### Example
+
+`POST /api/fleet/orbit/scripts/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "host_id": 12,
+  "execution_id": "006112E7-7383-4F21-999C-8FA74BB3F573",
+  "output": "hello",
+  "runtime": 1,
+  "exit_code": 0,
+  "timeout": 30
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Set Orbit device mapping
+
+`PUT /api/fleet/orbit/device_mapping`
+
+##### Parameters
+
+| Name           | Type   | In   | Description                              |
+| -------------- | ------ | ---- | ---------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.   |
+| email          | string | body | The email to use for the device mapping. |
+
+##### Example
+
+`PUT /api/fleet/orbit/device_mapping`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "email": "test@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Upload Orbit software install result
+
+`POST /api/fleet/orbit/software_install/result`
+
+##### Parameters
+
+| Name                          | Type   | In   | Description                                             |
+| ----------------------------- | ------ | ---- | ------------------------------------------------------- |
+| orbit_node_key                | string | body | The Orbit node key for authentication.                  |
+| host_id                       | number | body | The ID of the host on which the software was installed. |
+| install_uuid                  | string | body | The UUID of the installation attempt.                   |
+| pre_install_condition_output  | string | body | The output from the pre-install condition query.        |
+| install_script_exit_code      | number | body | The exit code from the install script.                  |
+| install_script_output         | string | body | The output from the install script.                     |
+| post_install_script_exit_code | number | body | The exit code from the post-install script.             |
+| post_install_script_output    | string | body | The output from the post-install script.                |
+
+##### Example
+
+`POST /api/fleet/orbit/software_install/result`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "host_id ": 12,
+  "install_uuid ": "4D91F9C3-919B-4D5B-ABFC-528D648F27D1",
+  "pre_install_condition_output ": "example",
+  "install_script_exit_code ": 0,
+  "install_script_output ": "software installed",
+  "post_install_script_exit_code ": 1,
+  "post_install_script_output ": "error: post-install script failed"
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+### Download software installer
+
+`POST /api/fleet/orbit/software_install/package`
+
+##### Parameters
+
+| Name           | Type   | In    | Description                                                          |
+| -------------- | ------ | ----- | -------------------------------------------------------------------- |
+| orbit_node_key | string | body  | The Orbit node key for authentication.                               |
+| installer_id   | number | body  | The ID of the software installer to download.                        |
+| alt            | string | query | Indicates whether to download the package. Must be set to `"media"`. |
+
+##### Example
+
+`POST /api/fleet/orbit/software_install/package`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "installer_id": 15
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ```http
 Status: 200
@@ -3223,40 +3968,83 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-If an installer with the provided parameters is found, the installer is returned as a binary blob in the body of the response.
+### Get orbit software install details
 
-##### Installer doesn't exist
+`POST /api/fleet/orbit/software_install/details`
 
-`Status: 400`
+> Note: The `installer_url` in the response will only be populated if AWS S3 and CloudFront URL signing are configured.
 
-This error occurs if an installer with the provided parameters doesn't exist.
+##### Parameters
 
+| Name           | Type   | In   | Description                                    |
+| -------------- | ------ | ---- | ---------------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.         |
+| install_uuid   | string | body | The UUID of the software installation attempt. |
 
-### Check if an installer exists
+##### Example
 
-Checks if a pre-built fleet-osquery installer with the given parameters exists.
+`POST /api/fleet/orbit/software_install/details`
 
-`HEAD /api/v1/fleet/download_installer/{kind}`
+##### Request body
 
-#### Parameters
-
-| Name          | Type    | In    | Description                                                        |
-| ------------- | ------- | ----- | ------------------------------------------------------------------ |
-| kind          | string  | path  | The installer kind: pkg, msi, deb or rpm.                          |
-| enroll_secret | string  | query | The global enroll secret.                                          |
-| desktop       | boolean | query | Set to `true` to ask for an installer that includes Fleet Desktop. |
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "install_uuid": "1652210E-619E-43BA-B3CC-17F4247823F3"
+}
+```
 
 ##### Default response
 
 `Status: 200`
 
-If an installer with the provided parameters is found.
+```json
+{
+  "install_id": "1652210E-619E-43BA-B3CC-17F4247823F3",
+  "installer_id": 12,
+  "pre_install_condition": "SELECT * FROM osquery_info;",
+  "install_script": "sudo run-installer",
+  "uninstall_script": "sudo run-uninstaller",
+  "post_install_script": "echo done",
+  "self_service": true,
+  "installer_url": {
+    "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
+    "filename": "my-installer.pkg"
+  }
+}
+```
 
-##### Installer doesn't exist
+### Upload disk encryption key
 
-`Status: 400`
+`POST /api/fleet/orbit/disk_encryption_key`
 
-If an installer with the provided parameters doesn't exist.
+##### Parameters
+
+| Name           | Type   | In   | Description                               |
+| -------------- | ------ | ---- | ----------------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication.    |
+| encryption_key | string | body | The encryption key bytes.                 |
+| client_error   | string | body | The error reported by the client, if any. |
+
+##### Example
+
+`POST /api/fleet/orbit/disk_encryption_key`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
+  "encryption_key": "Zm9vYmFyem9vYmFyZG9vYmFybG9vYmFy",
+  "client_error": "example error",
+}
+```
+
+##### Default response
+
+`Status: 204`
+
+---
 
 ## Setup
 
@@ -3340,7 +4128,10 @@ _Available in Fleet Premium_
 | dry_run   | bool   | query | Validate the provided scripts and return any validation errors, but do not apply the changes.                                                                         |
 | scripts   | array  | body  | An array of objects with the scripts payloads. Each item must contain `name` with the script name and `script_contents` with the script contents encoded in base64    |
 
-If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error.
+If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
+
+Script contents are uploaded verbatim, without CRLF -> LF conversion.
 
 > Note that this endpoint replaces all the active scripts for the specified team (or no team). Any existing script that is not included in the list will be removed, and existing scripts with the same name as a new script will be edited. Providing an empty list of scripts will remove existing scripts.
 
@@ -3377,16 +4168,15 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host ID to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
+| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included.   |
+| team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
 
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+> Note that if any combination of `script_id`, `script_contents`, and `script_name` are included in the request, this endpoint will respond with an error.
 
 #### Example
 
@@ -3410,6 +4200,37 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
+### Update software title name
+
+`PATCH /api/v1/fleet/software/titles/:software_title_id/name`
+
+Only available for software titles that have a non-empty bundle ID, as titles without a bundle
+ID will be added back as new rows on the next software ingest with the same name. Endpoint authorization limited
+to global admins as this changes the software title's name across all teams.
+
+> **Experimental endpoint**. This endpoint is not guaranteed to continue to exist on future minor releases of Fleet.
+
+#### Parameters
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| software_title_id | integer | path | **Required**. The ID of the software title to modify. |
+| name              | string  | body | **Required**. The new name of the title.           |
+
+#### Example
+
+`PATCH /api/v1/fleet/software/titles/1/name`
+
+```json
+{
+  "name": "2 Chrome 2 Furious.app"
+}
+```
+
+##### Default response
+
+`Status: 205`
+
 ### Batch-apply software
 
 _Available in Fleet Premium._
@@ -3425,7 +4246,15 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | team_name | string | query | The name of the team to add the software package to. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
-| software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `uninstall_script` - command that Fleet runs to uninstall software. |
+| software.packages   | array   | body  | An array of objects with values below. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
+| software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
+| software.packages.post_install_script      | string   | body  | Script that runs after software install. |
+| software.packages.uninstall_script      | string   | body  | Command that Fleet runs to uninstall software. |
+| software.packages.self_service           | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 
 #### Example
 
@@ -3433,7 +4262,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 
 ##### Default response
 
-`Status: 200`
+`Status: 202`
 ```json
 {
   "request_uuid": "ec23c7b6-c336-4109-b89d-6afd859659b4",
@@ -3508,8 +4337,11 @@ _Available in Fleet Premium._
 | team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
+| app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
+| app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -3517,22 +4349,51 @@ _Available in Fleet Premium._
 ```json
 {
   "team_name": "Foobar",
-  "app_store_apps": {
+  "app_store_apps": [
     {
       "app_store_id": "597799333",
       "self_service": false,
+      "labels_include_any": [
+        "Engineering",
+        "Customer Support"
+      ]
     },
     {
       "app_store_id": "497799835",
-      "self_service": true,
+      "self_service": true
     }
-  }
+  ]
 }
 ```
 
 ##### Default response
 
-`Status: 204`
+`Status: 200`
+
+```json
+{
+  "app_store_apps": [
+    {
+      "team_id": 1,
+      "title_id": 123,
+      "app_store_id": "597799333",
+      "platform": "darwin"
+    },
+    {
+      "team_id": 1,
+      "title_id": 124,
+      "app_store_id": "597799333",
+      "platform": "ios"
+    },
+    {
+      "team_id": 1,
+      "title_id": 125,
+      "app_store_id": "597799333",
+      "platform": "ipados"
+    }
+  ]
+}
+```
 
 ### Get token to download package
 
@@ -3591,4 +4452,102 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
+```
+## Users
+
+### Update user-specific UI settings
+
+`PATCH /api/v1/fleet/users/:id`
+
+#### Parameters
+
+| Name      | Type   | In    | Description                                                                                                                                                           |
+| --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| settings  | object   | body  | The updated user settings. |
+
+#### Example
+
+`PATCH /api/v1/fleet/users/1`
+```json
+{
+  "hidden_host_columns": ["hostname"]
+}
+```
+
+##### Default response
+* Note that user settings are *not* included in this response. See below `GET`s for how to get user settings.
+`Status: 200`
+```json
+{
+    "user": {
+        "created_at": "2025-01-08T01:04:23Z",
+        "updated_at": "2025-01-09T00:08:19Z",
+        "id": 1,
+        "name": "Sum Bahdee",
+        "email": "sum@org.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "mfa_enabled": false,
+        "global_role": "admin",
+        "api_only": false,
+        "teams": []
+    }
+}
+```
+
+### Include settings when getting a user
+
+`GET /api/v1/fleet/users/:id?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/users/2/?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
+```
+
+### Include settings when getting current user
+
+`GET /api/v1/fleet/me/?include_ui_settings=true`
+
+Use of `include_ui_settings=true` is considered the contributor API functionality – without that
+param, this endpoint is considered a documented REST API endpoint
+
+#### Parameters
+
+| Name                | Type   | In    | Description                                                                                       |
+| ------------------- | ------ | ----- | --------------------------------------------------------------------------------------------------|
+| include_ui_settings | bool   | query | If `true`, will include the user's settings in the response. For now, this is a single ui setting.
+
+#### Example
+
+`GET /api/v1/fleet/me?include_ui_settings=true`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "user": {...},
+  "available_teams": {...}
+  "settings": {"hidden_host_columns": ["hostname"]},
+}
 ```

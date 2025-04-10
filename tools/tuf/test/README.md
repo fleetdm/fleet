@@ -61,7 +61,8 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 To build for a specific architecture, you can pass the `GOARCH` environment variable:
 ``` shell
 [...]
-GOARCH=arm64 # defaults to amd64
+# defaults to amd64
+GOARCH=arm64 \
 [...]
 ./tools/tuf/test/main.sh
 ```
@@ -96,7 +97,7 @@ GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
 ```
 
-If the script was executed on a macOS host, the Orbit binary will be an universal binary. To push updates you can do:
+If the script was executed on a macOS host, the Orbit binary will be a universal binary. To push updates you can do:
 
 ```sh
 # Compile a universal binary of Orbit:
@@ -143,3 +144,16 @@ Solution: Set the `MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest 
 ```
 export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version
 ```
+
+#### Issue generating linux-arm64 packages when running Docker Desktop on macOS using Apple Silicon
+
+When running Docker Desktop on macOS using Apple Silicon, enrollment packages for ARM Linux may fail to generate and you may see a warning similar to:
+
+```
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+[...]
+/usr/local/go/pkg/tool/linux_amd64/compile: signal: illegal instruction
+make: *** [desktop-linux] Error 1
+```
+
+Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.

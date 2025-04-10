@@ -1,4 +1,8 @@
 .fleet-maintained-app-details-page {
+  &__data-error {
+    margin-top: $pad-xxlarge;
+  }
+
   &__back-to-add-software {
     margin-bottom: $pad-medium;
   }
@@ -14,6 +18,11 @@
   }
 
   &__fleet-app-summary {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  &__fleet-app-summary--left {
     display: flex;
     gap: $pad-medium;
   }

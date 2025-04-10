@@ -1,12 +1,20 @@
 name: firefox_preferences
-description: Get the filepath where the host's Firefox preferences live. 
+description: Get the filepath where the host's Firefox preferences live.
 evented: false
+examples: |-
+  Check if a preference is enabled:
+
+  ```
+  SELECT * FROM firefox_preferences WHERE path IN (SELECT path FROM file WHERE path LIKE '/home/%/.mozilla/firefox/%/prefs.js') AND fullkey = 'network.dns.disablePrefetch' and value = 'true';
+  ```
 notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
 platforms:
   - darwin
+  - linux
+  - windows
 columns:
   - name: path
-    description: The path to the host's Firefox preferences.
+    description: The absolute path to the host's Firefox preferences.
     type: text
     required: true
   - name: key
@@ -29,4 +37,4 @@ columns:
     description: The query is printed in this column. For example the SQL `SELECT * FROM firefox_preferences WHERE path = 'testdata/prefs.js'` will print "*" in the query column.
     type: text
     required: false
-  
+

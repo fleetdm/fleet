@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -182,6 +183,206 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 	return stm, args, nil
 }
 
+// softwareTransformers provide logic for tweaking e.g. software versions to match what's in the NVD database. These
+// changes are done here rather than in sanitizeSoftware to ensure that software versions visible in the UI are the
+// raw version strings.
+var (
+	macOSMSTeamsVersion  = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
+	citrixName           = regexp.MustCompile(`Citrix Workspace [0-9]+`)
+	minioAltDate         = regexp.MustCompile(`^\d{14}$`)
+	softwareTransformers = []struct {
+		matches func(*fleet.Software) bool
+		mutate  func(*fleet.Software, log.Logger)
+	}{
+		{
+			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
+			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
+			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
+			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
+			matches: func(s *fleet.Software) bool {
+				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
+					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				// 243 -> 2024.3
+				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
+				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
+					return
+				}
+				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
+					return
+				}
+
+				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
+				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
+				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
+				// startup due to being expired, so that CVE can't be exploited.
+				yearBasedMinorVersion -= 1
+				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
+					yearBasedMajorVersion -= 1
+					yearBasedMinorVersion = 4
+				}
+
+				// pass through minor and patch version for EAP to tell different EAP builds apart
+				eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
+				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
+			},
+		},
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
+			},
+			mutate: func(s *fleet.Software, logger kitlog.Logger) {
+				versionComponents := strings.Split(s.Version, ".")
+				// Python 3 versions on Windows should always look like 3.14.102.0; if they don't we
+				// should bail out to avoid bad indexing panics.
+				if len(versionComponents) < 4 {
+					level.Debug(logger).Log("msg", "expected 4 version components", "gotCount", len(versionComponents))
+					return
+				}
+				if len(versionComponents[2]) < 3 {
+					level.Debug(logger).Log("msg", "got a patch version component with unexpected length", "gotPatchVersion", versionComponents[2])
+					return
+				}
+				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
+				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
+				releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
+
+				candidateSuffix := ""
+				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
+				case "10":
+					candidateSuffix = "a" + releaseSerial
+				case "11":
+					candidateSuffix = "b" + releaseSerial
+				case "12":
+					candidateSuffix = "rc" + releaseSerial
+				} // default
+
+				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
+					patchVersion = "0"
+				}
+
+				versionComponents[2] = patchVersion + candidateSuffix
+				s.Version = strings.Join(versionComponents[0:3], ".")
+			},
+		},
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "Cloudflare WARP" && s.Source == "programs"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				// Perform some sanity check on the version before mutating it.
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+				_, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				// In case Cloudflare starts returning the full year.
+				if len(parts[0]) == 4 {
+					return
+				}
+				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
+			},
+		},
+		{
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "apps" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
+					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
+				}
+			},
+		},
+		{
+			matches: func(s *fleet.Software) bool {
+				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) <= 1 {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
+					return
+				}
+
+				if len(parts[0]) > 2 {
+					// then the versioning is correct, so no need to change
+					return
+				}
+
+				part1, err := strconv.Atoi(parts[0])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				part2, err := strconv.Atoi(parts[1])
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+
+				newFirstPart := part1*100 + part2
+				newFirstStr := strconv.Itoa(newFirstPart)
+				newParts := []string{newFirstStr}
+				newParts = append(newParts, parts[2:]...)
+				s.Version = strings.Join(newParts, ".")
+			},
+		},
+		{
+			// Trim the "RELEASE." prefix from Minio versions.
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				// trim the "RELEASE." prefix from the version
+				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
+				// trim any unexpected trailing characters
+				if idx := strings.Index(s.Version, "_"); idx != -1 {
+					s.Version = s.Version[:idx]
+				}
+			},
+		},
+		{
+			// Convert the timestamp to NVD's format for Minio versions.
+			matches: func(s *fleet.Software) bool {
+				return s.Name == "minio" && minioAltDate.MatchString(s.Version)
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				timestamp, err := time.Parse("20060102150405", s.Version)
+				if err != nil {
+					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
+					return
+				}
+				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
+			},
+		},
+	}
+)
+
+func mutateSoftware(software *fleet.Software, logger log.Logger) {
+	for _, transformer := range softwareTransformers {
+		if transformer.matches(software) {
+			defer func() {
+				if r := recover(); r != nil {
+					level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", software.Name, "softwareVersion", software.Version, "error", r)
+				}
+			}()
+			transformer.mutate(software, logger)
+			break
+		}
+	}
+}
+
 // CPEFromSoftware attempts to find a matching cpe entry for the given software in the NVD CPE dictionary. `db` contains data from the NVD CPE dictionary
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
@@ -190,6 +391,8 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 		level.Debug(logger).Log("msg", "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
 		return "", nil
 	}
+
+	mutateSoftware(software, logger) // tweak e.g. software versions prior to CPE matching if needed
 
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {

@@ -9,14 +9,16 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { pluralize } from "utilities/strings/stringUtils";
 
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 
-import Pagination from "pages/ManageControlsPage/components/Pagination";
+import Pagination from "components/Pagination";
 
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import SelfServiceItem from "./SelfServiceItem";
@@ -87,21 +89,25 @@ const SoftwareSelfService = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      paddingSize="xxlarge"
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <div className={`${baseClass}__card-header`}>Self-service</div>
-      <div className={`${baseClass}__card-subheader`}>
-        Install organization-approved apps provided by your IT department.{" "}
-        {contactUrl && (
-          <span>
-            If you need help,{" "}
-            <CustomLink url={contactUrl} text="reach out to IT" newTab />
-          </span>
-        )}
-      </div>
+      <CardHeader
+        header="Self-service"
+        subheader={
+          <>
+            Install organization-approved apps provided by your IT department.{" "}
+            {contactUrl && (
+              <span>
+                If you need help,{" "}
+                <CustomLink url={contactUrl} text="reach out to IT" newTab />
+              </span>
+            )}
+          </>
+        }
+      />
       {isLoading ? (
         <Spinner />
       ) : (
@@ -118,7 +124,7 @@ const SoftwareSelfService = ({
               ) : (
                 <>
                   <div className={`${baseClass}__items-count`}>
-                    <b>{data.count} items</b>
+                    <b>{`${data.count} ${pluralize(data.count, "item")}`}</b>
                   </div>
                   <div className={`${baseClass}__items`}>
                     {data.software.map((s) => {
@@ -143,6 +149,10 @@ const SoftwareSelfService = ({
                   <Pagination
                     disableNext={data.meta.has_next_results === false}
                     disablePrev={data.meta.has_previous_results === false}
+                    hidePagination={
+                      data.meta.has_next_results === false &&
+                      data.meta.has_previous_results === false
+                    }
                     onNextPage={onNextPage}
                     onPrevPage={onPrevPage}
                     className={`${baseClass}__pagination`}

@@ -1,1 +1,0 @@
-* Fixed `fleetctl gitops` to support VPP apps, along with setting the VPP apps to install during the setup experience.

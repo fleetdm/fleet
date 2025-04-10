@@ -1,13 +1,13 @@
-package maintainedapps
+package maintained_apps
 
 import (
 	"context"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -18,7 +18,7 @@ import (
 const InstallerTimeout = 15 * time.Minute
 
 // DownloadInstaller downloads the maintained app installer located at the given URL.
-func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) ([]byte, string, error) {
+func DownloadInstaller(ctx context.Context, installerURL string, client *http.Client) (*fleet.TempFileReader, string, error) {
 	// validate the URL before doing the request
 	_, err := url.ParseRequestURI(installerURL)
 	if err != nil {
@@ -60,6 +60,16 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		_, params, err := mime.ParseMediaType(cdh[0])
 		if err == nil {
 			filename = params["filename"]
+		} else {
+			// fallback for responses that include a filename in their content-disposition header
+			// but the header isn't technically RFC compliant
+			cdhParts := strings.Split(cdh[0], "filename=")
+			if len(cdhParts) > 1 {
+				unescapedFilename, err := url.QueryUnescape(cdhParts[1])
+				if err == nil {
+					filename = unescapedFilename
+				}
+			}
 		}
 	}
 
@@ -70,10 +80,10 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		filename = path.Base(resp.Request.URL.Path)
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
 	if err != nil {
 		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
 	}
 
-	return bodyBytes, filename, nil
+	return tfr, filename, nil
 }

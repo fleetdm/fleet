@@ -13,6 +13,7 @@ import (
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/filepath_windows"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
@@ -127,7 +128,7 @@ func packageCommand() *cli.Command {
 			&cli.StringFlag{
 				Name:        "update-url",
 				Usage:       "URL for update server",
-				Value:       "https://tuf.fleetctl.com",
+				Value:       update.DefaultURL,
 				Destination: &opt.UpdateURL,
 			},
 			&cli.StringFlag{
@@ -380,9 +381,8 @@ func packageCommand() *cli.Command {
 			fmt.Printf(`
 Success! You generated fleetd at %s
 
-To add this device to Fleet, double-click to install fleetd.
-
-To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
+To add hosts to Fleet, install fleetd.
+Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
 `, path)
 			if !disableOpenFolder {
 				open.Start(filepath.Dir(path)) //nolint:errcheck

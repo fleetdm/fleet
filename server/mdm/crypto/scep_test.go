@@ -21,7 +21,7 @@ import (
 
 func TestSCEPVerifierVerifyEmptyCerts(t *testing.T) {
 	v := &SCEPVerifier{}
-	err := v.Verify(nil)
+	err := v.Verify(context.Background(), nil)
 	require.ErrorContains(t, err, "no certificate provided")
 }
 
@@ -88,7 +88,7 @@ func TestVerify(t *testing.T) {
 				}, nil
 			}
 
-			err := verifier.Verify(tt.certToVerify)
+			err := verifier.Verify(context.Background(), tt.certToVerify)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 			} else {

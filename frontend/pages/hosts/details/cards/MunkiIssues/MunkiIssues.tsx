@@ -5,6 +5,7 @@ import { IMunkiIssue } from "interfaces/host";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
@@ -26,13 +27,12 @@ const MunkiIssuesTable = ({
 
   return (
     <Card
-      className={`${baseClass} card`}
+      className={baseClass}
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      largePadding
     >
-      <p className="card__header">Munki issues</p>
-
+      <CardHeader header="Munki issues" />
       {munkiIssues?.length ? (
         <div className={deviceType || ""}>
           <TableContainer

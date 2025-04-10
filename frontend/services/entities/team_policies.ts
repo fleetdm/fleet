@@ -64,6 +64,9 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
+      labels_include_any,
+      labels_exclude_any,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -76,6 +79,9 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
+      labels_include_any,
+      labels_exclude_any,
     });
   },
   update: (id: number, data: IPolicyFormData) => {
@@ -91,6 +97,8 @@ export default {
       calendar_events_enabled,
       software_title_id,
       script_id,
+      labels_include_any,
+      labels_exclude_any,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -105,6 +113,8 @@ export default {
       calendar_events_enabled,
       software_title_id,
       script_id,
+      labels_include_any,
+      labels_exclude_any,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {

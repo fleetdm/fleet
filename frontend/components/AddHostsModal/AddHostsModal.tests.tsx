@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
-import createMockConfig from "__mocks__/configMock";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
 
 import AddHostsModal from "./AddHostsModal";
 
@@ -73,9 +73,10 @@ describe("AddHostsModal", () => {
     expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
-    expect(
-      screen.queryByText(/Send this to your end users:/i)
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Turn on Apple MDM/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "Android" }));
+    expect(screen.queryByText(/Turn on Android MDM/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     const advancedText = screen.getByText(/--type=YOUR_TYPE/i);
@@ -92,6 +93,60 @@ describe("AddHostsModal", () => {
     );
     expect(osquerydCommand).toBeInTheDocument();
     expect(screen.queryByText(/--enable-scripts/i)).not.toBeInTheDocument();
+  });
+
+  it("renders enroll url input for ios & ipadOS if mac mdm is enabled", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isMacMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "iOS & iPadOS" }));
+    expect(
+      screen.queryByText(/Send this to your end users:/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders enroll url input for android if android mdm is enabled", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isAndroidMdmEnabledAndConfigured: true,
+          isPreviewMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const { user } = render(
+      <AddHostsModal
+        isAnyTeamSelected
+        enrollSecret={ENROLL_SECRET}
+        isLoading={false}
+        onCancel={noop}
+      />
+    );
+
+    await user.click(screen.getByRole("tab", { name: "Android" }));
+    expect(
+      screen.queryByText(/Send this to your end users:/i)
+    ).toBeInTheDocument();
   });
 
   it("renders installer with secret", async () => {

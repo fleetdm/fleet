@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +56,7 @@ func TestLogin(t *testing.T) {
 		// test sessions
 		testUser := users[tt.email]
 
-		params := loginRequest{
+		params := contract.LoginRequest{
 			Email:    tt.email,
 			Password: tt.password,
 		}
@@ -162,7 +164,13 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 		user := usersMap[email]
 		return &user, nil
 	}
-	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
+		key := make([]byte, sessionKeySize)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		sessionKey := base64.StdEncoding.EncodeToString(key)
 		session := &fleet.Session{
 			UserID:     userID,
 			Key:        sessionKey,
@@ -189,7 +197,7 @@ func getTestAdminToken(t *testing.T, server *httptest.Server) string {
 func getTestUserToken(t *testing.T, server *httptest.Server, testUserId string) string {
 	testUser := testUsers[testUserId]
 
-	params := loginRequest{
+	params := contract.LoginRequest{
 		Email:    testUser.Email,
 		Password: testUser.PlaintextPassword,
 	}

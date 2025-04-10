@@ -8,6 +8,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
+  android_enabled_and_configured: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
@@ -39,6 +40,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     deadline_days: null,
     grace_period_days: null,
   },
+  windows_migration_enabled: false,
   end_user_authentication: {
     entity_id: "",
     issuer_uri: "",
@@ -55,6 +57,7 @@ export const createMockMdmConfig = (
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
+  android_enabled: false, // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
@@ -192,6 +195,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
   mdm: createMockMdmConfig(),
+  gitops: {
+    gitops_mode_enabled: false,
+    repository_url: "",
+  },
 };
 
 const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

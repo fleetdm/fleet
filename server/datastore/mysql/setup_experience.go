@@ -109,8 +109,11 @@ WHERE global_or_team_id = ?`
 		}
 		totalInsertions += uint(inserts) // nolint: gosec
 
-		if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+		// Only run setup experience on hosts that have something configured.
+		if totalInsertions > 0 {
+			if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+			}
 		}
 
 		return nil
@@ -404,6 +407,32 @@ WHERE
 	return &script, nil
 }
 
+func (ds *Datastore) GetSetupExperienceScriptByID(ctx context.Context, scriptID uint) (*fleet.Script, error) {
+	query := `
+SELECT
+  id,
+  team_id,
+  name,
+  script_content_id,
+  created_at,
+  updated_at
+FROM
+  setup_experience_scripts
+WHERE
+  id = ?
+`
+
+	var script fleet.Script
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &script, query, scriptID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("SetupExperienceScript"), "get setup experience script by id")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get setup experience script by id")
+	}
+
+	return &script, nil
+}
+
 func (ds *Datastore) SetSetupExperienceScript(ctx context.Context, script *fleet.Script) error {
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -503,7 +532,7 @@ WHERE host_uuid = ?
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaitingConfiguration, stmt, hostUUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
+			return false, notFound("HostAwaitingConfiguration")
 		}
 
 		return false, ctxerr.Wrap(ctx, err, "getting host awaiting configuration")

@@ -47,7 +47,7 @@ var shellCommand = &cli.Command{
 			return fmt.Errorf("initialize root dir: %w", err)
 		}
 
-		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), "tuf-metadata.json"))
+		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), update.MetadataFileName))
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to create local metadata store")
 		}

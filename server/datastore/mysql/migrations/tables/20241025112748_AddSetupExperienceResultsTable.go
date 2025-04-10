@@ -83,7 +83,7 @@ CREATE TABLE setup_experience_status_results (
 	CONSTRAINT fk_setup_experience_status_results_si_id FOREIGN KEY (software_installer_id) REFERENCES software_installers(id) ON DELETE CASCADE,
 	CONSTRAINT fk_setup_experience_status_results_va_id FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams(id) ON DELETE CASCADE,
 	CONSTRAINT fk_setup_experience_status_results_ses_id FOREIGN KEY (setup_experience_script_id) REFERENCES setup_experience_scripts(id) ON DELETE CASCADE
-)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 `)
 	// Service layer state machine like SetupExperienceNestStep()?
 	// Called from each of the three endpoints (software install, vpp

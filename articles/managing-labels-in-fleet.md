@@ -12,7 +12,7 @@ To access and manage labels in Fleet:
 
 1. **Navigate to the Hosts page**: Click on the "Hosts" tab in the main navigation menu.
 
-2. **Filter by labels**: In the "Filter by…" drop-down menu, you will see options for "Platforms" (e.g., macOS, Windows, Linux) and "Labels." 
+2. **Filter by labels**: In the "Filter by platform or label" drop-down menu, you will see options for "Platforms" (e.g., macOS, Windows, Linux) and "Labels." 
 
 You can add a new label, filter existing labels by name, or select a label from the list. Selecting a label filters the view only to show hosts with that label.
 
@@ -24,7 +24,7 @@ To add a new label:
 
 
 1. **Navigate to the Hosts page**: Click on the "Hosts" tab in the main navigation menu.
-2. **Access labels**: Click the "Filter by…" drop-down.
+2. **Access labels**: Click the "Filter by platform or label" drop-down.
 3. **Select "Add Label +"**: This option allows you to create a new label.
 4. **Choose label Type**: You will be prompted to choose between a "Dynamic" or "Manual" label.
     1. **Dynamic**: Enter a name and description, then build your query and select the platforms to which this label applies.

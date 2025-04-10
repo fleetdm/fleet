@@ -14,9 +14,9 @@ type triggerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r triggerResponse) error() error { return r.Err }
+func (r triggerResponse) Error() error { return r.Err }
 
-func triggerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func triggerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	_, err := svc.AuthenticatedUser(ctx)
 	if err != nil {
 		return triggerResponse{Err: err}, nil

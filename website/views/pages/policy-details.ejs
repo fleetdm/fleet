@@ -1,0 +1,93 @@
+<div id="policy-details" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <docs-nav-and-search search-filter="policies" current-section="policies" :algolia-public-key="algoliaPublicKey"></docs-nav-and-search>
+      <div purpose="breadcrumbs" class="d-flex flex-row align-items-start">
+        <div>
+          <a purpose="breadcrumbs-category" class="text-nowrap" href="/policies">Policies</a>/
+        </div>
+        <div purpose="breadcrumbs-title">
+          <span><%- policy.name %></span>
+        </div>
+      </div>
+      <div purpose="policy-details-and-sidebar" class="d-flex flex-lg-row flex-column">
+        <div purpose="policy-details" class="d-flex flex-column">
+          <h2 purpose="policy-name"><%- policy.name %></h2>
+          <div purpose="policy-attribution">
+            <img alt="Contributor's GitHub profile picture" purpose="contributor-profile-picture" src="https://github.com/<%- policy.contributors[0].handle %>.png?size=200">
+            <a purpose="policy-link" href="https://github.com/<%- policy.contributors[0].handle %>" class="d-flex align-items-center">
+            <p purpose="contributor-profile-name" class="mb-0"><%= policy.contributors[0].name %></p></a>
+          </div>
+          <p purpose="policy-description"><%- policy.description %></p>
+          <div purpose="policy-control" v-if="policy.configuration_profile || policy.script">
+            <h3>Control</h3>
+            <div v-if="policy.configuration_profile">
+              <p>Create or edit a configuration profile with the following information:</p>
+              <div  purpose="codeblock">
+                <div purpose="copy-button"></div>
+                <pre><code class="hljs xml"><%= policy.configuration_profile %></code></pre>
+              </div>
+            </div>
+
+            <div v-if="policy.script">
+              <p>Create or edit the following script and configure it to run when the check fails:</p>
+              <div  purpose="codeblock">
+                <div purpose="copy-button"></div>
+                <pre><code class="hljs sh"><%= policy.script %></code></pre>
+              </div>
+            </div>
+          </div>
+          <div purpose="policy-check">
+            <h3>Check</h3>
+            <p>Use the policy below to verify:</p>
+            <div purpose="codeblock">
+              <div purpose="codeblock-tabs" >
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="policy.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="policy.bash">Bash<span purpose="new-badge">NEW</span></a>
+                <div purpose="copy-button-tab">
+                  <div purpose="copy-button"></div>
+                </div>
+              </div>
+              <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= policy.query %></code></pre>
+              <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= policy.powershell %></code></pre>
+              <pre v-show="selectedTab === 'bash'"><code class="hljs sh"><%= policy.bash %></code></pre>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'ps'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'bash'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>Bash commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div purpose="sidebar-container">
+          <div purpose="right-sidebar" class="d-flex flex-column">
+            <div purpose="policy-platform">
+              <h4>Platform</h4>
+              <div class="d-flex flex-row">
+                <h1><img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="policy.platform.includes('darwin')"/>macOS/apple</h1>
+                <h1><img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="policy.platform.includes('windows')"/>Windows</h1>
+                <h1><img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="policy.platform.includes('linux')"/>Linux</h1>
+                <h1><img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="policy.platform.includes('chrome')"/>ChromeOS</h1>
+              </div>
+            </div>
+            <div purpose="docs-links" class="order-3">
+              <a href="/docs">Docs</a>
+              <a href="/docs/rest-api">REST API</a>
+              <a href="/guides">Guides</a>
+              <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath+'#L'+policy.lineNumberInYaml"><img alt="A pencil icon" src="/images/pencil-16x16@2x.png">Edit page</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

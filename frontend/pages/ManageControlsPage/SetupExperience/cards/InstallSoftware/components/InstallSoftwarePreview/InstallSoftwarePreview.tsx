@@ -8,7 +8,7 @@ const baseClass = "install-software-preview";
 
 const InstallSoftwarePreview = () => {
   return (
-    <Card color="gray" paddingSize="xxlarge" className={baseClass}>
+    <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       <p>
         After the <b>Remote Management</b> screen, the end user will see

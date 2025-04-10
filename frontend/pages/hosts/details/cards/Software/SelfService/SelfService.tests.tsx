@@ -21,6 +21,9 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     per_page: 10,
     vulnerable: true,
     available_for_install: false,
+    min_cvss_score: undefined,
+    max_cvss_score: undefined,
+    exploit: false,
   },
   router: createMockRouter(),
 };
@@ -84,9 +87,9 @@ describe("SelfService", () => {
     render(
       <SelfService
         contactUrl={expectedUrl}
-        deviceToken={"123-456"}
+        deviceToken="123-456"
         isSoftwareEnabled
-        pathname={"/test"}
+        pathname="/test"
         queryParams={{
           page: 1,
           query: "test",
@@ -95,6 +98,9 @@ describe("SelfService", () => {
           per_page: 10,
           vulnerable: true,
           available_for_install: false,
+          min_cvss_score: undefined,
+          max_cvss_score: undefined,
+          exploit: false,
         }}
         router={createMockRouter()}
       />

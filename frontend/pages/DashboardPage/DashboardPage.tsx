@@ -54,19 +54,21 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
+import Card from "components/Card";
 
 import {
+  LOW_DISK_SPACE_GB,
   PLATFORM_DROPDOWN_OPTIONS,
   PLATFORM_NAME_TO_LABEL_NAME,
 } from "./helpers";
 import useInfoCard from "./components/InfoCard";
-import MissingHosts from "./cards/MissingHosts";
-import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
-import HostsSummary from "./cards/HostsSummary";
+import PlatformHostCounts from "./sections/PlatformHostCounts";
+import MetricsHostCounts from "./sections/MetricsHostCounts";
 import ActivityFeed from "./cards/ActivityFeed";
 import Software from "./cards/Software";
 import LearnFleet from "./cards/LearnFleet";
@@ -80,9 +82,6 @@ import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsMo
 import { IAFAMFormData } from "./components/ActivityFeedAutomationsModal/ActivityFeedAutomationsModal";
 
 const baseClass = "dashboard-page";
-
-// Premium feature, Gb must be set between 1-100
-const LOW_DISK_SPACE_GB = 32;
 
 interface IDashboardProps {
   router: InjectedRouter; // v3
@@ -138,6 +137,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [chromeCount, setChromeCount] = useState(0);
   const [iosCount, setIosCount] = useState(0);
   const [ipadosCount, setIpadosCount] = useState(0);
+  const [androidCount, setAndroidCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -184,13 +184,21 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
   const canEditActivityFeedAutomations =
-    (isGlobalAdmin || isGlobalMaintainer) && teamIdForApi === API_ALL_TEAMS_ID;
+    isGlobalAdmin && teamIdForApi === API_ALL_TEAMS_ID;
 
   const { data: config, refetch: refetchConfig } = useQuery<
     IConfig,
     Error,
     IConfig
   >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
+
+  // TODO(android): remove this when the feature flag is removed
+  const platformOptions = useMemo(() => {
+    if (!config?.android_enabled) {
+      return PLATFORM_DROPDOWN_OPTIONS.filter((o) => o.value !== "android");
+    }
+    return [...PLATFORM_DROPDOWN_OPTIONS];
+  }, [config?.android_enabled]);
 
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
@@ -231,24 +239,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
-        const chromebooks = data.platforms?.find(
+        const chomeOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
-        const iphones = data.platforms?.find(
+        const iOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "ios"
         ) || { platform: "ios", hosts_count: 0 };
 
-        const ipads = data.platforms?.find(
+        const iPadOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
         ) || { platform: "ipados", hosts_count: 0 };
+
+        const androidHosts = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "android"
+        ) || { platform: "android", hosts_count: 0 };
 
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
-        setChromeCount(chromebooks.hosts_count);
-        setIosCount(iphones.hosts_count);
-        setIpadosCount(ipads.hosts_count);
+        setChromeCount(chomeOSHosts.hosts_count);
+        setIosCount(iOSHosts.hosts_count);
+        setIpadosCount(iPadOSHosts.hosts_count);
+        setAndroidCount(androidHosts.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -322,7 +335,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve="software"
+                customTooltipText={
+                  <>
+                    Fleet periodically queries all hosts to
+                    <br />
+                    retrieve software. Click to view
+                    <br />
+                    hosts for the most up-to-date lists.
+                  </>
+                }
               />
             );
           setShowSoftwareCard(true);
@@ -460,7 +481,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  // NOTE: this is called once on the initial rendering. The initial render of
+  // This is called once on the initial rendering. The initial render of
   // the TableContainer child component will call this handler.
   const onSoftwareQueryChange = async ({
     pageIndex: newPageIndex,
@@ -477,6 +498,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareActionUrl(
         index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
+    setSoftwarePageIndex(0);
+  };
+
+  let refetchActivities = () => {
+    /* noop */
+  };
+  const setRefetchActivities = (refetch: () => void) => {
+    refetchActivities = refetch;
   };
 
   const onSubmitActivityFeedAutomationsModal = useCallback(
@@ -512,6 +541,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       } finally {
         setUpdatingActivityFeedAutomations(false);
         refetchConfig();
+        refetchActivities();
       }
     },
     [
@@ -522,23 +552,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostsSummaryCard = useInfoCard({
-    title: "Hosts",
-    action:
-      selectedPlatform === "all"
-        ? {
-            type: "link",
-            text: "View all hosts",
-          }
-        : undefined,
-    actionUrl: selectedPlatform === "all" ? paths.MANAGE_HOSTS : undefined,
-    total_host_count:
-      !isHostSummaryFetching && !errorHosts
-        ? hostSummaryData?.totals_hosts_count
-        : undefined,
-    showTitle: true,
-    children: (
-      <HostsSummary
+  const HostCountCards = (
+    <>
+      <PlatformHostCounts
+        androidDevEnabled={!!config?.android_enabled}
         currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
@@ -546,42 +563,32 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         chromeCount={chromeCount}
         iosCount={iosCount}
         ipadosCount={ipadosCount}
-        isLoadingHostsSummary={isHostSummaryFetching}
+        androidCount={androidCount}
         builtInLabels={labels}
-        showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
       />
-    ),
-  });
-
-  const MissingHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <MissingHosts
+      <MetricsHostCounts
+        currentTeamId={teamIdForApi}
+        selectedPlatform={selectedPlatform}
+        errorHosts={!!errorHosts}
+        totalHostCount={
+          !isHostSummaryFetching && !errorHosts
+            ? hostSummaryData?.totals_hosts_count
+            : undefined
+        }
+        isPremiumTier={isPremiumTier}
         missingCount={missingCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
-        selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-      />
-    ),
-  });
-
-  const LowDiskSpaceHostsCard = useInfoCard({
-    title: "",
-    children: (
-      <LowDiskSpaceHosts
-        lowDiskSpaceGb={LOW_DISK_SPACE_GB}
         lowDiskSpaceCount={lowDiskSpaceCount}
-        isLoadingHosts={isHostSummaryFetching}
-        showHostsUI={showHostsUI}
         selectedPlatformLabelId={selectedPlatformLabelId}
-        currentTeamId={teamIdForApi}
-        notSupported={selectedPlatform === "chrome"}
       />
-    ),
-  });
+    </>
+  );
 
   const WelcomeHostCard = useInfoCard({
     title: "Welcome to Fleet",
@@ -616,6 +623,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <ActivityFeed
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
+        setRefetchActivities={setRefetchActivities}
       />
     ),
   });
@@ -641,6 +649,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
         router={router}
+        softwarePageIndex={softwarePageIndex}
       />
     ),
   });
@@ -773,6 +782,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const androidLayout = () => (
+    <>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -787,6 +802,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return iosLayout();
       case "ipados":
         return ipadosLayout();
+      case "android":
+        return androidLayout();
       default:
         return allLayout();
     }
@@ -866,14 +883,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         <div className={`${baseClass}__platforms`}>
           <span>Platform:&nbsp;</span>
-          <Dropdown
+          <DropdownWrapper
+            name="platform-filter"
             value={selectedPlatform || ""}
-            className={`${baseClass}__platform_dropdown`}
-            options={PLATFORM_DROPDOWN_OPTIONS}
-            searchable={false}
-            onChange={(value: PlatformValueOptions) => {
+            className={`${baseClass}__platform-filter`}
+            options={platformOptions}
+            onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
-                (platform) => platform.value === value
+                (platform) => platform.value === option?.value
               );
               router.push(
                 (selectedPlatformOption?.path || paths.DASHBOARD)
@@ -883,22 +900,15 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             }}
           />
         </div>
-        <div className="host-sections">
+        <div className={`${baseClass}__host-sections`}>
           <>
-            {isHostSummaryFetching && (
-              <div className="spinner">
-                <Spinner />
-              </div>
+            {isHostSummaryFetching ? (
+              <Card paddingSize="medium">
+                <Spinner includeContainer={false} verticalPadding="small" />
+              </Card>
+            ) : (
+              HostCountCards
             )}
-            <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier &&
-              selectedPlatform !== "ios" &&
-              selectedPlatform !== "ipados" && (
-                <div className={`${baseClass}__section`}>
-                  {MissingHostsCard}
-                  {LowDiskSpaceHostsCard}
-                </div>
-              )}
           </>
         </div>
         {renderCards()}

@@ -1,1 +1,0 @@
-* Fixed a bug where policy failures of a host were not being cleared in the host details page after configuring the host to not run any policies.

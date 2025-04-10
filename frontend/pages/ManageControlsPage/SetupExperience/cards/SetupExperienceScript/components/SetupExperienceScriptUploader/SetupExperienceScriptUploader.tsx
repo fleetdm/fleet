@@ -56,6 +56,7 @@ const SetupExperienceScriptUploader = ({
       buttonMessage="Upload"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
+      gitopsCompatible
     />
   );
 };

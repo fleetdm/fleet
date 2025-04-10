@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -34,12 +33,6 @@ import (
 const (
 	vulnRepo = "vulnerabilities"
 )
-
-// Define a regex pattern for semver (simplified)
-var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
-
-// Define a regex pattern for splitting version strings into subparts
-var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
 // DownloadNVDCVEFeed downloads CVEs information from the NVD 2.0 API
 // and supplements the data with CPE information from the Vulncheck API.
@@ -363,6 +356,13 @@ func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]osCPEWithNVDMeta, 
 
 	for _, os := range oses {
 		for _, variant := range macosVariants {
+			versionParts := strings.Split(os.Version, ".")
+			if len(versionParts) == 2 {
+				// Vulncheck reports versions with all 3 parts, so pad with an extra 0 if we only
+				// have 2 parts (15.3 -> 15.3.0)
+				versionParts = append(versionParts, "0")
+				os.Version = strings.Join(versionParts, ".")
+			}
 			cpe := osCPEWithNVDMeta{
 				OperatingSystem: os,
 				meta: &wfn.Attributes{
@@ -552,6 +552,8 @@ func checkCVEs(
 	return foundSoftwareVulns, foundOSVulns, nil
 }
 
+var pythonVersionWithUpdate = regexp.MustCompile(`(alpha|beta|rc)(\d+)`)
+
 // expandCPEAliases will generate new *wfn.Attributes from the given cpeItem.
 // It returns a slice with the given cpeItem plus the generated *wfn.Attributes.
 //
@@ -596,6 +598,45 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
+	// Python pre-release versions can have the pre-release part in the version field or in the
+	// update field (the technically correct place). We generate the "correct" CPEs (with the
+	// pre-release part in the update field), so we have to create an alias here with the
+	// pre-release part in the version field to cover all the cases.
+	// e.g. Python 3.14.0 alpha2 can be represented as both:
+	// 1. cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:windows:*:*
+	// 2. cpe:2.3:a:python:python:3.14.0a2:*:*:*:*:windows:*:*
+	// We generate CPEs like 1, but in the feed (e.g. Vulncheck) it can also appear as 2.
+	// See https://github.com/fleetdm/fleet/issues/25882.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "python" &&
+			cpeItem.Product == "python" &&
+			cpeItem.Update != "" &&
+			pythonVersionWithUpdate.MatchString(cpeItem.Update) {
+
+			cpeItem2 := *cpeItem
+			for _, submatches := range pythonVersionWithUpdate.FindAllStringSubmatchIndex(cpeItem2.Update, -1) {
+				prefixBytes := []byte{}
+				numberBytes := []byte{}
+				prefixBytes = pythonVersionWithUpdate.ExpandString(prefixBytes, "${1}", cpeItem.Update, submatches)
+				numberBytes = pythonVersionWithUpdate.ExpandString(numberBytes, "${2}", cpeItem.Update, submatches)
+				var prefix string
+				switch prefixBytes[0] {
+				case 'a':
+					prefix = string(prefixBytes[0])
+				case 'b':
+					prefix = string(prefixBytes[0])
+				case 'r':
+					prefix = string(prefixBytes)
+				}
+
+				cpeItem2.Version = fmt.Sprintf("%s%s%s", cpeItem.Version, prefix, string(numberBytes))
+				cpeItem2.Update = ""
+			}
+
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
 	return cpeItems
 }
 
@@ -630,19 +671,17 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		return "", nil
 	}
 
-	// convert the host software version to semver for later comparison
-	formattedVersion := preprocessVersion(wfn.StripSlashes(hostSoftwareMeta.Version))
-	softwareVersion, err := semver.NewVersion(formattedVersion)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "parsing software version", hostSoftwareMeta.Product, hostSoftwareMeta.Version)
-	}
-
 	// Check if the host software version matches any of the CPEMatch rules.
 	// CPEMatch rules can include version strings for the following:
 	// - versionStartIncluding
 	// - versionStartExcluding
 	// - versionEndExcluding
 	// - versionEndIncluding - not used in this function as we don't want to assume the resolved version
+
+	// Back slashes are added to the version string during parsing; remove them to ensure that the version
+	// comparison works correctly. See https://github.com/fleetdm/fleet/issues/25991.
+	hostSoftwareVersion := wfn.StripSlashes(hostSoftwareMeta.Version)
+
 	for _, rule := range cpeMatch {
 		if rule.VersionEndExcluding == "" {
 			continue
@@ -660,10 +699,11 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 		}
 
 		// versionEnd is the version string that the vulnerable host software version must be less than
-		versionEnd, err := checkVersion(ctx, rule, softwareVersion, cve)
+		versionEnd, err := checkVersion(rule, hostSoftwareVersion)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking version")
 		}
+
 		if versionEnd != "" {
 			return versionEnd, nil
 		}
@@ -690,74 +730,28 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 }
 
 // checkVersion checks if the host software version matches the CPEMatch rule
-func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version, cve string) (string, error) {
-	constraintStr := buildConstraintString(rule.VersionStartIncluding, rule.VersionStartExcluding, rule.VersionEndExcluding)
-	if constraintStr == "" {
+func checkVersion(rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersionStr string) (string, error) {
+	if rule.VersionStartIncluding == "" && rule.VersionStartExcluding == "" && rule.VersionEndExcluding == "" {
 		return rule.VersionEndExcluding, nil
 	}
 
-	constraint, err := semver.NewConstraint(constraintStr)
-	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
+	if rule.VersionStartIncluding == "" && rule.VersionStartExcluding == "" {
+		// "softwareVersionStr < endExcluding",
+		if feednvd.SmartVerCmp(softwareVersionStr, rule.VersionEndExcluding) == -1 {
+			return rule.VersionEndExcluding, nil
+		}
 	}
-
-	if constraint.Check(softwareVersion) {
+	if rule.VersionStartIncluding != "" {
+		// "softwareVersionStr >= startIncluding && softwareVersionStr < endExcluding"
+		if (feednvd.SmartVerCmp(softwareVersionStr, rule.VersionStartIncluding) == 1 || feednvd.SmartVerCmp(softwareVersionStr, rule.VersionStartIncluding) == 0) &&
+			feednvd.SmartVerCmp(softwareVersionStr, rule.VersionEndExcluding) == -1 {
+			return rule.VersionEndExcluding, nil
+		}
+	}
+	// "softwareVersionStr > startExcluding && softwareVersionStr < endExcluding"
+	if feednvd.SmartVerCmp(softwareVersionStr, rule.VersionStartExcluding) == 1 && feednvd.SmartVerCmp(softwareVersionStr, rule.VersionEndExcluding) == -1 {
 		return rule.VersionEndExcluding, nil
 	}
 
 	return "", nil
-}
-
-// buildConstraintString builds a semver constraint string from the startIncluding,
-// startExcluding, and endExcluding strings
-func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
-	startIncluding = preprocessVersion(startIncluding)
-	startExcluding = preprocessVersion(startExcluding)
-	endExcluding = preprocessVersion(endExcluding)
-
-	if startIncluding == "" && startExcluding == "" {
-		return fmt.Sprintf("< %s", endExcluding)
-	}
-
-	if startIncluding != "" {
-		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)
-	}
-	return fmt.Sprintf("> %s, < %s", startExcluding, endExcluding)
-}
-
-// Products using 4 part versioning scheme (ie. docker desktop)
-// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0-3) for use with
-// the semver library.
-func preprocessVersion(version string) string {
-	// If "-" is already present, validate the part before "-" as a semver
-	if strings.Contains(version, "-") {
-		parts := strings.Split(version, "-")
-		if semverPattern.MatchString(parts[0]) {
-			return version
-		}
-	}
-
-	if strings.Contains(version, "+") {
-		part := strings.Split(version, "+")[0]
-		if semverPattern.MatchString(part) {
-			return version
-		}
-	}
-
-	// If the version string contains more than 3 parts, convert it to 3 parts
-	parts := strings.Split(version, ".")
-	if len(parts) > 3 {
-		return parts[0] + "." + parts[1] + "." + parts[2] + "-" + strings.Join(parts[3:], ".")
-	}
-
-	// If the version string ends with a non-numeric character (like '1.0.0b'), replace
-	// it with '-<char>' (like '1.0.0-b')
-	if len(parts) == 3 {
-		matches := nonNumericPartRegex.FindStringSubmatch(parts[2])
-		if len(matches) > 2 {
-			parts[2] = matches[1] + "-" + matches[2]
-		}
-	}
-
-	return strings.Join(parts, ".")
 }

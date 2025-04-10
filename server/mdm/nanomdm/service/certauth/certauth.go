@@ -8,11 +8,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 var (
@@ -97,6 +98,7 @@ func New(next service.CheckinAndCommandService, storage storage.CertAuthStore, o
 	return certAuth
 }
 
+// HashCert returns the string representation
 func HashCert(cert *x509.Certificate) string {
 	hashed := sha256.Sum256(cert.Raw)
 	b := make([]byte, len(hashed))
@@ -113,9 +115,12 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 	}
 	logger := ctxlog.Logger(r.Context, s.logger)
 	hash := HashCert(r.Certificate)
+	logger.Info("msg", "associate new enrollment", "hash", hash, "id", r.ID)
+
 	if hasHash, err := s.storage.HasCertHash(r, hash); err != nil {
 		return err
 	} else if hasHash {
+		logger.Info("msg", "store has cert hash", "id", r.ID, "hash", hash)
 		if !s.allowDup {
 			// test to see if we're using the same cert for an
 			// enrollment. the only way this should happen is if
@@ -124,6 +129,7 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 			if isAssoc, err := s.storage.IsCertHashAssociated(r, hash); err != nil {
 				return err
 			} else if isAssoc {
+				logger.Info("msg", "cert hash is associated", "id", r.ID, "hash", hash)
 				return nil
 			}
 			logger.Info(

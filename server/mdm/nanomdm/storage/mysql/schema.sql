@@ -138,8 +138,10 @@ CREATE TABLE nano_commands (
     -- Raw command Plist
     command      MEDIUMTEXT   NOT NULL,
 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+
+    subtype ENUM('None','ProfileWithSecrets') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'None',
 
     PRIMARY KEY (command_uuid),
 
@@ -274,6 +276,7 @@ CREATE TABLE nano_cert_auth_associations (
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    cert_not_valid_after timestamp NULL DEFAULT NULL,
 
     PRIMARY KEY (id, sha256),
 

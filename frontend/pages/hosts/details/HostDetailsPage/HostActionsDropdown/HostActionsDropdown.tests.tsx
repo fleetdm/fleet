@@ -1128,7 +1128,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostPlatform="chrome"
           hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus={"unlocked"}
+          hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
         />
       );
@@ -1214,7 +1214,7 @@ describe("Host Actions Dropdown", () => {
           hostPlatform="ios"
           hostMdmEnrollmentStatus="On (automatic)"
           isConnectedToFleetMdm
-          hostMdmDeviceStatus={"unlocked"}
+          hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
         />
       );
@@ -1254,7 +1254,7 @@ describe("Host Actions Dropdown", () => {
           hostPlatform="ipados"
           hostMdmEnrollmentStatus="On (automatic)"
           isConnectedToFleetMdm
-          hostMdmDeviceStatus={"unlocked"}
+          hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
         />
       );

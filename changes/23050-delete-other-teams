@@ -1,1 +1,0 @@
-Ignore `--delete-other-teams` flag in `fleetctl gitops` command for non-Premium license users.

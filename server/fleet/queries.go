@@ -43,6 +43,9 @@ type QueryPayload struct {
 	//
 	// If not set during creation of a query, then the default value is false.
 	DiscardData *bool `json:"discard_data"`
+	// LabelsIncludeAny is a list of labels that will be used to
+	// target a query
+	LabelsIncludeAny []string `json:"labels_include_any"`
 }
 
 // Query represents a osquery query to run on devices.
@@ -101,6 +104,9 @@ type Query struct {
 	// DiscardData indicates if the scheduled query results should be discarded (true)
 	// or kept (false) in a query report.
 	DiscardData bool `json:"discard_data" db:"discard_data"`
+	// LabelsIncludeAny is a list of labels that will be used to
+	// target a query
+	LabelsIncludeAny []LabelIdent `json:"labels_include_any"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -150,6 +156,10 @@ func (q *Query) Copy() *Query {
 	}
 	if q.AggregatedStats.TotalExecutions != nil {
 		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
+	}
+	if q.LabelsIncludeAny != nil {
+		clone.LabelsIncludeAny = make([]LabelIdent, len(q.LabelsIncludeAny))
+		copy(clone.LabelsIncludeAny, q.LabelsIncludeAny)
 	}
 	return &clone
 }
@@ -362,7 +372,8 @@ type QuerySpec struct {
 	// or kept (false) in a query report.
 	//
 	// If not set, then the default value is false.
-	DiscardData bool `json:"discard_data"`
+	DiscardData      bool     `json:"discard_data"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 }
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {
@@ -489,6 +500,13 @@ type ScheduledQueryResult struct {
 	Snapshot []*json.RawMessage `json:"snapshot"`
 	// LastFetched is the time this result was received.
 	UnixTime uint `json:"unixTime"`
+
+	// Action is used to detect snapshot results in "event format"
+	// (hosts configured with `--logger_snapshot_event_type=false`).
+	Action string `json:"action,omitempty"`
+	// Columns holds a single result row when snapshot results are in "event format"
+	// (hosts configured with `--logger_snapshot_event_type=false`).
+	Columns json.RawMessage `json:"columns,omitempty"`
 }
 
 // ScheduledQueryResultRow is a scheduled query result row.

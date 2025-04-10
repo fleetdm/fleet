@@ -77,6 +77,9 @@ for system in $SYSTEMS; do
     if [[ $system == "linux" ]]; then
         goarch_value="amd64"
     fi
+    if [[ $system == "windows" ]]; then
+        goarch_value="amd64"
+    fi
     if [[ $system == "linux-arm64" ]]; then
         goose_value="linux"
         goarch_value="arm64"

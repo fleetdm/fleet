@@ -7,11 +7,8 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
-
 import useTeamIdParam from "hooks/useTeamIdParam";
-
 import { AppContext } from "context/app";
-
 import {
   ISoftwareTitleDetails,
   formatSoftwareType,
@@ -26,6 +23,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -36,8 +34,8 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
-import SoftwarePackageCard from "./SoftwarePackageCard";
-import { getPackageCardInfo } from "./helpers";
+import SoftwareInstallerCard from "./SoftwareInstallerCard";
+import { getInstallerCardInfo } from "./helpers";
 
 const baseClass = "software-title-details-page";
 
@@ -113,12 +111,13 @@ const SoftwareTitleDetailsPage = ({
       refetchSoftwareTitle();
       return;
     }
+
     // redirect to software titles page if no versions are available
-    if (teamIdForApi) {
-      router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
-    } else {
-      router.push(paths.SOFTWARE_TITLES);
-    }
+    router.push(
+      getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+        team_id: teamIdForApi,
+      })
+    );
   }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
@@ -128,30 +127,29 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
-  const renderSoftwarePackageCard = (title: ISoftwareTitleDetails) => {
+  const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
     const hasPermission = Boolean(
       isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
     );
 
-    const showPackageCard =
+    const showInstallerCard =
       currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
       hasPermission &&
       isAvailableForInstall;
 
-    if (showPackageCard) {
-      const packageCardData = getPackageCardInfo(title);
+    if (showInstallerCard) {
+      const installerCardData = getInstallerCardInfo(title);
       return (
-        <SoftwarePackageCard
-          softwarePackage={packageCardData.softwarePackage}
-          name={packageCardData.name}
-          version={packageCardData.version}
-          uploadedAt={packageCardData.uploadedAt}
-          status={packageCardData.status}
-          isSelfService={packageCardData.isSelfService}
+        <SoftwareInstallerCard
+          softwareInstaller={installerCardData.softwarePackage}
+          name={installerCardData.name}
+          version={installerCardData.version}
+          addedTimestamp={installerCardData.addedTimestamp}
+          status={installerCardData.status}
+          isSelfService={installerCardData.isSelfService}
           softwareId={softwareId}
           teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
           onDelete={onDeleteInstaller}
-          router={router}
           refetchSoftwareTitle={refetchSoftwareTitle}
         />
       );
@@ -182,6 +180,7 @@ const SoftwareTitleDetailsPage = ({
             type={formatSoftwareType(softwareTitle)}
             versions={softwareTitle.versions?.length ?? 0}
             hosts={softwareTitle.hosts_count}
+            countsUpdatedAt={softwareTitle.counts_updated_at}
             queryParams={{
               software_title_id: softwareId,
               team_id: teamIdForApi,
@@ -194,7 +193,7 @@ const SoftwareTitleDetailsPage = ({
                 : undefined
             }
           />
-          {renderSoftwarePackageCard(softwareTitle)}
+          {renderSoftwareInstallerCard(softwareTitle)}
           <Card
             borderRadiusSize="xxlarge"
             includeShadow

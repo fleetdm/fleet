@@ -414,6 +414,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 
 	if teamOptions != nil {
 		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true); err != nil {
+			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -925,6 +926,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
 			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true); err != nil {
+				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -1046,13 +1048,9 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	invalid := &fleet.InvalidArgumentError{}
-	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
-		invalid.Append(
-			"mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`,
-		)
+	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
-
 	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
 
@@ -1210,11 +1208,10 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
 	didUpdateDiskEncryption := team.Config.MDM.EnableDiskEncryption != oldEnableDiskEncryption
-	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() && didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
-	}
 
+	if didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
@@ -1318,6 +1315,11 @@ func (svc *Service) editTeamFromSpec(
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
+	}
+
+	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
+		team.Config.WebhookSettings.FailingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
@@ -1435,14 +1437,14 @@ func (svc *Service) editTeamFromSpec(
 func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
 	for i, prof := range customSettings {
 		count := 0
-		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0, len(prof.LabelsExcludeAny) > 0} {
 			if b {
 				count++
 			}
 		}
 		if count > 1 {
 			invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
-				fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+				fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
 		}
 		if len(prof.Labels) > 0 {
 			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
@@ -1521,12 +1523,15 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 }
 
 func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
-	var didUpdate, didUpdateMacOSDiskEncryption bool
+	var didUpdate bool
 	if enable != nil {
 		if tm.Config.MDM.EnableDiskEncryption != *enable {
+			if *enable && svc.config.Server.PrivateKey == "" {
+				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
+
 			tm.Config.MDM.EnableDiskEncryption = *enable
 			didUpdate = true
-			didUpdateMacOSDiskEncryption = true
 		}
 	}
 
@@ -1539,13 +1544,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 		if err != nil {
 			return err
 		}
-
-		// macOS-specific stuff. For legacy reasons we check if apple is configured
-		// via `appCfg.MDM.EnabledAndConfigured`
-		//
-		// TODO: is there a missing bitlocker activity feed item? (see same TODO on
-		// other methods that deal with disk encryption)
-		if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
+		if appCfg.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
 			if tm.Config.MDM.EnableDiskEncryption {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}

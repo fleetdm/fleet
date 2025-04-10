@@ -10,7 +10,6 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { getTableColumnsFromSql } from "utilities/helpers";
 import { SUPPORT_LINK } from "utilities/constants";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
@@ -19,10 +18,11 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
-import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
@@ -37,6 +37,7 @@ interface IQueryResultsProps {
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  // set during target selection, persisted through each step of the flow
   targetsTotalCount: number;
 }
 
@@ -60,7 +61,7 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostsCount, query_results: queryResults, errors } =
+  const { uiHostCounts, serverHostCounts, queryResults, errors } =
     campaign || {};
 
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -96,11 +97,8 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
-
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults,
-        tableColumns
+        queryResults
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {
@@ -267,10 +265,15 @@ const QueryResults = ({
 
   return (
     <div className={baseClass}>
-      <QueryResultsHeading
-        respondedHosts={hostsCount.total}
-        targetsTotalCount={targetsTotalCount}
-        isQueryFinished={isQueryFinished}
+      <LiveResultsHeading
+        numHostsTargeted={targetsTotalCount}
+        numHostsResponded={uiHostCounts.total}
+        numHostsRespondedResults={serverHostCounts.countOfHostsWithResults}
+        numHostsRespondedNoErrorsAndNoResults={
+          serverHostCounts.countOfHostsWithNoResults
+        }
+        numHostsRespondedErrors={uiHostCounts.failed}
+        isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
@@ -287,25 +290,20 @@ const QueryResults = ({
           </div>
         </InfoBanner>
       )}
-      <TabsWrapper>
+      <TabNav>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              <span>
-                {errors?.length > 0 && (
-                  <span className="count">
-                    {errors.length.toLocaleString()}
-                  </span>
-                )}
+              <TabText count={errors?.length} isErrorCount>
                 {NAV_TITLES.ERRORS}
-              </span>
+              </TabText>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTab()}</TabPanel>
           <TabPanel>{renderErrorsTab()}</TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       {showQueryModal && (
         <ShowQueryModal
           query={lastEditedQueryBody}

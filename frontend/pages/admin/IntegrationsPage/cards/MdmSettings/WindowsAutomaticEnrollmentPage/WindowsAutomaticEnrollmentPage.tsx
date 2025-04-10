@@ -43,6 +43,18 @@ const WindowsAutomaticEnrollmentPage = () => {
             url="https://fleetdm.com/learn-more-about/setup-windows-mdm"
           />
         </p>
+        <p>
+          Some Intune/Entra deployments enable automatic enrollement into
+          Intune. Check to ensure <b>Automatic Enrollment</b> is not enabled, or
+          your devices will not appear in Fleet.{" "}
+        </p>
+        <p>
+          In your Intune settings, select <b>Devices</b>, and under{" "}
+          <b>Device onbarding</b>, open the <b>Enrollment</b> submenu. Select{" "}
+          <b>Automatic Enrollment</b> and ensure both <b>MDM user scope</b> and{" "}
+          <b>Windows Information Protection (WIP) user scope</b> are set to{" "}
+          <b>None</b>.
+        </p>
         {/* Ideally we'd use the native browser list styles and css to display
         the list numbers but this does not allow us to style the list items as we'd
         like so we write the numbers in the JSX instead. */}
@@ -89,8 +101,8 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>4.</span>
             <p>
-              At the top of the page, search for “Mobility (MDM and MAM)“ and
-              select <b>Mobility (MDM and MAM)</b>.
+              At the top of the page, search for “Mobility“ and select{" "}
+              <b>Mobility (MDM and WIP)</b>.
             </p>
           </li>
           <li>
@@ -141,22 +153,23 @@ const WindowsAutomaticEnrollmentPage = () => {
           <li>
             <span>8.</span>
             <p>
-              Go back to <b>Mobility (MDM and MAM)</b>, refresh the page, then
-              open newly created app and select{" "}
-              <b>On-premises MDM application settings</b>.
+              While on this same page, select{" "}
+              <b>Custom MDM application settings</b> link.
             </p>
           </li>
           <li>
             <span>9.</span>
             <p>
-              Select the link under <b>Application ID URI</b>, then select{" "}
-              <b>Edit</b> button next to the Application ID URI input.
+              Click on the <b>Application ID URI</b> which will bring you to the{" "}
+              <b>Expose an API</b> submenu with an edit button next to the text
+              box.
             </p>
           </li>
           <li>
             <span>10.</span>
             <p>
-              Use your Fleet URL (e.g. fleet.acme.com) and select <b>Save</b>.
+              Replace with your Fleet URL (e.g. fleet.acme.com) and select{" "}
+              <b>Save</b>.
             </p>
           </li>
           <li>
@@ -172,13 +185,15 @@ const WindowsAutomaticEnrollmentPage = () => {
               Select <b>Microsoft Graph</b>, then select{" "}
               <b>Delegated permissions</b>, and select{" "}
               <b>Group &gt; Group.Read.All</b> and{" "}
-              <b>Group &gt; Group.ReadWrite.All</b>.
+              <b>Group &gt; Group.ReadWrite.All</b> and <b>Add permissions</b>.
             </p>
           </li>
           <li>
             <span>13.</span>
             <div>
-              Select <b>Application permissions</b>, then select following:
+              Again select <b>+ Add a permission</b> and then{" "}
+              <b>Microsoft Graph</b> and <b>Application permissions</b>, select
+              the following:
               <ul className={`${baseClass}__permissions-list`}>
                 <li>Device &gt; Device.Read.All</li>
                 <li>Device &gt; Device.ReadWrite.All</li>

@@ -1,0 +1,7 @@
+{
+  "name": "Brave",
+  "slug": "brave-browser/darwin",
+  "unique_identifier": "com.brave.Browser",
+  "token": "brave-browser",
+  "installer_format": "dmg"
+}

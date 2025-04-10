@@ -121,6 +121,14 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		return runner, nil
 	}
 
+	if _, err := updater.Lookup(constant.OrbitTUFTargetName); errors.Is(err, client.ErrNoLocalSnapshot) {
+		// Return early and skip optimization, this will cause an unnecessary auto-update of orbit
+		// but allows orbit to start up if there's no local metadata AND if the TUF server is down
+		// (which may be the case during the migration from https://tuf.fleetctl.com to
+		// https://updates.fleetdm.com).
+		return runner, nil
+	}
+
 	// Initialize the hashes of the local files for all tracked targets.
 	//
 	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
@@ -172,8 +180,8 @@ func (r *Runner) HasLocalHash(target string) bool {
 	return ok
 }
 
-func randomizeDuration(max time.Duration) (time.Duration, error) {
-	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+func randomizeDuration(maxTime time.Duration) (time.Duration, error) {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(maxTime)))
 	if err != nil {
 		return 0, err
 	}

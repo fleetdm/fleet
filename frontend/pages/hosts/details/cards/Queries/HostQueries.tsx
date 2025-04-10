@@ -1,11 +1,13 @@
 import React, { useCallback, useMemo } from "react";
 
+import { isAndroid } from "interfaces/platform";
 import { IQueryStats } from "interfaces/query_stats";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -29,6 +31,7 @@ interface IHostQueriesRowProps extends Row {
   original: {
     id?: number;
     should_link_to_hqr?: boolean;
+    hostId?: number;
   };
 }
 
@@ -73,6 +76,20 @@ const HostQueries = ({
       );
     }
 
+    if (isAndroid(hostPlatform)) {
+      return (
+        <EmptyTable
+          header="Queries are not supported for this host"
+          info={
+            <>
+              Interested in querying Android hosts?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
     return (
       <EmptyTable
         header="No queries are scheduled to run on this host"
@@ -101,8 +118,8 @@ const HostQueries = ({
   const tableData = useMemo(() => generateDataSet(schedule ?? []), [schedule]);
 
   const columnConfigs = useMemo(
-    () => generateColumnConfigs(queryReportsDisabled),
-    [queryReportsDisabled]
+    () => generateColumnConfigs(hostId, queryReportsDisabled),
+    [hostId, queryReportsDisabled]
   );
 
   const renderHostQueries = () => {
@@ -140,12 +157,12 @@ const HostQueries = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Queries</p>
+      <CardHeader header="Queries" />
       {renderHostQueries()}
     </Card>
   );

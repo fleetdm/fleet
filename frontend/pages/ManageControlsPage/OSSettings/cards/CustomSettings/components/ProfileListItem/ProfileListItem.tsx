@@ -12,6 +12,7 @@ import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
 import strUtils from "utilities/strings";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 
@@ -87,6 +88,7 @@ const ProfileListItem = ({
   const {
     created_at,
     labels_include_all,
+    labels_include_any,
     labels_exclude_any,
     name,
     platform,
@@ -102,7 +104,7 @@ const ProfileListItem = ({
     FileSaver.saveAs(file);
   };
 
-  const labels = labels_include_all || labels_exclude_any;
+  const labels = labels_include_all || labels_include_any || labels_exclude_any;
 
   const renderLabelInfo = () => {
     if (!isPremium || labels === undefined || labels.length === 0) {
@@ -118,6 +120,7 @@ const ProfileListItem = ({
   };
 
   return (
+    // TODO - refactor to use ListItem
     <div className={classnames(subClass, baseClass)}>
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />
@@ -151,13 +154,18 @@ const ProfileListItem = ({
           >
             <Icon name="download" />
           </Button>
-          <Button
-            className={`${subClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onDelete(profile)}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                className={`${subClass}__action-button`}
+                variant="text-icon"
+                onClick={() => onDelete(profile)}
+              >
+                <Icon name="trash" color="ui-fleet-black-75" />
+              </Button>
+            )}
+          />
         </div>
       </div>
     </div>

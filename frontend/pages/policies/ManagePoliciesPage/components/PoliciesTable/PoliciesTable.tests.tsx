@@ -8,7 +8,7 @@ import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
 
 describe("Policies table", () => {
-  it("Renders the page-wide empty state when no policies are present", async () => {
+  it("Renders the page-wide empty state when no policies are present (free tier)", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -22,19 +22,81 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
+        currentTeam={{ id: -1, name: "All teams" }}
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={0}
+      />
+    );
+
+    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+  });
+
+  it("Renders the page-wide empty state when no policies are present (all teams)", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
-    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(
+      screen.getByText("You don't have any policies that apply to all teams")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+  });
+
+  it("Renders the page-wide empty state when no policies are present (specific team)", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePolicyClick={noop}
+        currentTeam={{ id: 1, name: "Some team" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={0}
+      />
+    );
+
+    expect(
+      screen.getByText("You don't have any policies that apply to this team")
+    ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
 
@@ -52,19 +114,19 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
     expect(screen.getByText("No matching policies")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
 
@@ -84,15 +146,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testCriticalPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testCriticalPolicy].length}
       />
     );
 
@@ -123,15 +184,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testInheritedPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testInheritedPolicy].length}
       />
     );
 
@@ -162,15 +222,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testGlobalPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: -1, name: "All teams" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testGlobalPolicy].length}
       />
     );
 
@@ -198,12 +257,13 @@ describe("Policies table", () => {
       createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
     ];
 
+    const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
+
     const { container, user } = render(
       <PoliciesTable
-        policiesList={[...testInheritedPolicies, ...testTeamPolicies]}
+        policiesList={policiesList}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
@@ -212,28 +272,22 @@ describe("Policies table", () => {
         renderPoliciesCount={() => null}
         canAddOrDeletePolicy
         hasPoliciesToDelete
-        resetPageIndex={false}
+        count={policiesList.length}
       />
     );
 
-    const numberOfCheckboxes = container.querySelectorAll(
-      "input[type='checkbox']"
-    ).length;
+    const numberOfCheckboxes = screen.queryAllByRole("checkbox").length;
 
     expect(numberOfCheckboxes).toBe(
       testTeamPolicies.length + 1 // +1 for Select all checkbox
     );
 
-    const checkbox = container.querySelectorAll(
-      "input[type='checkbox']"
-    )[0] as HTMLInputElement;
+    const checkbox = screen.queryAllByRole("checkbox")[0];
 
-    await waitFor(() => {
-      waitFor(() => {
-        user.click(checkbox);
-      });
-
-      expect(checkbox.checked).toBe(true);
+    await waitFor(async () => {
+      await user.click(checkbox);
     });
+
+    expect(checkbox).toBeChecked();
   });
 });

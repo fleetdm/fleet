@@ -12,6 +12,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-kit/log"
 )
 
@@ -27,11 +28,15 @@ func panicif(err error) {
 	}
 }
 
+// main requires 2 arguments:
+// 1. Path to dumpfile
+// 2. Path to Android dumpfile
 func main() {
-	if len(os.Args) != 2 {
+	if len(os.Args) != 3 {
 		panic("not enough arguments")
 	}
 	fmt.Println("dumping schema to", os.Args[1])
+	fmt.Println("dumping Android schema to", os.Args[2])
 
 	// Create the database (must use raw MySQL client to do this)
 	db, err := sql.Open(
@@ -76,4 +81,16 @@ func main() {
 	panicif(cmd.Run())
 
 	panicif(os.WriteFile(os.Args[1], stdoutBuf.Bytes(), 0o655))
+
+	// Dump Android schema
+	args := []string{"compose", "exec", "-T", "mysql_test"}
+	// Command to run inside container:
+	args = append(args, "mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb")
+	args = append(args, android.MySQLTables()...)
+	args = append(args, "--compact", "--skip-comments")
+	cmd = exec.Command("docker", args...)
+	stdoutBuf = bytes.Buffer{}
+	cmd.Stdout = &stdoutBuf
+	panicif(cmd.Run())
+	panicif(os.WriteFile(os.Args[2], stdoutBuf.Bytes(), 0o655))
 }

@@ -183,6 +183,13 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},
+		{
+			Name:                "Android",
+			Platform:            "android",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
 	}
 
 	names := fleet.ReservedLabelNames()
@@ -214,6 +221,12 @@ func WithComputerName(s string) NewHostOption {
 func WithPlatform(s string) NewHostOption {
 	return func(h *fleet.Host) {
 		h.Platform = s
+	}
+}
+
+func WithOSVersion(s string) NewHostOption {
+	return func(h *fleet.Host) {
+		h.OSVersion = s
 	}
 }
 

@@ -1,1 +1,0 @@
-Added capability for fleetd to report vital errors to Fleet server, such as when Fleet Desktop is unable to start.

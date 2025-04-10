@@ -290,13 +290,14 @@ func TestGetDetailQueries(t *testing.T) {
 		"disk_encryption_linux",
 		"disk_encryption_windows",
 		"chromeos_profile_user_info",
+		"certificates_darwin",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
 	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 25)
+	require.Len(t, queriesWithoutWinOSVuln, 26)
 
 	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
 	qs := baseQueries
@@ -307,7 +308,7 @@ func TestGetDetailQueries(t *testing.T) {
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
 	qs = baseQueries
 	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "scheduled_query_stats", "software_macos_firefox")
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1338,7 +1339,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1529,11 +1530,13 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
+		decryptable *bool,
+	) error {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
 			return errors.New("key mismatch")
 		}
-		if host.ID != hostID {
+		if host.ID != incomingHost.ID {
 			return errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
@@ -1713,221 +1716,6 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 }
 
-func TestSanitizeSoftware(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		h         *fleet.Host
-		s         *fleet.Software
-		sanitized *fleet.Software
-	}{
-		{
-			name: "Microsoft Teams.app on macOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Microsoft Teams.app",
-				Version: "1.00.622155",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Microsoft Teams.app",
-				Version: "1.6.00.22155",
-			},
-		},
-		{
-			name: "Microsoft Teams not on macOS",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Microsoft Teams",
-				Version: "1.6.00.22378",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Microsoft Teams",
-				Version: "1.6.00.22378",
-			},
-		},
-		{
-			name: "Other.app on macOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Other.app",
-				Version: "1.2.3",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Other.app",
-				Version: "1.2.3",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows, version not using full year",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "23.9.248.0",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "2023.9.248.0",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows, version using full year",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "2023.9.248.0",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "2023.9.248.0",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows with invalid version",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foobar",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foobar",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows with invalid version",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foo.bar",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foo.bar",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Other on Windows",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Other",
-				Version: "1.2.3",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Other",
-				Version: "1.2.3",
-			},
-		},
-		{
-			name: "Citrix Workspace on Windows",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Citrix Workspace 2309",
-				Version: "23.9.1.104",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Citrix Workspace 2309",
-				Version: "2309.1.104",
-			},
-		},
-		{
-			name: "Citrix Workspace on Mac",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "23.9.1.104",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "2309.1.104",
-			},
-		},
-		{
-			name: "Citrix Workspace with correct versioning",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "2400.1.104",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "2400.1.104",
-			},
-		},
-		{
-			name: "MS Teams classic on MacOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Microsoft Teams classic.app",
-				Version: "1.00.634263",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Microsoft Teams classic.app",
-				Version: "1.6.00.34263",
-			},
-		},
-		{
-			name: "minio",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:    "minio",
-				Version: "RELEASE.2022-03-10T00-00-00Z",
-			},
-			sanitized: &fleet.Software{
-				Name:    "minio",
-				Version: "2022-03-10T00-00-00Z",
-			},
-		},
-		{
-			name: "minio",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:    "minio",
-				Version: "20200310000000",
-			},
-			sanitized: &fleet.Software{
-				Name:    "minio",
-				Version: "2020-03-10T00-00-00Z",
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
-			require.Equal(t, tc.sanitized, tc.s)
-		})
-	}
-}
-
 func TestDirectIngestWindowsProfiles(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewNopLogger()
@@ -1966,6 +1754,9 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 				result[p.Name] = p
 			}
 			return result, nil
+		}
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
+			return secret, nil
 		}
 
 		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
@@ -2037,9 +1828,7 @@ func TestIngestNetworkInterface(t *testing.T) {
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
 			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
 			require.NoError(t, err)
 			if tc.valid {
@@ -2049,6 +1838,115 @@ func TestIngestNetworkInterface(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("primaryIP and primaryMAC", func(t *testing.T) {
+		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
+		ip := "10.0.0.1"
+		var b bytes.Buffer
+		logger := log.NewLogfmtLogger(&b)
+
+		// Happy path
+		rows := []map[string]string{
+			{"address": "address", "mac": "mac"},
+		}
+		err := ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Equal(t, "mac", h.PrimaryMac)
+		assert.Equal(t, "address", h.PrimaryIP)
+		assert.Empty(t, b.String())
+
+		// No rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, []map[string]string{})
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "did not find a private IP address")
+
+		// Too many rows
+		b.Reset()
+		h = fleet.Host{PublicIP: "190.18.97.3"}
+		rows = []map[string]string{
+			{"address": "address", "mac": "mac"},
+			{"address": "address2", "mac": "mac2"},
+		}
+		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		require.NoError(t, err)
+		assert.Equal(t, ip, h.PublicIP)
+		assert.Empty(t, h.PrimaryMac)
+		assert.Empty(t, h.PrimaryIP)
+		assert.Contains(t, b.String(), "expected single result")
+	})
+}
+
+func TestDirectIngestHostCertificates(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+	host := &fleet.Host{ID: 1}
+
+	row1 := map[string]string{
+		"ca":                "0",
+		"common_name":       "Cert 1 Common Name",
+		"issuer":            "/C=US/O=Issuer 1 Inc./CN=Issuer 1 Common Name",
+		"subject":           "/C=US/O=Subject 1 Inc./OU=Subject 1 Org Unit/CN=Subject 1 Common Name",
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Data Encipherment, Key Encipherment, Digital Signature",
+		"serial":            "123abc",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31",
+	}
+
+	// row2 will not be ingeted because of the issue field containing an extra /
+	row2 := map[string]string{
+		"ca":                "1",
+		"common_name":       "Cert 2 Common Name",
+		"issuer":            `/C=US/O=Issuer 2 Inc.\/foobar/CN=Issuer 2 Common Name`,
+		"subject":           "/C=US/O=Subject 1 Inc./OU=Subject 1 Org Unit/CN=Subject 1 Common Name",
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Data Encipherment, Key Encipherment, Digital Signature",
+		"serial":            "123abcd",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32",
+	}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+		require.Equal(t, host.ID, hostID)
+		require.Len(t, certs, 1)
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
+		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[0].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[0].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[0].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[0].SubjectCountry)
+		require.Equal(t, "Issuer 1 Common Name", certs[0].IssuerCommonName)
+		require.Equal(t, "Issuer 1 Inc.", certs[0].IssuerOrganization)
+		require.Empty(t, certs[0].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[0].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[0].KeyAlgorithm)
+		require.Equal(t, 2048, certs[0].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[0].KeyUsage)
+		require.Equal(t, "123abc", certs[0].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[0].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[0].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[0].NotValidBefore.Unix())
+		require.False(t, certs[0].CertificateAuthority)
+
+		return nil
+	}
+
+	err := directIngestHostCertificates(ctx, logger, host, ds, []map[string]string{row2, row1})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {

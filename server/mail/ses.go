@@ -41,6 +41,10 @@ func (s *sesSender) SendEmail(e fleet.Email) error {
 	return s.sendMail(e, msg)
 }
 
+func (s *sesSender) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
+	return s.client != nil
+}
+
 func NewSESSender(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, sourceArn string) (*sesSender, error) {
 	conf := &aws.Config{
 		Region:   &region,

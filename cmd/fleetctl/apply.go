@@ -92,9 +92,10 @@ func applyCommand() *cli.Command {
 			baseDir := filepath.Dir(flFilename)
 
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
-			_, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsScripts)
+			_, _, _, _, err = fleetClient.ApplyGroup(c.Context, false, specs, baseDir, logf, nil, opts, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 			if err != nil {
 				return err
 			}

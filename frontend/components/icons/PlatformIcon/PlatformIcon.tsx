@@ -1,7 +1,6 @@
 import React from "react";
 import classnames from "classnames";
 
-// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
 import platformIconClass from "utilities/platform_icon_class";
 

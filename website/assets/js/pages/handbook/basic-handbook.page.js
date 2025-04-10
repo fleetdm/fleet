@@ -154,7 +154,18 @@ parasails.registerPage('basic-handbook', {
     },
     handleScrollingInHandbook: function () {
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+      let sidebarCta = document.querySelector('div[purpose="sidebar-cta"]');
+      let windowHeight = window.innerHeight;
       let scrollTop = window.pageYOffset;
+      if (sidebarCta) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          sidebarCta.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          sidebarCta.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
       if (backToTopButton) {
         if(scrollTop > 2500) {
           backToTopButton.classList.add('show');
@@ -179,6 +190,6 @@ parasails.registerPage('basic-handbook', {
         left: 0,
         behavior: 'smooth',
       });
-    }
+    },
   }
 });

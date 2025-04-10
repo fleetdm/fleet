@@ -6,9 +6,18 @@ import {
   IHostMdmProfile,
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
+  isLinuxDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import { IAppleDeviceUpdates } from "interfaces/config";
+import {
+  DiskEncryptionSupportedPlatform,
+  isAndroid,
+  isDiskEncryptionSupportedLinuxPlatform,
+  isOsSettingsDisplayPlatform,
+  platformSupportsDiskEncryption,
+} from "interfaces/platform";
+
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -37,7 +46,8 @@ import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPack
 
 import {
   HostMdmDeviceStatusUIState,
-  generateWinDiskEncryptionProfile,
+  generateLinuxDiskEncryptionSetting,
+  generateWinDiskEncryptionSetting,
 } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
 
@@ -118,8 +128,7 @@ interface IHostSummaryProps {
   isPremiumTier?: boolean;
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
-  hostMdmProfiles?: IHostMdmProfile[];
-  isConnectedToFleetMdm?: boolean;
+  hostSettings?: IHostMdmProfile[];
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -131,7 +140,7 @@ interface IHostSummaryProps {
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
 
-const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
+const DISK_ENCRYPTION_MESSAGES = {
   darwin: {
     enabled: (
       <>
@@ -155,20 +164,28 @@ const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
     ),
     disabled: "The disk is unencrypted.",
   },
+  linux: {
+    enabled: "The disk is encrypted.",
+    unknown: "The disk may be encrypted.",
+  },
 };
 
 const getHostDiskEncryptionTooltipMessage = (
-  platform: "darwin" | "windows" | "chrome", // TODO: improve this type
+  platform: DiskEncryptionSupportedPlatform, // TODO: improve this type
   diskEncryptionEnabled = false
 ) => {
   if (platform === "chrome") {
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
   }
 
-  if (!["windows", "darwin"].includes(platform)) {
-    return "Disk encryption is enabled.";
+  if (platform === "rhel" || platform === "ubuntu") {
+    return DISK_ENCRYPTION_MESSAGES.linux[
+      diskEncryptionEnabled ? "enabled" : "unknown"
+    ];
   }
-  return MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES[platform][
+
+  // mac or windows
+  return DISK_ENCRYPTION_MESSAGES[platform][
     diskEncryptionEnabled ? "enabled" : "disabled"
   ];
 };
@@ -179,8 +196,7 @@ const HostSummary = ({
   isPremiumTier,
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
-  hostMdmProfiles,
-  isConnectedToFleetMdm,
+  hostSettings,
   showRefetchSpinner,
   onRefetchHost,
   renderActionDropdown,
@@ -192,13 +208,19 @@ const HostSummary = ({
   const {
     status,
     platform,
+    os_version,
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
+  const isAndroidHost = isAndroid(platform);
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
+    if (isAndroidHost) {
+      return null;
+    }
+
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip;
@@ -281,8 +303,7 @@ const HostSummary = ({
     );
   };
   const renderDiskEncryptionSummary = () => {
-    // TODO: improve this typing, platforms!
-    if (!["darwin", "windows", "chrome"].includes(platform)) {
+    if (!platformSupportsDiskEncryption(platform, os_version)) {
       return <></>;
     }
     const tooltipMessage = getHostDiskEncryptionTooltipMessage(
@@ -300,6 +321,11 @@ const HostSummary = ({
         break;
       case diskEncryptionEnabled === false:
         statusText = "Off";
+        break;
+      case (diskEncryptionEnabled === null ||
+        diskEncryptionEnabled === undefined) &&
+        platformSupportsDiskEncryption(platform, os_version):
+        statusText = "Unknown";
         break;
       default:
         // something unexpected happened on the way to this component, display whatever we got or
@@ -320,7 +346,7 @@ const HostSummary = ({
   };
 
   const renderOperatingSystemSummary = () => {
-    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
       return (
         <DataSet title="Operating system" value={summaryData.os_version} />
@@ -364,12 +390,12 @@ const HostSummary = ({
   };
 
   const renderAgentSummary = () => {
-    if (isChromeHost) {
-      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    if (isIosOrIpadosHost || isAndroidHost) {
+      return null;
     }
 
-    if (isIosOrIpadosHost) {
-      return null;
+    if (isChromeHost) {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
     }
 
     if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
@@ -441,31 +467,45 @@ const HostSummary = ({
   };
 
   const renderSummary = () => {
-    // for windows hosts we have to manually add a profile for disk encryption
+    // for windows and linux hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
-    // response for windows hosts.
+    // response for windows and linux hosts.
     if (
       platform === "windows" &&
       osSettings?.disk_encryption?.status &&
       isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
     ) {
-      const winDiskEncryptionProfile: IHostMdmProfile = generateWinDiskEncryptionProfile(
+      const winDiskEncryptionSetting: IHostMdmProfile = generateWinDiskEncryptionSetting(
         osSettings.disk_encryption.status,
         osSettings.disk_encryption.detail
       );
-      hostMdmProfiles = hostMdmProfiles
-        ? [...hostMdmProfiles, winDiskEncryptionProfile]
-        : [winDiskEncryptionProfile];
+      hostSettings = hostSettings
+        ? [...hostSettings, winDiskEncryptionSetting]
+        : [winDiskEncryptionSetting];
+    }
+
+    if (
+      isDiskEncryptionSupportedLinuxPlatform(platform, os_version) &&
+      osSettings?.disk_encryption?.status &&
+      isLinuxDiskEncryptionStatus(osSettings.disk_encryption.status)
+    ) {
+      const linuxDiskEncryptionSetting: IHostMdmProfile = generateLinuxDiskEncryptionSetting(
+        osSettings.disk_encryption.status,
+        osSettings.disk_encryption.detail
+      );
+      hostSettings = hostSettings
+        ? [...hostSettings, linuxDiskEncryptionSetting]
+        : [linuxDiskEncryptionSetting];
     }
 
     return (
       <Card
         borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
         includeShadow
-        largePadding
         className={`${baseClass}-card`}
       >
-        {!isIosOrIpadosHost && (
+        {!isIosOrIpadosHost && !isAndroidHost && (
           <DataSet
             title="Status"
             value={
@@ -481,38 +521,37 @@ const HostSummary = ({
         )}
         {summaryData.issues?.total_issues_count > 0 &&
           !isIosOrIpadosHost &&
+          !isAndroidHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
-        {(platform === "darwin" ||
-          platform === "windows" ||
-          platform === "ios" ||
-          platform === "ipados") &&
+        {isOsSettingsDisplayPlatform(platform, os_version) &&
           isPremiumTier &&
-          isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
-          hostMdmProfiles &&
-          hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
+          hostSettings &&
+          hostSettings.length > 0 && (
             <DataSet
               title="OS settings"
               value={
                 <OSSettingsIndicator
-                  profiles={hostMdmProfiles}
+                  profiles={hostSettings}
                   onClick={toggleOSSettingsModal}
                 />
               }
             />
           )}
-        {bootstrapPackageData?.status && !isIosOrIpadosHost && (
-          <DataSet
-            title="Bootstrap package"
-            value={
-              <BootstrapPackageIndicator
-                status={bootstrapPackageData.status}
-                onClick={toggleBootstrapPackageModal}
-              />
-            }
-          />
-        )}
+        {bootstrapPackageData?.status &&
+          !isIosOrIpadosHost &&
+          !isAndroidHost && (
+            <DataSet
+              title="Bootstrap package"
+              value={
+                <BootstrapPackageIndicator
+                  status={bootstrapPackageData.status}
+                  onClick={toggleBootstrapPackageModal}
+                />
+              }
+            />
+          )}
         {!isChromeHost && renderDiskSpaceSummary()}
         {renderDiskEncryptionSummary()}
         {!isIosOrIpadosHost && (
@@ -525,7 +564,7 @@ const HostSummary = ({
           <DataSet title="Processor type" value={summaryData.cpu_type} />
         )}
         {renderOperatingSystemSummary()}
-        {!isIosOrIpadosHost && renderAgentSummary()}
+        {renderAgentSummary()}
         {isPremiumTier &&
           // TODO - refactor normalizeEmptyValues pattern
           !!summaryData.maintenance_window &&

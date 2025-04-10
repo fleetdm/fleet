@@ -17,6 +17,23 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery
 ```
 
+## certificates_darwin
+
+- Platforms: darwin
+
+- Query:
+```sql
+SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1
+	FROM
+		certificates
+	WHERE
+		path = '/Library/Keychains/System.keychain';
+```
+
 ## chromeos_profile_user_info
 
 - Platforms: chrome
@@ -480,7 +497,6 @@ SELECT
   version AS version,
   identifier AS extension_id,
   browser_type AS browser,
-  'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
   '' AS installed_path
@@ -500,7 +516,6 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 SELECT
   name AS name,
   version AS version,
-  'Package (deb)' AS type,
   '' AS extension_id,
   '' AS browser,
   'deb_packages' AS source,
@@ -514,7 +529,6 @@ UNION
 SELECT
   package AS name,
   version AS version,
-  'Package (Portage)' AS type,
   '' AS extension_id,
   '' AS browser,
   'portage_packages' AS source,
@@ -527,7 +541,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (RPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'rpm_packages' AS source,
@@ -540,7 +553,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (NPM)' AS type,
   '' AS extension_id,
   '' AS browser,
   'npm_packages' AS source,
@@ -553,7 +565,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -566,7 +577,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -574,20 +584,7 @@ SELECT
   '' AS vendor,
   '' AS arch,
   path AS installed_path
-FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Package (Python)' AS type,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM python_packages;
+FROM cached_users CROSS JOIN firefox_addons USING (uid);
 ```
 
 ## software_macos
@@ -603,7 +600,6 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 SELECT
   name AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
-  'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -616,20 +612,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
-  '' AS bundle_identifier,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM python_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   browser_type AS browser,
@@ -642,7 +624,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
   identifier AS extension_id,
   'firefox' AS browser,
@@ -655,7 +636,6 @@ UNION
 SELECT
   name As name,
   version AS version,
-  'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -668,7 +648,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
   '' AS extension_id,
   '' AS browser,
@@ -676,12 +655,45 @@ SELECT
   '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
-FROM homebrew_packages;
+FROM homebrew_packages
+WHERE type = 'formula'
+UNION
+SELECT
+  name AS name,
+  version AS version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
+  'homebrew_packages' AS source,
+  '' AS vendor,
+  0 AS last_opened_at,
+  path AS installed_path
+FROM homebrew_packages
+WHERE type = 'cask'
+AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
+```
+
+## software_macos_codesign
+
+- Description: A software override query[^1] to append codesign information to macOS software entries. Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'codesign'
+```
+
+- Query:
+```sql
+SELECT a.path, c.team_identifier
+		FROM apps a
+		JOIN codesign c ON a.path = c.path
 ```
 
 ## software_macos_firefox
 
-- Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`
+- Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS. Requires `fleetd`
 
 - Platforms: darwin
 
@@ -709,7 +721,6 @@ WITH app_paths AS (
 					ELSE 'Firefox.app'
 				END AS name,
 				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
-				'Application (macOS)' AS type,
 				apps.bundle_identifier AS bundle_identifier,
 				'' AS extension_id,
 				'' AS browser,
@@ -720,6 +731,66 @@ WITH app_paths AS (
 			FROM apps
 			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
 			WHERE apps.bundle_identifier = 'org.mozilla.firefox'
+```
+
+## software_python_packages
+
+- Description: Prior to osquery version 5.16.0, the python_packages table did not search user directories.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM (
+    SELECT
+    CAST(SUBSTR(version, 1, INSTR(version, '.') - 1) AS INTEGER) major,
+    CAST(SUBSTR(version, INSTR(version, '.') + 1, INSTR(SUBSTR(version, INSTR(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major < 5 OR (major = 5 AND minor < 16)
+```
+
+- Query:
+```sql
+SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM python_packages
+```
+
+## software_python_packages_with_users_dir
+
+- Description: As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM (
+    SELECT
+    CAST(substr(version, 1, instr(version, '.') - 1) AS INTEGER) major,
+    CAST(substr(version, instr(version, '.') + 1, instr(substr(version, instr(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major > 5 OR (major = 5 AND minor >= 16)
+```
+
+- Query:
+```sql
+WITH cached_users AS (WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+		SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM cached_users CROSS JOIN python_packages USING (uid)
 ```
 
 ## software_vscode_extensions
@@ -740,7 +811,6 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 SELECT
   name,
   version,
-  'IDE extension (VS Code)' AS type,
   '' AS bundle_identifier,
   uuid AS extension_id,
   '' AS browser,
@@ -764,7 +834,6 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 SELECT
   name AS name,
   version AS version,
-  'Program (Windows)' AS type,
   '' AS extension_id,
   '' AS browser,
   'programs' AS source,
@@ -775,18 +844,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Python)' AS type,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM python_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  'Browser plugin (IE)' AS type,
   '' AS extension_id,
   '' AS browser,
   'ie_extensions' AS source,
@@ -797,7 +854,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Chrome)' AS type,
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
@@ -808,7 +864,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Browser plugin (Firefox)' AS type,
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
@@ -819,7 +874,6 @@ UNION
 SELECT
   name AS name,
   version AS version,
-  'Package (Chocolatey)' AS type,
   '' AS extension_id,
   '' AS browser,
   'chocolatey_packages' AS source,

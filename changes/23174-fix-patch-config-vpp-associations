@@ -1,1 +1,0 @@
-* Fixed bug where `PATCH /api/latest/fleet/config` was incorrectly clearing VPP token<->team associations.

@@ -192,6 +192,9 @@ func TestMultipleSchedules(t *testing.T) {
 }
 
 func TestMultipleJobsInOrder(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	jobs := make(chan int)
@@ -211,11 +214,15 @@ func TestMultipleJobsInOrder(t *testing.T) {
 		}),
 		WithJob("test_job_2", func(ctx context.Context) error {
 			jobs <- 2
-			return errors.New("test_job_2")
+			return errors.New("whoops")
 		}),
 		WithJob("test_job_3", func(ctx context.Context) error {
 			jobs <- 3
 			return nil
+		}),
+		WithJob("test_job_4", func(ctx context.Context) error {
+			jobs <- 4
+			panic("oh no")
 		}),
 	)
 	s.Start()
@@ -233,7 +240,7 @@ func TestMultipleJobsInOrder(t *testing.T) {
 					return fmt.Errorf("mismatch id: %d vs %d", job, i)
 				}
 				i++
-				if i == 4 {
+				if i == 5 {
 					i = 1
 				}
 			case <-time.After(5 * time.Second):
@@ -253,6 +260,53 @@ func TestMultipleJobsInOrder(t *testing.T) {
 
 	err := g.Wait()
 	require.NoError(t, err)
+
+	// There should be errors from 2 jobs.
+	require.Equal(t, 2, len(s.errors))
+
+	// Check that the correct 2 jobs have errors.
+	test_job_2_err, ok := s.errors["test_job_2"]
+	require.True(t, ok)
+	test_job_4_err, ok := s.errors["test_job_4"]
+	require.True(t, ok)
+
+	// Check the errors that were returned.
+	require.Equal(t, "whoops", test_job_2_err.Error())
+	require.Contains(t, test_job_4_err.Error(), "oh no\n")
+}
+
+func TestClearScheduleErrors(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
+
+	ctx := context.Background()
+	errored := false
+
+	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, NopLocker{}, SetUpMockStatsStore("test_schedule", fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      "test_schedule_clear_errors",
+		Instance:  "test_instance",
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	}),
+		WithJob("test_job_1", func(ctx context.Context) error {
+			if !errored {
+				errored = true
+				return errors.New("oh well")
+			}
+			return nil
+		}),
+	)
+
+	// First run should return 1 error.
+	s.runAllJobs()
+	require.Equal(t, 1, len(s.errors))
+
+	// Second run should return no errors.
+	s.runAllJobs()
+	require.Equal(t, 0, len(s.errors))
 }
 
 func TestConfigReloadCheck(t *testing.T) {

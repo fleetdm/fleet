@@ -335,7 +335,7 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 			if errors.As(err, &httpErr) {
 				// We can count on this working because of how the godep.HTTPerror Error() method
 				// formats its output.
-				return ctxerr.Errorf(ctx, "Couldn't upload. %s", string(httpErr.Body))
+				return ctxerr.Errorf(ctx, "Couldn't add. %s", string(httpErr.Body))
 			}
 
 			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")
@@ -660,6 +660,18 @@ func (d *DEPService) processDeviceResponse(
 	for _, device := range addedDevicesSlice {
 		addedSerials = append(addedSerials, device.SerialNumber)
 	}
+
+	// Check if any of the "added" or "modified" hosts are hosts that we've recently removed from
+	// Fleet in ABM. A host in this state will have a row in `host_dep_assignments` where the
+	// `deleted_at ` col is NOT NULL. Down below we skip assigning the profile to devices that we
+	// think are still enrolled; doing this check here allows us to avoid skipping devices that
+	// _seem_ like they're still enrolled but were actually removed and should get the profile.
+	// See https://github.com/fleetdm/fleet/issues/23200 for more context.
+	existingDeletedSerials, err := d.ds.GetMatchingHostSerialsMarkedDeleted(ctx, addedSerials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get matching deleted host serials")
+	}
+
 	err = d.ds.DeleteHostDEPAssignmentsFromAnotherABM(ctx, abmTokenID, addedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting dep assignments from another abm")
@@ -682,7 +694,7 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
-		deletedSerials, "to_modify", modifiedSerials)
+		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
@@ -754,7 +766,8 @@ func (d *DEPService) processDeviceResponse(
 	for profUUID, devices := range profileToDevices {
 		var serials []string
 		for _, device := range devices {
-			if device.ProfileUUID == profUUID {
+			_, ok := existingDeletedSerials[device.SerialNumber]
+			if device.ProfileUUID == profUUID && !ok {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
@@ -1190,7 +1203,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	start := time.Now()
 	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
 	if len(devices) == 0 {
 		return nil
@@ -1198,7 +1211,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	logger.Log("msg", "sending commands to refetch", "count", len(devices), "lookup-duration", time.Since(start))
 	commandUUID := uuid.NewString()
 
-	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 2*len(devices))
+	hostMDMCommands := make([]fleet.HostMDMCommand, 0, 3*len(devices))
 	installedAppsUUIDs := make([]string, 0, len(devices))
 	for _, device := range devices {
 		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchAppsCommandUUIDPrefix) {
@@ -1213,6 +1226,23 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+		}
+	}
+
+	certsListUUIDs := make([]string, 0, len(devices))
+	for _, device := range devices {
+		if !slices.Contains(device.CommandsAlreadySent, fleet.RefetchCertsCommandUUIDPrefix) {
+			certsListUUIDs = append(certsListUUIDs, device.UUID)
+			hostMDMCommands = append(hostMDMCommands, fleet.HostMDMCommand{
+				HostID:      device.HostID,
+				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
+			})
+		}
+	}
+	if len(certsListUUIDs) > 0 {
+		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
 		}
 	}
 
@@ -1272,4 +1302,34 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 	}
 
 	return profileBuf.Bytes(), nil
+}
+
+func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+		return nil
+	}
+
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 500)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to revive")
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, ids); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+	}
+	return nil
 }

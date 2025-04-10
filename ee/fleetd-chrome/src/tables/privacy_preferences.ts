@@ -73,8 +73,7 @@ export default class TablePrivacyPreferences extends Table {
                 if (property === "web_rtc_ip_handling_policy") {
                   resolve({ [property]: details.value });
                 } else {
-                  // bool responses converted to binary flag in upper layer
-                  resolve({ [property]: details.value });
+                  resolve({ [property]: details.value ? "1" : "0" });
                 }
               });
             }

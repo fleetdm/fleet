@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/csv"
 	"fmt"
 	"math/big"
@@ -87,7 +88,13 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	var apiOnlyUserSessionKey string
-	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKey string) (*fleet.Session, error) {
+	ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
+		key := make([]byte, sessionKeySize)
+		_, err := rand.Read(key)
+		if err != nil {
+			return nil, err
+		}
+		sessionKey := base64.StdEncoding.EncodeToString(key)
 		apiOnlyUserSessionKey = sessionKey
 		return &fleet.Session{
 			ID:     2,
@@ -184,7 +191,7 @@ func TestCreateBulkUsers(t *testing.T) {
 		user15,user15@example.com,false,false,,1:admin
 		user16,user16@example.com,false,false,,1:admin 2:maintainer`)
 
-	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"observer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
+	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"maintainer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
 `
 
 	assert.Equal(t, "", runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))

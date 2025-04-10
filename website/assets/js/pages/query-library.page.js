@@ -13,19 +13,10 @@ parasails.registerPage('query-library', {
     //…
   },
   mounted: async function () {
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:queries']
-        },
-      });
+    if(bowser.windows){
+      this.selectedPlatform = 'windows';
     }
+    window.addEventListener('scroll', this.handleScrollingPlatformFilters);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -33,8 +24,28 @@ parasails.registerPage('query-library', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickSelectPlatform(platform) {
+    clickSelectPlatform: function(platform) {
+      if(this.selectedPlatform !== platform && window.scrollY > 300){
+        window.scrollTo(0, 300, {smooth: true});
+      }
       this.selectedPlatform = platform;
+    },
+
+    handleScrollingPlatformFilters: function () {
+      let platformFilters = document.querySelector('div[purpose="platform-filters"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (platformFilters) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          platformFilters.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          platformFilters.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
+      this.scrollDistance = scrollTop;
     },
 
   },

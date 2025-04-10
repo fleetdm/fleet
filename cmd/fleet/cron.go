@@ -21,8 +21,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -102,11 +103,29 @@ func cronVulnerabilities(
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
 
-		level.Info(logger).Log("msg", "updating vulnerability host counts")
-		if err := ds.UpdateVulnerabilityHostCounts(ctx); err != nil {
-			return fmt.Errorf("updating vulnerability host counts: %w", err)
+		if err := updateVulnHostCounts(ctx, ds, logger, config.MaxConcurrency); err != nil {
+			return err
 		}
+
 	}
+
+	return nil
+}
+
+func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, maxConcurrency int) error {
+	// Prevent invalid values for max concurrency
+	if maxConcurrency <= 0 {
+		level.Info(logger).Log("msg", "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
+		maxConcurrency = 1
+	}
+
+	start := time.Now()
+	level.Info(logger).Log("msg", "updating vulnerability host counts")
+
+	if err := ds.UpdateVulnerabilityHostCounts(ctx, maxConcurrency); err != nil {
+		return fmt.Errorf("updating vulnerability host counts: %w", err)
+	}
+	level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
 
 	return nil
 }
@@ -309,7 +328,7 @@ func checkWinVulnerabilities(
 				"found new", len(r))
 			results = append(results, r...)
 			if err != nil {
-				errHandler(ctx, logger, "analyzing hosts for Windows vulnerabilities", err)
+				errHandler(ctx, kitlog.With(logger, "os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
 			}
 		}
 	}
@@ -633,6 +652,7 @@ func newWorkerIntegrationsSchedule(
 	logger kitlog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -681,9 +701,10 @@ func newWorkerIntegrationsSchedule(
 		DEPClient:  depCli,
 	}
 	appleMDM := &worker.AppleMDM{
-		Datastore: ds,
-		Log:       logger,
-		Commander: commander,
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
 	}
 	dbMigrate := &worker.DBMigration{
 		Datastore: ds,
@@ -964,6 +985,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
 		}),
+		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
+			return ds.CleanupHostMDMAppleProfiles(ctx)
+		}),
 	)
 
 	return s, nil
@@ -1182,7 +1206,7 @@ func appleMDMDEPSyncerJob(
 	}
 }
 
-func newMDMProfileManager(
+func newAppleMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -1207,6 +1231,29 @@ func newMDMProfileManager(
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
 		}),
+	)
+
+	return s, nil
+}
+
+func newWindowsMDMProfileManagerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMWindowsProfileManager)
+		// Note: per a request from #g-product we are running this cron
+		// every 30 seconds, we should re-evaluate how we handle the
+		// cron interval as we scale to more hosts.
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
 			return service.ReconcileWindowsProfiles(ctx, ds, logger)
 		}),
@@ -1442,7 +1489,54 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintainedapps.Refresh(ctx, ds, logger)
+			return maintained_apps.Refresh(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newRefreshVPPAppVersionsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronRefreshVPPAppVersions)
+		defaultInterval = 1 * time.Hour
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
+			return vpp.RefreshVersions(ctx, ds)
+		}),
+	)
+
+	return s, nil
+}
+
+// newIPhoneIPadReviver sends APNs push notifications to iPhone/iPad devices
+// that were deleted from Fleet but are still enrolled in Fleet MDM as BYOD
+// devices (ADE devices are never deleted from Fleet, their phantom host entry
+// always persists).
+func newIPhoneIPadReviver(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMIPhoneIPadReviver)
+	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-reviver")
+	s := schedule.New(
+		ctx, name, instanceID, 1*time.Hour, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
+			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
 		}),
 	)
 

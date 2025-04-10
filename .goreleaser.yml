@@ -1,3 +1,5 @@
+version: 2
+
 project_name: fleet
 
 monorepo:
@@ -44,6 +46,7 @@ builds:
       - windows
     goarch:
       - amd64
+      - arm64
     flags:
       - -trimpath
     ldflags:
@@ -96,13 +99,15 @@ archives:
   - id: fleetctl
     builds:
       - fleetctl
-    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}
+    # Note -- changing this can break GitOps and other workflows that expect these filenames to be deterministic!
+    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}_{{.Arch}}{{ end }}
     wrap_in_directory: true
 
   - id: fleetctl-zip
     builds:
       - fleetctl
-    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}{{ end }}
+    # Note -- changing this can break GitOps and other workflows that expect these filenames to be deterministic!
+    name_template: fleetctl_v{{.Version}}_{{- if eq .Os "darwin" }}macos{{- else }}{{ .Os }}_{{.Arch}}{{ end }}
     format: zip
     wrap_in_directory: true
 
@@ -136,10 +141,10 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ .Tag }}-untagged"
+  version_template: "{{ .Tag }}-untagged"
 
 changelog:
-  skip: true
+  disable: true
 
 release:
   github:

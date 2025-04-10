@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -47,6 +48,8 @@ const (
 	stdQueryLibFilePath       = "std-query-lib-file-path"
 	previewConfigPathFlagName = "preview-config-path"
 	disableOpenBrowser        = "disable-open-browser"
+
+	licenseError = "License key is invalid. Please check your license key and try again, or run `fleetctl preview` without the --license-key option to try Fleet Free."
 
 	dockerComposeV1 dockerComposeVersion = 1
 	dockerComposeV2 dockerComposeVersion = 2
@@ -158,6 +161,11 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 		},
 		Action: func(c *cli.Context) error {
+			licenseKey := c.String(licenseKeyFlagName)
+			if _, err := licensing.LoadLicense(licenseKey); err != nil {
+				return errors.New(licenseError)
+			}
+
 			if err := checkDocker(); err != nil {
 				return err
 			}
@@ -273,7 +281,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 
 			fmt.Println("Starting Docker containers...")
 			cmd := compose.Command("up", "-d", "--remove-orphans", "mysql01", "redis01", "fleet01")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+licenseKey)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -289,7 +297,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// has finished starting up so that there is no conflict with
 			// running database migrations.
 			cmd = compose.Command("up", "-d", "--remove-orphans", "fleet02")
-			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+c.String(licenseKeyFlagName))
+			cmd.Env = append(os.Environ(), "FLEET_LICENSE_KEY="+licenseKey)
 			out, err = cmd.CombinedOutput()
 			if err != nil {
 				fmt.Println(string(out))
@@ -389,7 +397,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			// so pass in the current working directory.
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
-			_, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsScripts)
+			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+			_, _, _, _, err = client.ApplyGroup(c.Context, false, specs, ".", logf, nil, fleet.ApplyClientSpecOptions{}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 			if err != nil {
 				return err
 			}
@@ -754,7 +763,7 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
-			if err := os.RemoveAll(filepath.Join(orbitDir, "tuf-metadata.json")); err != nil {
+			if err := os.RemoveAll(filepath.Join(orbitDir, update.MetadataFileName)); err != nil {
 				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
 			}
 			if err := os.RemoveAll(filepath.Join(orbitDir, "bin")); err != nil {

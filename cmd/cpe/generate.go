@@ -22,10 +22,10 @@ import (
 )
 
 const (
-	httpClientTimeout       = 2 * time.Minute
+	httpClientTimeout       = 3 * time.Minute
 	waitTimeBetweenRequests = 6 * time.Second
-	waitTimeForRetry        = 30 * time.Second
-	maxRetryAttempts        = 10
+	waitTimeForRetry        = 10 * time.Second
+	maxRetryAttempts        = 20
 	apiKeyEnvVar            = "NVD_API_KEY" //nolint:gosec
 )
 
@@ -215,12 +215,12 @@ func addSHA256(path string) (string, error) {
 }
 
 // replaceLast replaces the last occurrence of string
-func replaceLast(s, old, new string) (string, error) {
-	i := strings.LastIndex(s, old)
+func replaceLast(s, oldVal, newVal string) (string, error) {
+	i := strings.LastIndex(s, oldVal)
 	if i == -1 {
-		return "", fmt.Errorf("substring:%v not found in string:%v", old, s)
+		return "", fmt.Errorf("substring:%v not found in string:%v", oldVal, s)
 	}
-	return s[:i] + new + s[i+len(old):], nil
+	return s[:i] + newVal + s[i+len(oldVal):], nil
 }
 
 func closeFile(file *os.File) {

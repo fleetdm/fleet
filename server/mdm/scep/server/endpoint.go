@@ -3,11 +3,13 @@ package scepserver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -44,7 +46,7 @@ func (e *Endpoints) GetCACaps(ctx context.Context) ([]byte, error) {
 	return resp.Data, resp.Err
 }
 
-func (e *Endpoints) Supports(cap string) bool {
+func (e *Endpoints) Supports(capacity string) bool {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 
@@ -53,7 +55,7 @@ func (e *Endpoints) Supports(cap string) bool {
 		_, _ = e.GetCACaps(context.Background())
 		e.mtx.RLock()
 	}
-	return bytes.Contains(e.capabilities, []byte(cap))
+	return bytes.Contains(e.capabilities, []byte(capacity))
 }
 
 func (e *Endpoints) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
@@ -112,7 +114,7 @@ func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, error) {
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -121,7 +123,11 @@ func MakeClientEndpoints(instance string) (*Endpoints, error) {
 		return nil, err
 	}
 
-	options := []httptransport.ClientOption{}
+	var fleetOpts []fleethttp.ClientOpt
+	if timeout != nil {
+		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
+	}
+	options := []httptransport.ClientOption{httptransport.SetClient(fleethttp.NewClient(fleetOpts...))}
 
 	return &Endpoints{
 		GetEndpoint: httptransport.NewClient(
@@ -171,13 +177,16 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 		resp := SCEPResponse{operation: req.Operation}
 		switch req.Operation {
 		case "GetCACaps":
-			resp.Data, resp.Err = svc.GetCACaps(ctx)
+			resp.Data, resp.Err = svc.GetCACaps(ctx, req.Identifier)
 		case "GetCACert":
-			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
+			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message), req.Identifier)
 		case "PKIOperation":
 			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
 		default:
 			return nil, &BadRequestError{Message: "operation not implemented"}
+		}
+		if errors.Is(resp.Err, context.DeadlineExceeded) {
+			return nil, &TimeoutError{Message: resp.Err.Error()}
 		}
 		return resp, resp.Err
 	}
@@ -217,7 +226,6 @@ func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
 			}(time.Now())
 			return next(ctx, request)
-
 		}
 	}
 }

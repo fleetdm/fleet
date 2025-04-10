@@ -1,21 +1,24 @@
-import BackLink from "components/BackLink";
-import Icon from "components/Icon";
-import MainContent from "components/MainContent";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import Spinner from "components/Spinner";
-import { AppContext } from "context/app";
-import {
-  IGetQueryResponse,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
 import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter, Link } from "react-router";
 import { Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
+
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
 import queryAPI from "services/entities/queries";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  IGetQueryResponse,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
+
+import BackLink from "components/BackLink";
+import Icon from "components/Icon";
+import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import Spinner from "components/Spinner";
 import HQRTable from "./HQRTable";
 
 const baseClass = "host-query-report";
@@ -29,7 +32,7 @@ const HostQueryReport = ({
   router,
   params: { host_id, query_id },
 }: IHostQueryReportProps) => {
-  const { config } = useContext(AppContext);
+  const { config, currentTeam } = useContext(AppContext);
   const globalReportsDisabled = config?.server_settings.query_reports_disabled;
   const hostId = Number(host_id);
   const queryId = Number(query_id);
@@ -105,7 +108,10 @@ const HostQueryReport = ({
   }
 
   const HQRHeader = useCallback(() => {
-    const fullReportPath = PATHS.QUERY_DETAILS(queryId);
+    const fullReportPath = getPathWithQueryParams(
+      PATHS.QUERY_DETAILS(queryId),
+      { team_id: currentTeam?.id }
+    );
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header__row1`}>

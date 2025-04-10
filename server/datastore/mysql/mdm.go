@@ -124,7 +124,8 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
 	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates,
-	err error) {
+	err error,
+) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
@@ -135,7 +136,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
-		if _, updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+		if updates.AppleDeclaration, err = ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
@@ -201,7 +202,7 @@ FROM (
 		name,
 		'darwin' AS platform,
 		identifier,
-		checksum AS checksum,
+		token AS checksum,
 		created_at,
 		uploaded_at
 	FROM mdm_apple_declarations
@@ -273,9 +274,19 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			if label.Exclude {
+			switch {
+			case label.Exclude && label.RequireAll:
+				// this should never happen so log it for debugging
+				level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+					"profile_uuid", label.ProfileUUID,
+					"label_name", label.LabelName,
+				)
+			case label.Exclude && !label.RequireAll:
 				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
-			} else {
+			case !label.Exclude && !label.RequireAll:
+				prof.LabelsIncludeAny = append(prof.LabelsIncludeAny, label)
+			default:
+				// default include all
 				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
 			}
 		}
@@ -292,7 +303,8 @@ SELECT
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
-	exclude
+	exclude,
+	require_all
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
@@ -304,7 +316,8 @@ SELECT
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
-	exclude
+	exclude,
+	require_all
 FROM
 	mdm_declaration_labels mdl
 WHERE
@@ -448,28 +461,36 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		}
 
 	case len(macProfUUIDs) > 0:
-		// TODO: if a very large number (~65K) of profile UUIDs was provided, could
+		// TODO: if a very large number (~65K/2) of profile UUIDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
 SELECT DISTINCT h.uuid, h.platform
 FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+LEFT JOIN host_mdm_apple_profiles hmap
+	ON h.uuid = hmap.host_uuid
 WHERE
-	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
-		args = append(args, macProfUUIDs)
+	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')
+OR
+	hmap.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
+		args = append(args, macProfUUIDs, macProfUUIDs)
 
 	case len(winProfUUIDs) > 0:
-		// TODO: if a very large number (~65K) of profile IDs was provided, could
+		// TODO: if a very large number (~65K/2) of profile IDs was provided, could
 		// result in too many placeholders (not an immediate concern).
 		uuidStmt = `
 SELECT DISTINCT h.uuid, h.platform
 FROM hosts h
 JOIN mdm_windows_configuration_profiles mawp
 	ON h.team_id = mawp.team_id OR (h.team_id IS NULL AND mawp.team_id = 0)
+LEFT JOIN host_mdm_windows_profiles hmwp
+	ON h.uuid = hmwp.host_uuid
 WHERE
-	mawp.profile_uuid IN (?) AND h.platform = 'windows'`
-		args = append(args, winProfUUIDs)
+	mawp.profile_uuid IN (?) AND h.platform = 'windows'
+OR
+	hmwp.profile_uuid IN (?) AND h.platform = 'windows'`
+		args = append(args, winProfUUIDs, winProfUUIDs)
 
 	}
 
@@ -502,12 +523,12 @@ WHERE
 		}
 	}
 
-	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts)
+	updates.AppleConfigProfile, err = ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts, profileUUIDs)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
-	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts)
+	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts, profileUUIDs)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
@@ -522,6 +543,10 @@ WHERE
 	// (and my hunch is that we could even do the same for
 	// profiles) but this could be optimized to use only a provided
 	// set of host uuids.
+	//
+	// Note(victor): Why is the status being set to nil? Shouldn't it be set to pending?
+	// Or at least pending for install and nil for remove profiles. Please update this comment if you know.
+	// This method is called bulkSetPendingMDMHostProfilesDB, so it is confusing that the status is NOT explicitly set to pending.
 	_, updates.AppleDeclaration, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
@@ -821,7 +846,7 @@ FROM
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
 WHERE
-	macp.team_id = ? AND 
+	macp.team_id = ? AND
 	NOT EXISTS (
 		SELECT
 			1
@@ -852,16 +877,16 @@ FROM
 			mdm_apple_configuration_profiles
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
-	JOIN mdm_configuration_profile_labels mcpl 
+	JOIN mdm_configuration_profile_labels mcpl
 		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0
-	LEFT OUTER JOIN label_membership lm 
+	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
 	macp.team_id = ?
 GROUP BY
 	identifier
 HAVING
-	count_profile_labels > 0 AND 
+	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
 
 UNION
@@ -884,9 +909,9 @@ FROM
 			mdm_apple_configuration_profiles
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
-	JOIN mdm_configuration_profile_labels mcpl 
+	JOIN mdm_configuration_profile_labels mcpl
 		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 1
-	LEFT OUTER JOIN label_membership lm 
+	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
 	macp.team_id = ?
@@ -894,7 +919,7 @@ GROUP BY
 	identifier
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
-	count_profile_labels > 0 AND 
+	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
 `
@@ -993,9 +1018,10 @@ func batchSetProfileLabelAssociationsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	profileLabels []fleet.ConfigurationProfileLabel,
+	profileUUIDsWithoutLabels []string,
 	platform string,
 ) (updatedDB bool, err error) {
-	if len(profileLabels) == 0 {
+	if len(profileLabels)+len(profileUUIDsWithoutLabels) == 0 {
 		return false, nil
 	}
 
@@ -1023,20 +1049,46 @@ func batchSetProfileLabelAssociationsDB(
 	  %s_profile_uuid IN (?)
 	`
 
+	// used when only profileUUIDsWithoutLabels is provided, there are no
+	// labels to keep, delete all labels for profiles in this list.
+	deleteNoLabelStmt := `
+	  DELETE FROM mdm_configuration_profile_labels
+	  WHERE %s_profile_uuid IN (?)
+	`
+
 	upsertStmt := `
 	  INSERT INTO mdm_configuration_profile_labels
-              (%s_profile_uuid, label_id, label_name, exclude)
+              (%s_profile_uuid, label_id, label_name, exclude, require_all)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
               label_id = VALUES(label_id),
-              exclude = VALUES(exclude)
+              exclude = VALUES(exclude),
+			  require_all = VALUES(require_all)
 	`
 
 	selectStmt := `
-		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude FROM mdm_configuration_profile_labels
+		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
 		WHERE (%s_profile_uuid, label_name) IN (%s)
 	`
+
+	if len(profileLabels) == 0 {
+		deleteNoLabelStmt = fmt.Sprintf(deleteNoLabelStmt, platformPrefix)
+		deleteNoLabelStmt, args, err := sqlx.In(deleteNoLabelStmt, profileUUIDsWithoutLabels)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for profiles without labels")
+		}
+
+		var result sql.Result
+		if result, err = tx.ExecContext(ctx, deleteNoLabelStmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "deleting labels for profiles without labels")
+		}
+		if result != nil {
+			rows, _ := result.RowsAffected()
+			updatedDB = rows > 0
+		}
+		return updatedDB, nil
+	}
 
 	var (
 		insertBuilder         strings.Builder
@@ -1047,6 +1099,7 @@ func batchSetProfileLabelAssociationsDB(
 
 		setProfileUUIDs = make(map[string]struct{})
 	)
+
 	labelsToInsert := make(map[string]*fleet.ConfigurationProfileLabel, len(profileLabels))
 	for i, pl := range profileLabels {
 		labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &profileLabels[i]
@@ -1054,10 +1107,10 @@ func batchSetProfileLabelAssociationsDB(
 			insertBuilder.WriteString(",")
 			selectOrDeleteBuilder.WriteString(",")
 		}
-		insertBuilder.WriteString("(?, ?, ?, ?)")
+		insertBuilder.WriteString("(?, ?, ?, ?, ?)")
 		selectOrDeleteBuilder.WriteString("(?, ?)")
 		selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
-		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude, pl.RequireAll)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
@@ -1100,10 +1153,11 @@ func batchSetProfileLabelAssociationsDB(
 
 	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, selectOrDeleteBuilder.String(), platformPrefix)
 
-	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	profUUIDs := make([]string, 0, len(setProfileUUIDs)+len(profileUUIDsWithoutLabels))
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
+	profUUIDs = append(profUUIDs, profileUUIDsWithoutLabels...)
 	deleteArgs := deleteParams
 	deleteArgs = append(deleteArgs, profUUIDs)
 
@@ -1290,9 +1344,7 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	stmt := `
 	UPDATE nano_cert_auth_associations
 	SET renew_command_uuid = NULL
-	WHERE id = ?
-	ORDER BY created_at desc
-	LIMIT 1`
+	WHERE id = ?`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {

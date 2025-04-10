@@ -2,7 +2,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import {
   formatSoftwareType,
   ISoftwareVersion,
@@ -45,12 +45,12 @@ const generateTableHeaders = (
       Cell: (cellProps: ITableStringCellProps) => {
         const { id, name, source } = cellProps.row.original;
 
-        const teamQueryParam = buildQueryStringFromParams({
-          team_id: teamId,
-        });
-        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
+        const softwareVersionDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
+          {
+            team_id: teamId,
+          }
+        );
 
         return (
           <SoftwareNameCell

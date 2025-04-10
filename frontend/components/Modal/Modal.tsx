@@ -37,7 +37,6 @@ export interface IModalProps {
    * */
   disableClosingModal?: boolean;
   className?: string;
-  actionsFooter?: JSX.Element;
 }
 
 const Modal = ({
@@ -51,7 +50,6 @@ const Modal = ({
   isContentDisabled = false,
   disableClosingModal = false,
   className,
-  actionsFooter,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
@@ -110,7 +108,10 @@ const Modal = ({
 
   return (
     <div className={backgroundClasses}>
-      <div className={modalContainerClasses}>
+      <div
+        className={modalContainerClasses}
+        tabIndex={-1} // Make focusable
+      >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           {!disableClosingModal && (
@@ -127,9 +128,6 @@ const Modal = ({
           )}
           <div className={contentClasses}>{children}</div>
         </div>
-        {actionsFooter && (
-          <div className={`${baseClass}__actions-footer`}>{actionsFooter}</div>
-        )}
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 # Fleet 4.58.0 | Run script on policy failure, Fleet-maintained apps, Sequoia firewall status.
 
-![Fleet 4.58.0](../website/assets/images/articles/fleet-4.58.0-1600x900@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/2vJsE5K4ru4?si=iKjxLYHw1PUTAdTV" frameborder="0" allowfullscreen></iframe>
+</div>
 
 Fleet 4.58.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.

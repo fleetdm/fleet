@@ -50,6 +50,7 @@
     "Chart": true,
     "gtag": true,
     "analytics": true,
+    "ace": true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -64,6 +65,7 @@
     "VantaConnection": false,
     "CertificateSigningRequest": false,
     "Platform": false,
+    "AdCampaign": false,
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

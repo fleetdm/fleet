@@ -251,7 +251,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			require.Len(t, liveQueryResp.Results[0].Results, 1)
 			result = liveQueryResp.Results[0].Results[0]
 		} else { // customQueryOneHostId(.*)Endpoint
-			assert.Empty(t, liveQueryOnHostResp.Error)
+			assert.Empty(t, liveQueryOnHostResp.Err)
 			assert.Equal(t, host.ID, liveQueryOnHostResp.HostID)
 			assert.Equal(t, fleet.StatusOnline, liveQueryOnHostResp.Status)
 			assert.Equal(t, query, liveQueryOnHostResp.Query)
@@ -1021,6 +1021,17 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 		},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req2, http.StatusOK, &createResp)
+
+	// create with invalid label
+	req3 := createDistributedQueryCampaignByIdentifierRequest{
+		QuerySQL: "SELECT 4",
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
+			Hosts:  []string{h1.Hostname},
+			Labels: []string{"label1"},
+		},
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req3, http.StatusBadRequest, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {

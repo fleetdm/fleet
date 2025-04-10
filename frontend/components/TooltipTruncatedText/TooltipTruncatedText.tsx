@@ -44,7 +44,7 @@ const TooltipTruncatedText = ({
   const tooltipId = uniqueId();
   return (
     <div ref={ref} className={classNames}>
-      <div className={"tooltip-truncated"} data-tip data-for={tooltipId}>
+      <div className="tooltip-truncated" data-tip data-for={tooltipId}>
         <span className={tooltipDisabled ? "" : "truncated"}>{value}</span>
       </div>
       <ReactTooltip

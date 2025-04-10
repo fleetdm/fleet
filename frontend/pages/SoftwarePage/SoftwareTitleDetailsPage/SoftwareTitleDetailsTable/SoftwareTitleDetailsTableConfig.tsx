@@ -6,7 +6,7 @@ import {
   ISoftwareVulnerability,
 } from "interfaces/software";
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
@@ -63,23 +63,15 @@ const generateSoftwareTitleDetailsTableConfig = ({
           return <TextCell />;
         }
         const { id } = cellProps.row.original;
-        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
+        const softwareVersionDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
+          { team_id: teamId }
+        );
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          router?.push(softwareVersionDetailsPath);
-        };
-
-        // TODO: make only text clickable
         return (
           <LinkCell
             className="name-link"
             path={softwareVersionDetailsPath}
-            customOnClick={onClickSoftware}
             value={cellProps.cell.value}
           />
         );

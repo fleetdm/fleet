@@ -6,14 +6,15 @@ import React, {
   useMemo,
 } from "react";
 import { useQuery } from "react-query";
+import { Row } from "react-table";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { RouteProps } from "react-router/lib/Route";
 import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import classNames from "classnames";
 
 import enrollSecretsAPI from "services/entities/enroll_secret";
+import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import globalPoliciesAPI from "services/entities/global_policies";
@@ -46,7 +47,6 @@ import {
   IEnrollSecret,
   IEnrollSecretsResponse,
 } from "interfaces/enroll_secret";
-import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
@@ -72,8 +72,9 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -95,11 +96,11 @@ import {
   DEFAULT_SORT_DIRECTION,
   DEFAULT_PAGE_SIZE,
   DEFAULT_PAGE_INDEX,
-  getHostSelectStatuses,
+  hostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
   MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
-import { isAcceptableStatus } from "./helpers";
+import { getDeleteLabelErrorMessages, isAcceptableStatus } from "./helpers";
 
 import DeleteSecretModal from "../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../components/EnrollSecrets/SecretEditorModal";
@@ -119,6 +120,12 @@ interface IManageHostsProps {
   params: Params;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3 TODO: Improve this type
+}
+
+interface IRowProps extends Row {
+  original: {
+    id?: number;
+  };
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
@@ -142,7 +149,7 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    isSandboxMode,
+    userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
@@ -175,11 +182,6 @@ const ManageHostsPage = ({
     },
   });
 
-  const hostHiddenColumns = localStorage.getItem("hostHiddenColumns");
-  const storedHiddenColumns = hostHiddenColumns
-    ? JSON.parse(hostHiddenColumns)
-    : null;
-
   // Functions to avoid race conditions
   const initialSortBy: ISortOption[] = (() => {
     let key = DEFAULT_SORT_HEADER;
@@ -194,7 +196,7 @@ const ManageHostsPage = ({
     return [{ key, direction }];
   })();
   const initialQuery = (() => queryParams.query ?? "")();
-  const initialPage = (() =>
+  const curPageFromURL = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
@@ -212,17 +214,15 @@ const ManageHostsPage = ({
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
-    storedHiddenColumns || defaultHiddenColumns
+    userSettings?.hidden_host_columns || defaultHiddenColumns
   );
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
     false
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [page, setPage] = useState(initialPage);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
@@ -292,7 +292,9 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
+  const canAddNewLabels =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
@@ -408,8 +410,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
-        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
+        page: curPageFromURL || DEFAULT_PAGE_INDEX,
+        perPage: DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -466,6 +468,29 @@ const ManageHostsPage = ({
       select: (data) => data.count,
     }
   );
+
+  // migrate users with current local storage based solution to db persistence
+  const locallyHiddenCols = localStorage.getItem("hostHiddenColumns");
+  if (locallyHiddenCols) {
+    console.log("found local hidden columns: ", locallyHiddenCols);
+    console.log("migrating to server persistence...");
+    (async () => {
+      if (!currentUser) {
+        // for type checker
+        return;
+      }
+      const parsed = JSON.parse(locallyHiddenCols) as string[];
+      try {
+        await usersAPI.update(currentUser.id, {
+          settings: { ...userSettings, hidden_host_columns: parsed },
+        });
+        localStorage.removeItem("hostHiddenColumns");
+      } catch {
+        // don't remove local storage, proceed with setting context with local storage value
+      }
+      setHiddenColumns(parsed);
+    })();
+  }
 
   const refetchHosts = () => {
     refetchHostsAPI();
@@ -583,27 +608,7 @@ const ManageHostsPage = ({
     return true;
   };
 
-  // NOTE: Solution also used on ManagePoliciesPage.tsx
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    setTableQueryData(
-      (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
-    );
-    setResetPageIndex(true);
-  };
-
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -622,8 +627,6 @@ const ManageHostsPage = ({
   const handleChangeDiskEncryptionStatusFilter = (
     newStatus: DiskEncryptionStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -639,8 +642,6 @@ const ManageHostsPage = ({
   };
 
   const handleChangeOsSettingsFilter = (newStatus: MdmProfileStatus) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -658,8 +659,6 @@ const ManageHostsPage = ({
   const handleChangeBootstrapPackageStatusFilter = (
     newStatus: BootstrapPackageStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -671,8 +670,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearRouteParam = () => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -687,8 +684,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearFilter = (omitParams: string[]) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -702,9 +697,9 @@ const ManageHostsPage = ({
     );
   };
 
-  const handleStatusDropdownChange = (statusName: string) => {
-    handleResetPageIndex();
-
+  const handleStatusDropdownChange = (
+    statusName: SingleValue<CustomOptionType>
+  ) => {
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -712,7 +707,7 @@ const ManageHostsPage = ({
         routeParams,
         queryParams: {
           ...queryParams,
-          status: statusName,
+          status: statusName?.value,
           page: 0, // resets page index
         },
       })
@@ -722,8 +717,6 @@ const ManageHostsPage = ({
   const handleMacSettingsStatusDropdownChange = (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -741,8 +734,6 @@ const ManageHostsPage = ({
   const handleSoftwareInstallStatusChange = (
     newStatus: SoftwareAggregateStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -757,6 +748,14 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleRowSelect = (row: IRowProps) => {
+    if (row.original.id) {
+      const path = PATHS.HOST_DETAILS(row.original.id);
+
+      router.push(path);
+    }
+  };
+
   const onAddLabelClick = () => {
     router.push(`${PATHS.NEW_LABEL}`);
   };
@@ -766,10 +765,23 @@ const ManageHostsPage = ({
     router.push(`${PATHS.EDIT_LABEL(parseInt(labelID, 10))}`);
   };
 
-  const onSaveColumns = (newHiddenColumns: string[]) => {
-    localStorage.setItem("hostHiddenColumns", JSON.stringify(newHiddenColumns));
-    setHiddenColumns(newHiddenColumns);
-    setShowEditColumnsModal(false);
+  const onSaveColumns = async (newHiddenColumns: string[]) => {
+    if (!currentUser) {
+      return;
+    }
+    try {
+      await usersAPI.update(currentUser.id, {
+        settings: { ...userSettings, hidden_host_columns: newHiddenColumns },
+      });
+      // No success renderFlash, to make column setting more seamless
+      // only set state and close modal if server persist succeeds, keeping UI and server state in
+      // sync.
+      // Can also add local storage fallback behavior in next iteration if we want.
+      setHiddenColumns(newHiddenColumns);
+      setShowEditColumnsModal(false);
+    } catch (response) {
+      renderFlash("error", "Couldn't save column settings. Please try again.");
+    }
   };
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -816,10 +828,6 @@ const ManageHostsPage = ({
 
       if (!isEqual(searchText, searchQuery)) {
         setSearchQuery(searchText);
-      }
-
-      if (!isEqual(page, pageIndex)) {
-        setPage(pageIndex);
       }
 
       // Rebuild queryParams to dispatch new browser location to react-router
@@ -911,7 +919,6 @@ const ManageHostsPage = ({
       osVersionId,
       osName,
       osVersion,
-      page,
       router,
       routeTemplate,
       routeParams,
@@ -927,7 +934,7 @@ const ManageHostsPage = ({
       // TODO(sarah): refactor so that this doesn't trigger two api calls (reset page index updates
       // tableQueryData)
       handleTeamChange(teamId);
-      handleResetPageIndex();
+
       // Must clear other page paths or the team might accidentally switch
       // When navigating from host details
       setFilteredSoftwarePath("");
@@ -1061,13 +1068,7 @@ const ManageHostsPage = ({
       );
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
-      console.error(error);
-      renderFlash(
-        "error",
-        getErrorReason(error).includes("built-in")
-          ? "Built-in labels can’t be modified or deleted."
-          : "Could not delete label. Please try again."
-      );
+      renderFlash("error", getDeleteLabelErrorMessages(error));
     } finally {
       setIsUpdatingLabel(false);
     }
@@ -1433,13 +1434,13 @@ const ManageHostsPage = ({
 
     return (
       <div className={`${baseClass}__filter-dropdowns`}>
-        <Dropdown
+        <DropdownWrapper
+          name="status-filter"
           value={status || ""}
-          className={`${baseClass}__status_dropdown`}
-          options={getHostSelectStatuses(isSandboxMode)}
-          searchable={false}
+          className={`${baseClass}__status-filter`}
+          options={hostSelectStatuses}
           onChange={handleStatusDropdownChange}
-          iconName="filter"
+          variant="table-filter"
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1519,7 +1520,6 @@ const ManageHostsPage = ({
         variant: "text-icon",
         iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
-        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
@@ -1577,7 +1577,7 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
-        defaultPageIndex={page || DEFAULT_PAGE_INDEX}
+        pageIndex={curPageFromURL}
         defaultSearchQuery={searchQuery}
         pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
@@ -1611,7 +1611,7 @@ const ManageHostsPage = ({
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
-        resetPageIndex={resetPageIndex}
+        onClickRow={handleRowSelect}
         disableNextPage={isLastPage}
       />
     );
@@ -1656,16 +1656,16 @@ const ManageHostsPage = ({
     <>
       <MainContent>
         <div className={`${baseClass}`}>
-          <div className="header-wrap">
+          <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode && canEnrollHosts && !hasErrors && (
+              {canEnrollHosts && !hasErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Manage enroll secret</span>
+                  Manage enroll secret
                 </Button>
               )}
               {showAddHostsButton && (
