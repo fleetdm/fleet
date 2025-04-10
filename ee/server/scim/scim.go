@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
@@ -54,10 +55,12 @@ func RegisterSCIM(
 					schema.SimpleStringParams(schema.StringParams{
 						Description: optional.NewString("The family name of the User, or last name in most Western languages (e.g., 'Jensen' given the full name 'Ms. Barbara J Jensen, III')."),
 						Name:        "familyName",
+						Required:    true,
 					}),
 					schema.SimpleStringParams(schema.StringParams{
 						Description: optional.NewString("The given name of the User, or first name in most Western languages (e.g., 'Barbara' given the full name 'Ms. Barbara J Jensen, III')."),
 						Name:        "givenName",
+						Required:    true,
 					}),
 				},
 			}),
@@ -241,6 +244,11 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 				details = parsedScimError.Detail
 			} else {
 				details = multi.body.String()
+			}
+			if multi.statusCode == errors.ScimErrorInvalidValue.Status && details == errors.ScimErrorInvalidValue.Detail &&
+				strings.Contains(r.URL.Path, "/Users") {
+				// We customize the error message here since we can't do it inside the 3rd party SCIM library.
+				details = `Missing required attributes. "userName", "givenName", and "familyName" are required. Please configure your identity provider to send required attributes to Fleet.`
 			}
 		default:
 			status = "error"
