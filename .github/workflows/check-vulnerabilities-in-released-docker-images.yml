@@ -44,7 +44,8 @@ jobs:
 
       - name: Pull docker images
         run: |
-          for version in "${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"; do
+          RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
+          for version in $RELEASES; do
             docker pull fleetdm/fleet:$version
           done
 
@@ -69,7 +70,8 @@ jobs:
           mv trivy ..
           cd ..
           chmod +x ./trivy
-          for version in "${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"; do
+          RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
+          for version in $RELEASES; do
             ./trivy image \
               --exit-code=1 \
               --ignore-unfixed \
