@@ -41,12 +41,12 @@ func TestUp_20250410104321(t *testing.T) {
 		if s.BundleIdentifier == "com.example.foo" {
 			// All the duplicates should map to the same title ID
 			for i := range 4 {
-				softwares[i].TitleID = ptr.Uint(uint(id))
+				softwares[i].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
 			}
 			continue
 		}
 
-		softwares[i].TitleID = ptr.Uint(uint(id))
+		softwares[i].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
 	}
 
 	// add some software entries and host_software entries
@@ -58,14 +58,15 @@ func TestUp_20250410104321(t *testing.T) {
 	var softwareIDs []uint
 	for i, s := range softwares {
 		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.Browser, "", fmt.Sprintf("foo%d", i), s.TitleID)
-		softwareIDs = append(softwareIDs, uint(id))
-		softwares[i].ID = uint(id)
+		softwareIDs = append(softwareIDs, uint(id)) //nolint:gosec // dismiss G115
+		softwares[i].ID = uint(id)                  //nolint:gosec // dismiss G115
 
 		hostID := uint(i + 1)
 		if s.Name == "MacApp Duplicate 3.app" {
-			hostID = uint(i) // map to the same host as the previous software
+			// Map to the same host software
+			hostID = uint(i) //nolint:gosec // dismiss G115
 		}
-		execNoErr(t, db, "INSERT INTO host_software (host_id, software_id) VALUES (?, ?)", hostID, uint(id))
+		execNoErr(t, db, "INSERT INTO host_software (host_id, software_id) VALUES (?, ?)", hostID, uint(id)) //nolint:gosec // dismiss G115
 	}
 
 	noBundleID1 := softwares[4]
