@@ -175,7 +175,7 @@ jobs:
     uses: ./.github/workflows/code-sign-windows.yml
     with:
       filename: fleet-desktop.exe
-      upload_name: fleet-desktop.exe
+      upload_name: fleet-desktop-arm64.exe
       download_name: unsigned-windows-arm64
     secrets:
       DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
