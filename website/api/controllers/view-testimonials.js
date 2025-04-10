@@ -80,7 +80,7 @@ module.exports = {
       'Luis Madrigal',
       'Andre Shields',
       'Tom Larkin',
-      'Matt Carr'
+      'Matt Carr',
       'Eric Tan',
       'Charles Zaffery',
       'Kenny Botelho',
