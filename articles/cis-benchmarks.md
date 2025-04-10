@@ -96,9 +96,6 @@ do
 # trap read debug
 
 done
-
-# /usr/bin/awk '/apiVersion/{flag=1} /^  contributors:/{flag=2} flag')"
-# /usr/bin/sed -n "/$i/,/^----+/p" "$sqlfile"
 ```
 
 3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
