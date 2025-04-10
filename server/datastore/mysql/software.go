@@ -3398,15 +3398,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		var countStmt string
-		if len(softwareTitleIds) > 0 && (!opts.VulnerableOnly && len(vppAdamIDs) > 0) {
+		// we do not scan vulnerabilities on vpp software available for install
+		includeVPP := (!opts.VulnerableOnly && len(vppAdamIDs) > 0)
+		if len(softwareTitleIds) > 0 && includeVPP {
 			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
+		} else if len(softwareTitleIds) > 0 {
+			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`)
+		} else if includeVPP {
+			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
 		} else {
-			if len(softwareTitleIds) > 0 {
-				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`)
-			}
-			if !opts.VulnerableOnly && len(vppAdamIDs) > 0 {
-				countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
-			}
+			return make([]*fleet.HostSoftwareWithInstaller, 0), &fleet.PaginationMetadata{}, nil
 		}
 
 		if err := sqlx.GetContext(
@@ -3454,7 +3455,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.platform
 			`)
 		}
-		if !opts.VulnerableOnly && len(vppAdamIDs) > 0 {
+		if includeVPP {
 			replacements = append(replacements,
 				// For vpp apps
 				`
