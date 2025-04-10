@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import classnames from "classnames";
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -51,14 +51,6 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isHidden && modalRef.current) {
-      modalRef.current.focus(); // Focus modal on open
-    }
-  }, [isHidden]);
-
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -118,7 +110,6 @@ const Modal = ({
     <div className={backgroundClasses}>
       <div
         className={modalContainerClasses}
-        ref={modalRef} // Attach ref
         tabIndex={-1} // Make focusable
       >
         <div className={`${baseClass}__header`}>

@@ -1,13 +1,10 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import { noop } from "lodash";
 
-import paths from "router/paths";
 import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
-import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
+import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
