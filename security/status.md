@@ -5,9 +5,62 @@ Following is the vulnerability report of Fleet components.
 
 ## `fleetdm/fleet` docker image
 
-No vulnerabilities tracked at the moment.
+### CVE-2023-32698
+- **Status:** `not_affected`
+- **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/goreleaser/nfpm/v2`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T15:28:30.406734-03:00
+
+### CVE-2024-12797
+- **Status:** `not_affected`
+- **Status notes:** fleet uses Go TLS implementation
+- **Products:**
+  - `fleet`
+  - `pkg:apk/alpine/libcrypto3`
+  - `pkg:apk/alpine/libssl3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T15:15:53.847365-03:00
+
+### CVE-2025-21613
+- **Status:** `not_affected`
+- **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/go-git/go-git/v5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T15:42:55.967763-03:00
+
+### CVE-2025-21614
+- **Status:** `not_affected`
+- **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/go-git/go-git/v5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T15:43:15.232143-03:00
+
+### CVE-2025-30204
+- **Status:** `not_affected`
+- **Status notes:** The token format being validated before the call to ParseUnverified
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/golang-jwt/jwt/v4`
+- **Justification:** `inline_mitigations_already_exist`
+- **Timestamp:** 2025-04-10T15:23:54.60648-03:00
 
 ## `fleetdm/fleetctl` docker image
+
+### CVE-2012-0881
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java
+- **Products:**
+  - `fleetctl`
+  - `pkg:maven/xerces/xercesImpl`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T14:46:52.709835-03:00
 
 ### CVE-2013-4002
 - **Status:** `not_affected`
