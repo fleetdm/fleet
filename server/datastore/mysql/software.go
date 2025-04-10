@@ -2112,7 +2112,7 @@ func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwar
 	return result, nil
 }
 
-// ** DEPRECATED **
+// Deprecated: ** DEPRECATED **
 func (ds *Datastore) HostsByCVE(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 	stmt := `
 		SELECT DISTINCT

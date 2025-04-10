@@ -86,6 +86,11 @@ type Software struct {
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
 	TitleID *uint `json:"-" db:"title_id"`
+	// NameSource indicates whether the name for this Software was changed during the migration to
+	// Fleet 4.67.0
+	NameSource string `json:"-" db:"name_source"`
+	// Checksum is the unique checksum generated for this Software.
+	Checksum string `json:"-" db:"checksum"`
 }
 
 func (Software) AuthzType() string {

@@ -2,100 +2,124 @@ package tables
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUp_20250403104321(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	softwareTitles := []fleet.SoftwareTitle{
-		{Name: "MacApp.app", Source: "apps", BundleIdentifier: ptr.String("com.example.foo")},
-		{Name: "MacApp2.app", Source: "apps", BundleIdentifier: ptr.String("com.example.foo2")},
-		{Name: "Chrome Extension", Source: "chrome_extensions", Browser: "chrome"},
-		{Name: "Microsoft Teams.exe", Source: "programs"},
+	softwares := []fleet.Software{
+		{Name: "MacApp.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
+		{Name: "MacApp Duplicate.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
+		{Name: "MacApp Duplicate 2.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
+		{Name: "MacApp Duplicate 3.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
+		{Name: "MacApp2.app", Source: "apps", BundleIdentifier: "com.example.foo2", Version: "2"},
+		{Name: "Chrome Extension", Source: "chrome_extensions", Browser: "chrome", Version: "3"},
+		{Name: "Microsoft Teams.exe", Source: "programs", Version: "4"},
 	}
 
 	// add some software titles
 	dataStmt := `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES (?, ?, ?, ?)`
 
-	for _, s := range softwareTitles {
-		_, err := db.Exec(dataStmt, s.Name, s.Source, s.Browser, s.BundleIdentifier)
-		require.NoError(t, err)
-	}
-
-	// add some software entries
-	dataStmt = `INSERT INTO software
-		(name, version, source, bundle_identifier, ` + "`release`" + `, arch, vendor, browser, extension_id, checksum)
-	VALUES
-		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
-	for i, st := range softwareTitles {
-		var bid string
-		if st.BundleIdentifier != nil {
-			bid = *st.BundleIdentifier
+	for i, s := range softwares {
+		if i > 0 && s.BundleIdentifier == "com.example.foo" {
+			continue
 		}
-		execNoErr(t, db, dataStmt, st.Name, fmt.Sprint(i), st.Source, bid, "", "", "", st.Browser, "", fmt.Sprintf("foo%d", i))
+		var bid any = ptr.String(s.BundleIdentifier)
+		if s.BundleIdentifier == "" {
+			bid = nil
+		}
+		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Source, s.Browser, bid)
+		if s.BundleIdentifier == "com.example.foo" {
+			// All the duplicates should map to the same title ID
+			for i := range 4 {
+				softwares[i].TitleID = ptr.Uint(uint(id))
+			}
+			continue
+		}
+
+		softwares[i].TitleID = ptr.Uint(uint(id))
 	}
+
+	// add some software entries and host_software entries
+	dataStmt = `INSERT INTO software
+		(name, version, source, bundle_identifier, ` + "`release`" + `, arch, vendor, browser, extension_id, checksum, title_id)
+	VALUES
+		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	var softwareIDs []uint
+	for i, s := range softwares {
+		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.Browser, "", fmt.Sprintf("foo%d", i), s.TitleID)
+		softwareIDs = append(softwareIDs, uint(id))
+
+		hostID := uint(i + 1)
+		if s.Name == "MacApp Duplicate 3.app" {
+			hostID = uint(i) // map to the same host as the previous software
+		}
+		execNoErr(t, db, "INSERT INTO host_software (host_id, software_id) VALUES (?, ?)", hostID, uint(id))
+	}
+
+	var swid []struct {
+		HostID     uint `db:"host_id"`
+		SoftwareID uint `db:"software_id"`
+	}
+	require.NoError(t, db.Select(&swid, "SELECT host_id, software_id FROM host_software"))
+
+	// add some software_cve entries
+	cveStmt := `INSERT INTO software_cve (cve, software_id) VALUES %s`
+	cveStmt = fmt.Sprintf(cveStmt, strings.TrimRight(strings.Repeat("(?, ?),", len(softwareIDs)), ","))
+	var args []any
+	for _, id := range softwareIDs {
+		args = append(args, uuid.NewString(), id)
+	}
+	_, err := db.Exec(cveStmt, args...)
+	require.NoError(t, err)
 
 	// Apply current migration.
 	applyNext(t, db)
 
 	// macOS apps should be modified, others should not
 
-	var gotSoftware []struct {
-		Name       string `db:"name"`
-		Checksum   []byte `db:"checksum"`
-		NameSource string `db:"name_source"`
-	}
-
-	err := db.Select(&gotSoftware, `SELECT name, checksum, name_source FROM software`)
+	var gotSoftware []fleet.Software
+	err = db.Select(&gotSoftware, `SELECT name, checksum, name_source FROM software`)
 	require.NoError(t, err)
+	require.Len(t, gotSoftware, 4)
 
-	err = db.Select(&softwareTitles, "SELECT name, source, browser, bundle_identifier FROM software_titles")
+	var gotSoftwareTitles []fleet.SoftwareTitle
+	err = db.Select(&gotSoftwareTitles, "SELECT name, source, browser, bundle_identifier FROM software_titles")
 	require.NoError(t, err)
+	require.Len(t, gotSoftwareTitles, 4)
 
-	var software []fleet.Software
-	for i, st := range softwareTitles {
-		sw := fleet.Software{
-			Name:    st.Name,
-			Version: fmt.Sprint(i),
-			Source:  st.Source,
-			Browser: st.Browser,
-		}
-		if st.BundleIdentifier != nil {
-			sw.BundleIdentifier = *st.BundleIdentifier
-		}
-		software = append(software, sw)
-	}
-
-	macCS1, err := software[0].ComputeRawChecksum()
-	require.NoError(t, err)
-	macCS2, err := software[1].ComputeRawChecksum()
-	require.NoError(t, err)
-
-	expectedNames := map[string]string{
-		"MacApp":              string(macCS1),
-		"MacApp2":             string(macCS2),
-		"Chrome Extension":    "foo2",
-		"Microsoft Teams.exe": "foo3",
-	}
-
-	for _, title := range softwareTitles {
-		_, ok := expectedNames[title.Name]
-		require.True(t, ok)
+	for _, got := range gotSoftwareTitles {
+		require.NotContains(t, got.Name, ".app")
 	}
 
 	for _, got := range gotSoftware {
 		require.Equal(t, "basic", got.NameSource)
-		expectedCS, ok := expectedNames[got.Name]
-		require.True(t, ok)
-		require.NotNil(t, got.Checksum, "software without checksum: %s", got.Name)
-		require.Len(t, got.Checksum, 16) // it's a BINARY value so it's right-padded with 0s
-		require.Equal(t, expectedCS, string(got.Checksum[:len(expectedCS)]), "software with wrong checksum: %s", got.Name)
-
+		require.NotContains(t, got.Name, ".app")
 	}
+
+	var count int
+	err = db.Get(&count, "SELECT COUNT(*) FROM software_cve")
+	require.NoError(t, err)
+	require.Equal(t, 4, count)
+
+	err = db.Get(&count, "SELECT COUNT(*) FROM host_software")
+	require.NoError(t, err)
+	require.NoError(t, db.Select(&swid, "SELECT host_id, software_id FROM host_software"))
+	require.Equal(t, 6, count)
+
+	err = db.Get(&count, `SELECT COUNT(*) FROM host_software WHERE software_id IN (?, ?)`, softwareIDs[1], softwareIDs[2])
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	err = db.Get(&count, `SELECT COUNT(*) FROM host_software WHERE software_id = ?`, softwareIDs[0])
+	require.NoError(t, err)
+	require.Equal(t, count, 3)
 }
