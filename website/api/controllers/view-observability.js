@@ -45,6 +45,7 @@ module.exports = {
       'Charles Zaffery',
       'Kenny Botelho',
       'Scott MacVicar',
+      'Matt Carr',
       'Erik Gomez',
       'Mike Arpaia',
       'Chandra Majumdar',
