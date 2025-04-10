@@ -36,10 +36,11 @@ func TestScim(t *testing.T) {
 		{"ReplaceScimGroupValidation", testScimGroupReplaceValidation},
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
+		{"ScimLastRequest", testScimLastRequest},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds, "scim_users", "scim_user_emails", "scim_groups", "scim_user_group")
+			defer TruncateTables(t, ds, "scim_users", "scim_user_emails", "scim_groups", "scim_user_group", "scim_last_request")
 			c.fn(t, ds)
 		})
 	}
@@ -713,7 +714,7 @@ func testScimGroupCreate(t *testing.T, ds *Datastore) {
 
 func testScimGroupCreateValidation(t *testing.T, ds *Datastore) {
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than allowed
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than allowed
 
 	// Test ExternalID validation
 	groupWithLongExternalID := fleet.ScimGroup{
@@ -933,7 +934,7 @@ func testScimGroupReplaceValidation(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than allowed
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than allowed
 
 	// Test ExternalID validation
 	groupWithLongExternalID := fleet.ScimGroup{
@@ -1088,7 +1089,7 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 
 func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
 
 	// Test ExternalID validation
 	userWithLongExternalID := fleet.ScimUser{
@@ -1381,7 +1382,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
 
 	// Test ExternalID validation
 	userWithLongExternalID := fleet.ScimUser{
@@ -1446,4 +1447,72 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 	}
 	err = ds.ReplaceScimUser(t.Context(), &validUser)
 	assert.NoError(t, err)
+}
+
+func testScimLastRequest(t *testing.T, ds *Datastore) {
+	// Initially, there should be no last request
+	initialRequest, err := ds.ScimLastRequest(t.Context())
+	assert.NoError(t, err)
+	assert.Nil(t, initialRequest)
+
+	// Validation tests for UpdateScimLastRequest
+	// Nil request should return nil
+	err = ds.UpdateScimLastRequest(t.Context(), nil)
+	assert.NoError(t, err)
+
+	// Status exceeding max length should return error
+	longStatus := strings.Repeat("a", SCIMMaxStatusLength+1)
+	invalidStatusRequest := &fleet.ScimLastRequest{
+		Status:  longStatus,
+		Details: "Valid details",
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), invalidStatusRequest)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status exceeds maximum length")
+
+	// Details exceeding max length should return error
+	longDetails := strings.Repeat("b", fleet.SCIMMaxFieldLength+1) // 256 characters
+	invalidDetailsRequest := &fleet.ScimLastRequest{
+		Status:  "valid",
+		Details: longDetails,
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), invalidDetailsRequest)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "details exceeds maximum length")
+
+	// Create a new last request with valid values
+	newRequest := &fleet.ScimLastRequest{
+		Status:  "success",
+		Details: "Initial SCIM request",
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), newRequest)
+	assert.NoError(t, err)
+
+	// Retrieve the last request and verify it matches
+	retrievedRequest, err := ds.ScimLastRequest(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, retrievedRequest)
+	assert.Equal(t, "success", retrievedRequest.Status)
+	assert.Equal(t, "Initial SCIM request", retrievedRequest.Details)
+	assert.False(t, retrievedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
+
+	// Update the last request with new valid values
+	updatedRequest := &fleet.ScimLastRequest{
+		Status:  "error",
+		Details: "Updated SCIM request with error",
+	}
+	err = ds.UpdateScimLastRequest(t.Context(), updatedRequest)
+	assert.NoError(t, err)
+
+	// Retrieve the updated last request and verify it matches
+	retrievedUpdatedRequest, err := ds.ScimLastRequest(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, retrievedUpdatedRequest)
+	assert.Equal(t, "error", retrievedUpdatedRequest.Status)
+	assert.Equal(t, "Updated SCIM request with error", retrievedUpdatedRequest.Details)
+	assert.False(t, retrievedUpdatedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
+
+	// Verify that the updated timestamp is newer
+	assert.True(t, retrievedUpdatedRequest.RequestedAt.After(retrievedRequest.RequestedAt),
+		"Updated request timestamp should be after the original timestamp")
 }

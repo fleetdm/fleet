@@ -554,6 +554,7 @@ const DataTable = ({
                     // For accessibility when tabable
                     onKeyDown: (e: KeyboardEvent) => {
                       if (e.key === "Enter") {
+                        e.stopPropagation();
                         (onSelectRowClick &&
                           disableMultiRowSelect &&
                           onSelectRowClick(row)) ||

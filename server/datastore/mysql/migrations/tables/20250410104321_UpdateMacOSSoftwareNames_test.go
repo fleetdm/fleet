@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250403104321(t *testing.T) {
+func TestUp_20250410104321(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	softwares := []fleet.Software{

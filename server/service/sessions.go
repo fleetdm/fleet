@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
@@ -132,7 +132,7 @@ func (r loginMfaResponse) Status() int { return http.StatusAccepted }
 func (r loginMfaResponse) Error() error { return r.Err }
 
 func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*endpoints.LoginRequest)
+	req := request.(*contract.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
 
 	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)

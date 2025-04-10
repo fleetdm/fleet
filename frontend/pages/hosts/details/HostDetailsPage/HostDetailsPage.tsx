@@ -33,7 +33,7 @@ import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
 import { ITeam } from "interfaces/team";
-import { IHostUpcomingActivity } from "interfaces/activity";
+import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
@@ -110,6 +110,7 @@ import AddEndUserModal from "../cards/User/components/AddEndUserModal";
 import {
   generateChromeProfilesValues,
   generateOtherEmailsValues,
+  generateUsernameValues,
 } from "../cards/User/helpers";
 
 const baseClass = "host-details";
@@ -163,6 +164,7 @@ const HostDetailsPage = ({
     config,
     currentUser,
     isGlobalAdmin = false,
+    isGlobalMaintainer,
     isGlobalObserver,
     isPremiumTier = false,
     isOnlyObserver,
@@ -836,6 +838,12 @@ const HostDetailsPage = ({
     router.push(navPath);
   };
 
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
+  const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    host?.team_id
+  );
+
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
   const isGlobalOrHostsTeamObserverPlus =
@@ -865,10 +873,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const showUsersCard = false;
-  // isDarwinHost ||
-  // generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
-  // generateOtherEmailsValues(host.end_users ?? []).length > 0;
+  const showUsersCard =
+    isDarwinHost ||
+    generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
+    generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -942,7 +950,10 @@ const HostDetailsPage = ({
                   className={defaultCardClass}
                   platform={host.platform}
                   endUsers={host.end_users ?? []}
-                  enableAddEndUser={isDarwinHost}
+                  enableAddEndUser={
+                    isDarwinHost &&
+                    generateUsernameValues(host.end_users ?? []).length !== 0
+                  }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
               )}
@@ -968,6 +979,12 @@ const HostDetailsPage = ({
                     activeActivityTab === "past"
                       ? pastActivitiesIsError
                       : upcomingActivitiesIsError
+                  }
+                  canCancelActivities={
+                    isGlobalAdmin ||
+                    isGlobalMaintainer ||
+                    isHostTeamAdmin ||
+                    isHostTeamMaintainer
                   }
                   upcomingCount={upcomingActivities?.count || 0}
                   onChangeTab={onChangeActivityTab}
@@ -1204,6 +1221,16 @@ const HostDetailsPage = ({
             hostId={host.id}
             activity={selectedCancelActivity}
             onCancelActivity={() => refetchUpcomingActivities()}
+            onSuccessCancel={(activity) => {
+              // only for windows and linux hosts we want to refetch host details
+              if (
+                (activity.type === ActivityType.RanScript &&
+                  host.platform === "windows") ||
+                host.platform === "linux"
+              ) {
+                refetchHostDetails();
+              }
+            }}
             onExit={() => setSelectedCancelActivity(null)}
           />
         )}

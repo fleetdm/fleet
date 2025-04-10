@@ -10,11 +10,11 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250403104321, Down_20250403104321)
+	MigrationClient.AddMigration(Up_20250410104321, Down_20250410104321)
 }
 
 // TODO(JVE): add bundleid != null to all constraints
-func Up_20250403104321(tx *sql.Tx) error {
+func Up_20250410104321(tx *sql.Tx) error {
 	titleStmt := `UPDATE software_titles SET name = TRIM( TRAILING '.app' FROM name ) WHERE source = 'apps' AND bundle_identifier IS NOT NULL`
 	_, err := tx.Exec(titleStmt)
 	if err != nil {
@@ -205,6 +205,6 @@ WHERE
 	return nil
 }
 
-func Down_20250403104321(tx *sql.Tx) error {
+func Down_20250410104321(tx *sql.Tx) error {
 	return nil
 }

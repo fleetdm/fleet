@@ -688,7 +688,7 @@ module.exports.routes = {
   'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
   'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
-  'GET /guides/ndes-scep-proxy': '/guides/certificate-authorities',
+  'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
 
 
   // Release note article redirects.
@@ -830,7 +830,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
-  'GET /learn-more-about/certificate-authorities': '/guides/certificate-authorities',
+  'GET /learn-more-about/certificate-authorities': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/macos-setup-experience#macos-setup-assistant',
@@ -886,6 +886,8 @@ module.exports.routes = {
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
   // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
   'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
+  'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
+  'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
 
   // Sitemap
   // =============================================================================================================
