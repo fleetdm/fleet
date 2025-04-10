@@ -1,4 +1,4 @@
-package endpoints
+package contract
 
 type LoginRequest struct {
 	Email    string `json:"email"`

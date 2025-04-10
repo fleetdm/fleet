@@ -253,10 +253,11 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 	}
 	if len(user.Groups) > 0 {
 		groups := make([]scim.ResourceAttributes, 0, len(user.Groups))
-		for _, groupID := range user.Groups {
+		for _, group := range user.Groups {
 			groups = append(groups, map[string]interface{}{
-				"value": scimGroupID(groupID),
-				"$ref":  "Groups/" + scimGroupID(groupID),
+				"value":   scimGroupID(group.ID),
+				"$ref":    "Groups/" + scimGroupID(group.ID),
+				"display": group.DisplayName,
 			})
 		}
 		userResource.Attributes[groupsAttr] = groups
@@ -265,7 +266,7 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 }
 
 // GetAll
-// Pagination is 1-indexed.
+// Pagination is 1-indexed on the startIndex. The startIndex is the index of the resource (not the index of the page), per RFC7644.
 //
 // Per RFC7644 3.4.2, SHOULD ignore any query parameters they do not recognize instead of rejecting the query for versioning compatibility reasons
 // https://datatracker.ietf.org/doc/html/rfc7644#section-3.4.2
@@ -354,6 +355,18 @@ func (u *UserHandler) Replace(r *http.Request, id string, attributes scim.Resour
 		return scim.Resource{}, err
 	}
 	user.ID = idUint
+	// Username is unique, so we must check if another user already exists with that username to return a clear error
+	userWithSameUsername, err := u.ds.ScimUserByUserName(r.Context(), user.UserName)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		level.Error(u.logger).Log("msg", "failed to check for userName uniqueness", userNameAttr, user.UserName, "err", err)
+		return scim.Resource{}, err
+	case err == nil && user.ID != userWithSameUsername.ID:
+		level.Info(u.logger).Log("msg", "user already exists with this username", userNameAttr, user.UserName)
+		return scim.Resource{}, errors.ScimErrorUniqueness
+		// Otherwise, we assume that we are replacing the username with this operation.
+	}
+
 	err = u.ds.ReplaceScimUser(r.Context(), user)
 	switch {
 	case fleet.IsNotFound(err):

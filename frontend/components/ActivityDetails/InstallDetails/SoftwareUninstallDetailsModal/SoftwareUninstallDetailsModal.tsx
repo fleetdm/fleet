@@ -1,3 +1,5 @@
+// Used on: Dashboard > activity, Host details > past activity
+
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
@@ -127,15 +129,13 @@ const SoftwareUninstallDetailsModal = ({
         {!isPendingStatus(status) && scriptResult && (
           <>
             <div className={`${baseClass}__script-output`}>
-              Uninstall script content:
-              <Textarea className={`${baseClass}__output-textarea`}>
+              <Textarea label="Uninstall script content:" variant="code">
                 {scriptResult.script_contents}
               </Textarea>
             </div>
 
             <div className={`${baseClass}__script-output`}>
-              Uninstall script output:
-              <Textarea className={`${baseClass}__output-textarea`}>
+              <Textarea label="Uninstall script output:" variant="code">
                 {scriptResult.output}
               </Textarea>
             </div>

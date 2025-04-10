@@ -299,7 +299,7 @@ the OS generates several temporary certificates needed for the SCEP protocol. Th
 * Certificate renewal is coming soon.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 
-<meta name="articleTitle" value="Connect end users to Wi-Fi with a certificate (DigiCert, NDES, or custom SCEP)">
+<meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">

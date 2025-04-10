@@ -71,8 +71,8 @@ import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
 import {
-  generateChromeProfilesValue,
-  generateOtherEmailsValue,
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
 } from "../cards/User/helpers";
 
 const baseClass = "device-user";
@@ -388,38 +388,6 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const testEndUserData: IHostEndUser[] = [
-    {
-      idp_id: "1234567890",
-      idp_username: "test",
-      idp_full_name: "Test User",
-      idp_info_updated_at: "2023-10-01T00:00:00Z",
-      // idp_info_updated_at: null,
-      idp_groups: [
-        "apple",
-        "test group",
-        "Test Group 2",
-        "Test Group 3",
-        "test Group 4",
-        "kite",
-      ],
-      other_emails: [
-        {
-          email: "another-email@test.com",
-          source: "google_chrome_profiles",
-        },
-        {
-          email: "another-email-2@test.com",
-          source: "google_chrome_profiles",
-        },
-        {
-          email: "custom-email@test.com",
-          source: "custom",
-        },
-      ],
-    },
-  ];
-
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -445,10 +413,10 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const showUsersCard = false;
-    // host?.platform === "darwin" ||
-    // generateChromeProfilesValue(testEndUserData).length > 0 ||
-    // generateOtherEmailsValue(testEndUserData).length > 0;
+    const showUsersCard =
+      host?.platform === "darwin" ||
+      generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
+      generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
     return (
       <div className="core-wrapper">
@@ -527,7 +495,7 @@ const DeviceUserPage = ({
                     <UserCard
                       className={defaultCardClass}
                       platform={host.platform}
-                      endUsers={testEndUserData}
+                      endUsers={host.end_users ?? []}
                       enableAddEndUser={false}
                       disableFullNameTooltip
                       disableGroupsTooltip

@@ -89,22 +89,7 @@ controls:
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
-          - "Macs with 1Password8 installed"
-      - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
-        labels_include_any:
-          - "Santa test device"
+          - "Macs with 1Password installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
@@ -176,4 +161,4 @@ software:
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
-    - app_store_id: "803453959" # Slack Desktop
+    - app_store_id: '803453959' # Slack Desktop
