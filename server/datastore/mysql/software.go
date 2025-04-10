@@ -3399,7 +3399,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 		var countStmt string
 		// we do not scan vulnerabilities on vpp software available for install
-		includeVPP := (!opts.VulnerableOnly && len(vppAdamIDs) > 0)
+		includeVPP := !opts.VulnerableOnly && len(vppAdamIDs) > 0
 		switch {
 		case len(softwareTitleIds) > 0 && includeVPP:
 			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, softwareVulnerableJoin, `GROUP BY software_titles.id`, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
@@ -3408,7 +3408,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		case includeVPP:
 			countStmt = fmt.Sprintf(stmt, `SELECT software_titles.id`, `GROUP BY software_titles.id`)
 		default:
-			return make([]*fleet.HostSoftwareWithInstaller, 0), &fleet.PaginationMetadata{}, nil
+			return []*fleet.HostSoftwareWithInstaller{}, &fleet.PaginationMetadata{}, nil
 		}
 
 		if err := sqlx.GetContext(
