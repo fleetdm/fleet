@@ -135,6 +135,8 @@ How to unenroll a host from Fleet:
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
+> If a user is changing OS (e.g., from Windows to Linux), the best practice is for the IT admin to delete the host from Fleet and re-enroll.
+
 ## Advanced
 
 - [Fleet agent (fleetd) components](#fleetd-components)
