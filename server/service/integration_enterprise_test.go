@@ -10406,7 +10406,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	t := s.T()
 
 	token := "good_token"
-	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
 	// no software yet
@@ -10430,7 +10430,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.1", Source: "apps"},
+		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
 	}
 	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -10683,35 +10683,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 
-	// Add new software to host -- installed on host, but not by Fleet
-	installedVersion := "1.0.1"
-	softwareAlreadyInstalled := fleet.Software{
-		Name: "DummyApp.app", Version: installedVersion, Source: "apps",
-		BundleIdentifier: "com.example.dummy",
-	}
-	software = append(software, softwareAlreadyInstalled)
-	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-	// Add installer for software that is already installed on host
-	payload = &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "dummy_installer.pkg",
-		Version:       "0.0.2", // The version can be anything -- we match on title
-	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
-
 	// Get software available for install
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install",
 		"true", "order_key", "name", "order_direction", "asc")
-	require.Len(t, getHostSw.Software, 2) // DummyApp.app and ruby
-	assert.Equal(t, softwareAlreadyInstalled.Name, getHostSw.Software[0].Name)
-	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
-	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+	require.Len(t, getHostSw.Software, 1) // ruby.app
+	assert.Equal(t, "ruby", getHostSw.Software[0].Name)
+	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
-	assert.Nil(t, getHostSw.Software[0].Status)
+	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {

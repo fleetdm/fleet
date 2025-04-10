@@ -2714,40 +2714,43 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	return vppInstalls, nil
 }
 
-// softwareTitleRecord is the base record, we will be modifying it and copying all data to it
-func promoteSoftwareTitlePackageName(softwareTitleRecord *hostSoftware, softwareTitle *hostSoftware) {
+// hydrated is the base record from the db
+// it contains most of the information we need to return back, however,
+// we need to copy over the install/uninstall data from the softwareTitle we fetched
+// from hostSoftwareInstalls and hostSoftwareUninstalls
+func hydrateHostSoftwareRecordFromDb(hydrated *hostSoftware, softwareTitle *hostSoftware) {
 	var version,
 		platform string
-	if softwareTitleRecord.PackageVersion != nil {
-		version = *softwareTitleRecord.PackageVersion
+	if hydrated.PackageVersion != nil {
+		version = *hydrated.PackageVersion
 	}
-	if softwareTitleRecord.PackagePlatform != nil {
-		platform = *softwareTitleRecord.PackagePlatform
+	if hydrated.PackagePlatform != nil {
+		platform = *hydrated.PackagePlatform
 	}
-	softwareTitleRecord.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-		Name:        *softwareTitleRecord.PackageName,
+	hydrated.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+		Name:        *hydrated.PackageName,
 		Version:     version,
 		Platform:    platform,
-		SelfService: softwareTitleRecord.PackageSelfService,
+		SelfService: hydrated.PackageSelfService,
 	}
 
 	// promote the last install info to the proper destination fields
 	if softwareTitle.LastInstallInstallUUID != nil && *softwareTitle.LastInstallInstallUUID != "" {
-		softwareTitleRecord.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+		hydrated.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
 			InstallUUID: *softwareTitle.LastInstallInstallUUID,
 		}
 		if softwareTitle.LastInstallInstalledAt != nil {
-			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
+			hydrated.SoftwarePackage.LastInstall.InstalledAt = *softwareTitle.LastInstallInstalledAt
 		}
 	}
 
 	// promote the last uninstall info to the proper destination fields
 	if softwareTitle.LastUninstallScriptExecutionID != nil && *softwareTitle.LastUninstallScriptExecutionID != "" {
-		softwareTitleRecord.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
+		hydrated.SoftwarePackage.LastUninstall = &fleet.HostSoftwareUninstall{
 			ExecutionID: *softwareTitle.LastUninstallScriptExecutionID,
 		}
 		if softwareTitle.LastUninstallUninstalledAt != nil {
-			softwareTitleRecord.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
+			hydrated.SoftwarePackage.LastUninstall.UninstalledAt = *softwareTitle.LastUninstallUninstalledAt
 		}
 	}
 }
@@ -2832,11 +2835,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
 			bySoftwareTitleID[s.ID] = s
 		} else {
-			// if there is an uninstall, we should update the status, should we check the time? Is it possible for an uninstall to happen before an install?
-			bySoftwareTitleID[s.ID].Status = s.Status
-			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
-			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
-			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
+			// if the uninstall is more recent than the install, we should update the status
+			if bySoftwareTitleID[s.ID].LastInstallInstalledAt == nil ||
+				(s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*bySoftwareTitleID[s.ID].LastInstallInstalledAt)) {
+				bySoftwareTitleID[s.ID].Status = s.Status
+				bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
+				bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
+				bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
+			}
 		}
 	}
 	originalLength := len(bySoftwareTitleID)
@@ -3370,9 +3376,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			%s
 			FROM
 				software_titles
-			LEFT JOIN
-				software_installers ON software_titles.id = software_installers.title_id
-				AND software_installers.global_or_team_id = :global_or_team_id
 			INNER JOIN
 				vpp_apps ON software_titles.id = vpp_apps.title_id AND vpp_apps.platform = :host_platform
 			INNER JOIN
@@ -3474,11 +3477,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source AS source,
-					software_installers.id AS installer_id,
-					software_installers.self_service AS package_self_service,
-					software_installers.filename AS package_name,
-					software_installers.version AS package_version,
-					software_installers.platform as package_platform,
+					NULL AS installer_id,
+					NULL AS package_self_service,
+					NULL AS package_name,
+					NULL AS package_version,
+					NULL as package_platform,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
 					NULL AS version_list,
@@ -3492,12 +3495,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
-					software_titles.source,
-					software_installers.id,
-					software_installers.self_service,
-					software_installers.filename,
-					software_installers.version,
-					software_installers.platform
+					software_titles.source
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
@@ -3663,7 +3661,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			// promote the package name and version to the proper destination fields
 			if softwareTitleRecord.PackageName != nil {
-				promoteSoftwareTitlePackageName(softwareTitleRecord, softwareTitle)
+				hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
 			}
 
 			// promote the VPP app id and version to the proper destination fields
