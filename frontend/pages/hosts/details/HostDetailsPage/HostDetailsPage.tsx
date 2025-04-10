@@ -865,10 +865,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const showUsersCard = false;
-  // isDarwinHost ||
-  // generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
-  // generateOtherEmailsValues(host.end_users ?? []).length > 0;
+  const showUsersCard =
+    isDarwinHost ||
+    generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
+    generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
