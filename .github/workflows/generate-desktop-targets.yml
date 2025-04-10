@@ -167,8 +167,22 @@ jobs:
       - name: Upload fleet-desktop.exe
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: fleet-desktop-arm64.exe
+          name: unsigned-windows-arm64
           path: fleet-desktop.exe
+
+  code-sign-windows-arm64:
+    needs: desktop-windows-arm64
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: fleet-desktop.exe
+      upload_name: fleet-desktop.exe
+      download_name: unsigned-windows-arm64
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   desktop-linux:
     needs: set-version
