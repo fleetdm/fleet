@@ -17,8 +17,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var automationActivityAuthor = "Fleet"
-var deleteIDsBatchSize = 1000
+var (
+	automationActivityAuthor = "Fleet"
+	deleteIDsBatchSize       = 1000
+)
 
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(
@@ -772,8 +774,10 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		// read the activity along with the required information to create the
 		// "canceled" past activity, and check if the activity was activated or
 		// not.
-		stmt := strings.Join([]string{loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
-			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt}, " UNION ALL ")
+		stmt := strings.Join([]string{
+			loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
+			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt,
+		}, " UNION ALL ")
 		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": executionID})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
@@ -932,7 +936,6 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

@@ -174,6 +174,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		ctx,
 		nil,
 		fleet.ActivityTypeFleetEnrolled{
+			HostID:          host.ID,
 			HostSerial:      hostInfo.HardwareSerial,
 			HostDisplayName: host.DisplayName(),
 		},
