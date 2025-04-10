@@ -6234,7 +6234,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		MaximumCVSS:    2.0,
 	}
 
-	// should only return "file1" and "vpp1"
+	// should only return "file1" (vpp1 is not compatible with the platform)
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, matchingsOpts)
 	require.NoError(t, err)
 	require.Len(t, sw, 1)
