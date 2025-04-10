@@ -38,6 +38,12 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Build fleetdm/wix
+        run: make wix-docker
+
+      - name: Build fleetdm/bomutils
+        run: make bomutils-docker
+
       - name: Build fleetdm/fleetctl
         run: make fleetctl-docker
 
@@ -46,6 +52,7 @@ jobs:
         run: |
           echo "VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | cut -f 1 | sed 's/.$//')" >> $GITHUB_OUTPUT
 
+      # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
@@ -65,12 +72,6 @@ jobs:
             --severity=HIGH,CRITICAL \
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
             fleetdm/fleetctl
-
-      - name: Build fleetdm/wix
-        run: make wix-docker
-
-      - name: Build fleetdm/bomutils
-        run: make bomutils-docker
 
       - name: Run Trivy vulnerability scanner on fleetdm/wix
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8

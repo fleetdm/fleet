@@ -92,19 +92,26 @@ jobs:
         run: |
           echo "VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | cut -f 1 | sed 's/.$//')" >> $GITHUB_OUTPUT
 
+      # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Check critical vulnerabilities before publishing
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-        with:
-          image-ref: "fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL"
-          vex: "${{ steps.generate_vex_files.outputs.VEX_FILES }}"
+        run: |
+          mkdir trivy-download
+          cd trivy-download
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
+          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
+          mv trivy ..
+          cd ..
+          chmod +x ./trivy
+          ./trivy image \
+            --exit-code=1 \
+            --ignore-unfixed \
+            --pkg-types=os,library \
+            --severity=HIGH,CRITICAL \
+            --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
+            fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
 
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
