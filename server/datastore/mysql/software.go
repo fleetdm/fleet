@@ -2842,15 +2842,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	for _, s := range hostSoftwareUninstalls {
 		if _, ok := bySoftwareTitleID[s.ID]; !ok {
 			bySoftwareTitleID[s.ID] = s
-		} else {
+		} else if bySoftwareTitleID[s.ID].LastInstallInstalledAt == nil ||
+			(s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*bySoftwareTitleID[s.ID].LastInstallInstalledAt)) {
 			// if the uninstall is more recent than the install, we should update the status
-			if bySoftwareTitleID[s.ID].LastInstallInstalledAt == nil ||
-				(s.LastUninstallUninstalledAt != nil && s.LastUninstallUninstalledAt.After(*bySoftwareTitleID[s.ID].LastInstallInstalledAt)) {
-				bySoftwareTitleID[s.ID].Status = s.Status
-				bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
-				bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
-				bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
-			}
+			bySoftwareTitleID[s.ID].Status = s.Status
+			bySoftwareTitleID[s.ID].LastUninstallUninstalledAt = s.LastUninstallUninstalledAt
+			bySoftwareTitleID[s.ID].LastUninstallScriptExecutionID = s.LastUninstallScriptExecutionID
+			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
 		}
 	}
 	originalLength := len(bySoftwareTitleID)
@@ -3393,12 +3391,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			vppAdamStatment = strings.ReplaceAll(vppAdamStatment, "AND true", matchClause)
 			args = append(args, vppAdamArgsNamedArgs...)
 			args = append(args, vppAdamArgs...)
-			if len(cveNamedArgs) > 0 {
-				args = append(args, cveNamedArgs...)
-			}
-			if len(cveMatchArgs) > 0 {
-				args = append(args, cveMatchArgs...)
-			}
 			if len(matchArgs) > 0 {
 				args = append(args, matchArgs...)
 			}

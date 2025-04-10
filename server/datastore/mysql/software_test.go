@@ -4373,7 +4373,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		if err != nil {
 			return err
 		}
-		res, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
 			darwinHost.ID, softwareID)
 		if err != nil {
 			return err
@@ -4391,7 +4391,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			return err
 		}
 		uninstallScriptContentID, _ := resUninstall.LastInsertId()
-		res, err = q.ExecContext(ctx, `
+		_, err = q.ExecContext(ctx, `
 							INSERT INTO software_installers
 								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service)
 							VALUES
@@ -4408,7 +4408,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	opts.OnlyAvailableForInstall = true
-	sw, meta, err = ds.ListHostSoftware(ctx, darwinHost, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, darwinHost, opts)
 	require.NoError(t, err)
 
 	var found bool
@@ -6063,7 +6063,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	result, err = ds.writer(ctx).ExecContext(ctx, `
+	_, err = ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
