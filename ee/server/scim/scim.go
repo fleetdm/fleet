@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	maxResults = 1000
+	maxResults = 100
 )
 
 func RegisterSCIM(
@@ -217,8 +217,20 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 
 		var status, details string
 		switch {
-		case multi.statusCode >= 200 && multi.statusCode < 300:
+		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
 			status = "success"
+		case multi.statusCode == http.StatusUnauthorized:
+			// We do not save unauthenticated error details; we simply log them.
+			level.Info(logger).Log(
+				"msg", "unauthenticated request",
+				"origin", r.Header.Get("Origin"),
+				"ip", r.RemoteAddr,
+				"method", r.Method,
+				"path", r.URL.Path,
+				"user-agent", r.UserAgent(),
+				"referer", r.Referer(),
+			)
+			return
 		case multi.statusCode >= 400:
 			status = "error"
 			// Attempt to parse the response body as a SCIM error.

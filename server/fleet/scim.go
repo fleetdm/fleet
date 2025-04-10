@@ -74,7 +74,11 @@ type ScimGroup struct {
 }
 
 type ScimLastRequest struct {
-	Status      string    `db:"status"`
-	Details     string    `db:"details"`
-	RequestedAt time.Time `db:"updated_at"`
+	Status      string    `db:"status" json:"status"`
+	Details     string    `db:"details" json:"details"`
+	RequestedAt time.Time `db:"updated_at" json:"requested_at"`
+}
+
+type ScimDetails struct {
+	LastRequest *ScimLastRequest `json:"last_request"`
 }
