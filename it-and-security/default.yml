@@ -25,16 +25,15 @@ org_settings:
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned iPhones"
-      ipados_team: "🔳🏢 Company-owned iPads"
+      ios_team: "📱🏢 Company-owned Mobile Devices"
+      ipados_team: "📱🏢 Company-owned Mobile Devices"
     volume_purchasing_program:
     - location: Fleet Device Management Inc.
       teams:
       - "💻 Workstations"
       - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned iPhones"
-      - "🔳🏢 Company-owned iPads"
-      - "📱🔐 Personally-owned iPhones"
+      - "📱🏢 Company-owned Mobile Devices"
+      - "📱🔐 Personal Mobile Devices"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""

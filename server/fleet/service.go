@@ -605,7 +605,7 @@ type Service interface {
 	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
 	// host. If the activity does not exist in the queue of upcoming activities
 	// (e.g. it did complete), it returns a not found error.
-	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService

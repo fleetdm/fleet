@@ -6,26 +6,25 @@ import ActivityItem from "components/ActivityItem";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
-const baseClass = "canceled-script-activity-item";
+const baseClass = "canceled-run-script-activity-item";
 
-const CanceledScriptActivityItem = ({
+const CanceledRunScriptActivityItem = ({
   activity,
-  hideCancel,
 }: IHostActivityItemComponentProps) => {
   return (
     <ActivityItem
       className={baseClass}
       activity={activity}
-      hideCancel={hideCancel}
+      hideCancel
       hideShowDetails
     >
       <>
         <b>{activity.actor_full_name}</b> canceled{" "}
-        <b>{formatScriptNameForActivityItem(activity.details?.script_name)}</b>{" "}
-        script on this host.
+        {formatScriptNameForActivityItem(activity.details.script_name)} on this
+        host.
       </>
     </ActivityItem>
   );
 };
 
-export default CanceledScriptActivityItem;
+export default CanceledRunScriptActivityItem;

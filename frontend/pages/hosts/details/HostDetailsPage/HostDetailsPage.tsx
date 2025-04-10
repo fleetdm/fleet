@@ -26,7 +26,6 @@ import {
   IHostResponse,
   IHostMdmData,
   IPackStats,
-  IHostEndUser,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IListSort } from "interfaces/list_options";
@@ -109,8 +108,8 @@ import CancelActivityModal from "./modals/CancelActivityModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import AddEndUserModal from "../cards/User/components/AddEndUserModal";
 import {
-  generateChromeProfilesValue,
-  generateOtherEmailsValue,
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
 } from "../cards/User/helpers";
 
 const baseClass = "host-details";
@@ -503,6 +502,7 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
     }
@@ -670,6 +670,10 @@ const HostDetailsPage = ({
     [host?.display_name]
   );
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -760,10 +764,6 @@ const HostDetailsPage = ({
         break;
       default: // do nothing
     }
-  };
-
-  const onCancelActivity = (activity: IHostUpcomingActivity) => {
-    setSelectedCancelActivity(activity);
   };
 
   const onSelectCertificate = (certificate: IHostCertificate) => {
@@ -865,42 +865,10 @@ const HostDetailsPage = ({
   const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
   const isAndroidHost = isAndroid(host.platform);
 
-  const testEndUserData: IHostEndUser[] = [
-    {
-      idp_id: "1234567890",
-      idp_username: "test",
-      idp_full_name: "Test User",
-      idp_info_updated_at: "2023-10-01T00:00:00Z",
-      // idp_info_updated_at: null,
-      idp_groups: [
-        "apple",
-        "test group",
-        "Test Group 2",
-        "Test Group 3",
-        "test Group 4",
-        "kite",
-      ],
-      other_emails: [
-        {
-          email: "another-email@test.com",
-          source: "google_chrome_profiles",
-        },
-        {
-          email: "another-email-2@test.com",
-          source: "google_chrome_profiles",
-        },
-        {
-          email: "custom-email@test.com",
-          source: "custom",
-        },
-      ],
-    },
-  ];
-
   const showUsersCard = false;
   // isDarwinHost ||
-  // generateChromeProfilesValue(testEndUserData).length > 0 ||
-  // generateOtherEmailsValue(testEndUserData).length > 0;
+  // generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
+  // generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
@@ -973,7 +941,7 @@ const HostDetailsPage = ({
                 <UserCard
                   className={defaultCardClass}
                   platform={host.platform}
-                  endUsers={testEndUserData}
+                  endUsers={host.end_users ?? []}
                   enableAddEndUser={isDarwinHost}
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
@@ -1235,7 +1203,8 @@ const HostDetailsPage = ({
           <CancelActivityModal
             hostId={host.id}
             activity={selectedCancelActivity}
-            onCancel={() => setSelectedCancelActivity(null)}
+            onCancelActivity={() => refetchUpcomingActivities()}
+            onExit={() => setSelectedCancelActivity(null)}
           />
         )}
         {selectedCertificate && (

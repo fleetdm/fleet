@@ -26,19 +26,17 @@ Fleet is successful because of our customers and community, and those relationsh
 Security policies are best when they're alive, in context of how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
-1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
-2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
-3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
-4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
-5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
+1. [Security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies)
+2. [Human resources security policy](https://fleetdm.com/handbook/digital-experience/security#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/digital-experience/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/digital-experience/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/digital-experience/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/digital-experience/security).
 
 
 ## SOC 2
 
-You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1mUwmCUdggONULr6OjDO--QtKfDWLcrI4/view?usp=sharing).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
-
-You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.com/trust), in its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet. Internal stakeholders can [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) to locate Fleet's SOC 2 report in Google Drive. You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
 
 ## Directly responsible individuals (DRIs)
@@ -75,7 +73,7 @@ You can learn more about how Fleet approaches security in the [security handbook
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| What goes in a release               | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
+| What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
