@@ -2048,6 +2048,10 @@ type Datastore interface {
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
 	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
+	// ScimLastRequest retrieves the last SCIM request info
+	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
+	// UpdateScimLastRequest updates the last SCIM request info
+	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
 }
 
 type AndroidDatastore interface {

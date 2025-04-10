@@ -456,6 +456,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger))
+		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
+		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 	}
 
 	server := httptest.NewUnstartedServer(rootMux)

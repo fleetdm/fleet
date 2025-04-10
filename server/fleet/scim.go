@@ -2,6 +2,9 @@ package fleet
 
 import "time"
 
+// SCIMMaxFieldLength is the default maximum length for SCIM fields
+const SCIMMaxFieldLength = 255
+
 // ScimUser represents a SCIM user in the database
 type ScimUser struct {
 	ID         uint      `db:"id"`
@@ -71,4 +74,14 @@ type ScimGroup struct {
 	ExternalID  *string `db:"external_id"`
 	DisplayName string  `db:"display_name"`
 	ScimUsers   []uint
+}
+
+type ScimLastRequest struct {
+	Status      string    `db:"status" json:"status"`
+	Details     string    `db:"details" json:"details"`
+	RequestedAt time.Time `db:"updated_at" json:"requested_at"`
+}
+
+type ScimDetails struct {
+	LastRequest *ScimLastRequest `json:"last_request"`
 }

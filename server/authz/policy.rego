@@ -1069,5 +1069,5 @@ allow {
 allow {
   object.type == "scim_user"
   subject.global_role == [admin, maintainer][_]
-  action == write
+  action == [read, write][_]
 }

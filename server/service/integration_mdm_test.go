@@ -2734,7 +2734,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 
 	s.lastActivityMatches(
 		"fleet_enrolled",
-		fmt.Sprintf(`{"host_display_name": "%s", "host_serial": "%s"}`, h.DisplayName(), h.HardwareSerial),
+		fmt.Sprintf(`{"host_id": %v, "host_display_name": "%s", "host_serial": "%s"}`, h.ID, h.DisplayName(), h.HardwareSerial),
 		0,
 	)
 
@@ -5199,7 +5199,7 @@ func (s *integrationMDMTestSuite) setTokenForTest(t *testing.T, email, password 
 func (s *integrationMDMTestSuite) TestSSO() {
 	t := s.T()
 
-	var lastSubmittedProfile = &godep.Profile{}
+	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
 
 	// patch without specifying the mdm sso settings fields and an unrelated
@@ -5626,7 +5626,7 @@ func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, usernam
 func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	t := s.T()
 
-	var lastSubmittedProfile = &godep.Profile{}
+	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
 
 	res := s.LoginMDMSSOUser("sso_user_no_displayname", "user123#")
@@ -5822,11 +5822,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
 	checkEndUser()
-
 }
 
 func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastSubmittedProfile *godep.Profile) (*mdmtest.TestAppleMDMClient,
-	fleet.SSOProviderSettings) {
+	fleet.SSOProviderSettings,
+) {
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: s.scepChallenge,
 	}, "MacBookPro16,1")

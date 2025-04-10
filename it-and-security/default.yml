@@ -107,4 +107,5 @@ labels:
   - path: ./lib/all/labels/macs-with-1password-installed.yml
   - path: ./lib/all/labels/rpm-based-linux-hosts.yml
   - path: ./lib/all/labels/virtual-machines.yml
+  - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
