@@ -32,8 +32,8 @@ org_settings:
       teams:
       - "💻 Workstations"
       - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned Mobile Devices"
-      - "📱🔐 Personal Mobile Devices"
+      - "📱🏢 Company-owned mobile devices"
+      - "📱🔐 Personal mobile devices"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: ""
