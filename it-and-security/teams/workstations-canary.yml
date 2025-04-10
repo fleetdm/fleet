@@ -89,22 +89,22 @@ controls:
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
-          - "Macs with 1Password8 installed"
+          - "Macs with 1Password installed"
       - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
         labels_include_any:
-          - "Santa test device"
+          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
         labels_include_any:
-          - "Santa test device"
+          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
         labels_include_any:
-          - "Santa test device"
+          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
         labels_include_any:
-          - "Santa test device"
+          - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
         labels_include_any:
-          - "Santa test device"
+          - "Santa test devices"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
