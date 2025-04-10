@@ -126,7 +126,7 @@ const Policies = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
-          disableMultiRowSelect // Removes hover/click state if deviceUser
+          disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
           onClickRow={onClickRow}
           keyboardSelectableRows
