@@ -2,3 +2,4 @@
   description: Macs testing santa
   label_membership_type: manual
   hosts:
+    - "Allen's MacBook Pro"
