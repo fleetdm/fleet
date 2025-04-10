@@ -17,13 +17,6 @@ RUN apt-get update \
   && apt install -y --no-install-recommends ca-certificates cpio libxml2 wine wine32 libgtk-3-0 \
   && rm -rf /var/lib/apt/lists/* 
 
-RUN apt-get update && apt list --installed | grep -i java
-
-# Remove Java packages
-RUN apt-get remove -y openjdk-7-jdk openjdk-7-jre \
-  && apt-get autoremove -y \
-  && apt-get clean
-
 # copy macOS dependencies
 COPY --from=fleetdm/bomutils:latest /usr/bin/mkbom /usr/local/bin/xar /usr/bin/
 COPY --from=fleetdm/bomutils:latest /usr/local/lib /usr/local/lib/
