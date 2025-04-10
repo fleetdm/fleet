@@ -89,22 +89,7 @@ controls:
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
-          - "Macs with 1Password8 installed"
-      - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
-        labels_include_any:
-          - "Santa test device"
+          - "Macs with 1Password installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
@@ -140,7 +125,7 @@ controls:
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/linux/scripts/fedora-debian-enable-fleet-desktop.sh
+    - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -157,7 +142,7 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
-  - path: ../lib/linux/policies/fedora-debian-check-fleet-desktop.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
@@ -176,4 +161,4 @@ software:
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
-    - app_store_id: "803453959" # Slack Desktop
+    - app_store_id: '803453959' # Slack Desktop

@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -2424,11 +2426,13 @@ last_software_install AS (
 				 hsi.software_installer_id = hsi2.software_installer_id AND
 				 hsi.uninstall = hsi2.uninstall AND
 				 hsi2.removed = 0 AND
+				 hsi2.canceled = 0 AND
 				 hsi2.host_deleted_at IS NULL AND
 				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
 		hsi.host_id = :host_id AND
 		hsi.removed = 0 AND
+		hsi.canceled = 0 AND
 		hsi.uninstall = 0 AND
 		hsi.host_deleted_at IS NULL AND
 		hsi2.id IS NULL AND
@@ -2459,12 +2463,14 @@ last_software_uninstall AS (
 				 hsi.software_installer_id = hsi2.software_installer_id AND
 				 hsi.uninstall = hsi2.uninstall AND
 				 hsi2.removed = 0 AND
+				 hsi2.canceled = 0 AND
 				 hsi2.host_deleted_at IS NULL AND
 				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
 		hsi.host_id = :host_id AND
 		hsi.removed = 0 AND
 		hsi.uninstall = 1 AND
+		hsi.canceled = 0 AND
 		hsi.host_deleted_at IS NULL AND
 		hsi2.id IS NULL AND
 		NOT EXISTS (
@@ -2523,10 +2529,12 @@ last_vpp_install AS (
 				 hvsi.adam_id = hvsi2.adam_id AND
 				 hvsi.platform = hvsi2.platform AND
 				 hvsi2.removed = 0 AND
+				 hvsi2.canceled = 0 AND
 				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 	WHERE
 		hvsi.host_id = :host_id AND
 		hvsi.removed = 0 AND
+		hvsi.canceled = 0 AND
 		hvsi2.id IS NULL AND
 		NOT EXISTS (
 			SELECT 1
@@ -2751,7 +2759,8 @@ last_vpp_install AS (
 				WHERE
 					hsi.host_id = :host_id AND
 					hsi.software_installer_id = si.id AND
-					hsi.removed = 0
+					hsi.removed = 0 AND
+					hsi.canceled = 0
 			) AND
 			-- sofware install/uninstall is not upcoming on host
 			NOT EXISTS (
@@ -2773,7 +2782,8 @@ last_vpp_install AS (
 				WHERE
 					hvsi.host_id = :host_id AND
 					hvsi.adam_id = vat.adam_id AND
-					hvsi.removed = 0
+					hvsi.removed = 0 AND
+					hvsi.canceled = 0
 			) AND
 			-- VPP install is not upcoming on host
 			NOT EXISTS (
@@ -3203,7 +3213,7 @@ last_vpp_install AS (
 	return software, metaData, nil
 }
 
-func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
 	const stmt = `
 		UPDATE
 			host_software_installs
@@ -3225,7 +3235,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return output
 	}
 
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
 			truncateOutput(result.PreInstallConditionOutput),
 			result.InstallScriptExitCode,
@@ -3247,9 +3257,15 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 				return ctxerr.Wrap(ctx, err, "activate next activity")
 			}
 		}
+
+		// load whether or not the result was for a canceled activity
+		err = sqlx.GetContext(ctx, tx, &wasCanceled, `SELECT canceled FROM host_software_installs WHERE execution_id = ?`, result.InstallUUID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
 		return nil
 	})
-	return err
+	return wasCanceled, err
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
@@ -3265,7 +3281,7 @@ SELECT
 FROM software_titles st
 INNER JOIN software_installers si ON si.title_id = st.id
 INNER JOIN host_software_installs hsi ON hsi.host_id = :host_id AND hsi.software_installer_id = si.id
-WHERE hsi.removed = 0 AND hsi.status = :software_status_installed
+WHERE hsi.removed = 0 AND hsi.canceled = 0 AND hsi.status = :software_status_installed
 
 UNION
 
@@ -3280,7 +3296,7 @@ FROM software_titles st
 INNER JOIN vpp_apps vap ON vap.title_id = st.id
 INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.adam_id = vap.adam_id AND hvsi.platform = vap.platform
 INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
-WHERE hvsi.removed = 0 AND ncr.status = :mdm_status_acknowledged
+WHERE hvsi.removed = 0 AND hvsi.canceled = 0 AND ncr.status = :mdm_status_acknowledged
 `
 	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"host_id":                   hostID,

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -61,7 +62,7 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, active
+			id, external_id, user_name, given_name, family_name, active, updated_at
 		FROM scim_users
 		WHERE id = ?
 	`
@@ -95,7 +96,7 @@ func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser
 func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
-			id, external_id, user_name, given_name, family_name, active
+			id, external_id, user_name, given_name, family_name, active, updated_at
 		FROM scim_users
 		WHERE user_name = ?
 	`
@@ -106,6 +107,88 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 			return nil, notFound("scim user")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select scim user by userName")
+	}
+
+	// Get the user's emails
+	emails, err := ds.getScimUserEmails(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.Emails = emails
+
+	// Get the user's groups
+	groups, err := ds.getScimUserGroups(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.Groups = groups
+
+	return user, nil
+}
+
+// ScimUserByUserNameOrEmail finds a SCIM user by username. If it cannot find one, then it tries email, if set.
+// If multiple users are found with the same email, we log an error and return nil.
+// Emails and groups are NOT populated in this method.
+func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*fleet.ScimUser, error) {
+	// First, try to find the user by userName
+	if userName != "" {
+		user, err := ds.ScimUserByUserName(ctx, userName)
+		switch {
+		case err == nil:
+			return user, nil
+		case !fleet.IsNotFound(err):
+			return nil, ctxerr.Wrap(ctx, err, "select scim user by userName")
+		}
+	}
+	if email == "" {
+		return nil, notFound("scim user")
+	}
+
+	// Try to find the user by email
+	const query = `
+		SELECT
+			scim_users.id, external_id, user_name, given_name, family_name, active, scim_users.updated_at
+		FROM scim_users
+		JOIN scim_user_emails ON scim_users.id = scim_user_emails.scim_user_id
+		WHERE scim_user_emails.email = ?
+	`
+
+	var users []fleet.ScimUser
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, email)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
+	}
+
+	if len(users) == 0 {
+		return nil, notFound("scim user")
+	}
+
+	// If multiple users found, log a message and return nil
+	if len(users) > 1 {
+		level.Error(ds.logger).Log("msg", "Multiple SCIM users found with the same email", "email", email)
+		return nil, nil
+	}
+
+	return &users[0], nil
+}
+
+// ScimUserByHostID retrieves a SCIM user associated with a host ID
+func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+	const query = `
+		SELECT
+			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.active, su.updated_at
+		FROM scim_users su
+		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
+		WHERE host_scim_user.host_id = ?
+		ORDER BY su.id LIMIT 1
+	`
+	user := &fleet.ScimUser{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), user, query, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("scim user for host").WithID(hostID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by host ID")
 	}
 
 	// Get the user's emails
@@ -227,13 +310,6 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 // DeleteScimUser deletes a SCIM user from the database
 func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Delete all email entries for the user
-		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
-		_, err := tx.ExecContext(ctx, deleteEmailsQuery, id)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete scim user emails")
-		}
-
 		// Delete the user
 		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ?`
 		result, err := tx.ExecContext(ctx, deleteUserQuery, id)
@@ -257,20 +333,17 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 // ListScimUsers retrieves a list of SCIM users with optional filtering
 func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersListOptions) (users []fleet.ScimUser, totalResults uint, err error) {
 	// Default pagination values if not provided
-	if opts.Page == 0 {
-		opts.Page = 1
+	if opts.StartIndex == 0 {
+		opts.StartIndex = 1
 	}
 	if opts.PerPage == 0 {
 		opts.PerPage = SCIMDefaultResourcesPerPage
 	}
 
-	// Calculate offset for pagination
-	offset := (opts.Page - 1) * opts.PerPage
-
 	// Build the base query
 	baseQuery := `
 		SELECT DISTINCT
-			scim_users.id, external_id, user_name, given_name, family_name, active
+			scim_users.id, external_id, user_name, given_name, family_name, active, scim_users.updated_at
 		FROM scim_users
 	`
 
@@ -298,7 +371,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 
 	// Add pagination to the main query
 	query := baseQuery + whereClause + " ORDER BY scim_users.id LIMIT ? OFFSET ?"
-	params = append(params, opts.PerPage, offset)
+	params = append(params, opts.PerPage, opts.StartIndex-1)
 
 	// Execute the query
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, params...)
@@ -354,10 +427,11 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Fetch groups for all users in a single query
 	groupQuery, groupArgs, err := sqlx.In(`
 		SELECT
-			scim_user_id, group_id
-		FROM scim_user_group
-		WHERE scim_user_id IN (?)
-		ORDER BY group_id ASC
+			sug.scim_user_id, sg.id, sg.display_name
+		FROM scim_user_group sug
+		JOIN scim_groups sg ON sug.group_id = sg.id
+		WHERE sug.scim_user_id IN (?)
+		ORDER BY sg.id ASC
 	`, userIDs)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "prepare groups query")
@@ -365,8 +439,9 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 
 	// Execute the group query
 	type userGroup struct {
-		UserID  uint `db:"scim_user_id"`
-		GroupID uint `db:"group_id"`
+		UserID      uint   `db:"scim_user_id"`
+		ID          uint   `db:"id"`
+		DisplayName string `db:"display_name"`
 	}
 	var allUserGroups []userGroup
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allUserGroups, groupQuery, groupArgs...); err != nil {
@@ -378,7 +453,10 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 	// Associate groups with their users
 	for _, ug := range allUserGroups {
 		if user, ok := userMap[ug.UserID]; ok {
-			user.Groups = append(user.Groups, ug.GroupID)
+			user.Groups = append(user.Groups, fleet.ScimUserGroup{
+				ID:          ug.ID,
+				DisplayName: ug.DisplayName,
+			})
 		}
 	}
 
@@ -404,23 +482,24 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 	return emails, nil
 }
 
-// getScimUserGroups retrieves all group IDs for a SCIM user
-func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]uint, error) {
+// getScimUserGroups retrieves all groups for a SCIM user
+func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]fleet.ScimUserGroup, error) {
 	const query = `
 		SELECT
-			group_id
-		FROM scim_user_group
-		WHERE scim_user_id = ? ORDER BY group_id ASC
+			sg.id, sg.display_name
+		FROM scim_groups sg
+		JOIN scim_user_group sug ON sg.id = sug.group_id
+		WHERE sug.scim_user_id = ? ORDER BY sg.id ASC
 	`
-	var groupIDs []uint
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &groupIDs, query, userID)
+	var groups []fleet.ScimUserGroup
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select scim user groups")
 	}
-	return groupIDs, nil
+	return groups, nil
 }
 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length
@@ -719,15 +798,12 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 // ListScimGroups retrieves a list of SCIM groups with pagination
 func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	// Default pagination values if not provided
-	if opts.Page == 0 {
-		opts.Page = 1
+	if opts.StartIndex == 0 {
+		opts.StartIndex = 1
 	}
 	if opts.PerPage == 0 {
 		opts.PerPage = SCIMDefaultResourcesPerPage
 	}
-
-	// Calculate offset for pagination
-	offset := (opts.Page - 1) * opts.PerPage
 
 	// Build the query
 	baseQuery := `
@@ -745,7 +821,7 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOpti
 
 	// Add pagination to the main query
 	query := baseQuery + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
-	params := []interface{}{opts.PerPage, offset}
+	params := []interface{}{opts.PerPage, opts.StartIndex - 1}
 
 	// Execute the query
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, params...)

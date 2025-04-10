@@ -26,19 +26,17 @@ Fleet is successful because of our customers and community, and those relationsh
 Security policies are best when they're alive, in context of how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
-1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
-2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
-3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
-4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
-5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
+1. [Security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies)
+2. [Human resources security policy](https://fleetdm.com/handbook/digital-experience/security#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/digital-experience/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/digital-experience/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/digital-experience/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/digital-experience/security).
 
 
 ## SOC 2
 
-You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1mUwmCUdggONULr6OjDO--QtKfDWLcrI4/view?usp=sharing).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
-
-You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.com/trust), in its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet. Internal stakeholders can [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) to locate Fleet's SOC 2 report in Google Drive. You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
 
 ## Directly responsible individuals (DRIs)
@@ -75,7 +73,7 @@ You can learn more about how Fleet approaches security in the [security handbook
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| What goes in a release               | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
+| What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
@@ -744,7 +742,8 @@ When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
-- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
+- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
+  - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of office" event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.

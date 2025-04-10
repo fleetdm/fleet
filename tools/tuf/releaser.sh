@@ -129,24 +129,15 @@ promote_edge_to_stable () {
 
 release_fleetd_to_edge () {
     echo "Releasing fleetd to edge..."
-    BRANCH_NAME="release-fleetd-v$VERSION"
     ORBIT_TAG="orbit-v$VERSION"
-    if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
-        prompt "A PR will be created to trigger a Github Action to build desktop."
-        pushd "$GIT_REPOSITORY_DIRECTORY"
-        git checkout -b "$BRANCH_NAME"
-        make changelog-orbit version="$VERSION"
-        ORBIT_CHANGELOG=orbit/CHANGELOG.md
-        "$GO_TOOLS_DIRECTORY/replace" .github/workflows/generate-desktop-targets.yml "FLEET_DESKTOP_VERSION: .+\n" "FLEET_DESKTOP_VERSION: $VERSION\n"
-        git add .github/workflows/generate-desktop-targets.yml "$ORBIT_CHANGELOG"
-        git commit -m "Release fleetd $VERSION"
-        git push origin "$BRANCH_NAME"
-        gh pr create -f -B main -t "Release fleetd $VERSION"
-        prompt "A 'git tag' will be created to trigger a Github Action to build orbit."
-        git tag "$ORBIT_TAG"
-        git push origin "$ORBIT_TAG"
-        popd
+    prompt "A tag will be pushed to trigger a Github Action to build desktop and orbit."
+    pushd "$GIT_REPOSITORY_DIRECTORY"
+    git tag "$ORBIT_TAG"
+    git push origin "$ORBIT_TAG"
+    if [[ "$SKIP_PR" != "1" ]]; then
+        create_fleetd_release_pr
     fi
+    popd
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
     mkdir -p "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY"
     "$GO_TOOLS_DIRECTORY/download-artifacts" desktop \
@@ -170,6 +161,29 @@ release_fleetd_to_edge () {
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/linux/desktop.tar.gz" --platform linux --name desktop --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/desktop.tar.gz" --platform linux-arm64 --name desktop --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/windows/fleet-desktop.exe" --platform windows --name desktop --version "$VERSION" -t edge
+    popd
+}
+
+create_fleetd_release_pr () {
+    echo "Creating a PR against main for fleetd release changelog..."
+    BRANCH_NAME=release-fleetd-v$VERSION
+    pushd "$GIT_REPOSITORY_DIRECTORY"
+    # Create a branch to make the changelog update on.
+    git checkout -b "${BRANCH_NAME}-changelog"
+    make changelog-orbit version="$VERSION"
+    ORBIT_CHANGELOG=orbit/CHANGELOG.md
+    git add "$ORBIT_CHANGELOG"
+    git commit -m "Release fleetd $VERSION"
+    # Checkout the main branch.
+    git checkout main
+    # Create a new branch to cherry pick the changelog commit to.
+    git checkout -b "$BRANCH_NAME"
+    # Cherry pick the changelog commit to the new branch.
+    git cherry-pick "${BRANCH_NAME}-changelog" 
+    # Create a new PR with the changelog.
+    gh pr create -f -B main -t "Update changelog for fleetd $VERSION release"
+    # Delete the changelog branch.
+    git branch -D "${BRANCH_NAME}-changelog"
     popd
 }
 
@@ -276,6 +290,8 @@ print_reminder () {
         :
     elif [[ $ACTION == "release-to-production" ]]; then
         prompt "To smoke test the release make sure to generate and install fleetd with on Linux amd64, Linux arm64, Windows, and macOS. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --update-interval=1m --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
+    elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
+        :
     else
         echo "Unsupported action: $ACTION"
         exit 1
@@ -313,6 +329,8 @@ elif [[ $ACTION == "update-timestamp" ]]; then
     push_to_staging
 elif [[ $ACTION == "release-to-production" ]]; then
     release_to_production
+elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
+    create_fleetd_release_pr
 else
     echo "Unsupported action: $ACTION"
     exit 1

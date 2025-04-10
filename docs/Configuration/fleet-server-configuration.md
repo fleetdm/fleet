@@ -218,7 +218,7 @@ For the address of the Redis server that Fleet should connect to, include the ho
 - Config file format:
   ```yaml
   redis:
-    address: 127.0.0.1:7369
+    address: 127.0.0.1:6379
   ```
 
 ### redis_username

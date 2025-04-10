@@ -1,19 +1,40 @@
 package fleet
 
+import "time"
+
 // ScimUser represents a SCIM user in the database
 type ScimUser struct {
-	ID         uint    `db:"id"`
-	ExternalID *string `db:"external_id"`
-	UserName   string  `db:"user_name"`
-	GivenName  *string `db:"given_name"`
-	FamilyName *string `db:"family_name"`
-	Active     *bool   `db:"active"`
+	ID         uint      `db:"id"`
+	ExternalID *string   `db:"external_id"`
+	UserName   string    `db:"user_name"`
+	GivenName  *string   `db:"given_name"`
+	FamilyName *string   `db:"family_name"`
+	Active     *bool     `db:"active"`
+	UpdatedAt  time.Time `db:"updated_at"`
 	Emails     []ScimUserEmail
-	Groups     []uint
+	Groups     []ScimUserGroup
+}
+
+type ScimUserGroup struct {
+	ID          uint   `db:"id"`
+	DisplayName string `db:"display_name"`
 }
 
 func (su *ScimUser) AuthzType() string {
 	return "scim_user"
+}
+
+func (su *ScimUser) DisplayName() string {
+	switch {
+	case su.GivenName != nil && len(*su.GivenName) > 0 && su.FamilyName != nil && len(*su.FamilyName) > 0:
+		return *su.GivenName + " " + *su.FamilyName
+	case su.GivenName != nil && len(*su.GivenName) > 0:
+		return *su.GivenName
+	case su.FamilyName != nil && len(*su.FamilyName) > 0:
+		return *su.FamilyName
+	default:
+		return ""
+	}
 }
 
 // ScimUserEmail represents an email address associated with a SCIM user
@@ -25,8 +46,8 @@ type ScimUserEmail struct {
 }
 
 type ScimListOptions struct {
-	// Which page to return (must be positive integer)
-	Page uint
+	// 1-based index of the first result to return (must be positive integer)
+	StartIndex uint
 	// How many results per page (must be positive integer)
 	PerPage uint
 }

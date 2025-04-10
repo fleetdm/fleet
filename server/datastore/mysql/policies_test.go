@@ -1664,14 +1664,38 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	unicode, _ := strconv.Unquote(`"\uAC00"`)         // 가
 	unicodeEq, _ := strconv.Unquote(`"\u1100\u1161"`) // ᄀ + ᅡ
 
+	// Add a user-defined label
+	fooLabel, err := ds.NewLabel(
+		context.Background(),
+		&fleet.Label{
+			Name:                "Foo",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+	)
+	require.NoError(t, err)
+
+	barLabel, err := ds.NewLabel(
+		context.Background(),
+		&fleet.Label{
+			Name:                "Bar",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+	)
+	require.NoError(t, err)
+
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1" + unicodeEq,
-			Query:       "select 1;",
-			Description: "query1 desc",
-			Resolution:  "some resolution",
-			Team:        "",
-			Platform:    "",
+			Name:             "query1" + unicodeEq,
+			Query:            "select 1;",
+			Description:      "query1 desc",
+			Resolution:       "some resolution",
+			Team:             "",
+			Platform:         "",
+			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
 			Name:                  "query2",
@@ -1681,6 +1705,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:                  "team1",
 			Platform:              "darwin",
 			CalendarEventsEnabled: true,
+			LabelsExcludeAny:      []string{barLabel.Name},
 		},
 		{
 			Name:        "query3",
@@ -1711,6 +1736,10 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
+	assert.Equal(t, []fleet.LabelIdent{{
+		LabelName: fooLabel.Name,
+		LabelID:   fooLabel.ID,
+	}}, policies[0].LabelsIncludeAny)
 
 	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1724,6 +1753,10 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
 	assert.Equal(t, "darwin", teamPolicies[0].Platform)
 	assert.True(t, teamPolicies[0].CalendarEventsEnabled)
+	assert.Equal(t, []fleet.LabelIdent{{
+		LabelName: barLabel.Name,
+		LabelID:   barLabel.ID,
+	}}, teamPolicies[0].LabelsExcludeAny)
 
 	assert.Equal(t, "query3", teamPolicies[1].Name)
 	assert.Equal(t, "select 3;", teamPolicies[1].Query)
@@ -1753,12 +1786,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1" + unicode,
-			Query:       "select 1;",
-			Description: "query1 desc",
-			Resolution:  "some resolution",
-			Team:        "",
-			Platform:    "",
+			Name:             "query1" + unicode,
+			Query:            "select 1;",
+			Description:      "query1 desc",
+			Resolution:       "some resolution",
+			Team:             "",
+			Platform:         "",
+			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
 			Name:                  "query2",
@@ -1768,6 +1802,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:                  "team1",
 			Platform:              "darwin",
 			CalendarEventsEnabled: true,
+			LabelsExcludeAny:      []string{barLabel.Name},
 		},
 		{
 			Name:        "query3",
@@ -1800,12 +1835,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	// Test policy updating.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1" + unicodeEq,
-			Query:       "select 1 from updated;",
-			Description: "query1 desc updated",
-			Resolution:  "some resolution updated",
-			Team:        "", // No error, team did not change
-			Platform:    "",
+			Name:             "query1" + unicodeEq,
+			Query:            "select 1 from updated;",
+			Description:      "query1 desc updated",
+			Resolution:       "some resolution updated",
+			Team:             "", // No error, team did not change
+			Platform:         "",
+			LabelsExcludeAny: []string{fooLabel.Name, barLabel.Name},
 		},
 		{
 			Name:                  "query2",
@@ -1830,6 +1866,14 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
 	assert.False(t, policies[0].CalendarEventsEnabled)
+	assert.Contains(t, policies[0].LabelsExcludeAny, fleet.LabelIdent{
+		LabelName: fooLabel.Name,
+		LabelID:   fooLabel.ID,
+	})
+	assert.Contains(t, policies[0].LabelsExcludeAny, fleet.LabelIdent{
+		LabelName: barLabel.Name,
+		LabelID:   barLabel.ID,
+	})
 
 	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1844,6 +1888,8 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
+	assert.Nil(t, teamPolicies[0].LabelsIncludeAny)
+	assert.Nil(t, teamPolicies[0].LabelsExcludeAny)
 
 	// Creating the same policy for a different team is allowed.
 	require.NoError(
@@ -2205,7 +2251,6 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
-
 	requireLabels := func(t *testing.T, expected []string, actual []fleet.LabelIdent) {
 		actualLabels := make([]string, 0, len(actual))
 		for _, label := range actual {
