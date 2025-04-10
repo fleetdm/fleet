@@ -51,7 +51,7 @@ jobs:
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
           subject-path: "osqueryd.app.tar.gz"
-          
+
       - name: Upload osqueryd.app.tar.gz
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
