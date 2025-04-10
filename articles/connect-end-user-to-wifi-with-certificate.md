@@ -52,7 +52,11 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 
 When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-If you resend the profile (select **Resend** in **Host details > OS settings**), Fleet will get a new certificate and create a new seat in DigiCert, which will take 1 license. If you want to revoke a license, in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
+Fleet will automatically resend the profile to renew the certificate 30 days before expiration.
+
+If a variable used in step 3 above has changed, Fleet will resend the profile. If you used a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN and seat ID and it changed, Fleet will get a new certificate and create a new seat in DigiCert, which will take 1 license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
+
+If the device gets deleted from Fleet, it will still take seat in DigiCert. Follow the instructions above to revoke a license.
 
 #### Example configuration profile
 
