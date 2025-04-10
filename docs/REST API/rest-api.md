@@ -8721,6 +8721,8 @@ Gets the result of a script that was executed.
 ```json
 {
   "script_contents": "echo 'hello'",
+  "script_id": 123,
+  "script_updated_at": "2025-04-04T19:19:36Z"
   "exit_code": 0,
   "output": "hello",
   "message": "",
