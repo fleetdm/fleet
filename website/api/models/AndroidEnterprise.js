@@ -32,7 +32,6 @@ module.exports = {
     androidEnterpriseId: {
       type: 'string',
       description: 'The ID of this android enterprise.',
-      required: true,
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
