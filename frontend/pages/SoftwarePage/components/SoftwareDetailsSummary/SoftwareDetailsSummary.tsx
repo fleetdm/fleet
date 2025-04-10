@@ -40,6 +40,12 @@ const SoftwareDetailsSummary = ({
   versions,
   iconUrl,
 }: ISoftwareDetailsSummaryProps) => {
+  // Note: Host count ticket will refactor these together as a clickable host count
+  // Remove host count for tgz_packages only
+  const showHostCount = source !== "tgz_packages";
+  // Remove view all hosts link for tgz_packages only
+  const showViewAllHostsLink = source !== "tgz_packages";
+
   return (
     <div className={baseClass}>
       <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
@@ -49,23 +55,27 @@ const SoftwareDetailsSummary = ({
           {!!type && <DataSet title="Type" value={type} />}
 
           {!!versions && <DataSet title="Versions" value={versions} />}
-          <DataSet
-            title="Hosts"
-            value={
-              <LastUpdatedHostCount
-                hostCount={hosts === 0 ? "---" : hosts}
-                lastUpdatedAt={countsUpdatedAt}
-              />
-            }
-          />
+          {showHostCount && (
+            <DataSet
+              title="Hosts"
+              value={
+                <LastUpdatedHostCount
+                  hostCount={hosts === 0 ? "---" : hosts}
+                  lastUpdatedAt={countsUpdatedAt}
+                />
+              }
+            />
+          )}
         </dl>
       </dl>
-      <div>
-        <ViewAllHostsLink
-          queryParams={queryParams}
-          className={`${baseClass}__hosts-link`}
-        />
-      </div>
+      {showViewAllHostsLink && (
+        <div>
+          <ViewAllHostsLink
+            queryParams={queryParams}
+            className={`${baseClass}__hosts-link`}
+          />
+        </div>
+      )}
     </div>
   );
 };
