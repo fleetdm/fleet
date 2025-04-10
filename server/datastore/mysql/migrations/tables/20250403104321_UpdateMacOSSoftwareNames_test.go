@@ -19,6 +19,8 @@ func TestUp_20250403104321(t *testing.T) {
 		{Name: "MacApp Duplicate.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
 		{Name: "MacApp Duplicate 2.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
 		{Name: "MacApp Duplicate 3.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
+		{Name: "no_bundle_id.app", Source: "apps", BundleIdentifier: "", Version: "42"},
+		{Name: "no_bundle_id_2.app", Source: "apps", BundleIdentifier: "", Version: "24"},
 		{Name: "MacApp2.app", Source: "apps", BundleIdentifier: "com.example.foo2", Version: "2"},
 		{Name: "Chrome Extension", Source: "chrome_extensions", Browser: "chrome", Version: "3"},
 		{Name: "Microsoft Teams.exe", Source: "programs", Version: "4"},
@@ -57,6 +59,7 @@ func TestUp_20250403104321(t *testing.T) {
 	for i, s := range softwares {
 		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.Browser, "", fmt.Sprintf("foo%d", i), s.TitleID)
 		softwareIDs = append(softwareIDs, uint(id))
+		softwares[i].ID = uint(id)
 
 		hostID := uint(i + 1)
 		if s.Name == "MacApp Duplicate 3.app" {
@@ -65,11 +68,8 @@ func TestUp_20250403104321(t *testing.T) {
 		execNoErr(t, db, "INSERT INTO host_software (host_id, software_id) VALUES (?, ?)", hostID, uint(id))
 	}
 
-	var swid []struct {
-		HostID     uint `db:"host_id"`
-		SoftwareID uint `db:"software_id"`
-	}
-	require.NoError(t, db.Select(&swid, "SELECT host_id, software_id FROM host_software"))
+	noBundleID1 := softwares[4]
+	noBundleID2 := softwares[5]
 
 	// add some software_cve entries
 	cveStmt := `INSERT INTO software_cve (cve, software_id) VALUES %s`
@@ -87,33 +87,47 @@ func TestUp_20250403104321(t *testing.T) {
 	// macOS apps should be modified, others should not
 
 	var gotSoftware []fleet.Software
-	err = db.Select(&gotSoftware, `SELECT name, checksum, name_source FROM software`)
+	err = db.Select(&gotSoftware, `SELECT id, name, checksum, name_source FROM software`)
 	require.NoError(t, err)
-	require.Len(t, gotSoftware, 4)
+	require.Len(t, gotSoftware, 6)
 
 	var gotSoftwareTitles []fleet.SoftwareTitle
-	err = db.Select(&gotSoftwareTitles, "SELECT name, source, browser, bundle_identifier FROM software_titles")
+	err = db.Select(&gotSoftwareTitles, "SELECT id, name, source, browser, bundle_identifier FROM software_titles")
 	require.NoError(t, err)
-	require.Len(t, gotSoftwareTitles, 4)
+	require.Len(t, gotSoftwareTitles, 6)
 
 	for _, got := range gotSoftwareTitles {
-		require.NotContains(t, got.Name, ".app")
+		switch got.ID {
+		case *noBundleID1.TitleID:
+			require.Equal(t, noBundleID1.Name, got.Name)
+		case *noBundleID2.TitleID:
+			require.Equal(t, noBundleID2.Name, got.Name)
+		default:
+			require.NotContains(t, got.Name, ".app")
+		}
 	}
 
 	for _, got := range gotSoftware {
-		require.Equal(t, "basic", got.NameSource)
-		require.NotContains(t, got.Name, ".app")
+		switch got.ID {
+		case noBundleID1.ID:
+			require.Equal(t, noBundleID1.Name, got.Name)
+		case noBundleID2.ID:
+			require.Equal(t, noBundleID2.Name, got.Name)
+		default:
+			require.NotContains(t, got.Name, ".app")
+			require.Equal(t, "basic", got.NameSource)
+			require.NotContains(t, got.Name, ".app")
+		}
 	}
 
 	var count int
 	err = db.Get(&count, "SELECT COUNT(*) FROM software_cve")
 	require.NoError(t, err)
-	require.Equal(t, 4, count)
+	require.Equal(t, 6, count)
 
 	err = db.Get(&count, "SELECT COUNT(*) FROM host_software")
 	require.NoError(t, err)
-	require.NoError(t, db.Select(&swid, "SELECT host_id, software_id FROM host_software"))
-	require.Equal(t, 6, count)
+	require.Equal(t, 8, count)
 
 	err = db.Get(&count, `SELECT COUNT(*) FROM host_software WHERE software_id IN (?, ?)`, softwareIDs[1], softwareIDs[2])
 	require.NoError(t, err)

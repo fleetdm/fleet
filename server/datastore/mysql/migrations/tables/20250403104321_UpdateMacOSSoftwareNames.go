@@ -13,8 +13,9 @@ func init() {
 	MigrationClient.AddMigration(Up_20250403104321, Down_20250403104321)
 }
 
+// TODO(JVE): add bundleid != null to all constraints
 func Up_20250403104321(tx *sql.Tx) error {
-	titleStmt := `UPDATE software_titles SET name = TRIM( TRAILING '.app' FROM name ) WHERE source = 'apps'`
+	titleStmt := `UPDATE software_titles SET name = TRIM( TRAILING '.app' FROM name ) WHERE source = 'apps' AND bundle_identifier IS NOT NULL`
 	_, err := tx.Exec(titleStmt)
 	if err != nil {
 		return fmt.Errorf("updating software_titles.name: %w", err)
@@ -132,34 +133,40 @@ WHERE
 		if _, err := tx.Exec(deleteHostSoftwareStmt, args...); err != nil {
 			return fmt.Errorf("deleting excluded ids from host_software")
 		}
+
+		deleteSoftwareDupesStmt := `DELETE FROM software WHERE id IN (?)`
+		deleteSoftwareDupesStmt, args, err = sqlx.In(deleteSoftwareDupesStmt, allExcludedIDs)
+		if err != nil {
+			return fmt.Errorf("sqlx.In for deleting duplicates from software: %w", err)
+		}
+
+		if _, err := tx.Exec(deleteSoftwareDupesStmt, args...); err != nil {
+			return fmt.Errorf("deleting duplicates from software: %w", err)
+		}
 	}
 
 	// Now we can safely delete duplicate rows from software table
-	deleteSoftwareDupesStmt := `
-WITH DupSoftware AS (
-	SELECT
-		id,
-		ROW_NUMBER() OVER (PARTITION BY bundle_identifier,
-			version,
-			title_id,
-			source,
-			` + "`release`" + `,
-			arch,
-			vendor,
-			browser,
-			extension_id ORDER BY id DESC) AS row_num
-	FROM
-		software
-) DELETE FROM software
-WHERE id IN(
-	SELECT
-		id FROM DupSoftware
-	WHERE
-		row_num > 1 AND source = 'apps')`
-
-	if _, err := tx.Exec(deleteSoftwareDupesStmt); err != nil {
-		return fmt.Errorf("deleting duplicates from software: %w", err)
-	}
+	// 	deleteSoftwareDupesStmt := `
+	// WITH DupSoftware AS (
+	// 	SELECT
+	// 		id,
+	// 		ROW_NUMBER() OVER (PARTITION BY bundle_identifier,
+	// 			version,
+	// 			title_id,
+	// 			source,
+	// 			` + "`release`" + `,
+	// 			arch,
+	// 			vendor,
+	// 			browser,
+	// 			extension_id ORDER BY id DESC) AS row_num
+	// 	FROM
+	// 		software
+	// ) DELETE FROM software
+	// WHERE id IN(
+	// 	SELECT
+	// 		id FROM DupSoftware
+	// 	WHERE
+	// 		row_num > 1 AND source = 'apps')`
 
 	// Now we can update the software entries to use the new name
 	softwareStmt := `
@@ -182,6 +189,7 @@ WHERE id IN(
 	)
 		WHERE source = 'apps'
 		AND bundle_identifier IS NOT NULL
+		AND bundle_identifier != ''
 	`
 	_, err = tx.Exec(softwareStmt)
 	if err != nil {
