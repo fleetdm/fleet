@@ -15,9 +15,7 @@ import (
 )
 
 const (
-	// SCIMMaxFieldLength is the maximum length for SCIM user fields
-	SCIMMaxFieldLength = 255
-
+	SCIMMaxStatusLength         = 31
 	SCIMDefaultResourcesPerPage = 100
 )
 
@@ -504,28 +502,28 @@ func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]flee
 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length
 func validateScimUserFields(user *fleet.ScimUser) error {
-	if user.ExternalID != nil && len(*user.ExternalID) > SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if user.ExternalID != nil && len(*user.ExternalID) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if len(user.UserName) > SCIMMaxFieldLength {
-		return fmt.Errorf("user_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if len(user.UserName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("user_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if user.GivenName != nil && len(*user.GivenName) > SCIMMaxFieldLength {
-		return fmt.Errorf("given_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if user.GivenName != nil && len(*user.GivenName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("given_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if user.FamilyName != nil && len(*user.FamilyName) > SCIMMaxFieldLength {
-		return fmt.Errorf("family_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if user.FamilyName != nil && len(*user.FamilyName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("family_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
 	return nil
 }
 
 // validateScimGroupFields checks if the group fields exceed the maximum allowed length
 func validateScimGroupFields(group *fleet.ScimGroup) error {
-	if group.ExternalID != nil && len(*group.ExternalID) > SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if group.ExternalID != nil && len(*group.ExternalID) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if len(group.DisplayName) > SCIMMaxFieldLength {
-		return fmt.Errorf("display_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if len(group.DisplayName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("display_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
 	return nil
 }
@@ -900,6 +898,16 @@ func (ds *Datastore) ScimLastRequest(ctx context.Context) (*fleet.ScimLastReques
 // UpdateScimLastRequest updates the last SCIM request information
 // If no row exists, it creates a new one
 func (ds *Datastore) UpdateScimLastRequest(ctx context.Context, lastRequest *fleet.ScimLastRequest) error {
+	if lastRequest == nil {
+		return nil
+	}
+	if len(lastRequest.Status) > SCIMMaxStatusLength {
+		return fmt.Errorf("status exceeds maximum length of %d characters", SCIMMaxStatusLength)
+	}
+	if len(lastRequest.Details) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("details exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+	}
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Try to update first
 		const updateQuery = `

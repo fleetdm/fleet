@@ -210,6 +210,8 @@ func RegisterSCIM(
 	return nil
 }
 
+// LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
+// These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
 func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		multi := newMultiResponseWriter(w)
@@ -244,6 +246,9 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 			status = "error"
 			details = fmt.Sprintf("Unhandled status code: %d", multi.statusCode)
 			level.Error(logger).Log("msg", "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
+		}
+		if len(details) > fleet.SCIMMaxFieldLength {
+			details = details[:fleet.SCIMMaxFieldLength]
 		}
 		err := ds.UpdateScimLastRequest(r.Context(), &fleet.ScimLastRequest{
 			Status:  status,
@@ -325,6 +330,7 @@ func (w *multiResponseWriter) Header() http.Header {
 }
 
 func (w *multiResponseWriter) Write(b []byte) (int, error) {
+	// Don't write large amounts of data to our temporary buffer
 	if w.body.Len()+len(b) > maxBodyBufferSize {
 		return w.resp.Write(b)
 	}

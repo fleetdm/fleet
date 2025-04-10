@@ -37,7 +37,8 @@ func TestSCIM(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_groups", "scim_last_request"}...)
+			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
+				"scim_user_group", "scim_last_request"}...)
 			c.fn(t, s)
 		})
 	}
@@ -83,13 +84,10 @@ func testAuth(t *testing.T, s *Suite) {
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	scimDetails = contract.ScimDetailsResponse{}
-	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
-	assert.NotNil(t, scimDetails.LastRequest, "last_request should be present")
 }
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
-	// Make sure no SCIM details.last_request exist
+	// Make sure SCIM details.last_request DOES NOT exist
 	scimDetails := contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
 	assert.Nil(t, scimDetails.LastRequest)

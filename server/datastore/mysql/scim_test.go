@@ -714,7 +714,7 @@ func testScimGroupCreate(t *testing.T, ds *Datastore) {
 
 func testScimGroupCreateValidation(t *testing.T, ds *Datastore) {
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than allowed
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than allowed
 
 	// Test ExternalID validation
 	groupWithLongExternalID := fleet.ScimGroup{
@@ -934,7 +934,7 @@ func testScimGroupReplaceValidation(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than allowed
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than allowed
 
 	// Test ExternalID validation
 	groupWithLongExternalID := fleet.ScimGroup{
@@ -1089,7 +1089,7 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 
 func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
 
 	// Test ExternalID validation
 	userWithLongExternalID := fleet.ScimUser{
@@ -1382,7 +1382,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Test validation for ExternalID
-	longString := strings.Repeat("a", SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
+	longString := strings.Repeat("a", fleet.SCIMMaxFieldLength+1) // String longer than SCIMMaxFieldLength
 
 	// Test ExternalID validation
 	userWithLongExternalID := fleet.ScimUser{

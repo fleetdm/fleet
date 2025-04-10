@@ -74,11 +74,14 @@ const RecievedEndUserInfoCard = ({
 };
 
 interface IFailedEndUserInfoCardProps {
-  recievedAt: string;
+  receivedAt: string;
   details: string;
 }
 
-const FailedEndUserInfoCard = ({ recievedAt, details }: IFailedEndUserInfoCardProps) => {
+const FailedEndUserInfoCard = ({
+  receivedAt,
+  details,
+}: IFailedEndUserInfoCardProps) => {
   return (
     <SectionCard
       iconName="error"
@@ -100,7 +103,7 @@ const FailedEndUserInfoCard = ({ recievedAt, details }: IFailedEndUserInfoCardPr
           className={`${baseClass}__recieved-tooltip`}
         >
           Failed to receive end user information from your IdP (
-          {dateAgo(recievedAt)}).
+          {dateAgo(receivedAt)}).
         </TooltipWrapper>
       </p>
     </SectionCard>
@@ -135,7 +138,10 @@ const IdentityProviders = () => {
       );
     } else if (data.last_request.status === "error") {
       return (
-        <FailedEndUserInfoCard recievedAt={data.last_request.requested_at} details={data.last_request.details} />
+        <FailedEndUserInfoCard
+          receivedAt={data.last_request.requested_at}
+          details={data.last_request.details}
+        />
       );
     }
 
