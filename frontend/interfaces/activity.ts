@@ -119,6 +119,7 @@ export enum ActivityType {
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
+  | ActivityType.WipedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware

@@ -474,7 +474,7 @@ type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID ui
 
 type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error)
 
-type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
+type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
@@ -498,7 +498,7 @@ type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) 
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
-type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
+type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
@@ -4843,7 +4843,7 @@ func (s *DataStore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID uint, 
 	return s.IsVPPAppLabelScopedFunc(ctx, vppAppTeamID, hostID)
 }
 
-func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
@@ -4927,7 +4927,7 @@ func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
 }
 
-func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
+func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	s.mu.Lock()
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()

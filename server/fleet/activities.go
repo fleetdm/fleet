@@ -199,6 +199,11 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
 	ActivityTypeDisabledActivityAutomations{},
+
+	ActivityTypeCanceledRunScript{},
+	ActivityTypeCanceledInstallSoftware{},
+	ActivityTypeCanceledUninstallSoftware{},
+	ActivityTypeCanceledInstallAppStoreApp{},
 }
 
 type ActivityDetails interface {
@@ -1592,6 +1597,10 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 	return "wiped_host"
 }
 
+func (a ActivityTypeWipedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user sends a request to wipe a host.`,
 		`This activity contains the following fields:
@@ -2332,4 +2341,116 @@ type ActivityTypeDisabledAndroidMDM struct{}
 func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
 func (a ActivityTypeDisabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when a user turns off MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeCanceledRunScript struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ScriptName      string `json:"script_name"`
+}
+
+func (a ActivityTypeCanceledRunScript) ActivityName() string {
+	return "canceled_run_script"
+}
+
+func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledRunScript) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `ran_script` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_name": Name of the script (empty if it was an anonymous script).`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh"
+}`
+}
+
+type ActivityTypeCanceledInstallSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
+	return "canceled_install_software"
+}
+
+func (a ActivityTypeCanceledInstallSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallSoftware) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `installed_software` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeCanceledUninstallSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
+	return "canceled_uninstall_software"
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `uninstalled_software` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeCanceledInstallAppStoreApp struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) ActivityName() string {
+	return "canceled_install_app_store_app"
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) Documentation() (string, string, string) {
+	return "Generated when upcoming activity `installed_app_store_app` is canceled.", `This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
 }
