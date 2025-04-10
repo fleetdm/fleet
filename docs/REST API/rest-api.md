@@ -9355,6 +9355,12 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "bundle_identifier": "crowdstrike.falcon.Agent",
+    "available_software": {
+      "fleet_maintained_app": {
+        "id": 4
+      },
+      "app_store_app": null
+    },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9362,6 +9368,7 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -9430,6 +9437,12 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "bundle_identifier": "com.apple.logic10",
+    "available_software": {
+      "fleet_maintained_app": null,
+      "app_store_app": {
+        "app_store_id": "8675309"
+      },
+    }
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
@@ -9657,6 +9670,30 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
+```json
+{
+  "title_id": 123,
+  "software_package": {
+    "name": "FalconSensor-6.44.pkg",
+    "version": "6.44",
+    "platform": "darwin",
+    "installer_id": 23,
+    "team_id": 3,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+    "self_service": true,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
+```
+
 ### Modify package
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -9734,6 +9771,7 @@ Content-Type: application/octet-stream
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
