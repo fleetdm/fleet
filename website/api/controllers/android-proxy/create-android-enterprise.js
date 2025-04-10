@@ -71,7 +71,7 @@ module.exports = {
     let createEnterpriseResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'POST',
       url: `https://androidmanagement.googleapis.com/v1/enterprises?projectId=${encodeURIComponent(projectId)}&signupUrlName=${encodeURIComponent(signupUrlName)}&enterpriseToken=${enterpriseToken}`,
-      data: enterprise,// TODO: Is this how gogole's API expects this?, or will it need to be { enterprise: newEnterprise}
+      data: enterprise,// TODO: Is this how google's API expects this?, or will it need to be { enterprise: newEnterprise }
       headers: {
         Authorization: `Bearer ${authorizationTokenForThisRequest}`
       },
