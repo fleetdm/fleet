@@ -881,8 +881,8 @@ func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details str
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.`, `{
 	"host_id": "123",
-  "host_serial": "B04FL3ALPT21",
-  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }`
 }
 
