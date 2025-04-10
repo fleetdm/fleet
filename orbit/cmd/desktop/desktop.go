@@ -147,7 +147,7 @@ func main() {
 	go func() {
 		select {
 		case <-trayAppDisplayed:
-                        // The tray app is ready and displayed so there is nothing to do
+			// The tray app is ready and displayed so there is nothing to do
 		case <-time.After(1 * time.Minute):
 			log.Fatal().Msg("onReady was never called - the GUI may not yet be ready")
 		}
