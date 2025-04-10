@@ -58,7 +58,7 @@ module.exports = {
 
 
     // All done?
-    return createEnrollmentTokenResponse;// ?
+    return createEnrollmentTokenResponse.value;// ?
 
   }
 
