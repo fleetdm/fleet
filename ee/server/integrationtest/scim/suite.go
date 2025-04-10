@@ -15,7 +15,8 @@ type Suite struct {
 }
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
-	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpDSRedisService(t, uniqueTestName)
+	// Note: t.Parallel() is called when MySQL datastore options are processed
+	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
 	logger := log.NewLogfmtLogger(os.Stdout)
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{

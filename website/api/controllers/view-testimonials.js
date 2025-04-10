@@ -36,6 +36,7 @@ module.exports = {
       'Matt Carr',
       'Nico Waisman',
       'Dan Grzelak',
+      'u/Heteronymous',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);
@@ -79,6 +80,7 @@ module.exports = {
       'Luis Madrigal',
       'Andre Shields',
       'Tom Larkin',
+      'Matt Carr'
       'Eric Tan',
       'Charles Zaffery',
       'Kenny Botelho',
