@@ -83,9 +83,14 @@ jobs:
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
       - name: Generate tag
+        id: generate_tag
         run: |
           echo "FLEET_IMAGE_TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
-        id: generate_tag
+
+      - name: List VEX files
+        id: generate_vex_files
+        run: |
+          echo "VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | cut -f 1 | sed 's/.$//')" >> $GITHUB_OUTPUT
 
       - name: Check critical vulnerabilities before publishing
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
@@ -99,6 +104,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL"
+          vex: "${{ steps.generate_vex_files.outputs.VEX_FILES }}"
 
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
