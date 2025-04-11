@@ -61,7 +61,7 @@ DigiCert device type seats can have multiple certificates assigned, and the user
 
 If value of any variable used in step 3 above has changed, Fleet will resend the profile. If you used a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN and seat ID and it changed, Fleet will get a new certificate and create a new seat in DigiCert, which will take one license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
 
-If the device gets deleted from Fleet, it will still take seat in DigiCert. You can tell the team that owns DigiCert to follow the instructions above to revoke a license.
+DigiCert seats aren't automatically revoked when hosts are deleted in Fleet. To revoke a license, ask the team that owns DigiCert to follow the instructions above.
 
 
 #### Example configuration profile
