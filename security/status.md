@@ -6,6 +6,7 @@ Following is the vulnerability report of Fleet components.
 ## `fleetdm/fleet` docker image
 
 ### CVE-2023-32698
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
 - **Products:**
@@ -15,6 +16,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T15:28:30.406734-03:00
 
 ### CVE-2024-12797
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** fleet uses Go TLS implementation
 - **Products:**
@@ -25,6 +27,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T15:15:53.847365-03:00
 
 ### CVE-2025-21613
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
 - **Products:**
@@ -34,6 +37,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T15:42:55.967763-03:00
 
 ### CVE-2025-21614
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
 - **Products:**
@@ -43,6 +47,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T15:43:15.232143-03:00
 
 ### CVE-2025-30204
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The token format being validated before the call to ParseUnverified
 - **Products:**
@@ -54,6 +59,7 @@ Following is the vulnerability report of Fleet components.
 ## `fleetdm/fleetctl` docker image
 
 ### CVE-2012-0881
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** fleetctl does not use Java
 - **Products:**
@@ -63,6 +69,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T14:46:52.709835-03:00
 
 ### CVE-2013-4002
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** fleetctl does not use Java
 - **Products:**
@@ -72,6 +79,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T07:36:31.1157-03:00
 
 ### CVE-2023-32698
+- **Author:** @getvictor
 - **Status:** `not_affected`
 - **Status notes:** When packaging linux files, fleetctl does not use global permissions. It was verified that packed fleetd package files do not have group/global write permissions.
 - **Products:**
@@ -81,6 +89,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-09T10:26:02.350338-03:00
 
 ### CVE-2024-7254
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** fleetctl does not use Java
 - **Products:**
@@ -90,6 +99,7 @@ Following is the vulnerability report of Fleet components.
 - **Timestamp:** 2025-04-10T07:34:26.535559-03:00
 
 ### CVE-2025-31115
+- **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** fleetctl does not use liblzma5
 - **Products:**

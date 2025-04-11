@@ -11,6 +11,7 @@ import (
 type OpenVEXDocument struct {
 	Context    string      `json:"context"`
 	Statements []Statement `json:"statements"`
+	Author     string      `json:"author"`
 }
 
 type Statement struct {
@@ -47,6 +48,7 @@ func generateMarkdown(vex *OpenVEXDocument) string {
 	var sb strings.Builder
 	for _, stmt := range vex.Statements {
 		sb.WriteString(fmt.Sprintf("### %s\n", stmt.Vulnerability.Name))
+		sb.WriteString(fmt.Sprintf("- **Author:** %s\n", vex.Author))
 		sb.WriteString(fmt.Sprintf("- **Status:** `%s`\n", stmt.Status))
 		sb.WriteString(fmt.Sprintf("- **Status notes:** %s\n", stmt.StatusNotes))
 		if len(stmt.Products) > 0 {
