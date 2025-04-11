@@ -11,6 +11,7 @@ describe("FleetAppDetailsModal", () => {
     platform: "darwin",
     version: "1.0.0",
     url: "https://example.com/app",
+    slug: "test-app/darwin",
     onCancel: noop,
   };
 
@@ -34,18 +35,25 @@ describe("FleetAppDetailsModal", () => {
     expect(screen.getByText("macOS")).toBeInTheDocument();
     expect(screen.getByText("Version")).toBeInTheDocument();
     expect(screen.getByText("1.0.0")).toBeInTheDocument();
+    expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
+    expect(screen.getByText("test-app/darwin")).toBeInTheDocument();
     expect(screen.getByText("URL")).toBeInTheDocument();
     expect(
       screen.getAllByText("https://example.com/app").length
     ).toBeGreaterThan(0); // Tooltip renders text twice causing use of toBeInTheDocument to fail
   });
 
-  it("does not render URL field when url prop is not provided", () => {
+  it("does not render URL or slug field when respective props are not provided", () => {
     const render = createCustomRenderer();
-    const propsWithoutUrl = { ...defaultProps, url: undefined };
+    const propsWithoutUrl = {
+      ...defaultProps,
+      url: undefined,
+      slug: undefined,
+    };
 
     render(<FleetAppDetailsModal {...propsWithoutUrl} />);
 
     expect(screen.queryByText("URL")).not.toBeInTheDocument();
+    expect(screen.queryByText(/slug/i)).not.toBeInTheDocument();
   });
 });
