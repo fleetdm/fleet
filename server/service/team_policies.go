@@ -166,6 +166,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		SoftwareInstallerID:   softwareInstallerID,
 		VPPAppsTeamsID:        vppAppsTeamsID,
 		ScriptID:              p.ScriptID,
+		LabelsIncludeAny:      p.LabelsIncludeAny,
+		LabelsExcludeAny:      p.LabelsExcludeAny,
 	}, nil
 }
 
