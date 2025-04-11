@@ -55,7 +55,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 Fleet will automatically resend the profile to renew the certificate 30 days before expiration.
 
-If end user is on vacation (offline more than 30 days) and certificate expires, they should connect to a different network so new certificate is delivered and then they can connect back to a corporate Wi-Fi and VPN.
+If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
 
 DigiCert device type seats can have multiple certificates assigned, and the user will pay for only one license. Only duplicate certificates (those with the same CN and seat ID) can be assigned to a one device type seat.
 
