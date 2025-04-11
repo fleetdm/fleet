@@ -125,8 +125,12 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 
 		if id == "urn:ietf:params:scim:schemas:core:2.0:User" {
 			foundUser = true
+			attributes := schema["attributes"].([]interface{})
+			assert.NotNil(t, attributes, "User schema should have attributes")
 		} else if id == "urn:ietf:params:scim:schemas:core:2.0:Group" {
 			foundGroup = true
+			attributes := schema["attributes"].([]interface{})
+			assert.NotNil(t, attributes, "Group schema should have attributes")
 		}
 	}
 	assert.True(t, foundUser, "User schema should be present")
@@ -2212,6 +2216,54 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 	assert.EqualValues(t, nullEmailsResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, nullEmailsResp["detail"], "A required value was missing")
 
+	// Patch emails with explicit path
+	patchEmailsWithPathPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op":   "replace",
+				"path": "emails",
+				"value": []map[string]interface{}{
+					{
+						"value":   "explicit-path-primary@example.com",
+						"type":    "work",
+						"primary": true,
+					},
+					{
+						"value":   "explicit-path-secondary@example.com",
+						"type":    "home",
+						"primary": false,
+					},
+				},
+			},
+		},
+	}
+
+	var patchEmailsWithPathResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailsWithPathPayload, http.StatusOK, &patchEmailsWithPathResp)
+	emails, ok := patchEmailsWithPathResp["emails"].([]interface{})
+	require.True(t, ok, "Response should have emails array")
+	assert.Equal(t, 2, len(emails), "Should have 2 emails after patch with explicit path")
+
+	// Verify the email values
+	emailValues = make([]string, 0, 2)
+	primaryFound = false
+	for _, e := range emails {
+		email, ok := e.(map[string]interface{})
+		assert.True(t, ok, "Email should be an object")
+		emailValues = append(emailValues, email["value"].(string))
+
+		// Check if this is the primary email
+		if primary, ok := email["primary"].(bool); ok && primary {
+			primaryFound = true
+			assert.Equal(t, "explicit-path-primary@example.com", email["value"], "Primary email should be explicit-path-primary@example.com")
+			assert.Equal(t, "work", email["type"], "Primary email should be of type work")
+		}
+	}
+	assert.EqualValues(t, []string{"explicit-path-primary@example.com", "explicit-path-secondary@example.com"}, emailValues,
+		"Email values should be updated.")
+	assert.True(t, primaryFound, "One email should be marked as primary")
+
 	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
@@ -2458,6 +2510,79 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveAsStringPayload, http.StatusBadRequest, &activeAsStringResp)
 	assert.EqualValues(t, activeAsStringResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, activeAsStringResp["detail"], errors.ScimErrorInvalidValue.Detail)
+
+	// ///////////////////////////////////////////////
+	// Tests for patching with explicit operation path
+
+	// Patch userName with explicit path
+	patchUserNameWithPathPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op":    "replace",
+				"path":  "userName",
+				"value": "explicit-path-username@example.com",
+			},
+		},
+	}
+
+	var patchUserNameWithPathResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserNameWithPathPayload, http.StatusOK, &patchUserNameWithPathResp)
+	assert.Equal(t, "explicit-path-username@example.com", patchUserNameWithPathResp["userName"], "userName should be updated with explicit path")
+
+	// Patch name.givenName with explicit path
+	patchGivenNameWithPathPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op":    "replace",
+				"path":  "name.givenName",
+				"value": "ExplicitPathGiven",
+			},
+		},
+	}
+
+	var patchGivenNameWithPathResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchGivenNameWithPathPayload, http.StatusOK, &patchGivenNameWithPathResp)
+	nameObj1, ok := patchGivenNameWithPathResp["name"].(map[string]interface{})
+	require.True(t, ok, "Response should have name object")
+	assert.Equal(t, "ExplicitPathGiven", nameObj1["givenName"], "givenName should be updated with explicit path")
+	assert.Equal(t, "Updates", nameObj1["familyName"], "familyName should remain unchanged")
+
+	// Patch name.familyName with explicit path
+	patchFamilyNameWithPathPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op":    "replace",
+				"path":  "name.familyName",
+				"value": "ExplicitPathFamily",
+			},
+		},
+	}
+
+	var patchFamilyNameWithPathResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchFamilyNameWithPathPayload, http.StatusOK, &patchFamilyNameWithPathResp)
+	nameObj2, ok := patchFamilyNameWithPathResp["name"].(map[string]interface{})
+	require.True(t, ok, "Response should have name object")
+	assert.Equal(t, "ExplicitPathGiven", nameObj2["givenName"], "givenName should remain unchanged")
+	assert.Equal(t, "ExplicitPathFamily", nameObj2["familyName"], "familyName should be updated with explicit path")
+
+	// Patch active with explicit path
+	patchActiveWithPathPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op":    "replace",
+				"path":  "active",
+				"value": false,
+			},
+		},
+	}
+
+	var patchActiveWithPathResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveWithPathPayload, http.StatusOK, &patchActiveWithPathResp)
+	assert.Equal(t, false, patchActiveWithPathResp["active"], "active should be updated to false with explicit path")
 
 	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
