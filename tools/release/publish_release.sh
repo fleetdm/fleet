@@ -862,8 +862,9 @@ if [[ "$failed" == "false" ]]; then
         ask "Did git push work? [y/n]"
     fi
 
-
-    build_changelog
+    if [[ "$minor" == "false" ]]; then
+        build_changelog
+    fi
 
     # Create PR for changelog and version to release
     changelog_and_versions $update_changelog_prepare_branch $target_branch
