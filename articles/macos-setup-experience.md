@@ -205,6 +205,13 @@ Fleet also provides a REST API for managing setup experience software and script
 
 To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the GitOps reference documentation [here](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
 
+## Best practice for organization logo size
+
+To make sure the logo looks good in each scenario (e.g. on top of the software and script dialog), use the following sizes:
+- If you want to use a logomark (icon), add a PNG image with transparent background that's at least 256px x 256px. You can add padding around logomark if you want to make the logo appear smaller.
+- If you want to use a full logo with a logomark (icon) and wordmark, add a PNG image with transparent background that's at least 512px x 256px. Avoid adding padding around this type of logo.
+- You can preview in Fleet UI if your logo will look good on both dark and light backgrounds.
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
