@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -557,7 +558,21 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			if op.Path.SubAttribute == nil {
-				userEmail, err := u.extractEmail(op.Value, op)
+				// The value for emails comes in as an array.
+				userEmails, ok := op.Value.([]interface{})
+				if !ok {
+					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
+				if len(userEmails) == 0 {
+					user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex)
+					continue
+				}
+				if len(userEmails) != 1 {
+					level.Info(u.logger).Log("msg", "only 1 email should be present for replacement", "emails", userEmails)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
+				userEmail, err := u.extractEmail(userEmails[0], op)
 				if err != nil {
 					return scim.Resource{}, err
 				}
@@ -677,6 +692,7 @@ func (u *UserHandler) checkEmailPrimary(userEmails []fleet.ScimUserEmail) error 
 }
 
 func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation) (fleet.ScimUserEmail, error) {
+	fmt.Printf("emailIntf: %T %+v\n", emailIntf, emailIntf)
 	emailMap, ok := emailIntf.(map[string]interface{})
 	if !ok {
 		level.Info(u.logger).Log("msg", "email is not a map", "email", emailIntf)

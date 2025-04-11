@@ -2284,6 +2284,187 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			"Email values should be updated.")
 		assert.True(t, primaryFound, "One email should be marked as primary")
 	})
+
+	t.Run("Patch emails by type filter", func(t *testing.T) {
+		// First, ensure we have both work and home emails
+		setupEmailsPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"emails": []map[string]interface{}{
+							{
+								"value":   "work-email@example.com",
+								"type":    "work",
+								"primary": true,
+							},
+							{
+								"value":   "home-email@example.com",
+								"type":    "home",
+								"primary": false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
+
+		// Now patch only the work email using the filter
+		patchWorkEmailPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": `emails[type eq "work"]`,
+					"value": map[string]interface{}{
+						"value":   "updated-work@example.com",
+						"type":    "work",
+						"primary": true,
+					},
+				},
+			},
+		}
+
+		var patchWorkResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchWorkEmailPayload, http.StatusOK, &patchWorkResp)
+		emails, ok := patchWorkResp["emails"].([]interface{})
+		require.True(t, ok, "Response should have emails array")
+		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching work email")
+
+		// Check that only the work email was updated and home email remains unchanged
+		var workEmail, homeEmail map[string]interface{}
+		for _, e := range emails {
+			email, ok := e.(map[string]interface{})
+			assert.True(t, ok, "Email should be an object")
+
+			if email["type"].(string) == "work" {
+				workEmail = email
+			} else if email["type"].(string) == "home" {
+				homeEmail = email
+			}
+		}
+
+		require.NotNil(t, workEmail, "Work email should exist")
+		require.NotNil(t, homeEmail, "Home email should exist")
+
+		assert.Equal(t, "updated-work@example.com", workEmail["value"], "Work email should be updated")
+		assert.Equal(t, "home-email@example.com", homeEmail["value"], "Home email should remain unchanged")
+		assert.Equal(t, true, workEmail["primary"], "Work email should be primary")
+		assert.Equal(t, false, homeEmail["primary"], "Home email should not be primary")
+	})
+
+	t.Run("Patch individual field of email by type", func(t *testing.T) {
+		// First, ensure we have both work and home emails with known values
+		setupEmailsPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"emails": []map[string]interface{}{
+							{
+								"value":   "work-email@example.com",
+								"type":    "work",
+								"primary": true,
+							},
+							{
+								"value":   "home-email@example.com",
+								"type":    "home",
+								"primary": false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
+
+		// Now patch only the primary field of the work email
+		patchWorkPrimaryPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  `emails[type eq "work"].primary`,
+					"value": false,
+				},
+			},
+		}
+
+		var patchPrimaryResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchWorkPrimaryPayload, http.StatusOK, &patchPrimaryResp)
+		emails, ok := patchPrimaryResp["emails"].([]interface{})
+		require.True(t, ok, "Response should have emails array")
+		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching primary flag")
+
+		// Check that only the primary flag of work email was updated
+		var workEmail, homeEmail map[string]interface{}
+		for _, e := range emails {
+			email, ok := e.(map[string]interface{})
+			assert.True(t, ok, "Email should be an object")
+
+			if email["type"].(string) == "work" {
+				workEmail = email
+			} else if email["type"].(string) == "home" {
+				homeEmail = email
+			}
+		}
+
+		require.NotNil(t, workEmail, "Work email should exist")
+		require.NotNil(t, homeEmail, "Home email should exist")
+
+		assert.Equal(t, "work-email@example.com", workEmail["value"], "Work email value should remain unchanged")
+		assert.Equal(t, "home-email@example.com", homeEmail["value"], "Home email value should remain unchanged")
+		assert.Equal(t, false, workEmail["primary"], "Work email primary flag should be updated to false")
+		assert.Equal(t, false, homeEmail["primary"], "Home email primary flag should remain false")
+
+		// Now patch only the value field of the home email
+		patchHomeValuePayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  `emails[type eq "home"].value`,
+					"value": "updated-home@example.com",
+				},
+			},
+		}
+
+		var patchHomeValueResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchHomeValuePayload, http.StatusOK, &patchHomeValueResp)
+
+		// Verify the value was updated correctly
+		emails, ok = patchHomeValueResp["emails"].([]interface{})
+		require.True(t, ok, "Response should have emails array")
+		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching home email value")
+
+		// Check that only the value of home email was updated
+		workEmail, homeEmail = nil, nil
+		for _, e := range emails {
+			email, ok := e.(map[string]interface{})
+			assert.True(t, ok, "Email should be an object")
+
+			if email["type"].(string) == "work" {
+				workEmail = email
+			} else if email["type"].(string) == "home" {
+				homeEmail = email
+			}
+		}
+
+		require.NotNil(t, workEmail, "Work email should exist")
+		require.NotNil(t, homeEmail, "Home email should exist")
+
+		assert.Equal(t, "work-email@example.com", workEmail["value"], "Work email value should remain unchanged")
+		assert.Equal(t, "updated-home@example.com", homeEmail["value"], "Home email value should be updated")
+		assert.Equal(t, false, workEmail["primary"], "Work email primary flag should remain false")
+		assert.Equal(t, false, homeEmail["primary"], "Home email primary flag should remain false")
+	})
 }
 
 func testPatchUserAttributes(t *testing.T, s *Suite) {
