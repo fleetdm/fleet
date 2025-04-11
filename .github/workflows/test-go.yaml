@@ -84,7 +84,7 @@ jobs:
       run: |
         if [[ "${{ matrix.mysql }}" == "mysql:8.0.36" ]]; then
           echo "GO_TEST_COV=true" >> $GITHUB_ENV
-        fi
+        end
         echo "RUN_TESTS_ARG=" >> $GITHUB_ENV
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
