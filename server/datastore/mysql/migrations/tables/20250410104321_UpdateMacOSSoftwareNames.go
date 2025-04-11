@@ -145,29 +145,6 @@ WHERE
 		}
 	}
 
-	// Now we can safely delete duplicate rows from software table
-	// 	deleteSoftwareDupesStmt := `
-	// WITH DupSoftware AS (
-	// 	SELECT
-	// 		id,
-	// 		ROW_NUMBER() OVER (PARTITION BY bundle_identifier,
-	// 			version,
-	// 			title_id,
-	// 			source,
-	// 			` + "`release`" + `,
-	// 			arch,
-	// 			vendor,
-	// 			browser,
-	// 			extension_id ORDER BY id DESC) AS row_num
-	// 	FROM
-	// 		software
-	// ) DELETE FROM software
-	// WHERE id IN(
-	// 	SELECT
-	// 		id FROM DupSoftware
-	// 	WHERE
-	// 		row_num > 1 AND source = 'apps')`
-
 	// Now we can update the software entries to use the new name
 	softwareStmt := `
 	UPDATE software SET 
