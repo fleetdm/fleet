@@ -29,6 +29,9 @@ const (
 	activeAttr     = "active"
 	emailsAttr     = "emails"
 	groupsAttr     = "groups"
+	valueAttr      = "value"
+	typeAttr       = "type"
+	primaryAttr    = "primary"
 )
 
 type UserHandler struct {
@@ -112,7 +115,7 @@ func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUs
 	userEmails := make([]fleet.ScimUserEmail, 0, len(emails))
 	for _, email := range emails {
 		userEmail := fleet.ScimUserEmail{}
-		userEmail.Email, err = getRequiredResource[string](email, "value")
+		userEmail.Email, err = getRequiredResource[string](email, valueAttr)
 		if err != nil {
 			return nil, err
 		}
@@ -120,13 +123,13 @@ func createUserFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimUs
 		// https://datatracker.ietf.org/doc/html/rfc7643#section-4.1.2
 		userEmail.Email, err = normalizeEmail(userEmail.Email)
 		if err != nil {
-			return nil, errors.ScimErrorBadParams([]string{"value"})
+			return nil, errors.ScimErrorBadParams([]string{valueAttr})
 		}
-		userEmail.Type, err = getOptionalResource[string](email, "type")
+		userEmail.Type, err = getOptionalResource[string](email, typeAttr)
 		if err != nil {
 			return nil, err
 		}
-		userEmail.Primary, err = getOptionalResource[bool](email, "primary")
+		userEmail.Primary, err = getOptionalResource[bool](email, primaryAttr)
 		if err != nil {
 			return nil, err
 		}
@@ -240,12 +243,12 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		emails := make([]scim.ResourceAttributes, 0, len(user.Emails))
 		for _, email := range user.Emails {
 			emailResource := make(scim.ResourceAttributes)
-			emailResource["value"] = email.Email
+			emailResource[valueAttr] = email.Email
 			if email.Type != nil {
-				emailResource["type"] = *email.Type
+				emailResource[typeAttr] = *email.Type
 			}
 			if email.Primary != nil {
-				emailResource["primary"] = *email.Primary
+				emailResource[primaryAttr] = *email.Primary
 			}
 			emails = append(emails, emailResource)
 		}
@@ -255,7 +258,7 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 		groups := make([]scim.ResourceAttributes, 0, len(user.Groups))
 		for _, group := range user.Groups {
 			groups = append(groups, map[string]interface{}{
-				"value":   scimGroupID(group.ID),
+				valueAttr: scimGroupID(group.ID),
 				"$ref":    "Groups/" + scimGroupID(group.ID),
 				"display": group.DisplayName,
 			})
@@ -442,6 +445,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					}
 					user.UserName = userName
 				case activeAttr:
+					if v == nil {
+						user.Active = nil
+						continue
+					}
 					active, ok := v.(bool)
 					if !ok {
 						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", activeAttr), "value", op.Value)
@@ -491,6 +498,65 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 						}
 					}
+				case emailsAttr:
+					emailsValue, ok := v.([]interface{})
+					if !ok {
+						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
+						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
+					// Convert the emails to the expected format
+					userEmails := make([]fleet.ScimUserEmail, 0, len(emailsValue))
+					hasPrimaryEmail := false
+
+					for _, emailIntf := range emailsValue {
+						emailMap, ok := emailIntf.(map[string]interface{})
+						if !ok {
+							level.Info(u.logger).Log("msg", "email is not a map", "email", emailIntf)
+							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+						}
+
+						// Extract the email value (required)
+						emailValue, ok := emailMap[valueAttr].(string)
+						if !ok || emailValue == "" {
+							level.Info(u.logger).Log("msg", "email value is missing or invalid", "email", emailMap)
+							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+						}
+
+						// Normalize the email
+						normalizedEmail, err := normalizeEmail(emailValue)
+						if err != nil {
+							level.Info(u.logger).Log("msg", "failed to normalize email", "email", emailValue, "err", err)
+							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+						}
+
+						// Create the email object
+						userEmail := fleet.ScimUserEmail{
+							Email:   normalizedEmail,
+							Type:    nil,
+							Primary: nil,
+						}
+
+						// Extract the type (optional)
+						if typeValue, ok := emailMap[typeAttr].(string); ok {
+							userEmail.Type = &typeValue
+						}
+
+						// Extract the primary flag (optional)
+						if primaryValue, ok := emailMap[primaryAttr].(bool); ok {
+							// Check that only one email can be primary
+							if primaryValue {
+								if hasPrimaryEmail {
+									level.Info(u.logger).Log("msg", "multiple primary emails found", "email", emailValue)
+									return scim.Resource{}, errors.ScimErrorBadParams([]string{"Only one email can be marked as primary"})
+								}
+								hasPrimaryEmail = true
+							}
+							userEmail.Primary = &primaryValue
+						}
+
+						userEmails = append(userEmails, userEmail)
+					}
+					user.Emails = userEmails
 				default:
 					level.Info(u.logger).Log("msg", "unsupported patch value field", "field", k)
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})

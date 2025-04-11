@@ -251,6 +251,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		// This is less efficient and can be optimized if we notice a load on these tables in production.
 
 		// TODO: Check if emails need to be updated at all. If so, update the user updated_at timestamp if emails have been updated
+		// TODO: Check that only 1 email is primary
 
 		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
 		_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
