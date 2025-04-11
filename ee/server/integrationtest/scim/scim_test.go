@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/elimity-com/scim/errors"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,7 +38,8 @@ func TestSCIM(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_groups"}...)
+			defer mysql.TruncateTables(t, s.DS, []string{"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
+				"scim_user_group", "scim_last_request"}...)
 			c.fn(t, s)
 		})
 	}
@@ -52,6 +56,13 @@ func testAuth(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusUnauthorized, &resp)
 	assert.Contains(t, resp["detail"], "Authentication")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	scimDetails := contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusUnauthorized, &scimDetails)
+	// Make sure unauthenticated response wasn't saved as the last SCIM request
+	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	scimDetails = contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	assert.Nil(t, scimDetails.LastRequest, "last_request should NOT be present for unauthenticated requests")
 
 	// Unauthorized
 	resp = nil
@@ -59,6 +70,15 @@ func testAuth(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
 	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
+	// Make sure unauthorized response WAS saved as the last SCIM request
+	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
+	scimDetails = contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	require.NotNil(t, scimDetails.LastRequest)
+	assert.Equal(t, "error", scimDetails.LastRequest.Status)
+	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
+	assert.Equal(t, authz.ForbiddenErrorMessage, scimDetails.LastRequest.Details)
 
 	// Authorized
 	resp = nil
@@ -68,9 +88,20 @@ func testAuth(t *testing.T, s *Suite) {
 }
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
+	// Make sure SCIM details.last_request DOES NOT exist
+	scimDetails := contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	assert.Nil(t, scimDetails.LastRequest)
+
 	// Test /Schemas endpoint
 	var schemasResp map[string]interface{}
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &schemasResp)
+	scimDetails = contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	require.NotNil(t, scimDetails.LastRequest)
+	assert.Equal(t, "success", scimDetails.LastRequest.Status)
+	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
+	assert.Empty(t, scimDetails.LastRequest.Details)
 
 	// Verify schemas response
 	assert.EqualValues(t, schemasResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
@@ -181,6 +212,13 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Users/99999"), nil, http.StatusNotFound, &errResp)
 	assert.Contains(t, errResp["detail"], "Resource 99999 not found")
 	assert.EqualValues(t, errResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	// Make sure the error is reflected in the last request
+	scimDetails := contract.ScimDetailsResponse{}
+	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
+	require.NotNil(t, scimDetails.LastRequest)
+	assert.Equal(t, "error", scimDetails.LastRequest.Status)
+	assert.NotZero(t, scimDetails.LastRequest.RequestedAt)
+	assert.Equal(t, errResp["detail"], scimDetails.LastRequest.Details)
 
 	// Test listing users
 	var listResp map[string]interface{}
@@ -673,16 +711,10 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp1 map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutGivenName, http.StatusCreated, &createResp1)
-	assert.Equal(t, "no-given-name@example.com", createResp1["userName"])
-	userID1 := createResp1["id"].(string)
-
-	// Verify name only has familyName
-	name1, ok := createResp1["name"].(map[string]interface{})
-	assert.True(t, ok, "Name should be an object")
-	assert.Equal(t, "NoGivenName", name1["familyName"])
-	assert.Nil(t, name1["givenName"], "givenName should be nil")
+	var errorResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutGivenName, http.StatusBadRequest, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
 	// Test creating a user without familyName
 	userWithoutFamilyName := map[string]interface{}{
@@ -701,16 +733,10 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp2 map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusCreated, &createResp2)
-	assert.Equal(t, "no-family-name@example.com", createResp2["userName"])
-	userID2 := createResp2["id"].(string)
-
-	// Verify name only has givenName
-	name2, ok := createResp2["name"].(map[string]interface{})
-	assert.True(t, ok, "Name should be an object")
-	assert.Equal(t, "NoFamilyName", name2["givenName"])
-	assert.Nil(t, name2["familyName"], "familyName should be nil")
+	errorResp = nil
+	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusBadRequest, &errorResp)
+	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
 	// Test creating a user without emails
 	userWithoutEmails := map[string]interface{}{
@@ -900,8 +926,6 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.Equal(t, "external-system-123456", createResp6["externalId"])
 
 	// Make sure these users can be deleted.
-	s.Do(t, "DELETE", scimPath("/Users/"+userID1), nil, http.StatusNoContent)
-	s.Do(t, "DELETE", scimPath("/Users/"+userID2), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID3), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID4), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
@@ -1013,7 +1037,8 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 				"value": map[string]interface{}{
 					"active": false,
 					"name": map[string]interface{}{
-						"givenName": "Updated",
+						"givenName":  "Updated",
+						"familyName": "Updated",
 					},
 				},
 			},

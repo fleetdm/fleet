@@ -865,6 +865,7 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 }
 
 type ActivityTypeFleetEnrolled struct {
+	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
 }
@@ -876,10 +877,12 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).`,
 		`This activity contains the following fields:
+- "host_id": ID of the host.
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.`, `{
-  "host_serial": "B04FL3ALPT21",
-  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }`
 }
 
