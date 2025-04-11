@@ -61,7 +61,7 @@ func TestUp_20250410104321(t *testing.T) {
 		softwareIDs = append(softwareIDs, uint(id)) //nolint:gosec // dismiss G115
 		softwares[i].ID = uint(id)                  //nolint:gosec // dismiss G115
 
-		hostID := uint(i + 1)
+		hostID := uint(i + 1) //nolint:gosec // dismiss G115
 		if s.Name == "MacApp Duplicate 3.app" {
 			// Map to the same host software
 			hostID = uint(i) //nolint:gosec // dismiss G115

@@ -131,7 +131,7 @@ WHERE
 		}
 
 		if _, err := tx.Exec(deleteHostSoftwareStmt, args...); err != nil {
-			return fmt.Errorf("deleting excluded ids from host_software")
+			return fmt.Errorf("deleting excluded ids from host_software: %w", err)
 		}
 
 		deleteSoftwareDupesStmt := `DELETE FROM software WHERE id IN (?)`
