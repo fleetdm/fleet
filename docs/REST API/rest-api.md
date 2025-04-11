@@ -4032,7 +4032,7 @@ Resends a configuration profile for the specified host.
             {
               "installed_path": "/Applications/Google Chrome.app",
               "team_identifier": "EQHXZ8M8AV",
-              "hash_sha1": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7"
+              "hash_sha256": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7"
             }
           ]
         }
@@ -4084,7 +4084,7 @@ Resends a configuration profile for the specified host.
             {
               "installed_path": "/Applications/Logic Pro.app",
               "team_identifier": "",
-              "hash_sha1": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7" 
+              "hash_sha256": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7" 
             }
           ]
         }
