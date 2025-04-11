@@ -137,6 +137,12 @@ const config = {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
     fallback: { path: require.resolve("path-browserify") },
+    alias: {
+      "node-sql-parser": path.resolve(
+        __dirname,
+        "node_modules/node-sql-parser/umd/sqlite.umd.js"
+      ),
+    },
   },
 };
 
