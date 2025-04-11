@@ -125,7 +125,6 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
 
-> If you previously added a profile without `$FLEET_VAR_SCEP_RENEWAL_ID` it will work, but automati renewal won't be enabled.
 
 2. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with end user authentication enabled (learn more [here](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping)). You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
