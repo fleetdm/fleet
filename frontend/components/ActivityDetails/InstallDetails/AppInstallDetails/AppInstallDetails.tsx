@@ -116,21 +116,17 @@ export const AppInstallDetails = ({
           </span>
         </div>
         {showCommandPayload && (
-          <div className={`${baseClass}__script-output`}>
-            <Textarea label="Request payload:" variant="code">
-              {result.payload}
-            </Textarea>
-          </div>
+          <Textarea label="Request payload:" variant="code">
+            {result.payload}
+          </Textarea>
         )}
         {showCommandResponse && (
-          <div className={`${baseClass}__script-output`}>
-            <Textarea
-              label={`The response from ${formattedHost}:`}
-              variant="code"
-            >
-              {result.result}
-            </Textarea>
-          </div>
+          <Textarea
+            label={<>The response from {formattedHost}:</>}
+            variant="code"
+          >
+            {result.result}
+          </Textarea>
         )}
       </div>
     </>
