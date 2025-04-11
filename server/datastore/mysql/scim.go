@@ -909,10 +909,10 @@ func (ds *Datastore) UpdateScimLastRequest(ctx context.Context, lastRequest *fle
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// Try to update first
+		// Try to update first. We always update the timestamp since success requests all look the same.
 		const updateQuery = `
 				UPDATE scim_last_request
-				SET status = ?, details = ?
+				SET status = ?, details = ?, updated_at = NOW(6)
 				`
 		result, err := tx.ExecContext(
 			ctx,
