@@ -94,13 +94,6 @@ jobs:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
         run: |
-          mkdir trivy-download
-          cd trivy-download
-          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
-          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
-          mv trivy ..
-          cd ..
-          chmod +x ./trivy
           ./trivy image \
             --exit-code=1 \
             --ignore-unfixed \
