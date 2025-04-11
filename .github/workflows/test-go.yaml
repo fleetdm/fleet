@@ -381,7 +381,7 @@ jobs:
   # Our Go matrix test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
   # This job explicitly checks if any Go matrix test suites have failed and marks the overall workflow with the proper pass/fail status.
   aggregate-result:
-    needs: upload-coverage
+    needs: test-go
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
