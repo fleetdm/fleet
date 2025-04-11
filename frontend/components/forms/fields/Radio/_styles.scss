@@ -10,6 +10,12 @@
     align-items: center;
   }
 
+  &:hover:not(.radio__disabled) {
+    .radio__control-button {
+      border-color: $core-vibrant-blue-over;
+    }
+  }
+
   &__input,
   &__label {
     &:hover {

@@ -10,7 +10,7 @@
     // Using selectors to avoid pointer cursor on  clickable white space right of checkbox
     .fleet-checkbox__label,
     .fleet-checkbox__icon,
-    .fleet-checkbox__label-tooltip > .component__tooltip-wrapper__underline {
+    .fleet-checkbox__label-tooltip {
       cursor: pointer;
     }
   }
@@ -87,8 +87,7 @@
         // Using selectors to avoid not allowed cursor on  clickable white space right of checkbox
         .fleet-checkbox__label,
         .fleet-checkbox__icon,
-        .fleet-checkbox__label-tooltip
-          > .component__tooltip-wrapper__underline {
+        .fleet-checkbox__label-tooltip {
           cursor: not-allowed;
         }
       }
