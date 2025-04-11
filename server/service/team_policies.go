@@ -55,6 +55,8 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		CalendarEventsEnabled: req.CalendarEventsEnabled,
 		SoftwareTitleID:       req.SoftwareTitleID,
 		ScriptID:              req.ScriptID,
+		LabelsIncludeAny:      req.LabelsIncludeAny,
+		LabelsExcludeAny:      req.LabelsExcludeAny,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
