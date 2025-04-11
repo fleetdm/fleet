@@ -64,7 +64,9 @@ Integrating your Fleet MDM server with your IdP is essential for IT professional
 
 ## Watch us demo SAML integration for macOS Setup
 
-TODO: YouTube link
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/nwNORmQ5bd0?si=3PXayiEqCRxgOIim" frameborder="0" allowfullscreen></iframe>
+</div>
 
 <meta name="articleTitle" value="Effortless onboarding: Fleet’s SAML integration for macOS Setup">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
