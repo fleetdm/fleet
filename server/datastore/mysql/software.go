@@ -6,8 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log/slog"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -256,7 +254,6 @@ func nothingChanged(current, incoming []fleet.Software, minLastOpenedAtDiff time
 	incomingMap := make(map[string]fleet.Software, len(current)) // setting len(current) as the length since that should be the common case
 	for _, s := range incoming {
 		uniqueStr := s.ToUniqueStr()
-		// fmt.Printf("uniqueStr: %v\n", uniqueStr)
 		if duplicate, ok := incomingMap[uniqueStr]; ok {
 			// Check the last opened at timestamp and keep the latest.
 			if s.LastOpenedAt == nil ||
@@ -355,7 +352,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	current, incoming, notChanged := nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff)
 	if notChanged {
-		slog.With("filename", "server/datastore/mysql/software.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: not changed ")
 		return r, nil
 	}
 
@@ -424,14 +420,11 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 		VALUES
 			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
 
-	// fmt.Printf("bundleIDsToNames: %v\n", bundleIDsToSoftware)
-
 	for k, v := range bundleIDsToSoftware {
 		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
 			return ctxerr.Wrap(ctx, err, "update software names")
 		}
 
-		// fmt.Printf("attempting to update host_software software_name: %v hostID: %v software_id: %v last_opened_at: %v\n", v.Name, k, hostID, v.ID, v.LastOpenedAt)
 		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host software")
 		}
@@ -537,8 +530,6 @@ func (ds *Datastore) getExistingSoftware(
 				bundleIDsToNames[s.BundleIdentifier] = s.Name
 			}
 		}
-
-		// fmt.Printf("uniqueName: %v ok: %v\n", uniqueName, ok)
 	}
 
 	if len(incomingChecksumToSoftware) > 0 {
@@ -563,7 +554,6 @@ func (ds *Datastore) getExistingSoftware(
 			if s.BundleIdentifier != nil && s.Source == "apps" {
 				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
 					// Then this is a software whose name has changed, so we should update the name
-					fmt.Printf("we should update %s to name: %v\n", *s.BundleIdentifier, name)
 					existingBundleIDsToUpdate[*s.BundleIdentifier] = sw
 					continue
 				}
@@ -658,9 +648,6 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	existingBundleIDsToUpdate := make(map[string]fleet.Software)
 	if len(argsWithBundleIdentifier) > 0 {
 		// no-op code change
-		// fmt.Println("test")
-		// fmt.Println("test 2")
-		// fmt.Printf("argsWithBundleIdentifier: %v\n", argsWithBundleIdentifier)
 		incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
 		stmtBundleIdentifier := `SELECT id, name, source, browser, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
@@ -671,8 +658,6 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftwareWithBundleIdentifier, stmtBundleIdentifier, argsWithBundleIdentifier...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles with bundle_identifier")
 		}
-		// fmt.Printf("stmtBundleIdentifier: %v\n", stmtBundleIdentifier)
-		// fmt.Printf("existingSoftwareTitlesForNewSoftwareWithBundleIdentifier: %v\n", existingSoftwareTitlesForNewSoftwareWithBundleIdentifier)
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
 			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)
@@ -750,9 +735,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	var insertedSoftware []fleet.Software
 	existingTitleNames := make(map[uint]string)
 	for _, s := range existingSoftware {
-		// fmt.Printf("existing s.Name: %v\n", s.Name)
 		if s.TitleID != nil {
-			// fmt.Printf("existing s.TitleID: %v\n", *s.TitleID)
 			existingTitleNames[*s.TitleID] = s.Name
 		}
 	}
@@ -764,7 +747,6 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			if !ok {
 				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
-			// fmt.Printf("software.Name: %v\n", software.Name)
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
 			insertedSoftware = append(insertedSoftware, software)
@@ -777,7 +759,6 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		keys := make([]string, 0, len(softwareChecksums))
 		for checksum := range softwareChecksums {
 			keys = append(keys, checksum)
-			// fmt.Printf("sw from softwareChecksums: %v\n", sw)
 		}
 		for i := 0; i < len(keys); i += softwareInsertBatchSize {
 			start := i
@@ -818,7 +799,6 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				title, ok := existingTitlesForNewSoftware[checksum]
 				if ok {
 					titleID = &title.ID
-					// slog.With("filename", "server/datastore/mysql/software.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: found title ", "title_id", title.ID, "software_name", sw.Name, "checksum", checksum)
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					st := fleet.SoftwareTitle{
 						Name:    sw.Name,
@@ -972,7 +952,6 @@ func updateModifiedHostSoftwareDB(
 ) error {
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
-		// fmt.Printf("update host software hostID: %v key: %v sw.name: %v  sw.id: %v  sw.last_opened_at: %v\n", hostID, key, newSw.Name, newSw.ID, newSw.LastOpenedAt)
 		curSw, ok := currentMap[key]
 		if !ok || newSw.LastOpenedAt == nil {
 			// software must also exist in current map, and new software must have a
@@ -987,7 +966,6 @@ func updateModifiedHostSoftwareDB(
 		}
 	}
 	sort.Strings(keysToUpdate)
-	// fmt.Printf("in update host software keysToUpdate: %v\n", keysToUpdate)
 
 	for i := 0; i < len(keysToUpdate); i += softwareInsertBatchSize {
 		start := i

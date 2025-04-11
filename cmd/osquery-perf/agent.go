@@ -1447,7 +1447,6 @@ func (a *agent) softwareMacOS() []map[string]string {
 		if l := a.genLastOpenedAt(&lastOpenedCount); l != nil {
 			lastOpenedAt = fmt.Sprint(l.Unix())
 		}
-		fmt.Printf("lastOpenedAt: %v\n", lastOpenedAt)
 		commonSoftware[i] = map[string]string{
 			"name":              fmt.Sprintf("Common_%d%s", i, a.commonSoftwareNameSuffix),
 			"version":           "0.0.1",

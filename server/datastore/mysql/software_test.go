@@ -281,7 +281,6 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 			return err
 		}
 		err = sqlx.SelectContext(ctx, q, &titles, stmtBundleIdentifier, argsWithBundleIdentifier...)
-		fmt.Printf("titles: %v\n", titles)
 		return err
 	})
 	require.Len(t, existingBundleIDsToUpdate, 1)

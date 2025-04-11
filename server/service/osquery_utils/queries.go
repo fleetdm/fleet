@@ -1614,8 +1614,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		// fmt.Printf("s.Name: %v s.LastOpenedAt: %v\n", s.Name, s.LastOpenedAt)
-
 		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
