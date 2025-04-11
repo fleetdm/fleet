@@ -2465,6 +2465,82 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		assert.Equal(t, false, workEmail["primary"], "Work email primary flag should remain false")
 		assert.Equal(t, false, homeEmail["primary"], "Home email primary flag should remain false")
 	})
+
+	t.Run("Patch email type by type", func(t *testing.T) {
+		// First, ensure we have both work and home emails with known values
+		setupEmailsPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"emails": []map[string]interface{}{
+							{
+								"value":   "work-email@example.com",
+								"type":    "work",
+								"primary": true,
+							},
+							{
+								"value":   "home-email@example.com",
+								"type":    "home",
+								"primary": false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
+
+		// Now patch the type of the home email to "other"
+		patchHomeTypePayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  `emails[type eq "home"].type`,
+					"value": "other",
+				},
+			},
+		}
+
+		var patchTypeResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchHomeTypePayload, http.StatusOK, &patchTypeResp)
+
+		// Verify the type was updated correctly
+		emails, ok := patchTypeResp["emails"].([]interface{})
+		require.True(t, ok, "Response should have emails array")
+		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching email type")
+
+		// Check that the home email type was changed to "other"
+		var workEmail, otherEmail map[string]interface{}
+		var homeEmailFound bool
+
+		for _, e := range emails {
+			email, ok := e.(map[string]interface{})
+			assert.True(t, ok, "Email should be an object")
+			switch email["type"].(string) {
+			case "work":
+				workEmail = email
+			case "home":
+				homeEmailFound = true
+			case "other":
+				otherEmail = email
+			}
+		}
+
+		require.NotNil(t, workEmail, "Work email should exist")
+		require.NotNil(t, otherEmail, "Other email (formerly home) should exist")
+		assert.False(t, homeEmailFound, "Home email should no longer exist")
+
+		assert.Equal(t, "work-email@example.com", workEmail["value"], "Work email value should remain unchanged")
+		assert.Equal(t, "home-email@example.com", otherEmail["value"], "Other email value should be the same as the former home email")
+		assert.Equal(t, "other", otherEmail["type"], "Home email type should be changed to 'other'")
+		assert.Equal(t, true, workEmail["primary"], "Work email primary flag should remain true")
+		assert.Equal(t, false, otherEmail["primary"], "Other email primary flag should remain false")
+	})
 }
 
 func testPatchUserAttributes(t *testing.T, s *Suite) {
