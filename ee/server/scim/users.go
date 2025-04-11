@@ -12,6 +12,7 @@ import (
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/scim2/filter-parser/v2"
@@ -470,115 +471,142 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					}
 					user.FamilyName = &familyName
 				case nameAttr:
-					name, ok := v.(map[string]interface{})
-					if !ok {
-						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr), "value", op.Value)
-						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-					}
-					for nameKey, nameValue := range name {
-						switch nameKey {
-						case givenNameAttr:
-							givenName, ok := nameValue.(string)
-							if !ok {
-								level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value",
-									op.Value)
-								return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-							}
-							user.GivenName = &givenName
-						case familyNameAttr:
-							familyName, ok := nameValue.(string)
-							if !ok {
-								level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value",
-									op.Value)
-								return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-							}
-							user.FamilyName = &familyName
-						default:
-							level.Info(u.logger).Log("msg", "unsupported patch value field", "field", nameAttr+"."+nameKey)
-							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-						}
+					err = u.patchName(v, op, user)
+					if err != nil {
+						return scim.Resource{}, err
 					}
 				case emailsAttr:
-					emailsValue, ok := v.([]interface{})
-					if !ok {
-						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
-						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					err = u.patchEmails(v, op, user)
+					if err != nil {
+						return scim.Resource{}, err
 					}
-					// Convert the emails to the expected format
-					userEmails := make([]fleet.ScimUserEmail, 0, len(emailsValue))
-					hasPrimaryEmail := false
-
-					for _, emailIntf := range emailsValue {
-						emailMap, ok := emailIntf.(map[string]interface{})
-						if !ok {
-							level.Info(u.logger).Log("msg", "email is not a map", "email", emailIntf)
-							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-						}
-
-						// Extract the email value (required)
-						emailValue, ok := emailMap[valueAttr].(string)
-						if !ok || emailValue == "" {
-							level.Info(u.logger).Log("msg", "email value is missing or invalid", "email", emailMap)
-							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-						}
-
-						// Normalize the email
-						normalizedEmail, err := normalizeEmail(emailValue)
-						if err != nil {
-							level.Info(u.logger).Log("msg", "failed to normalize email", "email", emailValue, "err", err)
-							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-						}
-
-						// Create the email object
-						userEmail := fleet.ScimUserEmail{
-							Email:   normalizedEmail,
-							Type:    nil,
-							Primary: nil,
-						}
-
-						// Extract the type (optional)
-						if typeValue, ok := emailMap[typeAttr].(string); ok {
-							userEmail.Type = &typeValue
-						}
-
-						// Extract the primary flag (optional)
-						if primaryValue, ok := emailMap[primaryAttr].(bool); ok {
-							// Check that only one email can be primary
-							if primaryValue {
-								if hasPrimaryEmail {
-									level.Info(u.logger).Log("msg", "multiple primary emails found", "email", emailValue)
-									return scim.Resource{}, errors.ScimErrorBadParams([]string{"Only one email can be marked as primary"})
-								}
-								hasPrimaryEmail = true
-							}
-							userEmail.Primary = &primaryValue
-						}
-
-						userEmails = append(userEmails, userEmail)
-					}
-					user.Emails = userEmails
 				default:
 					level.Info(u.logger).Log("msg", "unsupported patch value field", "field", k)
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 				}
 			}
-			// if len(newValues) != 1 {
-			// 	level.Info(u.logger).Log("msg", "too many patch values", "value", op.Value)
-			// 	return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-			// }
-			// active, err := getRequiredResource[bool](newValues, activeAttr)
-			// if err != nil {
-			// 	level.Info(u.logger).Log("msg", "failed to get active value", "value", op.Value)
-			// 	return scim.Resource{}, err
-			// }
-			// user.Active = &active
+		case op.Path.String() == userNameAttr:
+			userName, ok := op.Value.(string)
+			if !ok || userName == "" {
+				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", userNameAttr), "value", op.Value)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			user.UserName = userName
 		case op.Path.String() == activeAttr:
+			if op.Value == nil {
+				user.Active = nil
+				continue
+			}
 			active, ok := op.Value.(bool)
 			if !ok {
-				level.Error(u.logger).Log("msg", "unsupported 'active' patch value", "value", op.Value)
+				level.Error(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", activeAttr), "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			user.Active = &active
+		case op.Path.String() == nameAttr+"."+givenNameAttr:
+			givenName, ok := op.Value.(string)
+			if !ok {
+				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value", op.Value)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			user.GivenName = &givenName
+		case op.Path.String() == nameAttr+"."+familyNameAttr:
+			familyName, ok := op.Value.(string)
+			if !ok {
+				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value", op.Value)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			user.FamilyName = &familyName
+		case op.Path.String() == nameAttr:
+			err = u.patchName(op.Value, op, user)
+			if err != nil {
+				return scim.Resource{}, err
+			}
+		case op.Path.String() == emailsAttr:
+			err = u.patchEmails(op.Value, op, user)
+			if err != nil {
+				return scim.Resource{}, err
+			}
+		case op.Path.AttributePath.String() == emailsAttr:
+			attrExpression, ok := op.Path.ValueExpression.(*filter.AttributeExpression)
+			if !ok {
+				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			// Only matching by email type (work, etc.) is supported.
+			if attrExpression.AttributePath.String() != typeAttr || attrExpression.Operator != filter.EQ {
+				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			emailType, ok := attrExpression.CompareValue.(string)
+			if !ok {
+				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			emailFound := false
+			var emailIndex int
+			for i, email := range user.Emails {
+				if email.Type != nil && *email.Type == emailType {
+					emailIndex = i
+					emailFound = true
+					break
+				}
+			}
+			if !emailFound {
+				level.Info(u.logger).Log("msg", "email not found", "email_type", emailType)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			if op.Path.SubAttribute == nil {
+				userEmail, err := u.extractEmail(op.Value, op)
+				if err != nil {
+					return scim.Resource{}, err
+				}
+				// If setting primary to true, then unset true from other emails
+				if userEmail.Primary != nil && *userEmail.Primary {
+					clearPrimaryFlagFromEmails(user)
+				}
+				user.Emails[emailIndex] = userEmail
+				continue
+			}
+			switch *op.Path.SubAttribute {
+			case primaryAttr:
+				if op.Value == nil {
+					user.Emails[emailIndex].Primary = nil
+					continue
+				}
+				primary, ok := op.Value.(bool)
+				if !ok {
+					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", primaryAttr), "value", op.Value)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
+				// If setting primary to true, then unset true from other emails
+				if primary {
+					clearPrimaryFlagFromEmails(user)
+				}
+				user.Emails[emailIndex].Primary = &primary
+			case valueAttr:
+				value, ok := op.Value.(string)
+				if !ok {
+					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", valueAttr), "value", op.Value)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
+				user.Emails[emailIndex].Email = value
+			case typeAttr:
+				if op.Value == nil {
+					user.Emails[emailIndex].Type = nil
+					continue
+				}
+				newEmailType, ok := op.Value.(string)
+				if !ok {
+					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", typeAttr), "value", op.Value)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
+				user.Emails[emailIndex].Type = &newEmailType
+			default:
+				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+
 		default:
 			level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -598,6 +626,126 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	return createUserResource(user), nil
+}
+
+func clearPrimaryFlagFromEmails(user *fleet.ScimUser) {
+	for i, email := range user.Emails {
+		if email.Primary != nil && *email.Primary {
+			user.Emails[i].Primary = ptr.Bool(false)
+		}
+	}
+}
+
+func (u *UserHandler) patchEmails(v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
+	emailsValue, ok := v.([]interface{})
+	if !ok {
+		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	// Convert the emails to the expected format
+	userEmails := make([]fleet.ScimUserEmail, 0, len(emailsValue))
+	for _, emailIntf := range emailsValue {
+		userEmail, err := u.extractEmail(emailIntf, op)
+		if err != nil {
+			return err
+		}
+		userEmails = append(userEmails, userEmail)
+	}
+
+	err := u.checkEmailPrimary(userEmails)
+	if err != nil {
+		return err
+	}
+
+	user.Emails = userEmails
+	return nil
+}
+
+// checkEmailPrimary ensures at most one email is marked as primary
+func (u *UserHandler) checkEmailPrimary(userEmails []fleet.ScimUserEmail) error {
+	primaryEmailCount := 0
+	for _, email := range userEmails {
+		if email.Primary != nil && *email.Primary {
+			primaryEmailCount++
+			if primaryEmailCount > 1 {
+				level.Info(u.logger).Log("msg", "multiple primary emails found")
+				return errors.ScimErrorBadParams([]string{"Only one email can be marked as primary"})
+			}
+		}
+	}
+	return nil
+}
+
+func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation) (fleet.ScimUserEmail, error) {
+	emailMap, ok := emailIntf.(map[string]interface{})
+	if !ok {
+		level.Info(u.logger).Log("msg", "email is not a map", "email", emailIntf)
+		return fleet.ScimUserEmail{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+
+	// Extract the email value (required)
+	emailValue, ok := emailMap[valueAttr].(string)
+	if !ok || emailValue == "" {
+		level.Info(u.logger).Log("msg", "email value is missing or invalid", "email", emailMap)
+		return fleet.ScimUserEmail{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+
+	// Normalize the email
+	normalizedEmail, err := normalizeEmail(emailValue)
+	if err != nil {
+		level.Info(u.logger).Log("msg", "failed to normalize email", "email", emailValue, "err", err)
+		return fleet.ScimUserEmail{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+
+	// Create the email object
+	userEmail := fleet.ScimUserEmail{
+		Email:   normalizedEmail,
+		Type:    nil,
+		Primary: nil,
+	}
+
+	// Extract the type (optional)
+	if typeValue, ok := emailMap[typeAttr].(string); ok {
+		userEmail.Type = &typeValue
+	}
+
+	// Extract the primary flag (optional)
+	if primaryValue, ok := emailMap[primaryAttr].(bool); ok {
+		userEmail.Primary = &primaryValue
+	}
+	return userEmail, nil
+}
+
+func (u *UserHandler) patchName(v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
+	name, ok := v.(map[string]interface{})
+	if !ok {
+		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr), "value", op.Value)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	for nameKey, nameValue := range name {
+		switch nameKey {
+		case givenNameAttr:
+			givenName, ok := nameValue.(string)
+			if !ok {
+				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value",
+					op.Value)
+				return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			user.GivenName = &givenName
+		case familyNameAttr:
+			familyName, ok := nameValue.(string)
+			if !ok {
+				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value",
+					op.Value)
+				return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			user.FamilyName = &familyName
+		default:
+			level.Info(u.logger).Log("msg", "unsupported patch value field", "field", nameAttr+"."+nameKey)
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		}
+	}
+	return nil
 }
 
 // normalizeEmail

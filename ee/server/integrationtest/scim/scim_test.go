@@ -959,7 +959,7 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
 	userID := createResp["id"].(string)
 
-	// Test 1: Patch with unsupported operation (add instead of replace)
+	// Test: Patch with unsupported operation (add instead of replace)
 	unsupportedOpPayload := map[string]interface{}{
 		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
 		"Operations": []map[string]interface{}{
@@ -976,24 +976,7 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp1["detail"], "Bad Request.")
 
-	// Test 2: Patch with unsupported field (userName instead of active)
-	unsupportedFieldPayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op":    "replace",
-				"path":  "userName", // Only "active" is supported
-				"value": "new-username@example.com",
-			},
-		},
-	}
-
-	var errorResp2 map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), unsupportedFieldPayload, http.StatusBadRequest, &errorResp2)
-	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	assert.Contains(t, errorResp2["detail"], "Bad Request.")
-
-	// Test 3: Patch with no path and invalid value format
+	// Test: Patch with no path and invalid value format
 	invalidValuePayload := map[string]interface{}{
 		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
 		"Operations": []map[string]interface{}{
@@ -1968,7 +1951,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmptyEmailsPayload, http.StatusOK, &emptyEmailsResp)
 
 	// Verify the emails were updated (should be empty or not present)
-	noEmails, _ := emptyEmailsResp["emails"]
+	noEmails := emptyEmailsResp["emails"]
 	assert.Empty(t, noEmails, "Emails should be empty after patch")
 
 	// Verify that patching with invalid email format fails
