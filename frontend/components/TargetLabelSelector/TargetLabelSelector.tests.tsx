@@ -112,4 +112,75 @@ describe("TargetLabelSelector component", () => {
     expect(screen.getByRole("checkbox", { name: "label 1" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "label 2" })).not.toBeChecked();
   });
+
+  it("sets the title to Target by default", () => {
+    const TITLE = "Target";
+    render(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        selectedCustomTarget="labelIncludeAny"
+        customTargetOptions={[
+          { value: "labelIncludeAny", label: "Include any" },
+        ]}
+        selectedLabels={{}}
+        labels={[
+          { id: 1, name: "label 1", label_type: "regular" },
+          { id: 2, name: "label 2", label_type: "regular" },
+        ]}
+        onSelectCustomTarget={noop}
+        onSelectLabel={noop}
+        onSelectTargetType={noop}
+        title={TITLE}
+      />
+    );
+
+    expect(screen.getByText(TITLE)).toBeVisible();
+  });
+
+  it("allows a custom title to be passed in", () => {
+    const TITLE = "Choose a target";
+    render(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        selectedCustomTarget="labelIncludeAny"
+        customTargetOptions={[
+          { value: "labelIncludeAny", label: "Include any" },
+        ]}
+        selectedLabels={{}}
+        labels={[
+          { id: 1, name: "label 1", label_type: "regular" },
+          { id: 2, name: "label 2", label_type: "regular" },
+        ]}
+        onSelectCustomTarget={noop}
+        onSelectLabel={noop}
+        onSelectTargetType={noop}
+        title={TITLE}
+      />
+    );
+
+    expect(screen.getByText(TITLE)).toBeVisible();
+  });
+
+  it("suppresses the title when suppressTitle is true", () => {
+    render(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        selectedCustomTarget="labelIncludeAny"
+        customTargetOptions={[
+          { value: "labelIncludeAny", label: "Include any" },
+        ]}
+        selectedLabels={{}}
+        labels={[
+          { id: 1, name: "label 1", label_type: "regular" },
+          { id: 2, name: "label 2", label_type: "regular" },
+        ]}
+        onSelectCustomTarget={noop}
+        onSelectLabel={noop}
+        onSelectTargetType={noop}
+        suppressTitle
+      />
+    );
+
+    expect(screen.queryByText("Target")).not.toBeInTheDocument();
+  });
 });

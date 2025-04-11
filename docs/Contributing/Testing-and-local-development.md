@@ -72,7 +72,7 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -350,26 +350,44 @@ Entity ID: https://localhost:8080
 Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with four users:
+The identity provider is configured with these users:
 
 ```
 Username: sso_user
 Email: sso_user@example.com
 Password: user123#
+Display name: SSO User 1
 
 Username: sso_user2
 Email: sso_user2@example.com
 Password: user123#
+Display name: SSO User 2
 
 # sso_user_3_global_admin is automatically added as Global admin.
 Username: sso_user_3_global_admin
 Email: sso_user_3_global_admin@example.com
 Password: user123#
+Display name: SSO User 3
 
 # sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
 # If a team with ID 1 doesn't exist then the login with this user will fail.
 Username: sso_user_4_team_maintainer
 Email: sso_user_4_team_maintainer@example.com
+Password: user123#
+Display name: SSO User 4
+
+Username: sso_user_5_team_admin
+Email: sso_user_5_team_admin@example.com
+Password: user123#
+Display name: SSO User 5
+
+Username: sso_user_6_global_observer
+Email: sso_user_6_global_observer@example.com
+Password: user123#
+Display name: SSO User 6
+
+Username: sso_user_no_displayname
+Email: sso_user_no_displayname@example.com
 Password: user123#
 ```
 

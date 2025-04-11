@@ -817,6 +817,7 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	assert.NotNil(t, d)
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsMDMProfiles(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -868,6 +869,12 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
 	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
@@ -4368,13 +4375,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "DigiCert profile is not pkcs12",
 			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName", "Name",
 				"com.apple.security.pkcs13"),
-			errMsg: "can only be present in 'com.apple.security.pkcs12' profiles",
+			errMsg: "Variables $FLEET_VAR_DIGICERT_PASSWORD_caName and $FLEET_VAR_DIGICERT_DATA_caName can only be included in the 'com.apple.security.pkcs12' payload",
 		},
 		{
 			name: "DigiCert password is not a fleet variable",
 			profile: digiCertForValidation("x$FLEET_VAR_DIGICERT_PASSWORD_caName", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
 				"com.apple.security.pkcs12"),
-			errMsg: "must match the Password and PayloadContent fields in the profile exactly",
+			errMsg: "included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively",
 		},
 		{
 			name: "DigiCert data is not a fleet variable",
@@ -4392,7 +4399,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "DigiCert 2 profiles with swapped variables",
 			profile: digiCertForValidation2("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName2}",
 				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName"),
-			errMsg: "CA name mismatch between $FLEET_VAR_DIGICERT_DATA_<ca_name> and $FLEET_VAR_DIGICERT_PASSWORD_<ca_name> in PKCS12 profile",
+			errMsg: "CA name mismatch between $FLEET_VAR_DIGICERT_PASSWORD_caName",
 		},
 		{
 			name: "DigiCert 2 profiles happy path",
@@ -4441,19 +4448,19 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "Custom SCEP profile is not scep",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"Name", "com.apple.security.SCEP"),
-			errMsg: "can only be present in 'com.apple.security.scep' profiles",
+			errMsg: "Variables $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName and $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName can only be included in the 'com.apple.security.scep' payload",
 		},
 		{
 			name: "Custom SCEP challenge is not a fleet variable",
 			profile: customSCEPForValidation("x$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "must match the Challenge and URL fields in the profile exactly",
+			errMsg: "in the 'com.apple.security.scep' payload under Challenge and URL, respectively",
 		},
 		{
 			name: "Custom SCEP url is not a fleet variable",
 			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "x${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile",
+			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName and x${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName} in SCEP payload",
 		},
 		{
 			name: "Custom SCEP happy path",
@@ -4465,7 +4472,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "Custom SCEP 2 profiles with swapped variables",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
-			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<ca_name> and $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<ca_name> in SCEP profile",
+			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
 		},
 		{
 			name:    "Custom SCEP and DigiCert profiles happy path",

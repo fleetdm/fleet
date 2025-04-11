@@ -270,6 +270,10 @@ type HostScriptResult struct {
 	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
 	// was part of setup experience.
 	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
+
+	// Canceled indicates if that script execution request was canceled by a
+	// user.
+	Canceled bool `json:"-" db:"canceled"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {

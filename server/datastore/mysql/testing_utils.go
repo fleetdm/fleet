@@ -475,8 +475,12 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	}
 }
 
-func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
-	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...string) { //nolint: unused
+	colList := "*"
+	if len(cols) > 0 {
+		colList = strings.Join(cols, ", ")
+	}
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT %s FROM %s`, colList, tableName))
 	require.NoError(t, err)
 	defer rows.Close()
 

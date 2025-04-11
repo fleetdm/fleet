@@ -577,6 +577,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
 - [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
@@ -1029,6 +1030,7 @@ Content-Type: application/octet-stream
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| no_cache  | bool   | query | Do not use the cached version of Fleet's configuration. This parameter should only be used when the configuration was updated less than 1 second ago. |
 | profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
 
 
@@ -1284,11 +1286,12 @@ Content-Type: application/octet-stream
 
 `/mdm/scep/proxy/{identifier}`
 
-This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID`.
+This endpoint is used to proxy SCEP requests to the configured SCEP server. It uses the [SCEP protocol](https://datatracker.ietf.org/doc/html/rfc8894). The `identifier` is in the format `hostUUID,profileUUID,caName` (URL escaped).
 
 ### Get Android Enterprise signup URL
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
 
 `GET /api/v1/fleet/android_enterprise/signup_url`
@@ -1382,6 +1385,7 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 ### Get Android Enterprise server-sent event
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
 
 `GET /api/v1/fleet/android_enterprise/signup_sse`
@@ -1401,6 +1405,7 @@ Android Enterprise successfully connected
 ### Android Enterprise PubSub push endpoint
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
@@ -3520,7 +3525,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 |-----------------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | error_source          | string   | Process name that error originated from ex. orbit, fleet-desktop                                                                          |
 | error_source_version  | string   | version of error_source                                                                                                                   |
-| error_timestamp       | datetime | Time in UTC that error occured                                                                                                            |
+| error_timestamp       | datetime | Time in UTC that error occurred                                                                                                            |
 | error_message         | string   | error message                                                                                                                             |
 | error_additional_info | obj      | Any additional identifiers to assist debugging                                                                                            |
 | vital                 | boolean  | Whether the error is vital and should also be reported to Fleet via usage statistics. Do not put sensitive information into vital errors. |
@@ -3860,7 +3865,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ### Set Orbit device mapping
 
-`POST /api/fleet/orbit/device_mapping`
+`PUT /api/fleet/orbit/device_mapping`
 
 ##### Parameters
 
@@ -3871,7 +3876,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ##### Example
 
-`POST /api/fleet/orbit/device_mapping`
+`PUT /api/fleet/orbit/device_mapping`
 
 ##### Request body
 
@@ -4195,6 +4200,23 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 ```
 ## Software
 
+### Confirm installer hashes exist
+
+`GET /api/v1/fleet/software/package_hashes`
+
+| Name              | Type    | In   | Description                                        |
+|-------------------|---------|------|----------------------------------------------------|
+| team_name | string | query | The name of the team to filter the check to. If not supplied, the user must haave global access, and hashes are checked across the entire instance. |
+| sha256              | string  | query | **Required**. A comma-separated list of SHA256 hashes, (64 hex characters apiece) to check. Endpoint returns 200 if all specified hashes exist, 404 otherwise. |
+
+#### Example
+
+`GET /api/v1/fleet/software/package_hashes?sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef`
+
+##### Default response
+
+`200 OK`
+
 ### Update software title name
 
 `PATCH /api/v1/fleet/software/titles/:software_title_id/name`
@@ -4242,7 +4264,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
 | software.packages   | array   | body  | An array of objects with values below. |
-| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.sha256                      | string   | body  | SHA256 hash of the package. If provided, must be 64 lower-case hex characters. One or both of sha256 or url must be provided. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). If sha256 is also provided and the installer isn't already uploaded with the same hash for that URL, call will fail if the downloaded installer doesn't match the hash. |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
@@ -4304,7 +4327,8 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
     {
       "team_id": 1,
       "title_id": 2751,
-      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   ]
 }

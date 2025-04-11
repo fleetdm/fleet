@@ -13,10 +13,10 @@ import deviceUserAPI, {
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
   IHostDevice,
+  IHostEndUser,
 } from "interfaces/host";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
@@ -69,8 +69,16 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
+import UserCard from "../cards/User";
+import {
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
+} from "../cards/User/helpers";
 
 const baseClass = "device-user";
+
+const defaultCardClass = `${baseClass}__card`;
+const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
@@ -147,20 +155,6 @@ const DeviceUserPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", deviceAuthToken],
-    () =>
-      deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "device_mapping"),
-    {
-      enabled: !!deviceAuthToken,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
-    }
-  );
-
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
     () => deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "macadmins"),
@@ -208,7 +202,6 @@ const DeviceUserPage = ({
   );
 
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     deviceCertificates && refetchDeviceCertificates();
   };
 
@@ -420,6 +413,11 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
+    const showUsersCard =
+      host?.platform === "darwin" ||
+      generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
+      generateOtherEmailsValues(host?.end_users ?? []).length > 0;
+
     return (
       <div className="core-wrapper">
         {!host || isLoadingHost || isLoadingDeviceCertificates ? (
@@ -487,12 +485,25 @@ const DeviceUserPage = ({
                 </TabList>
                 <TabPanel className={`${baseClass}__details-panel`}>
                   <AboutCard
+                    className={
+                      showUsersCard ? defaultCardClass : fullWidthCardClass
+                    }
                     aboutData={aboutData}
-                    deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {showUsersCard && (
+                    <UserCard
+                      className={defaultCardClass}
+                      platform={host.platform}
+                      endUsers={host.end_users ?? []}
+                      enableAddEndUser={false}
+                      disableFullNameTooltip
+                      disableGroupsTooltip
+                    />
+                  )}
                   {isAppleHost && !!deviceCertificates?.certificates.length && (
                     <CertificatesCard
+                      className={fullWidthCardClass}
                       isMyDevicePage
                       data={deviceCertificates}
                       isError={isErrorDeviceCertificates}

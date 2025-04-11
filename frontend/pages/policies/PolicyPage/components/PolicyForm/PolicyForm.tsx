@@ -1,6 +1,8 @@
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 /* eslint-disable jsx-a11y/interactive-supports-focus */
 import React, { useState, useContext, useEffect, KeyboardEvent } from "react";
+import { useQuery } from "react-query";
+
 import { IAceEditor } from "react-ace/lib/types";
 import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
@@ -13,12 +15,16 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
+import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
@@ -33,6 +39,12 @@ import Icon from "components/Icon/Icon";
 import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
+import TargetLabelSelector from "components/TargetLabelSelector";
+
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 
 import SaveNewPolicyModal from "../SaveNewPolicyModal";
 
@@ -100,6 +112,12 @@ const PolicyForm = ({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isEditingResolution, setIsEditingResolution] = useState(false);
 
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState({});
+
   // Note: The PolicyContext values should always be used for any mutable policy data such as query name
   // The storedPolicy prop should only be used to access immutable metadata such as author id
   const {
@@ -110,6 +128,8 @@ const PolicyForm = ({
     lastEditedQueryResolution,
     lastEditedQueryCritical,
     lastEditedQueryPlatform,
+    lastEditedQueryLabelsIncludeAny,
+    lastEditedQueryLabelsExcludeAny,
     defaultPolicy,
     setLastEditedQueryName,
     setLastEditedQueryDescription,
@@ -118,6 +138,19 @@ const PolicyForm = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
   } = useContext(PolicyContext);
+
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
 
   const {
     currentUser,
@@ -131,6 +164,20 @@ const PolicyForm = ({
     isPremiumTier,
     config,
   } = useContext(AppContext);
+
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
+    }
+  );
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const aiFeaturesDisabled =
@@ -177,6 +224,30 @@ const PolicyForm = ({
   const isNewTemplatePolicy =
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
+
+  useEffect(() => {
+    setSelectedTargetType(
+      !lastEditedQueryLabelsIncludeAny.length &&
+        !lastEditedQueryLabelsExcludeAny.length
+        ? "All hosts"
+        : "Custom"
+    );
+    setSelectedCustomTarget(
+      lastEditedQueryLabelsExcludeAny.length
+        ? "labelsExcludeAny"
+        : "labelsIncludeAny"
+    );
+    setSelectedLabels(
+      lastEditedQueryLabelsIncludeAny
+        .concat(lastEditedQueryLabelsExcludeAny)
+        .reduce((acc, label) => {
+          return {
+            ...acc,
+            [label.name]: true,
+          };
+        }, {}) || {}
+    );
+  }, [lastEditedQueryLabelsIncludeAny, lastEditedQueryLabelsExcludeAny]);
 
   useEffect(() => {
     if (isNewTemplatePolicy) {
@@ -276,6 +347,20 @@ const PolicyForm = ({
         query: lastEditedQueryBody,
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
+        labels_include_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsIncludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
+        labels_exclude_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsExcludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
       };
       if (isPremiumTier) {
         payload.critical = lastEditedQueryCritical;
@@ -473,7 +558,7 @@ const PolicyForm = ({
     if (isEditMode) {
       return (
         <div className={`form-field ${baseClass}__policy-resolve`}>
-          <div className="form-field__label">Resolve:</div>
+          <div className="form-field__label">Resolve</div>
           <GitOpsModeTooltipWrapper
             position="right"
             tipOffset={16}
@@ -547,7 +632,7 @@ const PolicyForm = ({
               </p>
             }
           >
-            Critical:
+            Critical
           </TooltipWrapper>
         </Checkbox>
       </div>
@@ -617,6 +702,10 @@ const PolicyForm = ({
     const disableSaveFormErrors =
       (isEditMode && !isAnyPlatformSelected) ||
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
+      (selectedTargetType === "Custom" &&
+        !Object.entries(selectedLabels).some(([, value]) => {
+          return value;
+        })) ||
       !!size(errors);
 
     return (
@@ -646,6 +735,26 @@ const PolicyForm = ({
           />
           {renderPlatformCompatibility()}
           {isEditMode && platformSelector.render()}
+          {isEditMode && isPremiumTier && (
+            <TargetLabelSelector
+              selectedTargetType={selectedTargetType}
+              selectedCustomTarget={selectedCustomTarget}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              onSelectCustomTarget={setSelectedCustomTarget}
+              selectedLabels={selectedLabels}
+              className={`${baseClass}__target`}
+              onSelectTargetType={setSelectedTargetType}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              customHelpText={
+                <span className="form-field__help-text">
+                  Policy will target hosts on selected platforms that{" "}
+                  <b>have any</b> of these labels:
+                </span>
+              }
+              suppressTitle
+            />
+          )}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
           <div className="button-wrap">
@@ -741,6 +850,7 @@ const PolicyForm = ({
             isFetchingAutofillResolution={isFetchingAutofillResolution}
             onClickAutofillDescription={onClickAutofillDescription}
             onClickAutofillResolution={onClickAutofillResolution}
+            labels={labels}
           />
         )}
       </>

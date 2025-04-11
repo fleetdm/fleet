@@ -74,6 +74,9 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
+	GetTransparencyURL(ctx context.Context) (string, error)
+
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
@@ -598,6 +601,11 @@ type Service interface {
 
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+
+	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
+	// host. If the activity does not exist in the queue of upcoming activities
+	// (e.g. it did complete), it returns a not found error.
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
@@ -1203,6 +1211,12 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
+	ScimDetails(ctx context.Context) (ScimDetails, error)
 }
 
 type KeyValueStore interface {

@@ -59,7 +59,7 @@ controls:
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
-          - "Macs with 1Password8 installed"
+          - "Macs with 1Password installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -70,8 +70,8 @@ controls:
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
       - app_store_id: '803453959' # Slack Desktop
   macos_updates:
-    deadline: "2025-02-23"
-    minimum_version: "15.3"
+    deadline: "2025-04-26"
+    minimum_version: "15.4"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -82,6 +82,7 @@ controls:
     - path: ../lib/macos/scripts/see-automatic-enrollment-profile.sh
     - path: ../lib/macos/scripts/remove-old-nudge.sh
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
@@ -117,3 +118,4 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
+

@@ -30,14 +30,17 @@ import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersM
 import {
   buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
-  getSoftwareFilterFromQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
+import {
+  getHostSoftwareFilterFromQueryParams,
+  getInstallErrorMessage,
+  getUninstallErrorMessage,
+} from "./helpers";
 
 const baseClass = "software-card";
 
@@ -131,7 +134,7 @@ const HostSoftware = ({
 
   const isUnsupported =
     isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
-  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
+  const softwareFilter = getHostSoftwareFilterFromQueryParams(queryParams);
 
   // disables install/uninstall actions after click
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
@@ -330,11 +333,6 @@ const HostSoftware = ({
     ]
   );
 
-  const getHostSoftwareFilterFromQueryParams = useCallback(() => {
-    const { available_for_install } = queryParams;
-    return available_for_install ? "installableSoftware" : "allSoftware";
-  }, [queryParams]);
-
   const tableConfig = useMemo(() => {
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
@@ -393,7 +391,7 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
-            hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
+            hostSoftwareFilter={softwareFilter}
             vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}

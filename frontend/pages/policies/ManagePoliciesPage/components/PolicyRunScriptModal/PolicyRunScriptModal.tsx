@@ -186,7 +186,7 @@ const PolicyRunScriptModal = ({
                 ) : null;
               }}
               footer={
-                <p className="form-field__help-text">
+                <>
                   If{" "}
                   <TooltipWrapper tipContent={compatibleTipContent}>
                     compatible
@@ -200,7 +200,7 @@ const PolicyRunScriptModal = ({
                     text="Learn more"
                     newTab
                   />
-                </p>
+                </>
               }
               isUpdating={isUpdating}
               onSubmit={onUpdate}

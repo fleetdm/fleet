@@ -3,7 +3,7 @@ import React from "react";
 import { IQueryStats } from "interfaces/query_stats";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ReportUpdatedCell from "pages/hosts/details/cards/Queries/ReportUpdatedCell";
@@ -69,7 +69,7 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "query_name",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TooltipTruncatedTextCell value={cellProps.cell.value} />
       ),
       sortType: "caseInsensitive",
     },
