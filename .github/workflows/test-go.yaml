@@ -82,9 +82,11 @@ jobs:
 
     - name: Configure job
       run: |
+        # Coverage is only gathered for the test suite running the below MySQL version. Running without coverage speeds up other MySQL test suites.
         if [[ "${{ matrix.mysql }}" == "mysql:8.0.36" ]]; then
           echo "GO_TEST_COV=true" >> $GITHUB_ENV
         fi
+
         echo "RUN_TESTS_ARG=" >> $GITHUB_ENV
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
