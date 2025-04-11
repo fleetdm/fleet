@@ -244,6 +244,7 @@ dump-test-schema: test-schema
 PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
+GO_TEST_COV_FLAGS := ""
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
 		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info."; 
