@@ -33,6 +33,7 @@ func TestSCIM(t *testing.T) {
 		{"UpdateGroup", testUpdateGroup},
 		{"PatchUserFailure", testPatchUserFailure},
 		{"PatchUserEmails", testPatchUserEmails},
+		{"PatchUserAttributes", testPatchUserAttributes},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
 		{"UsersAndGroups", testUsersAndGroups},
@@ -2227,6 +2228,253 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNullEmailsFieldPayload, http.StatusBadRequest, &nullEmailsResp)
 	assert.EqualValues(t, nullEmailsResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, nullEmailsResp["detail"], "A required value was missing")
+
+	// Delete the user we created
+	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
+}
+
+func testPatchUserAttributes(t *testing.T, s *Suite) {
+	// Create a test user
+	createUserPayload := map[string]interface{}{
+		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
+		"userName": "patch-attributes-test@example.com",
+		"name": map[string]interface{}{
+			"givenName":  "Original",
+			"familyName": "User",
+		},
+		"emails": []map[string]interface{}{
+			{
+				"value":   "patch-attributes-test@example.com",
+				"type":    "work",
+				"primary": true,
+			},
+		},
+		"active": true,
+	}
+
+	var createResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
+	userID := createResp["id"].(string)
+
+	// Patch userName
+	patchUserNamePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"userName": "new-username@example.com",
+				},
+			},
+		},
+	}
+
+	var patchUserNameResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserNamePayload, http.StatusOK, &patchUserNameResp)
+	assert.Equal(t, "new-username@example.com", patchUserNameResp["userName"], "userName should be updated")
+
+	// Patch entire name object
+	patchNamePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"name": map[string]interface{}{
+						"givenName":  "CompletelyNew",
+						"familyName": "FullName",
+					},
+				},
+			},
+		},
+	}
+
+	var patchNameResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNamePayload, http.StatusOK, &patchNameResp)
+	name, ok := patchNameResp["name"].(map[string]interface{})
+	require.True(t, ok, "Response should have name object")
+	assert.Equal(t, "CompletelyNew", name["givenName"], "givenName should be updated")
+	assert.Equal(t, "FullName", name["familyName"], "familyName should be updated")
+
+	// Patch active status
+	patchActivePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"active": false,
+				},
+			},
+		},
+	}
+
+	var patchActiveResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActivePayload, http.StatusOK, &patchActiveResp)
+	assert.Equal(t, false, patchActiveResp["active"], "active should be updated to false")
+
+	// Patch multiple attributes at once (userName, name, active)
+	patchMultiplePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"userName": "multi-update@example.com",
+					"name": map[string]interface{}{
+						"givenName":  "Multiple",
+						"familyName": "Updates",
+					},
+					"active": true,
+				},
+			},
+		},
+	}
+
+	var patchMultipleResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchMultiplePayload, http.StatusOK, &patchMultipleResp)
+	assert.Equal(t, "multi-update@example.com", patchMultipleResp["userName"], "userName should be updated")
+	assert.Equal(t, true, patchMultipleResp["active"], "active should be updated to true")
+	name, ok = patchMultipleResp["name"].(map[string]interface{})
+	require.True(t, ok, "Response should have name object")
+	assert.Equal(t, "Multiple", name["givenName"], "givenName should be updated")
+	assert.Equal(t, "Updates", name["familyName"], "familyName should be updated")
+
+	// Failure Tests
+
+	// Patch with invalid userName (empty string)
+	patchInvalidUserNamePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"userName": "", // Empty userName
+				},
+			},
+		},
+	}
+
+	var invalidUserNameResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchInvalidUserNamePayload, http.StatusBadRequest, &invalidUserNameResp)
+	assert.EqualValues(t, invalidUserNameResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, invalidUserNameResp["detail"], "Bad Request")
+
+	// Patch with userName as wrong type (number)
+	patchUserNameAsNumberPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"userName": 12345, // Number instead of string
+				},
+			},
+		},
+	}
+
+	var userNameAsNumberResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserNameAsNumberPayload, http.StatusBadRequest, &userNameAsNumberResp)
+	assert.EqualValues(t, userNameAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, userNameAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
+
+	// Patch with name as wrong type (string instead of object)
+	patchNameAsStringPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"name": "John Doe", // String instead of object
+				},
+			},
+		},
+	}
+
+	var nameAsStringResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNameAsStringPayload, http.StatusBadRequest, &nameAsStringResp)
+	assert.EqualValues(t, nameAsStringResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, nameAsStringResp["detail"], errors.ScimErrorInvalidValue.Detail)
+
+	// Patch name.givenName -- family name is required, so we can't just patch givenName using this approach
+	patchGivenNamePayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"name": map[string]interface{}{
+						"givenName": "NewFirstName",
+					},
+				},
+			},
+		},
+	}
+
+	var patchGivenNameResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchGivenNamePayload, http.StatusBadRequest, &patchGivenNameResp)
+	assert.EqualValues(t, patchGivenNameResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, patchGivenNameResp["detail"], errors.ScimErrorInvalidValue.Detail)
+
+	// Patch with givenName as wrong type (number)
+	patchGivenNameAsNumberPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"name": map[string]interface{}{
+						"givenName":  12345, // Number instead of string
+						"familyName": "NewLastName",
+					},
+				},
+			},
+		},
+	}
+
+	var givenNameAsNumberResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchGivenNameAsNumberPayload, http.StatusBadRequest, &givenNameAsNumberResp)
+	assert.EqualValues(t, givenNameAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, givenNameAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
+
+	// Patch with familyName as wrong type (boolean)
+	patchFamilyNameAsBoolPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"name": map[string]interface{}{
+						"givenName":  "NewFirstName",
+						"familyName": true, // Boolean instead of string
+					},
+				},
+			},
+		},
+	}
+
+	var familyNameAsBoolResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchFamilyNameAsBoolPayload, http.StatusBadRequest, &familyNameAsBoolResp)
+	assert.EqualValues(t, familyNameAsBoolResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, familyNameAsBoolResp["detail"], errors.ScimErrorInvalidValue.Detail)
+
+	// Patch with active as wrong type (string)
+	patchActiveAsStringPayload := map[string]interface{}{
+		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+		"Operations": []map[string]interface{}{
+			{
+				"op": "replace",
+				"value": map[string]interface{}{
+					"active": "true", // String instead of boolean
+				},
+			},
+		},
+	}
+
+	var activeAsStringResp map[string]interface{}
+	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveAsStringPayload, http.StatusBadRequest, &activeAsStringResp)
+	assert.EqualValues(t, activeAsStringResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.Contains(t, activeAsStringResp["detail"], errors.ScimErrorInvalidValue.Detail)
 
 	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
