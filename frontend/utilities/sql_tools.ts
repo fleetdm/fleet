@@ -85,6 +85,13 @@ export const parseSqlTables = (
       return;
     }
 
+    if (node.with) {
+      node.with.forEach((withNode: IAstNode) => {
+        if (withNode.name && _isNode(withNode.name) && withNode.name.type === "default") {
+          cteTables.push((withNode.name as IAstNode)?.value);
+        }
+      }
+    }
     if (
       (node.variant === "common" || node.variant === "recursive") &&
       node.format === "table" &&
