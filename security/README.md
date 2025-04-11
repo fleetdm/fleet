@@ -68,7 +68,7 @@ If the detected vulnerability can be fixed by updating the base docker image or 
 
 Following is the process to run when a `CRITICAL` CVE affects the `fleetdm/fleet` docker image.
 
-TBD: Discuss.
+TODO(@lukeheath): Define SLA when there's a `CRITICAL` vulnerability in the latest version of Fleet.
 
 #### fleetdm/fleetctl
 

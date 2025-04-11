@@ -16,4 +16,4 @@ The fingerprint of the key is `23A1 9D1F 16D7 1846 57D1  6D67 320D B57D�
 
 GitHub issues concerning vulnerabilities will be tagged with the **security** label to differentiate them from other issues and maintain SOC2 compliance.  
 
-See [./security/README.md](./security/README.md) for more information on our process to keep Fleet products secure.
+See [security/README.md](./security/README.md) for more information on our process to keep Fleet products secure.
