@@ -219,7 +219,6 @@ To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the foll
 
 1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
 
-> If you previously added a profile without `$FLEET_VAR_SCEP_RENEWAL_ID` it will work, but automati renewal won't be enabled.
 
 2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
