@@ -93,7 +93,7 @@ Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.c
 
 **When sharing your screen** during a public meeting, refrain from displaying sensitive information such as customer names, private messages, or other confidential information.
 
-> **[OpenBlur]([OpenBlur](https://chromewebstore.google.com/detail/openblur/dlnglldcaegkgmhmmhhdknblccppichf?pli=1))** is a web extension that automatically blurs elements containing specific keywords on any webpage. This allows you to hide secrets from online meetings or anyone viewing your screen. Created by Victor Lyuboslavsky ([@getvictor](https://github.com/getvictor).
+> **[OpenBlur](https://chromewebstore.google.com/detail/openblur/dlnglldcaegkgmhmmhhdknblccppichf?pli=1)** is a web extension that automatically blurs elements containing specific keywords on any webpage. This allows you to hide secrets from online meetings or anyone viewing your screen. Created by Victor Lyuboslavsky ([@getvictor](https://github.com/getvictor)).
 
 **Take notes.** Every meeting should have a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to ensure: 
   - The agenda creation and/or prep beforehand. 
