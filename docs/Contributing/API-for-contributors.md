@@ -3189,7 +3189,8 @@ Lists the software installed on the current device.
         "name": "GoogleChrome.pkg"
         "version": "125.12.2"
         "self_service": true,
-     	"last_install": {
+        "categories": ["Browsers"],
+     	  "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
       	  "installed_at": "2024-05-15T15:23:57Z"
         },
@@ -3232,6 +3233,7 @@ Lists the software installed on the current device.
       "software_package": null,
       "app_store_app": {
         "app_store_id": "12345",
+        "categories": ["Browsers"],
         "version": "125.6",
         "self_service": false,
         "icon_url": "https://example.com/logo-light.jpg",
@@ -4266,6 +4268,7 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages   | array   | body  | An array of objects with values below. |
 | software.packages.sha256                      | string   | body  | SHA256 hash of the package. If provided, must be 64 lower-case hex characters. One or both of sha256 or url must be provided. |
 | software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). If sha256 is also provided and the installer isn't already uploaded with the same hash for that URL, call will fail if the downloaded installer doesn't match the hash. |
+| software.packages.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the package. |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
@@ -4357,6 +4360,7 @@ _Available in Fleet Premium._
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
+| app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
@@ -4371,6 +4375,7 @@ _Available in Fleet Premium._
   "app_store_apps": [
     {
       "app_store_id": "597799333",
+      "categories": ["Browsers"],
       "self_service": false,
       "labels_include_any": [
         "Engineering",
