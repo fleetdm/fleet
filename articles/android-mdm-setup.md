@@ -39,7 +39,7 @@ When you select **Connect Android Enterprise**, Fleet will open the Google sign-
 9. After successful login and phone verification, you'll be redirected to Fleet, and you should see that Android MDM is turned on.
 10. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name and prevent others from signing up with your domain.
 
-This way, you created Managed Google Domain, with Android Enterprise subscription only. You can use this domain later to add additional subscriptions (i.e. Google Workspace) if you need.
+Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the Android Enterprise subscription is required for Android MDM features.
 
 ## Turn off Android MDM
 
