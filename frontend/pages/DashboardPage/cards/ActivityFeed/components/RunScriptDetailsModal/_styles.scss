@@ -17,13 +17,6 @@
     gap: $pad-medium;
   }
 
-  &__script-content-textarea {
-    box-sizing: border-box;
-    max-height: 300px;
-    overflow-y: auto;
-    font-family: "SourceCodePro";
-  }
-
   &__status-message {
     p {
       display: flex;
@@ -45,23 +38,7 @@
     gap: $pad-xlarge;
   }
 
-  &__script-output {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
-
-    p {
-      margin: 0;
-    }
-  }
-
   &__output-tooltip {
     width: 300px;
-  }
-
-  &__output-textarea {
-    font-family: "SourceCodePro";
-    max-height: 150px;
-    overflow: auto;
   }
 }
