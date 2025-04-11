@@ -24,7 +24,7 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 ### Microsoft 365
 
 1. If your organization uses Microsoft 365, you can use your email to signup for Android Enterprise. When you select **Connect Android Enterprise**, you'll see option to **Sign in with Microsoft**.
-2. Follow the steps in Google's signup flow to finish the registration.
+2. Follow the steps in Google's signup flow to finish the signup.
 3. After successful signup, Android Enterprise subscription (free) is added to your Google Workspace, and you can see in Fleet that Android MDM is turned on.
 
 ### Other
