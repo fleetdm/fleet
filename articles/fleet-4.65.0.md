@@ -1,9 +1,5 @@
 # Fleet 4.65.0 | GitOps mode, automatically install software, certificates in host vitals
 
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/z7pbLb9kp1c?si=xPhedv5F46oR8YR-" frameborder="0" allowfullscreen></iframe>
-</div>
-
 Fleet 4.65.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.65.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
