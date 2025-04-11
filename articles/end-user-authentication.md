@@ -74,6 +74,6 @@ Integrating your Fleet MDM server with your IdP is essential for IT professional
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-04-04">
+<meta name="publishedOn" value="2025-04-11">
 <meta name="description" value="Using single sign-on (SSO) to handle identities automatically during device enrollment">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-saml-integration-for-macOS-Setup-1600x900@2x.png">
