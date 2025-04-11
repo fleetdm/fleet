@@ -139,6 +139,7 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
+- [Best practice for dual-boot workstations](#best-partice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
@@ -150,6 +151,10 @@ How to unenroll a host from Fleet:
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
+
+### Best practice for dual-boot workstations
+
+When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
 
 ### fleetd components
 
