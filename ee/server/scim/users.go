@@ -420,10 +420,6 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 		return scim.Resource{}, err
 	}
 
-	if len(operations) > 1 {
-		level.Info(u.logger).Log("msg", "too many patch operations")
-		return scim.Resource{}, errors.ScimErrorBadParams([]string{"Operations"})
-	}
 	for _, op := range operations {
 		if op.Op != "replace" {
 			level.Info(u.logger).Log("msg", "unsupported patch operation", "op", op.Op)
@@ -436,16 +432,80 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				level.Info(u.logger).Log("msg", "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			if len(newValues) != 1 {
-				level.Info(u.logger).Log("msg", "too many patch values", "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			for k, v := range newValues {
+				switch k {
+				case userNameAttr:
+					userName, ok := v.(string)
+					if !ok || userName == "" {
+						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", userNameAttr), "value", op.Value)
+						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
+					user.UserName = userName
+				case activeAttr:
+					active, ok := v.(bool)
+					if !ok {
+						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", activeAttr), "value", op.Value)
+						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
+					user.Active = &active
+				case nameAttr + "." + givenNameAttr:
+					givenName, ok := v.(string)
+					if !ok {
+						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value", op.Value)
+						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
+					user.GivenName = &givenName
+				case nameAttr + "." + familyNameAttr:
+					familyName, ok := v.(string)
+					if !ok {
+						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value", op.Value)
+						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
+					user.FamilyName = &familyName
+				case nameAttr:
+					name, ok := v.(map[string]interface{})
+					if !ok {
+						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr), "value", op.Value)
+						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					}
+					for nameKey, nameValue := range name {
+						switch nameKey {
+						case givenNameAttr:
+							givenName, ok := nameValue.(string)
+							if !ok {
+								level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value",
+									op.Value)
+								return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+							}
+							user.GivenName = &givenName
+						case familyNameAttr:
+							familyName, ok := nameValue.(string)
+							if !ok {
+								level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value",
+									op.Value)
+								return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+							}
+							user.FamilyName = &familyName
+						default:
+							level.Info(u.logger).Log("msg", "unsupported patch value field", "field", nameAttr+"."+nameKey)
+							return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+						}
+					}
+				default:
+					level.Info(u.logger).Log("msg", "unsupported patch value field", "field", k)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
 			}
-			active, err := getRequiredResource[bool](newValues, activeAttr)
-			if err != nil {
-				level.Info(u.logger).Log("msg", "failed to get active value", "value", op.Value)
-				return scim.Resource{}, err
-			}
-			user.Active = &active
+			// if len(newValues) != 1 {
+			// 	level.Info(u.logger).Log("msg", "too many patch values", "value", op.Value)
+			// 	return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			// }
+			// active, err := getRequiredResource[bool](newValues, activeAttr)
+			// if err != nil {
+			// 	level.Info(u.logger).Log("msg", "failed to get active value", "value", op.Value)
+			// 	return scim.Resource{}, err
+			// }
+			// user.Active = &active
 		case op.Path.String() == activeAttr:
 			active, ok := op.Value.(bool)
 			if !ok {

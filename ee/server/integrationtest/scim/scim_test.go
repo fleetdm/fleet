@@ -1006,51 +1006,7 @@ func testPatchUserFailure(t *testing.T, s *Suite) {
 	assert.EqualValues(t, errorResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp3["detail"], "A required value was missing")
 
-	// Test 4 A: Patch with multiple operations (only one is supported)
-	multipleOpsPayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op":    "replace",
-				"path":  "active",
-				"value": false,
-			},
-			{
-				"op":    "replace",
-				"path":  "active",
-				"value": true,
-			},
-		},
-	}
-
-	var errorResp4 map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), multipleOpsPayload, http.StatusBadRequest, &errorResp4)
-	assert.EqualValues(t, errorResp4["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	assert.Contains(t, errorResp4["detail"], "Bad Request. Invalid parameter provided in request: Operations")
-
-	// Test 4 B: Patch with multiple values, only one is supported
-	multipleValuesPayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op": "replace",
-				"value": map[string]interface{}{
-					"active": false,
-					"name": map[string]interface{}{
-						"givenName":  "Updated",
-						"familyName": "Updated",
-					},
-				},
-			},
-		},
-	}
-
-	var errorResp4B map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), multipleValuesPayload, http.StatusBadRequest, &errorResp4B)
-	assert.EqualValues(t, errorResp4B["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	assert.Contains(t, errorResp4B["detail"], "Bad Request")
-
-	// Test 5: Patch with wrong value type for active
+	// Test: Patch with wrong value type for active
 	wrongTypePayload := map[string]interface{}{
 		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
 		"Operations": []map[string]interface{}{
