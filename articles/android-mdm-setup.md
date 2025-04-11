@@ -15,7 +15,7 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 
 1. If your organization already uses Google Workspace, use the admin account (or if you don't have one ask your Google Workspace admin to create one for you) to signup for Android Enterprise.
 2. Follow the steps in Google's signup flow to finish the signup.
-3. After successful registration Android Enterprise subscription (free) is added to your Google Workspace, and you can see in Fleet that Android MDM is turned on.
+3. After successful signup, Android Enterprise subscription (free) is added to your Google Workspace, and you can see in Fleet that Android MDM is turned on.
 4. Go to [Google Admin console](https://admin.google.com)
 5. From the side menu, select **Devices > Mobile & endpoints > Settings > Third-party integrations**.
 6. Select **Android EMM**, check **Enable third-party Android mobile management**, then select **Manage EMM providers**.
