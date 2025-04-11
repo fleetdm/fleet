@@ -15,6 +15,7 @@ For reference, here are the build configuration files:
     - [goreleaser-linux-arm64.yml](./goreleaser-linux-arm64.yml)
     - [goreleaser-macos.yml](./goreleaser-macos.yml)
     - [goreleaser-windows.yml](./goreleaser-windows.yml)
+    - [goreleaser-windows.yml](./goreleaser-windows-arm64.yml)
 
 Following are the commands to build in case you can't use goreleaser.
 
