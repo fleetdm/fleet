@@ -82,9 +82,6 @@ jobs:
 
     - name: Configure job
       run: |
-        if [[ "${{ matrix.mysql }}" == "mysql:8.0.36" ]]; then
-          echo "GO_TEST_COV=true" >> $GITHUB_ENV
-        end
         echo "RUN_TESTS_ARG=" >> $GITHUB_ENV
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
@@ -194,8 +191,7 @@ jobs:
       run: |
         echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
 
-    - name: Upload coverage artifact
-      if: ${{ env.GO_TEST_COV }}
+    - name: Save coverage
       uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
       with:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-coverage
@@ -385,7 +381,7 @@ jobs:
   # Our Go matrix test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
   # This job explicitly checks if any Go matrix test suites have failed and marks the overall workflow with the proper pass/fail status.
   aggregate-result:
-    needs: test-go
+    needs: upload-coverage
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner

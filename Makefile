@@ -240,17 +240,15 @@ dump-test-schema: test-schema
 # TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.						 
-# GO_TEST_COV_FLAGS: Internal var used to add coverage arguments to `go test`. It is enabled with $GO_TEST_COV=true
 PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
-GO_TEST_COV_FLAGS := ""
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
 		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info."; 
 else
 		@echo Running Go tests with command:
-		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 ${GO_TEST_COV_FLAGS} $(go_test_pkg_to_test)
+		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
 endif
 
 # This is the base command to debug Go tests.
@@ -335,9 +333,6 @@ else ifeq ($(CI_TEST_PKG), vuln)
 	CI_PKG_TO_TEST=$(VULN_PKGS_TO_TEST)
 else
 	CI_PKG_TO_TEST=$(DEFAULT_PKGS_TO_TEST)
-endif
-ifeq ($(GO_TEST_COV), true)
-    GO_TEST_COV_FLAGS=-coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/...
 endif
 # Command used in CI to run all tests.
 .help-short--test-go:
