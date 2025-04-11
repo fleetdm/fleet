@@ -933,11 +933,11 @@ module.exports.routes = {
   //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
   //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
-  'POST /api/v1/android-proxy/create-android-enterprise': { action: 'android-proxy/create-android-enterprise', csrf: false},
-  'DELETE /api/v1/android-proxy/delete-one-android-enterprise': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
-  'POST /api/v1/android-proxy/create-android-enrollment-token': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
-  'POST /api/v1/android/:androidEnterpriseId/signup-url`': { action: 'android-proxy/create-android-signup-url', csrf: false},
-  'PATCH /api/v1/android/:androidEnterpriseId/configuration-profiles/:profileId': { action: 'android-proxy/modify-android-policies', csrf: false},
+  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
+  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
+  'POST /api/android/v1/:androidEnterpriseId/enrollment-token': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
+  'PATCH /api/android/v1/:androidEnterpriseId/policies/:profileId': { action: 'android-proxy/modify-android-policies', csrf: false},
+  'DELETE /api/android/v1/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
 
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
