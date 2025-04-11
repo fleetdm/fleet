@@ -17,7 +17,8 @@ const baseClass = "cancel-activity-modal";
 interface ICancelActivityModalProps {
   hostId: number;
   activity: IHostUpcomingActivity;
-  onCancelActivity: () => void;
+  onCancelActivity: (activity: IHostUpcomingActivity) => void;
+  onSuccessCancel: (activity: IHostUpcomingActivity) => void;
   onExit: () => void;
 }
 
@@ -25,6 +26,7 @@ const CancelActivityModal = ({
   hostId,
   activity,
   onCancelActivity,
+  onSuccessCancel,
   onExit,
 }: ICancelActivityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -37,10 +39,11 @@ const CancelActivityModal = ({
     try {
       await activitiesAPI.cancelHostActivity(hostId, activity.uuid);
       renderFlash("success", "Activity successfully canceled.");
+      onSuccessCancel(activity);
     } catch (err) {
       renderFlash("error", getErrorMessage(err));
     }
-    onCancelActivity();
+    onCancelActivity(activity);
     onExit();
   };
 

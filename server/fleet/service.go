@@ -605,7 +605,7 @@ type Service interface {
 	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
 	// host. If the activity does not exist in the queue of upcoming activities
 	// (e.g. it did complete), it returns a not found error.
-	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
@@ -1211,6 +1211,12 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
+	ScimDetails(ctx context.Context) (ScimDetails, error)
 }
 
 type KeyValueStore interface {

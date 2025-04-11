@@ -1,13 +1,10 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
-import { noop } from "lodash";
 
-import paths from "router/paths";
 import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
-import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
+import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import Card from "components/Card";
@@ -33,10 +30,7 @@ interface IPoliciesProps {
 }
 
 interface IHostPoliciesRowProps extends Row {
-  original: {
-    id: number;
-    response: "pass" | "fail";
-  };
+  original: IHostPolicy;
 }
 
 const Policies = ({
@@ -61,18 +55,7 @@ const Policies = ({
 
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
-      const { id: policyId, response: policyResponse } = row.original;
-
-      const viewAllHostPath = getPathWithQueryParams(paths.MANAGE_HOSTS, {
-        policy_id: policyId,
-        policy_response:
-          policyResponse === "pass"
-            ? PolicyResponse.PASSING
-            : PolicyResponse.FAILING,
-        team_id: currentTeamId,
-      });
-
-      router.push(viewAllHostPath);
+      togglePolicyDetailsModal(row.original);
     },
     [router]
   );
@@ -143,9 +126,10 @@ const Policies = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
-          disableMultiRowSelect={!deviceUser} // Removes hover/click state if deviceUser
+          disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
-          onClickRow={deviceUser ? noop : onClickRow}
+          onClickRow={onClickRow}
+          keyboardSelectableRows
         />
       </>
     );

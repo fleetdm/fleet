@@ -526,6 +526,7 @@ This activity contains the following fields:
 Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
 
 This activity contains the following fields:
+- "host_id": ID of the host.
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.
 
@@ -533,8 +534,9 @@ This activity contains the following fields:
 
 ```json
 {
-  "host_serial": "B04FL3ALPT21",
-  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }
 ```
 
@@ -1706,7 +1708,7 @@ This activity does not contain any detail fields.
 
 ## canceled_run_script
 
-Generated when upcoming activity `ran_script` is canceled. 
+Generated when upcoming activity `ran_script` is canceled.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1717,21 +1719,43 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Marko's MacBook Pro",
-	"script_name": "set-timezone.sh",
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh"
 }
 ```
 
 ## canceled_install_software
 
-Generated when upcoming activity `installed_software` is canceled. 
+Generated when upcoming activity `installed_software` is canceled.
+
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
-- "software_title_id": ID of the added software title.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+	"host_id": 123,
+	"host_display_name": "Marko's MacBook Pro",
+	"software_title": "Adobe Acrobat.app",
+	"software_title_id": 12334
+}
+```
+
+## canceled_uninstall_software
+
+Generated when upcoming activity `uninstalled_software` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
 
 #### Example
 
@@ -1752,35 +1776,14 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
-- "software_title_id": ID of the added software title.
+- "software_title_id": ID of the software title.
 
 #### Example
 
 ```json
 {
 	"host_id": 123,
-	"host_display_name": "Marko's MacBook Pro",
-	"software_title": "Adobe Acrobat.app",
-	"software_title_id": 12334
-}
-```
-
-## canceled_uninstall_software
-
-Generated when upcoming activity `uninstalled_software` is canceled. 
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "software_title": Name of the software.
-- "software_title_id": ID of the added software title.
-
-#### Example
-
-```json
-{
-	"host_id": 123,
-	"host_display_name": "Marko's MacBook Pro",
+	"host_display_name": "Anna's MacBook Pro",
 	"software_title": "Adobe Acrobat.app",
 	"software_title_id": 12334
 }

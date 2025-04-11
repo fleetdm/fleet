@@ -1,6 +1,7 @@
 .tooltip-truncated-cell {
   display: flex;
   align-items: center; // For badges, etc
+  gap: $pad-small;
 
   .text-muted {
     color: $ui-fleet-black-50;
@@ -50,8 +51,12 @@
     }
   }
 
-  .data-table__suffix {
-    margin-left: 8px; /* Add spacing between text and suffix */
+  .data-table__suffix,
+  .data-table__prefix {
+    display: flex;
+    gap: $pad-small;
+    height: 24px;
+    align-items: center;
     flex-shrink: 0; /* Prevent suffix from shrinking */
   }
 }

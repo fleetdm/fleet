@@ -121,7 +121,7 @@ policies:
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
   platform: darwin
   critical: false
   calendar_events_enabled: false
@@ -737,6 +737,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
 #### digicert
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
@@ -752,6 +755,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
 #### scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.

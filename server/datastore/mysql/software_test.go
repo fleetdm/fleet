@@ -3506,6 +3506,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			for _, g := range got {
 				builder.WriteString(fmt.Sprintf("%+v\n", g))
 			}
+			builder.WriteString("Expected:\n")
+			for _, e := range expected {
+				builder.WriteString(fmt.Sprintf("%+v\n", e))
+			}
 			return builder.String()
 		}
 		require.Len(t, got, len(expected)-len(expectOmitted), gotToString())
@@ -3711,7 +3715,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
 		ds.testActivateSpecificNextActivities = []string{"-"}
-		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               hostSwi2InstallUUID,
 			PreInstallConditionOutput: ptr.String("ok"),
@@ -3734,7 +3738,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
 		ds.testActivateSpecificNextActivities = []string{"-"}
-		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               hostSwi3InstallUUID,
 			PreInstallConditionOutput: ptr.String("ok"),
@@ -3769,7 +3773,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		require.Equal(t, ds.testActivateSpecificNextActivities, activated)
 		ds.testActivateSpecificNextActivities = []string{"-"}
-		err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 			HostID:                    host.ID,
 			InstallUUID:               hostSwi6InstallUUID,
 			PreInstallConditionOutput: ptr.String("ok"),
@@ -3926,6 +3930,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	// request with available software only (attempted to install and never attempted to install)
 	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
 	expectedAvailableOnly[byNSV[b].Name+byNSV[b].Source] = expected[byNSV[b].Name+byNSV[b].Source]
+	// Although this is already installed, we ignore the status on the host because we can "reinstall" it
+	// if there is a compatible software package available for the host
 	expectedAvailableOnly[i0.Name+i0.Source] = i0
 	expectedAvailableOnly[i1.Name+i1.Source] = i1
 	expectedAvailableOnly[i2.Name+i2.Source] = i2
@@ -3956,7 +3962,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	activated, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
 	require.NoError(t, err)
 	require.Equal(t, ds.testActivateSpecificNextActivities, activated)
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostSwi1InstallUUID,
 		InstallScriptExitCode: ptr.Int(2),
@@ -4342,6 +4348,83 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			assert.Equal(t, c.wantMeta, meta)
 		})
 	}
+
+	// Host has software installed, but not by fleet, and there is a matching software installer.
+	// Ensure it is surfaced as "available for install"
+	darwinHost := test.NewHost(t, ds, "hostD", "", "hostDkey", "hostDuuid", time.Now(), test.WithPlatform("darwin"))
+	softwareAlreadyInstalled := fleet.Software{Name: "DummyApp.app", Version: "1.0.1", Source: "apps", BundleIdentifier: "com.example.dummy"}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier)
+		if err != nil {
+			return err
+		}
+		titleID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		res, err = q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id) VALUES (?, ?, ?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID)
+		if err != nil {
+			return err
+		}
+		softwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			darwinHost.ID, softwareID)
+		if err != nil {
+			return err
+		}
+		installScript := `install 'DummyApp.app'`
+		res, err = q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+		uninstallScript := `uinstall 'DummyApp.app'`
+		resUninstall, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`,
+			uninstallScript, uninstallScript)
+		if err != nil {
+			return err
+		}
+		uninstallScriptContentID, _ := resUninstall.LastInsertId()
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO software_installers
+								(team_id, global_or_team_id, title_id, filename, extension, version, install_script_content_id, uninstall_script_content_id, storage_id, platform, self_service)
+							VALUES
+								(?, ?, ?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+			darwinHost.TeamID, 0, titleID, "DummyApp.pkg", "pkg", "2.0.0",
+			scriptContentID, uninstallScriptContentID,
+			hex.EncodeToString([]byte("test")), "darwin", true)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+
+	opts.OnlyAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, darwinHost, opts)
+	require.NoError(t, err)
+
+	var found bool
+	var index int
+	for i, s := range sw {
+		if s.Name == softwareAlreadyInstalled.Name && s.Source == softwareAlreadyInstalled.Source {
+			found = true
+			index = i
+			break
+		}
+	}
+	require.True(t, found, "Expected to find software %s in the list", softwareAlreadyInstalled.Name)
+	assert.Equal(t, sw[index].InstalledVersions[0].Version, softwareAlreadyInstalled.Version)
+	assert.Equal(t, sw[index].SoftwarePackage.Name, "DummyApp.pkg")
+	assert.Equal(t, sw[index].SoftwarePackage.Version, "2.0.0")
+	assert.Equal(t, sw[index].SoftwarePackage.Platform, "darwin")
 }
 
 func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
@@ -4768,8 +4851,9 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		PostInstallScriptExitCode: ptr.Int(0),
 		PostInstallScriptOutput:   ptr.String("ok"),
 	}
-	err := ds.SetHostSoftwareInstallResult(ctx, want)
+	wasCanceled, err := ds.SetHostSoftwareInstallResult(ctx, want)
 	require.NoError(t, err)
+	require.False(t, wasCanceled)
 	checkResults(want)
 
 	// set a result with only the pre-condition that failed
@@ -4778,7 +4862,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		InstallUUID:               "uuid1",
 		PreInstallConditionOutput: ptr.String(""),
 	}
-	err = ds.SetHostSoftwareInstallResult(ctx, want)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, want)
 	require.NoError(t, err)
 	checkResults(want)
 
@@ -4789,12 +4873,12 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		InstallScriptExitCode: ptr.Int(1),
 		InstallScriptOutput:   ptr.String("fail"),
 	}
-	err = ds.SetHostSoftwareInstallResult(ctx, want)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, want)
 	require.NoError(t, err)
 	checkResults(want)
 
 	// set a result for a non-existing uuid
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "uuid-no-such",
 		InstallScriptExitCode: ptr.Int(0),
@@ -4852,7 +4936,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	// install it on the host
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
@@ -4965,7 +5049,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	// fail to install it on the host
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(1),
@@ -5712,11 +5796,6 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, scoped)
 
-	// TODO(JVE): dump labels table and check type
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		DumpTable(t, q, "labels")
-		return nil
-	})
 	// installer3 is not in scope yet, because label is "exclude any" and host doesn't have results
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID3, host.ID)
 	require.NoError(t, err)
@@ -5821,6 +5900,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	software := []fleet.Software{
 		{Name: "a", Version: "0.0.1", Source: "ios_apps"},
 		{Name: "b", Version: "0.0.2", Source: "apps"},
+		{Name: "c", Version: "0.0.3", Source: "apps"},
 	}
 	byNSV := map[string]fleet.Software{}
 	for _, s := range software {
@@ -5838,12 +5918,29 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, mutationResults.Inserted, len(software))
 
+	bTitleId := mutationResults.Inserted[0].TitleID
+	// insert vulnerable software with the same software title as c, but this version is not added to host
+	result, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"c", "0.0.1", "apps", &bTitleId, hex.EncodeToString([]byte("c.0.0.1apps")),
+	)
+	require.NoError(t, err)
+	insertedID, err := result.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(
+		ctx,
+		fleet.SoftwareVulnerability{SoftwareID: uint(insertedID), CVE: "CVE-c-00c1"},
+		fleet.NVDSource,
+	)
+	require.NoError(t, err)
+
 	getKey := func(i int) string {
 		return software[i].Name + software[i].Source + software[i].Version
 	}
 	a := getKey(0)
 	b := getKey(1)
-	// add vulnerabilities
+	// add vulnerabilities to a and b
 	vulns := []fleet.SoftwareVulnerability{
 		{SoftwareID: byNSV[a].ID, CVE: "CVE-a-0001"},
 		{SoftwareID: byNSV[b].ID, CVE: "CVE-b-0002"},
@@ -5878,6 +5975,28 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
+	var ensureVulnerableState []struct {
+		HostID *uint   `db:"host_id"`
+		CVE    *string `db:"cve"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &ensureVulnerableState, `
+	SELECT
+		host_software.host_id as host_id,
+		software_cve.cve
+	FROM software_titles
+	LEFT JOIN software on software.title_id = software_titles.id
+	LEFT JOIN software_cve on software_cve.software_id = software.id
+	LEFT JOIN host_software on host_software.software_id = software.id
+	WHERE
+		software_titles.name = 'c'
+	ORDER BY host_software.host_id IS NOT NULL, host_software.host_id
+	`)
+	require.NoError(t, err)
+	require.Nil(t, ensureVulnerableState[0].HostID)
+	require.NotNil(t, ensureVulnerableState[0].CVE)
+	require.Equal(t, ensureVulnerableState[1].HostID, &tmHost.ID)
+	require.Nil(t, ensureVulnerableState[1].CVE)
+
 	// Ensure that software "a" & "b" are returned as they are vulnerable
 	require.NoError(t, ds.LoadHostSoftware(ctx, tmHost, false))
 	sw, _, err := ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
@@ -5904,7 +6023,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerTm1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                tmHost.ID,
 		InstallUUID:           hostInstall1,
 		InstallScriptExitCode: ptr.Int(0),
@@ -5944,14 +6063,12 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	result, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err = ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
 		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
-	require.NoError(t, err)
-	insertedID, err := result.LastInsertId()
 	require.NoError(t, err)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 
@@ -5970,17 +6087,34 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		TeamID:          &tm.ID,
 		Filename:        "foo.pkg",
 		UserID:          user.ID,
+		Version:         "1.0.0",
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	// insert into software without adding to host
+	// insert non-vulnerable software without adding to host
 	_, err = ds.writer(ctx).ExecContext(
 		ctx,
 		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
-		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo")),
+		"foo", "1.0.0", "bar", &titleID, hex.EncodeToString([]byte("foo1.0")),
 	)
 	require.NoError(t, err)
-	// pending install request
+	// insert vulnerable software with the same software title, but still not added to host
+	result, err = ds.writer(ctx).ExecContext(
+		ctx,
+		`INSERT INTO software (name, version, source, title_id, checksum) VALUES (?, ?, ?, ?, ?)`,
+		"foo", "0.5", "bar", &titleID, hex.EncodeToString([]byte("foo0.5")),
+	)
+	require.NoError(t, err)
+	insertedID, err = result.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(
+		ctx,
+		fleet.SoftwareVulnerability{SoftwareID: uint(insertedID), CVE: "CVE-bar-0001"},
+		fleet.NVDSource,
+	)
+	require.NoError(t, err)
+
+	// pending install request for foo1.0 (non-vulnerable version)
 	_, err = ds.InsertSoftwareInstallRequest(ctx, tmHost.ID, installerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -6052,7 +6186,6 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	// add vulnerabilities to last_software_install and last_vpp_install
 	vulns = []fleet.SoftwareVulnerability{
 		{SoftwareID: mutationResults.Inserted[0].ID, CVE: "CVE-file1-0003"},
-		{SoftwareID: uint(insertedID), CVE: "CVE-vpp1-0004"},
 	}
 	for _, v := range vulns {
 		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
@@ -6101,12 +6234,11 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		MaximumCVSS:    2.0,
 	}
 
-	// should only return "file1" and "vpp1"
+	// should only return "file1" (vpp1 is not compatible with the platform)
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, matchingsOpts)
 	require.NoError(t, err)
-	require.Len(t, sw, 2)
+	require.Len(t, sw, 1)
 	require.Equal(t, "file1", sw[0].Name)
-	require.Equal(t, "vpp1", sw[1].Name)
 }
 
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {

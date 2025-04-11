@@ -474,7 +474,7 @@ type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID ui
 
 type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error)
 
-type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
+type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
@@ -498,11 +498,13 @@ type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) 
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
-type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, upcomingActivityID string) error
+type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
+
+type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -1292,6 +1294,10 @@ type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error
 
 type ScimUserByUserNameFunc func(ctx context.Context, userName string) (*fleet.ScimUser, error)
 
+type ScimUserByUserNameOrEmailFunc func(ctx context.Context, userName string, email string) (*fleet.ScimUser, error)
+
+type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUser, error)
+
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
 
 type DeleteScimUserFunc func(ctx context.Context, id uint) error
@@ -1309,6 +1315,10 @@ type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) erro
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
 
 type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
+
+type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
+
+type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2033,6 +2043,9 @@ type DataStore struct {
 
 	IsExecutionPendingForHostFunc        IsExecutionPendingForHostFunc
 	IsExecutionPendingForHostFuncInvoked bool
+
+	GetHostUpcomingActivityMetaFunc        GetHostUpcomingActivityMetaFunc
+	GetHostUpcomingActivityMetaFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -3216,6 +3229,12 @@ type DataStore struct {
 	ScimUserByUserNameFunc        ScimUserByUserNameFunc
 	ScimUserByUserNameFuncInvoked bool
 
+	ScimUserByUserNameOrEmailFunc        ScimUserByUserNameOrEmailFunc
+	ScimUserByUserNameOrEmailFuncInvoked bool
+
+	ScimUserByHostIDFunc        ScimUserByHostIDFunc
+	ScimUserByHostIDFuncInvoked bool
+
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
 
@@ -3242,6 +3261,12 @@ type DataStore struct {
 
 	ListScimGroupsFunc        ListScimGroupsFunc
 	ListScimGroupsFuncInvoked bool
+
+	ScimLastRequestFunc        ScimLastRequestFunc
+	ScimLastRequestFuncInvoked bool
+
+	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
+	UpdateScimLastRequestFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4828,7 +4853,7 @@ func (s *DataStore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID uint, 
 	return s.IsVPPAppLabelScopedFunc(ctx, vppAppTeamID, hostID)
 }
 
-func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
@@ -4912,11 +4937,11 @@ func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
 }
 
-func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
+func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	s.mu.Lock()
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
-	return s.CancelHostUpcomingActivityFunc(ctx, hostID, upcomingActivityID)
+	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
 }
 
 func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
@@ -4931,6 +4956,13 @@ func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, 
 	s.IsExecutionPendingForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsExecutionPendingForHostFunc(ctx, hostID, scriptID)
+}
+
+func (s *DataStore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
+	s.mu.Lock()
+	s.GetHostUpcomingActivityMetaFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostUpcomingActivityMetaFunc(ctx, hostID, executionID)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
@@ -7691,6 +7723,20 @@ func (s *DataStore) ScimUserByUserName(ctx context.Context, userName string) (*f
 	return s.ScimUserByUserNameFunc(ctx, userName)
 }
 
+func (s *DataStore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByUserNameOrEmailFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByUserNameOrEmailFunc(ctx, userName, email)
+}
+
+func (s *DataStore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+	s.mu.Lock()
+	s.ScimUserByHostIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUserByHostIDFunc(ctx, hostID)
+}
+
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
 	s.mu.Lock()
 	s.ReplaceScimUserFuncInvoked = true
@@ -7752,4 +7798,18 @@ func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptio
 	s.ListScimGroupsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScimGroupsFunc(ctx, opts)
+}
+
+func (s *DataStore) ScimLastRequest(ctx context.Context) (*fleet.ScimLastRequest, error) {
+	s.mu.Lock()
+	s.ScimLastRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimLastRequestFunc(ctx)
+}
+
+func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *fleet.ScimLastRequest) error {
+	s.mu.Lock()
+	s.UpdateScimLastRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
 }

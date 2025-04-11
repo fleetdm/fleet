@@ -110,10 +110,11 @@ const generateTableHeaders = (
         const { critical, id, team_id } = cellProps.row.original;
         return (
           <LinkCell
-            className="w250 policy-name-cell"
-            value={
+            className="w250"
+            tooltipTruncate
+            value={cellProps.cell.value}
+            suffix={
               <>
-                <div className="policy-name-text">{cellProps.cell.value}</div>
                 {isPremiumTier && critical && (
                   <div className="critical-badge">
                     <span
