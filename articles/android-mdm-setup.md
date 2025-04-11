@@ -43,7 +43,7 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 ## Turn off Android MDM
 
-1. Head to **Settings > Integrations > MDM**.
+1. In Fleet, head to **Settings > Integrations > MDM**.
 2. In the **Mobile Device Management (MDM)** section, select **Edit** next to "Android MDM turned on."
 3. Select **Turn off Android MDM**
 
