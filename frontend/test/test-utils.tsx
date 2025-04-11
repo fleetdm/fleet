@@ -12,6 +12,7 @@ import {
 } from "context/notification";
 import { IPolicyContext, PolicyContext } from "context/policy";
 import { IQueryContext, QueryContext } from "context/query";
+import { IRouterLocation } from "interfaces/routing";
 
 export const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -176,6 +177,24 @@ const DEFAULT_MOCK_ROUTER: InjectedRouter = {
 export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
   return {
     ...DEFAULT_MOCK_ROUTER,
+    ...overrides,
+  };
+};
+
+export const createMockLocation = (
+  overrides?: Partial<IRouterLocation>
+): IRouterLocation => {
+  // Default values for the location object
+  const defaultLocation: IRouterLocation = {
+    pathname: "/",
+    host: "localhost:8080",
+    hostname: "localhost",
+    port: "8080",
+    protocol: "http:",
+  };
+
+  return {
+    ...defaultLocation,
     ...overrides,
   };
 };

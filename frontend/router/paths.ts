@@ -47,6 +47,7 @@ export default {
   ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
   ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${URL_PREFIX}/settings/integrations/change-management`,
+  ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS: `${URL_PREFIX}/settings/integrations/conditional-access`,
   ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${URL_PREFIX}/settings/integrations/certificates`,
   ADMIN_INTEGRATIONS_IDENTITY_PROVIDER: `${URL_PREFIX}/settings/integrations/identity-provider`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
