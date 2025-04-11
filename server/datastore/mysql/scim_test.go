@@ -1496,6 +1496,18 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Initial SCIM request", retrievedRequest.Details)
 	assert.False(t, retrievedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
 
+	// Do and check the same request again -- timestamp should update
+	err = ds.UpdateScimLastRequest(t.Context(), newRequest)
+	assert.NoError(t, err)
+	retrievedSameRequest, err := ds.ScimLastRequest(t.Context())
+	require.NoError(t, err)
+	require.NotNil(t, retrievedSameRequest)
+	assert.Equal(t, retrievedRequest.Status, retrievedSameRequest.Status)
+	assert.Equal(t, retrievedRequest.Details, retrievedSameRequest.Details)
+	// Verify that the timestamp is newer
+	assert.True(t, retrievedSameRequest.RequestedAt.After(retrievedRequest.RequestedAt),
+		"Same request timestamp should be after the original timestamp")
+
 	// Update the last request with new valid values
 	updatedRequest := &fleet.ScimLastRequest{
 		Status:  "error",
@@ -1513,6 +1525,6 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 	assert.False(t, retrievedUpdatedRequest.RequestedAt.IsZero(), "RequestedAt should not be zero")
 
 	// Verify that the updated timestamp is newer
-	assert.True(t, retrievedUpdatedRequest.RequestedAt.After(retrievedRequest.RequestedAt),
+	assert.True(t, retrievedUpdatedRequest.RequestedAt.After(retrievedSameRequest.RequestedAt),
 		"Updated request timestamp should be after the original timestamp")
 }
