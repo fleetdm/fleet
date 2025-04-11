@@ -851,7 +851,7 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  name AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -1613,6 +1613,8 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		if shouldRemoveSoftware(host, s) {
 			continue
 		}
+
+		// fmt.Printf("s.Name: %v s.LastOpenedAt: %v\n", s.Name, s.LastOpenedAt)
 
 		software = append(software, *s)
 
