@@ -29,7 +29,7 @@ func Up_20250410104321(tx *sql.Tx) error {
 						AND s1.source = s2.source
 						AND` + " s1.`release` = s2.`release` " +
 		`AND s1.arch = s2.arch
-						AND s1.vendor = s1.vendor
+						AND s1.vendor = s2.vendor
 						AND s1.browser = s2.browser
 						AND s1.extension_id = s2.extension_id
 				WHERE

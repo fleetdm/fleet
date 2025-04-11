@@ -1678,15 +1678,15 @@ var defaultQueryResult = []map[string]string{
 }
 
 func (a *agent) genLastOpenedAt(count *int) *time.Time {
-	// if *count >= a.softwareCount.withLastOpened {
-	// 	return nil
-	// }
-	// *count++
-	// if rand.Float64() <= a.softwareCount.lastOpenedProb {
-	now := time.Now()
-	return &now
-	// }
-	// return nil
+	if *count >= a.softwareCount.withLastOpened {
+		return nil
+	}
+	*count++
+	if rand.Float64() <= a.softwareCount.lastOpenedProb {
+		now := time.Now()
+		return &now
+	}
+	return nil
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
