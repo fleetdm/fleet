@@ -328,17 +328,21 @@ func (r *Runner) updateTarget(target string) error {
 		return fmt.Errorf("get binary: %w", err)
 	}
 	path := localTarget.ExecPath
+	newVersion, err := GetVersion(path)
+	if err != nil {
+		return fmt.Errorf("get new version from binary: %w", err)
+	}
 
 	if target == constant.OsqueryTUFTargetName {
 		// Compare old/new osquery versions
-		_, _ = compareVersion(path, r.OsqueryVersion, constant.OsqueryTUFTargetName)
+		_, _ = compareVersion(newVersion, r.OsqueryVersion, constant.OsqueryTUFTargetName)
 	}
 
 	if target != constant.OrbitTUFTargetName {
 		return nil
 	}
 	// Compare old/new orbit versions
-	_, _ = compareVersion(path, build.Version, "fleetd")
+	oVC, _ := compareVersion(newVersion, build.Version, "fleetd")
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
@@ -350,6 +354,13 @@ func (r *Runner) updateTarget(target string) error {
 		return fmt.Errorf("symlink current: %w", err)
 	}
 
+	// oVC == 1 if upgrading or -1 if downgrading, 0 if the same version
+	if oVC != nil && *oVC != 0 && runtime.GOOS == "windows" {
+		if err := updateRegistryVersion(newVersion); err != nil {
+			return fmt.Errorf("update orbit version in Windows registry: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -358,12 +369,8 @@ func (r *Runner) Interrupt(err error) {
 }
 
 // compareVersion compares the old and new versions of a binary and prints the appropriate message.
-// The return value is only used for unit tests.
-func compareVersion(path string, oldVersion string, targetDisplayName string) (*int, error) {
-	newVersion, err := GetVersion(path)
-	if err != nil {
-		return nil, err
-	}
+// The return value is used to determine whether to update the Windows registry and for unit tests.
+func compareVersion(newVersion string, oldVersion string, targetDisplayName string) (*int, error) {
 	vOldVersion := "v" + oldVersion
 	vNewVersion := "v" + newVersion
 	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) {
