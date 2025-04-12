@@ -2742,7 +2742,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			LEFT JOIN
 				vpp_apps_teams vat ON vaua.adam_id = vat.adam_id AND vaua.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 			INNER JOIN
-				vpp_apps ON vaua.adam_id = vpp_apps.adam_id
+				vpp_apps ON vaua.adam_id = vpp_apps.adam_id AND vaua.platform = vpp_apps.platform
 			WHERE
 				-- selfServiceFilter
 				%s
@@ -2772,7 +2772,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 			LEFT JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             INNER JOIN
-				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id
+				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
 			WHERE
 				-- selfServiceFilter
 				%s
