@@ -1874,36 +1874,6 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		assert.True(t, primaryFound, "One email should be marked as primary")
 	})
 
-	t.Run("Verify that patching with multiple primary emails fails", func(t *testing.T) {
-		patchMultiplePrimaryPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "primary1@example.com",
-								"type":    "work",
-								"primary": true,
-							},
-							{
-								"value":   "primary2@example.com",
-								"type":    "home",
-								"primary": true, // Second primary email
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var errorResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchMultiplePrimaryPayload, http.StatusBadRequest, &errorResp)
-		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, errorResp["detail"], "Only one email can be marked as primary")
-	})
-
 	t.Run("Verify that patching with no primary email is allowed", func(t *testing.T) {
 		patchNoPrimaryPayload := map[string]interface{}{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
@@ -1965,275 +1935,6 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		// Verify the emails were updated (should be empty or not present)
 		noEmails := emptyEmailsResp["emails"]
 		assert.Empty(t, noEmails, "Emails should be empty after patch")
-	})
-
-	t.Run("Verify that patching with invalid email format fails", func(t *testing.T) {
-		patchInvalidEmailFormatPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "not-an-email", // Invalid email format (missing @ and domain)
-								"type":    "work",
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var invalidEmailFormatResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchInvalidEmailFormatPayload, http.StatusBadRequest, &invalidEmailFormatResp)
-		assert.EqualValues(t, invalidEmailFormatResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, invalidEmailFormatResp["detail"], "Bad Request")
-	})
-
-	t.Run("Verify that patching with empty email value fails", func(t *testing.T) {
-		patchEmptyEmailValuePayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "", // Empty email value
-								"type":    "work",
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var emptyEmailValueResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmptyEmailValuePayload, http.StatusBadRequest, &emptyEmailValueResp)
-		assert.EqualValues(t, emptyEmailValueResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, emptyEmailValueResp["detail"], "Bad Request")
-	})
-
-	t.Run("Verify that patching with email missing @ symbol fails", func(t *testing.T) {
-		patchEmailMissingAtPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "testinvalid.com", // Email missing @ symbol
-								"type":    "work",
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var emailMissingAtResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailMissingAtPayload, http.StatusBadRequest, &emailMissingAtResp)
-		assert.EqualValues(t, emailMissingAtResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, emailMissingAtResp["detail"], "Bad Request")
-	})
-
-	t.Run("Verify that patching with email value as a number fails", func(t *testing.T) {
-		patchEmailValueAsNumberPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   123, // Number instead of string
-								"type":    "work",
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var emailValueAsNumberResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailValueAsNumberPayload, http.StatusBadRequest, &emailValueAsNumberResp)
-		assert.EqualValues(t, emailValueAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, emailValueAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Verify that patching with email value as a boolean fails", func(t *testing.T) {
-		patchEmailValueAsBoolPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   true, // Boolean instead of string
-								"type":    "work",
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var emailValueAsBoolResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailValueAsBoolPayload, http.StatusBadRequest, &emailValueAsBoolResp)
-		assert.EqualValues(t, emailValueAsBoolResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, emailValueAsBoolResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Verify that patching with email type as a number fails", func(t *testing.T) {
-		patchEmailTypeAsNumberPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "valid@example.com",
-								"type":    123, // Number instead of string
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var emailTypeAsNumberResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailTypeAsNumberPayload, http.StatusBadRequest, &emailTypeAsNumberResp)
-		assert.EqualValues(t, emailTypeAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, emailTypeAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Verify that patching with email type as a boolean fails", func(t *testing.T) {
-		patchEmailTypeAsBoolPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "valid@example.com",
-								"type":    true, // Boolean instead of string
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var emailTypeAsBoolResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailTypeAsBoolPayload, http.StatusBadRequest, &emailTypeAsBoolResp)
-		assert.EqualValues(t, emailTypeAsBoolResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, emailTypeAsBoolResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Verify that patching with primary flag as a string fails", func(t *testing.T) {
-		patchPrimaryAsStringPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "valid@example.com",
-								"type":    "work",
-								"primary": "true", // String instead of boolean
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var primaryAsStringResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPrimaryAsStringPayload, http.StatusBadRequest, &primaryAsStringResp)
-		assert.EqualValues(t, primaryAsStringResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, primaryAsStringResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Verify that patching with primary flag as a number fails", func(t *testing.T) {
-		patchPrimaryAsNumberPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   "valid@example.com",
-								"type":    "work",
-								"primary": 1, // Number instead of boolean
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var primaryAsNumberResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPrimaryAsNumberPayload, http.StatusBadRequest, &primaryAsNumberResp)
-		assert.EqualValues(t, primaryAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, primaryAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Verify that patching with null email value fails", func(t *testing.T) {
-		patchNullEmailValuePayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
-							{
-								"value":   nil, // Null email value
-								"type":    "work",
-								"primary": true,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		var nullEmailResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNullEmailValuePayload, http.StatusBadRequest, &nullEmailResp)
-		assert.EqualValues(t, nullEmailResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, nullEmailResp["detail"], "Bad Request. Invalid parameter provided in request")
-	})
-
-	t.Run("Verify that patching with null emails field results in an error", func(t *testing.T) {
-		patchNullEmailsFieldPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": nil,
-					},
-				},
-			},
-		}
-
-		var nullEmailsResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNullEmailsFieldPayload, http.StatusBadRequest, &nullEmailsResp)
-		assert.EqualValues(t, nullEmailsResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, nullEmailsResp["detail"], "A required value was missing")
 	})
 
 	t.Run("Patch emails with explicit path", func(t *testing.T) {
@@ -2540,6 +2241,278 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		assert.Equal(t, "other", otherEmail["type"], "Home email type should be changed to 'other'")
 		assert.Equal(t, true, workEmail["primary"], "Work email primary flag should remain true")
 		assert.Equal(t, false, otherEmail["primary"], "Other email primary flag should remain false")
+	})
+
+	// Test failure cases using table-driven tests
+	t.Run("Email validation failure cases", func(t *testing.T) {
+		// Define test cases
+		testCases := []struct {
+			name         string
+			payload      map[string]interface{}
+			errorMessage string
+		}{
+			{
+				name: "Multiple primary emails",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "primary1@example.com",
+										"type":    "work",
+										"primary": true,
+									},
+									{
+										"value":   "primary2@example.com",
+										"type":    "home",
+										"primary": true, // Second primary email
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: "Only one email can be marked as primary",
+			},
+			{
+				name: "Invalid email format",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "not-an-email", // Invalid email format (missing @ and domain)
+										"type":    "work",
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: "Bad Request",
+			},
+			{
+				name: "Empty email value",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "", // Empty email value
+										"type":    "work",
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: "Bad Request",
+			},
+			{
+				name: "Email missing @ symbol",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "testinvalid.com", // Email missing @ symbol
+										"type":    "work",
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: "Bad Request",
+			},
+			{
+				name: "Email value as a number",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   123, // Number instead of string
+										"type":    "work",
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "Email value as a boolean",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   true, // Boolean instead of string
+										"type":    "work",
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "Email type as a number",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "valid@example.com",
+										"type":    123, // Number instead of string
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "Email type as a boolean",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "valid@example.com",
+										"type":    true, // Boolean instead of string
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "Primary flag as a string",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "valid@example.com",
+										"type":    "work",
+										"primary": "true", // String instead of boolean
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "Primary flag as a number",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   "valid@example.com",
+										"type":    "work",
+										"primary": 1, // Number instead of boolean
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "Null email value",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": []map[string]interface{}{
+									{
+										"value":   nil, // Null email value
+										"type":    "work",
+										"primary": true,
+									},
+								},
+							},
+						},
+					},
+				},
+				errorMessage: "Bad Request. Invalid parameter provided in request",
+			},
+			{
+				name: "Null emails field",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"emails": nil,
+							},
+						},
+					},
+				},
+				errorMessage: "A required value was missing",
+			},
+		}
+
+		// Run each test case
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				var errorResp map[string]interface{}
+				s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), tc.payload, http.StatusBadRequest, &errorResp)
+				assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+				assert.Contains(t, errorResp["detail"], tc.errorMessage)
+			})
+		}
 	})
 }
 
