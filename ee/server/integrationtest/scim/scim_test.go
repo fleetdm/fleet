@@ -31,7 +31,6 @@ func TestSCIM(t *testing.T) {
 		{"CreateGroup", testCreateGroup},
 		{"UpdateUser", testUpdateUser},
 		{"UpdateGroup", testUpdateGroup},
-		{"PatchUserFailure", testPatchUserFailure},
 		{"PatchUserEmails", testPatchUserEmails},
 		{"PatchUserAttributes", testPatchUserAttributes},
 		{"UsersPagination", testUsersPagination},
@@ -943,84 +942,6 @@ func testCreateUser(t *testing.T, s *Suite) {
 	s.Do(t, "DELETE", scimPath("/Users/"+userID4), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID5), nil, http.StatusNoContent)
 	s.Do(t, "DELETE", scimPath("/Users/"+userID6), nil, http.StatusNoContent)
-}
-
-func testPatchUserFailure(t *testing.T, s *Suite) {
-	// First create a user to patch
-	createUserPayload := map[string]interface{}{
-		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-		"userName": "patch-test@example.com",
-		"name": map[string]interface{}{
-			"givenName":  "Patch",
-			"familyName": "Test",
-		},
-		"emails": []map[string]interface{}{
-			{
-				"value":   "patch-test@example.com",
-				"type":    "work",
-				"primary": true,
-			},
-		},
-		"active": true,
-	}
-
-	var createResp map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
-	userID := createResp["id"].(string)
-
-	// Test: Patch with unsupported operation (add instead of replace)
-	unsupportedOpPayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op":    "add", // Only "replace" is supported
-				"path":  "active",
-				"value": false,
-			},
-		},
-	}
-
-	var errorResp1 map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), unsupportedOpPayload, http.StatusBadRequest, &errorResp1)
-	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	assert.Contains(t, errorResp1["detail"], "Bad Request.")
-
-	// Test: Patch with no path and invalid value format
-	invalidValuePayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op": "replace",
-				// No path specified
-				"value": "not-a-map", // Should be a map with "active" key
-			},
-		},
-	}
-
-	var errorResp3 map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), invalidValuePayload, http.StatusBadRequest, &errorResp3)
-	assert.EqualValues(t, errorResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	assert.Contains(t, errorResp3["detail"], "A required value was missing")
-
-	// Test: Patch with wrong value type for active
-	wrongTypePayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op":    "replace",
-				"path":  "active",
-				"value": "not-a-boolean", // Should be a boolean
-			},
-		},
-	}
-
-	var errorResp5 map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), wrongTypePayload, http.StatusBadRequest, &errorResp5)
-	assert.EqualValues(t, errorResp5["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-	assert.Contains(t, errorResp5["detail"], "A required value was missing")
-
-	// Delete the created user
-	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
 
 func testUpdateUser(t *testing.T, s *Suite) {
@@ -2507,6 +2428,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		// Run each test case
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel() // these failure test cases do not modify state, so they can run in parallel
 				var errorResp map[string]interface{}
 				s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), tc.payload, http.StatusBadRequest, &errorResp)
 				assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
@@ -2845,6 +2767,62 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		var patchActiveWithPathResp map[string]interface{}
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveWithPathPayload, http.StatusOK, &patchActiveWithPathResp)
 		assert.Equal(t, false, patchActiveWithPathResp["active"], "active should be updated to false with explicit path")
+	})
+
+	// Additional failure tests moved from testPatchUserFailure
+
+	t.Run("Patch with unsupported operation (add instead of replace)", func(t *testing.T) {
+		unsupportedOpPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "add", // Only "replace" is supported
+					"path":  "active",
+					"value": false,
+				},
+			},
+		}
+
+		var errorResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), unsupportedOpPayload, http.StatusBadRequest, &errorResp)
+		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+		assert.Contains(t, errorResp["detail"], "Bad Request.")
+	})
+
+	t.Run("Patch with no path and invalid value format", func(t *testing.T) {
+		invalidValuePayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					// No path specified
+					"value": "not-a-map", // Should be a map with attributes
+				},
+			},
+		}
+
+		var errorResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), invalidValuePayload, http.StatusBadRequest, &errorResp)
+		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+		assert.Contains(t, errorResp["detail"], "A required value was missing")
+	})
+
+	t.Run("Patch with wrong value type for active using path", func(t *testing.T) {
+		wrongTypePayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "active",
+					"value": "not-a-boolean", // Should be a boolean
+				},
+			},
+		}
+
+		var errorResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), wrongTypePayload, http.StatusBadRequest, &errorResp)
+		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+		assert.Contains(t, errorResp["detail"], "A required value was missing")
 	})
 }
 
