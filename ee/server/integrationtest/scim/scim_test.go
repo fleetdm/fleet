@@ -2549,149 +2549,6 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		assert.Equal(t, "Updates", name["familyName"], "familyName should be updated")
 	})
 
-	// Failure Tests
-
-	t.Run("Patch with invalid userName (empty string)", func(t *testing.T) {
-		patchInvalidUserNamePayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"userName": "", // Empty userName
-					},
-				},
-			},
-		}
-
-		var invalidUserNameResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchInvalidUserNamePayload, http.StatusBadRequest, &invalidUserNameResp)
-		assert.EqualValues(t, invalidUserNameResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, invalidUserNameResp["detail"], "Bad Request")
-	})
-
-	t.Run("Patch with userName as wrong type (number)", func(t *testing.T) {
-		patchUserNameAsNumberPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"userName": 12345, // Number instead of string
-					},
-				},
-			},
-		}
-
-		var userNameAsNumberResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserNameAsNumberPayload, http.StatusBadRequest, &userNameAsNumberResp)
-		assert.EqualValues(t, userNameAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, userNameAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Patch with name as wrong type (string instead of object)", func(t *testing.T) {
-		patchNameAsStringPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"name": "John Doe", // String instead of object
-					},
-				},
-			},
-		}
-
-		var nameAsStringResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNameAsStringPayload, http.StatusBadRequest, &nameAsStringResp)
-		assert.EqualValues(t, nameAsStringResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, nameAsStringResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Patch name.givenName -- family name is required", func(t *testing.T) {
-		patchGivenNamePayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"name": map[string]interface{}{
-							"givenName": "NewFirstName",
-						},
-					},
-				},
-			},
-		}
-
-		var patchGivenNameResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchGivenNamePayload, http.StatusBadRequest, &patchGivenNameResp)
-		assert.EqualValues(t, patchGivenNameResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, patchGivenNameResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Patch with givenName as wrong type (number)", func(t *testing.T) {
-		patchGivenNameAsNumberPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"name": map[string]interface{}{
-							"givenName":  12345, // Number instead of string
-							"familyName": "NewLastName",
-						},
-					},
-				},
-			},
-		}
-
-		var givenNameAsNumberResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchGivenNameAsNumberPayload, http.StatusBadRequest, &givenNameAsNumberResp)
-		assert.EqualValues(t, givenNameAsNumberResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, givenNameAsNumberResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Patch with familyName as wrong type (boolean)", func(t *testing.T) {
-		patchFamilyNameAsBoolPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"name": map[string]interface{}{
-							"givenName":  "NewFirstName",
-							"familyName": true, // Boolean instead of string
-						},
-					},
-				},
-			},
-		}
-
-		var familyNameAsBoolResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchFamilyNameAsBoolPayload, http.StatusBadRequest, &familyNameAsBoolResp)
-		assert.EqualValues(t, familyNameAsBoolResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, familyNameAsBoolResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
-	t.Run("Patch with active as wrong type (string)", func(t *testing.T) {
-		patchActiveAsStringPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					"value": map[string]interface{}{
-						"active": "true", // String instead of boolean
-					},
-				},
-			},
-		}
-
-		var activeAsStringResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveAsStringPayload, http.StatusBadRequest, &activeAsStringResp)
-		assert.EqualValues(t, activeAsStringResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, activeAsStringResp["detail"], errors.ScimErrorInvalidValue.Detail)
-	})
-
 	// ///////////////////////////////////////////////
 	// Tests for patching with explicit operation path
 
@@ -2769,60 +2626,180 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		assert.Equal(t, false, patchActiveWithPathResp["active"], "active should be updated to false with explicit path")
 	})
 
-	// Additional failure tests moved from testPatchUserFailure
-
-	t.Run("Patch with unsupported operation (add instead of replace)", func(t *testing.T) {
-		unsupportedOpPayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op":    "add", // Only "replace" is supported
-					"path":  "active",
-					"value": false,
+	// Failure tests using table-driven approach
+	t.Run("Failure cases", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			payload      map[string]interface{}
+			errorMessage string
+		}{
+			{
+				name: "Invalid userName (empty string)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"userName": "", // Empty userName
+							},
+						},
+					},
 				},
+				errorMessage: "Bad Request",
+			},
+			{
+				name: "userName as wrong type (number)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"userName": 12345, // Number instead of string
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "name as wrong type (string instead of object)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"name": "John Doe", // String instead of object
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "name.givenName without required familyName",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"name": map[string]interface{}{
+									"givenName": "NewFirstName",
+									// Missing familyName
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "givenName as wrong type (number)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"name": map[string]interface{}{
+									"givenName":  12345, // Number instead of string
+									"familyName": "NewLastName",
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "familyName as wrong type (boolean)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"name": map[string]interface{}{
+									"givenName":  "NewFirstName",
+									"familyName": true, // Boolean instead of string
+								},
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "active as wrong type (string)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							"value": map[string]interface{}{
+								"active": "true", // String instead of boolean
+							},
+						},
+					},
+				},
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
+			},
+			{
+				name: "unsupported operation (add instead of replace)",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op":    "add", // Only "replace" is supported
+							"path":  "active",
+							"value": false,
+						},
+					},
+				},
+				errorMessage: "Bad Request",
+			},
+			{
+				name: "no path and invalid value format",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op": "replace",
+							// No path specified
+							"value": "not-a-map", // Should be a map with attributes
+						},
+					},
+				},
+				errorMessage: "A required value was missing",
+			},
+			{
+				name: "wrong value type for active using path",
+				payload: map[string]interface{}{
+					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+					"Operations": []map[string]interface{}{
+						{
+							"op":    "replace",
+							"path":  "active",
+							"value": "not-a-boolean", // Should be a boolean
+						},
+					},
+				},
+				errorMessage: "A required value was missing",
 			},
 		}
 
-		var errorResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), unsupportedOpPayload, http.StatusBadRequest, &errorResp)
-		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, errorResp["detail"], "Bad Request.")
-	})
-
-	t.Run("Patch with no path and invalid value format", func(t *testing.T) {
-		invalidValuePayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op": "replace",
-					// No path specified
-					"value": "not-a-map", // Should be a map with attributes
-				},
-			},
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel() // Since these failure tests do not modify state, we can run them in parallel
+				var errorResp map[string]interface{}
+				s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), tc.payload, http.StatusBadRequest, &errorResp)
+				assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+				assert.Contains(t, errorResp["detail"], tc.errorMessage)
+			})
 		}
-
-		var errorResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), invalidValuePayload, http.StatusBadRequest, &errorResp)
-		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, errorResp["detail"], "A required value was missing")
-	})
-
-	t.Run("Patch with wrong value type for active using path", func(t *testing.T) {
-		wrongTypePayload := map[string]interface{}{
-			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
-				{
-					"op":    "replace",
-					"path":  "active",
-					"value": "not-a-boolean", // Should be a boolean
-				},
-			},
-		}
-
-		var errorResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), wrongTypePayload, http.StatusBadRequest, &errorResp)
-		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, errorResp["detail"], "A required value was missing")
 	})
 }
 
