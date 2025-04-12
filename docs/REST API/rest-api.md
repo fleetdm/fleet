@@ -4117,7 +4117,8 @@ Resends a configuration profile for the specified host.
           "signature_information": [
             {
               "installed_path": "/Applications/Google Chrome.app",
-              "team_identifier": "EQHXZ8M8AV"
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7"
             }
           ]
         }
@@ -4168,7 +4169,8 @@ Resends a configuration profile for the specified host.
           "signature_information": [
             {
               "installed_path": "/Applications/Logic Pro.app",
-              "team_identifier": ""
+              "team_identifier": "",
+              "hash_sha256": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7" 
             }
           ]
         }
