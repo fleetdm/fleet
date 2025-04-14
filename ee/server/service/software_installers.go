@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	stdlog "log"
 	"mime"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -1456,6 +1458,8 @@ const (
 	batchSoftwarePrefix = "software_batch_"
 )
 
+var jl = stdlog.New(os.Stdout, `[JVE_LOG] `, stdlog.Ldate|stdlog.Ltime|stdlog.Lshortfile)
+
 func (svc *Service) BatchSetSoftwareInstallers(
 	ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool,
 ) (string, error) {
@@ -1487,8 +1491,12 @@ func (svc *Service) BatchSetSoftwareInstallers(
 
 	var allScripts []string
 
+	jl.Println("here")
+	jl.Printf("dryRun: %v\n", dryRun)
+	jl.Printf("payloads: %v\n", payloads)
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
+		jl.Printf("got sha %s\n", payload.SHA256)
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
 			return "", fleet.NewInvalidArgumentError(
 				"software.url",
@@ -1643,11 +1651,6 @@ func (svc *Service) softwareBatchUpload(
 		i, p := i, p
 
 		g.Go(func() error {
-			headers, tfr, err := downloadURLFn(ctx, p.URL)
-			if err != nil {
-				return err
-			}
-
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
 			// readers will have their Close deferred after the join/wait of
@@ -1658,7 +1661,6 @@ func (svc *Service) softwareBatchUpload(
 				PreInstallQuery:    p.PreInstallQuery,
 				PostInstallScript:  p.PostInstallScript,
 				UninstallScript:    p.UninstallScript,
-				InstallerFile:      tfr,
 				SelfService:        p.SelfService,
 				UserID:             userID,
 				URL:                p.URL,
@@ -1667,6 +1669,30 @@ func (svc *Service) softwareBatchUpload(
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				ValidatedLabels:    p.ValidatedLabels,
 			}
+
+			// check if we already have the installer based on the SHA256
+			teamIDs, err := svc.ds.GetSoftwareInstallerByHash(ctx, p.SHA256)
+			if err != nil {
+				return err
+			}
+
+			var tmID uint
+			if teamID != nil {
+				tmID = *teamID
+			}
+
+			if _, ok := teamIDs[tmID]; ok {
+				jl.Printf("got existing sha for installer %s on team %d, skipping download", p.Filename, tmID)
+				installers[i] = installer
+				return nil
+			}
+
+			headers, tfr, err := downloadURLFn(ctx, p.URL)
+			if err != nil {
+				return err
+			}
+
+			installer.InstallerFile = tfr
 
 			// set the filename before adding metadata, as it is used as fallback
 			var filename string

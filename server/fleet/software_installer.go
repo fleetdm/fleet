@@ -525,6 +525,7 @@ type SoftwarePackageSpec struct {
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
 	ReferencedYamlPath string `json:"referenced_yaml_path"`
+	SHA265             string `json:"sha256"`
 }
 
 type SoftwareSpec struct {

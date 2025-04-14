@@ -979,6 +979,9 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	for i, si := range specs {
 		var qc string
 		var err error
+
+		fmt.Printf("si.SHA265: %v\n", si.SHA265)
+
 		if si.PreInstallQuery.Path != "" {
 			queryFile := si.PreInstallQuery.Path
 			rawSpec, err := os.ReadFile(queryFile)
@@ -1075,6 +1078,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
+			SHA256:             si.SHA265,
 		}
 	}
 
