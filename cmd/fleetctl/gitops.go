@@ -88,8 +88,6 @@ func gitopsCommand() *cli.Command {
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
 			noTeamControls, noTeamPresent, err := extractControlsForNoTeam(flFilenames, appConfig)
-			// fmt.Println("noTeamControls: ")
-			// prettyPrint(noTeamControls)
 			if err != nil {
 				return fmt.Errorf("extracting controls from no-team.yml: %w", err)
 			}

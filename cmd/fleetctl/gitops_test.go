@@ -2447,7 +2447,7 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		if installers[0].PreInstallQuery != "select IT_WORKS" {
+		if len(installers) != 0 && installers[0].PreInstallQuery != "select IT_WORKS" {
 			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
 		return nil
