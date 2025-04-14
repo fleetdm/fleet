@@ -5199,7 +5199,7 @@ func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) 
 func numHostsABMPendingDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
 	var count int
 	const stmt = `
-		SELECT count(*) FROM hosts WHERE hosts.osquery_host_id IS NULL
+		SELECT COUNT(*) FROM fleet.hosts WHERE osquery_host_id IS NULL AND platform NOT IN ('ios', 'ipados', 'android');
   	`
 	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
 		return 0, err
