@@ -52,7 +52,7 @@ jobs:
       - name: List fleet VEX files
         id: generate_fleet_vex_files
         run: |
-          VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | cut -f 1 | sed 's/.$//')
+          VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | sed 's/.$//')
           echo $VEX_FILES
           echo "FLEET_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
 
@@ -84,7 +84,7 @@ jobs:
       - name: List fleetctl VEX files
         id: generate_fleetctl_vex_files
         run: |
-          VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | cut -f 1 | sed 's/.$//')
+          VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | sed 's/.$//')
           echo $VEX_FILES
           echo "FLEETCTL_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
 

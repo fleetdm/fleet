@@ -50,7 +50,7 @@ jobs:
       - name: List VEX files
         id: generate_vex_files
         run: |
-          echo "VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | cut -f 1 | sed 's/.$//')" >> $GITHUB_OUTPUT
+          echo "VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
 
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
@@ -100,7 +100,7 @@ jobs:
           severity: "CRITICAL"
 
       - name: Slack root notification
-        if: ${{ steps.check_root.outputs.root_warn  == 'true' }}
+        if: github.event.schedule == '0 6 * * *' && failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |
