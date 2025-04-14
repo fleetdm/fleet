@@ -1710,6 +1710,8 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
 
+Fleet-maintained policies are unaffected by this endpoint.
+
 ##### Default response
 
 `Status: 200`
