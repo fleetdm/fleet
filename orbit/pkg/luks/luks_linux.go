@@ -145,21 +145,9 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, nil
 	}
 
-	cancelProgress, err := lr.notifier.ShowProgress(dialog.ProgressOptions{
-		Title: infoTitle,
-		Text:  "Validating passphrase...",
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to show progress dialog")
-	}
-	defer func() {
-		if err := cancelProgress(); err != nil {
-			log.Debug().Err(err).Msg("failed to cancel progress dialog")
-		}
-	}()
-
 	// Validate the passphrase
 	for {
+		log.Debug().Msg("Validating disk passphrase")
 		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
@@ -181,45 +169,27 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 
 	}
 
-	if err := cancelProgress(); err != nil {
-		log.Error().Err(err).Msg("failed to cancel progress dialog")
-	}
-
-	cancelProgress, err = lr.notifier.ShowProgress(dialog.ProgressOptions{
-		Title: infoTitle,
-		Text:  "Escrowing key...",
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to show progress dialog")
-	}
-
-	defer func() {
-		if err := cancelProgress(); err != nil {
-			log.Error().Err(err).Msg("failed to cancel progress dialog")
-		}
-	}()
-
-	log.Debug().Msg("generating random disk encryption passphrase")
+	log.Debug().Msg("Generating random disk encryption passphrase")
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
 	}
 
+	log.Debug().Msg("Getting the next available keyslot")
 	keySlot, err := getNextAvailableKeySlot(ctx, devicePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("finding available keyslot: %w", err)
 	}
-	log.Debug().Msgf("found available keyslot: %d", keySlot)
+	log.Debug().Msgf("Found available keyslot: %d", keySlot)
 
 	userKey := encryption.NewKey(userKeySlot, passphrase)
 	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
-	log.Debug().Msgf("adding new key to keyslot %d", keySlot)
 	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
 		return nil, nil, fmt.Errorf("Failed to add key: %w", err)
 	}
 
-	log.Debug().Msg("validating newly inserted key")
+	log.Debug().Msg("Validating newly inserted key")
 	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)

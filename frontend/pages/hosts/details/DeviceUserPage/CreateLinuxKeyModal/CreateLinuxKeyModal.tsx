@@ -25,6 +25,10 @@ const CreateLinuxKeyModal = ({
           setup.
         </li>
         <li>
+          The key escrow will happen in the background, and you will receive a
+          notification when it is complete.
+        </li>
+        <li>
           Close this window and select <b>Refetch</b> on your <b>My device</b>{" "}
           page. This shares the new key with your organization.
         </li>
