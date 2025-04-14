@@ -115,6 +115,11 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -350,6 +355,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		default:
 			return nil, &notFoundError{}
 		}
+	}
+
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+		return nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -720,6 +737,11 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	policy.ID = 1
 	policy.Name = "Policy to delete"
 	policyDeleted := false
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return []*fleet.Policy{&policy}, nil
 	}
