@@ -9,6 +9,7 @@ import { NotificationContext } from "context/notification";
 import conditionalAccessAPI, {
   ConfirmMSConditionalAccessResponse,
 } from "services/entities/conditional_access";
+import configAPI from "services/entities/config";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -30,6 +31,7 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";
 import Modal from "components/Modal";
+import { IConfig } from "interfaces/config";
 
 const baseClass = "conditional-access";
 
@@ -117,7 +119,24 @@ const ConditionalAccess = () => {
   // HOOKS
   const { renderFlash } = useContext(NotificationContext);
 
-  const { isPremiumTier, config } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
+
+  // this page is unique in that it triggers a server process that will result in an update to
+  // config, but via an endpoint (conditional access) other than the usual PATCH config, so we want
+  // to source config directly from the API instead of context to give us `refetchConfig` capability
+  // see frontend/docs/patterns.md > ### Reading and updating configs
+
+  const { data: config, refetch: refetchConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
+    select: (data: IConfig) => data,
+    onSuccess: (_config) => {
+      setConfig(_config);
+    },
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
 
   const [phase, setPhase] = useState<Phase>(Phase.Form);
   const [formData, setFormData] = useState<IFormData>({
@@ -228,6 +247,7 @@ const ConditionalAccess = () => {
       setIsUpdating(false);
       toggleDeleteConditionalAccessModal();
       setPhase(Phase.Form);
+      refetchConfig();
     } catch {
       renderFlash(
         "error",
