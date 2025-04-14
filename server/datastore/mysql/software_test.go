@@ -73,6 +73,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
 		{"TestListHostSoftwareWithLabelScoping", testListHostSoftwareWithLabelScoping},
 		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
+		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 	}
@@ -6276,6 +6277,183 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, sw, 1)
 	require.Equal(t, "file1", sw[0].Name)
+}
+
+func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a user
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	nanoEnroll(t, ds, host, false)
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	software := []fleet.Software{
+		{Name: "microsoft office 2025", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.office"},
+		{Name: "1password", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.1password"},
+		{Name: "microsoft edge", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.edge"},
+		{Name: "chrome", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.chrome"},
+		{Name: "brave", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.brave"},
+	}
+	byName := map[string]fleet.Software{}
+	for _, s := range software {
+		byName[s.Name] = s
+	}
+
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.Len(t, mutationResults.Inserted, len(software))
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	for _, m := range mutationResults.Inserted {
+		s := byName[m.Name]
+		s.ID = m.ID
+		byName[s.Name] = s
+	}
+
+	vulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: byName["1password"].ID, CVE: "CVE-2025-0001"},
+		{SoftwareID: byName["chrome"].ID, CVE: "CVE-2024-0001"},
+		{SoftwareID: byName["brave"].ID, CVE: "CVE-2024-0002"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	// no search term, make sure we get all software
+	sw, meta, err := ds.ListHostSoftware(
+		ctx,
+		host,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:               11,
+				IncludeMetadata:       true,
+				OrderKey:              "name",
+				TestSecondaryOrderKey: "source",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, sw, 5)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 5}, meta)
+
+	// search for microsoft
+	sw, meta, err = ds.ListHostSoftware(
+		ctx,
+		host,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:               11,
+				IncludeMetadata:       true,
+				OrderKey:              "name",
+				TestSecondaryOrderKey: "source",
+				MatchQuery:            "microsoft",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	require.Equal(t, software[2].Name, sw[0].Name)
+	require.Equal(t, software[0].Name, sw[1].Name)
+
+	// search for 2025
+	sw, meta, err = ds.ListHostSoftware(
+		ctx,
+		host,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:               11,
+				IncludeMetadata:       true,
+				OrderKey:              "name",
+				TestSecondaryOrderKey: "source",
+				MatchQuery:            "2025",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	require.Equal(t, software[1].Name, sw[0].Name)
+	require.Equal(t, software[0].Name, sw[1].Name)
+
+	// search for cve-2024
+	sw, meta, err = ds.ListHostSoftware(
+		ctx,
+		host,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:               11,
+				IncludeMetadata:       true,
+				OrderKey:              "name",
+				TestSecondaryOrderKey: "source",
+				MatchQuery:            "2024",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	require.Equal(t, software[4].Name, sw[0].Name)
+	require.Equal(t, software[3].Name, sw[1].Name)
+
+	// set up vpp
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
+
+	// last_vpp_install
+	vPPApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}},
+		Name:             "microsoft teams",
+		BundleIdentifier: "com.app.teams",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	require.NoError(t, err)
+	vpp1 := va1.AdamID
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// Insert software entry for vpp app
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second) // ensure a different created_at timestamp
+
+	// search for microsoft
+	sw, meta, err = ds.ListHostSoftware(
+		ctx,
+		host,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:               11,
+				IncludeMetadata:       true,
+				OrderKey:              "name",
+				TestSecondaryOrderKey: "source",
+				MatchQuery:            "microsoft",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 3}, meta)
+	require.Equal(t, software[2].Name, sw[0].Name)
+	require.Equal(t, software[0].Name, sw[1].Name)
+	require.Equal(t, vPPApp.Name, sw[2].Name)
 }
 
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
