@@ -777,19 +777,19 @@ const ManagePolicyPage = ({
         };
         // TODO - confirm nothing getting unintentionally overwritten here
         await configAPI.update(payload);
-        refetchTeamConfig();
+        refetchGlobalConfig();
       } else {
         const payload = {
           integrations: {
-            conditional_access_enabled: enableConditionalAccess,
             // These fields will never actually be changed here. See comment above
             // IGlobalIntegrations definition.
             zendesk: teamConfig?.integrations.zendesk || [],
             jira: teamConfig?.integrations.jira || [],
+            conditional_access_enabled: enableConditionalAccess,
           },
         };
         await teamsAPI.update(payload, teamIdForApi);
-        refetchGlobalConfig();
+        refetchTeamConfig();
       }
       renderFlash(
         "success",
