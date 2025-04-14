@@ -159,18 +159,24 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
+Fleet supports two ways to automate user creation: Just-in-time (JIT) provisioning and SCIM-based provisioning.
+
+This section explains how JIT user provisioning works. With JIT, Fleet will automatically create a user account when someone logs in for the first time using your configured SSO. This removes the need to create individual user accounts for a large organization.
+
+> **Note:** If you're using SCIM for automated user provisioning and updates, that setup happens through your identity provider and is separate from JIT. For more details on SCIM-based provisioning, refer to your IdP’s SCIM documentation.
+
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
 
 The new account's email and full name are copied from the user data in the SSO response.
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
-To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
+To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 
 To enable this option, go to **Settings > Organization settings > Single sign-on options** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
 - Your IdP is configured to send the user email as the Name ID (instructions for configuring different providers are detailed below)
-- Your IdP sends the full name of the user as an attribute with any of the following names (if this value is not provided Fleet will fallback to the user email)
+- Your IdP sends the full name of the user as an attribute with any of the following names (if this value is not provided, Fleet will fall back to the user email)
   - `name`
   - `displayname`
   - `cn`
