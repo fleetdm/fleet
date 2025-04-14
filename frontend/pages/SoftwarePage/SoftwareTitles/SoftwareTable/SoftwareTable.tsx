@@ -245,14 +245,13 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    if (row.original.id) {
-      const path = getPathWithQueryParams(
-        PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString()),
-        { team_id: teamId }
-      );
+    if (!row.original.id) return;
 
-      router.push(path);
-    }
+    const detailsPath = showVersions
+      ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
+      : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
+
+    router.push(getPathWithQueryParams(detailsPath, { team_id: teamId }));
   };
 
   const renderSoftwareCount = () => {
