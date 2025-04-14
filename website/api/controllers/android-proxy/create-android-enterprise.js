@@ -93,7 +93,6 @@ module.exports = {
 
 
     return {
-      fleet_server_secret: newFleetServerSecret,// eslint-disable-line camelcase
       android_enterprise_id: newAndroidEnterpriseId,// eslint-disable-line camelcase
     };
 
