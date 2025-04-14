@@ -8,14 +8,6 @@ module.exports = {
 
 
   inputs: {
-    fleetServerSecret: {
-      type: 'string',
-      required: true,
-    },
-    androidEnterpriseId: {
-      type: 'string',
-      required: true,
-    },
     projectId: {
       type: 'string',
       required: true,
@@ -34,16 +26,21 @@ module.exports = {
 
   fn: async function ({fleetServerSecret, androidEnterpriseId, projectId, callbackUrl}) {
 
-    // Authenticate this request
-    let thisAndroidEnterprise = await AndroidEnterprise.findOne({
-      fleetServerSecret: fleetServerSecret,
-      androidEnterpriseId: androidEnterpriseId,
-    });
 
-    // Return a 404 response if no records are found.
-    if(!thisAndroidEnterprise) {
-      return this.res.notFound();
+    // Parse the fleet server url from the origin header.
+    let fleetServerUrl = this.req.get('Origin');
+    if(!fleetServerUrl){
+      return this.res.badRequest();
     }
+
+    // Check the databse for a record of this enterprise.
+    let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
+
+    if(connectionforThisInstanceExists){
+      throw 'enterpriseAlreadyExists';
+    }
+
+    let newFleetServerSecret = await sails.helpers.strings.random.with({len: 30});
 
     let authorizationTokenForThisRequest = await sails.helpers.androidEnterprise.getAccessToken.with({
       // TODO: this helper doesn't exist
@@ -59,8 +56,23 @@ module.exports = {
       },
     });
 
+    // Create a databse record for the newly created enterprise
+    await AndroidEnterprise.createOne({
+      fleetServerUrl: fleetServerUrl,
+      fleetServerSecret: newFleetServerSecret,
+      // fleetLicenseKey: fleetLicenseKey,
+      // androidEnterpriseId: newAndroidEnterpriseId
+    });
 
-    return createSignupUrlResponse;
+
+
+    return {
+      signup_url: createSignupUrlResponse.url,
+      signup_url_name: createSignupUrlResponse.name,
+      fleet_server_secret: newFleetServerSecret
+    };
+
+
 
   }
 
