@@ -9355,6 +9355,7 @@ Returns information about the specified software. By default, `versions` are sor
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
       "platform": "darwin",
+      "fleet_maintained_app_id": 42,
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
@@ -9659,6 +9660,7 @@ Content-Type: application/octet-stream
   "title_id": 123,
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
+    "fleet_maintained_app_id": 42,
     "version": "6.44",
     "platform": "darwin",
     "installer_id": 23,
@@ -9752,6 +9754,7 @@ Content-Type: application/octet-stream
     "name": "FalconSensor-6.44.pkg",
     "version": "6.44",
     "platform": "darwin",
+    "fleet_maintained_app_id": 42,
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
