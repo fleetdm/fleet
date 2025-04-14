@@ -93,7 +93,7 @@ func orbitCommand() *cli.Command {
 
 func desktopCommand() *cli.Command {
 	var (
-		gitBranch       string
+		gitTag          string
 		outputDirectory string
 		githubUsername  string
 		githubAPIToken  string
@@ -104,11 +104,11 @@ func desktopCommand() *cli.Command {
 		Usage: "Fetch Fleet Desktop executables from the generate-desktop-targets.yml action",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "git-branch",
-				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GIT_BRANCH"},
+				Name:        "git-tag",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GIT_TAG"},
 				Required:    true,
-				Destination: &gitBranch,
-				Usage:       "branch name used to bump the Fleet Desktop version",
+				Destination: &gitTag,
+				Usage:       "git tag generated for the desktop release",
 			},
 			&cli.StringFlag{
 				Name:        "output-directory",
@@ -139,7 +139,7 @@ func desktopCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			return downloadComponents("generate-desktop-targets.yml", gitBranch, map[string]string{
+			return downloadComponents("generate-desktop-targets.yml", gitTag, map[string]string{
 				"macos":         "desktop.app.tar.gz",
 				"linux":         "desktop.tar.gz",
 				"linux-arm64":   "desktop-arm64.tar.gz",
