@@ -335,14 +335,14 @@ func (r *Runner) updateTarget(target string) error {
 
 	if target == constant.OsqueryTUFTargetName {
 		// Compare old/new osquery versions
-		_, _ = compareVersion(newVersion, r.OsqueryVersion, constant.OsqueryTUFTargetName)
+		_ = compareVersion(newVersion, r.OsqueryVersion, constant.OsqueryTUFTargetName)
 	}
 
 	if target != constant.OrbitTUFTargetName {
 		return nil
 	}
 	// Compare old/new orbit versions
-	oVC, _ := compareVersion(newVersion, build.Version, "fleetd")
+	oVC := compareVersion(newVersion, build.Version, "fleetd")
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
@@ -370,7 +370,9 @@ func (r *Runner) Interrupt(err error) {
 
 // compareVersion compares the old and new versions of a binary and prints the appropriate message.
 // The return value is used to determine whether to update the Windows registry and for unit tests.
-func compareVersion(newVersion string, oldVersion string, targetDisplayName string) (*int, error) {
+func compareVersion(newVersion string, oldVersion string, targetDisplayName string) *int {
+	// this function is essentially a wrapper with logging of semver.IsValid and semver.Compare,
+	// neither of which return an error, so this doesn't return an error either
 	vOldVersion := "v" + oldVersion
 	vNewVersion := "v" + newVersion
 	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) {
@@ -383,9 +385,9 @@ func compareVersion(newVersion string, oldVersion string, targetDisplayName stri
 		case -1:
 			log.Info().Msgf("Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
 		}
-		return &compareResult, nil
+		return &compareResult
 	}
-	return nil, nil
+	return nil
 }
 
 // Matches strings like:
