@@ -3377,17 +3377,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				softwareVulnerableJoin += " AND ( "
 				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
 					softwareVulnerableJoin += `
-						NOT EXISTS (
-							SELECT 1
-							FROM 
-								software_cve
-							WHERE
-								software_cve.software_id = software.id
-						) OR
+					    -- Software without vulnerabilities
+						(
+							NOT EXISTS (
+								SELECT 1
+								FROM
+									software_cve
+								WHERE
+									software_cve.software_id = software.id
+							) ` + matchClause + `
+					    ) OR
 					`
 				}
 
 				softwareVulnerableJoin += `
+				-- Software with vulnerabilities
 				EXISTS (
 					SELECT 1
 					FROM
@@ -3404,8 +3408,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						software_cve.software_id = software.id
 				`
 				softwareVulnerableJoin += cveMetaFilter
-				softwareVulnerableJoin += "\n" + cveMatchClause
-				softwareVulnerableJoin += "\n))"
+				softwareVulnerableJoin += "\n" + strings.ReplaceAll(cveMatchClause, "AND", "AND (")
+				softwareVulnerableJoin += strings.ReplaceAll(matchClause, "AND", "OR") + ")"
+				softwareVulnerableJoin += "\n)"
+				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
+					softwareVulnerableJoin += ")"
+				}
 			}
 
 			installedSoftwareJoinsCondition := ""
@@ -3426,7 +3434,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			WHERE
 				software_titles.id IN (?)
 			%s
-				AND true
 			` + softwareOnlySelfServiceClause + `
 			-- GROUP by for software
 			%s
@@ -3445,7 +3452,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "build named query for software titles")
 			}
-			softwareTitleStatement = strings.ReplaceAll(softwareTitleStatement, "AND true", matchClause)
 			args = append(args, softwareTitleArgsNamedArgs...)
 			args = append(args, softwareTitleArgs...)
 			if len(cveNamedArgs) > 0 {
@@ -3455,6 +3461,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				args = append(args, cveMatchArgs...)
 			}
 			if len(matchArgs) > 0 {
+				args = append(args, matchArgs...)
+				// have to append twice because we have two groups to match title with
 				args = append(args, matchArgs...)
 			}
 			stmt += softwareTitleStatement
