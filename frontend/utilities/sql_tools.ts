@@ -1,5 +1,5 @@
 // @ts-ignore
-import sqliteParser from "sqlite-parser";
+import { Parser } from "node-sql-parser";
 import { intersection, isPlainObject } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
@@ -8,6 +8,8 @@ import {
   QueryablePlatform,
 } from "interfaces/platform";
 import { TableSchemaPlatform } from "interfaces/osquery_table";
+
+const parser = new Parser();
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -39,17 +41,20 @@ const _isNode = (node: unknown): node is IAstNode => {
 
 const _visit = (
   abstractSyntaxTree: IAstNode,
-  callback: (ast: IAstNode) => void
+  callback: (ast: IAstNode, parentKey: string) => void,
+  parentKey = ""
 ) => {
   if (abstractSyntaxTree) {
-    callback(abstractSyntaxTree);
+    callback(abstractSyntaxTree, parentKey);
 
     Object.keys(abstractSyntaxTree).forEach((key) => {
       const childNode = abstractSyntaxTree[key];
       if (Array.isArray(childNode)) {
-        childNode.forEach((grandchildNode) => _visit(grandchildNode, callback));
+        childNode.forEach((grandchildNode) =>
+          _visit(grandchildNode, callback, key)
+        );
       } else if (childNode && _isNode(childNode)) {
-        _visit(childNode, callback);
+        _visit(childNode, callback, key);
       }
     });
   }
@@ -80,41 +85,37 @@ export const parseSqlTables = (
   // Tables defined via common table expression will be excluded from results by default
   const cteTables: string[] = [];
 
-  const _callback = (node: IAstNode) => {
+  const _callback = (node: IAstNode, parentKey: string) => {
     if (!node) {
       return;
     }
 
-    if (node.with) {
-      node.with.forEach((withNode: IAstNode) => {
-        if (withNode.name && _isNode(withNode.name) && withNode.name.type === "default") {
-          cteTables.push((withNode.name as IAstNode)?.value);
-        }
-      }
-    }
     if (
-      (node.variant === "common" || node.variant === "recursive") &&
-      node.format === "table" &&
-      node.type === "expression"
+      parentKey === "with" &&
+      node.name &&
+      (node.name as IAstNode).type === "default"
     ) {
-      const targetName = node.target && (node.target as IAstNode).name;
-      targetName &&
-        typeof targetName === "string" &&
-        cteTables.push(targetName);
+      const withTable = node.name as IAstNode;
+      if (typeof withTable.value === "string") {
+        cteTables.push(withTable.value);
+      }
       return;
     }
 
-    node.variant === "table" &&
-      // ignore table-valued functions (see, e.g., https://www.sqlite.org/json1.html#jeach)
-      node.type !== "function" &&
-      node.name &&
-      typeof node.name === "string" &&
-      results.push(node.name);
+    if (parentKey === "from") {
+      if (node.expr && (node.expr as IAstNode).type !== "function") {
+        cteTables.push(node.as as string);
+        return;
+      }
+      if (node.table) {
+        results.push(node.table as string);
+      }
+    }
   };
 
   try {
-    const sqlTree = sqliteParser(sqlString);
-    _visit(sqlTree, _callback);
+    const sqlTree = parser.astify(sqlString, { database: "sqlite" }) as unknown;
+    _visit(sqlTree as IAstNode, _callback);
 
     if (cteTables.length && !includeCteTables) {
       results = results.filter((r: string) => !cteTables.includes(r));
