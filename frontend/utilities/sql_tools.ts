@@ -1,6 +1,6 @@
 // @ts-ignore
 import { Parser } from "node-sql-parser";
-import { intersection, isPlainObject } from "lodash";
+import { intersection, isPlainObject, uniq } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
   MACADMINS_EXTENSION_TABLES,
@@ -82,9 +82,12 @@ export const parseSqlTables = (
 ): string[] => {
   let results: string[] = [];
 
-  // Tables defined via common table expression or functions will be excluded
-  // unless includeVirtualTables is set to true.
+  // Tables defined via common table expression (WITH ... AS syntax) or as subselects
+  // will be excluded from results by default.
   const virtualTables: string[] = [];
+
+  // Tables defined via functions like `json_each` will always be excluded from results.
+  const functionTables: string[] = [];
 
   const _callback = (node: IAstNode, parentKey: string) => {
     if (!node) {
@@ -104,12 +107,29 @@ export const parseSqlTables = (
       return;
     }
 
-    if (parentKey === "from") {
-      // Function tables like `json_each()`.
-      if (node.expr && (node.expr as IAstNode).type !== "function") {
+    // Parse tables referenced by FROM or JOIN clauses.
+    if (parentKey === "from" || parentKey === "left" || parentKey === "right") {
+      // Subselects and JSON functions.
+      if (node.expr) {
+        // Check if the node is a function call.
+        if ((node.expr as IAstNode).type === "function") {
+          // Get the function name from node.expr.name.name[0].value
+          // and push it to functionTables.
+          const nodeExprName = (node.expr as IAstNode).name as IAstNode;
+          const nodeExprNameArr = nodeExprName.name as IAstNode[];
+          if (nodeExprNameArr.length > 0) {
+            const functionName = nodeExprNameArr[0].value as string;
+            if (functionName) {
+              functionTables.push(functionName);
+            }
+          }
+          return;
+        }
+        // Otherwise push it to the set of virtual tables.
         virtualTables.push(node.as as string);
         return;
       }
+
       // Plain ol' tables.
       if (node.table) {
         results.push(node.table as string);
@@ -121,9 +141,18 @@ export const parseSqlTables = (
     const sqlTree = parser.astify(sqlString, { database: "sqlite" }) as unknown;
     _visit(sqlTree as IAstNode, _callback);
 
+    // Remove virtual tables unless includeVirtualTables is true.
     if (virtualTables.length && !includeVirtualTables) {
       results = results.filter((r: string) => !virtualTables.includes(r));
     }
+
+    // Always remove function tables.
+    if (functionTables.length) {
+      results = results.filter((r: string) => !functionTables.includes(r));
+    }
+
+    // Remove duplicates.
+    results = uniq(results);
 
     return results;
   } catch (err) {
