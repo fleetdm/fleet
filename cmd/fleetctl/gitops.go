@@ -346,8 +346,11 @@ func gitopsCommand() *cli.Command {
 			if !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
-				fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
+				_, err = fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
 					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
+				if err != nil {
+					return err
+				}
 			}
 
 			if flDryRun {
