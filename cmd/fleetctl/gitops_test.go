@@ -1082,7 +1082,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
-		return []*fleet.Policy{&policy}, nil, nil
+		if teamID != 0 {
+			return []*fleet.Policy{&policy}, nil, nil
+		}
+		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 		if slices.Contains(ids, 1) {
@@ -1140,7 +1143,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		appliedSoftwareInstallers = installers
+		if teamID != nil && *teamID != 0 {
+			appliedSoftwareInstallers = installers
+		}
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
