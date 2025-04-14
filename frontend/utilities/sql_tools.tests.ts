@@ -1,6 +1,7 @@
 import { checkTable } from "./sql_tools";
 
 describe("checkTable", () => {
+  // from https://github.com/fleetdm/fleet/issues/26366
   const SQL = `
 WITH extension_safety_hub_menu_notifications AS (
 	SELECT 
