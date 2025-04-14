@@ -1,0 +1,33 @@
+# Example Fleet DM Configuration
+
+server:
+  address: "0.0.0.0:8080"
+  log_level: "info"
+  enable_tls: false
+  tls_cert: "/path/to/cert.pem"
+  tls_key: "/path/to/key.pem"
+
+database:
+  type: "mysql"
+  address: "127.0.0.1:3306"
+  username: "fleet"
+  password: "fleet_password"
+  database: "fleet"
+
+cache:
+  type: "redis"
+  address: "127.0.0.1:6379"
+  password: ""
+
+fleetd:
+  enable: true
+  interval: "10s"
+
+tuf:
+  enable: true
+  root_keys: []
+  mirror: "https://tuf.fleetdm.com"
+
+ui:
+  enable: true
+  address: "0.0.0.0:8081"
