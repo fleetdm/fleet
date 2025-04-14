@@ -1069,6 +1069,7 @@ Modifies the Fleet's configuration with the supplied information.
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
+| yara_rules                  | array   | body  | A list of YARA rule files to add.                                                               |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 
@@ -1681,6 +1682,8 @@ _Available in Fleet Premium._
 
 ##### integrations.digicert
 
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 `integrations.digicert` is an array of objects with the following structure:
 
 | Name                              | Type    | Description   |
@@ -1713,6 +1716,8 @@ _Available in Fleet Premium._
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
 ##### integrations.custom_scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `integrations.custom_scep_proxy` is an array of objects with the following structure:
 
@@ -4835,7 +4840,7 @@ Add a dynamic or manual label.
 | name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
-| hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name`) the label will apply to. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label)  can be included in the request. |
+| hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label)  can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 If both `query` and `hosts` aren't specified, a manual label with no hosts will be created.
@@ -4848,10 +4853,10 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
 
 ```json
 {
-  "name": "Ubuntu hosts",
-  "description": "Filters ubuntu hosts",
-  "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-  "platform": ""
+  "name": "macOS hosts (x86_64)",
+  "description": "Filters macOS hosts with x86_64 architecture",
+  "query": "SELECT 1 FROM os_version WHERE platform = 'darwin' AND instr(arch, 'x86_64')",
+  "platform": "darwin"
 }
 ```
 
@@ -4864,13 +4869,13 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "name": "Ubuntu hosts",
-    "description": "Filters ubuntu hosts",
-    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+    "id": 42,
+    "name": "macOS hosts (x86_64)",
+    "description": "Filters macOS hosts with x86_64 architecture",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'darwin' AND instr(arch, 'x86_64')",
     "label_type": "regular",
     "label_membership_type": "dynamic",
-    "display_text": "Ubuntu hosts",
+    "display_text": "macOS hosts (x86_64)",
     "count": 0,
     "host_ids": null,
     "author_id": 1
@@ -4891,20 +4896,18 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
-| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name`) the label will apply to. |
+| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. The provided list fully replaces the previous list. |
 
 
 #### Example
 
-`PATCH /api/v1/fleet/labels/1`
+`PATCH /api/v1/fleet/labels/21`
 
 ##### Request body
 
 ```json
 {
-  "name": "macOS label",
-  "description": "Now this label only includes macOS machines",
-  "platform": "darwin"
+  "hosts": ["ABC1234", "XYZ5678"]
 }
 ```
 
@@ -4917,16 +4920,16 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "name": "Ubuntu hosts",
-    "description": "Filters ubuntu hosts",
-    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-    "platform": "darwin",
+    "id": 21,
+    "name": "My label",
+    "description": "Some hosts that I want to manually group together",
+    "query": "",
+    "platform": "",
     "label_type": "regular",
-    "label_membership_type": "dynamic",
-    "display_text": "Ubuntu hosts",
-    "count": 0,
-    "host_ids": null,
+    "label_membership_type": "manual",
+    "display_text": "My label",
+    "count": 2,
+    "host_ids": [42, 43],
     "author_id": 1
   }
 }

@@ -11,7 +11,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: $pad-small;
+    gap: $pad-xsmall;
     text-align: left;
     height: fit-content;
     padding: $x-large;
@@ -30,11 +30,18 @@
     }
   }
 
-  &__icon-count {
+  &__icon {
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 12px;
+  }
+
+  &__count-description {
+    display: flex;
+    flex-direction: column;
+    align-items: left;
+    gap: $pad-xsmall;
   }
 
   &__count {

@@ -100,7 +100,7 @@ endif
 .help-long--build:
 	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
 .help-usage--build:
-	@echo "$(TOOL_CMD) build [binaries] [options]"	
+	@echo "$(TOOL_CMD) build [binaries] [options]"
 .help-options--build:
 	@echo "GO_BUILD_RACE_ENABLED"
 	@echo "Turn on data race detection when building"
@@ -216,7 +216,7 @@ lint-go:
 .help-long--lint:
 	@echo "Runs the linters for Go and Javascript code.  If linter type is not specified, all linters will be run."
 .help-usage--lint:
-	@echo "$(TOOL_CMD) lint [linter-type]"	
+	@echo "$(TOOL_CMD) lint [linter-type]"
 .help-extra--lint:
 	@echo "AVAILABLE LINTERS:"
 	@echo "  go   Lint Go files with golangci-lint"
@@ -239,13 +239,13 @@ dump-test-schema: test-schema
 # PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
 # TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
-# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.						 
+# GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
 PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info."; 
+		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info.";
 else
 		@echo Running Go tests with command:
 		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
@@ -256,7 +256,7 @@ endif
 # DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
 .debug-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to debug. See '$(TOOL_CMD) help run-go-tests' for more info."; 
+		@echo "Please specify one or more packages to debug. See '$(TOOL_CMD) help run-go-tests' for more info.";
 else
 		@echo Debugging tests with command:
 		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS}
@@ -481,6 +481,8 @@ binary-bundle: xp-fleet xp-fleetctl
 # Build orbit/fleetd fleetd_tables extension
 fleetd-tables-windows:
 	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
+fleetd-tables-windows-arm64:
+	GOOS=windows GOARCH=arm64 go build -o fleetd_tables_windows_arm64.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-linux-arm64:
@@ -491,7 +493,7 @@ fleetd-tables-darwin_arm64:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm64
 	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64 fleetd-tables-windows-arm64
 fleetd-tables-clean:
 	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_linux_arm64.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext fleetd_tables_darwin_universal.ext
 
@@ -731,6 +733,19 @@ FLEET_DESKTOP_VERSION ?= unknown
 desktop-windows:
 	go run ./orbit/tools/build/build-windows.go -version $(FLEET_DESKTOP_VERSION) -input ./orbit/cmd/desktop -output fleet-desktop.exe
 
+# Build desktop executable for Windows.
+# This generates desktop executable for Windows that includes versioninfo binary properties
+# These properties can be displayed when right-click on the binary in Windows Explorer.
+# See: https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+# To sign this binary with a certificate, use signtool.exe or osslsigncode tool
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows-arm64
+#
+# Output: fleet-desktop.exe
+desktop-windows-arm64:
+	go run ./orbit/tools/build/build-windows.go -version $(FLEET_DESKTOP_VERSION) -input ./orbit/cmd/desktop -output fleet-desktop.exe -arch arm64
+
 # Build desktop executable for Linux.
 #
 # Usage:
@@ -773,6 +788,19 @@ desktop-linux-arm64:
 # Output: orbit.exe
 orbit-windows:
 	go run ./orbit/tools/build/build-windows.go -version $(ORBIT_VERSION) -input ./orbit/cmd/orbit -output orbit.exe
+
+# Build orbit executable for Windows.
+# This generates orbit executable for Windows that includes versioninfo binary properties
+# These properties can be displayed when right-click on the binary in Windows Explorer.
+# See: https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+# To sign this binary with a certificate, use signtool.exe or osslsigncode tool
+#
+# Usage:
+# ORBIT_VERSION=0.0.1 make orbit-windows-arm64
+#
+# Output: orbit.exe
+orbit-windows-arm64:
+	go run ./orbit/tools/build/build-windows.go -version $(ORBIT_VERSION) -input ./orbit/cmd/orbit -output orbit.exe -arch arm64
 
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)

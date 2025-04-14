@@ -91,18 +91,21 @@ promote_component_edge_to_stable () {
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/linux/edge/orbit" --platform linux --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/linux-arm64/edge/orbit" --platform linux-arm64 --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/windows/edge/orbit.exe" --platform windows --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
+            "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/orbit/windows-arm64/edge/orbit.exe" --platform windows-arm64 --name orbit --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             ;;
         desktop)
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/macos/edge/desktop.app.tar.gz" --platform macos --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/linux/edge/desktop.tar.gz" --platform linux --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/linux-arm64/edge/desktop.tar.gz" --platform linux-arm64 --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/windows/edge/fleet-desktop.exe" --platform windows --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
+            "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/desktop/windows-arm64/edge/fleet-desktop.exe" --platform windows-arm64 --name desktop --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             ;;
         osqueryd)
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/macos-app/edge/osqueryd.app.tar.gz" --platform macos-app --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/linux/edge/osqueryd" --platform linux --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/linux-arm64/edge/osqueryd" --platform linux-arm64 --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/windows/edge/osqueryd.exe" --platform windows --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
+            "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$REPOSITORY_DIRECTORY/targets/osqueryd/windows-arm64/edge/osqueryd.exe" --platform windows-arm64 --name osqueryd --version "$component_version" -t "$major.$minor" -t "$major" -t stable
             ;;
         *)
             echo "Unknown component $component_name"
@@ -157,10 +160,12 @@ release_fleetd_to_edge () {
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/linux/orbit" --platform linux --name orbit --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/orbit" --platform linux-arm64 --name orbit --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/windows/orbit.exe" --platform windows --name orbit --version "$VERSION" -t edge
+    "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$ORBIT_ARTIFACT_DOWNLOAD_DIRECTORY/windows-arm64/orbit.exe" --platform windows-arm64 --name orbit --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/macos/desktop.app.tar.gz" --platform macos --name desktop --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/linux/desktop.tar.gz" --platform linux --name desktop --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/desktop.tar.gz" --platform linux-arm64 --name desktop --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/windows/fleet-desktop.exe" --platform windows --name desktop --version "$VERSION" -t edge
+    "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY/windows-arm64/fleet-desktop.exe" --platform windows-arm64 --name desktop --version "$VERSION" -t edge
     popd
 }
 
@@ -179,7 +184,7 @@ create_fleetd_release_pr () {
     # Create a new branch to cherry pick the changelog commit to.
     git checkout -b "$BRANCH_NAME"
     # Cherry pick the changelog commit to the new branch.
-    git cherry-pick "${BRANCH_NAME}-changelog" 
+    git cherry-pick "${BRANCH_NAME}-changelog"
     # Create a new PR with the changelog.
     gh pr create -f -B main -t "Update changelog for fleetd $VERSION release"
     # Delete the changelog branch.
@@ -215,6 +220,7 @@ release_osqueryd_to_edge () {
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/linux/osqueryd" --platform linux --name osqueryd --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/linux-arm64/osqueryd" --platform linux-arm64 --name osqueryd --version "$VERSION" -t edge
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/windows/osqueryd.exe" --platform windows --name osqueryd --version "$VERSION" -t edge
+    "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$OSQUERYD_ARTIFACT_DOWNLOAD_DIRECTORY/windows-arm64/osqueryd.exe" --platform windows-arm64 --name osqueryd --version "$VERSION" -t edge
     popd
 }
 

@@ -15,9 +15,7 @@ import (
 )
 
 const (
-	// SCIMMaxFieldLength is the maximum length for SCIM user fields
-	SCIMMaxFieldLength = 255
-
+	SCIMMaxStatusLength         = 31
 	SCIMDefaultResourcesPerPage = 100
 )
 
@@ -504,28 +502,28 @@ func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]flee
 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length
 func validateScimUserFields(user *fleet.ScimUser) error {
-	if user.ExternalID != nil && len(*user.ExternalID) > SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if user.ExternalID != nil && len(*user.ExternalID) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if len(user.UserName) > SCIMMaxFieldLength {
-		return fmt.Errorf("user_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if len(user.UserName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("user_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if user.GivenName != nil && len(*user.GivenName) > SCIMMaxFieldLength {
-		return fmt.Errorf("given_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if user.GivenName != nil && len(*user.GivenName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("given_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if user.FamilyName != nil && len(*user.FamilyName) > SCIMMaxFieldLength {
-		return fmt.Errorf("family_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if user.FamilyName != nil && len(*user.FamilyName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("family_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
 	return nil
 }
 
 // validateScimGroupFields checks if the group fields exceed the maximum allowed length
 func validateScimGroupFields(group *fleet.ScimGroup) error {
-	if group.ExternalID != nil && len(*group.ExternalID) > SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if group.ExternalID != nil && len(*group.ExternalID) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
-	if len(group.DisplayName) > SCIMMaxFieldLength {
-		return fmt.Errorf("display_name exceeds maximum length of %d characters", SCIMMaxFieldLength)
+	if len(group.DisplayName) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("display_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
 	}
 	return nil
 }
@@ -876,4 +874,80 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOpti
 	}
 
 	return groups, totalResults, nil
+}
+
+// ScimLastRequest retrieves the last SCIM request info
+func (ds *Datastore) ScimLastRequest(ctx context.Context) (*fleet.ScimLastRequest, error) {
+	const query = `
+				SELECT
+					status, details, updated_at
+				FROM scim_last_request
+				ORDER BY id LIMIT 1
+			`
+	var lastRequest fleet.ScimLastRequest
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &lastRequest, query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim last request")
+	}
+	return &lastRequest, nil
+}
+
+// UpdateScimLastRequest updates the last SCIM request information
+// If no row exists, it creates a new one
+func (ds *Datastore) UpdateScimLastRequest(ctx context.Context, lastRequest *fleet.ScimLastRequest) error {
+	if lastRequest == nil {
+		return nil
+	}
+	if len(lastRequest.Status) > SCIMMaxStatusLength {
+		return fmt.Errorf("status exceeds maximum length of %d characters", SCIMMaxStatusLength)
+	}
+	if len(lastRequest.Details) > fleet.SCIMMaxFieldLength {
+		return fmt.Errorf("details exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Try to update first. We always update the timestamp since success requests all look the same.
+		const updateQuery = `
+				UPDATE scim_last_request
+				SET status = ?, details = ?, updated_at = NOW(6)
+				`
+		result, err := tx.ExecContext(
+			ctx,
+			updateQuery,
+			lastRequest.Status,
+			lastRequest.Details,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update scim last request")
+		}
+
+		// Check if any rows were affected by the update
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get rows affected for update scim last request")
+		}
+
+		// If no rows were affected, insert a new row
+		if rowsAffected == 0 {
+			const insertQuery = `
+					INSERT INTO scim_last_request (
+						status, details
+					) VALUES (?, ?)
+					`
+			_, err = tx.ExecContext(
+				ctx,
+				insertQuery,
+				lastRequest.Status,
+				lastRequest.Details,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "insert scim last request")
+			}
+		}
+
+		return nil
+	})
 }

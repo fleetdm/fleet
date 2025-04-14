@@ -39,6 +39,7 @@ interface IActivityProps {
   isError?: boolean;
   className?: string;
   upcomingCount: number;
+  canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -53,6 +54,7 @@ const Activity = ({
   isError,
   className,
   upcomingCount,
+  canCancelActivities,
   onChangeTab,
   onNextPage,
   onPreviousPage,
@@ -107,6 +109,7 @@ const Activity = ({
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
+              canCancelActivities={canCancelActivities}
             />
           </TabPanel>
         </Tabs>

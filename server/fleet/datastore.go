@@ -635,7 +635,7 @@ type Datastore interface {
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
-	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
+	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
@@ -679,7 +679,7 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
-	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
@@ -2048,6 +2048,10 @@ type Datastore interface {
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
 	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
+	// ScimLastRequest retrieves the last SCIM request info
+	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
+	// UpdateScimLastRequest updates the last SCIM request info
+	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
 }
 
 type AndroidDatastore interface {

@@ -12,6 +12,7 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
+import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
@@ -46,6 +47,7 @@ export const pastActivityComponentMap: Record<
 > = {
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
+  [ActivityType.WipedHost]: WipedHostActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,

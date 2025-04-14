@@ -474,7 +474,7 @@ type IsSoftwareInstallerLabelScopedFunc func(ctx context.Context, installerID ui
 
 type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID uint) (bool, error)
 
-type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
+type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
@@ -498,7 +498,7 @@ type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) 
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
-type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
+type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
@@ -1315,6 +1315,10 @@ type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) erro
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
 
 type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
+
+type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
+
+type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -3258,6 +3262,12 @@ type DataStore struct {
 	ListScimGroupsFunc        ListScimGroupsFunc
 	ListScimGroupsFuncInvoked bool
 
+	ScimLastRequestFunc        ScimLastRequestFunc
+	ScimLastRequestFuncInvoked bool
+
+	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
+	UpdateScimLastRequestFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -4843,7 +4853,7 @@ func (s *DataStore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID uint, 
 	return s.IsVPPAppLabelScopedFunc(ctx, vppAppTeamID, hostID)
 }
 
-func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error) {
 	s.mu.Lock()
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
@@ -4927,7 +4937,7 @@ func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
 }
 
-func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error {
+func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	s.mu.Lock()
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
@@ -7788,4 +7798,18 @@ func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptio
 	s.ListScimGroupsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScimGroupsFunc(ctx, opts)
+}
+
+func (s *DataStore) ScimLastRequest(ctx context.Context) (*fleet.ScimLastRequest, error) {
+	s.mu.Lock()
+	s.ScimLastRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimLastRequestFunc(ctx)
+}
+
+func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *fleet.ScimLastRequest) error {
+	s.mu.Lock()
+	s.UpdateScimLastRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
 }

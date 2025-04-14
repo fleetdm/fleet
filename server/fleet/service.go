@@ -1211,6 +1211,12 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
+	ScimDetails(ctx context.Context) (ScimDetails, error)
 }
 
 type KeyValueStore interface {
