@@ -78,18 +78,20 @@ const filterCompatiblePlatforms = (
 
 export const parseSqlTables = (
   sqlString: string,
-  includeCteTables = false
+  includeVirtualTables = false
 ): string[] => {
   let results: string[] = [];
 
-  // Tables defined via common table expression will be excluded from results by default
-  const cteTables: string[] = [];
+  // Tables defined via common table expression or functions will be excluded
+  // unless includeVirtualTables is set to true.
+  const virtualTables: string[] = [];
 
   const _callback = (node: IAstNode, parentKey: string) => {
     if (!node) {
       return;
     }
 
+    // Common Table Expressions (CTEs) using "WITH ... AS" syntax.
     if (
       parentKey === "with" &&
       node.name &&
@@ -97,16 +99,18 @@ export const parseSqlTables = (
     ) {
       const withTable = node.name as IAstNode;
       if (typeof withTable.value === "string") {
-        cteTables.push(withTable.value);
+        virtualTables.push(withTable.value);
       }
       return;
     }
 
     if (parentKey === "from") {
+      // Function tables like `json_each()`.
       if (node.expr && (node.expr as IAstNode).type !== "function") {
-        cteTables.push(node.as as string);
+        virtualTables.push(node.as as string);
         return;
       }
+      // Plain ol' tables.
       if (node.table) {
         results.push(node.table as string);
       }
@@ -117,8 +121,8 @@ export const parseSqlTables = (
     const sqlTree = parser.astify(sqlString, { database: "sqlite" }) as unknown;
     _visit(sqlTree as IAstNode, _callback);
 
-    if (cteTables.length && !includeCteTables) {
-      results = results.filter((r: string) => !cteTables.includes(r));
+    if (virtualTables.length && !includeVirtualTables) {
+      results = results.filter((r: string) => !virtualTables.includes(r));
     }
 
     return results;
@@ -131,11 +135,11 @@ export const parseSqlTables = (
 
 export const checkTable = (
   sqlString = "",
-  includeCteTables = false
+  includeVirtualTables = false
 ): { tables: string[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
-    sqlTables = parseSqlTables(sqlString, includeCteTables);
+    sqlTables = parseSqlTables(sqlString, includeVirtualTables);
   } catch (err) {
     return { tables: null, error: new Error(`${err}`) };
   }
@@ -154,12 +158,12 @@ export const checkTable = (
 
 export const checkPlatformCompatibility = (
   sqlString: string,
-  includeCteTables = false
+  includeVirtualTables = false
 ): { platforms: QueryablePlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
     // get tables from str
-    sqlTables = parseSqlTables(sqlString, includeCteTables);
+    sqlTables = parseSqlTables(sqlString, includeVirtualTables);
   } catch (err) {
     return { platforms: null, error: new Error(`${err}`) };
   }
