@@ -165,7 +165,7 @@ This section explains how JIT user provisioning works. With JIT, Fleet will auto
 
 > **Note:** If you're using SCIM for automated user provisioning and updates, that setup happens through your identity provider and is separate from JIT. For more details on SCIM-based provisioning, refer to your IdP’s SCIM documentation.
 
-When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO.
 
 The new account's email and full name are copied from the user data in the SSO response.
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
