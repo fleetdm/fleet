@@ -327,6 +327,10 @@ func (r *Runner) updateTarget(target string) error {
 	if err != nil {
 		return fmt.Errorf("get binary: %w", err)
 	}
+	// if this target is not orbit or osquery, do nothing else
+	if target != constant.OsqueryTUFTargetName && target != constant.OrbitTUFTargetName {
+		return nil
+	}
 	path := localTarget.ExecPath
 	newVersion, err := GetVersion(path)
 	if err != nil {
@@ -341,6 +345,9 @@ func (r *Runner) updateTarget(target string) error {
 	if target != constant.OrbitTUFTargetName {
 		return nil
 	}
+
+	// target now guaranteed to be orbit
+
 	// Compare old/new orbit versions
 	oVC := compareVersion(newVersion, build.Version, "fleetd")
 
@@ -401,8 +408,9 @@ func GetVersion(path string) (string, error) {
 	versionCmd := exec.Command(path, "--version")
 	out, err := versionCmd.CombinedOutput()
 	if err != nil {
-		log.Warn().Msgf("failed to get %s version: %s: %s", path, string(out), err)
-		return "", err
+		wrappedErr := fmt.Errorf("failed to get %s version: %s: %s", path, string(out), err)
+		log.Warn().Msg(wrappedErr.Error())
+		return "", wrappedErr
 	}
 	matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
 	if len(matches) > 2 {
