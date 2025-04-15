@@ -1681,33 +1681,60 @@ func (svc *Service) softwareBatchUpload(
 				tmID = *teamID
 			}
 
-			if _, ok := teamIDs[tmID]; ok {
+			foundInstaller, ok := teamIDs[tmID]
+			jl.Printf("ok: %v\n", ok)
+			jl.Printf("teamIDs: %v\n", teamIDs)
+
+			switch {
+			case ok:
 				jl.Printf("got existing sha for installer %s on team %d, skipping download", p.Filename, tmID)
-				installers[i] = installer
-				return nil
-			}
-
-			headers, tfr, err := downloadURLFn(ctx, p.URL)
-			if err != nil {
-				return err
-			}
-
-			installer.InstallerFile = tfr
-
-			// set the filename before adding metadata, as it is used as fallback
-			var filename string
-			cdh, ok := headers["Content-Disposition"]
-			if ok && len(cdh) > 0 {
-				_, params, err := mime.ParseMediaType(cdh[0])
-				if err == nil {
-					filename = params["filename"]
+				installer.StorageID = p.SHA256
+				installer.Extension = foundInstaller.Extension
+				installer.Filename = foundInstaller.Filename
+				installer.Version = foundInstaller.Version
+				installer.Platform = foundInstaller.Platform
+			case !ok && len(teamIDs) > 0:
+				jl.Printf("got existing sha for installer %s, copying to team %d", p.Filename, tmID)
+				installer.StorageID = p.SHA256
+				for _, i := range teamIDs {
+					// use the first one we find; which one shouldn't matter because they're all the
+					// same installer bytes
+					installer.Extension = i.Extension
+					installer.Filename = i.Filename
+					installer.Version = i.Version
+					installer.Platform = i.Platform
+					break
 				}
-			}
-			installer.Filename = filename
+				jl.Printf("installer: %+v\n", installer)
+			default:
+				// no existing installer bytes, so we should download it
+				jl.Println("downloading installer")
+				var filename string
+				headers, tfr, err := downloadURLFn(ctx, p.URL)
+				if err != nil {
+					return err
+				}
 
-			ext, err := svc.addMetadataToSoftwarePayload(ctx, installer)
-			if err != nil {
-				_ = tfr.Close() // closing the temp file here since it will not be available after the goroutine completes
+				installer.InstallerFile = tfr
+
+				// set the filename before adding metadata, as it is used as fallback
+				cdh, ok := headers["Content-Disposition"]
+				if ok && len(cdh) > 0 {
+					_, params, err := mime.ParseMediaType(cdh[0])
+					if err == nil {
+						filename = params["filename"]
+					}
+				}
+
+				installer.Filename = filename
+			}
+
+			var ext string
+			if installer.InstallerFile != nil {
+				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer)
+				if err != nil {
+					_ = installer.InstallerFile.Close() // closing the temp file here since it will not be available after the goroutine completes
+				}
 				return err
 			}
 
@@ -1716,16 +1743,15 @@ func (svc *Service) softwareBatchUpload(
 
 			// if filename was empty, try to extract it from the URL with the
 			// now-known extension
-			if filename == "" {
-				filename = file.ExtractFilenameFromURLPath(p.URL, ext)
+			if installer.Filename == "" {
+				installer.Filename = file.ExtractFilenameFromURLPath(p.URL, ext)
 			}
 			// if empty, resort to a default name
-			if filename == "" {
-				filename = fmt.Sprintf("package.%s", ext)
+			if installer.Filename == "" {
+				installer.Filename = fmt.Sprintf("package.%s", ext)
 			}
-			installer.Filename = filename
 			if installer.Title == "" {
-				installer.Title = filename
+				installer.Title = installer.Filename
 			}
 
 			installers[i] = installer

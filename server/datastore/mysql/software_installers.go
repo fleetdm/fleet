@@ -2317,22 +2317,31 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]struct{}, error) {
+func (ds *Datastore) GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.SoftwareInstaller, error) {
 	stmt := `
-SELECT global_or_team_id
+SELECT 
+	team_id,
+	filename,
+	extension,
+	version,
+	platform
 FROM
 	software_installers
 WHERE
 	storage_id = ?` // TODO(JVE): do we need to include URL in this search? If so, do we need to change the index?
 
-	var teamIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &teamIDs, stmt, sha256); err != nil {
+	var installers []*fleet.SoftwareInstaller
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installers, stmt, sha256); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer by hash")
 	}
 
-	set := make(map[uint]struct{}, len(teamIDs))
-	for _, id := range teamIDs {
-		set[id] = struct{}{}
+	set := make(map[uint]*fleet.SoftwareInstaller, len(installers))
+	for _, installer := range installers {
+		var tmID uint
+		if installer.TeamID != nil {
+			tmID = *installer.TeamID
+		}
+		set[tmID] = installer
 	}
 
 	return set, nil
