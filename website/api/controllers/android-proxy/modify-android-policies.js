@@ -12,6 +12,10 @@ module.exports = {
       type: 'string',
       required: true,
     },
+    profileId: {
+      type: 'string',
+      required: true,
+    },
     fleetServerSecret: {
       type: 'string',
     },
@@ -19,7 +23,7 @@ module.exports = {
       type: {},
       description: 'The policy on the Android enterprise that is being updated.',
       moreInfoUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#Policy'
-    }
+    },
   },
 
 
@@ -28,7 +32,7 @@ module.exports = {
   },
 
 
-  fn: async function ({androidEnterpriseId, fleetServerSecret, policy}) {
+  fn: async function ({androidEnterpriseId, profileId, fleetServerSecret, policy}) {
 
     // Authenticate this request
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
@@ -55,11 +59,9 @@ module.exports = {
       // Acquire the google auth client, and bind it to all future calls
       let authClient = await googleAuth.getClient();
       google.options({auth: authClient});
-      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
+      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
       let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
-        name: policy.name,// TODO: make sure this exists.
-        // name: `enterprises/${androidEnterpriseId}/policies/default`,
-        // updateMask: 'placeholder-value',// TODO: do we need to set an updateMask value? otherwise, the entire policy will be replaced with the provided policy.
+        name: `enterprises/${androidEnterpriseId}/policies/${profileId}`,
         requestBody: policy
       });
       return patchPoliciesResponse.data;
