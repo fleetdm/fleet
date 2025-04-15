@@ -4391,7 +4391,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	darwinHost := test.NewHost(t, ds, "hostD", "", "hostDkey", "hostDuuid", time.Now(), test.WithPlatform("darwin"))
 	softwareAlreadyInstalled := fleet.Software{Name: "DummyApp.app", Version: "1.0.1", Source: "apps", BundleIdentifier: "com.example.dummy"}
 
-	// Host has software installed, but not by fleet, and there is no matching software installer.
+	// Host has software installed, but not by Fleet, and there is no matching software installer.
 	// Ensure it is not surfaced as "available for install" when filtering by `VulnerableOnly`
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, bundle_identifier) VALUES (?, ?, ?)`,

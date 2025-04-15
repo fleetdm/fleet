@@ -3008,7 +3008,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	var stmtAvailable string
 
-	if (opts.OnlyAvailableForInstall) || (opts.IncludeAvailableForInstall) {
+	if opts.OnlyAvailableForInstall || opts.IncludeAvailableForInstall {
 		namedArgs["vpp_apps_platforms"] = fleet.VPPAppsPlatforms
 		namedArgs["host_compatible_platforms"] = host.FleetPlatform()
 
