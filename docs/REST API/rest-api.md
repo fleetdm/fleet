@@ -1064,12 +1064,13 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| gitops        | object  | body  | See [gitops](#gitops). |
+| gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
+| end_user_authentication  | object  | body  | See [end_user_authentication](#end-user-authentication).                                                                             |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
-| yara_rules                  | array   | body  | A list of YARA rule files to add.                                                               |
+| yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 
@@ -1905,6 +1906,19 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### mdm.end_user_authentication
+
+`mdm.end_user_authentication` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| entity_id                         | string  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
+| idp_name                          | string  | A required human friendly name for the identity provider that will provide single sign-on authentication.                                                              |
+| metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http |
+| metadata                          | string  | Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -1942,7 +1956,6 @@ _Available in Fleet Premium._
     },
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
