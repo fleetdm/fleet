@@ -8653,8 +8653,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Run bulk script](#run-bulk-script)
-- [Get bulk script summary](#get-bulk-script-summary)
+- [Batch-run script](#batch-run-script)
+- [Get batch script summary](#get-batch-script-summary)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8738,13 +8738,13 @@ Gets the result of a script that was executed.
 
 > Note: `created_at` is the creation timestamp of the script execution request.
 
-### Run bulk script
+### Batch-run script
 
 Run a script on multiple hosts.
 
 The script will be added to each host's list of upcoming activities.
 
-`POST /api/v1/fleet/scripts/bulk`
+`POST /api/v1/fleet/scripts/batch/run`
 
 #### Parameters
 
@@ -8756,7 +8756,7 @@ The script will be added to each host's list of upcoming activities.
 
 #### Example
 
-`POST /api/v1/fleet/scripts/bulk`
+`POST /api/v1/fleet/scripts/batch/run`
 
 ##### Request body
 
@@ -8778,11 +8778,11 @@ The script will be added to each host's list of upcoming activities.
 }
 ```
 
-### Get bulk script summary
+### Get batch script summary
 
-Gets information about a bulk script run. This includes the list of hosts, each with either `execution_id` or `error`. 
+Gets information about a batch script run. This includes the list of hosts, each with either `execution_id` or `error`. 
 
-`GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
+`GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id`
 
 #### Parameters
 
@@ -8792,7 +8792,7 @@ Gets information about a bulk script run. This includes the list of hosts, each 
 
 #### Example
 
-`GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
+`GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id`
 
 ##### Default response
 
