@@ -121,6 +121,9 @@ const ConditionalAccess = () => {
 
   const { isPremiumTier, setConfig } = useContext(AppContext);
 
+  const [phase, setPhase] = useState<Phase>(Phase.Form);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   // this page is unique in that it triggers a server process that will result in an update to
   // config, but via an endpoint (conditional access) other than the usual PATCH config, so we want
   // to source config directly from the API instead of context to give us `refetchConfig` capability
@@ -133,17 +136,19 @@ const ConditionalAccess = () => {
   >(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (_config) => {
+      if (!_config?.conditional_access?.microsoft_entra_connection_configured) {
+        setPhase(Phase.Form);
+      }
       setConfig(_config);
+      setIsUpdating(false);
     },
     ...DEFAULT_USE_QUERY_OPTIONS,
   });
 
-  const [phase, setPhase] = useState<Phase>(Phase.Form);
   const [formData, setFormData] = useState<IFormData>({
     [MSETID]: config?.conditional_access?.microsoft_entra_tenant_id || "",
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
-  const [isUpdating, setIsUpdating] = useState(false);
   const [
     showDeleteConditionalAccessModal,
     setShowDeleteConditionalAccessModal,
@@ -244,9 +249,7 @@ const ConditionalAccess = () => {
         "success",
         "Successfully disconnected from Miscrosoft Entra."
       );
-      setIsUpdating(false);
       toggleDeleteConditionalAccessModal();
-      setPhase(Phase.Form);
       refetchConfig();
     } catch {
       renderFlash(
