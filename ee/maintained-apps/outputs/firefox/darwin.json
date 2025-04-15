@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "137.0.1",
+      "version": "137.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox';"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/137.0.1/mac/en-US/Firefox%20137.0.1.dmg",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/137.0.2/mac/en-US/Firefox%20137.0.2.dmg",
       "install_script_ref": "d6537bcd",
       "uninstall_script_ref": "824ca465",
-      "sha256": "0a7b63ff8894506d3884b3c067ca0a6ceb38d8b6aa412585c3018d3f46c38213"
+      "sha256": "0338912d47bdcb9ea2c09bcf31b7e68a4ded1a083b60c129781534d535601ed5"
     }
   ],
   "refs": {
