@@ -1,21 +1,4 @@
 name: No team
-team_settings:
-  webhook_settings:
-    failing_policies_webhook:
-      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
-      enable_failing_policies_webhook: false
-      host_batch_size: 0
-      policy_ids: [ ]
-  features:
-    enable_host_users: true
-    enable_software_inventory: true
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
-  integrations:
-    google_calendar:
-      enable_calendar_events: false
-      webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
     decorators:
