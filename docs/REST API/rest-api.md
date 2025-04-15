@@ -8652,8 +8652,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 ## Scripts
 
 - [Run script](#run-script)
-- [Run bulk script](#run-bulk-script)
 - [Get script result](#get-script-result)
+- [Run bulk script](#run-bulk-script)
+- [Get bulk script summary](#get-bulk-script-summary)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8710,74 +8711,7 @@ The new script will run after other activities finish. Failure of one activity w
 
 By default, script runs time out after 5 minutes. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
 
-`POST /api/v1/fleet/scripts/run`
 
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id`, `script_contents`, or `script_name` can be included. Scripts must be less than 10,000 characters. To run scripts with more than 10k characters, save the script and use `script_id` or `script_name` and `team_id` instead. |
-| script_name       | integer | body | The name of the existing saved script to run. If specified, requires `team_id`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.   |
-| team_id       | integer | body | The ID of the existing saved script to run. If specified, requires `script_name`. Only one of either `script_id`, `script_contents`, or `script_name` can be included in the request.  |
-
-> Note that if any combination of `script_id`, `script_contents`, and `script_name` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run`
-
-##### Default response
-
-`Status: 202`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
-
-### Run bulk script
-
-Run a script on multiple hosts.
-
-The script will be added to each host's list of upcoming activities.
-
-`POST /api/v1/fleet/scripts/run-bulk`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_ids        | array   | body | **Required**. List of host IDs.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. |
-
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run-bulk`
-
-##### Request body
-
-```json
-{
-  "script_id": 123,
-  "host_ids": [1, 2, 3]
-}
-```
-
-##### Default response
-
-`Status: 202`
-
-
-```json
-{
-  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
 
 ### Get script result
 
@@ -8815,6 +8749,96 @@ Gets the result of a script that was executed.
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
 > Note: `created_at` is the creation timestamp of the script execution request.
+
+### Run bulk script
+
+Run a script on multiple hosts.
+
+The script will be added to each host's list of upcoming activities.
+
+`POST /api/v1/fleet/scripts/bulk`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_ids        | array   | body | **Required**. List of host IDs.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. |
+
+
+#### Example
+
+`POST /api/v1/fleet/scripts/bulk`
+
+##### Request body
+
+```json
+{
+  "script_id": 123,
+  "host_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 202`
+
+
+```json
+{
+  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Get bulk script summary
+
+Gets information about a bulk script run. This includes the list of hosts, and either an `execution_id` or `error`. 
+
+`GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| batch_execution_id | string | path | **Required**. The batch execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_id": 123,
+  "team_id": null,
+  "script_name": "remove-old-nudge.sh",
+  "host_count": 3,
+  "hosts": [
+    {
+      "host_id": 1,
+      "host_display_name": "Haley's MacBook Air",
+      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+    },
+    {
+      "host_id": 2,
+      "host_display_name": "SEBASTIAN-WINDOWS",
+      "error": "incompatible-platform"
+    },
+    {
+      "host_id": 3,
+      "host_display_name": "Robin's MacBook Pro",
+      "error": "incompatible-fleetd"
+    }
+  ]
+}
+```
+
+> Note that `error` is only included if the script was not successfully added to a host's upcoming activity, and is one of either `"incompatible-platform"` or `"incompatible-fleetd"`. To find out whether a script ran successfully or errored on a host, use the [Get script result](#get-script-result) endpoint.
+
+
 
 ### Add script
 
