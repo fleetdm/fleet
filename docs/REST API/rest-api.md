@@ -508,6 +508,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_id": 3,
       "actor_gravatar": "",
       "actor_email": "",
+      "actor_api_only": false,
       "type": "installed_software",
       "fleet_initiated": false,
       "details": {
@@ -529,6 +530,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_id": 1,
       "actor_gravatar": "",
       "actor_email": "name@example.com",
+      "actor_api_only": false,
       "type": "created_team",
       "fleet_initiated": false,
       "details": {
@@ -4539,6 +4541,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_id": 12,
       "actor_gravatar": "",
       "actor_email": "anna@example.com",
+      "actor_api_only": false,
       "type": "installed_software",
       "fleet_initiated": false,
       "details": {
@@ -4560,6 +4563,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_id": 12,
       "actor_gravatar": "",
       "actor_email": "anna@example.com",
+      "actor_api_only": false,
       "type": "ran_script",
       "fleet_initiated": true,
       "details": {
@@ -4609,6 +4613,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_id": 12,
       "actor_gravatar": "",
       "actor_email": "anna@example.com",
+      "actor_api_only": false,
       "type": "installed_software",
       "fleet_initiated": false,
       "details": {
@@ -4630,6 +4635,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_id": 1,
       "actor_gravatar": "",
       "actor_email": "marko@example.com",
+      "actor_api_only": false,
       "type": "ran_script",
       "fleet_initiated": false,
       "details": {
@@ -4647,6 +4653,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
       "actor_id": 1,
       "actor_gravatar": "",
       "actor_email": "rachael@example.com",
+      "actor_api_only": false,
       "type": "ran_script",
       "fleet_initiated": false,
       "details": {
