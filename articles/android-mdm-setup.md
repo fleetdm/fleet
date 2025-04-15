@@ -1,6 +1,5 @@
 # Android MDM setup
 
-
 > **NOTE:** Android MDM features are currently experimental and disabled by default. To enable, set `ANDROID_FEATURE_ENABLED=1` in [server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration).
 To turn on Android MDM features, follow the instructions on this page to connect Android Enterprise
 to Fleet.
