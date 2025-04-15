@@ -15,6 +15,7 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
+  canCancelActivities: boolean;
   onShowDetails: ShowActivityDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
@@ -24,6 +25,7 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
+  canCancelActivities,
   onShowDetails,
   onCancel,
   onNextPage,
@@ -61,7 +63,7 @@ const UpcomingActivityFeed = ({
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}
-              hideCancel // TODO: remove this when canceling is implemented in API
+              hideCancel={!canCancelActivities}
               onCancel={() => onCancel(activity)}
             />
           );
@@ -71,8 +73,8 @@ const UpcomingActivityFeed = ({
         disablePrev={!meta.has_previous_results}
         disableNext={!meta.has_next_results}
         hidePagination={!meta.has_previous_results && !meta.has_next_results}
-        onPrevPage={() => onPreviousPage}
-        onNextPage={() => onNextPage}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
       />
     </div>
   );

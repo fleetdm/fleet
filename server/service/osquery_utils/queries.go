@@ -29,6 +29,10 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Some machines don't have a correctly set serial number, create a default ignore list
+// https://github.com/fleetdm/fleet/issues/25993
+var invalidHardwareSerialRegexp = regexp.MustCompile("(?i)(?:default|serial|string)")
+
 type DetailQuery struct {
 	// Description is an optional description of the query to be displayed in the
 	// Host Vitals documentation https://fleetdm.com/docs/using-fleet/understanding-host-vitals
@@ -339,7 +343,11 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+			if invalidHardwareSerialRegexp.Match([]byte(rows[0]["hardware_serial"])) {
+				// If the serial number is a default (uninitialize) value, set to empty
+				host.HardwareSerial = ""
+			} else if rows[0]["hardware_serial"] != "-1" {
+				// ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
 				host.HardwareSerial = rows[0]["hardware_serial"]
 			}
 			host.ComputerName = rows[0]["computer_name"]
@@ -843,7 +851,7 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  name AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -1426,12 +1434,12 @@ func generateBatteryHealth(row map[string]string, logger log.Logger) (string, in
 		return batteryStatusUnknown, count, fmt.Errorf("failed to parse designed capacity: %s", designedCapacity)
 	}
 
-	max, err := strconv.ParseInt(maxCapacity, 10, 64)
+	maxCapInt, err := strconv.ParseInt(maxCapacity, 10, 64)
 	if err != nil {
 		return batteryStatusUnknown, count, fmt.Errorf("failed to parse max capacity: %s", maxCapacity)
 	}
 
-	health := float64(max) / float64(designed) * 100
+	health := float64(maxCapInt) / float64(designed) * 100
 
 	if health < batteryDegradedThreshold {
 		return batteryStatusDegraded, count, nil

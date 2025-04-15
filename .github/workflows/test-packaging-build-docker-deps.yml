@@ -57,9 +57,6 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Install Go Dependencies
-        run: make deps-go
-
       - name: Build fleetctl
         run: make fleetctl
 

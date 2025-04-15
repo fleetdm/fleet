@@ -43,7 +43,6 @@ interface ISoftwareOSTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
   platform?: SelectedPlatform;
 }
 
@@ -95,7 +94,6 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
   platform,
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
@@ -126,9 +124,10 @@ const SoftwareOSTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        platform,
       };
     },
-    [teamId]
+    [teamId, platform]
   );
 
   const onQueryChange = useCallback(
@@ -136,7 +135,6 @@ const SoftwareOSTable = ({
       // we want to determine which query param has changed in order to
       // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
-
       // if nothing has changed, don't update the route. this can happen when
       // this handler is called on the initial render.
       if (changedParam === "") return;
@@ -257,7 +255,7 @@ const SoftwareOSTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}
@@ -270,7 +268,6 @@ const SoftwareOSTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

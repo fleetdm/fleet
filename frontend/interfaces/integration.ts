@@ -30,7 +30,7 @@ export interface ICertificatesIntegrationDigicert {
   api_token: string;
   profile_id: string;
   certificate_common_name: string;
-  certificate_user_principal_names: string[];
+  certificate_user_principal_names: string[] | null;
   certificate_seat_id: string;
 }
 

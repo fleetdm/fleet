@@ -1,9 +1,10 @@
 import React from "react";
 
 import { IMdmSolution } from "interfaces/mdm";
+import { noop } from "lodash";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import { IMdmSolutionTableData } from "./MDM";
 
 // NOTE: cellProps come from react-table
@@ -46,7 +47,7 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => [
     disableSortBy: true,
     accessor: "displayName",
     Cell: (cellProps: ICellProps) => (
-      <InternalLinkCell value={cellProps.cell.value} />
+      <LinkCell customOnClick={noop} value={cellProps.cell.value} />
     ),
   },
   {

@@ -7,6 +7,9 @@
 
   .table-container__search-input {
     width: 100%;
+  }
+
+  @media (min-width: ($break-md)) {
     min-width: 305px; // Custom to fit placeholder text
   }
 
@@ -49,11 +52,12 @@
           }
           .Vulnerabilities__header {
             display: table-cell;
+            max-width: px-to-rem(140);
           }
           // this is called `id` only due to typing concerns in the table config – it is for the
-          // "Show details" column
+          // "Actions" column
           .id__header {
-            width: px-to-rem(90);
+            width: px-to-rem(72);
           }
           @media (max-width: ($break-xl - 1)) {
             .source__header {
@@ -100,6 +104,31 @@
                 width: 0;
               }
             }
+
+            // Very little real estate at 768px
+            @media (max-width: ($break-sm - 1)) {
+              .name__cell {
+                .software-name {
+                  max-width: 190px;
+                }
+              }
+
+              .Version__cell {
+                .text-cell {
+                  max-width: 95px;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      @media (max-width: ($break-sm - 1)) {
+        .data-table__table {
+          th,
+          td {
+            padding-left: $pad-medium;
+            padding-right: $pad-medium;
           }
         }
       }

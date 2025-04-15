@@ -99,7 +99,11 @@ INSERT INTO
 			cp.LabelsExcludeAny[i].RequireAll = false
 			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
-		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "darwin"); err != nil {
+		var profWithoutLabels []string
+		if len(labels) == 0 {
+			profWithoutLabels = append(profWithoutLabels, profUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
@@ -1845,6 +1849,7 @@ ON DUPLICATE KEY UPDATE
 	// between macOS and Windows, but at the time of this
 	// implementation we're under tight time constraints.
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	var profsWithoutLabels []string
 	if len(incomingIdents) > 0 {
 		var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
@@ -1868,33 +1873,37 @@ ON DUPLICATE KEY UPDATE
 				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
 			}
 
+			var profHasLabel bool
 			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsIncludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
+			}
+			if !profHasLabel {
+				profsWithoutLabels = append(profsWithoutLabels, newlyInsertedProf.ProfileUUID)
 			}
 		}
 	}
 
-	// FIXME: At what point are we deleting label associations for existing profiles (e.g. if the user
-	// removes all labels from a profile in gitops, shouldn't we remove the old associations)?
-
 	// insert label associations
 	var updatedLabels bool
-	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,
+	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, profsWithoutLabels,
 		"darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
@@ -4257,6 +4266,7 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx sqlx.ExtContext,
 	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint) (updatedDB bool, err error) {
 	var incomingLabels []fleet.ConfigurationProfileLabel
+	var declWithoutLabels []string
 	if len(incomingDeclarationsMap) > 0 {
 		incomingNames := make([]string, 0, len(incomingDeclarationsMap))
 		for _, p := range incomingDeclarationsMap {
@@ -4282,29 +4292,36 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 					newlyInsertedDecl.Name)
 			}
 
+			var declHasLabel bool
 			for _, label := range incomingDecl.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
+				declHasLabel = true
 			}
 			for _, label := range incomingDecl.LabelsIncludeAny {
 				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				declHasLabel = true
 			}
 			for _, label := range incomingDecl.LabelsExcludeAny {
 				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				declHasLabel = true
+			}
+			if !declHasLabel {
+				declWithoutLabels = append(declWithoutLabels, newlyInsertedDecl.DeclarationUUID)
 			}
 		}
 	}
 
 	if updatedDB, err = batchSetDeclarationLabelAssociationsDB(ctx, tx,
-		incomingLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
+		incomingLabels, declWithoutLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
@@ -4531,7 +4548,11 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			declaration.LabelsExcludeAny[i].RequireAll = false
 			labels = append(labels, declaration.LabelsExcludeAny[i])
 		}
-		if _, err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels); err != nil {
+		var declWithoutLabels []string
+		if len(labels) == 0 {
+			declWithoutLabels = []string{declUUID}
+		}
+		if _, err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels, declWithoutLabels); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting mdm declaration label associations")
 		}
 
@@ -4546,19 +4567,26 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext,
-	declarationLabels []fleet.ConfigurationProfileLabel,
+	declarationLabels []fleet.ConfigurationProfileLabel, declUUIDsWithoutLabels []string,
 ) (updatedDB bool, err error) {
-	if len(declarationLabels) == 0 {
+	if len(declarationLabels)+len(declUUIDsWithoutLabels) == 0 {
 		return false, nil
 	}
 
-	// delete any profile+label tuple that is NOT in the list of provided tuples
-	// but are associated with the provided profiles (so we don't delete
-	// unrelated profile+label tuples)
+	// delete any decl+label tuple that is NOT in the list of provided tuples
+	// but are associated with the provided declarations (so we don't delete
+	// unrelated decl+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_declaration_labels
 	  WHERE (apple_declaration_uuid, label_id) NOT IN (%s) AND
 	  apple_declaration_uuid IN (?)
+	`
+
+	// used when only declUUIDsWithoutLabels is provided, there are no
+	// labels to keep, delete all labels for declarations in this list.
+	deleteNoLabelStmt := `
+	  DELETE FROM mdm_declaration_labels
+	  WHERE apple_declaration_uuid IN (?)
 	`
 
 	upsertStmt := `
@@ -4576,6 +4604,23 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 		SELECT apple_declaration_uuid as profile_uuid, label_name, label_id, exclude, require_all FROM mdm_declaration_labels
 		WHERE (apple_declaration_uuid, label_name) IN (%s)
 	`
+
+	if len(declarationLabels) == 0 {
+		deleteNoLabelStmt, args, err := sqlx.In(deleteNoLabelStmt, declUUIDsWithoutLabels)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for declarations without labels")
+		}
+
+		var result sql.Result
+		if result, err = tx.ExecContext(ctx, deleteNoLabelStmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "deleting labels for declarations without labels")
+		}
+		if result != nil {
+			rows, _ := result.RowsAffected()
+			updatedDB = rows > 0
+		}
+		return updatedDB, nil
+	}
 
 	var (
 		insertBuilder         strings.Builder
@@ -4639,10 +4684,11 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 
 	deleteStmt = fmt.Sprintf(deleteStmt, selectOrDeleteBuilder.String())
 
-	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	profUUIDs := make([]string, 0, len(setProfileUUIDs)+len(declUUIDsWithoutLabels))
 	for k := range setProfileUUIDs {
 		profUUIDs = append(profUUIDs, k)
 	}
+	profUUIDs = append(profUUIDs, declUUIDsWithoutLabels...)
 	deleteArgs := deleteParams
 	deleteArgs = append(deleteArgs, profUUIDs)
 

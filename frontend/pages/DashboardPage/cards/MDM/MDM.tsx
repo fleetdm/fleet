@@ -169,6 +169,7 @@ const Mdm = ({
                   disablePagination
                   disableMultiRowSelect
                   onClickRow={handleSolutionRowClick}
+                  keyboardSelectableRows
                 />
               )}
             </TabPanel>

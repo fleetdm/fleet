@@ -268,8 +268,7 @@ const ScriptDetailsModal = ({
         className={`${baseClass}__script-content  modal-scrollable-content`}
         ref={topDivRef}
       >
-        <span>Script content:</span>
-        <Textarea className={`${baseClass}__script-content-textarea`}>
+        <Textarea label="Script content" variant="code">
           {scriptContent}
         </Textarea>
         {runScriptHelpText && (
