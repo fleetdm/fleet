@@ -409,6 +409,12 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Microsoft compliance proxy
+  // compliancePartnerClientId: '…',
+  // compliancePartnerClientSecret: '…',
+  // cloudCustomerCompliancePartnerSharedSecret: '…',
+  // sendMockProxyResponsesForDevelopment: false,
+
   //…
 
 };
