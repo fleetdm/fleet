@@ -3995,27 +3995,6 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Resend host's configuration profile
-
-Resends a configuration profile for the specified host.
-
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The host's ID. |
-| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
-
-##### Default response
-
-`Status: 202`
-
 ### Get host's scripts
 
 `GET /api/v1/fleet/hosts/:id/scripts`
@@ -5563,6 +5542,34 @@ solely on the response status code returned by this endpoint.
 #### Example
 
 `DELETE /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
+
+##### Default response
+
+`Status: 200`
+
+### Resend custom OS setting (configuration profile) to hosts by filter
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/configuration_profiles/batch/resend`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
+
+#### Example
+
+`POST /api/v1/fleet/configuration_profiles/batch/resend`
+
+##### Request body
+
+```json
+{
+  "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
+}
+```
 
 ##### Default response
 
