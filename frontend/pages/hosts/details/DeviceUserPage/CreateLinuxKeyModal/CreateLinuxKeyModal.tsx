@@ -25,7 +25,8 @@ const CreateLinuxKeyModal = ({
           setup.
         </li>
         <li>
-          Wait for Fleet to create a new key. This process may take up to 10 minutes.
+          Wait for Fleet to create a new key. This process may take up to 10
+          minutes.
         </li>
         <li>
           Close this window and select <b>Refetch</b> on your <b>My device</b>{" "}
