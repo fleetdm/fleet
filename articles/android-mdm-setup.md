@@ -31,7 +31,7 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 
 ### Other
 
-1. If your organization doesn't use Google Workspace or Microsoft 365, in the Google sign-up page, use a work email to register Android Enterprise (don't use personal emails like "@gmail.com").
+1. If your organization doesn't use Google Workspace or Microsoft 365, in the Google signup page, use a work email to signup for Android Enterprise (don't use personal emails like "@gmail.com").
 2. After you enter your email, you'll get a verification email. Open the link from the email.
 3. Enter information about you and your company and select **Continue**.
 4. Android Enterprise subscription will be selected (free), select **Next**.
