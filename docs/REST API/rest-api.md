@@ -8774,20 +8774,9 @@ The script will be added to each host's list of upcoming activities.
 
 
 ```json
-[
-  {
-    "host_id": 1,
-    "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-  },
-  {
-    "host_id": 2,
-    "error": "incompatible-platform"
-  },
-  {
-    "host_id": 3,
-    "error": "incompatible-fleetd"
-  }
-]
+{
+  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
 ```
 
 ### Get script result
