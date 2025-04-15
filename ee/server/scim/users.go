@@ -440,37 +440,29 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			for k, v := range newValues {
 				switch k {
 				case userNameAttr:
-					userName, ok := v.(string)
-					if !ok || userName == "" {
-						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", userNameAttr), "value", op.Value)
-						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					err = u.patchUserName(v, user)
+					if err != nil {
+						return scim.Resource{}, err
 					}
-					user.UserName = userName
 				case activeAttr:
 					if v == nil {
 						user.Active = nil
 						continue
 					}
-					active, ok := v.(bool)
-					if !ok {
-						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", activeAttr), "value", op.Value)
-						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					err = u.patchActive(v, user)
+					if err != nil {
+						return scim.Resource{}, err
 					}
-					user.Active = &active
 				case nameAttr + "." + givenNameAttr:
-					givenName, ok := v.(string)
-					if !ok {
-						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value", op.Value)
-						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					err = u.patchGivenName(v, user)
+					if err != nil {
+						return scim.Resource{}, err
 					}
-					user.GivenName = &givenName
 				case nameAttr + "." + familyNameAttr:
-					familyName, ok := v.(string)
-					if !ok {
-						level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value", op.Value)
-						return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					err = u.patchFamilyName(v, user)
+					if err != nil {
+						return scim.Resource{}, err
 					}
-					user.FamilyName = &familyName
 				case nameAttr:
 					err = u.patchName(v, op, user)
 					if err != nil {
@@ -487,37 +479,29 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				}
 			}
 		case op.Path.String() == userNameAttr:
-			userName, ok := op.Value.(string)
-			if !ok || userName == "" {
-				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", userNameAttr), "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			err = u.patchUserName(op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
 			}
-			user.UserName = userName
 		case op.Path.String() == activeAttr:
 			if op.Value == nil {
 				user.Active = nil
 				continue
 			}
-			active, ok := op.Value.(bool)
-			if !ok {
-				level.Error(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", activeAttr), "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			err = u.patchActive(op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
 			}
-			user.Active = &active
 		case op.Path.String() == nameAttr+"."+givenNameAttr:
-			givenName, ok := op.Value.(string)
-			if !ok {
-				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+givenNameAttr), "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			err = u.patchGivenName(op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
 			}
-			user.GivenName = &givenName
 		case op.Path.String() == nameAttr+"."+familyNameAttr:
-			familyName, ok := op.Value.(string)
-			if !ok {
-				level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr+"."+familyNameAttr), "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			err = u.patchFamilyName(op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
 			}
-			user.FamilyName = &familyName
 		case op.Path.String() == nameAttr:
 			err = u.patchName(op.Value, op, user)
 			if err != nil {
@@ -529,20 +513,9 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				return scim.Resource{}, err
 			}
 		case op.Path.AttributePath.String() == emailsAttr:
-			attrExpression, ok := op.Path.ValueExpression.(*filter.AttributeExpression)
-			if !ok {
-				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-			}
-			// Only matching by email type (work, etc.) is supported.
-			if attrExpression.AttributePath.String() != typeAttr || attrExpression.Operator != filter.EQ {
-				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-			}
-			emailType, ok := attrExpression.CompareValue.(string)
-			if !ok {
-				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			emailType, err := u.getEmailType(op)
+			if err != nil {
+				return scim.Resource{}, err
 			}
 			emailFound := false
 			var emailIndex int
@@ -589,10 +562,9 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					user.Emails[emailIndex].Primary = nil
 					continue
 				}
-				primary, ok := op.Value.(bool)
-				if !ok {
-					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", primaryAttr), "value", op.Value)
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				primary, err := getConcreteType[bool](u, op.Value, primaryAttr)
+				if err != nil {
+					return scim.Resource{}, err
 				}
 				// If setting primary to true, then unset true from other emails
 				if primary {
@@ -600,10 +572,9 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				}
 				user.Emails[emailIndex].Primary = &primary
 			case valueAttr:
-				value, ok := op.Value.(string)
-				if !ok {
-					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", valueAttr), "value", op.Value)
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				value, err := getConcreteType[string](u, op.Value, valueAttr)
+				if err != nil {
+					return scim.Resource{}, err
 				}
 				user.Emails[emailIndex].Email = value
 			case typeAttr:
@@ -611,17 +582,15 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					user.Emails[emailIndex].Type = nil
 					continue
 				}
-				newEmailType, ok := op.Value.(string)
-				if !ok {
-					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", typeAttr), "value", op.Value)
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				newEmailType, err := getConcreteType[string](u, op.Value, typeAttr)
+				if err != nil {
+					return scim.Resource{}, err
 				}
 				user.Emails[emailIndex].Type = &newEmailType
 			default:
 				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-
 		default:
 			level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -641,6 +610,75 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	return createUserResource(user), nil
+}
+
+func (u *UserHandler) getEmailType(op scim.PatchOperation) (string, error) {
+	attrExpression, ok := op.Path.ValueExpression.(*filter.AttributeExpression)
+	if !ok {
+		level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
+		return "", errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	// Only matching by email type (work, etc.) is supported.
+	if attrExpression.AttributePath.String() != typeAttr || attrExpression.Operator != filter.EQ {
+		level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
+		return "", errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	emailType, ok := attrExpression.CompareValue.(string)
+	if !ok {
+		level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
+		return "", errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	return emailType, nil
+}
+
+func getConcreteType[T string | bool](u *UserHandler, v interface{}, name string) (T, error) {
+	concreteType, ok := v.(T)
+	if !ok {
+		var zeroValue T
+		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", name), "value", v)
+		return zeroValue, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
+	}
+	return concreteType, nil
+}
+
+func (u *UserHandler) patchFamilyName(v interface{}, user *fleet.ScimUser) error {
+	familyName, err := getConcreteType[string](u, v, nameAttr+"."+familyNameAttr)
+	if err != nil {
+		return err
+	}
+	user.FamilyName = &familyName
+	return nil
+}
+
+func (u *UserHandler) patchGivenName(v interface{}, user *fleet.ScimUser) error {
+	givenName, err := getConcreteType[string](u, v, nameAttr+"."+givenNameAttr)
+	if err != nil {
+		return err
+	}
+	user.GivenName = &givenName
+	return nil
+}
+
+func (u *UserHandler) patchActive(v interface{}, user *fleet.ScimUser) error {
+	active, err := getConcreteType[bool](u, v, activeAttr)
+	if err != nil {
+		return err
+	}
+	user.Active = &active
+	return nil
+}
+
+func (u *UserHandler) patchUserName(v interface{}, user *fleet.ScimUser) error {
+	userName, err := getConcreteType[string](u, v, userNameAttr)
+	if err != nil {
+		return err
+	}
+	if userName == "" {
+		level.Info(u.logger).Log("msg", fmt.Sprintf("'%s' cannot be empty", userNameAttr), "value", v)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
+	}
+	user.UserName = userName
+	return nil
 }
 
 func clearPrimaryFlagFromEmails(user *fleet.ScimUser) {
@@ -692,7 +730,6 @@ func (u *UserHandler) checkEmailPrimary(userEmails []fleet.ScimUserEmail) error 
 }
 
 func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation) (fleet.ScimUserEmail, error) {
-	fmt.Printf("emailIntf: %T %+v\n", emailIntf, emailIntf)
 	emailMap, ok := emailIntf.(map[string]interface{})
 	if !ok {
 		level.Info(u.logger).Log("msg", "email is not a map", "email", emailIntf)
