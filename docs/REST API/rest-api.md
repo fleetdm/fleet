@@ -4128,7 +4128,8 @@ Resends a configuration profile for the specified host.
           "signature_information": [
             {
               "installed_path": "/Applications/Google Chrome.app",
-              "team_identifier": "EQHXZ8M8AV"
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7"
             }
           ]
         }
@@ -4179,7 +4180,8 @@ Resends a configuration profile for the specified host.
           "signature_information": [
             {
               "installed_path": "/Applications/Logic Pro.app",
-              "team_identifier": ""
+              "team_identifier": "",
+              "hash_sha256": "3r639b6d7c99f6d79e50aeb4226b4662de3e377dc0957b2fd4d075859205a3d7" 
             }
           ]
         }
@@ -8663,6 +8665,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
+- [Run bulk script](#run-bulk-script)
+- [Get bulk script summary](#get-bulk-script-summary)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8745,6 +8749,95 @@ Gets the result of a script that was executed.
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
 
 > Note: `created_at` is the creation timestamp of the script execution request.
+
+### Run bulk script
+
+Run a script on multiple hosts.
+
+The script will be added to each host's list of upcoming activities.
+
+`POST /api/v1/fleet/scripts/bulk`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_ids        | array   | body | **Required**. List of host IDs.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. |
+
+
+#### Example
+
+`POST /api/v1/fleet/scripts/bulk`
+
+##### Request body
+
+```json
+{
+  "script_id": 123,
+  "host_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 202`
+
+
+```json
+{
+  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Get bulk script summary
+
+Gets information about a bulk script run. This includes the list of hosts, each with either `execution_id` or `error`. 
+
+`GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| batch_execution_id | string | path | **Required**. The batch execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_id": 123,
+  "team_id": null,
+  "script_name": "remove-old-nudge.sh",
+  "hosts": [
+    {
+      "host_id": 1,
+      "host_display_name": "Haley's MacBook Air",
+      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+    },
+    {
+      "host_id": 2,
+      "host_display_name": "SEBASTIAN-WINDOWS",
+      "error": "incompatible-platform"
+    },
+    {
+      "host_id": 3,
+      "host_display_name": "Robin's MacBook Pro",
+      "error": "incompatible-fleetd"
+    }
+  ]
+}
+```
+
+> Note that `error` is only included if the script was not successfully added to a host's upcoming activity, and is one of either `"incompatible-platform"` or `"incompatible-fleetd"`. To find out whether a script ran successfully or errored on a host, use the [Get script result](#get-script-result) endpoint.
+
+
 
 ### Add script
 
@@ -9362,6 +9455,12 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "bundle_identifier": "crowdstrike.falcon.Agent",
+    "available_software": {
+      "fleet_maintained_app": {
+        "id": 4
+      },
+      "app_store_app": null
+    },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9369,6 +9468,7 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "install_script": "sudo installer -pkg '$INSTALLER_PATH' -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
@@ -9437,6 +9537,12 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "bundle_identifier": "com.apple.logic10",
+    "available_software": {
+      "fleet_maintained_app": null,
+      "app_store_app": {
+        "app_store_id": "8675309"
+      },
+    }
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
@@ -9664,6 +9770,30 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
+```json
+{
+  "title_id": 123,
+  "software_package": {
+    "name": "FalconSensor-6.44.pkg",
+    "version": "6.44",
+    "platform": "darwin",
+    "installer_id": 23,
+    "team_id": 3,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+    "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
+    "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+    "self_service": true,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
+```
+
 ### Modify package
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -9741,6 +9871,7 @@ Content-Type: application/octet-stream
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
+    "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
