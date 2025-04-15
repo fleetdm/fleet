@@ -1,4 +1,4 @@
-name: Check vulnerabilities in released docker images
+name: Check critical vulnerabilities in released docker images
 
 on:
   workflow_dispatch:
@@ -58,7 +58,7 @@ jobs:
 
       # We use the trivy command and not the github action because it doesn't support loading
       # VEX files yet and looks like we can't run the action on multiple images.
-      - name: Run Trivy vulnerability scanner on fleetdm/fleet images
+      - name: Run trivy vulnerability scanner on fleetdm/fleet images
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -74,9 +74,8 @@ jobs:
           for version in $RELEASES; do
             ./trivy image \
               --exit-code=1 \
-              --ignore-unfixed \
               --pkg-types=os,library \
-              --severity=HIGH,CRITICAL \
+              --severity=CRITICAL \
               --vex="${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FILES }}" \
               fleetdm/fleet:$version
           done
@@ -88,17 +87,31 @@ jobs:
           echo $VEX_FILES
           echo "FLEETCTL_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
 
+      - name: Run docker scout vulnerability scanner on latest released fleetdm/fleet image
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        run: |
+          RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
+          for version in $RELEASES; do
+            docker scout cves \
+              --exit-code \
+              --only-severity critical \
+              --vex-location=./security/vex/fleet \
+              --only-vex-affected \
+              fleetdm/fleet:$version
+          done
+
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
-      - name: Run Trivy vulnerability scanner on latest released fleetdm/fleetctl image
+      - name: Run trivy vulnerability scanner on latest released fleetdm/fleetctl image
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
         run: |
           ./trivy image \
             --exit-code=1 \
-            --ignore-unfixed \
             --pkg-types=os,library \
-            --severity=HIGH,CRITICAL \
+            --severity=CRITICAL \
             --vex="${{ steps.generate_fleetctl_vex_files.outputs.FLEETCTL_VEX_FILES }}" \
             fleetdm/fleetctl:latest
 

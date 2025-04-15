@@ -46,6 +46,16 @@ Following is the vulnerability report of Fleet components.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10T15:43:15.232143-03:00
 
+### CVE-2025-26519
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleet does not perform any EUC-KR to UTF-8 translation by libc
+- **Products:**
+  - `fleet`
+  - `pkg:apk/alpine/musl@1.2.5-r8?os_name=alpine&os_version=3.21`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-14T16:30:01.904498-03:00
+
 ### CVE-2025-30204
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
