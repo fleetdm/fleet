@@ -117,7 +117,6 @@ jobs:
 
       - name: Check high/critical vulnerabilities before publishing (docker scout)
         # Only run this on the schedule run or when tagging RCs.
-        if: startsWith(github.ref, "rc-minor-") || startsWith(github.ref, "rc-patch-") || github.event.schedule == '0 4 * * *'
         uses: docker/scout-action@v1
         with:
           command: cves
