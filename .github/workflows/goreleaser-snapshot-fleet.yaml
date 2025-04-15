@@ -95,6 +95,7 @@ jobs:
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Check high/critical vulnerabilities before publishing (trivy)
         # Only run this on the schedule run or when tagging RCs.
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') || github.event.schedule == '0 4 * * *'
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -116,6 +117,7 @@ jobs:
 
       - name: Check high/critical vulnerabilities before publishing (docker scout)
         # Only run this on the schedule run or when tagging RCs.
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') || github.event.schedule == '0 4 * * *'
         uses: docker/scout-action@v1
         with:
           command: cves
