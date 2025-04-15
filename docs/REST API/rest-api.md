@@ -8701,18 +8701,6 @@ By default, script runs time out after 5 minutes. You can modify this default in
 }
 ```
 
-### Run script
-
-Run a script on a host.
-
-The script will be added to the host's list of upcoming activities.
-
-The new script will run after other activities finish. Failure of one activity won't cancel other activities.
-
-By default, script runs time out after 5 minutes. You can modify this default in your [agent configuration](https://fleetdm.com/docs/configuration/agent-configuration#script-execution-timeout).
-
-
-
 ### Get script result
 
 Gets the result of a script that was executed.
