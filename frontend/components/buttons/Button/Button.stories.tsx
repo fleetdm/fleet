@@ -4,6 +4,12 @@ import Icon from "components/Icon";
 import { ButtonVariant } from "./Button";
 import Button from ".";
 
+const DEFAULT_ARGS = {
+  children: "Button text",
+  onClick: () => console.log("Clicked!"),
+  disabled: false,
+};
+
 const meta: Meta<typeof Button> = {
   // TODO: change this after button is updated to a functional component. For
   // some reason the typing is incorrect because Button is a class component.
@@ -19,11 +25,7 @@ const meta: Meta<typeof Button> = {
       },
     },
   },
-  args: {
-    children: "Button text",
-    onClick: () => console.log("Clicked!"),
-    disabled: false,
-  },
+  args: DEFAULT_ARGS,
 };
 
 export default meta;
@@ -31,7 +33,11 @@ type Story = StoryObj<typeof Button>;
 
 // Base template for NON-loading variants (explicitly hides isLoading)
 const Template = (variant: ButtonVariant, children?: JSX.Element): Story => ({
-  args: { variant, children },
+  args: {
+    ...DEFAULT_ARGS,
+    variant,
+    children: children || DEFAULT_ARGS.children, // Fall back to default text
+  },
   argTypes: {
     isLoading: { control: false }, // Explicitly hide for these
   },
@@ -40,6 +46,7 @@ const Template = (variant: ButtonVariant, children?: JSX.Element): Story => ({
 // Template for loading-enabled variants
 const createLoadingVariant = (variant: ButtonVariant): Story => ({
   args: {
+    ...DEFAULT_ARGS,
     variant,
     isLoading: false, // Include isLoading in args
   },

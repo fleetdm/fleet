@@ -14,7 +14,7 @@ describe("Button component", () => {
       </Button>
     );
     expect(container.firstChild).toHaveClass(
-      "button button--brand button--disabled"
+      "button button--default button--disabled"
     );
   });
   it("calls onClick when clicked", () => {
