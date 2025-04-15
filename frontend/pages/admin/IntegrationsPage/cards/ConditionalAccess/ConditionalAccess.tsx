@@ -119,34 +119,42 @@ const ConditionalAccess = () => {
   // HOOKS
   const { renderFlash } = useContext(NotificationContext);
 
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const { isPremiumTier, setConfig, config: contextConfig } = useContext(
+    AppContext
+  );
 
   const [phase, setPhase] = useState<Phase>(Phase.Form);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // this page is unique in that it triggers a server process that will result in an update to
   // config, but via an endpoint (conditional access) other than the usual PATCH config, so we want
-  // to source config directly from the API instead of context to give us `refetchConfig` capability
-  // see frontend/docs/patterns.md > ### Reading and updating configs
+  // to both reference config context AND conditionally (when `isUpdating` from the Configured
+  // phase) access `refetchConfig` and associated useQuery capability
 
-  const { data: config, refetch: refetchConfig } = useQuery<
-    IConfig,
-    Error,
-    IConfig
-  >(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
-    onSuccess: (_config) => {
-      if (!_config?.conditional_access?.microsoft_entra_connection_configured) {
-        setPhase(Phase.Form);
-      }
-      setConfig(_config);
-      setIsUpdating(false);
-    },
-    ...DEFAULT_USE_QUERY_OPTIONS,
-  });
+  // see frontend/docs/patterns.md > ### Reading and updating configs for why this is atypical
+
+  const { refetch: refetchConfig } = useQuery<IConfig, Error, IConfig>(
+    ["config"],
+    () => configAPI.loadAll(),
+    {
+      select: (data: IConfig) => data,
+      enabled: isUpdating && phase === Phase.Configured,
+      onSuccess: (_config) => {
+        if (
+          !_config?.conditional_access?.microsoft_entra_connection_configured
+        ) {
+          setPhase(Phase.Form);
+        }
+        setConfig(_config);
+        setIsUpdating(false);
+      },
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
 
   const [formData, setFormData] = useState<IFormData>({
-    [MSETID]: config?.conditional_access?.microsoft_entra_tenant_id || "",
+    [MSETID]:
+      contextConfig?.conditional_access?.microsoft_entra_tenant_id || "",
   });
   const [formErrors, setFormErrors] = useState<IFormErrors>({});
   const [
@@ -188,21 +196,21 @@ const ConditionalAccess = () => {
   });
 
   const {
-    microsoft_entra_tenant_id: configMsetId,
-    microsoft_entra_connection_configured: configMseConfigured,
-  } = config?.conditional_access || {};
+    microsoft_entra_tenant_id: contextConfigMsetId,
+    microsoft_entra_connection_configured: contextConfigMseConfigured,
+  } = contextConfig?.conditional_access || {};
 
   // only checks if tenant id already present in config, not if user added it to the form
   useEffect(() => {
-    if (configMsetId) {
-      if (!configMseConfigured) {
+    if (contextConfigMsetId) {
+      if (!contextConfigMseConfigured) {
         setPhase(Phase.ConfirmingConfigured);
       } else {
         // tenant id is present and connection is configured
         setPhase(Phase.Configured);
       }
     }
-  }, [configMsetId, configMseConfigured]);
+  }, [contextConfigMsetId, contextConfigMseConfigured]);
 
   if (!isPremiumTier) {
     return <PremiumFeatureMessage />;
