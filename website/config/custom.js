@@ -409,6 +409,11 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
+  // Android proxy
+  // GoogleClientId: '…',
+  // GooglePrivateKey: '…',
+  // androidManagementProjectId: '…',
+  // androidEnterpriseServiceAccountEmailAddress: '…',
   //…
 
 };
