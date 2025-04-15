@@ -118,15 +118,15 @@ jobs:
       - name: Check high/critical vulnerabilities before publishing (docker scout)
         # Only run this on the schedule run or when tagging RCs.
         if: startsWith(github.ref, "rc-minor-") || startsWith(github.ref, "rc-patch-") || github.event.schedule == '0 4 * * *'
-        run: |
-          docker scout cves \
-            --only-fixed \
-            --exit-code \
-            --only-severity high,critical \
-            --only-vex-affected \
-            --vex-location=./security/vex/fleet \
-            fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
-
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
+          only-severities: critical,high
+          only-fixed: true
+          only-vex-affected: true
+          vex-location: ./security/vex/fleet
+            
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags

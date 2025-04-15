@@ -87,21 +87,6 @@ jobs:
           echo $VEX_FILES
           echo "FLEETCTL_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
 
-      - name: Run docker scout vulnerability scanner on latest released fleetdm/fleet image
-        env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-        run: |
-          RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
-          for version in $RELEASES; do
-            docker scout cves \
-              --exit-code \
-              --only-severity critical \
-              --vex-location=./security/vex/fleet \
-              --only-vex-affected \
-              fleetdm/fleet:$version
-          done
-
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Run trivy vulnerability scanner on latest released fleetdm/fleetctl image
         env:
