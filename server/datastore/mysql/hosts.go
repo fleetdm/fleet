@@ -5196,6 +5196,18 @@ func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) 
 	return count, nil
 }
 
+func numHostsABMPendingDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+SELECT COUNT(*) FROM hosts h LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id WHERE h.platform IN ('darwin', 'ios', 'ipados') AND hmdm.enrollment_status = 'Pending';
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
 	result := map[string]*fleet.Host{}
 	if len(serials) == 0 {
