@@ -39,6 +39,9 @@ func updateRegistryVersion(newVersion string) error {
 	enumerateKey.Close()
 
 	fleetdRegKey, err := findFleetdRegKey(keys)
+	if err != nil {
+		return fmt.Errorf(`couldn't find the fleetd registry key in '%v': %w`, REG_ABS_PATH, err)
+	}
 
 	setKey, err := registry.OpenKey(registry.LOCAL_MACHINE, REG_REL_PATH+`\`+fleetdRegKey, registry.SET_VALUE)
 	if err != nil {
