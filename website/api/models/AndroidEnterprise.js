@@ -31,7 +31,14 @@ module.exports = {
 
     androidEnterpriseId: {
       type: 'string',
-      description: 'The ID of this android enterprise.',
+      description: 'Google\'s ID for this Android enterprise.',
+      extendedDescription: 'This value is set when the Android enterprise is created.'
+    },
+
+    pubsubTopicName: {
+      type: 'string',
+      description: 'The generated pubsub topic name for this Android enterprise',
+      extendedDescription: 'This value is saved so we can delete the created pubsub topic if this Android enterprise is deleted.',
     },
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
