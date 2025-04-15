@@ -44,7 +44,7 @@ const AppleAutomaticEnrollmentCard = ({
         <Button
           className="add-abm-button"
           onClick={viewDetails}
-          variant="brand"
+          variant="default"
         >
           Add ABM
         </Button>

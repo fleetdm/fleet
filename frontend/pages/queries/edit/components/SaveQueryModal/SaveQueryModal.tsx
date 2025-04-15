@@ -342,7 +342,7 @@ const SaveQueryModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
+            variant="default"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
             disabled={!canSave}

@@ -245,7 +245,7 @@ const ScriptDetailsModal = ({
                 />
               </div>
             )}
-            <Button onClick={onCancel} variant="brand">
+            <Button onClick={onCancel} variant="default">
               Done
             </Button>
           </>

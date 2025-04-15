@@ -400,7 +400,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              variant="brand"
+              variant="default"
               className="button-wrap"
               isLoading={updatingTeamSettings}
               disabled={Object.keys(formErrors).length > 0 || disableChildren}

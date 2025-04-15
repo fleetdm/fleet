@@ -33,7 +33,7 @@ const EmptyTeamsTable = ({
           tipOffset={8}
           renderChildren={(disableChildren) => (
             <Button
-              variant="brand"
+              variant="default"
               className={`${className}__create-button`}
               onClick={onActionButtonClick}
               disabled={disableChildren}

@@ -98,7 +98,7 @@ const EnrollSecretModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onReturnToApp} variant="brand">
+          <Button onClick={onReturnToApp} variant="default">
             Done
           </Button>
         </div>

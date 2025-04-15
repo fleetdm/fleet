@@ -113,7 +113,7 @@ const AccountSidePanel = ({
         onClick={onChangePassword}
         disabled={ssoEnabled}
         className={`${baseClass}__button`}
-        variant="brand"
+        variant="default"
       >
         Change password
       </Button>
@@ -123,7 +123,7 @@ const AccountSidePanel = ({
       <Button
         onClick={onGetApiToken}
         className={`${baseClass}__button`}
-        variant="brand"
+        variant="default"
       >
         Get API token
       </Button>

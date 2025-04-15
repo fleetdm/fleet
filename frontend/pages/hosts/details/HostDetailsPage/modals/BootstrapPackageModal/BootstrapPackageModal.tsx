@@ -33,7 +33,7 @@ const BootstrapPackageModal = ({
           <Button
             type="button"
             onClick={onClose}
-            variant="brand"
+            variant="default"
             className="delete-loading"
           >
             Done

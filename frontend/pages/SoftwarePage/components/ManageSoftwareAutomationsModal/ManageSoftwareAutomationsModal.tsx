@@ -464,7 +464,7 @@ const ManageAutomationsModal = ({
       >
         <Button
           type="submit"
-          variant="brand"
+          variant="default"
           onClick={handleSaveAutomation}
           disabled={
             (softwareAutomationsEnabled &&

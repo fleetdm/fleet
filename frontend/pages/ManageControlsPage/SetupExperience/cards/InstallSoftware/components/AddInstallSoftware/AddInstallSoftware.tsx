@@ -96,7 +96,7 @@ const AddInstallSoftware = ({
       <div>
         <Button
           className={`${baseClass}__button`}
-          variant="brand"
+          variant="default"
           onClick={onAddSoftware}
           disabled={hasNoSoftware}
         >

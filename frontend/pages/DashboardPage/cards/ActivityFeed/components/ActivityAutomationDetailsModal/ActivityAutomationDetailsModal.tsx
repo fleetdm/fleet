@@ -30,7 +30,7 @@ const ActivityAutomationDetailsModal = ({
           </Textarea>
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
+          <Button onClick={onCancel} variant="default">
             Done
           </Button>
         </div>

@@ -32,7 +32,7 @@ const ResetPasswordModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="button"
-            variant="brand"
+            variant="default"
             onClick={() => onResetConfirm(user)}
           >
             Confirm

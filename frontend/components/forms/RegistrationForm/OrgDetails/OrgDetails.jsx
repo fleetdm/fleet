@@ -59,7 +59,7 @@ class OrgDetails extends Component {
           type="submit"
           tabIndex={tabIndex}
           disabled={!currentPage}
-          variant="brand"
+          variant="default"
         >
           Next
         </Button>

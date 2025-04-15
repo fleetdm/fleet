@@ -52,7 +52,7 @@ const ConfirmSaveChangesModal = ({
           <Button
             type="button"
             onClick={onSaveChanges}
-            variant="brand"
+            variant="default"
             className="save-loading"
           >
             Save

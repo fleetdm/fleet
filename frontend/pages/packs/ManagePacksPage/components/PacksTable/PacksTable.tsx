@@ -64,7 +64,7 @@ const PacksTable = ({
         "Query packs allow you to schedule recurring queries for your hosts.",
       primaryButton: (
         <Button
-          variant="brand"
+          variant="default"
           className={`${baseClass}__create-button`}
           onClick={onCreatePackClick}
         >

@@ -19,7 +19,7 @@ const TurnOnAppleMdmCard = ({ onClickTurnOn }: ITurnOnAppleMdmCardProps) => {
       className={baseClass}
       header="Turn on Apple (macOS, iOS, iPadOS) MDM"
       cta={
-        <Button variant="brand" onClick={onClickTurnOn}>
+        <Button variant="default" onClick={onClickTurnOn}>
           Turn on
         </Button>
       }

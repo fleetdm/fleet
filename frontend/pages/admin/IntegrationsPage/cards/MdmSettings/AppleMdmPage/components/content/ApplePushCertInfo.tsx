@@ -47,7 +47,11 @@ const ApplePushCertInfo = ({
         <Button variant="inverse" onClick={onClickTurnOff}>
           Turn off MDM
         </Button>
-        <Button className="save-loading" variant="brand" onClick={onClickRenew}>
+        <Button
+          className="save-loading"
+          variant="default"
+          onClick={onClickRenew}
+        >
           Renew certificate
         </Button>
       </div>

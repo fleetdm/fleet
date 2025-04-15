@@ -150,7 +150,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           header="Migration workflow for macOS hosts"
           info="Connect to Apple Business Manager to get started."
           primaryButton={
-            <Button variant="brand" onClick={onClickConnect}>
+            <Button variant="default" onClick={onClickConnect}>
               Connect
             </Button>
           }

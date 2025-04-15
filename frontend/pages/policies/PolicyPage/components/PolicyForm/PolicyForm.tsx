@@ -683,7 +683,7 @@ const PolicyForm = ({
         <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
-            variant="blue-green"
+            variant="success"
             onClick={goToSelectTargets}
             disabled={isEditMode && !isAnyPlatformSelected}
           >
@@ -770,7 +770,7 @@ const PolicyForm = ({
                       data-tip-disable={!isEditMode || isAnyPlatformSelected}
                     >
                       <Button
-                        variant="brand"
+                        variant="default"
                         onClick={promptSavePolicy()}
                         disabled={disableSaveFormErrors || disableChildren}
                         className="save-loading"
@@ -807,7 +807,7 @@ const PolicyForm = ({
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="blue-green"
+                variant="success"
                 onClick={goToSelectTargets}
                 disabled={
                   (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery

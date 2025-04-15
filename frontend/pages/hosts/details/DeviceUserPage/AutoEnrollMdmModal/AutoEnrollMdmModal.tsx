@@ -120,7 +120,7 @@ const AutoEnrollMdmModal = ({
       <div>
         {isMacOsSonomaOrLater ? sonomaAndAboveBody : preSonomaBody}
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="brand">
+          <Button type="button" onClick={onCancel} variant="default">
             Done
           </Button>
         </div>

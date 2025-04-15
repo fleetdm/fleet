@@ -115,7 +115,7 @@ const SoftwareFiltersModal = ({
           </Checkbox>
         )}
         <div className="modal-cta-wrap">
-          <Button variant="brand" onClick={onApplyFilters}>
+          <Button variant="default" onClick={onApplyFilters}>
             Apply
           </Button>
           <Button variant="inverse" onClick={onExit}>

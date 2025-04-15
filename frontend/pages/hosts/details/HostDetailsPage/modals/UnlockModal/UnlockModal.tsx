@@ -96,7 +96,7 @@ const UnlockModal = ({
     if (platform === "darwin") {
       return (
         <>
-          <Button type="button" onClick={onClose} variant="brand">
+          <Button type="button" onClick={onClose} variant="default">
             Done
           </Button>
         </>
@@ -108,7 +108,7 @@ const UnlockModal = ({
         <Button
           type="button"
           onClick={onUnlock}
-          variant="brand"
+          variant="default"
           className="delete-loading"
           isLoading={isUnlocking}
         >

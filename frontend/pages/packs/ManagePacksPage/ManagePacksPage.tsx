@@ -169,7 +169,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
           {!isOnlyObserver && packs && packs.length > 0 && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
-                variant="brand"
+                variant="default"
                 className={`${baseClass}__create-button`}
                 onClick={onCreatePackClick}
               >

@@ -98,7 +98,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
     return (
       <AuthenticationFormWrapper>
         <div className={baseClass}>
-          <Button variant="brand" onClick={onClickFinishLoginButton}>
+          <Button variant="default" onClick={onClickFinishLoginButton}>
             Log in
           </Button>
         </div>
@@ -115,7 +115,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
               <b>That link is expired.</b>
             </p>
             <p>Log in again for a new link.</p>
-            <Button variant="brand" onClick={onClickLoginButton}>
+            <Button variant="default" onClick={onClickLoginButton}>
               Back to login
             </Button>
           </>

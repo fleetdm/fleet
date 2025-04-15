@@ -54,7 +54,7 @@ const PreviewDataModal = ({
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
+          <Button onClick={onCancel} variant="default">
             Done
           </Button>
         </div>

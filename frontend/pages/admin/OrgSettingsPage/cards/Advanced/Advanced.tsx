@@ -491,7 +491,7 @@ const Advanced = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
+                variant="default"
                 disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="save-loading button-wrap"
                 isLoading={isUpdatingSettings}

@@ -25,14 +25,14 @@ const FinishedButtons = ({
     <Button
       className={`${baseClass}__done-btn`}
       onClick={onClickDone}
-      variant="brand"
+      variant="default"
     >
       Done
     </Button>
     <Button
       className={`${baseClass}__run-btn`}
       onClick={onClickRunAgain}
-      variant="blue-green"
+      variant="success"
     >
       Run again
     </Button>

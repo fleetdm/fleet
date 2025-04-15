@@ -42,7 +42,7 @@ const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
     <p className={`${baseClass}__enable-vpp-description`}>
       To add App Store apps, first enable VPP.
     </p>
-    <Button onClick={onEnableVpp} variant="brand">
+    <Button onClick={onEnableVpp} variant="default">
       Enable VPP
     </Button>
   </div>
@@ -60,7 +60,7 @@ const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
     <p className={`${baseClass}__enable-vpp-description`}>
       To add App Store apps, first add this team to VPP.
     </p>
-    <Button onClick={onEditVpp} variant="brand">
+    <Button onClick={onEditVpp} variant="default">
       Edit VPP
     </Button>
   </div>

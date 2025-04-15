@@ -294,7 +294,7 @@ const IntegrationForm = ({
                     >
                       <Button
                         type="submit"
-                        variant="brand"
+                        variant="default"
                         disabled={formInvalid || disableChildren}
                       >
                         Save

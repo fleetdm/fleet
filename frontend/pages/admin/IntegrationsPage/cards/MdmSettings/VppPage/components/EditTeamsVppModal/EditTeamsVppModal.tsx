@@ -246,7 +246,7 @@ const EditTeamsVppModal = ({
           <div className="modal-cta-wrap">
             <Button
               type="submit"
-              variant="brand"
+              variant="default"
               className="save-vpp-teams-loading"
               isLoading={isSaving}
               disabled={isDropdownDisabled}

@@ -35,7 +35,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     buttonText,
     onActionButtonClick,
     targetIds = [],
-    variant = "brand",
+    variant = "default",
     hideButton,
     iconSvg,
     iconPosition,

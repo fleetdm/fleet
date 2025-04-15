@@ -21,7 +21,7 @@ const TurnOnAndroidMdmCard = ({
       className={baseClass}
       header="Turn on Android MDM"
       cta={
-        <Button variant="brand" onClick={onClickTurnOn}>
+        <Button variant="default" onClick={onClickTurnOn}>
           Turn on
         </Button>
       }

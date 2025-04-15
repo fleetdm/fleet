@@ -37,7 +37,7 @@ const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
       <p>
         Install Apple App Store apps purchased through Apple Business Manager.
       </p>
-      <Button variant="brand" onClick={onAddVpp}>
+      <Button variant="default" onClick={onAddVpp}>
         Add VPP
       </Button>
     </div>
@@ -201,7 +201,7 @@ const VppPage = ({ router }: IVppPageProps) => {
             {isPremiumTier &&
               vppTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button variant="brand" onClick={onAddVpp}>
+                <Button variant="default" onClick={onAddVpp}>
                   Add VPP
                 </Button>
               )}

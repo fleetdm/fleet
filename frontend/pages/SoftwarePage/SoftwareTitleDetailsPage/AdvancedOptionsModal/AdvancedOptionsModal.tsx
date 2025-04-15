@@ -79,7 +79,7 @@ const AdvancedOptionsModal = ({
           )}
         </div>
         <div className="modal-cta-wrap">
-          <Button variant="brand" onClick={onExit}>
+          <Button variant="default" onClick={onExit}>
             Done
           </Button>
         </div>

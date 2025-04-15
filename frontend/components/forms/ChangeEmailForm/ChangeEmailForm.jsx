@@ -30,7 +30,7 @@ class ChangeEmailForm extends Component {
           type="password"
         />
         <div className="modal-cta-wrap">
-          <Button type="submit" variant="brand">
+          <Button type="submit" variant="default">
             Submit
           </Button>
           <Button onClick={onCancel} variant="inverse">

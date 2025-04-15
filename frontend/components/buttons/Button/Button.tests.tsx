@@ -9,12 +9,12 @@ describe("Button component", () => {
   });
   it("applies correct class names", () => {
     const { container } = render(
-      <Button variant="brand" size="large">
+      <Button variant="default" disabled>
         Test
       </Button>
     );
     expect(container.firstChild).toHaveClass(
-      "button button--brand button--large"
+      "button button--brand button--disabled"
     );
   });
   it("calls onClick when clicked", () => {

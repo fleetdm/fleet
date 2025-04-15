@@ -119,7 +119,7 @@ const WebAddress = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
+                variant="default"
                 disabled={!!size(formErrors) || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}

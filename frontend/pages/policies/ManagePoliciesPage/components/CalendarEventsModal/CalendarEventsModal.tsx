@@ -174,7 +174,7 @@ const CalendarEventsModal = ({
           newTab
         />
         <div className="modal-cta-wrap">
-          <Button onClick={onExit} variant="brand">
+          <Button onClick={onExit} variant="default">
             Done
           </Button>
         </div>

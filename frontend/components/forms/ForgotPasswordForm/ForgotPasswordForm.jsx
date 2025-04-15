@@ -38,7 +38,7 @@ class ForgotPasswordForm extends Component {
         <div className="button-wrap">
           <Button
             className={`${baseClass}__submit-btn`}
-            variant="brand"
+            variant="default"
             type="submit"
           >
             Get instructions

@@ -114,7 +114,7 @@ const NewPackForm = ({
           isPremiumTier={isPremiumTier}
         />
         <div className={`${baseClass}__pack-buttons`}>
-          <Button type="submit" variant="brand" isLoading={isUpdatingPack}>
+          <Button type="submit" variant="default" isLoading={isUpdatingPack}>
             Save query pack
           </Button>
         </div>

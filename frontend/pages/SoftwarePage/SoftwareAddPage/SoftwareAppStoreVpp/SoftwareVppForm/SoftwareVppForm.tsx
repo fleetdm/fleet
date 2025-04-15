@@ -330,7 +330,7 @@ const SoftwareVppForm = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
+                variant="default"
                 disabled={disableChildren || isSubmitDisabled}
                 isLoading={isLoading}
                 className={`${baseClass}__add-secret-btn`}

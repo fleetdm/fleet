@@ -416,7 +416,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           >
             <Button
               onClick={onAddSoftware}
-              variant="brand"
+              variant="default"
               disabled={isAllTeamsSelected}
             >
               <span>Add software</span>

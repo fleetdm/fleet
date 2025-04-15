@@ -32,7 +32,7 @@ const TurnOnMdmMessage = ({
   const renderConnectButton = () => {
     return isGlobalAdmin ? (
       <Button
-        variant="brand"
+        variant="default"
         onClick={onConnectClick}
         className={`${baseClass}__connectAPC-button`}
       >

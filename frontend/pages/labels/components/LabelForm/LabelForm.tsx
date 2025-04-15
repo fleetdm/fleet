@@ -80,7 +80,7 @@ const LabelForm = ({
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
-        <Button type="submit" variant="brand" isLoading={isUpdatingLabel}>
+        <Button type="submit" variant="default" isLoading={isUpdatingLabel}>
           Save
         </Button>
       </div>

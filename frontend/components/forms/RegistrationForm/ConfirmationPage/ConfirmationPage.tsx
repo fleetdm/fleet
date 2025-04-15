@@ -106,7 +106,7 @@ const ConfirmationPage = ({
         type="submit"
         tabIndex={tabIndex}
         disabled={!currentPage}
-        variant="brand"
+        variant="default"
       >
         Confirm
       </Button>

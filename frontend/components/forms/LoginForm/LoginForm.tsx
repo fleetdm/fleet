@@ -181,7 +181,7 @@ const LoginForm = ({
             className="login-btn"
             isLoading={isSubmitting}
             type="submit"
-            variant="brand"
+            variant="default"
           >
             Log in
           </Button>

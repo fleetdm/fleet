@@ -103,7 +103,7 @@ const SecretEditorModal = ({
         <div className="modal-cta-wrap">
           <Button
             onClick={onSaveSecretClick}
-            variant="brand"
+            variant="default"
             className="save-loading"
             isLoading={isUpdatingSecret}
           >

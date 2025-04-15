@@ -125,7 +125,7 @@ const RenewCertModal = ({
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
             }`}
-            variant="brand"
+            variant="default"
             disabled={!certFile || isUploading}
             isLoading={isUploading}
             type="button"

@@ -20,7 +20,7 @@ const TurnOnWindowsMdmCard = ({
       className={baseClass}
       header="Turn on Windows MDM"
       cta={
-        <Button variant="brand" onClick={onClickTurnOn}>
+        <Button variant="default" onClick={onClickTurnOn}>
           Turn on
         </Button>
       }

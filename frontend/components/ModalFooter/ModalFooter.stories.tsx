@@ -31,7 +31,7 @@ export const Default: Story = {
           ]}
           menuPlacement="top"
         />
-        <Button onClick={() => alert("Done clicked")} variant="brand">
+        <Button onClick={() => alert("Done clicked")} variant="default">
           Done
         </Button>
       </>
