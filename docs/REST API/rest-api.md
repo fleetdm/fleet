@@ -8780,7 +8780,7 @@ The script will be added to each host's list of upcoming activities.
 
 ### Get bulk script summary
 
-Gets information about a bulk script run. This includes the list of hosts, and either an `execution_id` or `error`. 
+Gets information about a bulk script run. This includes the list of hosts, each with either `execution_id` or `error`. 
 
 `GET /api/v1/fleet/scripts/bulk/:batch_execution_id`
 
