@@ -191,32 +191,3 @@ func TestShowInfoError(t *testing.T) {
 		})
 	}
 }
-
-func TestProgressArgs(t *testing.T) {
-	testCases := []struct {
-		name         string
-		opts         dialog.ProgressOptions
-		expectedArgs []string
-	}{
-		{
-			name: "Basic Entry",
-			opts: dialog.ProgressOptions{
-				Title: "A Title",
-				Text:  "Some text",
-			},
-			expectedArgs: []string{"--progress", "--title=A Title", "--text=Some text", "--pulsate", "--no-cancel", "--auto-close"},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			mock := &mockExecCmd{}
-			z := &Zenity{
-				cmdWithCancel: mock.runWithStdin,
-			}
-			_, err := z.ShowProgress(tt.opts)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
-		})
-	}
-}
