@@ -8815,7 +8815,6 @@ Gets information about a bulk script run. This includes the list of hosts, and e
   "script_id": 123,
   "team_id": null,
   "script_name": "remove-old-nudge.sh",
-  "host_count": 3,
   "hosts": [
     {
       "host_id": 1,
