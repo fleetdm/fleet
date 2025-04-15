@@ -123,6 +123,7 @@ jobs:
           only-severities: critical,high
           only-fixed: true
           only-vex-affected: true
+          write-comment: false
           vex-location: ./security/vex/fleet
             
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
