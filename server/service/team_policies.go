@@ -55,6 +55,8 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		CalendarEventsEnabled: req.CalendarEventsEnabled,
 		SoftwareTitleID:       req.SoftwareTitleID,
 		ScriptID:              req.ScriptID,
+		LabelsIncludeAny:      req.LabelsIncludeAny,
+		LabelsExcludeAny:      req.LabelsExcludeAny,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -164,6 +166,8 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		SoftwareInstallerID:   softwareInstallerID,
 		VPPAppsTeamsID:        vppAppsTeamsID,
 		ScriptID:              p.ScriptID,
+		LabelsIncludeAny:      p.LabelsIncludeAny,
+		LabelsExcludeAny:      p.LabelsExcludeAny,
 	}, nil
 }
 

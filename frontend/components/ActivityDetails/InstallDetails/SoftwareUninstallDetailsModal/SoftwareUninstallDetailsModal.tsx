@@ -128,17 +128,12 @@ const SoftwareUninstallDetailsModal = ({
         />
         {!isPendingStatus(status) && scriptResult && (
           <>
-            <div className={`${baseClass}__script-output`}>
-              <Textarea label="Uninstall script content:" variant="code">
-                {scriptResult.script_contents}
-              </Textarea>
-            </div>
-
-            <div className={`${baseClass}__script-output`}>
-              <Textarea label="Uninstall script output:" variant="code">
-                {scriptResult.output}
-              </Textarea>
-            </div>
+            <Textarea label="Uninstall script content:" variant="code">
+              {scriptResult.script_contents}
+            </Textarea>
+            <Textarea label="Uninstall script output:" variant="code">
+              {scriptResult.output}
+            </Textarea>
           </>
         )}
       </>

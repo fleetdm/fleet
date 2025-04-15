@@ -297,6 +297,7 @@ const SaveQueryModal = ({
                 Query will target hosts that <b>have any</b> of these labels:
               </span>
             }
+            suppressTitle
           />
         )}
         <RevealButton
