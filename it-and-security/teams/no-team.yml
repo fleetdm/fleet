@@ -1,3 +1,54 @@
 name: No team
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
+      enable_failing_policies_webhook: false
+      host_batch_size: 0
+      policy_ids: [ ]
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  integrations:
+    google_calendar:
+      enable_calendar_events: false
+      webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  update_channels:
+    osqueryd: stable
+    orbit: stable
+    desktop: stable
+controls:
+  enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
+  macos_updates:
+    deadline: "2025-04-26"
+    minimum_version: "15.4"
+  windows_settings:
+    custom_settings: null
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
+  scripts:
 policies:
+queries:
 software:
+  packages:
+  app_store_apps:
