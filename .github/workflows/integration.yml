@@ -94,7 +94,7 @@ jobs:
         docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
         # Wait for all of the hosts to be enrolled
         EXPECTED=3
-        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+        until [ $(./build/fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
