@@ -99,7 +99,7 @@ jobs:
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
           ./build/fleetctl get hosts --json
-          sleep 20
+          sleep 10
         done
         echo "Success! $EXPECTED hosts enrolled."
 
@@ -212,7 +212,7 @@ jobs:
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
           echo "Awaiting until fleet server responds..."
-          sleep 30
+          sleep 10
         done
 
     - name: Install Orbit
@@ -289,7 +289,7 @@ jobs:
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
           echo "Awaiting until fleet server responds..."
-          sleep 30
+          sleep 10
         done
 
     - name: Install Orbit
@@ -357,7 +357,7 @@ jobs:
         until curl -v -fail ${{ needs.gen.outputs.address }}/version;
         do
           echo "Awaiting until fleet server responds..."
-          sleep 30
+          sleep 10
         done
 
     - name: Build Orbit
