@@ -1,5 +1,13 @@
 name: "💻🐣 Workstations (canary)"
 team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
+      enable_failing_policies_webhook: true
+      host_batch_size: 0
+      policy_ids:
+        - 14937
+        - 14100
   features:
     enable_host_users: true
     enable_software_inventory: true
