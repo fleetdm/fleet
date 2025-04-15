@@ -1069,6 +1069,7 @@ Modifies the Fleet's configuration with the supplied information.
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
+| yara_rules                  | array   | body  | A list of YARA rule files to add.                                                               |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 

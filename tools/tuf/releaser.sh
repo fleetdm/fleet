@@ -144,7 +144,7 @@ release_fleetd_to_edge () {
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
     mkdir -p "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY"
     "$GO_TOOLS_DIRECTORY/download-artifacts" desktop \
-        --git-branch "$BRANCH_NAME" \
+        --git-tag "$ORBIT_TAG" \
         --output-directory "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY" \
         --github-username "$GITHUB_USERNAME" --github-api-token "$GITHUB_TOKEN" \
         --retry
