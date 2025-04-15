@@ -4522,11 +4522,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	found = false
-	index = -1
-	for i, s := range sw {
+	for _, s := range sw {
 		if s.Name == softwareAlreadyInstalled.Name && s.Source == softwareAlreadyInstalled.Source {
 			found = true
-			index = i
 			break
 		}
 	}
@@ -4541,11 +4539,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	found = false
-	index = -1
-	for i, s := range sw {
+	for _, s := range sw {
 		if s.Name == softwareAlreadyInstalled.Name && s.Source == softwareAlreadyInstalled.Source {
 			found = true
-			index = i
 			break
 		}
 	}
