@@ -60,10 +60,13 @@ const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
 	// Currently, we assume the variables are fully unique and not substrings of each other.
-	FleetVarNDESSCEPChallenge   = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL    = "NDES_SCEP_PROXY_URL"
-	FleetVarHostEndUserEmailIDP = "HOST_END_USER_EMAIL_IDP"
-	FleetVarHostHardwareSerial  = "HOST_HARDWARE_SERIAL"
+	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial              = "HOST_HARDWARE_SERIAL"
+	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
+	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
+	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
 
 	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
@@ -88,7 +91,8 @@ var (
 		FleetVarHostHardwareSerial))
 	fleetVarsSupportedInConfigProfiles = []string{
 		FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
-		FleetVarHostHardwareSerial,
+		FleetVarHostHardwareSerial, FleetVarHostEndUserIDPUsername, FleetVarHostEndUserIDPUsernameLocalPart,
+		FleetVarHostEndUserIDPGroups,
 	}
 )
 
@@ -4027,8 +4031,9 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 ) error {
-	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile contents, generating a unique profile for each host.
-	// For a 2KB profile and 30K hosts, this method may generate ~60MB of profile data in memory.
+	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile
+	// contents, generating a unique profile for each host. For a 2KB profile and
+	// 30K hosts, this method may generate ~60MB of profile data in memory.
 
 	var (
 		// Copy of NDES SCEP config which will contain unencrypted password, if needed

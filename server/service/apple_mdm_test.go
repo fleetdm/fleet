@@ -4479,6 +4479,16 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPDigiCertValidationMobileconfig,
 			errMsg:  "",
 		},
+		{
+			name:    "Custom profile with IdP variables and unknown variable",
+			profile: customProfileForValidation("$FLEET_VAR_HOST_END_USER_IDP_NO_SUCH_VAR"),
+			errMsg:  "Fleet variable $FLEET_VAR_HOST_END_USER_IDP_NO_SUCH_VAR is not supported in configuration profiles.",
+		},
+		{
+			name:    "Custom profile with IdP variables happy path",
+			profile: customProfileForValidation("value"),
+			errMsg:  "",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -4522,3 +4532,10 @@ func customSCEPForValidation2(challenge1, url1, challenge2, url2 string) string 
 
 //go:embed testdata/profiles/custom-scep-digicert-validation.mobileconfig
 var customSCEPDigiCertValidationMobileconfig string
+
+//go:embed testdata/profiles/custom-profile-validation.mobileconfig
+var customProfileValidationMobileconfig string
+
+func customProfileForValidation(value string) string {
+	return fmt.Sprintf(customProfileValidationMobileconfig, value)
+}
