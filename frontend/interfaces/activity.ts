@@ -153,7 +153,10 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
   details: IActivityDetails;
 };
 
-export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+export type IHostUpcomingActivity = Omit<
+  IActivity,
+  "id" | "type" | "details"
+> & {
   uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
