@@ -13,7 +13,6 @@ module.exports.policies = {
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
   'query-generator/*': 'has-query-generator-access',
-  'android-proxy/*': true,
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
@@ -69,4 +68,5 @@ module.exports.policies = {
   'view-os-settings': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
+  'android-proxy/*': true,
 };
