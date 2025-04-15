@@ -25,8 +25,7 @@ const CreateLinuxKeyModal = ({
           setup.
         </li>
         <li>
-          The key escrow will happen in the background, and you will receive a
-          notification when it is complete.
+          Wait for Fleet to create a new key. This process may take up to 10 minutes.
         </li>
         <li>
           Close this window and select <b>Refetch</b> on your <b>My device</b>{" "}
