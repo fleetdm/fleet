@@ -27,7 +27,7 @@ For responsibilities and rituals directly responsible by an Account Development 
 
 ### Refresh event calendar
 
-Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
+Fleet's Head of Marketing is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the Head of Marketing updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
@@ -85,8 +85,8 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - which talk proposal Fleet will submit
   - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
   - estimated budget, including sponsorship or airfare, and lodging for attendees
-2. Set up and attend a 30m meeting with the Fleet's Client Platform Engineer & Community Advocate and CEO:
-  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+2. Set up and attend a 30m meeting with the Head of Marketing and CEO:
+  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 

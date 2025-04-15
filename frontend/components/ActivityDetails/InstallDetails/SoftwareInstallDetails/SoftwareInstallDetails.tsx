@@ -80,14 +80,12 @@ const Output = ({
   result: ISoftwareInstallResult;
 }) => {
   return (
-    <div className={`${baseClass}__script-output`}>
-      <Textarea
-        label={`${SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:`}
-        variant="code"
-      >
-        {result[displayKey]}
-      </Textarea>
-    </div>
+    <Textarea
+      label={`${SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:`}
+      variant="code"
+    >
+      {result[displayKey]}
+    </Textarea>
   );
 };
 
