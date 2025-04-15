@@ -38,7 +38,6 @@ const CreateUserButton = ({
   if (isGlobalAdmin) {
     return (
       <Button
-        variant="default"
         className={`${className}__create-button`}
         onClick={toggleAddUserModal}
         disabled={disabled}
@@ -50,7 +49,6 @@ const CreateUserButton = ({
 
   return (
     <Button
-      variant="default"
       className={`${className}__create-button`}
       onClick={toggleCreateMemberModal}
       disabled={disabled}

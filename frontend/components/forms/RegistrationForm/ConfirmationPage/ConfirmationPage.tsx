@@ -102,12 +102,7 @@ const ConfirmationPage = ({
         your instance. Sending usage statistics from your Fleet instance is
         optional and can be disabled in settings.
       </p>
-      <Button
-        type="submit"
-        tabIndex={tabIndex}
-        disabled={!currentPage}
-        variant="default"
-      >
+      <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
         Confirm
       </Button>
     </form>

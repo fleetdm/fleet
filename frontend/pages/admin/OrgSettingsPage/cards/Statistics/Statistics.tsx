@@ -83,7 +83,6 @@ const Statistics = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="default"
                 disabled={disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}

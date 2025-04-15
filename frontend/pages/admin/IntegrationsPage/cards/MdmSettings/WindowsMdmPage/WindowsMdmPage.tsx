@@ -125,11 +125,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           <GitOpsModeTooltipWrapper
             tipOffset={8}
             renderChildren={(disableChildren) => (
-              <Button
-                variant="default"
-                onClick={onSaveMdm}
-                disabled={disableChildren}
-              >
+              <Button onClick={onSaveMdm} disabled={disableChildren}>
                 Save
               </Button>
             )}

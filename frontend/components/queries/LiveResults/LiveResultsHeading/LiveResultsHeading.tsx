@@ -22,11 +22,7 @@ const FinishedButtons = ({
   onClickRunAgain,
 }: IFinishButtonsProps) => (
   <div className={`${baseClass}__btn-wrapper`}>
-    <Button
-      className={`${baseClass}__done-btn`}
-      onClick={onClickDone}
-      variant="default"
-    >
+    <Button className={`${baseClass}__done-btn`} onClick={onClickDone}>
       Done
     </Button>
     <Button

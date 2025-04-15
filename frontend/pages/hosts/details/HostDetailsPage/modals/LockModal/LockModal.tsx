@@ -68,7 +68,6 @@ const LockModal = ({
           <Button
             type="button"
             onClick={onLock}
-            variant="default"
             className="delete-loading"
             disabled={!lockChecked}
             isLoading={isLocking}

@@ -153,9 +153,7 @@ const SoftwareUninstallDetailsModal = ({
           <SoftwareUninstallDetails {...details} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="default">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

@@ -84,7 +84,6 @@ const RenewVppModal = ({
         />
         <div className="modal-cta-wrap">
           <Button
-            variant="default"
             onClick={onRenewToken}
             isLoading={isRenewing}
             disabled={!tokenFile}

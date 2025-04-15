@@ -147,7 +147,6 @@ const WelcomeHost = ({
           <Button
             onClick={toggleAddHostsModal}
             className={`${baseClass}__add-host`}
-            variant="default"
           >
             <span>Add hosts</span>
           </Button>
@@ -295,12 +294,7 @@ const WelcomeHost = ({
                 </p>
               )}
               <div className="modal-cta-wrap">
-                <Button
-                  variant="default"
-                  onClick={() => setShowPolicyModal(false)}
-                >
-                  Done
-                </Button>
+                <Button onClick={() => setShowPolicyModal(false)}>Done</Button>
               </div>
             </>
           </Modal>

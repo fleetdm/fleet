@@ -78,7 +78,6 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
-                variant="default"
                 onClick={uploadVppToken}
                 isLoading={isUploading}
                 disabled={!tokenFile || isUploading || disableChildren}

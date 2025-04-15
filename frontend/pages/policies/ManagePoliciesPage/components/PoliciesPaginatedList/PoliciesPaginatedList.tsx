@@ -226,7 +226,6 @@ function PoliciesPaginatedList(
             >
               <Button
                 type="submit"
-                variant="default"
                 onClick={onClickSave}
                 className="save-loading"
                 isLoading={isUpdating}

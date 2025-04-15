@@ -181,7 +181,6 @@ const AgentOptionsPage = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="default"
                 disabled={disableChildren}
                 className="save-loading"
                 isLoading={isUpdatingAgentOptions}

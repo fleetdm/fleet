@@ -414,11 +414,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             position="top"
             showArrow
           >
-            <Button
-              onClick={onAddSoftware}
-              variant="default"
-              disabled={isAllTeamsSelected}
-            >
+            <Button onClick={onAddSoftware} disabled={isAllTeamsSelected}>
               <span>Add software</span>
             </Button>
           </TooltipWrapper>

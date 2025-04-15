@@ -31,7 +31,6 @@ const ConfirmSaveChangesModal = ({
           <Button
             type="button"
             onClick={onSaveChanges}
-            variant="default"
             className="save-loading"
             isLoading={isUpdating}
           >

@@ -33,7 +33,7 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
           />
         </p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="default">
+          <Button type="button" onClick={onCancel}>
             OK
           </Button>
         </div>

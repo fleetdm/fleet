@@ -78,7 +78,6 @@ const CreateTeamModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="default"
             disabled={name === ""}
             className="create-loading"
             isLoading={isUpdatingTeams}

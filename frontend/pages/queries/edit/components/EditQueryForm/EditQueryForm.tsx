@@ -982,7 +982,6 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         className="save-loading"
-                        variant="default"
                         onClick={
                           confirmChanges
                             ? toggleConfirmSaveChangesModal

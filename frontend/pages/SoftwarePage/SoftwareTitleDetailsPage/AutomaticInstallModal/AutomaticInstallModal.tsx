@@ -88,9 +88,7 @@ const AutomaticInstallModal = ({
         <p className={`${baseClass}__description`}>{description}</p>
         <PoliciesList teamId={teamId} policies={policies} />
         <div className="modal-cta-wrap">
-          <Button variant="default" onClick={onExit}>
-            Done
-          </Button>
+          <Button onClick={onExit}>Done</Button>
         </div>
       </>
     </Modal>

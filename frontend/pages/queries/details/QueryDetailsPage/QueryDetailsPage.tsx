@@ -292,7 +292,6 @@ const QueryDetailsPage = ({
                         );
                     }}
                     className={`${baseClass}__manage-automations button`}
-                    variant="default"
                   >
                     Edit query
                   </Button>

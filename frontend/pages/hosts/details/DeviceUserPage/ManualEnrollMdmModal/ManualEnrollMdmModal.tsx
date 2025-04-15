@@ -100,7 +100,7 @@ const ManualEnrollMdmModal = ({
           </li>
         </ol>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="default">
+          <Button type="button" onClick={onCancel}>
             Done
           </Button>
         </div>

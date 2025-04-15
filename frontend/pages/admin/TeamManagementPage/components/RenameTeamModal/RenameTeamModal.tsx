@@ -69,7 +69,6 @@ const RenameTeamModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="default"
             disabled={name === ""}
             className="save-loading"
             isLoading={isUpdatingTeams}

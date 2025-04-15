@@ -770,7 +770,6 @@ const PolicyForm = ({
                       data-tip-disable={!isEditMode || isAnyPlatformSelected}
                     >
                       <Button
-                        variant="default"
                         onClick={promptSavePolicy()}
                         disabled={disableSaveFormErrors || disableChildren}
                         className="save-loading"
