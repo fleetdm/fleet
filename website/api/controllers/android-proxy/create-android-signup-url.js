@@ -8,10 +8,6 @@ module.exports = {
 
 
   inputs: {
-    projectId: {
-      type: 'string',
-      required: true,
-    },
     callbackUrl: {
       type: 'string',
       required: true,
@@ -20,56 +16,67 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'A signup URL has been sent to the requesting Fleet server.'}
+    success: { description: 'A signup URL has been sent to the requesting Fleet server.'},
+    enterpriseAlreadyExists: { description: 'An Android enterprise already exists for this Fleet instance.', statusCode: 409 },
   },
 
 
-  fn: async function ({fleetServerSecret, androidEnterpriseId, projectId, callbackUrl}) {
+  fn: async function ({ callbackUrl }) {
 
 
-    // Parse the fleet server url from the origin header.
+    // Parse the Fleet server url from the origin header.
     let fleetServerUrl = this.req.get('Origin');
     if(!fleetServerUrl){
       return this.res.badRequest();
     }
 
-    // Check the databse for a record of this enterprise.
+    // Check the database for an existing record for this Fleet server.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
-
     if(connectionforThisInstanceExists){
       throw 'enterpriseAlreadyExists';
     }
-
+    // Create a new fleetServerSecret for this Fleet server. This will be included in the response body and will be required in all subsequent requests to Android proxy endpoints.
     let newFleetServerSecret = await sails.helpers.strings.random.with({len: 30});
 
-    let authorizationTokenForThisRequest = await sails.helpers.androidEnterprise.getAccessToken.with({
-      // TODO: this helper doesn't exist
+    // Get a signup url for this Android enterprise.
+    // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
+    let signupUrl = await sails.helpers.flow.build(async ()=>{
+      let google = require('googleapis');
+      let androidmanagement = google.androidmanagement('v1');
+      let googleAuth = new google.auth.GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
+        credentials: {
+          client_email: sails.config.custom.GoogleClientId,// eslint-disable-line camelcase
+          private_key: sails.config.custom.GooglePrivateKey,// eslint-disable-line camelcase
+        },
+      });
+      // Acquire the google auth client, and bind it to all future calls
+      let authClient = await googleAuth.getClient();
+      google.options({auth: authClient});
+      // [?] https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Signupurls.html#create
+      let createSignupUrlResponse = await androidmanagement.signupUrls.create({
+        // The callback URL that the admin will be redirected to after successfully creating an enterprise. Before redirecting there the system will add a query parameter to this URL named enterpriseToken which will contain an opaque token to be used for the create enterprise request. The URL will be parsed then reformatted in order to add the enterpriseToken parameter, so there may be some minor formatting changes.
+        callbackUrl: callbackUrl,
+        // The ID of the Google Cloud Platform project which will own the enterprise.
+        projectId: sails.config.custom.androidManagementProjectId,
+      });
+      return createSignupUrlResponse.data;
+    }).intercept((err)=>{
+      return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
     });
 
 
-    // Send a request to delete the Android enterprise.
-    let createSignupUrlResponse = await sails.helpers.http.sendHttpRequest.with({
-      method: 'POST',
-      url: `https://androidmanagement.googleapis.com/v1/signupUrls?projectId=${projectId}&callbackUrl=${callbackUrl}`,
-      headers: {
-        Authorization: `Bearer ${authorizationTokenForThisRequest}`,
-      },
-    });
-
-    // Create a databse record for the newly created enterprise
+    // Create a database record for this Fleet server,
     await AndroidEnterprise.createOne({
       fleetServerUrl: fleetServerUrl,
       fleetServerSecret: newFleetServerSecret,
-      // fleetLicenseKey: fleetLicenseKey,
-      // androidEnterpriseId: newAndroidEnterpriseId
     });
 
 
-
     return {
-      signup_url: createSignupUrlResponse.url,
-      signup_url_name: createSignupUrlResponse.name,
-      fleet_server_secret: newFleetServerSecret
+      signup_url: signupUrl.url,// eslint-disable-line camelcase
+      signup_url_name: signupUrl.name,// eslint-disable-line camelcase
+      fleet_server_secret: newFleetServerSecret// eslint-disable-line camelcase
     };
 
 

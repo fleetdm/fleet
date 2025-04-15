@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Create android enrollment token',
 
 
-  description: '',
+  description: 'Creates and returns an enrollment token for an Android enterprise',
 
 
   inputs: {
@@ -19,8 +19,8 @@ module.exports = {
     enrollmentToken: {
       type: {},
       required: true,
-      moreInfoUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens#resource:-enrollmenttoken'
-    },
+      moreInfoUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens#EnrollmentToken',
+    }
   },
 
 
@@ -41,24 +41,31 @@ module.exports = {
       return this.res.notFound();
     }
 
-    let authorizationTokenForThisRequest = await sails.helpers.androidEnterprise.getAccessToken.with({
-      // TODO: this helper doesn't exist
+    let newEnrollmentToken = await sails.helpers.flow.build(async ()=>{
+      let google = require('googleapis');
+      let androidmanagement = google.androidmanagement('v1');
+      let googleAuth = new google.auth.GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
+        credentials: {
+          client_email: sails.config.custom.GoogleClientId,// eslint-disable-line camelcase
+          private_key: sails.config.custom.GooglePrivateKey,// eslint-disable-line camelcase
+        },
+      });
+      // Acquire the google auth client, and bind it to all future calls
+      let authClient = await googleAuth.getClient();
+      google.options({auth: authClient});
+      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
+      let enrollmentTokenCreateResponse = await androidmanagement.enterprises.enrollmentTokens.create({
+        parent: `enterprises/${androidEnterpriseId}`,
+        requestBody: enrollmentToken,
+      });
+      return enrollmentTokenCreateResponse.data;
+    }).intercept((err)=>{
+      return new Error(`When attempting to create an enrollment token for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
-    // Send a request to delete the Android enterprise.
-    let createEnrollmentTokenResponse = await sails.helpers.http.sendHttpRequest.with({
-      method: 'POST',
-      url: `https://androidmanagement.googleapis.com/v1/enterprises/${androidEnterpriseId}/enrollmentTokens`,
-      body: enrollmentToken,
-      headers: {
-        Authorization: `Bearer ${authorizationTokenForThisRequest}`,
-      },
-    });
 
-
-
-    // All done?
-    return createEnrollmentTokenResponse.value;// ?
+    return newEnrollmentToken;
 
   }
 

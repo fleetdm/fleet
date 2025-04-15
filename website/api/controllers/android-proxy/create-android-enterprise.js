@@ -8,10 +8,6 @@ module.exports = {
 
 
   inputs: {
-    projectId: {
-      type: 'string',
-      required: true,
-    },
     signupUrlName: {
       type: 'string',
       required: true,
@@ -22,74 +18,143 @@ module.exports = {
     },
     fleetLicenseKey: {
       type: 'string',
-      // required: true,
     },
     pubsubPushUrl: {
       type: 'string',
       required: true,
     },
-    enterprise: {
-      type: {},
+    fleetServerSecret: {
+      type: 'string',
       required: true,
-      moreInfoUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises'
-    }
+    },
   },
 
 
   exits: {
     success: { description: 'An android enterprise was successfully created' },
-    enterpriseAlreadyExists: { description: 'An android enterprise already exists for this Fleet instance.', responseType: 'badRequest' },
+    enterpriseAlreadyExists: { description: 'An android enterprise already exists for this Fleet instance.', statusCode: 409 },
   },
 
 
-  fn: async function ({projectId, signupUrlName, enterpriseToken, fleetLicenseKey, pubsubPushUrl, enterprise}) {
+  fn: async function ({signupUrlName, enterpriseToken, fleetLicenseKey, pubsubPushUrl, fleetServerSecret}) {
 
 
-    // Parse the fleet server url from the origin header.
-    let fleetServerUrl = this.req.get('Origin');
-    if(!fleetServerUrl){
-      return this.res.badRequest();
+    // Check the database for a record of this enterprise.
+    let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerSecret: fleetServerSecret});
+    if(!connectionforThisInstanceExists) {
+      throw this.res.notFound();
     }
-
-    // Check the databse for a record of this enterprise.
-    let connectionforThisInstanceExists = await AndroidEnterprise.findOne({pubsubPushUrl: pubsubPushUrl});
-
-
-    if(connectionforThisInstanceExists){
+    // If this request came from a Fleet instance that already has an enterprise set up, return an error.
+    if(connectionforThisInstanceExists.androidEnterpriseId) {
       throw 'enterpriseAlreadyExists';
     }
+    // Generate a uuid to use for the pubsub topic name for this Android enterprise.
+    let newPubSubTopicName = 'a' + sails.helpers.strings.uuid();// Google requires that topic names start with a letter, so we'll preprend an 'a' to the generated uuid.
+    // Build the full pubsub topic name.
+    let fullPubSubTopicName = `projects/${sails.config.custom.androidManagementProjectId}/topics/${newPubSubTopicName}`;
 
-    // Get an accesn token for the requests to the Android management API
-    let authorizationTokenForThisRequest = await sails.helpers.androidEnterprise.getAccessToken.with({
-      // TODO: this helper doesn't exist
+    // Complete the setup of the new Android enterprise.
+    // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
+    let newEnterprise = await sails.helpers.flow.build(async ()=>{
+      // [?] https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Signupurls.html#create
+      let google = require('googleapis');
+      let androidmanagement = google.androidmanagement('v1');
+
+      let googleAuth = new google.auth.GoogleAuth({
+        scopes: [
+          'https://www.googleapis.com/auth/pubsub',// For creating the PubSub topic
+          'https://www.googleapis.com/auth/androidmanagement'// For creating the new Android enterprise
+        ],
+        credentials: {
+          client_email: sails.config.custom.GoogleClientId,// eslint-disable-line camelcase
+          private_key: sails.config.custom.GooglePrivateKey,// eslint-disable-line camelcase
+        },
+      });
+      // Acquire the google auth client, and bind it to all future calls
+      let authClient = await googleAuth.getClient();
+      google.options({auth: authClient});
+      let pubsub = google.pubsub({version: 'v1'});
+
+      // Create a new pubsub topic for this enterprise.
+      // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
+      await pubsub.projects.topics.create({
+        name: fullPubSubTopicName,
+        requestBody: {
+          messageRetentionDuration: '86400s'// 24 hours
+        }
+      });
+
+      // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/getIamPolicy
+      // Retrieve the IAM policy for the created pubsub topic.
+      let getIamPolicyResponse = await pubsub.projects.topics.getIamPolicy({
+        resource: fullPubSubTopicName,
+      });
+      let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
+
+      // Default the policy bindings to an empty array if it is not set.
+      newPubSubTopicIamPolicy.bindings = newPubSubTopicIamPolicy.bindings || [];
+      // Add the Fleet android MDM service account to the policy bindings.
+      newPubSubTopicIamPolicy.bindings.push({
+        role: 'roles/pubsub.publisher',
+        members: [sails.config.custom.androidEnterpriseServiceAccountEmailAddress]
+      });
+
+      // Update the pubsub topic's IAM policy
+      // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/setIamPolicy
+      await pubsub.projects.topics.setIamPolicy({
+        resource: fullPubSubTopicName,
+        requestBody: {
+          policy: newPubSubTopicIamPolicy
+        }
+      });
+
+      let newSubscriptionName = `projects/${sails.config.custom.androidManagementProjectId}/subscriptions/${newPubSubTopicName}`;
+      // Create a new subscription for the created pubsub topic.
+      // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create
+      await pubsub.projects.subscriptions.create({
+        name: newSubscriptionName,
+        requestBody: {
+          topic: fullPubSubTopicName,
+          ackDeadlineSeconds: 60,
+          messageRetentionDuration: '86400s',// 24 hours
+          pushConfig: {
+            pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
+          }
+        }
+      });
+
+      // Now create the new enterprise for this Fleet server.
+      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises.html#create
+      let createEnterpriseResponse = await androidmanagement.enterprises.create({
+        agreementAccepted: true,
+        enterpriseToken: enterpriseToken,
+        projectId: sails.config.custom.androidManagementProjectId,
+        signupUrlName: signupUrlName,
+        requestBody: {
+          enabledNotificationTypes: [
+            'ENROLLMENT',
+            'STATUS_REPORT',
+            'COMMAND',
+            'USAGE_LOGS'
+          ],
+          pubsubTopic: fullPubSubTopicName,
+        },
+      });
+      return createEnterpriseResponse.data;
+    }).intercept((err)=>{
+      return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${err}`);
     });
 
 
-    let newFleetServerSecret = await sails.helpers.strings.random.with({len: 30});
+    let newAndroidEnterpriseId = newEnterprise.id;
 
-
-    let createEnterpriseResponse = await sails.helpers.http.sendHttpRequest.with({
-      method: 'POST',
-      url: `https://androidmanagement.googleapis.com/v1/enterprises?projectId=${encodeURIComponent(projectId)}&signupUrlName=${encodeURIComponent(signupUrlName)}&enterpriseToken=${enterpriseToken}`,
-      data: enterprise,// TODO: Is this how google's API expects this?, or will it need to be { enterprise: newEnterprise }
-      headers: {
-        Authorization: `Bearer ${authorizationTokenForThisRequest}`
-      },
-    }).intercept((error)=>{
-      return new Error(`An error occured when sending a request to create a new Android enterprise. Full error: ${require('util').inpsect(error)}`);
-    });
-
-
-    // TODO: find a real response from this endpoint so we know what to actually set.
-    let newAndroidEnterpriseId = createEnterpriseResponse.id;
-
-    // Create a databse record for the newly created enterprise
-    await AndroidEnterprise.createOne({
-      fleetServerUrl: fleetServerUrl,
+    // Update the database record to include details about the created enterprise.
+    await AndroidEnterprise.updateOne({ id: connectionforThisInstanceExists.id }).set({
       fleetLicenseKey: fleetLicenseKey,
-      fleetServerSecret: newFleetServerSecret,
-      androidEnterpriseId: newAndroidEnterpriseId
+      androidEnterpriseId: newAndroidEnterpriseId,
+      pubsubTopicName: fullPubSubTopicName,
     });
+
 
 
     return {

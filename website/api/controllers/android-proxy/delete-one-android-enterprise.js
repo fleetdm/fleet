@@ -26,6 +26,7 @@ module.exports = {
 
   fn: async function ({fleetServerSecret, androidEnterpriseId}) {
 
+    // Look up the database record for this Android enterprise
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
       fleetServerSecret: fleetServerSecret,
       androidEnterpriseId: androidEnterpriseId,
@@ -35,21 +36,39 @@ module.exports = {
     if(!thisAndroidEnterprise) {
       return this.res.notFound();
     }
-
-    let authorizationTokenForThisRequest = await sails.helpers.androidEnterprise.getAccessToken.with({
-      // TODO: this helper doesn't exist
+    // Delete the Android enterprise
+    // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
+    await sails.helpers.flow.build(async ()=>{
+      let google = require('googleapis');
+      let androidmanagement = google.androidmanagement('v1');
+      let googleAuth = new google.auth.GoogleAuth({
+        scopes: [
+          'https://www.googleapis.com/auth/androidmanagement',
+          'https://www.googleapis.com/auth/pubsub'
+        ],
+        credentials: {
+          client_email: sails.config.custom.GoogleClientId,// eslint-disable-line camelcase
+          private_key: sails.config.custom.GooglePrivateKey,// eslint-disable-line camelcase
+        },
+      });
+      // Acquire the google auth client, and bind it to all future calls
+      let authClient = await googleAuth.getClient();
+      google.options({auth: authClient});
+      // Delete the android enterprise.
+      await androidmanagement.enterprises.delete({
+        name: `enterprises/${androidEnterpriseId}`,
+      });
+      let pubsub = google.pubsub('v1');
+      // Delete the enterprise's pubsub topic
+      await pubsub.projects.topics.delete({
+        topic: thisAndroidEnterprise.pubsubTopicName,
+      });
+      return;
+    }).intercept((err)=>{
+      return new Error(`When attempting to delete an android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     });
 
-
-    // Send a request to delete the Android enterprise.
-    let deleteEnterpriseResponse = await sails.helpers.http.sendHttpRequest.with({
-      method: 'DELETE',
-      url: `https://androidmanagement.googleapis.com/v1/enterprises/${androidEnterpriseId}`,
-      headers: {
-        Authorization: `Bearer ${authorizationTokenForThisRequest}`,
-      },
-    });
-
+    // Delete the database record for this Android enterprise
     await AndroidEnterprise.destroyOne({ id: thisAndroidEnterprise.id });
 
 
