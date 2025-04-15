@@ -81,14 +81,14 @@ const (
 )
 
 var (
-	fleetVarNDESSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPChallenge,
-		FleetVarNDESSCEPChallenge))
-	fleetVarNDESSCEPProxyURLRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarNDESSCEPProxyURL,
-		FleetVarNDESSCEPProxyURL))
-	fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostEndUserEmailIDP,
-		FleetVarHostEndUserEmailIDP))
-	fleetVarHostHardwareSerialRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%s})`, FleetVarHostHardwareSerial,
-		FleetVarHostHardwareSerial))
+	fleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
+	fleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
+	fleetVarHostEndUserEmailIDPRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserEmailIDP))
+	fleetVarHostHardwareSerialRegexp              = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostHardwareSerial))
+	fleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsername))
+	fleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsernameLocalPart))
+	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPGroups))
+
 	fleetVarsSupportedInConfigProfiles = []string{
 		FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial, FleetVarHostEndUserIDPUsername, FleetVarHostEndUserIDPUsernameLocalPart,
@@ -4042,6 +4042,10 @@ func preprocessProfileContents(
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration
 	)
 
+	// this is used to cache the host ID corresponding to the UUID, so we don't
+	// need to look it up more than once per host.
+	hostIDForUUIDCache := make(map[string]uint)
+
 	var addedTargets map[string]*cmdTarget
 	for profUUID, target := range targets {
 		contents, ok := profileContents[profUUID]
@@ -4070,8 +4074,12 @@ func preprocessProfileContents(
 					valid = false
 					break
 				}
-			case fleetVar == FleetVarHostEndUserEmailIDP || fleetVar == FleetVarHostHardwareSerial:
+
+			case fleetVar == FleetVarHostEndUserEmailIDP || fleetVar == FleetVarHostHardwareSerial ||
+				fleetVar == FleetVarHostEndUserIDPUsername || fleetVar == FleetVarHostEndUserIDPUsernameLocalPart ||
+				fleetVar == FleetVarHostEndUserIDPGroups:
 				// No extra validation needed for these variables
+
 			case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
 				var caName string
 				if strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix) {
@@ -4090,6 +4098,7 @@ func preprocessProfileContents(
 					valid = false
 					break
 				}
+
 			case strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 				var caName string
 				if strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) {
@@ -4109,6 +4118,7 @@ func preprocessProfileContents(
 					valid = false
 					break
 				}
+
 			default:
 				// Otherwise, error out since this variable is unknown
 				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
@@ -4213,11 +4223,13 @@ func preprocessProfileContents(
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
 					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPChallengeRegexp, hostContents, challenge)
+
 				case fleetVar == FleetVarNDESSCEPProxyURL:
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, profUUID)))
 					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
+
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix)
 					ca, ok := customSCEPCAs[caName]
@@ -4230,6 +4242,7 @@ func preprocessProfileContents(
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP challenge")
 					}
+
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix)
 					ca, ok := customSCEPCAs[caName]
@@ -4251,6 +4264,7 @@ func preprocessProfileContents(
 						Type:        fleet.CAConfigCustomSCEPProxy,
 						CAName:      caName,
 					})
+
 				case fleetVar == FleetVarHostEndUserEmailIDP:
 					email, ok, err := getIDPEmail(ctx, ds, target, hostUUID)
 					if err != nil {
@@ -4261,6 +4275,7 @@ func preprocessProfileContents(
 						break fleetVarLoop
 					}
 					hostContents = replaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
+
 				case fleetVar == FleetVarHostHardwareSerial:
 					hardwareSerial, ok, err := getHostHardwareSerial(ctx, ds, target, hostUUID)
 					if err != nil {
@@ -4271,8 +4286,36 @@ func preprocessProfileContents(
 						break fleetVarLoop
 					}
 					hostContents = replaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
+
+				case fleetVar == FleetVarHostEndUserIDPUsername || fleetVar == FleetVarHostEndUserIDPUsernameLocalPart ||
+					fleetVar == FleetVarHostEndUserIDPGroups:
+					user, ok, err := getHostEndUserIDPUser(ctx, ds, target, hostUUID, hostIDForUUIDCache)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "getting host end user IDP username")
+					}
+					if !ok {
+						failed = true
+						break fleetVarLoop
+					}
+
+					var rx *regexp.Regexp
+					var value string
+					switch fleetVar {
+					case FleetVarHostEndUserIDPUsername:
+						rx = fleetVarHostEndUserIDPUsernameRegexp
+						value = user.Username
+					case FleetVarHostEndUserIDPUsernameLocalPart:
+						rx = fleetVarHostEndUserIDPUsernameLocalPartRegexp
+						value = getEmailLocalPart(user.Username)
+					case FleetVarHostEndUserIDPGroups:
+						rx = fleetVarHostEndUserIDPGroupsRegexp
+						value = user.Groups
+					}
+					hostContents = replaceFleetVariableInXML(rx, hostContents, value)
+
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix):
 					// We will replace the password when we populate the certificate data
+
 				case strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarDigiCertDataPrefix)
 					ca, ok := digiCertCAs[caName]
@@ -4346,6 +4389,7 @@ func preprocessProfileContents(
 						Type:          fleet.CAConfigDigiCert,
 						CAName:        caName,
 					})
+
 				default:
 					// This was handled in the above switch statement, so we should never reach this case
 				}
@@ -4418,6 +4462,41 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 		}
 	}
 	return true, nil
+}
+
+func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, hostIDForUUIDCache map[string]uint) (*fleet.HostEndUser, bool, error) {
+	hostID, ok := hostIDForUUIDCache[hostUUID]
+	if !ok {
+		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		ids, err := ds.HostIDsByIdentifier(ctx, filter, []string{hostUUID})
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get host id from uuid")
+		}
+
+		if len(ids) != 1 {
+			// Something went wrong. Maybe host was deleted, or we have multiple
+			// hosts with the same UUID. Mark the profile as failed with additional
+			// detail.
+			err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+				CommandUUID:   target.cmdUUID,
+				HostUUID:      hostUUID,
+				Status:        &fleet.MDMDeliveryFailed,
+				Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID),
+				OperationType: fleet.MDMOperationTypeInstall,
+			})
+			if err != nil {
+				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
+			}
+			return nil, false, nil
+		}
+		hostID = ids[0]
+		hostIDForUUIDCache[hostUUID] = hostID
+	}
+
+	users, err := getEndUsers(ctx, ds, hostID)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "get end users for host")
+	}
 }
 
 func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
@@ -4747,7 +4826,7 @@ func replaceFleetVariableInXML(regExp *regexp.Regexp, contents string, replaceme
 	buf := bytes.NewBuffer(b)
 	// error is always nil for Buffer.Write method, so we ignore it
 	_ = xml.EscapeText(buf, []byte(replacement))
-	return regExp.ReplaceAllString(contents, buf.String())
+	return regExp.ReplaceAllLiteralString(contents, buf.String())
 }
 
 func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents string, replacement string) (string, error) {
@@ -4765,7 +4844,7 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 	if err != nil {
 		return "", err
 	}
-	return re.ReplaceAllString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
+	return re.ReplaceAllLiteralString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
 }
 
 func findFleetVariables(contents string) map[string]interface{} {
