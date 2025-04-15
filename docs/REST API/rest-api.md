@@ -9083,7 +9083,7 @@ Get a list of all software.
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
-        "automatic_install_policies": [
+        "policies": [
           {
             "id": 343,
             "name": "[Install software] Firefox.app",
@@ -9369,7 +9369,7 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 343,
           "name": "[Install software] Crowdstrike Agent",
@@ -9435,7 +9435,7 @@ Returns information about the specified software. By default, `versions` are sor
       "created_at": "2024-04-01T14:22:58Z",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "self_service": true,
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
@@ -9446,7 +9446,7 @@ Returns information about the specified software. By default, `versions` are sor
         "pending": 1,
         "failed": 2,
       },
-      "automatic_install_policies": [
+      "policies": [
         {
           "id": 343,
           "name": "[Install software] Logic.app",
@@ -9609,7 +9609,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| ensure | string | form | If set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -9811,8 +9811,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
-| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -9897,7 +9896,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
         "id": 17
       }
     ],
-    "automatic_install_policies": [
+    "policies": [
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
@@ -10026,9 +10025,9 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
+| labels_include_any        | array     | body | Target hosts that have any label in the array. |
+| labels_exclude_any | array | body | Target hosts that don't have any label in the array. |
+| ensure | string | body | If set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10041,7 +10040,8 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ```json
 {
   "fleet_maintained_app_id": 3,
-  "team_id": 2
+  "team_id": 2,
+  "ensure": "present"
 }
 ```
 
