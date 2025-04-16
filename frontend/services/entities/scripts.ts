@@ -87,6 +87,43 @@ export interface IScriptRunResponse {
   execution_id: string;
 }
 
+/** Request body for POST /scripts/run/batch */
+export interface IRunScriptBatchRequest {
+  host_ids: number[];
+  script_id: number;
+}
+
+/** 202 successful response body for POST /scripts/run/batch */
+export interface IRunScriptBatchResponse {
+  batch_execution_id: string;
+}
+
+interface IScriptBatchHostResponse {
+  host_id: number;
+  host_display_name: string;
+}
+
+type IScriptBatchHostErrorReason =
+  | "incompatible-platform"
+  | "incompatbile-fleetd";
+
+type IScriptBatchHostError = IScriptBatchHostResponse & {
+  execution_id?: never;
+  error: IScriptBatchHostErrorReason;
+};
+
+type IScriptBatchHostResult = IScriptBatchHostResponse & {
+  execution_id: string;
+  error?: never;
+};
+
+// 200 successful response
+export interface IRunScriptBatchSummaryResponse {
+  script_id: number;
+  team_id: number | null;
+  script_name: string;
+  hosts: (IScriptBatchHostResult | IScriptBatchHostError)[];
+}
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -155,5 +192,17 @@ export default {
   runScript(request: IScriptRunRequest): Promise<IScriptRunResponse> {
     const { SCRIPT_RUN } = endpoints;
     return sendRequest("POST", SCRIPT_RUN, request);
+  },
+  runScriptBatch(
+    request: IRunScriptBatchRequest
+  ): Promise<IRunScriptBatchResponse> {
+    const { SCRIPT_RUN_BATCH } = endpoints;
+    return sendRequest("POST", SCRIPT_RUN_BATCH, request);
+  },
+  getRunScriptBatchSummary(
+    batchExecutionId: string
+  ): Promise<IRunScriptBatchSummaryResponse> {
+    const { SCRIPT_RUN_BATCH_SUMMARY } = endpoints;
+    return sendRequest("GET", SCRIPT_RUN_BATCH_SUMMARY(batchExecutionId));
   },
 };

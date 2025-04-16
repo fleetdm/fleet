@@ -258,7 +258,9 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
-
+  SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/batch/run`,
+  SCRIPT_RUN_BATCH_SUMMARY: (batchExecutionId: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${batchExecutionId}`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
