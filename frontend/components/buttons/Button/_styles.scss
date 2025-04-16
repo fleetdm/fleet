@@ -297,11 +297,6 @@ $base-class: "button";
 
   &--disabled {
     @include disabled;
-
-    &:hover,
-    &:focus {
-      cursor: default;
-    }
   }
 
   &--unstyled {
