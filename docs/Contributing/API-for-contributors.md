@@ -1710,6 +1710,8 @@ NOTE: when updating a policy, team and platform will be ignored.
 
 The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
 
+Fleet-maintained policies are unaffected by this endpoint.
+
 ##### Default response
 
 `Status: 200`
@@ -3271,7 +3273,7 @@ Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The sof
 
 _Available in Fleet Premium_
 
-Lists the policies applied to the current device.
+Lists the policies applied to the current device. Omits Fleet-maintained policies.
 
 `GET /api/v1/fleet/device/{token}/policies`
 
