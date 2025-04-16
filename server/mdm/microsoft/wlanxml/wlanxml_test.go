@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	// Policy 1 is a pretty simple single SSID policy
+	// Policy 1 is a simple single SSID policy
 	xmlEncodedPolicy1 = `&lt;?xml version=&quot;1.0&quot;?&gt;
 &lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/WLAN/profile/v1&quot;&gt;
 	&lt;name&gt;Test&lt;/name&gt;
@@ -91,7 +91,8 @@ const (
   &lt;/MSM&gt;
 &lt;/WLANProfile&gt;`
 
-	xmlEncodedPolicy3Variant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+	// An equal variant of policy 3 with SSID order swapped
+	xmlEncodedPolicy3SortVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
              xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
   &lt;name&gt;SampleProfile&lt;/name&gt;
   &lt;SSIDConfig&gt;
@@ -103,6 +104,58 @@ const (
     &lt;/SSID&gt;
     &lt;v2:SSIDPrefix&gt;
         &lt;v2:name&gt;MySSIDPrefix&lt;/v2:name&gt;
+    &lt;/v2:SSIDPrefix&gt;
+  &lt;/SSIDConfig&gt;
+  &lt;MSM&gt;
+    &lt;security&gt;
+        &lt;authEncryption&gt;
+            &lt;authentication&gt;open&lt;/authentication&gt;
+            &lt;encryption&gt;none&lt;/encryption&gt;
+            &lt;useOneX&gt;false&lt;/useOneX&gt;
+        &lt;/authEncryption&gt;
+    &lt;/security&gt;
+  &lt;/MSM&gt;
+&lt;/WLANProfile&gt;`
+
+	// an equal variant of policy 3 with Hex SSIDs in lieu of names
+	xmlEncodedPolicy3HexVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+             xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
+  &lt;name&gt;SampleProfile&lt;/name&gt;
+  &lt;SSIDConfig&gt;
+    &lt;SSID&gt;
+        &lt;hex&gt;4d795353494431&lt;/hex&gt;
+    &lt;/SSID&gt;
+    &lt;v2:SSID&gt;
+        &lt;v2:hex&gt;4d795353494432&lt;/v2:hex&gt;
+    &lt;/v2:SSID&gt;
+    &lt;v2:SSIDPrefix&gt;
+        &lt;v2:hex&gt;4d7953534944507265666978&lt;/v2:hex&gt;
+    &lt;/v2:SSIDPrefix&gt;
+  &lt;/SSIDConfig&gt;
+  &lt;MSM&gt;
+    &lt;security&gt;
+        &lt;authEncryption&gt;
+            &lt;authentication&gt;open&lt;/authentication&gt;
+            &lt;encryption&gt;none&lt;/encryption&gt;
+            &lt;useOneX&gt;false&lt;/useOneX&gt;
+        &lt;/authEncryption&gt;
+    &lt;/security&gt;
+  &lt;/MSM&gt;
+&lt;/WLANProfile&gt;`
+
+	// Policy 4 is a variant of policy 3 with a different prefix
+	xmlEncodedPolicy4 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+             xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
+  &lt;name&gt;SampleProfile&lt;/name&gt;
+  &lt;SSIDConfig&gt;
+    &lt;SSID&gt;
+        &lt;name&gt;MySSID1&lt;/name&gt;
+    &lt;/SSID&gt;
+    &lt;v2:SSID&gt;
+        &lt;v2:name&gt;MySSID2&lt;/v2:name&gt;
+    &lt;/v2:SSID&gt;
+    &lt;v2:SSIDPrefix&gt;
+        &lt;v2:name&gt;MyOtherSSIDPrefix&lt;/v2:name&gt;
     &lt;/v2:SSIDPrefix&gt;
   &lt;/SSIDConfig&gt;
   &lt;MSM&gt;
@@ -184,14 +237,21 @@ func TestEqual(t *testing.T) {
 		{
 			name:          "equal policies but different SSID order",
 			a:             xmlEncodedPolicy3,
-			b:             xmlEncodedPolicy3Variant,
+			b:             xmlEncodedPolicy3SortVariant,
 			equal:         true,
 			errorContains: "",
 		},
 		{
 			name:          "equal policies but different SSID order - swapped invocation order",
-			a:             xmlEncodedPolicy3Variant,
+			a:             xmlEncodedPolicy3SortVariant,
 			b:             xmlEncodedPolicy3,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "equal policies but SSIDs as hex for one",
+			a:             xmlEncodedPolicy3,
+			b:             xmlEncodedPolicy3HexVariant,
 			equal:         true,
 			errorContains: "",
 		},
@@ -199,6 +259,13 @@ func TestEqual(t *testing.T) {
 			name:          "different policies",
 			a:             xmlEncodedPolicy1,
 			b:             xmlEncodedPolicy2,
+			equal:         false,
+			errorContains: "",
+		},
+		{
+			name:          "similar policies with different SSID prefix settings",
+			a:             xmlEncodedPolicy3,
+			b:             xmlEncodedPolicy4,
 			equal:         false,
 			errorContains: "",
 		},

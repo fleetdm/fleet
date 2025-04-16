@@ -50,10 +50,13 @@ func unmarshal(a string) (wlanXmlPolicy, error) {
 	}
 
 	// Much of the policy settings are case sensitive however the hex representation of the SSID is not and
-	// in some cases Windows seems to convert it to lowercase when writing the policy to the system
+	// in some cases Windows converts it to uppercase when writing a policy to the system which was provided
+	// with uppercase alpha characters.
 	for i := 0; i < len(policy.SSIDConfig.SSID); i++ {
-		policy.SSIDConfig.SSID[i].Hex = strings.ToLower(policy.SSIDConfig.SSID[i].Hex)
+		policy.SSIDConfig.SSID[i].normalize()
 	}
+	policy.SSIDConfig.SSIDPrefix.normalize()
+
 	return policy, nil
 }
 
@@ -67,8 +70,8 @@ type wlanXmlPolicySSIDConfig struct {
 	SSID []wlanXmlPolicySSID `xml:"SSID"`
 	// Note that this field is optional so if we ever do more inspection of these policies
 	// we likely need to
-	SSIDPrefix   wlanXmlPolicySSIDPrefix `xml:"SSIDPrefix"`
-	NonBroadcast bool                    `xml:"nonBroadcast"`
+	SSIDPrefix   wlanXmlPolicySSID `xml:"SSIDPrefix"`
+	NonBroadcast bool              `xml:"nonBroadcast"`
 }
 
 type wlanXmlPolicySSID struct {
@@ -76,8 +79,23 @@ type wlanXmlPolicySSID struct {
 	Name string `xml:"name"`
 }
 
-type wlanXmlPolicySSIDPrefix struct {
-	Name string `xml:"name"`
+func (s *wlanXmlPolicySSID) normalize() {
+	// Microsoft's documentation says that the hex representation overrides the Name when both are
+	// present. In testing, if a policy is provided with only the Name and not the hex
+	// representation, Microsoft generates Hex and it is present in the policy returned. As such we
+	// will convert name to hex on the way in for use in comparisons
+	if s.Hex == "" && s.Name != "" {
+		s.Hex = fmt.Sprintf("%x", s.Name)
+	}
+
+	// Most of the policy settings are case sensitive however the hex representation of the SSID is not and
+	// in some cases Windows converts it to uppercase when writing a policy to the system which was provided
+	// with uppercase alpha characters.
+	s.Hex = strings.ToUpper(s.Hex)
+}
+
+func (a wlanXmlPolicySSID) Equal(b wlanXmlPolicySSID) bool {
+	return a.Hex == b.Hex
 }
 
 // We have seen cases where Windows will "upgrade" a profile based on what it sees when it actually
@@ -95,7 +113,7 @@ func (a wlanXmlPolicy) Equal(b wlanXmlPolicy) bool {
 		return false
 	}
 
-	if a.SSIDConfig.SSIDPrefix.Name != b.SSIDConfig.SSIDPrefix.Name {
+	if !a.SSIDConfig.SSIDPrefix.Equal(b.SSIDConfig.SSIDPrefix) {
 		return false
 	}
 
@@ -113,15 +131,9 @@ func (a wlanXmlPolicy) Equal(b wlanXmlPolicy) bool {
 	return true
 }
 
+// a profile may have multiple SSIDs.
 func (a *wlanXmlPolicy) sortSSIDs() {
 	slices.SortFunc(a.SSIDConfig.SSID, func(i, j wlanXmlPolicySSID) int {
-		if i.Hex == j.Hex {
-			return strings.Compare(i.Name, j.Name)
-		}
 		return strings.Compare(i.Hex, j.Hex)
 	})
-}
-
-func (a wlanXmlPolicySSID) Equal(b wlanXmlPolicySSID) bool {
-	return a.Hex == b.Hex && a.Name == b.Name
 }
