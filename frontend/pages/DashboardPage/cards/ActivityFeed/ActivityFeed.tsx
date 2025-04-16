@@ -151,7 +151,7 @@ const ActivityFeed = ({
   };
 
   const renderError = () => {
-    return <DataError card />;
+    return <DataError variant="card" />;
   };
 
   const renderNoActivities = () => {

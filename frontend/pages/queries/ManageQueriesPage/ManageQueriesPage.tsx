@@ -281,7 +281,7 @@ const ManageQueriesPage = ({
 
   const renderQueriesTable = () => {
     if (queriesError) {
-      return <TableDataError />;
+      return <TableDataError variant="page" />;
     }
     return (
       <QueriesTable

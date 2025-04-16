@@ -13,7 +13,7 @@ interface IDataErrorProps {
   /** Excludes the link that asks user to create an issue. Defaults to `false` */
   excludeIssueLink?: boolean;
   children?: React.ReactNode;
-  card?: boolean;
+  variant?: "card" | "page";
   className?: string;
   /** Flag to use the updated DataError design */
   useNew?: boolean;
@@ -25,15 +25,16 @@ const DataError = ({
   description = DEFAULT_DESCRIPTION,
   excludeIssueLink = false,
   children,
-  card,
+  variant,
   className,
   useNew = false,
 }: IDataErrorProps): JSX.Element => {
   const classes = classnames(baseClass, className);
+
   if (useNew) {
     return (
       <div className={classes}>
-        <div className={`${baseClass}__${card ? "card" : "inner-new"}`}>
+        <div className={`${baseClass}__${variant || "inner-new"}`}>
           <Graphic name="data-error" />
           <div className={`${baseClass}__header`}>
             Something&apos;s gone wrong.
@@ -60,7 +61,7 @@ const DataError = ({
 
   return (
     <div className={classes}>
-      <div className={`${baseClass}__${card ? "card" : "inner"}`}>
+      <div className={`${baseClass}__${variant || "inner"}`}>
         <div className="info">
           <span className="info__header">
             <Icon name="error" />

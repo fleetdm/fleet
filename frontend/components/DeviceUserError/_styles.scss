@@ -13,7 +13,7 @@
     display: flex;
     flex-direction: column;
     gap: $pad-large;
-    max-width: 534px;
+    max-width: 333px;
 
     &__header {
       display: block;
@@ -36,6 +36,7 @@
       font-weight: normal;
       font-size: $x-small;
       text-align: center;
+      line-height: 21px; // Matches design
     }
   }
 }

@@ -283,7 +283,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   const renderForm = () => {
     if (errorLoadGlobalConfig || errorLoadTeamConfig) {
-      return <DataError />;
+      return <DataError variant="page" />;
     }
     if (isLoadingTeamConfig || isLoadingAppConfig) {
       return <Spinner />;

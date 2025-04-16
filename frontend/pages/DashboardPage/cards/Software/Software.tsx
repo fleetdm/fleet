@@ -11,7 +11,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
-import TableDataError from "components/DataError";
+import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
@@ -90,7 +90,7 @@ const Software = ({
             </TabList>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
-                <TableDataError />
+                <DataError variant="card" />
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
@@ -113,7 +113,7 @@ const Software = ({
             </TabPanel>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
-                <TableDataError />
+                <DataError variant="card" />
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}

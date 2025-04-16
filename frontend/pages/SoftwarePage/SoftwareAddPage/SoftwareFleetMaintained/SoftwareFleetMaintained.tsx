@@ -100,7 +100,7 @@ const SoftwareFleetMaintained = ({
   }
 
   if (isError) {
-    return <DataError className={`${baseClass}__table-error`} />;
+    return <DataError variant="page" />;
   }
 
   return (

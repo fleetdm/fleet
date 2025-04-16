@@ -968,7 +968,7 @@ const ManagePolicyPage = ({
       // Global policies
 
       if (globalPoliciesError) {
-        return <TableDataError />;
+        return <TableDataError variant="page" />;
       }
       return (
         <PoliciesTable
@@ -998,7 +998,7 @@ const ManagePolicyPage = ({
 
     // Team policies
     if (teamPoliciesError) {
-      return <TableDataError />;
+      return <TableDataError variant="page" />;
     }
     return (
       <div>

@@ -554,7 +554,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   return (
     <>
       {tableDataError ? (
-        <TableDataError />
+        <TableDataError variant="page" />
       ) : (
         <TableContainer
           columnConfigs={tableHeaders}
