@@ -474,7 +474,7 @@ Remove the “:reproduce” label, add the following labels:
 2. The `:incoming` label indicates that it is a new bug to be triaged.
 3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
+> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
 
 #### In product drafting
