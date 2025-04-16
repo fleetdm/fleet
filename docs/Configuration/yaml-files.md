@@ -484,15 +484,20 @@ Use `labels_include_any` to target hosts that have any label or `labels_exclude_
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
+
+> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
+
+> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI, API, or the `fleetctl upload-software` command. If a package with that hash isn't already in Fleet and visible to the uer performing the GitOps run, the GitOps run will error.
+
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
-> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
-
 #### Example
+
+##### With URL
 
 `lib/software-name.package.yml`:
 
@@ -505,6 +510,15 @@ uninstall_script:
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
 self_service: true
+```
+
+##### With hash
+
+You can get an output similar to the below when `fleetctl upload-software` successfully uploads a software package.
+
+```yaml
+# Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
+- hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
 ```
 
 ### app_store_apps
