@@ -11,9 +11,9 @@
 The following Github CI actions perform daily vulnerability scanning on Fleet software components.
 
 - [trivy-scan.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/trivy-scan.yml): Scan source code for vulnerabilities.
-- [build-and-check-fleetctl-docker-and-deps.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-and-check-fleetctl-docker-and-deps.yml): Scans for HIGH and CRITICAL vulnerabilities in `fleetctl` docker image dependencies (`fleetdm/fleetctl`, `fleetdm/wix`, and `fleetdm/bomutils`).
+- [build-and-check-fleetctl-docker-and-deps.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-and-check-fleetctl-docker-and-deps.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in `fleetctl` docker image dependencies (`fleetdm/fleetctl`, `fleetdm/wix`, and `fleetdm/bomutils`).
 - [goreleaser-snapshot-fleet.yaml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/goreleaser-snapshot-fleet.yaml): Scans for HIGH and CRITICAL vulnerabilities in `fleetdm/fleet` docker image before pushing to the Docker registry (runs daily and is triggered for every change in Fleet's source code).
-- [check-vulnerabilities-in-released-docker-images.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-vulnerabilities-in-released-docker-images.yml): Scans for vulnerabilities in the last 5 minor released versions of the `fleetdm/fleet` (HIGH and CRITICAL) and on the last release of `fleetdm/fleetctl` (HIGH and CRITICAL).
+- [check-vulnerabilities-in-released-docker-images.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-vulnerabilities-in-released-docker-images.yml): Scans for `CRITICAL` vulnerabilities in the last 5 minor released versions of the `fleetdm/fleet` and on the latest release of `fleetdm/fleetctl`.
 
 ## Process to run when a CVE is reported
 
@@ -66,14 +66,15 @@ If the detected vulnerability can be fixed by updating the base docker image or 
 
 #### fleetdm/fleet
 
-Following is the process to run when a `CRITICAL` CVE affects the `fleetdm/fleet` docker image.
+Following is the process to run when a `CRITICAL` CVE affects any of the five last releases of `fleetdm/fleet` docker image (reported by [check-vulnerabilities-in-released-docker-images.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-vulnerabilities-in-released-docker-images.yml)).
 
-TODO(@lukeheath): Define SLA when there's a `CRITICAL` vulnerability in the `latest` version of Fleet.
+1. We will use the information reported by the scanner and update our `status.md` to keep users/customers informed.
+2. If the `CRITICAL` vulnerability (that has a fix) is on the `latest` release, we'll file a critical/P0 bug and release a patch ASAP (within 1 business day). The previous four versions scanned won't be retroactively patched, only `latest` will be patched.
 
 #### fleetdm/fleetctl
 
-Following is the process to run when a `CRITICAL` CVE affects the `fleetdm/fleetctl` docker image.
+Following is the process to run when a `CRITICAL` CVE affects the released `fleetdm/fleetctl:latest` docker image:
 
-1. After `security/status.md` is updated, notify users/customers about the CVE in the `fleetdm/fleetctl` image.
+1. After `security/status.md` is updated, notify users/customers about the CVE in the `fleetdm/fleetctl` image and possible remediations.
 2. Create a Github issue with a `P0`/`security` label to track the fix.
-3. When the fix is ready, issue a security "patch" release for the last minor version of `fleetdm/fleetctl`.
+3. The fix will be released on the next release of the `fleetdm/fleetctl` docker image.
