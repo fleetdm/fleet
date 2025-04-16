@@ -87,21 +87,18 @@ type wlanXmlPolicySSIDPrefix struct {
 // Because of this we have opted for a simple comparison that ensures a profile matching
 // basic fields like name, SSID and (non-)broadcast status is considered equal.
 func (a wlanXmlPolicy) Equal(b wlanXmlPolicy) bool {
-	fmt.Printf("Comparing %s and %s\n", a.Name, b.Name)
 	if a.Name != b.Name {
 		return false
 	}
 
-	fmt.Printf("Comparing %t and %t\n", a.SSIDConfig.NonBroadcast, b.SSIDConfig.NonBroadcast)
 	if a.SSIDConfig.NonBroadcast != b.SSIDConfig.NonBroadcast {
 		return false
 	}
-	fmt.Printf("Comparing %s and %s\n", a.SSIDConfig.SSIDPrefix.Name, b.SSIDConfig.SSIDPrefix.Name)
+
 	if a.SSIDConfig.SSIDPrefix.Name != b.SSIDConfig.SSIDPrefix.Name {
 		return false
 	}
 
-	fmt.Printf("Comparing %d and %d\n", len(a.SSIDConfig.SSID), len(b.SSIDConfig.SSID))
 	if len(a.SSIDConfig.SSID) != len(b.SSIDConfig.SSID) {
 		return false
 	}
@@ -109,7 +106,6 @@ func (a wlanXmlPolicy) Equal(b wlanXmlPolicy) bool {
 	a.sortSSIDs()
 	b.sortSSIDs()
 	for i := range a.SSIDConfig.SSID {
-		fmt.Printf("Comparing %s %s and %s %s\n", a.SSIDConfig.SSID[i].Hex, a.SSIDConfig.SSID[i].Name, b.SSIDConfig.SSID[i].Hex, b.SSIDConfig.SSID[i].Name)
 		if !a.SSIDConfig.SSID[i].Equal(b.SSIDConfig.SSID[i]) {
 			return false
 		}
