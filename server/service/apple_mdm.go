@@ -4289,7 +4289,7 @@ func preprocessProfileContents(
 
 				case fleetVar == FleetVarHostEndUserIDPUsername || fleetVar == FleetVarHostEndUserIDPUsernameLocalPart ||
 					fleetVar == FleetVarHostEndUserIDPGroups:
-					user, ok, err := getHostEndUserIDPUser(ctx, ds, target, hostUUID, hostIDForUUIDCache)
+					user, ok, err := getHostEndUserIDPUser(ctx, ds, target, hostUUID, fleetVar, hostIDForUUIDCache)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host end user IDP username")
 					}
@@ -4303,13 +4303,13 @@ func preprocessProfileContents(
 					switch fleetVar {
 					case FleetVarHostEndUserIDPUsername:
 						rx = fleetVarHostEndUserIDPUsernameRegexp
-						value = user.Username
+						value = user.IdpUserName
 					case FleetVarHostEndUserIDPUsernameLocalPart:
 						rx = fleetVarHostEndUserIDPUsernameLocalPartRegexp
-						value = getEmailLocalPart(user.Username)
+						value = getEmailLocalPart(user.IdpUserName)
 					case FleetVarHostEndUserIDPGroups:
 						rx = fleetVarHostEndUserIDPGroupsRegexp
-						value = user.Groups
+						value = strings.Join(user.IdpGroups, ",")
 					}
 					hostContents = replaceFleetVariableInXML(rx, hostContents, value)
 
@@ -4464,7 +4464,8 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 	return true, nil
 }
 
-func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string, hostIDForUUIDCache map[string]uint) (*fleet.HostEndUser, bool, error) {
+func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdTarget,
+	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint) (*fleet.HostEndUser, bool, error) {
 	hostID, ok := hostIDForUUIDCache[hostUUID]
 	if !ok {
 		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
@@ -4497,6 +4498,37 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
+
+	if len(users) > 0 && users[0].IdpUserName != "" {
+		idpUser := users[0]
+		return &idpUser, true, nil
+	}
+
+	// otherwise there's no IdP user, mark the profile as failed with the
+	// appropriate detail message.
+	switch fleetVar {
+	case FleetVarHostEndUserIDPUsername:
+		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			CommandUUID:   target.cmdUUID,
+			HostUUID:      hostUUID,
+			Status:        &fleet.MDMDeliveryFailed,
+			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID),
+			OperationType: fleet.MDMOperationTypeInstall,
+		})
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
+		}
+	case FleetVarHostEndUserIDPUsernameLocalPart:
+	case FleetVarHostEndUserIDPGroups:
+	}
+	return nil, false, nil
+}
+
+func getEmailLocalPart(email string) string {
+	// if there is a "@" in the email, return the part before that "@", otherwise
+	// return the string unchanged.
+	local, _, _ := strings.Cut(email, "@")
+	return local
 }
 
 func getIDPEmail(ctx context.Context, ds fleet.Datastore, target *cmdTarget, hostUUID string) (string, bool, error) {
