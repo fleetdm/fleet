@@ -207,7 +207,7 @@ func TestEqual(t *testing.T) {
 		equal                     bool
 	}{
 		{
-			name:          "empty policies",
+			name:          "empty profiles",
 			a:             "",
 			b:             "",
 			equal:         false,
@@ -228,42 +228,42 @@ func TestEqual(t *testing.T) {
 			errorContains: "unmarshalling WLAN XML profile",
 		},
 		{
-			name:          "equal policies",
+			name:          "equal profiles",
 			a:             xmlEncodedProfile1,
 			b:             xmlEncodedProfile1,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "equal policies but different SSID order",
+			name:          "equal profiles but different SSID order",
 			a:             xmlEncodedProfile3,
 			b:             xmlEncodedProfile3SortVariant,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "equal policies but different SSID order - swapped invocation order",
+			name:          "equal profiles but different SSID order - swapped invocation order",
 			a:             xmlEncodedProfile3SortVariant,
 			b:             xmlEncodedProfile3,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "equal policies but SSIDs as hex for one",
+			name:          "equal profiles but SSIDs as hex for one",
 			a:             xmlEncodedProfile3,
 			b:             xmlEncodedProfile3HexVariant,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "different policies",
+			name:          "different profiles",
 			a:             xmlEncodedProfile1,
 			b:             xmlEncodedProfile2,
 			equal:         false,
 			errorContains: "",
 		},
 		{
-			name:          "similar policies with different SSID prefix settings",
+			name:          "similar profiles with different SSID prefix settings",
 			a:             xmlEncodedProfile3,
 			b:             xmlEncodedProfile4,
 			equal:         false,
