@@ -27,12 +27,6 @@ func (m *mockExecCmd) runWithOutput(args ...string) ([]byte, int, error) {
 	return m.output, m.exitCode, nil
 }
 
-func (m *mockExecCmd) runWithStdin(args ...string) (func() error, error) {
-	m.capturedArgs = append(m.capturedArgs, args...)
-
-	return nil, nil
-}
-
 func TestShowEntryArgs(t *testing.T) {
 	testCases := []struct {
 		name         string

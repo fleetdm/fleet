@@ -30,16 +30,6 @@ func (m *mockExecCmd) runWithOutput(timeout time.Duration, args ...string) ([]by
 	return m.output, m.exitCode, nil
 }
 
-func (m *mockExecCmd) runWithCancel(args ...string) (cancelFunc func() error, err error) {
-	m.capturedArgs = append(m.capturedArgs, args...)
-
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	return nil, nil
-}
-
 func TestShowEntryArgs(t *testing.T) {
 	testCases := []struct {
 		name         string
