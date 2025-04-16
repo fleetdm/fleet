@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	// Policy 1 is a simple single SSID policy
-	xmlEncodedPolicy1 = `&lt;?xml version=&quot;1.0&quot;?&gt;
+	// Profile 1 is a simple single SSID profile
+	xmlEncodedProfile1 = `&lt;?xml version=&quot;1.0&quot;?&gt;
 &lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/WLAN/profile/v1&quot;&gt;
 	&lt;name&gt;Test&lt;/name&gt;
 	&lt;SSIDConfig&gt;
@@ -36,8 +36,8 @@ const (
 	&lt;/MSM&gt;
 &lt;/WLANProfile&gt;`
 
-	// Policy 2 is a variant of policy 1 with a non-broadcast SSID
-	xmlEncodedPolicy2 = `&lt;?xml version=&quot;1.0&quot;?&gt;
+	// Profile 2 is a variant of profile 1 with a non-broadcast SSID
+	xmlEncodedProfile2 = `&lt;?xml version=&quot;1.0&quot;?&gt;
 &lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/WLAN/profile/v1&quot;&gt;
 	&lt;name&gt;Test&lt;/name&gt;
 	&lt;SSIDConfig&gt;
@@ -65,8 +65,8 @@ const (
 	&lt;/MSM&gt;
 &lt;/WLANProfile&gt;`
 
-	// Policy 3 is a more complex policy with multiple SSIDs
-	xmlEncodedPolicy3 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+	// Profile 3 is a more complex profile with multiple SSIDs
+	xmlEncodedProfile3 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
              xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
   &lt;name&gt;SampleProfile&lt;/name&gt;
   &lt;SSIDConfig&gt;
@@ -91,8 +91,8 @@ const (
   &lt;/MSM&gt;
 &lt;/WLANProfile&gt;`
 
-	// An equal variant of policy 3 with SSID order swapped
-	xmlEncodedPolicy3SortVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+	// An equal variant of profile 3 with SSID order swapped
+	xmlEncodedProfile3SortVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
              xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
   &lt;name&gt;SampleProfile&lt;/name&gt;
   &lt;SSIDConfig&gt;
@@ -117,8 +117,8 @@ const (
   &lt;/MSM&gt;
 &lt;/WLANProfile&gt;`
 
-	// an equal variant of policy 3 with Hex SSIDs in lieu of names
-	xmlEncodedPolicy3HexVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+	// An equal variant of profile 3 with Hex SSIDs in lieu of names
+	xmlEncodedProfile3HexVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
              xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
   &lt;name&gt;SampleProfile&lt;/name&gt;
   &lt;SSIDConfig&gt;
@@ -143,8 +143,8 @@ const (
   &lt;/MSM&gt;
 &lt;/WLANProfile&gt;`
 
-	// Policy 4 is a variant of policy 3 with a different prefix
-	xmlEncodedPolicy4 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
+	// Profile 4 is a variant of profile 3 with a different prefix
+	xmlEncodedProfile4 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
              xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
   &lt;name&gt;SampleProfile&lt;/name&gt;
   &lt;SSIDConfig&gt;
@@ -180,12 +180,12 @@ const (
 func TestIsWLANXML(t *testing.T) {
 	t.Parallel()
 	assert.False(t, IsWLANXML(""))
-	assert.False(t, IsWLANXML("not a policy"))
+	assert.False(t, IsWLANXML("not a profile"))
 	assert.False(t, IsWLANXML(`<![CDATA[bozo]]>`))
 	assert.False(t, IsWLANXML(`<![CDATA[<bozo/>]]>`))
 	assert.False(t, IsWLANXML(`<![CDATA[<bozo]]>`))
 
-	// These are all valid ADMX policies but not WLAN XML policies
+	// These are all valid ADMX policies but not WLAN XML profiles
 	assert.False(t, IsWLANXML(`<![CDATA[<enabled/>]]>`))
 	assert.False(t, IsWLANXML(`<![CDATA[<disabled/>]]>`))
 	assert.False(t, IsWLANXML(`<![CDATA[<data id="id" value="value"/>]]>`))
@@ -197,7 +197,7 @@ func TestIsWLANXML(t *testing.T) {
 		IsWLANXML("&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;"))
 	assert.False(t, IsWLANXML(admxPolicy))
 
-	assert.True(t, IsWLANXML(xmlEncodedPolicy1))
+	assert.True(t, IsWLANXML(xmlEncodedProfile1))
 }
 
 func TestEqual(t *testing.T) {
@@ -211,61 +211,61 @@ func TestEqual(t *testing.T) {
 			a:             "",
 			b:             "",
 			equal:         false,
-			errorContains: "unmarshalling WLAN XML policy",
+			errorContains: "unmarshalling WLAN XML profile",
 		},
 		{
 			name:          "a is an ADMX policy",
 			a:             admxPolicy,
-			b:             xmlEncodedPolicy1,
+			b:             xmlEncodedProfile1,
 			equal:         false,
-			errorContains: "unmarshalling WLAN XML policy",
+			errorContains: "unmarshalling WLAN XML profile",
 		},
 		{
 			name:          "b is an ADMX policy",
-			a:             xmlEncodedPolicy1,
+			a:             xmlEncodedProfile1,
 			b:             admxPolicy,
 			equal:         false,
-			errorContains: "unmarshalling WLAN XML policy",
+			errorContains: "unmarshalling WLAN XML profile",
 		},
 		{
 			name:          "equal policies",
-			a:             xmlEncodedPolicy1,
-			b:             xmlEncodedPolicy1,
+			a:             xmlEncodedProfile1,
+			b:             xmlEncodedProfile1,
 			equal:         true,
 			errorContains: "",
 		},
 		{
 			name:          "equal policies but different SSID order",
-			a:             xmlEncodedPolicy3,
-			b:             xmlEncodedPolicy3SortVariant,
+			a:             xmlEncodedProfile3,
+			b:             xmlEncodedProfile3SortVariant,
 			equal:         true,
 			errorContains: "",
 		},
 		{
 			name:          "equal policies but different SSID order - swapped invocation order",
-			a:             xmlEncodedPolicy3SortVariant,
-			b:             xmlEncodedPolicy3,
+			a:             xmlEncodedProfile3SortVariant,
+			b:             xmlEncodedProfile3,
 			equal:         true,
 			errorContains: "",
 		},
 		{
 			name:          "equal policies but SSIDs as hex for one",
-			a:             xmlEncodedPolicy3,
-			b:             xmlEncodedPolicy3HexVariant,
+			a:             xmlEncodedProfile3,
+			b:             xmlEncodedProfile3HexVariant,
 			equal:         true,
 			errorContains: "",
 		},
 		{
 			name:          "different policies",
-			a:             xmlEncodedPolicy1,
-			b:             xmlEncodedPolicy2,
+			a:             xmlEncodedProfile1,
+			b:             xmlEncodedProfile2,
 			equal:         false,
 			errorContains: "",
 		},
 		{
 			name:          "similar policies with different SSID prefix settings",
-			a:             xmlEncodedPolicy3,
-			b:             xmlEncodedPolicy4,
+			a:             xmlEncodedProfile3,
+			b:             xmlEncodedProfile4,
 			equal:         false,
 			errorContains: "",
 		},
