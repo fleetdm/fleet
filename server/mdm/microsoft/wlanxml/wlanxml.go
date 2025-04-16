@@ -61,11 +61,9 @@ type wlanXmlProfile struct {
 }
 
 type wlanXmlProfileSSIDConfig struct {
-	SSID []wlanXmlProfileSSID `xml:"SSID"`
-	// Note that this field is optional so if we ever do more inspection of these policies
-	// we likely need to
-	SSIDPrefix   wlanXmlProfileSSID `xml:"SSIDPrefix"`
-	NonBroadcast bool               `xml:"nonBroadcast"`
+	SSID         []wlanXmlProfileSSID `xml:"SSID"`
+	SSIDPrefix   wlanXmlProfileSSID   `xml:"SSIDPrefix"`
+	NonBroadcast bool                 `xml:"nonBroadcast"`
 }
 
 type wlanXmlProfileSSID struct {
