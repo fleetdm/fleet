@@ -377,7 +377,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 
 			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware,
+				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware, existingBundleIDsToUpdate,
 			)
 			if err != nil {
 				return err
@@ -731,6 +731,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	existingSoftware []softwareIDChecksum,
 	softwareChecksums map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
+	existingBundleIDsToUpdate map[string]fleet.Software,
 ) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
@@ -746,6 +747,11 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
+				if s.BundleIdentifier != nil {
+					if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+						continue
+					}
+				}
 				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
