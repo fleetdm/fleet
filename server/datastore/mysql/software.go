@@ -3416,7 +3416,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				softwareVulnerableJoin += "\n" + strings.ReplaceAll(cveMatchClause, "AND", "AND (")
 				softwareVulnerableJoin += strings.ReplaceAll(matchClause, "AND", "OR") + ")"
 				softwareVulnerableJoin += "\n)"
-				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
+				if !opts.VulnerableOnly || opts.ListOptions.MatchQuery != "" {
 					softwareVulnerableJoin += ")"
 				}
 			}
@@ -3467,8 +3467,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			if len(matchArgs) > 0 {
 				args = append(args, matchArgs...)
-				// have to append twice because we have two groups to match title with
-				args = append(args, matchArgs...)
+				// Have to conditionally add the additional match for software without vulnerabilities
+				if !opts.VulnerableOnly && opts.ListOptions.MatchQuery != "" {
+					args = append(args, matchArgs...)
+				}
 			}
 			stmt += softwareTitleStatement
 		}
