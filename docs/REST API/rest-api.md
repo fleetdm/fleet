@@ -9364,6 +9364,7 @@ Returns information about the specified software. By default, `versions` are sor
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
+      "sha_256": "51b09a0c9c57f51d2fe4b723f0e493568abd3ffa927bf4adc7a0ac3c0f8fda84",
       "version": "6.44",
       "platform": "darwin",
       "installer_id": 23,
