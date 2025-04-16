@@ -329,7 +329,6 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
 
 	// Now ingest software from host2, with a rename
-	incoming = make(map[string]fleet.Software)
 	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 3.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
 	require.NoError(t, err)
 
