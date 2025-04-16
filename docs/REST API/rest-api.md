@@ -9695,7 +9695,7 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "title_id": 123,
+  "software_title_id": 123,
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
     "fleet_maintained_app_id": 42,
@@ -9904,6 +9904,11 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 `Status: 200`
 
+```
+{
+  "software_title_id": 123
+}
+```
 
 ### Modify App Store app
 
