@@ -78,7 +78,6 @@ const ConditionalAccessModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 disabled={disableChildren || !isAdmin}
                 className="button-wrap"
                 isLoading={isUpdating}
@@ -104,9 +103,7 @@ const ConditionalAccessModal = ({
       <br />
       {learnMoreLink}
       <div className="modal-cta-wrap">
-        <Button onClick={onExit} variant="brand">
-          Done
-        </Button>
+        <Button onClick={onExit}>Done</Button>
       </div>
     </>
   );
