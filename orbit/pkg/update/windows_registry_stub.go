@@ -2,6 +2,6 @@
 
 package update
 
-func updateRegistryVersion(newVersion string) error {
+func updateUninstallFleetdRegistryVersion(newVersion string) error {
 	return nil
 }
