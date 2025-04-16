@@ -78,7 +78,6 @@ const ConditionalAccessModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 disabled={disableChildren || !isAdmin}
                 className="button-wrap"
                 isLoading={isUpdating}
