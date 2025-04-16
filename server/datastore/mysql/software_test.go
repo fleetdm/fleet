@@ -231,6 +231,7 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 
 	incoming := make(map[string]fleet.Software)
 	sw, err := fleet.SoftwareFromOsqueryRow("GoLand.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
@@ -326,6 +327,44 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.Len(t, softwareTitle, 1)
 	require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
+
+	// Now ingest software from host2, with a rename
+	incoming = make(map[string]fleet.Software)
+	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 3.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+	require.NoError(t, err)
+
+	sw2, err := fleet.SoftwareFromOsqueryRow("SomeOther.app", "1.2.3", "apps", "", "", "", "", "com.some.other", "", "", "")
+	require.NoError(t, err)
+
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host2.ID, []fleet.Software{*sw, *sw2})
+	require.NoError(t, err)
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx),
+		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
+	)
+
+	require.NoError(t, err)
+	// there's a new row for the new software, but existing software was renamed
+	require.Len(t, software, 2)
+	for _, s := range software {
+		require.NotEmpty(t, s.TitleID)
+		// software.name is updated now for GoLand
+		if s.BundleIdentifier == "com.jetbrains.goland" {
+			require.Equal(t, "GoLand 3.app", s.Name)
+		}
+	}
+
+	// Simulate a vulns run by calling ReconcileSoftwareTitles (the method that actually does the
+	// renaming of software titles)
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	var goland fleet.SoftwareTitle
+	err = sqlx.GetContext(ctx, ds.reader(ctx),
+		&goland, `SELECT id, name FROM software_titles WHERE bundle_identifier = 'com.jetbrains.goland'`,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "GoLand 3.app", goland.Name)
 }
 
 func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {

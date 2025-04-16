@@ -576,7 +576,8 @@ func (ds *Datastore) getExistingSoftware(
 	for bid := range existingBundleIDsToUpdate {
 		if cs, ok := bundleIDsToChecksum[bid]; ok {
 			// we don't want this to be treated as a new software title, because then a new software
-			// entry will be created. Instead, we want to update the existing entries with the new names.
+			// entry will be created. Instead, we want to update the existing entries with the new
+			// names.
 			delete(incomingChecksumToSoftware, cs)
 		}
 	}
@@ -748,6 +749,9 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
 				if s.BundleIdentifier != nil {
+					// If this is a softwarea we know we have to update (rename), then it's expected
+					// that we wouldn't find it in softwareChecksums (we deleted it from that map
+					// earlier in ds.getExistingSoftware.
 					if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
 						continue
 					}
