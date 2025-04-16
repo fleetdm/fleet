@@ -23,9 +23,6 @@ type Dialog interface {
 	// ShowInfo displays a dialog that displays information. It returns an error if the dialog
 	// could not be displayed.
 	ShowInfo(opts InfoOptions) error
-	// Progress displays a dialog that shows progress. It waits until the
-	// context is cancelled.
-	ShowProgress(opts ProgressOptions) (cancelFunc func() error, err error)
 }
 
 // EntryOptions represents options for a dialog that accepts end user input.

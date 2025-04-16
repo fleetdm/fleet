@@ -297,6 +297,7 @@ const SaveQueryModal = ({
                 Query will target hosts that <b>have any</b> of these labels:
               </span>
             }
+            suppressTitle
           />
         )}
         <RevealButton
@@ -341,7 +342,6 @@ const SaveQueryModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
             disabled={!canSave}

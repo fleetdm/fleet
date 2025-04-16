@@ -59,7 +59,7 @@ const UpcomingActivityFeed = ({
             upcomingActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
-              key={activity.id}
+              key={activity.uuid}
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}

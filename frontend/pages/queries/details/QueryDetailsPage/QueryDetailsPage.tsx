@@ -292,7 +292,6 @@ const QueryDetailsPage = ({
                         );
                     }}
                     className={`${baseClass}__manage-automations button`}
-                    variant="brand"
                   >
                     Edit query
                   </Button>
@@ -309,7 +308,7 @@ const QueryDetailsPage = ({
                     >
                       <Button
                         className={`${baseClass}__run`}
-                        variant="blue-green"
+                        variant="success"
                         onClick={() => {
                           queryId &&
                             router.push(
