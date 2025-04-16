@@ -274,7 +274,7 @@ const TeamManagementPage = (): JSX.Element => {
             actionButton={{
               name: "create team",
               buttonText: "Create team",
-              variant: "brand",
+              variant: "default",
               onActionButtonClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
               gitOpsModeCompatible: true,

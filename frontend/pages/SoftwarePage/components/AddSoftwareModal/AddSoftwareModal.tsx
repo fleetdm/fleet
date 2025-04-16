@@ -18,9 +18,7 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
         <b>All teams</b> is selected.
       </p>
       <div className="modal-cta-wrap">
-        <Button variant="brand" onClick={onExit}>
-          Done
-        </Button>
+        <Button onClick={onExit}>Done</Button>
       </div>
     </>
   );
@@ -38,9 +36,7 @@ const AddSoftwareModal = ({ onExit, isFreeTier }: IAddSoftwareModalProps) => {
         <>
           <PremiumFeatureMessage alignment="left" />{" "}
           <div className="modal-cta-wrap">
-            <Button variant="brand" onClick={onExit}>
-              Done
-            </Button>
+            <Button onClick={onExit}>Done</Button>
           </div>
         </>
       );

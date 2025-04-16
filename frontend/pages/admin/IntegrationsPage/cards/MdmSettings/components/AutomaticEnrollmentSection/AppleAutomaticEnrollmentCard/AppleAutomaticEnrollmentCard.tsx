@@ -41,11 +41,7 @@ const AppleAutomaticEnrollmentCard = ({
     <SectionCard
       header="Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts."
       cta={
-        <Button
-          className="add-abm-button"
-          onClick={viewDetails}
-          variant="brand"
-        >
+        <Button className="add-abm-button" onClick={viewDetails}>
           Add ABM
         </Button>
       }

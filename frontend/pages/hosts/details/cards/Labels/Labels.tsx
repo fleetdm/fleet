@@ -28,7 +28,7 @@ const Labels = ({
       <li className="list__item" key={label.id}>
         <Button
           onClick={() => onLabelClick(label)}
-          variant="label"
+          variant="pill"
           className="list__button"
         >
           {label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
