@@ -4405,12 +4405,16 @@ func preprocessProfileContents(
 			}
 		}
 		// Update profiles with the new command UUID
-		if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating host profiles")
+		if len(profilesToUpdate) > 0 {
+			if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating host profiles")
+			}
 		}
-		err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating managed certificates")
+		if len(managedCertificatePayloads) != 0 {
+			err := ds.BulkUpsertMDMManagedCertificates(ctx, managedCertificatePayloads)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating managed certificates")
+			}
 		}
 		// Remove the parent target, since we will use host-specific targets
 		delete(targets, profUUID)

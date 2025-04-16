@@ -4306,6 +4306,316 @@ func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {
 	})
 }
 
+func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
+	ctx := context.Background()
+	logger := kitlog.NewNopLogger()
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	ds := new(mock.Store)
+
+	svc := eeservice.NewSCEPConfigService(logger, nil)
+	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+
+	hostUUID := "host-1"
+	cmdUUID := "cmd-1"
+	var targets map[string]*cmdTarget
+	// this is a func to re-create it each time because calling the preprocess function modifies this
+	populateTargets := func() {
+		targets = map[string]*cmdTarget{
+			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID}},
+		}
+	}
+	hostProfilesToInstallMap := map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		hostProfileUUID{HostUUID: hostUUID, ProfileUUID: "p1"}: &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       "p1",
+			ProfileIdentifier: "com.add.profile",
+			HostUUID:          hostUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			CommandUUID:       cmdUUID,
+		},
+	}
+
+	var updatedPayload *fleet.MDMAppleBulkUpsertHostProfilePayload
+	var expectedStatus fleet.MDMDeliveryStatus
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
+		require.Len(t, payload, 1)
+		updatedPayload = payload[0]
+		require.NotNil(t, updatedPayload.Status)
+		assert.Equal(t, expectedStatus, *updatedPayload.Status)
+		// cmdUUID was replaced by a new unique command on success
+		assert.NotEqual(t, cmdUUID, updatedPayload.CommandUUID)
+		assert.Equal(t, hostUUID, updatedPayload.HostUUID)
+		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedPayload.OperationType)
+		return nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, idents []string) ([]uint, error) {
+		require.Len(t, idents, 1)
+		require.Equal(t, hostUUID, idents[0])
+		return []uint{1}, nil
+	}
+	var updatedProfile *fleet.HostMDMAppleProfile
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		updatedProfile = profile
+		require.NotNil(t, profile.Status)
+		assert.Equal(t, expectedStatus, *profile.Status)
+		return nil
+	}
+
+	cases := []struct {
+		desc           string
+		profileContent string
+		expectedStatus fleet.MDMDeliveryStatus
+		setup          func()
+		assert         func(output string)
+	}{
+		{
+			desc:           "username only scim",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPUsername,
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "user1@example.com", output)
+			},
+		},
+		{
+			desc:           "username local part only scim",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPUsernameLocalPart,
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "user1", output)
+			},
+		},
+		{
+			desc:           "groups only scim",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPGroups,
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{
+						{DisplayName: "a"},
+						{DisplayName: "b"},
+					}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "a,b", output)
+			},
+		},
+		{
+			desc:           "multiple times username only scim",
+			profileContent: strings.Repeat("${FLEET_VAR_"+FleetVarHostEndUserIDPUsername+"}", 3),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "user1@example.comuser1@example.comuser1@example.com", output)
+			},
+		},
+		{
+			desc:           "all 3 vars with scim",
+			profileContent: "${FLEET_VAR_" + FleetVarHostEndUserIDPUsername + "}${FLEET_VAR_" + FleetVarHostEndUserIDPUsernameLocalPart + "}${FLEET_VAR_" + FleetVarHostEndUserIDPGroups + "}",
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{
+						{DisplayName: "a"},
+						{DisplayName: "b"},
+					}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "user1@example.comuser1a,b", output)
+			},
+		},
+		{
+			desc:           "username no scim, with idp",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPUsername,
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return nil, newNotFoundError()
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{Email: "idp@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+						{Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+					}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "idp@example.com", output)
+			},
+		},
+		{
+			desc:           "username scim and idp",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPUsername,
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{Email: "idp@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+						{Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+					}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "user1@example.com", output)
+			},
+		},
+		{
+			desc:           "username no idp user",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPUsername,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return nil, newNotFoundError()
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+					}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+			},
+		},
+		{
+			desc:           "username local part no idp user",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPUsernameLocalPart,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return nil, newNotFoundError()
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{
+						{Email: "other@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+					}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
+			},
+		},
+		{
+			desc:           "groups no idp user",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPGroups,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return nil, newNotFoundError()
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+			},
+		},
+		{
+			desc:           "groups with scim user but no group",
+			profileContent: "$FLEET_VAR_" + FleetVarHostEndUserIDPGroups,
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					return &fleet.ScimUser{UserName: "user1@example.com", Groups: []fleet.ScimUserGroup{}}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return []*fleet.HostDeviceMapping{}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Len(t, targets, 0) // target is not present
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_GROUPS.")
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			c.setup()
+
+			profileContents := map[string]mobileconfig.Mobileconfig{
+				"p1": []byte(c.profileContent),
+			}
+			populateTargets()
+			expectedStatus = c.expectedStatus
+			updatedPayload = nil
+			updatedProfile = nil
+
+			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap)
+			require.NoError(t, err)
+			var output string
+			if expectedStatus == fleet.MDMDeliveryFailed {
+				require.Nil(t, updatedPayload)
+				require.NotNil(t, updatedProfile)
+			} else {
+				require.NotNil(t, updatedPayload)
+				require.Nil(t, updatedProfile)
+				output = string(profileContents[updatedPayload.CommandUUID])
+			}
+
+			c.assert(output)
+		})
+	}
+}
+
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
 	appConfig := &fleet.AppConfig{
