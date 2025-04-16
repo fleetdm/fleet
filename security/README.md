@@ -60,7 +60,7 @@ make vex-report
 
 ### 2. Update software
 
-If the detected vulnerability can be fixed by updating the base docker image or removing/changing components in the docker image then we do so and the update will be present on the next release. (It is good practice to keep software up-to-date.)
+If the detected that a vulnerability can be fixed by updating the base docker image or removing/changing components in the docker image then we do so and the update will be present on the next release. (It is good practice to keep software up-to-date.)
 
 ### 3. Process for "affected" CRITICAL vulnerabilities
 
