@@ -179,25 +179,37 @@ const (
 
 func TestIsWLANXML(t *testing.T) {
 	t.Parallel()
-	assert.False(t, IsWLANXML(""))
-	assert.False(t, IsWLANXML("not a profile"))
-	assert.False(t, IsWLANXML(`<![CDATA[bozo]]>`))
-	assert.False(t, IsWLANXML(`<![CDATA[<bozo/>]]>`))
-	assert.False(t, IsWLANXML(`<![CDATA[<bozo]]>`))
-
-	// These are all valid ADMX policies but not WLAN XML profiles
-	assert.False(t, IsWLANXML(`<![CDATA[<enabled/>]]>`))
-	assert.False(t, IsWLANXML(`<![CDATA[<disabled/>]]>`))
-	assert.False(t, IsWLANXML(`<![CDATA[<data id="id" value="value"/>]]>`))
-	assert.False(t, IsWLANXML(
-		`	<![CDATA[
+	tests := map[string]struct {
+		input    string
+		expected bool
+	}{
+		"empty string":                     {"", false},
+		"not a profile":                    {"not a profile", false},
+		"CDATA with invalid content":       {`<![CDATA[bozo]]>`, false},
+		"CDATA with invalid XML":           {`<![CDATA[<bozo/>]]>`, false},
+		"CDATA with incomplete XML":        {`<![CDATA[<bozo]]>`, false},
+		"valid ADMX policy - enabled":      {`<![CDATA[<enabled/>]]>`, false},
+		"valid ADMX policy - disabled":     {`<![CDATA[<disabled/>]]>`, false},
+		"valid ADMX policy - data element": {`<![CDATA[<data id="id" value="value"/>]]>`, false},
+		"valid ADMX policy - multiline": {`	<![CDATA[
 				<enabled/>
-				]]>`))
-	assert.False(t,
-		IsWLANXML("&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;"))
-	assert.False(t, IsWLANXML(admxPolicy))
+				]]>`, false},
+		"valid ADMX policy - encoded":               {"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;", false},
+		"valid ADMX policy - constant":              {admxPolicy, false},
+		"valid WLAN XML profile 1":                  {xmlEncodedProfile1, true},
+		"valid WLAN XML profile 2":                  {xmlEncodedProfile1, true},
+		"valid WLAN XML profile 3":                  {xmlEncodedProfile3, true},
+		"valid WLAN XML profile 3 unsorted variant": {xmlEncodedProfile3, true},
+		"valid WLAN XML profile 3 hex variant":      {xmlEncodedProfile3, true},
+		"valid WLAN XML profile 4":                  {xmlEncodedProfile3, true},
+	}
 
-	assert.True(t, IsWLANXML(xmlEncodedProfile1))
+	for name, testCase := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCase.expected, IsWLANXML(testCase.input))
+		})
+	}
 }
 
 func TestEqual(t *testing.T) {
