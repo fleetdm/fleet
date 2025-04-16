@@ -110,6 +110,7 @@ func createApp(
 		upgradePacksCommand(),
 		runScriptCommand(),
 		gitopsCommand(),
+		generateGitopsCommand(),
 	}
 	return app
 }
