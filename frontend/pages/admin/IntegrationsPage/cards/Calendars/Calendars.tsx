@@ -343,7 +343,6 @@ const Calendars = (): JSX.Element => {
                       renderChildren={(dC) => (
                         <Button
                           type="submit"
-                          variant="brand"
                           disabled={Object.keys(formErrors).length > 0 || dC}
                           className="save-loading"
                           isLoading={isUpdatingSettings}

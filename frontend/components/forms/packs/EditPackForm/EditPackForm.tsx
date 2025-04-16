@@ -143,7 +143,6 @@ const EditPackForm = ({
         </Button>
         <Button
           type="submit"
-          variant="brand"
           className="save-loading"
           isLoading={isUpdatingPack}
         >

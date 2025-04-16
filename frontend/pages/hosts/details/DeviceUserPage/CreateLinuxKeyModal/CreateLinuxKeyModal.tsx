@@ -34,12 +34,7 @@ const CreateLinuxKeyModal = ({
         </li>
       </ol>
       <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onExit}
-          className="save-loading"
-        >
+        <Button type="submit" onClick={onExit} className="save-loading">
           Done
         </Button>
       </div>

@@ -45,7 +45,7 @@ const config: Config = {
   transformIgnorePatterns: [`/node_modules/(?!(${esModules})/)`],
   globals: {
     TransformStream,
-    featureFlags: {},
+    featureFlags: { allowConditionalAccess: "true" },
   },
 };
 

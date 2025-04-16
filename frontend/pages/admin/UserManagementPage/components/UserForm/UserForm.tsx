@@ -729,7 +729,6 @@ const UserForm = ({
           </Button>
           <Button
             type="submit"
-            variant="brand"
             onClick={onFormSubmit}
             className={`${isNewUser ? "add" : "save"}-loading
           `}

@@ -259,7 +259,6 @@ const FleetAppDetailsForm = ({
             >
               <Button
                 type="submit"
-                variant="brand"
                 disabled={disableChildren || isSubmitDisabled}
               >
                 Add software

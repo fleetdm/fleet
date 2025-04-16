@@ -139,7 +139,6 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         />
         <div className="modal-cta-wrap">
           <Button
-            variant="brand"
             onClick={uploadAbmToken}
             isLoading={isUploading}
             disabled={!tokenFile || isUploading}

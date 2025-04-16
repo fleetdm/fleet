@@ -717,7 +717,7 @@ const EditQueryForm = ({
           >
             <Button
               className={`${baseClass}__run`}
-              variant="blue-green"
+              variant="success"
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
@@ -982,7 +982,6 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         className="save-loading"
-                        variant="brand"
                         onClick={
                           confirmChanges
                             ? toggleConfirmSaveChangesModal
@@ -1006,7 +1005,7 @@ const EditQueryForm = ({
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="blue-green"
+                variant="success"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
