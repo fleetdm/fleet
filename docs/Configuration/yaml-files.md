@@ -468,17 +468,10 @@ software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any: # Available in Fleet Premium
-        - Engineering
-        - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any: # Available in Fleet Premium
-        - Product
-        - Marketing
+      self_service: true
 ```
-
-Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 ### packages
 
@@ -488,7 +481,9 @@ Use `labels_include_any` to target hosts that have any label or `labels_exclude_
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
-- `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**. If set to `true`, allows all hosts compatible with the package's platform on the team to install the software via self-service.
+
+> To limit which hosts within a team can install via self-service, use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified.
 
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
@@ -504,7 +499,10 @@ uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
-self_service: true
+self_service:
+  labels_include_any:
+    - Engineering
+    - Customer Support
 ```
 
 ### app_store_apps
@@ -513,7 +511,9 @@ self_service: true
 
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
-- `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `self_service` (macOS only) specifies whether or not end users can install from **Fleet Desktop > Self-service**. If set to `true`, allows all macOS hosts on the team to install the software via self-service, if the app is available for macOS.
+
+> To limit which macOS hosts within a team can install via self-service, use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified.
 
 ## org_settings and team_settings
 

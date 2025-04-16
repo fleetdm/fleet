@@ -4118,7 +4118,11 @@ Resends a configuration profile for the specified host.
         "name": "GoogleChrome.pkg",
         "platform": "darwin",
         "version": "125.12.0.3",
-        "self_service": true,
+        "self_service": {
+          "all_hosts": true,
+          "labels_include_any": [],
+          "labels_exclude_any": []
+        },
         "last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
           "installed_at": "2024-05-15T15:23:57Z"
@@ -4170,7 +4174,7 @@ Resends a configuration profile for the specified host.
         "platform": "darwin",
         "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
         "version": "2.04",
-        "self_service": false,
+        "self_service": null,
         "last_install": {
           "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
           "installed_at": "2024-05-15T15:23:57Z"
@@ -6253,7 +6257,6 @@ List software that can or will be automatically installed during macOS setup. If
         "name": "FirefoxInsall.pkg",
         "platform": "darwin",
         "version": "125.6",
-        "self_service": true,
         "install_during_setup": true
       },
       "app_store_app": null,
@@ -9111,7 +9114,7 @@ Get a list of all software.
         "platform": "darwin",
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
-        "self_service": true,
+        "self_service": null,
         "policies": [
           {
             "id": 343,
@@ -9394,13 +9397,16 @@ Returns information about the specified software. By default, `versions` are sor
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "uninstall_script": "/Library/CS/falconctl uninstall",
-      "self_service": true,
-      "labels_include_any": [
-        {
-          "name": "Engineering",
-          "id": 294
-        }
-      ],
+      "self_service": {
+        "all_hosts": false,
+        "labels_include_any": [
+          {
+            "name": "Engineering",
+            "id": 294
+          }
+        ],
+        "labels_exclude_any": []
+      }
       "policies": [
         {
           "id": 343,
@@ -9467,7 +9473,11 @@ Returns information about the specified software. By default, `versions` are sor
       "latest_version": "2.04",
       "created_at": "2024-04-01T14:22:58Z",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-      "self_service": true,
+      "self_service": {
+        "all_hosts": true,
+        "labels_include_any": [],
+        "labels_exclude_any": []
+      },
       "policies": [
         {
           "id": 345,
@@ -9635,11 +9645,11 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 | ensure | string | form | If set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
+| labels_include_any        | array     | form | Only display within self-service, and install automatically, on hosts with one or more of the specified labels. |
+| labels_exclude_any | array | form | Only display within self-service, and install automatically, on hosts with none of the specified labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified and, any compatible host on the team will be able to install the app via self-service (if `self_service` is set), and all compatible hosts on the team will have the app auto-installed (if `ensure` is set to `present`). At least one of `ensure` or `self_service` must be set if label scoping is included.
 
 #### Example
 
@@ -9696,7 +9706,11 @@ Content-Type: application/octet-stream
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-    "self_service": true,
+    "self_service": {
+      "all_hosts": true,
+      "labels_include_any": [],
+      "labels_exclude_any": []
+    },
     "status": {
       "installed": 0,
       "pending": 0,
@@ -9726,11 +9740,11 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
-| self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| self_service.all_hosts | boolean | form | If true, allow this software to be installed on any compatible host on the team via self-service. |
+| self_service.labels_include_any        | array     | form | Only display within self-service on hosts with one or more of the specified labels. |
+| self_service.labels_exclude_any | array | form | Only display within self-service on hosts with none of the specified labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `self_service.all_hosts`, `self_service.labels_include_any`, or `self_service.labels_exclude_any` can be specified.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
@@ -9788,7 +9802,11 @@ Content-Type: application/octet-stream
     "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-    "self_service": true,
+    "self_service": {
+      "all_hosts": true,
+      "labels_include_any": [],
+      "labels_exclude_any": []
+    },
     "status": {
       "installed": 0,
       "pending": 0,
@@ -9867,10 +9885,10 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 | self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| labels_include_any        | array     | body | Only display within self-service, and install automatically, on hosts with one or more of the specified labels. |
+| labels_exclude_any | array | body | Only display within self-service, and install automatically, on hosts with none of the specified labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified and, any compatible host on the team will be able to install the app via self-service (if `self_service` is set), and all compatible hosts on the team will have the app auto-installed (if `ensure` is set to `present`). At least one of `ensure` or `self_service` must be set if label scoping is included.
 
 
 #### Example
@@ -9907,11 +9925,11 @@ Modify App Store (VPP) app's options.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | form | Target hosts that have any label in the array. |
-| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+| self_service.all_hosts | boolean | form | If true, allow this software to be installed on any compatible macOS host on the team via self-service. |
+| self_service.labels_include_any        | array     | form | Only display within self-service on macOS hosts with one or more of the specified labels. |
+| self_service.labels_exclude_any | array | form | Only display within self-service on macOS hosts with none of the specified labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `self_service.all_hosts`, `self_service.labels_include_any`, or `self_service.labels_exclude_any` can be specified.
 
 #### Example
 
@@ -9922,11 +9940,12 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ```json
 {
   "team_id": 2,
-  "self_service": true,
-  "labels_include_any": [
-    "Product",
-    "Marketing"
-  ]
+  "self_service": {
+    "labels_include_any": [
+      "Product",
+      "Marketing"
+    ]
+  }
 }
 ```
 
@@ -9941,17 +9960,20 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "app_store_id": 1091189122,
     "latest_version": "2.04",
     "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-    "self_service": true,
-    "labels_include_any": [
-      {
-        "name": "Product",
-        "id": 12
-      },
-      {
-        "name": "Marketing",
-        "id": 17
-      }
-    ],
+    "self_service": {
+      "all_hosts": false,
+      "labels_include_any": [
+        {
+          "name": "Product",
+          "id": 12
+        },
+        {
+          "name": "Marketing",
+          "id": 17
+        }
+      ],
+      "labels_exclude_any": []
+    },
     "policies": [
       {
         "id": 345,
@@ -10081,12 +10103,12 @@ Add Fleet-maintained app so it's available for install.
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs default install command for each Fleet-maintained app. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
-| labels_include_any        | array     | body | Target hosts that have any label in the array. |
-| labels_exclude_any | array | body | Target hosts that don't have any label in the array. |
+| self_service | boolean | body | Allow the end user to install the software via the self-service UI. |
 | ensure | string | body | If set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
+| labels_include_any        | array     | body | Only display within self-service, and install automatically, on hosts with one or more of the specified labels. |
+| labels_exclude_any | array | body | Only display within self-service, and install automatically, on hosts with none of the specified labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified and, any compatible host on the team will be able to install the app via self-service (if `self_service` is set), and all compatible hosts on the team will have the app auto-installed (if `ensure` is set to `present`). At least one of `ensure` or `self_service` must be set if label scoping is included.
 
 #### Example
 
