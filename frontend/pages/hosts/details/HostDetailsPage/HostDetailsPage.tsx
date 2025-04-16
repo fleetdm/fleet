@@ -966,7 +966,7 @@ const HostDetailsPage = ({
                   endUsers={host.end_users ?? []}
                   enableAddEndUser={
                     isDarwinHost &&
-                    generateUsernameValues(host.end_users ?? []).length !== 0
+                    generateUsernameValues(host.end_users ?? []).length === 0
                   }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
