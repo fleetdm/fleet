@@ -71,6 +71,8 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
    - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
    - Engage engineering to gain insight into technical costs and feasibility.
 
+> When significant input from engineering is necessary, notify the EM so that they can create a timebox issue and decide if planned work can be deprioritized.
+
 Additionally:
 
 - To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
