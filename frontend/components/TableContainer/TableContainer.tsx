@@ -302,7 +302,7 @@ const TableContainer = <T,>({
               <Button
                 disabled={disableActionButton || disableChildren}
                 onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "brand"}
+                variant={actionButton.variant || "default"}
                 className={`${baseClass}__table-action-button`}
               >
                 <>
@@ -318,7 +318,7 @@ const TableContainer = <T,>({
         <Button
           disabled={disableActionButton}
           onClick={actionButton.onActionButtonClick}
-          variant={actionButton.variant || "brand"}
+          variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
         >
           <>

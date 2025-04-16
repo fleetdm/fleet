@@ -408,7 +408,6 @@ const ManageQueriesPage = ({
                 )}
               {canCustomQuery && (
                 <Button
-                  variant="brand"
                   className={`${baseClass}__create-button`}
                   onClick={onCreateQueryClick}
                 >

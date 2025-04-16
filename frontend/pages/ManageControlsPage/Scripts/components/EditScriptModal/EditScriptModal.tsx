@@ -145,7 +145,6 @@ const EditScriptModal = ({
               </Button>
               <Button
                 onClick={onSave}
-                variant="brand"
                 isLoading={isSubmitting}
                 disabled={!!formError}
               >
