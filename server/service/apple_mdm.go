@@ -4499,27 +4499,45 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 		return nil, false, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
 
+	noGroupsErr := fmt.Sprintf("There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_%s.", FleetVarHostEndUserIDPGroups)
 	if len(users) > 0 && users[0].IdpUserName != "" {
 		idpUser := users[0]
+
+		if fleetVar == FleetVarHostEndUserIDPGroups && len(idpUser.IdpGroups) == 0 {
+			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+				CommandUUID:   target.cmdUUID,
+				HostUUID:      hostUUID,
+				Status:        &fleet.MDMDeliveryFailed,
+				Detail:        noGroupsErr,
+				OperationType: fleet.MDMOperationTypeInstall,
+			})
+			if err != nil {
+				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
+			}
+			return nil, false, nil
+		}
+
 		return &idpUser, true, nil
 	}
 
 	// otherwise there's no IdP user, mark the profile as failed with the
 	// appropriate detail message.
+	var detail string
 	switch fleetVar {
-	case FleetVarHostEndUserIDPUsername:
-		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			CommandUUID:   target.cmdUUID,
-			HostUUID:      hostUUID,
-			Status:        &fleet.MDMDeliveryFailed,
-			Detail:        fmt.Sprintf("Unexpected number of hosts (%d) for UUID %s. ", len(ids), hostUUID),
-			OperationType: fleet.MDMOperationTypeInstall,
-		})
-		if err != nil {
-			return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
-		}
-	case FleetVarHostEndUserIDPUsernameLocalPart:
+	case FleetVarHostEndUserIDPUsername, FleetVarHostEndUserIDPUsernameLocalPart:
+		detail = fmt.Sprintf("There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleetVar)
 	case FleetVarHostEndUserIDPGroups:
+		detail = noGroupsErr
+	}
+	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		CommandUUID:   target.cmdUUID,
+		HostUUID:      hostUUID,
+		Status:        &fleet.MDMDeliveryFailed,
+		Detail:        detail,
+		OperationType: fleet.MDMOperationTypeInstall,
+	})
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP")
 	}
 	return nil, false, nil
 }
