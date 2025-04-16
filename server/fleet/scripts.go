@@ -558,3 +558,20 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		return false
 	}
 }
+
+const BatchExecuteIncompatiblePlatform = "incompatible-platform"
+const BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
+
+type BatchExecutionSummary struct {
+	ScriptID   uint                 `json:"script_id"`
+	TeamID     *uint                `json:"team_id"`
+	ScriptName string               `json:"script_name"`
+	Hosts      []BatchExecutionHost `json:"hosts"`
+}
+
+type BatchExecutionHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ExecutionID     string `json:"execution_id,omitempty"`
+	Error           string `json:"error,omitempty"`
+}

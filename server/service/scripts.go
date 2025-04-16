@@ -1057,6 +1057,63 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bulk script execution
+////////////////////////////////////////////////////////////////////////////////
+
+type batchScriptRunRequest struct {
+	ScriptID uint   `json:"-" query:"script_id"`
+	HostIDs  []uint `json:"-" query:"host_ids"`
+}
+
+type batchScriptRunResponse struct {
+	BatchExecutionID string `json:"batch_execution_id"`
+	Err              error  `json:"error,omitempty"`
+}
+
+func (r batchScriptRunResponse) Error() error { return r.Err }
+
+func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptRunRequest)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs)
+	if err != nil {
+		return batchScriptRunResponse{Err: err}, nil
+	}
+	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
+}
+
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+	return "", nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Bulk script execution summary
+////////////////////////////////////////////////////////////////////////////////
+
+type batchScriptSummaryRequest struct {
+	ExecutionID string `json:"-" query:"batch_execution_id"`
+}
+
+type batchScriptSummaryResponse struct {
+	*fleet.BatchExecutionSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchScriptSummaryResponse) Error() error { return r.Err }
+
+func batchScriptSummaryEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptSummaryRequest)
+	summary, err := svc.BatchScriptSummary(ctx, req.ExecutionID)
+	if err != nil {
+		return batchScriptSummaryResponse{Err: err}, nil
+	}
+	return batchScriptSummaryResponse{BatchExecutionSummary: summary}, nil
+}
+
+func (svc *Service) BatchScriptSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+	return nil, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Lock host
 ////////////////////////////////////////////////////////////////////////////////
 
