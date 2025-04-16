@@ -395,7 +395,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	// confusion about the status of the call.
 	var outputStrBuffer *uint16
 	if returnCode, _, _ := procSendSyncMLcommand.Call(uintptr(unsafe.Pointer(&inputCmdPtr[0])), uintptr(unsafe.Pointer(&outputStrBuffer))); returnCode != uintptr(windows.ERROR_SUCCESS) {
-		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): (0x%X)", err, returnCode)
+		return "", fmt.Errorf("there was an error calling ApplyLocalManagementSyncML(): (0x%X)", returnCode)
 	}
 
 	// converting Windows MDM UTF16 output string into go string
