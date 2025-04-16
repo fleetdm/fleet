@@ -900,6 +900,7 @@ None.
     "organization": "fleet",
     "device_count": 500000,
     "expiration": "2031-10-16T00:00:00Z",
+    "disable_telemetry": false,
     "note": ""
   },
   "logging": {
