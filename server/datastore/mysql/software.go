@@ -377,7 +377,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 
 			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware,
+				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware, existingBundleIDsToUpdate,
 			)
 			if err != nil {
 				return err
@@ -576,7 +576,8 @@ func (ds *Datastore) getExistingSoftware(
 	for bid := range existingBundleIDsToUpdate {
 		if cs, ok := bundleIDsToChecksum[bid]; ok {
 			// we don't want this to be treated as a new software title, because then a new software
-			// entry will be created. Instead, we want to update the existing entries with the new names.
+			// entry will be created. Instead, we want to update the existing entries with the new
+			// names.
 			delete(incomingChecksumToSoftware, cs)
 		}
 	}
@@ -731,6 +732,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	existingSoftware []softwareIDChecksum,
 	softwareChecksums map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
+	existingBundleIDsToUpdate map[string]fleet.Software,
 ) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
@@ -746,6 +748,14 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
+				if s.BundleIdentifier != nil {
+					// If this is a softwarea we know we have to update (rename), then it's expected
+					// that we wouldn't find it in softwareChecksums (we deleted it from that map
+					// earlier in ds.getExistingSoftware.
+					if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+						continue
+					}
+				}
 				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
