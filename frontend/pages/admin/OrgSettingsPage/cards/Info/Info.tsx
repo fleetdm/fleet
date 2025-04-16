@@ -188,7 +188,6 @@ const Info = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}

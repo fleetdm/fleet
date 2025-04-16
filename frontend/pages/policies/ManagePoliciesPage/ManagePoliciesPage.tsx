@@ -1215,7 +1215,6 @@ const ManagePolicyPage = ({
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
-                    variant="brand"
                     className={`${baseClass}__select-policy-button`}
                     onClick={onAddPolicyClick}
                   >

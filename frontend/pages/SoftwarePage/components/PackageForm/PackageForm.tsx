@@ -331,7 +331,6 @@ const PackageForm = ({
                 >
                   <Button
                     type="submit"
-                    variant="brand"
                     disabled={disableChildren || isSubmitDisabled}
                   >
                     {isEditingSoftware ? "Save" : "Add software"}
@@ -340,7 +339,6 @@ const PackageForm = ({
               ) : (
                 <Button
                   type="submit"
-                  variant="brand"
                   disabled={disableChildren || isSubmitDisabled}
                 >
                   {isEditingSoftware ? "Save" : "Add software"}
