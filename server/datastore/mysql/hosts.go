@@ -3897,6 +3897,7 @@ func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint,
 		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
 		hostID, scimUserID,
 	)
+	// TODO(mna): resend profiles that depend on the user now associated with that host
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}

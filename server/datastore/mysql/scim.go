@@ -271,6 +271,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		user.Groups = groups
 
+		// TODO(mna): resend profiles that depend on this username if it changed
 		return nil
 	})
 }
@@ -326,6 +327,8 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 		if rowsAffected == 0 {
 			return notFound("scim user").WithID(id)
 		}
+
+		// TODO(mna): trigger resend of profiles that depend on this SCIM user?
 
 		return nil
 	})
@@ -562,6 +565,7 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 
 		// Insert user-group relationships if any
 		if len(group.ScimUsers) > 0 {
+			// TODO(mna): resend profiles that depend on the users now part of this new group
 			return insertScimGroupUsers(ctx, tx, group.ID, group.ScimUsers)
 		}
 
@@ -769,6 +773,7 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 			})
 		}
 
+		// TODO(mna): resend profiles that depend on the updated group
 		return nil
 	})
 }
@@ -792,6 +797,7 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 			return notFound("scim group").WithID(id)
 		}
 
+		// TODO(mna): resend profiles that depend on the deleted group
 		return nil
 	})
 }
