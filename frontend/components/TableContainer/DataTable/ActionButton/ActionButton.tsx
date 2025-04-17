@@ -1,9 +1,12 @@
 import React, { useCallback } from "react";
 import { kebabCase, noop } from "lodash";
+import classnames from "classnames";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
+
 import Button from "../../../buttons/Button";
 
 const baseClass = "action-button";
@@ -16,6 +19,8 @@ export interface IActionButtonProps {
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
   iconPosition?: string;
+  isDisabled?: boolean;
+  tooltipContent?: React.ReactNode;
 }
 
 function useActionCallback(
@@ -39,6 +44,8 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     hideButton,
     iconSvg,
     iconPosition,
+    isDisabled,
+    tooltipContent,
   } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick || noop);
 
@@ -57,8 +64,14 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return null;
   }
 
-  return (
-    <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
+  const buttonClasses = classnames(
+    baseClass,
+    `${baseClass}__${kebabCase(name)}`,
+    { [`${baseClass}__disabled`]: isDisabled }
+  );
+
+  const renderButton = () => (
+    <div className={buttonClasses}>
       <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
           {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
@@ -68,6 +81,24 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
       </Button>
     </div>
   );
+
+  if (tooltipContent) {
+    return (
+      <div className={baseClass}>
+        <TooltipWrapper
+          tipContent={tooltipContent}
+          position="top"
+          fixedPositionStrategy
+          underline={false}
+          clickable={false}
+          showArrow
+        >
+          {renderButton()}
+        </TooltipWrapper>
+      </div>
+    );
+  }
+  return renderButton();
 };
 
 export default ActionButton;

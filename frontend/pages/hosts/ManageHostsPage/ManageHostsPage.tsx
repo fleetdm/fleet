@@ -113,6 +113,7 @@ import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
+import { TooltipContent } from "interfaces/dropdownOption";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -161,6 +162,7 @@ const ManageHostsPage = ({
 
   const {
     currentTeamId,
+    isAllTeamsSelected,
     currentTeamName,
     isAnyTeamSelected,
     isRouteOk,
@@ -295,6 +297,8 @@ const ManageHostsPage = ({
   const canAddNewLabels =
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
     false;
+  const canRunScriptBatch =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
@@ -1079,6 +1083,10 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  const onRunScriptBatchClick = (hostIds: number[]) => {
+    console.log("running");
+  };
+
   const onDeleteHostsClick = (hostIds: number[]) => {
     toggleDeleteHostModal();
     setSelectedHostIds(hostIds);
@@ -1512,7 +1520,32 @@ const ManageHostsPage = ({
       );
     }
 
+    let disableRunScriptBatchTooltipContent: React.ReactNode;
+    if (config?.server_settings?.scripts_disabled) {
+      disableRunScriptBatchTooltipContent = (
+        <>
+          Running scripts is disabled in <br />
+          organization settings.
+        </>
+      );
+    } else if (isAllTeamsSelected) {
+      disableRunScriptBatchTooltipContent = "Select a team to run a script";
+    } else if (isAllMatchingHostsSelected) {
+      disableRunScriptBatchTooltipContent =
+        "Select specific hosts to run a script";
+    }
+
     const secondarySelectActions: IActionButtonProps[] = [
+      {
+        name: "run-script",
+        onActionButtonClick: onRunScriptBatchClick,
+        buttonText: "Run script",
+        variant: "text-icon",
+        iconSvg: "run",
+        hideButton: !canRunScriptBatch,
+        isDisabled: !!disableRunScriptBatchTooltipContent,
+        tooltipContent: disableRunScriptBatchTooltipContent,
+      },
       {
         name: "transfer",
         onActionButtonClick: onTransferToTeamClick,
