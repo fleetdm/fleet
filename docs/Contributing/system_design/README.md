@@ -9,100 +9,77 @@
 5. [Mobile Hosts](./mobile-host.md)
 6. [TUF](./TUF.md)
 7. [UI](./UI.md)
+7. [Fleetctl](./fleetctl.md)
 
 ```mermaid
-graph TD
+graph LR
+    subgraph backend [FleetDM Cloud PerCustomer]
+        direction BT
+        B[Fleet Server]
+        C[Database]
+        R[Cache]
+    end
+    subgraph Fleet managed Cloud
+        direction TB
+        I[TUF server]
+        J@{ shape: processes, label: "Cloud customers on AWS" }
+        K[Fleetdm.com]
+    end
     subgraph Client Devices
+        direction LR
         A[Client Devices]
         D[Fleetd Agents]
-        G[Fleet Desktop UI]
+        L[Fleet Desktop UI]
+        H[End User]
     end
 
-    A -->|Enroll| B[Fleet Server]
+    A -->|Enroll| B
     B -->|Store Data| C[Database]
     B -->|cache Data| R[Cache]
     B -->|Query| D
     D -->|Collect Data| A
     B -->|API Requests| E[Fleet Server UI]
     E -->|Display Data| F[IT Admins]
-    B -->|Device API Requests| G[Fleet Server UI]
-    G -->|Display Host Data| H[End User]
+    B -->|Device API Requests| L
+    L -->|Display Host Data| H
     I[TUF server] -->|Pull updates| D
-```
-
-In more detail
-
-## Main System Components
-
-```mermaid
-graph LR;
-    
-    subgraph Development
-        fleet_release_owner[Fleet Release<br>Owner];
-    end
-
-    subgraph Agent
-        orbit[orbit];
-        desktop[Fleet Desktop<br>Tray App];
-        osqueryd[osqueryd];
-        desktop_browser[Fleet Desktop<br> from Browser];
-    end
-
-    subgraph Customer Cloud
-        fleet_server[Fleet<br>Server];
-        db[DB];
-        redis[Redis<br>Live queries' results <br>go here];
-        prometheus[Prometheus Server];
-    end
-
-    subgraph FleetDM Cloud
-        tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(legacy: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)<br>(default: <a href=https://updates.fleetdm.com>updates.fleetdm.com</a>)"];
-        datadog[DataDog metrics]
-        heroku[Usage Analytics<br>Heroku]
-        log[Send logs to optional<br> external location]
-    end
-
-    subgraph Customer Admin
-        frontend[API user UI or other]
-    end
-
-
-    fleet_release_owner -- "Release Process" --> tuf;
-
-    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
-    orbit -- "Auto Update (TLS)" --> tuf;
-    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
-    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
-    desktop_browser -- "My Device API (TLS)" --> fleet_server;
-
-    heroku -- "Metrics from all customers" --> datadog;
-
-    fleet_server <== "Read/Write" ==> db;
-    fleet_server <== "Read/Write" ==> redis;
-    redis <==> db;
-
-    prometheus ==> fleet_server;
-    fleet_server -- "metrics" --> heroku;
-    fleet_server -- "queries results" --> log;
-
-    frontend <== "API" ==> fleet_server;
-
 ```
 
 ## Workflows
 
 ### Configuring the server
 #### UI / Env var
-#### Gitops
+- Example: Configure the server's hostname and port using environment variables (`SERVER_HOSTNAME`, `SERVER_PORT`) or through the Fleet Server UI.
+
+#### GitOps
+- Example: Use a GitOps pipeline to manage server configurations by committing changes to a repository, which automatically deploys updates to the server.
 
 ### Enrolling hosts
 #### Osquery only
+- Example: Deploy the osquery agent to hosts and configure it to communicate with the Fleet server using the provided enrollment key.
+
 #### Fleetd package
+- Example: Install the Fleetd package on hosts, which includes pre-configured settings for seamless enrollment with the Fleet server.
+
 #### Automatic enrollment
+- Example: Use an MDM solution to automatically enroll devices into the Fleet server during the provisioning process.
+
 #### BYOD MDM
+- Example: Allow employees to enroll their personal devices into the Fleet server using a secure MDM enrollment link.
 
 ## Features
 
 ### MDM
+- **Device Enrollment**: Seamlessly enroll devices into the management system using automated workflows or manual processes.
+- **Remote Wipe / Lock**: Securely erase data from lost or stolen devices to protect sensitive information.
+- **Configuration Management**: Push configuration profiles to devices for settings like Wi-Fi, VPN, and email accounts.
+- **BYOD Support**: Manage both corporate-owned and personal devices while maintaining user privacy.
 ### Orchestration
+- **Device Inventory**: Maintain a real-time inventory of all enrolled devices, including hardware
+  and software details.
+- **Osquery Queries**: TODO
+- **Policy Enforcement**: Define and enforce security policies, such as password requirements, encryption, and screen lock settings.
+- **Compliance Monitoring**: Monitor devices for compliance with organizational policies and generate reports.
 ### Software
+- **Application Management**: Deploy, update, and manage applications on enrolled devices remotely.
+- **Patch Management**: Automate the deployment of application updates to keep devices secure.
