@@ -57,7 +57,9 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		meta, err = ExtractMSIMetadata(tfr)
 	case "tar.gz":
 		meta, err = ValidateTarball(tfr)
-		return nil, errors.Join(ErrInvalidTarball, err)
+		if err != nil {
+			err = errors.Join(ErrInvalidTarball, err)
+		}
 	default:
 		return nil, ErrUnsupportedType
 	}
