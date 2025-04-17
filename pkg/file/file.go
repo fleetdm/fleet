@@ -54,6 +54,8 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		meta, err = ExtractXARMetadata(tfr)
 	case "msi":
 		meta, err = ExtractMSIMetadata(tfr)
+	case "tar.gz":
+		meta, err = ValidateTarball(tfr)
 	default:
 		return nil, ErrUnsupportedType
 	}
@@ -77,6 +79,9 @@ func typeFromBytes(br *bufio.Reader) (string, error) {
 		return "rpm", nil
 	case hasPrefix(br, []byte{0xd0, 0xcf}):
 		return "msi", nil
+	// will capture standalone gz files but will fail on tar read attempt, so good enough
+	case hasPrefix(br, []byte{0x1f, 0x8b}):
+		return "tar.gz", nil
 	case hasPrefix(br, []byte("MZ")):
 		if blob, _ := br.Peek(0x3e); len(blob) == 0x3e {
 			reloc := binary.LittleEndian.Uint16(blob[0x3c:0x3e])
