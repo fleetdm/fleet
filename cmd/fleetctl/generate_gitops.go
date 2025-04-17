@@ -61,7 +61,11 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 
 		messages := &Messages{}
 
-		orgSettings := generateOrgSettings(appConfig, messages)
+		orgSettings, err := generateOrgSettings(c, appConfig, messages)
+		if err != nil {
+			fmt.Fprintf(c.App.ErrWriter, "Error generating org settings: %s\n", err)
+			return ErrGeneric
+		}
 
 		b, err := yaml.Marshal(orgSettings)
 
@@ -70,7 +74,7 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 	}
 }
 
-func generateOrgSettings(appConfig *fleet.EnrichedAppConfig, messages *Messages) *map[string]interface{} {
+func generateOrgSettings(c *cli.Context, appConfig *fleet.EnrichedAppConfig, messages *Messages) (*map[string]interface{}, error) {
 	orgSettings := &map[string]interface{}{
 		"features":             appConfig.Features,
 		"fleet_desktop":        appConfig.FleetDesktop,
@@ -82,56 +86,56 @@ func generateOrgSettings(appConfig *fleet.EnrichedAppConfig, messages *Messages)
 			},
 		},
 		"server_settings":  appConfig.ServerSettings,
-		"sso_settings":     generateSSOSettings(appConfig.SSOSettings, messages),
-		"integrations":     generateIntegrations(&appConfig.Integrations, messages),
+		"sso_settings":     generateSSOSettings(c, appConfig.SSOSettings, messages),
+		"integrations":     generateIntegrations(c, &appConfig.Integrations, messages),
 		"webhook_settings": appConfig.WebhookSettings,
-		"mdm":              generateMDM(&appConfig.MDM, messages),
-		"yara_rules":       generateYaraRules(appConfig.YaraRules, messages),
+		"mdm":              generateMDM(c, &appConfig.MDM, messages),
+		"yara_rules":       generateYaraRules(c, appConfig.YaraRules, messages),
 	}
-	return orgSettings
+	return orgSettings, nil
 }
 
-func generateSSOSettings(ssoSettings *fleet.SSOSettings, messages *Messages) map[string]interface{} {
+func generateSSOSettings(c *cli.Context, ssoSettings *fleet.SSOSettings, messages *Messages) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func generateIntegrations(ssoSettings *fleet.Integrations, messages *Messages) map[string]interface{} {
+func generateIntegrations(c *cli.Context, ssoSettings *fleet.Integrations, messages *Messages) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func generateMDM(mdm *fleet.MDM, messages *Messages) map[string]interface{} {
+func generateMDM(c *cli.Context, mdm *fleet.MDM, messages *Messages) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func generateYaraRules(yaraRules []fleet.YaraRule, messages *Messages) map[string]interface{} {
+func generateYaraRules(c *cli.Context, yaraRules []fleet.YaraRule, messages *Messages) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func generateTeamSettings(teamID int) string {
+func generateTeamSettings(c *cli.Context, teamID int) string {
 	return fmt.Sprintf("team_settings_%d.yaml", teamID)
 }
 
-func generateAgentOptions() string {
+func generateAgentOptions(c *cli.Context) string {
 	return "agent_options.yaml"
 }
 
-func generateControls() string {
+func generateControls(c *cli.Context) string {
 	return "controls.yaml"
 }
 
-func generatePolicies() string {
+func generatePolicies(c *cli.Context) string {
 	return "policies.yaml"
 }
 
-func generateQueries() string {
+func generateQueries(c *cli.Context) string {
 	return "queries.yaml"
 }
 
-func generateSoftware() string {
+func generateSoftware(c *cli.Context) string {
 	return "software.yaml"
 }
 
-func generateLabels() string {
+func generateLabels(c *cli.Context) string {
 	return "labels.yaml"
 }
 

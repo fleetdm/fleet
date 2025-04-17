@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
@@ -41,5 +42,33 @@ func TestGenerateGitops(t *testing.T) {
 	}, nil, nil)
 	err := action(cliContext)
 	require.NoError(t, err)
+
 	fmt.Println(buf.String()) // Debugging line
+}
+
+func TestGenerateOrgSettings(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	// Generate the org settings.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	orgSettingsRaw, err := generateOrgSettings(nil, appConfig, nil)
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+	var orgSettings map[string]interface{}
+	b, err := json.Marshal(orgSettingsRaw)
+	err = json.Unmarshal(b, &orgSettings)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings.yaml")
+	require.NoError(t, err)
+	var expectedAppConfig map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedAppConfig)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedAppConfig, orgSettings)
 }
