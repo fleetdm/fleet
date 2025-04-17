@@ -78,7 +78,6 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [hostType, setHostType] = useState<"workstation" | "server">(
     "workstation"
   );

@@ -38,6 +38,10 @@
     }
   }
 
+  &--password {
+    letter-spacing: 4px;
+  }
+
   &--error {
     color: $core-vibrant-red;
     border: 1px solid $core-vibrant-red;
@@ -104,7 +108,8 @@
     position: absolute;
     top: 0;
     right: 0;
-    padding: $pad-xsmall;
+    margin: $pad-xsmall;
+    background-color: $ui-light-grey;
   }
 
   &__input-container.copy-enabled {

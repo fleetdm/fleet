@@ -193,7 +193,6 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
             value={authToken() || ""}
             helpText={
               <>
-                {" "}
                 This token is intended for SSO users to authenticate in the
                 fleetctl CLI. It expires based on the{" "}
                 <CustomLink

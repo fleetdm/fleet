@@ -73,13 +73,12 @@ const DeviceUserBanners = ({
 
     // setting applies to a supported Linux host
     if (
-      // hostPlatform &&
-      // isDiskEncryptionSupportedLinuxPlatform(
-      //   hostPlatform,
-      //   hostOsVersion ?? ""
-      // ) &&
-      // diskEncryptionOSSetting?.status
-      1 === 1
+      hostPlatform &&
+      isDiskEncryptionSupportedLinuxPlatform(
+        hostPlatform,
+        hostOsVersion ?? ""
+      ) &&
+      diskEncryptionOSSetting?.status
     ) {
       // host not in compliance with setting
       if (!diskIsEncrypted) {
