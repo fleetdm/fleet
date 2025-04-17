@@ -1014,6 +1014,12 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 		}
+		if softwarePackageSpec.SHA265 != "" && len(softwarePackageSpec.SHA265) != 64 {
+			multiError = multierror.Append(multiError, errors.New("sha256 is not a valid sha256 value"))
+		}
+		if softwarePackageSpec.SHA265 == "" && softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("either sha256 or url is required"))
+		}
 		if softwarePackageSpec.UninstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
@@ -1022,10 +1028,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
-			continue
-		}
-		if softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("software URL is required"))
 			continue
 		}
 		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {

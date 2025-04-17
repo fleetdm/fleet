@@ -17031,3 +17031,70 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	// create a team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create an HTTP server to host the software installer
+	var installerDownloaded bool
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			installerDownloaded = true
+		}()
+		if r.URL.Path != "/ruby.deb" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with a valid URL, no hash yet
+	rubyURL := srv.URL + "/ruby.deb"
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, tm.ID, *packages[0].TeamID)
+	require.True(t, installerDownloaded)
+	installerDownloaded = false
+
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+
+	require.NotEmpty(t, installerHash)
+	softwareToInstall[0].SHA256 = installerHash
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, tm.ID, *packages[0].TeamID)
+	require.False(t, installerDownloaded)
+}

@@ -2346,6 +2346,10 @@ WHERE
 		if installer.TeamID != nil {
 			tmID = *installer.TeamID
 		}
+		if _, ok := set[tmID]; ok {
+			// don't allow more than 1 installer per team with the same hash
+			return nil, errors.New("cannot have multiple installers with the same hash on one team")
+		}
 		set[tmID] = installer
 	}
 

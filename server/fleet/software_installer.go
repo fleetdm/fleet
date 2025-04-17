@@ -126,7 +126,7 @@ type SoftwareInstaller struct {
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
-	StorageID string `json:"-" db:"storage_id"`
+	StorageID string `json:"sha256" db:"storage_id"`
 	// Status is the status of the software installer package.
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.

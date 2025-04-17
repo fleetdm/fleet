@@ -50,6 +50,7 @@ type updateSoftwareInstallerRequest struct {
 }
 
 type uploadSoftwareInstallerResponse struct {
+	*fleet.UploadSoftwareInstallerResponsePayload
 	Err error `json:"error,omitempty"`
 }
 
@@ -359,18 +360,20 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		AutomaticInstall:  req.AutomaticInstall,
 	}
 
-	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
+	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
+	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return &uploadSoftwareInstallerResponse{}, nil
+	respPayload := fleet.UploadSoftwareInstallerResponsePayload{TitleID: *installer.TitleID, SoftwarePackage: installer}
+	return &uploadSoftwareInstallerResponse{&respPayload, nil}, nil
 }
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 type deleteSoftwareInstallerRequest struct {
