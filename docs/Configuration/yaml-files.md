@@ -911,7 +911,7 @@ You can require and agree to an end user license agreement (EULA) before they ca
 ```yaml
 org_settings:
   mdm:
-    end_user_license_agreement: https://example.s3.amazonaws.com/eula.pdf
+    end_user_license_agreement: ./lib/eula.pdf
 ```
 
 ##### apple_server_url
