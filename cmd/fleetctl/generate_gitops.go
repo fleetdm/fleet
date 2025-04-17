@@ -132,13 +132,28 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return ErrGeneric
 	}
 
+	result := map[string]interface{}{
+		"org_settings": orgSettings,
+	}
+
 	if cmd.CLI.String("key") != "" {
-		value, ok := getValueAtKey(*orgSettings, cmd.CLI.String("key"))
+		// Marshal and ummarshal the data to standardize the keys.
+		b, err := yaml.Marshal(result)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling org settings: %s\n", err)
+			return ErrGeneric
+		}
+		var data map[string]interface{}
+		if err := yaml.Unmarshal(b, &data); err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling org settings: %s\n", err)
+			return ErrGeneric
+		}
+		value, ok := getValueAtKey(data, cmd.CLI.String("key"))
 		if !ok {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Key %s not found in org settings\n", cmd.CLI.String("key"))
 			return ErrGeneric
 		}
-		b, err := yaml.Marshal(value)
+		b, err = yaml.Marshal(value)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling value: %s\n", err)
 			return ErrGeneric
@@ -147,7 +162,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
-	b, err := yaml.Marshal(orgSettings)
+	b, err := yaml.Marshal(result)
 
 	fmt.Fprintf(cmd.CLI.App.Writer, "App Config:\n %+v\n", string(b))
 	return nil
