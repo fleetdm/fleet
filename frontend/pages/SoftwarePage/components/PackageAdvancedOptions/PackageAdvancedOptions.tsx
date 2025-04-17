@@ -109,7 +109,7 @@ const getUninstallHelpText = (pkgType: PackageType) => {
     );
   }
 
-  if (pkgType === "tar.gz") {
+  if (pkgType === "tar.gz" || pkgType === "tgz") {
     return (
       <>
         Currently, shell scripts are supported.{" "}
