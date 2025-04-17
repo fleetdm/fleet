@@ -1729,17 +1729,19 @@ func (svc *Service) softwareBatchUpload(
 				installer.Filename = filename
 			}
 
+			jl.Println("debug 1")
 			var ext string
 			if installer.InstallerFile != nil {
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer)
 				if err != nil {
 					_ = installer.InstallerFile.Close() // closing the temp file here since it will not be available after the goroutine completes
+					return err
 				}
-				return err
 			}
 
 			// Update $PACKAGE_ID in uninstall script
 			preProcessUninstallScript(installer)
+			jl.Println("debug 2")
 
 			// if filename was empty, try to extract it from the URL with the
 			// now-known extension
@@ -1754,7 +1756,10 @@ func (svc *Service) softwareBatchUpload(
 				installer.Title = installer.Filename
 			}
 
+			jl.Printf("installer.Filename: %v\n", installer.Filename)
+
 			installers[i] = installer
+			jl.Printf("installer set: %#v\n", installer)
 
 			return nil
 		})
@@ -1780,6 +1785,7 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	for _, payload := range installers {
+		fmt.Printf("payload: %#v\n", payload)
 		if err := svc.storeSoftware(ctx, payload); err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return
