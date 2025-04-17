@@ -1942,18 +1942,20 @@ If the `name` is not already associated with an existing team, this API route cr
 | software                                   | object   | body  | The team's software that will be available for install.  |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
-| software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
-| software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
-| software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
+| software.app_store_apps.self_service           | object   | body  | If null, turn off self-service for this app. Otherwise, use the object properties for scoping. Only one of the three object fields must be set. |
+| app_store_apps.self_service.all_hosts     | boolean   | body  | If set, allow all compatible hosts on the team to use self-service for this app. |
+| app_store_apps.self_service.labels_include_any     | array   | body  | Allow only compatible hosts with one or more of the supplied tags to install the app via self-service. |
+| software.packages.self_service.labels_exclude_any     | array   | body  | Allow only compatible hosts with none of the supplied tags to install the app via self-service. |
 | software.packages                          | array   | body  | An array of objects with values below. |
 | software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
 | software.packages.uninstall_script       | string   | body  | Command that Fleet runs to uninstall software. |
-| software.packages.self_service           | boolean   | body  | If `true` lists software in the self-service. |
-| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
-| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.self_service           | object   | body  | If null, turn off self-service for this package. Otherwise, use the object properties for scoping. Only one of the three object fields must be set. |
+| software.packages.self_service.all_hosts     | boolean   | body  | If set, allow all compatible hosts on the team to use self-service for this package. |
+| software.packages.self_service.labels_include_any     | array   | body  | Allow only compatible hosts with one or more of the supplied tags to install the package via self-service. |
+| software.packages.self_service.labels_exclude_any     | array   | body  | Allow only compatible hosts with none of the supplied tags to install the package via self-service. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -2040,13 +2042,17 @@ If the `name` is not already associated with an existing team, this API route cr
             "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
             "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
             "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-            "self_service": true,
+            "self_service": {
+              "all_hosts": true
+            },
           }
         ],
         "app_store_apps": [
           {
             "app_store_id": "12464567",
-            "self_service": true
+            "self_service": {
+              "all_hosts": true
+            }
           }
         ]
       }  
@@ -3248,9 +3254,11 @@ Lists the software installed on the current device.
 }
 ```
 
+Note that the `self_service` value here is a boolean rather than the label-scoped object since for a given host on a given software package self-service is either on or off.
+
 #### Install self-service software
 
-Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
+Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must be compatible with the host and self-service must include the host in scope for the install to proceed.
 
 `POST /api/v1/fleet/device/{token}/software/install/:software_title_id`
 
@@ -4272,9 +4280,10 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
 | software.packages.uninstall_script      | string   | body  | Command that Fleet runs to uninstall software. |
-| software.packages.self_service           | boolean   | body  | Specifies whether or not end users can install self-service. |
-| software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
-| software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+| software.packages.self_service           | object   | body  | If null, turn off self-service for this package. Otherwise, use the object properties for scoping. Only one of the three object fields must be set. |
+| software.packages.self_service.all_hosts     | boolean   | body  | If set, allow all compatible hosts on the team to use self-service for this package. |
+| software.packages.self_service.labels_include_any     | array   | body  | Allow only compatible hosts with one or more of the supplied tags to install the package via self-service. |
+| software.packages.self_service.labels_exclude_any     | array   | body  | Allow only compatible hosts with none of the supplied tags to install the package via self-service. |
 
 `hash_sha256` can be provided alongside or as a replacement for `url`. If provided alongside `url`, adding software only succeeds if the software downloaded matches the specified hash. If provided without a URL, software with that hash must exist (either on that team or globally, depending on what level of access the API client is authorized at) prior to the GitOps run, whether from a previous GitOps run or an upload at the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) endpoint, at which point Fleet will ensure the software package exists on the selected team with the specified configuration without needing to retrieve it again.
 
@@ -4360,11 +4369,11 @@ _Available in Fleet Premium._
 | team_name | string | query | The name of the team to add the software package to. Ommitting this parameter will add software to "No team". |
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
-| app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
-| app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
-| app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
-| app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| app_store_apps.self_service           | object   | body  | If null, turn off self-service for this app. Otherwise, use the object properties for scoping. Only one of the three object fields must be set. |
+| app_store_apps.self_service.all_hosts     | boolean   | body  | If set, allow all compatible hosts on the team to use self-service for this app. |
+| app_store_apps.self_service.labels_include_any     | array   | body  | Allow only compatible hosts with one or more of the supplied tags to install the app via self-service. |
+| software.packages.self_service.labels_exclude_any     | array   | body  | Allow only compatible hosts with none of the supplied tags to install the app via self-service. |
 
 #### Example
 
@@ -4375,15 +4384,18 @@ _Available in Fleet Premium._
   "app_store_apps": [
     {
       "app_store_id": "597799333",
-      "self_service": false,
-      "labels_include_any": [
-        "Engineering",
-        "Customer Support"
-      ]
+      "self_service": {
+        "labels_include_any": [
+          "Engineering",
+          "Customer Support"
+        ]
+      }
     },
     {
       "app_store_id": "497799835",
-      "self_service": true
+      "self_service": {
+        "all_hosts": true
+      }
     }
   ]
 }
