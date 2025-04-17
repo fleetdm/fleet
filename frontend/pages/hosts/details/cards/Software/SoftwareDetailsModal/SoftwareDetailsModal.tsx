@@ -212,7 +212,7 @@ const SoftwareDetailsModal = ({
           <SoftwareDetailsContent software={software} />
         )}
         <div className="modal-cta-wrap">
-          <Button type="submit" variant="brand" onClick={onExit}>
+          <Button type="submit" onClick={onExit}>
             Done
           </Button>
         </div>

@@ -119,7 +119,6 @@ const ResetPasswordForm = ({
       <div className="button-wrap">
         <Button
           type="submit"
-          variant="brand"
           onClick={onFormSubmit}
           className={`${baseClass}__btn`}
         >

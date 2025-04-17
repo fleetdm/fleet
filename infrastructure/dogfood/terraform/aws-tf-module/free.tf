@@ -120,7 +120,7 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.2.0"
+  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.3.0"
   zone_id = aws_route53_zone.free.zone_id
   domain  = "free.fleetdm.com"
 }
