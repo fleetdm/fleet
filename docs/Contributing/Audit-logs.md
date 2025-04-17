@@ -77,7 +77,7 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-    "fleet_maintained": false
+  "fleet_maintained": false
 }
 ```
 
