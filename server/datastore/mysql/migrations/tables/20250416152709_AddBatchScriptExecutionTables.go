@@ -33,6 +33,8 @@ CREATE TABLE batch_script_execution_host_results (
 )
 `
 
+	// TODO ADD KEY FOR EXECUTION ID!
+
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("creating batch script tables: %w", err)
 	}

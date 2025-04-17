@@ -40,6 +40,38 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func (ds *Datastore) newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
+		getStmt = `
+SELECT
+	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
+	payload->'$.sync_request' AS sync_request,
+	sc.contents as script_contents, sua.setup_experience_script_id
+FROM
+	upcoming_activities ua
+	INNER JOIN script_upcoming_activities sua
+		ON ua.id = sua.upcoming_activity_id
+	INNER JOIN script_contents sc
+		ON sua.script_content_id = sc.id
+WHERE
+	ua.id = ?
+`
+	)
+
+	_, activityID, err := ds.insertNewHostScriptExecution(ctx, tx, request, isInternal)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting new script execution request")
+	}
+
+	var script fleet.HostScriptResult
+	err = sqlx.GetContext(ctx, tx, &script, getStmt, activityID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting the created host script activity to return")
+	}
+
+	return &script, nil
+}
+
+func (ds *Datastore) insertNewHostScriptExecution(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (string, int64, error) {
+	const (
 		insUAStmt = `
 INSERT INTO upcoming_activities
 	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
@@ -58,21 +90,6 @@ INSERT INTO script_upcoming_activities
 VALUES
 	(?, ?, ?, ?, ?)
 `
-
-		getStmt = `
-SELECT
-	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
-	payload->'$.sync_request' AS sync_request,
-	sc.contents as script_contents, sua.setup_experience_script_id
-FROM
-	upcoming_activities ua
-	INNER JOIN script_upcoming_activities sua
-		ON ua.id = sua.upcoming_activity_id
-	INNER JOIN script_contents sc
-		ON sua.script_content_id = sc.id
-WHERE
-	ua.id = ?
-`
 	)
 
 	execID := uuid.New().String()
@@ -87,7 +104,7 @@ WHERE
 		request.UserID,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new script upcoming activity")
+		return "", 0, ctxerr.Wrap(ctx, err, "new script upcoming activity")
 	}
 
 	activityID, _ := result.LastInsertId()
@@ -99,19 +116,14 @@ WHERE
 		request.SetupExperienceScriptID,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new join script upcoming activity")
-	}
-
-	var script fleet.HostScriptResult
-	err = sqlx.GetContext(ctx, tx, &script, getStmt, activityID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the created host script activity to return")
+		return "", 0, ctxerr.Wrap(ctx, err, "new join script upcoming activity")
 	}
 
 	if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "activate next activity")
+		return "", 0, ctxerr.Wrap(ctx, err, "activate next activity")
 	}
-	return &script, nil
+
+	return execID, activityID, nil
 }
 
 func truncateScriptResult(output string) string {

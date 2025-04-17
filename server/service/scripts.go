@@ -1082,6 +1082,45 @@ func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service)
 }
 
 func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+	// First check if scripts are disabled globally. If so, no need for further processing.
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return "", err
+	}
+
+	if cfg.ServerSettings.ScriptsDisabled {
+		svc.authz.SkipAuthorization(ctx)
+		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
+	}
+
+	// TODO AUTH!!!!
+
+	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
+	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
+
+	// Check that all hosts exist before attempting to process them
+	for _, hostID := range hostIDs {
+		host, err := svc.ds.Host(ctx, hostID)
+		if err != nil {
+			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
+		}
+
+		fullHosts = append(fullHosts, host)
+	}
+
+	for _, host := range fullHosts {
+		noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
+		scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
+
+		if noNodeKey || scriptsDisabled {
+			// Cannot run scripts
+
+		}
+
+		// TODO Maybe we do this as a big SQL query??
+	}
+
 	return "", nil
 }
 
