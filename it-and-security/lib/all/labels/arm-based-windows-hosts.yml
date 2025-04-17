@@ -2,8 +2,3 @@
   description: Windows hosts on ARM architecture
   query: SELECT 1 FROM os_version WHERE arch LIKE 'ARM%';
   label_membership_type: dynamic
-- name: TEST LABEL
-  description: TEST
-  label_membership_type: manual
-  hosts:
-    - M73RV6D67V
