@@ -45,6 +45,25 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
+func getValueAtKey(data map[string]interface{}, path string) (interface{}, bool) {
+	// Split the path into parts.
+	parts := strings.Split(path, ".")
+	var cur interface{} = data
+
+	// Keep traversing the map using the keys in the path.
+	for _, key := range parts {
+		mp, ok := cur.(map[string]interface{})
+		if !ok {
+			return nil, false
+		}
+		cur, ok = mp[key]
+		if !ok {
+			return nil, false
+		}
+	}
+	return cur, true
+}
+
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
@@ -55,6 +74,15 @@ func generateGitopsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			&cli.BoolFlag{
+				Name:  "insecure",
+				Usage: "Output sensitive information in plaintext.",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  "key",
+				Usage: "A key to output the config value for.",
+			},
 		},
 	}
 }
@@ -82,6 +110,21 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 		if err != nil {
 			fmt.Fprintf(c.App.ErrWriter, "Error generating org settings: %s\n", err)
 			return ErrGeneric
+		}
+
+		if c.String("key") != "" {
+			value, ok := getValueAtKey(*orgSettings, c.String("key"))
+			if !ok {
+				fmt.Fprintf(c.App.ErrWriter, "Key %s not found in org settings\n", c.String("key"))
+				return ErrGeneric
+			}
+			b, err := yaml.Marshal(value)
+			if err != nil {
+				fmt.Fprintf(c.App.ErrWriter, "Error marshaling value: %s\n", err)
+				return ErrGeneric
+			}
+			fmt.Fprintf(c.App.Writer, "%s", string(b))
+			return nil
 		}
 
 		b, err := yaml.Marshal(orgSettings)
