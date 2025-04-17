@@ -1687,25 +1687,34 @@ func (svc *Service) softwareBatchUpload(
 
 			switch {
 			case ok:
-				jl.Printf("got existing sha for installer %s on team %d, skipping download", p.Filename, tmID)
 				installer.StorageID = p.SHA256
 				installer.Extension = foundInstaller.Extension
-				installer.Filename = foundInstaller.Name
+				installer.Filename = foundInstaller.Filename
 				installer.Version = foundInstaller.Version
 				installer.Platform = foundInstaller.Platform
+				installer.Source = foundInstaller.Source
+				if foundInstaller.BundleIdentifier != nil {
+					installer.BundleIdentifier = *foundInstaller.BundleIdentifier
+				}
+				installer.Title = foundInstaller.Title
+				jl.Printf("got existing sha for installer %s on team %d, skipping download", p.Filename, tmID)
 			case !ok && len(teamIDs) > 0:
-				jl.Printf("got existing sha for installer %s, copying to team %d", p.Filename, tmID)
 				installer.StorageID = p.SHA256
 				for _, i := range teamIDs {
 					// use the first one we find; which one shouldn't matter because they're all the
 					// same installer bytes
 					installer.Extension = i.Extension
-					installer.Filename = i.Name
+					installer.Filename = i.Filename
 					installer.Version = i.Version
 					installer.Platform = i.Platform
+					installer.Source = i.Source
+					if i.BundleIdentifier != nil {
+						installer.BundleIdentifier = *i.BundleIdentifier
+					}
+					installer.Title = i.Title
 					break
 				}
-				jl.Printf("installer: %+v\n", installer)
+				jl.Printf("got existing sha for installer %s, copying to team %d", p.Filename, tmID)
 			default:
 				// no existing installer bytes, so we should download it
 				jl.Println("downloading installer")
@@ -1729,7 +1738,6 @@ func (svc *Service) softwareBatchUpload(
 				installer.Filename = filename
 			}
 
-			jl.Println("debug 1")
 			var ext string
 			if installer.InstallerFile != nil {
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer)
@@ -1741,7 +1749,6 @@ func (svc *Service) softwareBatchUpload(
 
 			// Update $PACKAGE_ID in uninstall script
 			preProcessUninstallScript(installer)
-			jl.Println("debug 2")
 
 			// if filename was empty, try to extract it from the URL with the
 			// now-known extension
@@ -1756,10 +1763,7 @@ func (svc *Service) softwareBatchUpload(
 				installer.Title = installer.Filename
 			}
 
-			jl.Printf("installer.Filename: %v\n", installer.Filename)
-
 			installers[i] = installer
-			jl.Printf("installer set: %#v\n", installer)
 
 			return nil
 		})

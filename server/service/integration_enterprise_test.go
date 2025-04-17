@@ -11556,6 +11556,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+
+	require.NotEmpty(t, installerHash)
+
 	softwareToInstallBadSecret := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:           rubyURL,
@@ -11643,7 +11650,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	// Do a request with a valid URL with no team
 	//////////////////////////
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL},
+		{URL: rubyURL, SHA256: installerHash},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)

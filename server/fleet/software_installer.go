@@ -145,6 +145,7 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	Source           string               `json:"-" db:"source"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -379,6 +380,18 @@ type UploadSoftwareInstallerPayload struct {
 	ValidatedLabels       *LabelIdentsWithScope
 	AutomaticInstall      bool
 	AutomaticInstallQuery string
+}
+
+type ExistingSoftwareInstaller struct {
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
 }
 
 type UpdateSoftwareInstallerPayload struct {

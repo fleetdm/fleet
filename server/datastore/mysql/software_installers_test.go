@@ -2466,7 +2466,7 @@ func testGetSoftwareInstallerByHash(t *testing.T, ds *Datastore) {
 	require.Equal(t, team1.ID, *installers[1].TeamID)
 
 	for _, i := range installers {
-		require.Equal(t, "installer1.pkg", i.Name)
+		require.Equal(t, "installer1", i.Title)
 		require.Equal(t, "pkg", i.Extension)
 		require.Equal(t, "1.0", i.Version)
 		require.Equal(t, "darwin", i.Platform)

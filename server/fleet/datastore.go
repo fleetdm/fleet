@@ -1909,7 +1909,7 @@ type Datastore interface {
 	// in the setup experience flow (which runs during macOS Setup Assistant).
 	GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
 
-	GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]*SoftwareInstaller, error)
+	GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]*ExistingSoftwareInstaller, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
