@@ -1,0 +1,1 @@
+- Adds functionality for specifying software installers by SHA256 hash in GitOps YAML files.
