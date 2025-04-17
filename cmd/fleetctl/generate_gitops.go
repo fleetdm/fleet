@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
 )
 
@@ -62,7 +63,9 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 
 		orgSettings := generateOrgSettings(appConfig, messages)
 
-		fmt.Fprintf(c.App.Writer, "App Config: %+v\n", (*orgSettings)["org_info"])
+		b, err := yaml.Marshal(orgSettings)
+
+		fmt.Fprintf(c.App.Writer, "App Config:\n %+v\n", string(b))
 		return nil
 	}
 }

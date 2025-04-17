@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -32,11 +33,13 @@ func (MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
 	cliContext := cli.NewContext(&cli.App{
 		Name:   "test",
 		Usage:  "test",
-		Writer: new(bytes.Buffer),
+		Writer: buf,
 	}, nil, nil)
 	err := action(cliContext)
 	require.NoError(t, err)
+	fmt.Println(buf.String()) // Debugging line
 }
