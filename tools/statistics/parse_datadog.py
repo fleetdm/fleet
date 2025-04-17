@@ -2,10 +2,12 @@ import pandas as pd
 import json
 import altair as alt
 import webbrowser as browser
+import re
 
 DATADOG_CSV = "https://data.heroku.com/dataclips/tzvzqkwgaglcibrogcuzsnkhssnx.csv"
 simplify_macos = False
-top_versions = 10
+simplify_windows = False
+top_versions = 50
 
 pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
@@ -56,6 +58,33 @@ def extract_version_and_count(json_str):
                         if version_str.lower().startswith("macos 15"):
                             version_str = "macOS 15.xx"
                     if version_str and version_str.lower().startswith("macos"):
+                        version_counts[version_str] = (
+                            version_counts.get(version_str, 0) + num_enrolled
+                        )
+                elif simplify_windows:
+                    if version_str and version_str.lower().startswith("windows"):
+                        if version_str.lower().startswith("windows 10 pro"):
+                            version_str = "Windows 10 Pro"
+                        elif version_str.lower().startswith("windows 10 enterprise"):
+                            version_str = "Windows 10 Enterprise"
+                        elif version_str.lower().startswith("windows 10"):
+                            version_str = "Windows 10"
+                        elif version_str.lower().startswith("windows 11 pro"):
+                            version_str = "Windows 11 Pro"
+                        elif version_str.lower().startswith("windows 11 enterprise"):
+                            version_str = "Windows 11 Enterprise"
+                        elif version_str.lower().startswith("windows 11"):
+                            version_str = "Windows 11"
+                        elif version_str.lower().startswith("windows server"):
+                            # example "Windows Server 2022 Datacenter"
+                            # or "Windows Server 2022 Standard"
+                            regex = r"Windows Server \d{4} (Datacenter|Standard)"
+                            match = re.search(regex, version_str)
+                            if match:
+                                version_str = match.group(0)
+                            else:
+                                version_str = "Windows Server"
+                    if version_str and version_str.lower().startswith("windows"):
                         version_counts[version_str] = (
                             version_counts.get(version_str, 0) + num_enrolled
                         )
