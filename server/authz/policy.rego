@@ -110,10 +110,10 @@ allow {
   action == write
 }
 
-# Team admins and gitops can write their teams.
+# Team admins, maintainers, and gitops can write their teams.
 allow {
   object.type == "team"
-  team_role(subject, object.id) == [admin, gitops][_]
+  team_role(subject, object.id) == [admin, maintainer, gitops][_]
   action == write
 }
 
