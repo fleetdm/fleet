@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	stdlog "log"
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -1464,8 +1462,6 @@ const (
 	batchSoftwarePrefix = "software_batch_"
 )
 
-var jl = stdlog.New(os.Stdout, `[JVE_LOG] `, stdlog.Ldate|stdlog.Ltime|stdlog.Lshortfile)
-
 func (svc *Service) BatchSetSoftwareInstallers(
 	ctx context.Context, tmName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool,
 ) (string, error) {
@@ -1497,18 +1493,21 @@ func (svc *Service) BatchSetSoftwareInstallers(
 
 	var allScripts []string
 
-	jl.Println("here")
-	jl.Printf("dryRun: %v\n", dryRun)
-	jl.Printf("payloads: %v\n", payloads)
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
-		jl.Printf("got sha %s\n", payload.SHA256)
+		if payload.URL == "" && payload.SHA256 == "" {
+			return "", fleet.NewInvalidArgumentError(
+				"software",
+				"Couldn't edit software. Must have one of url or sha256",
+			)
+		}
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
 			return "", fleet.NewInvalidArgumentError(
 				"software.url",
 				fmt.Sprintf("software URL is too long, must be %d characters or less", fleet.SoftwareInstallerURLMaxLength),
 			)
 		}
+
 		if payload.URL != "" {
 			if _, err := url.ParseRequestURI(payload.URL); err != nil {
 				return "", fleet.NewInvalidArgumentError(
@@ -1690,8 +1689,6 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			foundInstaller, ok := teamIDs[tmID]
-			jl.Printf("ok: %v\n", ok)
-			jl.Printf("teamIDs: %v\n", teamIDs)
 
 			switch {
 			case ok:
@@ -1705,7 +1702,6 @@ func (svc *Service) softwareBatchUpload(
 					installer.BundleIdentifier = *foundInstaller.BundleIdentifier
 				}
 				installer.Title = foundInstaller.Title
-				jl.Printf("got existing sha for installer %s on team %d, skipping download", p.Filename, tmID)
 			case !ok && len(teamIDs) > 0:
 				installer.StorageID = p.SHA256
 				for _, i := range teamIDs {
@@ -1722,7 +1718,6 @@ func (svc *Service) softwareBatchUpload(
 					installer.Title = i.Title
 					break
 				}
-				jl.Printf("got existing sha for installer %s, copying to team %d", p.Filename, tmID)
 			default:
 				if p.SHA256 != "" && p.URL == "" {
 					// there's a hash specified, but no existing installer with that hash and no way
@@ -1730,7 +1725,6 @@ func (svc *Service) softwareBatchUpload(
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
 				// no existing installer bytes, so we should download it
-				jl.Println("downloading installer")
 				var filename string
 				headers, tfr, err := downloadURLFn(ctx, p.URL)
 				if err != nil {
@@ -1759,7 +1753,7 @@ func (svc *Service) softwareBatchUpload(
 					return err
 				}
 
-				if p.SHA256 != installer.StorageID {
+				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
 					// this isn't the specified installer, so return an error
 					return errors.New("downloaded installer hash does not match provided hash for installer")
 				}
@@ -1807,7 +1801,6 @@ func (svc *Service) softwareBatchUpload(
 	}
 
 	for _, payload := range installers {
-		fmt.Printf("payload: %#v\n", payload)
 		if err := svc.storeSoftware(ctx, payload); err != nil {
 			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
 			return

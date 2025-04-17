@@ -871,6 +871,8 @@ func (c *Client) ApplyGroup(
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				logfn("[+] applying %d software packages for team %s\n", len(software), tmName)
+				// if dry run && no, hit new endpoint.
+				// if 404, return
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -979,8 +981,6 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	for i, si := range specs {
 		var qc string
 		var err error
-
-		fmt.Printf("si.SHA265: %v\n", si.SHA265)
 
 		if si.PreInstallQuery.Path != "" {
 			queryFile := si.PreInstallQuery.Path
