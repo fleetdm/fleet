@@ -2,11 +2,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 type MockClient struct{}
@@ -29,8 +32,11 @@ func (MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
-	err := action(nil)
-	if err != nil {
-		t.Fatalf("Error generating GitOps configuration: %v", err)
-	}
+	cliContext := cli.NewContext(&cli.App{
+		Name:   "test",
+		Usage:  "test",
+		Writer: new(bytes.Buffer),
+	}, nil, nil)
+	err := action(cliContext)
+	require.NoError(t, err)
 }

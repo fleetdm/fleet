@@ -62,7 +62,7 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 
 		orgSettings := generateOrgSettings(appConfig, messages)
 
-		fmt.Printf("App Config: %+v\n", (*orgSettings)["org_info"])
+		fmt.Fprintf(c.App.Writer, "App Config: %+v\n", (*orgSettings)["org_info"])
 		return nil
 	}
 }
