@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"reflect"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -26,6 +28,21 @@ type Messages struct {
 
 type client interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
+}
+
+func jsonFieldName(t reflect.Type, fieldName string) string {
+	field, ok := t.FieldByName(fieldName)
+	if !ok {
+		panic(fieldName + " not found in " + t.Name())
+	}
+	tag := field.Tag.Get("json")
+	parts := strings.Split(tag, ",")
+	name := parts[0]
+
+	if name == "-" || name == "" {
+		panic(field.Name + " has no json tag")
+	}
+	return name
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -74,29 +91,44 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 	}
 }
 
-func generateOrgSettings(c *cli.Context, appConfig *fleet.EnrichedAppConfig, messages *Messages) (*map[string]interface{}, error) {
-	orgSettings := &map[string]interface{}{
-		"features":             appConfig.Features,
-		"fleet_desktop":        appConfig.FleetDesktop,
-		"host_expiry_settings": appConfig.HostExpirySettings,
-		"org_info":             appConfig.OrgInfo,
+func generateOrgSettings(c *cli.Context, appConfig *fleet.EnrichedAppConfig, messages *Messages) (orgSettings *map[string]interface{}, err error) {
+	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
+	orgSettings = &map[string]interface{}{
+		jsonFieldName(t, "Features"):           appConfig.Features,
+		jsonFieldName(t, "FleetDesktop"):       appConfig.FleetDesktop,
+		jsonFieldName(t, "HostExpirySettings"): appConfig.HostExpirySettings,
+		jsonFieldName(t, "OrgInfo"):            appConfig.OrgInfo,
 		"secrets": []map[string]interface{}{
 			{
 				"secret": "# TODO: Add your secret here",
 			},
 		},
-		"server_settings":  appConfig.ServerSettings,
-		"sso_settings":     generateSSOSettings(c, appConfig.SSOSettings, messages),
-		"integrations":     generateIntegrations(c, &appConfig.Integrations, messages),
-		"webhook_settings": appConfig.WebhookSettings,
-		"mdm":              generateMDM(c, &appConfig.MDM, messages),
-		"yara_rules":       generateYaraRules(c, appConfig.YaraRules, messages),
+		jsonFieldName(t, "ServerSettings"):  appConfig.ServerSettings,
+		jsonFieldName(t, "Integrations"):    generateIntegrations(c, &appConfig.Integrations, messages),
+		jsonFieldName(t, "WebhookSettings"): appConfig.WebhookSettings,
+		jsonFieldName(t, "MDM"):             generateMDM(c, &appConfig.MDM, messages),
+		jsonFieldName(t, "YaraRules"):       generateYaraRules(c, appConfig.YaraRules, messages),
+	}
+	if (*orgSettings)[jsonFieldName(t, "SSOSettings")], err = generateSSOSettings(c, appConfig.SSOSettings, messages); err != nil {
+		return nil, err
 	}
 	return orgSettings, nil
 }
 
-func generateSSOSettings(c *cli.Context, ssoSettings *fleet.SSOSettings, messages *Messages) map[string]interface{} {
-	return map[string]interface{}{}
+func generateSSOSettings(c *cli.Context, ssoSettings *fleet.SSOSettings, messages *Messages) (map[string]interface{}, error) {
+	t := reflect.TypeOf(fleet.SSOSettings{})
+	result := map[string]interface{}{
+		jsonFieldName(t, "EnableSSO"): ssoSettings.EnableSSO,
+
+		jsonFieldName(t, "IDPName"):               ssoSettings.IDPName,
+		jsonFieldName(t, "IDPImageURL"):           ssoSettings.IDPImageURL,
+		jsonFieldName(t, "EntityID"):              ssoSettings.EntityID,
+		jsonFieldName(t, "Metadata"):              ssoSettings.Metadata,
+		jsonFieldName(t, "MetadataURL"):           ssoSettings.MetadataURL,
+		jsonFieldName(t, "EnableJITProvisioning"): ssoSettings.EnableJITProvisioning,
+		jsonFieldName(t, "EnableSSOIdPLogin"):     ssoSettings.EnableSSOIdPLogin,
+	}
+	return result, nil
 }
 
 func generateIntegrations(c *cli.Context, ssoSettings *fleet.Integrations, messages *Messages) map[string]interface{} {

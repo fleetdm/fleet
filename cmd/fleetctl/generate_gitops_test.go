@@ -59,8 +59,9 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := json.Marshal(orgSettingsRaw)
-	err = json.Unmarshal(b, &orgSettings)
+	b, err := yaml.Marshal(orgSettingsRaw)
+	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &orgSettings)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings.yaml")

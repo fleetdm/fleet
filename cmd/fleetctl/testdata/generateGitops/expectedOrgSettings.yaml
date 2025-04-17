@@ -27,7 +27,15 @@ server_settings:
   query_reports_disabled: false
   scripts_disabled: false
   server_url: https://dogfood.fleetdm.com
-sso_settings: {}
+sso_settings:
+  enable_jit_provisioning: true
+  enable_sso: true
+  enable_sso_idp_login: false
+  entity_id: dogfood.fleetdm.com
+  idp_image_url: http://some-sso-idp-image-url.com
+  idp_name: some-idp-name
+  metadata: some-sso-metadata
+  metadata_url: http://some-sso-metadata-url.com
 webhook_settings:
   activities_webhook:
     destination_url: https://some-activities-webhook-url.com
