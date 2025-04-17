@@ -8,7 +8,6 @@ const unixPackageTypes = [
   "tar.gz",
   "tgz",
 ] as const;
-// TODO: Is this where to put "tar.gz", should it be named that?
 const windowsPackageTypes = ["msi", "exe"] as const;
 export const packageTypes = [
   ...unixPackageTypes,

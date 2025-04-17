@@ -69,7 +69,7 @@ interface IPackageFormProps {
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
   className?: string;
-  /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
+  /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
 }
 // application/gzip is used for .tar.gz files
