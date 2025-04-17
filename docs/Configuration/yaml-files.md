@@ -514,7 +514,7 @@ self_service: true
 
 ##### With hash
 
-You can get an output similar to the below when `fleetctl upload-software` successfully uploads a software package.
+You can get an output similar to that below when `fleetctl upload-software` successfully uploads a software package.
 
 ```yaml
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
