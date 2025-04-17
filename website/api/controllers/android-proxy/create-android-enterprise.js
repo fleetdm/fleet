@@ -23,10 +23,10 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    fleetServerSecret: {
-      type: 'string',
-      required: true,
-    },
+    enterprise: {
+      type: {},
+      moreInfoUrl: ''
+    }
   },
 
 
@@ -36,16 +36,17 @@ module.exports = {
   },
 
 
-  fn: async function ({signupUrlName, enterpriseToken, fleetLicenseKey, pubsubPushUrl, fleetServerSecret}) {
+  fn: async function ({signupUrlName, enterpriseToken, fleetLicenseKey, pubsubPushUrl, enterprise}) {
 
-
-    // Check the database for a record of this enterprise.
-    let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerSecret: fleetServerSecret});
-    if(!connectionforThisInstanceExists) {
-      throw this.res.notFound();
+    // Parse the Fleet server url from the origin header.
+    let fleetServerUrl = this.req.get('Origin');
+    if(!fleetServerUrl){
+      return this.res.badRequest();
     }
+    // Check the database for a record of this enterprise.
+    let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
     // If this request came from a Fleet instance that already has an enterprise set up, return an error.
-    if(connectionforThisInstanceExists.androidEnterpriseId) {
+    if(connectionforThisInstanceExists) {
       throw 'enterpriseAlreadyExists';
     }
     // Generate a uuid to use for the pubsub topic name for this Android enterprise.
@@ -130,15 +131,7 @@ module.exports = {
         enterpriseToken: enterpriseToken,
         projectId: sails.config.custom.androidManagementProjectId,
         signupUrlName: signupUrlName,
-        requestBody: {
-          enabledNotificationTypes: [
-            'ENROLLMENT',
-            'STATUS_REPORT',
-            'COMMAND',
-            'USAGE_LOGS'
-          ],
-          pubsubTopic: fullPubSubTopicName,
-        },
+        requestBody: enterprise,
       });
       return createEnterpriseResponse.data;
     }).intercept((err)=>{
@@ -147,18 +140,22 @@ module.exports = {
 
 
     let newAndroidEnterpriseId = newEnterprise.id;
-
+    // Create a new fleetServerSecret for this Fleet server. This will be included in the response body and will be required in all subsequent requests to Android proxy endpoints.
+    let newFleetServerSecret = await sails.helpers.strings.random.with({len: 30});
     // Update the database record to include details about the created enterprise.
-    await AndroidEnterprise.updateOne({ id: connectionforThisInstanceExists.id }).set({
+    await AndroidEnterprise.createOne({
+      fleetServerUrl: fleetServerUrl,
       fleetLicenseKey: fleetLicenseKey,
       androidEnterpriseId: newAndroidEnterpriseId,
       pubsubTopicName: fullPubSubTopicName,
+      fleetServerSecret: newFleetServerSecret,
     });
 
 
 
     return {
       android_enterprise_id: newAndroidEnterpriseId,// eslint-disable-line camelcase
+      fleet_server_secret: newFleetServerSecret,// eslint-disable-line camelcase
     };
 
   }

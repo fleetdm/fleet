@@ -35,8 +35,7 @@ module.exports = {
     if(connectionforThisInstanceExists){
       throw 'enterpriseAlreadyExists';
     }
-    // Create a new fleetServerSecret for this Fleet server. This will be included in the response body and will be required in all subsequent requests to Android proxy endpoints.
-    let newFleetServerSecret = await sails.helpers.strings.random.with({len: 30});
+
 
     // Get a signup url for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
@@ -66,17 +65,9 @@ module.exports = {
     });
 
 
-    // Create a database record for this Fleet server,
-    await AndroidEnterprise.createOne({
-      fleetServerUrl: fleetServerUrl,
-      fleetServerSecret: newFleetServerSecret,
-    });
-
-
     return {
       signup_url: signupUrl.url,// eslint-disable-line camelcase
       signup_url_name: signupUrl.name,// eslint-disable-line camelcase
-      fleet_server_secret: newFleetServerSecret// eslint-disable-line camelcase
     };
 
 
