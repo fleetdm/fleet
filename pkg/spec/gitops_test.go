@@ -992,7 +992,7 @@ software:
 software:
   packages:
     - url: %s
-`, exeURL)
+`, tgzURL)
 
 	path, basePath = createTempFile(t, "", config)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
