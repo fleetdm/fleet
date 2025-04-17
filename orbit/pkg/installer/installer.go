@@ -317,6 +317,9 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 	if runtime.GOOS == "windows" {
 		scriptExtension = ".ps1"
 	}
+
+	// TODO detect if installer file is tgz; if so, extract it to the current dir
+
 	logger.Info().Msg("about to run install script")
 	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
 	payload.InstallScriptOutput = &installOutput
