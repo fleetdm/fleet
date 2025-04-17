@@ -19,6 +19,7 @@ import (
 )
 
 var ErrUnsupportedType = errors.New("unsupported file type")
+var ErrInvalidTarball = errors.New("not a valid .tar.gz archive")
 
 type InstallerMetadata struct {
 	Name             string
@@ -56,6 +57,7 @@ func ExtractInstallerMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, er
 		meta, err = ExtractMSIMetadata(tfr)
 	case "tar.gz":
 		meta, err = ValidateTarball(tfr)
+		return nil, errors.Join(ErrInvalidTarball, err)
 	default:
 		return nil, ErrUnsupportedType
 	}

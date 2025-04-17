@@ -1419,6 +1419,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
+		if errors.Is(err, file.ErrInvalidTarball) {
+			return "", &fleet.BadRequestError{
+				Message:     "Couldn't edit software. Uploaded file is not a valid .tar.gz archive.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
