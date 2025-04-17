@@ -73,7 +73,7 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
 }
 // application/gzip is used for .tar.gz files
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip";
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz";
 
 const PackageForm = ({
   labels,

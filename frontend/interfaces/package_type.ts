@@ -1,5 +1,13 @@
 const fleetMaintainedPackageTypes = ["dmg", "zip"] as const;
-const unixPackageTypes = ["pkg", "deb", "rpm", "dmg", "zip", "tar.gz"] as const;
+const unixPackageTypes = [
+  "pkg",
+  "deb",
+  "rpm",
+  "dmg",
+  "zip",
+  "tar.gz",
+  "tgz",
+] as const;
 // TODO: Is this where to put "tar.gz", should it be named that?
 const windowsPackageTypes = ["msi", "exe"] as const;
 export const packageTypes = [
