@@ -315,7 +315,6 @@ const ConditionalAccess = () => {
             />
             <Button
               type="submit"
-              variant="brand"
               disabled={!!size(formErrors)}
               className="button-wrap"
               isLoading={isUpdating}
