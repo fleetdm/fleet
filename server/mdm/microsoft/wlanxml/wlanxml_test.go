@@ -1,13 +1,12 @@
 package wlanxml
 
 import (
-	"encoding/xml"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const admxPolicy = `&lt;Enabled/&gt;
@@ -16,44 +15,6 @@ const admxPolicy = `&lt;Enabled/&gt;
       <data id="OutputDirectory" value="false"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`
-
-type WlanXmlProfileForTests struct {
-	WlanXmlProfile
-	MSM            string `xml:",innerxml"`
-	ConnectionMode string `xml:"connectionMode"`
-	ConnectionType string `xml:"connectionType"`
-}
-
-// Generates a WLAN XML profile with the given SSID Config and name for use in our tests
-func GenerateWLANXMLProfile(t *testing.T, name string, ssidConfig WlanXmlProfileSSIDConfig) string {
-	profile := WlanXmlProfileForTests{
-		WlanXmlProfile: WlanXmlProfile{
-			XMLName:    xml.Name{Local: "WLANProfile", Space: "http://www.microsoft.com/networking/WLAN/profile/v1"},
-			Name:       name,
-			SSIDConfig: ssidConfig,
-		},
-		ConnectionType: "ESS",
-		ConnectionMode: "auto",
-		MSM: `<security>
-			<authEncryption>
-				<authentication>WPA2PSK</authentication>
-				<encryption>AES</encryption>
-				<useOneX>false</useOneX>
-			</authEncryption>
-			<sharedKey>
-				<keyType>passPhrase</keyType>
-				<protected>false</protected>
-				<keyMaterial>sup3rs3cr3t</keyMaterial>
-			</sharedKey>
-		</security>`,
-	}
-	xmlBytes, err := xml.Marshal(profile)
-	assert.NoError(t, err, "failed to marshal WLAN XML profile")
-	var buffer strings.Builder
-	err = xml.EscapeText(&buffer, xmlBytes)
-	assert.NoError(t, err, "failed to XML Escape WLAN XML profile")
-	return buffer.String()
-}
 
 func GenerateSingleSSIDTestWLANXMLProfiles(t *testing.T, omitHex, omitName, nonBroadcast bool) string {
 	if omitHex && omitName {
@@ -74,8 +35,9 @@ func GenerateSingleSSIDTestWLANXMLProfiles(t *testing.T, omitHex, omitName, nonB
 	if omitName {
 		ssidConfig.SSID[0].Name = ""
 	}
-
-	return GenerateWLANXMLProfile(t, "Test", ssidConfig)
+	profile, err := GenerateWLANXMLProfileForTests("SSIDOne", ssidConfig)
+	require.NoError(t, err, "Error generating WLAN XML profile")
+	return profile
 }
 
 func GenerateMultipleSSIDTestWLANXMLProfileVariants(t *testing.T, prefix string, omitName, omitHex, reverseSSIDs, nonBroadcast bool) string {
@@ -112,7 +74,9 @@ func GenerateMultipleSSIDTestWLANXMLProfileVariants(t *testing.T, prefix string,
 	if reverseSSIDs {
 		slices.Reverse(ssidConfig.SSID)
 	}
-	return GenerateWLANXMLProfile(t, "SSIDOne", ssidConfig)
+	profile, err := GenerateWLANXMLProfileForTests("SSIDOne", ssidConfig)
+	require.NoError(t, err, "Error generating WLAN XML profile")
+	return profile
 }
 
 func TestIsWLANXML(t *testing.T) {

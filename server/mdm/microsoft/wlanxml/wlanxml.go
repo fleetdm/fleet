@@ -126,3 +126,46 @@ func (a *WlanXmlProfile) sortSSIDs() {
 		return strings.Compare(i.Hex, j.Hex)
 	})
 }
+
+// Generates a WLAN XML profile with the given SSID Config and name for use in our tests both. This
+// is exported so it can be used by tests outside this package.
+func GenerateWLANXMLProfileForTests(name string, ssidConfig WlanXmlProfileSSIDConfig) (string, error) {
+	type wlanXmlProfileForTests struct {
+		WlanXmlProfile
+		MSM            string `xml:",innerxml"`
+		ConnectionMode string `xml:"connectionMode"`
+		ConnectionType string `xml:"connectionType"`
+	}
+	profile := wlanXmlProfileForTests{
+		WlanXmlProfile: WlanXmlProfile{
+			XMLName:    xml.Name{Local: "WLANProfile", Space: "http://www.microsoft.com/networking/WLAN/profile/v1"},
+			Name:       name,
+			SSIDConfig: ssidConfig,
+		},
+		ConnectionType: "ESS",
+		ConnectionMode: "auto",
+		MSM: `<security>
+			<authEncryption>
+				<authentication>WPA2PSK</authentication>
+				<encryption>AES</encryption>
+				<useOneX>false</useOneX>
+			</authEncryption>
+			<sharedKey>
+				<keyType>passPhrase</keyType>
+				<protected>false</protected>
+				<keyMaterial>sup3rs3cr3t</keyMaterial>
+			</sharedKey>
+		</security>`,
+	}
+	xmlBytes, err := xml.Marshal(profile)
+	if err != nil {
+		return "", fmt.Errorf("Error marshaling WLAN XML profile: %w", err)
+	}
+
+	var buffer strings.Builder
+	err = xml.EscapeText(&buffer, xmlBytes)
+	if err != nil {
+		return "", fmt.Errorf("Error escaping marshalled WLAN XML profile: %w", err)
+	}
+	return buffer.String(), nil
+}
