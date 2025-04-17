@@ -47,7 +47,7 @@ graph LR
 
 ## Workflows
 
-### Configuring the server
+### [Configuring the server](workflows/configuring-the-server.md)
 #### UI / Env var
 - Example: Configure the server's hostname and port using environment variables (`SERVER_HOSTNAME`, `SERVER_PORT`) or through the Fleet Server UI.
 
@@ -72,7 +72,7 @@ graph LR
 ### MDM
 - **Device Enrollment**: Seamlessly enroll devices into the management system using automated workflows or manual processes.
 - **Remote Wipe / Lock**: Securely erase data from lost or stolen devices to protect sensitive information.
-- **Configuration Management**: Push configuration profiles to devices for settings like Wi-Fi, VPN, and email accounts.
+- [**Configuration Management**](features/mdm-configuration-management.md): Push configuration profiles to devices for settings like Wi-Fi, VPN, and email accounts.
 - **BYOD Support**: Manage both corporate-owned and personal devices while maintaining user privacy.
 ### Orchestration
 - **Device Inventory**: Maintain a real-time inventory of all enrolled devices, including hardware
