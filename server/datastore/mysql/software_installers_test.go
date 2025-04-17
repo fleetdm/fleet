@@ -43,6 +43,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
+		{"GetSoftwareInstallerByHash", testGetSoftwareInstallerByHash},
 	}
 
 	for _, c := range cases {
@@ -2371,4 +2372,108 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+}
+
+func testGetSoftwareInstallerByHash(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+
+	hash1, hash2, hash3 := "hash1", "hash2", "hash3"
+
+	// Add some software installers to No team
+	installer1NoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "bid1",
+		Extension:        "pkg",
+		StorageID:        hash1,
+		Filename:         "installer1.pkg",
+		Title:            "installer1",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		Platform:         "darwin",
+	})
+	require.NoError(t, err)
+
+	installer2NoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "bid2",
+		Extension:        "pkg",
+		StorageID:        hash2,
+		Filename:         "installer2.pkg",
+		Title:            "installer2",
+		Version:          "2.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		Platform:         "darwin",
+	})
+	require.NoError(t, err)
+
+	// Add some installers to Team 1
+	installer1Team1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "bid1",
+		Extension:        "pkg",
+		StorageID:        hash1,
+		Filename:         "installer1.pkg",
+		Title:            "installer1",
+		Version:          "1.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team1.ID,
+		Platform:         "darwin",
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallerFile:    tfr1,
+		BundleIdentifier: "bid3",
+		Extension:        "pkg",
+		StorageID:        hash3,
+		Filename:         "installer3.pkg",
+		Title:            "installer3",
+		Version:          "3.0",
+		Source:           "apps",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team1.ID,
+		Platform:         "darwin",
+	})
+	require.NoError(t, err)
+
+	// fetching by non-existent hash returns empty map
+	installers, err := ds.GetSoftwareInstallerByHash(ctx, "not_found")
+	require.NoError(t, err)
+	require.Empty(t, installers)
+
+	// there should be 2 installers, one for No team and one for Team 1
+	installers, err = ds.GetSoftwareInstallerByHash(ctx, hash1)
+	require.NoError(t, err)
+	require.Len(t, installers, 2)
+
+	require.Equal(t, installer1NoTeam, installers[0].InstallerID)
+	require.Nil(t, installers[0].TeamID)
+
+	require.Equal(t, installer1Team1, installers[1].InstallerID)
+	require.NotNil(t, installers[1].TeamID)
+	require.Equal(t, team1.ID, *installers[1].TeamID)
+
+	for _, i := range installers {
+		require.Equal(t, "installer1.pkg", i.Name)
+		require.Equal(t, "pkg", i.Extension)
+		require.Equal(t, "1.0", i.Version)
+		require.Equal(t, "darwin", i.Platform)
+	}
+
+	installers, err = ds.GetSoftwareInstallerByHash(ctx, hash2)
+	require.NoError(t, err)
+	require.Len(t, installers, 1)
+	require.Equal(t, installers[0].InstallerID, installer2NoTeam)
 }

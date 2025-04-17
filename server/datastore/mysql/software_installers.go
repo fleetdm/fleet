@@ -2320,6 +2320,7 @@ WHERE
 func (ds *Datastore) GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.SoftwareInstaller, error) {
 	stmt := `
 SELECT 
+	id,
 	team_id,
 	filename,
 	extension,

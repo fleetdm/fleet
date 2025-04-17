@@ -1690,7 +1690,7 @@ func (svc *Service) softwareBatchUpload(
 				jl.Printf("got existing sha for installer %s on team %d, skipping download", p.Filename, tmID)
 				installer.StorageID = p.SHA256
 				installer.Extension = foundInstaller.Extension
-				installer.Filename = foundInstaller.Filename
+				installer.Filename = foundInstaller.Name
 				installer.Version = foundInstaller.Version
 				installer.Platform = foundInstaller.Platform
 			case !ok && len(teamIDs) > 0:
@@ -1700,7 +1700,7 @@ func (svc *Service) softwareBatchUpload(
 					// use the first one we find; which one shouldn't matter because they're all the
 					// same installer bytes
 					installer.Extension = i.Extension
-					installer.Filename = i.Filename
+					installer.Filename = i.Name
 					installer.Version = i.Version
 					installer.Platform = i.Platform
 					break
