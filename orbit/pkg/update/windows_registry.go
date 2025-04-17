@@ -31,8 +31,6 @@ func updateUninstallFleetdRegistryVersion(newVersion string) error {
 		return fmt.Errorf(`couldn't find the uninstall fleetd registry key in '%v': %w`, REG_UNINSTALL_ABS_PATH, err)
 	}
 
-	// setKey, err := registry.OpenKey(fleetdRegKey)
-	// setKey, err := registry.OpenKey(registry.LOCAL_MACHINE, REG_UNINSTALL_REL_PATH+`\`+uninstallFleetdRegKey, registry.SET_VALUE)
 	setKey, err := registry.OpenKey(registry.LOCAL_MACHINE, uninstallFleetdRegRelPath, registry.SET_VALUE)
 	if err != nil {
 		return fmt.Errorf(`couldn't open 'SET_VALUE' key handle for '%v\%v": %w`, HKEY_LOCAL_MACHINE_PATH, uninstallFleetdRegRelPath, err)
@@ -47,22 +45,22 @@ func updateUninstallFleetdRegistryVersion(newVersion string) error {
 
 func findUninstallFleetdRegKeyRelPath() (string, error) {
 	// get the existing keys in the Uninstall registry directory
-	enumerateKey, err := registry.OpenKey(registry.LOCAL_MACHINE, REG_UNINSTALL_REL_PATH, registry.READ)
+	enumerateKeyHandle, err := registry.OpenKey(registry.LOCAL_MACHINE, REG_UNINSTALL_REL_PATH, registry.READ)
 	if err != nil {
 		return "", fmt.Errorf(`couldn't open registry key '%v': %w`, REG_UNINSTALL_ABS_PATH, err)
 	}
+	defer enumerateKeyHandle.Close()
 
-	stat, err := enumerateKey.Stat()
+	stat, err := enumerateKeyHandle.Stat()
 	if err != nil {
 		return "", fmt.Errorf(`couldn't get stat from registry key handle for '%v': %w`, REG_UNINSTALL_ABS_PATH, err)
 	}
 	subKeyCount := stat.SubKeyCount
 
-	keys, err := enumerateKey.ReadSubKeyNames(int(subKeyCount))
+	keys, err := enumerateKeyHandle.ReadSubKeyNames(int(subKeyCount))
 	if err != nil {
 		return "", fmt.Errorf(`couldn't read subkeys of registry key handle for '%v': %w`, REG_UNINSTALL_ABS_PATH, err)
 	}
-	enumerateKey.Close()
 
 	// find the Fleetd entry in the existing keys
 	var fleetdKey string
@@ -71,6 +69,7 @@ func findUninstallFleetdRegKeyRelPath() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf(`couldn't open registry subkey handle for '%v\%v': %w`, REG_UNINSTALL_ABS_PATH, key, err)
 		}
+		defer keyHandle.Close()
 		displayName, _, err := keyHandle.GetStringValue("DisplayName")
 		if err != nil {
 			if errors.Is(err, registry.ErrNotExist) {
