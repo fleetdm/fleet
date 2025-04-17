@@ -5,10 +5,10 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Brave' AND publisher = 'Brave Software Inc';"
       },
-      "installer_url": "https://github.com/brave/brave-browser/releases/download/v1.77.97/BraveBrowserStandaloneSilentSetup.exe",
+      "installer_url": "https://updates-cdn.bravesoftware.com/build/Brave-Release/x64-rel/win/135.1.77.97/brave_installer-x64.exe",
       "install_script_ref": "0319c426",
       "uninstall_script_ref": "da8237ee",
-      "sha256": "61a4ab69719c7d9bae554c218f33d7c09657c1ef33891849c15e978a60798ff8"
+      "sha256": "284f27ad9448634efc4f0f7b418501f0c77b5eab8ab0138da34034a9989706ff"
     }
   ],
   "refs": {
