@@ -18,7 +18,7 @@ Fleet now pulls end user details from your identity provider (IdP)—like IdP em
 
 ### Policy targets
 
-Security engineers can now target policies to specific hosts using labels. This gives teams more precise control over enforcement within a [Fleet team](https://fleetdm.com/guides/teams), helping apply the right checks to the right devices.
+Security engineers can now target policies to specific hosts using labels. This gives teams more precise control over enforcement within a [Fleet team](https://fleetdm.com/guides/teams), helping apply the right checks to the right hosts.
 
 ### Cancel activities
 
