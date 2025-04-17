@@ -42,13 +42,13 @@ module.exports = {
     }
 
     let newEnrollmentToken = await sails.helpers.flow.build(async ()=>{
-      let google = require('googleapis');
+      let { google } = require('googleapis');
       let androidmanagement = google.androidmanagement('v1');
       let googleAuth = new google.auth.GoogleAuth({
         scopes: ['https://www.googleapis.com/auth/androidmanagement'],
         credentials: {
-          client_email: sails.config.custom.GoogleClientId,// eslint-disable-line camelcase
-          private_key: sails.config.custom.GooglePrivateKey,// eslint-disable-line camelcase
+          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
+          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
         },
       });
       // Acquire the google auth client, and bind it to all future calls

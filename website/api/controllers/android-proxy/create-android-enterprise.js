@@ -52,23 +52,18 @@ module.exports = {
     // Generate a uuid to use for the pubsub topic name for this Android enterprise.
     let newPubSubTopicName = 'a' + sails.helpers.strings.uuid();// Google requires that topic names start with a letter, so we'll preprend an 'a' to the generated uuid.
     // Build the full pubsub topic name.
-    let fullPubSubTopicName = `projects/${sails.config.custom.androidManagementProjectId}/topics/${newPubSubTopicName}`;
+    let fullPubSubTopicName = `projects/${sails.config.custom.androidEnterpriseProjectId}/topics/${newPubSubTopicName}`;
 
     // Complete the setup of the new Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let newEnterprise = await sails.helpers.flow.build(async ()=>{
-      // [?] https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Signupurls.html#create
-      let google = require('googleapis');
+      let { google } = require('googleapis');
       let androidmanagement = google.androidmanagement('v1');
-
       let googleAuth = new google.auth.GoogleAuth({
-        scopes: [
-          'https://www.googleapis.com/auth/pubsub',// For creating the PubSub topic
-          'https://www.googleapis.com/auth/androidmanagement'// For creating the new Android enterprise
-        ],
+        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
         credentials: {
-          client_email: sails.config.custom.GoogleClientId,// eslint-disable-line camelcase
-          private_key: sails.config.custom.GooglePrivateKey,// eslint-disable-line camelcase
+          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
+          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
         },
       });
       // Acquire the google auth client, and bind it to all future calls
@@ -109,7 +104,7 @@ module.exports = {
         }
       });
 
-      let newSubscriptionName = `projects/${sails.config.custom.androidManagementProjectId}/subscriptions/${newPubSubTopicName}`;
+      let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
       // Create a new subscription for the created pubsub topic.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create
       await pubsub.projects.subscriptions.create({
@@ -129,7 +124,7 @@ module.exports = {
       let createEnterpriseResponse = await androidmanagement.enterprises.create({
         agreementAccepted: true,
         enterpriseToken: enterpriseToken,
-        projectId: sails.config.custom.androidManagementProjectId,
+        projectId: sails.config.custom.androidEnterpriseProjectId,
         signupUrlName: signupUrlName,
         requestBody: enterprise,
       });
