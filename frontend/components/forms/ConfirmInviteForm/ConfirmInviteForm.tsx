@@ -138,7 +138,6 @@ const ConfirmInviteForm = ({
         type="submit"
         disabled={Object.keys(formErrors).length > 0}
         className="confirm-invite-button"
-        variant="brand"
       >
         Submit
       </Button>

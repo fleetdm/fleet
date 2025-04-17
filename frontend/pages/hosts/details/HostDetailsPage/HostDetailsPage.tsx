@@ -49,7 +49,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -792,6 +792,20 @@ const HostDetailsPage = ({
     );
   };
 
+  const onSuccessCancelActivity = (activity: IHostUpcomingActivity) => {
+    if (!host) return;
+
+    // only for windows and linux hosts we want to refetch host details
+    // after cancelling ran script activity. This is because lock and wipe
+    // activites are run as scripts on windows and linux hosts.
+    if (
+      activity.type === ActivityType.RanScript &&
+      (host.platform === "windows" || isLinuxLike(host.platform))
+    ) {
+      refetchHostDetails();
+    }
+  };
+
   if (
     !host ||
     isLoadingHost ||
@@ -952,7 +966,7 @@ const HostDetailsPage = ({
                   endUsers={host.end_users ?? []}
                   enableAddEndUser={
                     isDarwinHost &&
-                    generateUsernameValues(host.end_users ?? []).length !== 0
+                    generateUsernameValues(host.end_users ?? []).length === 0
                   }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
@@ -1221,16 +1235,7 @@ const HostDetailsPage = ({
             hostId={host.id}
             activity={selectedCancelActivity}
             onCancelActivity={() => refetchUpcomingActivities()}
-            onSuccessCancel={(activity) => {
-              // only for windows and linux hosts we want to refetch host details
-              if (
-                (activity.type === ActivityType.RanScript &&
-                  host.platform === "windows") ||
-                host.platform === "linux"
-              ) {
-                refetchHostDetails();
-              }
-            }}
+            onSuccessCancel={onSuccessCancelActivity}
             onExit={() => setSelectedCancelActivity(null)}
           />
         )}

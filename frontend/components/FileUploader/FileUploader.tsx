@@ -86,7 +86,7 @@ export const FileUploader = ({
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
   });
-  const buttonVariant = buttonType === "button" ? "brand" : "text-icon";
+  const buttonVariant = buttonType === "button" ? "default" : "text-icon";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();

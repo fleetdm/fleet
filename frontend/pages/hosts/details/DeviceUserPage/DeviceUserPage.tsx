@@ -16,7 +16,6 @@ import {
   IMacadminsResponse,
   IDeviceUserResponse,
   IHostDevice,
-  IHostEndUser,
 } from "interfaces/host";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
