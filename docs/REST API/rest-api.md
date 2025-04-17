@@ -9242,7 +9242,7 @@ Get a list of all software versions.
 ```json
 {
     "counts_updated_at": "2022-01-01 12:32:00",
-    "count": 1,
+    "count": 2,
     "software": [
       {
         "id": 1,
@@ -9540,6 +9540,7 @@ Returns information about the specified software version.
 {
   "software": {
     "id": 425224,
+    "software_title_id": 1337,
     "name": "Firefox.app",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
@@ -10422,6 +10423,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
   "software": [
     {
       "id": 2363,
+      "software_title_id": 124,
       "name": "Docker Desktop",
       "version": "4.9.1",
       "source": "programs",
