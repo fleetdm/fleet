@@ -902,7 +902,7 @@ Can only be configured for all teams (`org_settings`).
 
 ##### end_user_license_agreement
 
-You can require and agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication`must be set to `true`
+You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
 
 - `end_user_license_agreement` is the path to the PDF document.
 
