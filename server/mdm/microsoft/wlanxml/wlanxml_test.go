@@ -1,183 +1,132 @@
 package wlanxml
 
 import (
+	"encoding/xml"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	// Profile 1 is a simple single SSID profile
-	xmlEncodedProfile1 = `&lt;?xml version=&quot;1.0&quot;?&gt;
-&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/WLAN/profile/v1&quot;&gt;
-	&lt;name&gt;Test&lt;/name&gt;
-	&lt;SSIDConfig&gt;
-		&lt;SSID&gt;
-                    &lt;hex&gt;54657374&lt;/hex&gt;
-                    &lt;name&gt;Test&lt;/name&gt;
-                &lt;/SSID&gt;
-                &lt;nonBroadcast&gt;false&lt;/nonBroadcast&gt;
-	&lt;/SSIDConfig&gt;
-	&lt;connectionType&gt;ESS&lt;/connectionType&gt;
-	&lt;connectionMode&gt;auto&lt;/connectionMode&gt;
-	&lt;MSM&gt;
-		&lt;security&gt;
-			&lt;authEncryption&gt;
-				&lt;authentication&gt;WPA2PSK&lt;/authentication&gt;
-				&lt;encryption&gt;AES&lt;/encryption&gt;
-				&lt;useOneX&gt;false&lt;/useOneX&gt;
-			&lt;/authEncryption&gt;
-			&lt;sharedKey&gt;
-				&lt;keyType&gt;passPhrase&lt;/keyType&gt;
-				&lt;protected&gt;false&lt;/protected&gt;
-				&lt;keyMaterial&gt;sup3rs3cr3t&lt;/keyMaterial&gt;
-			&lt;/sharedKey&gt;
-		&lt;/security&gt;
-	&lt;/MSM&gt;
-&lt;/WLANProfile&gt;`
-
-	// Profile 2 is a variant of profile 1 with a non-broadcast SSID
-	xmlEncodedProfile2 = `&lt;?xml version=&quot;1.0&quot;?&gt;
-&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/WLAN/profile/v1&quot;&gt;
-	&lt;name&gt;Test&lt;/name&gt;
-	&lt;SSIDConfig&gt;
-		&lt;SSID&gt;
-                    &lt;hex&gt;54657374&lt;/hex&gt;
-                    &lt;name&gt;Test&lt;/name&gt;
-                &lt;/SSID&gt;
-                &lt;nonBroadcast&gt;true&lt;/nonBroadcast&gt;
-	&lt;/SSIDConfig&gt;
-	&lt;connectionType&gt;ESS&lt;/connectionType&gt;
-	&lt;connectionMode&gt;auto&lt;/connectionMode&gt;
-	&lt;MSM&gt;
-		&lt;security&gt;
-			&lt;authEncryption&gt;
-				&lt;authentication&gt;WPA2PSK&lt;/authentication&gt;
-				&lt;encryption&gt;AES&lt;/encryption&gt;
-				&lt;useOneX&gt;false&lt;/useOneX&gt;
-			&lt;/authEncryption&gt;
-			&lt;sharedKey&gt;
-				&lt;keyType&gt;passPhrase&lt;/keyType&gt;
-				&lt;protected&gt;false&lt;/protected&gt;
-				&lt;keyMaterial&gt;sup3rs3cr3t&lt;/keyMaterial&gt;
-			&lt;/sharedKey&gt;
-		&lt;/security&gt;
-	&lt;/MSM&gt;
-&lt;/WLANProfile&gt;`
-
-	// Profile 3 is a more complex profile with multiple SSIDs
-	xmlEncodedProfile3 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
-             xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
-  &lt;name&gt;SampleProfile&lt;/name&gt;
-  &lt;SSIDConfig&gt;
-    &lt;SSID&gt;
-        &lt;name&gt;MySSID1&lt;/name&gt;
-    &lt;/SSID&gt;
-    &lt;v2:SSID&gt;
-        &lt;v2:name&gt;MySSID2&lt;/v2:name&gt;
-    &lt;/v2:SSID&gt;
-    &lt;v2:SSIDPrefix&gt;
-        &lt;v2:name&gt;MySSIDPrefix&lt;/v2:name&gt;
-    &lt;/v2:SSIDPrefix&gt;
-  &lt;/SSIDConfig&gt;
-  &lt;MSM&gt;
-    &lt;security&gt;
-        &lt;authEncryption&gt;
-            &lt;authentication&gt;open&lt;/authentication&gt;
-            &lt;encryption&gt;none&lt;/encryption&gt;
-            &lt;useOneX&gt;false&lt;/useOneX&gt;
-        &lt;/authEncryption&gt;
-    &lt;/security&gt;
-  &lt;/MSM&gt;
-&lt;/WLANProfile&gt;`
-
-	// An equal variant of profile 3 with SSID order swapped
-	xmlEncodedProfile3SortVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
-             xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
-  &lt;name&gt;SampleProfile&lt;/name&gt;
-  &lt;SSIDConfig&gt;
-    &lt;v2:SSID&gt;
-        &lt;v2:name&gt;MySSID2&lt;/v2:name&gt;
-    &lt;/v2:SSID&gt;
-    &lt;SSID&gt;
-        &lt;name&gt;MySSID1&lt;/name&gt;
-    &lt;/SSID&gt;
-    &lt;v2:SSIDPrefix&gt;
-        &lt;v2:name&gt;MySSIDPrefix&lt;/v2:name&gt;
-    &lt;/v2:SSIDPrefix&gt;
-  &lt;/SSIDConfig&gt;
-  &lt;MSM&gt;
-    &lt;security&gt;
-        &lt;authEncryption&gt;
-            &lt;authentication&gt;open&lt;/authentication&gt;
-            &lt;encryption&gt;none&lt;/encryption&gt;
-            &lt;useOneX&gt;false&lt;/useOneX&gt;
-        &lt;/authEncryption&gt;
-    &lt;/security&gt;
-  &lt;/MSM&gt;
-&lt;/WLANProfile&gt;`
-
-	// An equal variant of profile 3 with Hex SSIDs in lieu of names
-	xmlEncodedProfile3HexVariant = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
-             xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
-  &lt;name&gt;SampleProfile&lt;/name&gt;
-  &lt;SSIDConfig&gt;
-    &lt;SSID&gt;
-        &lt;hex&gt;4d795353494431&lt;/hex&gt;
-    &lt;/SSID&gt;
-    &lt;v2:SSID&gt;
-        &lt;v2:hex&gt;4d795353494432&lt;/v2:hex&gt;
-    &lt;/v2:SSID&gt;
-    &lt;v2:SSIDPrefix&gt;
-        &lt;v2:hex&gt;4d7953534944507265666978&lt;/v2:hex&gt;
-    &lt;/v2:SSIDPrefix&gt;
-  &lt;/SSIDConfig&gt;
-  &lt;MSM&gt;
-    &lt;security&gt;
-        &lt;authEncryption&gt;
-            &lt;authentication&gt;open&lt;/authentication&gt;
-            &lt;encryption&gt;none&lt;/encryption&gt;
-            &lt;useOneX&gt;false&lt;/useOneX&gt;
-        &lt;/authEncryption&gt;
-    &lt;/security&gt;
-  &lt;/MSM&gt;
-&lt;/WLANProfile&gt;`
-
-	// Profile 4 is a variant of profile 3 with a different prefix
-	xmlEncodedProfile4 = `&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v1&quot;
-             xmlns:v2=&quot;http://www.microsoft.com/networking/CarrierControl/WLAN/v2&quot;&gt;
-  &lt;name&gt;SampleProfile&lt;/name&gt;
-  &lt;SSIDConfig&gt;
-    &lt;SSID&gt;
-        &lt;name&gt;MySSID1&lt;/name&gt;
-    &lt;/SSID&gt;
-    &lt;v2:SSID&gt;
-        &lt;v2:name&gt;MySSID2&lt;/v2:name&gt;
-    &lt;/v2:SSID&gt;
-    &lt;v2:SSIDPrefix&gt;
-        &lt;v2:name&gt;MyOtherSSIDPrefix&lt;/v2:name&gt;
-    &lt;/v2:SSIDPrefix&gt;
-  &lt;/SSIDConfig&gt;
-  &lt;MSM&gt;
-    &lt;security&gt;
-        &lt;authEncryption&gt;
-            &lt;authentication&gt;open&lt;/authentication&gt;
-            &lt;encryption&gt;none&lt;/encryption&gt;
-            &lt;useOneX&gt;false&lt;/useOneX&gt;
-        &lt;/authEncryption&gt;
-    &lt;/security&gt;
-  &lt;/MSM&gt;
-&lt;/WLANProfile&gt;`
-
-	admxPolicy = `&lt;Enabled/&gt;
+const admxPolicy = `&lt;Enabled/&gt;
       <![CDATA[<data id="ExecutionPolicy" value="AllSigned"/>]]>
       <![CDATA[<data id="Listbox_ModuleNames" value="*"/>
       <data id="OutputDirectory" value="false"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`
-)
+
+type WlanXmlProfileForTests struct {
+	WlanXmlProfile
+	MSM            string `xml:",innerxml"`
+	ConnectionMode string `xml:"connectionMode"`
+	ConnectionType string `xml:"connectionType"`
+}
+
+// Generates a WLAN XML profile with the given SSID Config and name for use in our tests
+func GenerateWLANXMLProfile(t *testing.T, name string, ssidConfig WlanXmlProfileSSIDConfig) string {
+	profile := WlanXmlProfileForTests{
+		WlanXmlProfile: WlanXmlProfile{
+			XMLName:    xml.Name{Local: "WLANProfile", Space: "http://www.microsoft.com/networking/WLAN/profile/v1"},
+			Name:       name,
+			SSIDConfig: ssidConfig,
+		},
+		ConnectionType: "ESS",
+		ConnectionMode: "auto",
+		MSM: `<security>
+			<authEncryption>
+				<authentication>WPA2PSK</authentication>
+				<encryption>AES</encryption>
+				<useOneX>false</useOneX>
+			</authEncryption>
+			<sharedKey>
+				<keyType>passPhrase</keyType>
+				<protected>false</protected>
+				<keyMaterial>sup3rs3cr3t</keyMaterial>
+			</sharedKey>
+		</security>`,
+	}
+	xmlBytes, err := xml.Marshal(profile)
+	assert.NoError(t, err, "failed to marshal WLAN XML profile")
+	var buffer strings.Builder
+	err = xml.EscapeText(&buffer, xmlBytes)
+	assert.NoError(t, err, "failed to XML Escape WLAN XML profile")
+	return buffer.String()
+}
+
+func GenerateSingleSSIDTestWLANXMLProfiles(t *testing.T, omitHex, omitName, nonBroadcast bool) string {
+	if omitHex && omitName {
+		assert.Fail(t, "cannot omit hex and name")
+	}
+	ssidConfig := WlanXmlProfileSSIDConfig{
+		SSID: []WlanXmlProfileSSID{
+			{
+				Name: "Test",
+				Hex:  "54657374",
+			},
+		},
+		NonBroadcast: nonBroadcast,
+	}
+	if omitHex {
+		ssidConfig.SSID[0].Hex = ""
+	}
+	if omitName {
+		ssidConfig.SSID[0].Name = ""
+	}
+
+	return GenerateWLANXMLProfile(t, "Test", ssidConfig)
+}
+
+func GenerateMultipleSSIDTestWLANXMLProfileVariants(t *testing.T, prefix string, omitName, omitHex, reverseSSIDs, nonBroadcast bool) string {
+	if omitHex && omitName {
+		assert.Fail(t, "cannot omit hex and name")
+	}
+	ssidConfig := WlanXmlProfileSSIDConfig{
+		SSID: []WlanXmlProfileSSID{
+			{
+				Name: "SSIDOne",
+				Hex:  "535349444F6E65",
+			},
+			{
+				Name: "SSIDTwo",
+				Hex:  "5353494454776F",
+			},
+		},
+		SSIDPrefix: WlanXmlProfileSSID{
+			Name: prefix,
+			Hex:  fmt.Sprintf("%X", prefix),
+		},
+		NonBroadcast: nonBroadcast,
+	}
+	if omitHex {
+		ssidConfig.SSID[0].Hex = ""
+		ssidConfig.SSID[1].Hex = ""
+		ssidConfig.SSIDPrefix.Hex = ""
+	}
+	if omitName {
+		ssidConfig.SSID[0].Name = ""
+		ssidConfig.SSID[1].Name = ""
+		ssidConfig.SSIDPrefix.Name = ""
+	}
+	if reverseSSIDs {
+		slices.Reverse(ssidConfig.SSID)
+	}
+	return GenerateWLANXMLProfile(t, "SSIDOne", ssidConfig)
+}
 
 func TestIsWLANXML(t *testing.T) {
+	simpleBroadcastingProfile := GenerateSingleSSIDTestWLANXMLProfiles(t, false, false, false)
+	simpleNonBroadcastingProfile := GenerateSingleSSIDTestWLANXMLProfiles(t, false, false, true)
+	singleNonBroadcastingProfileHexOnly := GenerateSingleSSIDTestWLANXMLProfiles(t, false, true, true)
+	singleNonBroadcastingProfileNameOnly := GenerateSingleSSIDTestWLANXMLProfiles(t, false, true, true)
+
+	baseMultiSSIDBroadcastingProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, false, false, false)
+	onlyHexSSIDsBroadcastingMultiSSIDProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", true, false, false, false)
+	onlyNameSSIDsBroadcastingMultiSSIDProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, true, false, false)
+
+	baseMultiSSIDNonBroadcastingProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, false, false, false)
+
 	t.Parallel()
 	tests := map[string]struct {
 		input    string
@@ -194,14 +143,16 @@ func TestIsWLANXML(t *testing.T) {
 		"valid ADMX policy - multiline": {`	<![CDATA[
 				<enabled/>
 				]]>`, false},
-		"valid ADMX policy - encoded":               {"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;", false},
-		"valid ADMX policy - constant":              {admxPolicy, false},
-		"valid WLAN XML profile 1":                  {xmlEncodedProfile1, true},
-		"valid WLAN XML profile 2":                  {xmlEncodedProfile1, true},
-		"valid WLAN XML profile 3":                  {xmlEncodedProfile3, true},
-		"valid WLAN XML profile 3 unsorted variant": {xmlEncodedProfile3, true},
-		"valid WLAN XML profile 3 hex variant":      {xmlEncodedProfile3, true},
-		"valid WLAN XML profile 4":                  {xmlEncodedProfile3, true},
+		"valid ADMX policy - encoded":                        {"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;", false},
+		"valid ADMX policy - constant":                       {admxPolicy, false},
+		"valid WLAN XML profile broadcasting SSID":           {simpleBroadcastingProfile, true},
+		"valid WLAN XML profile non-broadcasting SSID":       {simpleNonBroadcastingProfile, true},
+		"valid WLAN XML profile with only hex SSID":          {singleNonBroadcastingProfileHexOnly, true},
+		"valid WLAN XML profile with only name SSID":         {singleNonBroadcastingProfileNameOnly, true},
+		"valid WLAN XML profile with multiple SSIDs":         {baseMultiSSIDBroadcastingProfile, true},
+		"valid WLAN XML profile with only hex SSIDs":         {onlyHexSSIDsBroadcastingMultiSSIDProfile, true},
+		"valid WLAN XML profile with only name SSIDs":        {onlyNameSSIDsBroadcastingMultiSSIDProfile, true},
+		"valid WLAN XML profile with non-broadcasting SSIDs": {baseMultiSSIDNonBroadcastingProfile, true},
 	}
 
 	for name, testCase := range tests {
@@ -213,6 +164,24 @@ func TestIsWLANXML(t *testing.T) {
 }
 
 func TestEqual(t *testing.T) {
+	// Each newline separted group below should be equivalent to others in the group
+	simpleBroadcastingProfile := GenerateSingleSSIDTestWLANXMLProfiles(t, false, false, false)
+	simpleBroadcastingProfileHexOnly := GenerateSingleSSIDTestWLANXMLProfiles(t, false, true, false)
+	simpleBroadcastingProfileNameOnly := GenerateSingleSSIDTestWLANXMLProfiles(t, false, true, false)
+
+	simpleNonBroadcastingProfile := GenerateSingleSSIDTestWLANXMLProfiles(t, false, false, true)
+	simpleNonBroadcastingProfileHexOnly := GenerateSingleSSIDTestWLANXMLProfiles(t, false, true, true)
+	simpleNonBroadcastingProfileNameOnly := GenerateSingleSSIDTestWLANXMLProfiles(t, false, true, true)
+
+	baseMultiSSIDBroadcastingProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, false, false, false)
+	baseMultiSSIDBroadcastingProfileReverseSort := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, false, true, false)
+	onlyHexSSIDsBroadcastingMultiSSIDProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", true, false, false, false)
+	onlyNameSSIDsBroadcastingMultiSSIDProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, true, false, false)
+
+	baseMultiSSIDNonBroadcastingProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "MySSIDPrefix", false, false, false, true)
+
+	alternatePrefixMultiSSIDBroadcastingProfile := GenerateMultipleSSIDTestWLANXMLProfileVariants(t, "BozoSSIDPrefix", false, false, false, false)
+
 	t.Parallel()
 	testCases := []struct {
 		name, a, b, errorContains string
@@ -228,56 +197,126 @@ func TestEqual(t *testing.T) {
 		{
 			name:          "a is an ADMX policy",
 			a:             admxPolicy,
-			b:             xmlEncodedProfile1,
+			b:             simpleBroadcastingProfile,
 			equal:         false,
 			errorContains: "unmarshalling WLAN XML profile",
 		},
 		{
 			name:          "b is an ADMX policy",
-			a:             xmlEncodedProfile1,
+			a:             simpleBroadcastingProfile,
 			b:             admxPolicy,
 			equal:         false,
 			errorContains: "unmarshalling WLAN XML profile",
 		},
 		{
 			name:          "equal profiles",
-			a:             xmlEncodedProfile1,
-			b:             xmlEncodedProfile1,
+			a:             simpleBroadcastingProfile,
+			b:             simpleBroadcastingProfile,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "equal profiles but different SSID order",
-			a:             xmlEncodedProfile3,
-			b:             xmlEncodedProfile3SortVariant,
+			name:          "equal single-SSID profiles but one only includes Hex",
+			a:             simpleBroadcastingProfileHexOnly,
+			b:             simpleBroadcastingProfile,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "equal profiles but different SSID order - swapped invocation order",
-			a:             xmlEncodedProfile3SortVariant,
-			b:             xmlEncodedProfile3,
+			name:          "equal single-SSID profiles but one only includes Name",
+			a:             simpleBroadcastingProfileHexOnly,
+			b:             simpleBroadcastingProfile,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "equal profiles but SSIDs as hex for one",
-			a:             xmlEncodedProfile3,
-			b:             xmlEncodedProfile3HexVariant,
+			name:          "equal single-SSID profiles but one only includes Name and one only includes Hex",
+			a:             simpleBroadcastingProfileHexOnly,
+			b:             simpleBroadcastingProfileNameOnly,
 			equal:         true,
 			errorContains: "",
 		},
 		{
-			name:          "different profiles",
-			a:             xmlEncodedProfile1,
-			b:             xmlEncodedProfile2,
+			name:          "equal non-broadcasting profiles",
+			a:             simpleNonBroadcastingProfile,
+			b:             simpleNonBroadcastingProfile,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "equal single-SSID non-broadcast profiles but one only includes Hex",
+			a:             simpleNonBroadcastingProfileHexOnly,
+			b:             simpleNonBroadcastingProfile,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "equal single-SSID non-broadcast profiles but one only includes Name",
+			a:             simpleNonBroadcastingProfileHexOnly,
+			b:             simpleNonBroadcastingProfile,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "equal single-SSID non-broadcast profiles but one only includes Name and one only includes Hex",
+			a:             simpleNonBroadcastingProfileHexOnly,
+			b:             simpleNonBroadcastingProfileNameOnly,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "single same-SSID profiles with different non-broadcasting settings",
+			a:             simpleBroadcastingProfile,
+			b:             simpleNonBroadcastingProfile,
 			equal:         false,
 			errorContains: "",
 		},
 		{
+			name:          "equal multi-SSID profiles but different SSID order",
+			a:             baseMultiSSIDBroadcastingProfile,
+			b:             baseMultiSSIDBroadcastingProfileReverseSort,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "equal multi-SSID profiles but SSIDs as hex for one",
+			a:             baseMultiSSIDBroadcastingProfile,
+			b:             onlyHexSSIDsBroadcastingMultiSSIDProfile,
+			equal:         true,
+			errorContains: "",
+		},
+		{
+			name:          "equal multi-SSID profiles but SSIDs as names for one",
+			a:             baseMultiSSIDBroadcastingProfile,
+			b:             onlyNameSSIDsBroadcastingMultiSSIDProfile,
+			equal:         true,
+			errorContains: "",
+		},
+		{
 			name:          "similar profiles with different SSID prefix settings",
-			a:             xmlEncodedProfile3,
-			b:             xmlEncodedProfile4,
+			a:             baseMultiSSIDBroadcastingProfile,
+			b:             alternatePrefixMultiSSIDBroadcastingProfile,
+			equal:         false,
+			errorContains: "",
+		},
+		{
+			name:          "similar multi-SSID profiles with different non-broadcasting settings",
+			a:             baseMultiSSIDBroadcastingProfile,
+			b:             baseMultiSSIDNonBroadcastingProfile,
+			equal:         false,
+			errorContains: "",
+		},
+		{
+			name:          "single broadcasting SSID compared to multi-SSID broadcasting profile",
+			a:             simpleBroadcastingProfile,
+			b:             baseMultiSSIDBroadcastingProfile,
+			equal:         false,
+			errorContains: "",
+		},
+		{
+			name:          "single non-broadcasting SSID compared to multi-SSID non-broadcasting profile",
+			a:             simpleNonBroadcastingProfile,
+			b:             baseMultiSSIDNonBroadcastingProfile,
 			equal:         false,
 			errorContains: "",
 		},
@@ -285,6 +324,15 @@ func TestEqual(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			equal, err := Equal(tt.a, tt.b)
+			if tt.errorContains == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.errorContains)
+			}
+			assert.Equal(t, tt.equal, equal)
+
+			// Swap the order of a and b - should be equivalent output
+			equal, err = Equal(tt.b, tt.a)
 			if tt.errorContains == "" {
 				assert.NoError(t, err)
 			} else {

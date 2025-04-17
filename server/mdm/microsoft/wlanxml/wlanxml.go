@@ -29,21 +29,21 @@ func Equal(a, b string) (bool, error) {
 	return aProfile.Equal(bProfile), nil
 }
 
-func unmarshal(w string) (wlanXmlProfile, error) {
+func unmarshal(w string) (WlanXmlProfile, error) {
 	// This whole thing will be XML Encoded so step 1 is just to decode it
 	var unescaped string
 	err := xml.Unmarshal([]byte("<wlanxml>"+w+"</wlanxml>"), &unescaped)
 	if err != nil {
-		return wlanXmlProfile{}, fmt.Errorf("unmarshalling WLAN XML profile to string: %w", err)
+		return WlanXmlProfile{}, fmt.Errorf("unmarshalling WLAN XML profile to string: %w", err)
 	}
 
-	var profile wlanXmlProfile
+	var profile WlanXmlProfile
 	err = xml.Unmarshal([]byte(unescaped), &profile)
 	if err != nil {
-		return wlanXmlProfile{}, fmt.Errorf("unmarshalling WLAN XML profile: %w", err)
+		return WlanXmlProfile{}, fmt.Errorf("unmarshalling WLAN XML profile: %w", err)
 	}
 	if profile.XMLName.Local != "WLANProfile" {
-		return wlanXmlProfile{}, fmt.Errorf("unmarshalling WLAN XML profile: expected <WLANProfile> tag, got <%s>", profile.XMLName.Local)
+		return WlanXmlProfile{}, fmt.Errorf("unmarshalling WLAN XML profile: expected <WLANProfile> tag, got <%s>", profile.XMLName.Local)
 	}
 
 	for i := 0; i < len(profile.SSIDConfig.SSID); i++ {
@@ -54,24 +54,24 @@ func unmarshal(w string) (wlanXmlProfile, error) {
 	return profile, nil
 }
 
-type wlanXmlProfile struct {
-	XMLName    xml.Name
+type WlanXmlProfile struct {
+	XMLName    xml.Name                 `xml:"WLANProfile"`
 	Name       string                   `xml:"name"`
-	SSIDConfig wlanXmlProfileSSIDConfig `xml:"SSIDConfig"`
+	SSIDConfig WlanXmlProfileSSIDConfig `xml:"SSIDConfig"`
 }
 
-type wlanXmlProfileSSIDConfig struct {
-	SSID         []wlanXmlProfileSSID `xml:"SSID"`
-	SSIDPrefix   wlanXmlProfileSSID   `xml:"SSIDPrefix"`
+type WlanXmlProfileSSIDConfig struct {
+	SSID         []WlanXmlProfileSSID `xml:"SSID"`
+	SSIDPrefix   WlanXmlProfileSSID   `xml:"SSIDPrefix"`
 	NonBroadcast bool                 `xml:"nonBroadcast"`
 }
 
-type wlanXmlProfileSSID struct {
-	Hex  string `xml:"hex"`
-	Name string `xml:"name"`
+type WlanXmlProfileSSID struct {
+	Hex  string `xml:"hex,omitempty"`
+	Name string `xml:"name,omitempty"`
 }
 
-func (s *wlanXmlProfileSSID) normalize() {
+func (s *WlanXmlProfileSSID) normalize() {
 	// Microsoft's documentation says that the hex representation overrides the Name when both are
 	// present. In testing, if a profile is provided with only the Name and not the hex
 	// representation, Microsoft generates Hex and it is present in the profile returned. As such we
@@ -86,7 +86,7 @@ func (s *wlanXmlProfileSSID) normalize() {
 	s.Hex = strings.ToUpper(s.Hex)
 }
 
-func (s wlanXmlProfileSSID) Equal(b wlanXmlProfileSSID) bool {
+func (s WlanXmlProfileSSID) Equal(b WlanXmlProfileSSID) bool {
 	return s.Hex == b.Hex
 }
 
@@ -96,7 +96,7 @@ func (s wlanXmlProfileSSID) Equal(b wlanXmlProfileSSID) bool {
 // the device. This behavior is undocumented but precludes comparing profiles too strictly.
 // Because of this we have opted for a simple comparison that ensures a profile matching
 // basic fields like name, SSID and (non-)broadcast status is considered equal.
-func (a wlanXmlProfile) Equal(b wlanXmlProfile) bool {
+func (a WlanXmlProfile) Equal(b WlanXmlProfile) bool {
 	if a.Name != b.Name {
 		return false
 	}
@@ -115,17 +115,14 @@ func (a wlanXmlProfile) Equal(b wlanXmlProfile) bool {
 
 	a.sortSSIDs()
 	b.sortSSIDs()
-	for i := range a.SSIDConfig.SSID {
-		if !a.SSIDConfig.SSID[i].Equal(b.SSIDConfig.SSID[i]) {
-			return false
-		}
-	}
-	return true
+	return slices.EqualFunc(a.SSIDConfig.SSID, b.SSIDConfig.SSID, func(i, j WlanXmlProfileSSID) bool {
+		return i.Equal(j)
+	})
 }
 
 // a profile may have multiple SSIDs.
-func (a *wlanXmlProfile) sortSSIDs() {
-	slices.SortFunc(a.SSIDConfig.SSID, func(i, j wlanXmlProfileSSID) int {
+func (a *WlanXmlProfile) sortSSIDs() {
+	slices.SortFunc(a.SSIDConfig.SSID, func(i, j WlanXmlProfileSSID) int {
 		return strings.Compare(i.Hex, j.Hex)
 	})
 }
