@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 )
 
@@ -22,12 +23,16 @@ type Messages struct {
 	Notes          []Note
 }
 
+type client interface {
+	GetAppConfig() (*fleet.EnrichedAppConfig, error)
+}
+
 func generateGitopsCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "generate-gitops",
 		Usage:       "Generate GitOps configuration files for Fleet.",
 		Description: "This command generates GitOps configuration files for Fleet.",
-		Action:      generateGitopsAction,
+		Action:      createGenerateGitopsAction(nil),
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
@@ -36,24 +41,30 @@ func generateGitopsCommand() *cli.Command {
 	}
 }
 
-func generateGitopsAction(c *cli.Context) error {
-	fmt.Println("Generating GitOps configuration files...")
-	// Check license
-	fleetClient, err := clientFromCLI(c)
-	if err != nil {
-		return err
+func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
+	return func(c *cli.Context) error {
+		var err error
+		if fleetClient == nil {
+			fleetClient, err = clientFromCLI(c)
+			if err != nil {
+				return err
+			}
+		}
+
+		fmt.Println("Generating GitOps configuration files...")
+
+		appConfig, err := fleetClient.GetAppConfig()
+		if err != nil {
+			return err
+		}
+
+		messages := &Messages{}
+
+		orgSettings := generateOrgSettings(appConfig, messages)
+
+		fmt.Printf("App Config: %+v\n", (*orgSettings)["org_info"])
+		return nil
 	}
-	appConfig, err := fleetClient.GetAppConfig()
-	if err != nil {
-		return err
-	}
-
-	messages := &Messages{}
-
-	orgSettings := generateOrgSettings(appConfig, messages)
-
-	fmt.Printf("App Config: %+v\n", (*orgSettings)["org_info"])
-	return nil
 }
 
 func generateOrgSettings(appConfig *fleet.EnrichedAppConfig, messages *Messages) *map[string]interface{} {
@@ -120,3 +131,5 @@ func generateSoftware() string {
 func generateLabels() string {
 	return "labels.yaml"
 }
+
+var _ client = (*service.Client)(nil)
