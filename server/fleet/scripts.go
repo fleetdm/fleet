@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -574,4 +575,16 @@ type BatchExecutionHost struct {
 	HostDisplayName string `json:"host_display_name"`
 	ExecutionID     string `json:"execution_id,omitempty"`
 	Error           string `json:"error,omitempty"`
+}
+
+// ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
+func ValidateScriptPlatform(scriptName, platform string) bool {
+	switch filepath.Ext(scriptName) {
+	case ".sh":
+		return IsUnixLike(platform)
+	case ".ps1":
+		return platform == "windows"
+	default:
+		return false
+	}
 }

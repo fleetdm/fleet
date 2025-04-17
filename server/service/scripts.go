@@ -1096,6 +1096,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 
 	// TODO AUTH!!!!
 
+	script, err := svc.ds.Script(ctx, scriptID)
+	if err != nil {
+		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+	}
+
 	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
 	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
 
@@ -1114,8 +1119,11 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
 
 		if noNodeKey || scriptsDisabled {
-			// Cannot run scripts
+			// TODO Cannot run scripts
+		}
 
+		if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
+			// TODO incompaticle script/platform combo
 		}
 
 		// TODO Maybe we do this as a big SQL query??
