@@ -15,11 +15,7 @@ const WindowsAutomaticEnrollmentCard = ({
     <SectionCard
       header="Windows automatic enrollment"
       cta={
-        <Button
-          className="windows-details-button"
-          onClick={viewDetails}
-          variant="text-icon"
-        >
+        <Button onClick={viewDetails} variant="text-icon" iconStroke>
           Details <Icon name="chevron-right" color="core-fleet-blue" />
         </Button>
       }

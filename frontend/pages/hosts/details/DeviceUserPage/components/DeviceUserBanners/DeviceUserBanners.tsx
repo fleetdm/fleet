@@ -6,6 +6,7 @@ import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
 import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import { Link } from "react-router";
 
 const baseClass = "device-user-banners";
 
@@ -44,7 +45,7 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={onTurnOnMdm}>
+    <Button variant="text-link" onClick={onTurnOnMdm}>
       <b>Turn on MDM</b>
     </Button>
   );
@@ -72,12 +73,13 @@ const DeviceUserBanners = ({
 
     // setting applies to a supported Linux host
     if (
-      hostPlatform &&
-      isDiskEncryptionSupportedLinuxPlatform(
-        hostPlatform,
-        hostOsVersion ?? ""
-      ) &&
-      diskEncryptionOSSetting?.status
+      // hostPlatform &&
+      // isDiskEncryptionSupportedLinuxPlatform(
+      //   hostPlatform,
+      //   hostOsVersion ?? ""
+      // ) &&
+      // diskEncryptionOSSetting?.status
+      1 === 1
     ) {
       // host not in compliance with setting
       if (!diskIsEncrypted) {
@@ -106,7 +108,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="unstyled"
+                variant="text-link"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >

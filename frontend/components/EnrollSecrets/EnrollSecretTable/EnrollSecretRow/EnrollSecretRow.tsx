@@ -9,6 +9,7 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import Icon from "components/Icon";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 
 const baseClass = "enroll-secrets";
 
@@ -73,16 +74,16 @@ const EnrollSecretRow = ({
             className={`${baseClass}__copy-message`}
           >{`${copyMessage} `}</div>
         )}
-        <div className="buttons">
+        <div className={`${baseClass}__action-btns`}>
           <Button
-            variant="unstyled"
+            variant="icon"
             className={`${baseClass}__copy-secret-icon`}
             onClick={onCopySecret}
           >
             <Icon name="copy" />
           </Button>
           <Button
-            variant="unstyled"
+            variant="icon"
             className={`${baseClass}__show-secret-icon`}
             onClick={onToggleSecret}
           >
@@ -102,7 +103,7 @@ const EnrollSecretRow = ({
             disabled={disableChildren}
             onClick={onEditSecretClick}
             className={`${baseClass}__edit-secret-icon`}
-            variant="text-icon"
+            variant="icon"
           >
             <Icon name="pencil" />
           </Button>
@@ -110,7 +111,7 @@ const EnrollSecretRow = ({
             onClick={onDeleteSecretClick}
             disabled={disableChildren}
             className={`${baseClass}__delete-secret-icon`}
-            variant="text-icon"
+            variant="icon"
           >
             <Icon name="trash" />
           </Button>
@@ -125,15 +126,10 @@ const EnrollSecretRow = ({
       key={uniqueId()}
       data-testid="osquery-secret"
     >
-      {/* TODO: replace with InputFieldHiddenContent component */}
-      <InputField
-        readOnly
-        inputWrapperClass={`${baseClass}__secret-input`}
+      <InputFieldHiddenContent
         name={`osqueryd-secret-${uniqueId()}`}
-        type={showSecret ? "text" : "password"}
         value={secret.secret}
       />
-      {renderCopyShowButtons()}
       {toggleSecretEditorModal &&
         toggleDeleteSecretModal &&
         renderEditDeleteButtons()}
