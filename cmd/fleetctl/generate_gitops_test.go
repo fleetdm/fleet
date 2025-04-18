@@ -72,7 +72,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: []FileToWrite{},
+		FilesToWrite: make(map[string]interface{}),
 	}
 
 	// Generate the org settings.
@@ -110,7 +110,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
 		Messages:     Messages{},
-		FilesToWrite: []FileToWrite{},
+		FilesToWrite: make(map[string]interface{}),
 	}
 
 	// Generate the org settings.
