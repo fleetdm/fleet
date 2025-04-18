@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -555,6 +556,35 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
+	}
+}
+
+const BatchExecuteIncompatiblePlatform = "incompatible-platform"
+const BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
+
+type BatchExecutionSummary struct {
+	ScriptID   uint                 `json:"script_id"`
+	TeamID     *uint                `json:"team_id"`
+	ScriptName string               `json:"script_name"`
+	Hosts      []BatchExecutionHost `json:"hosts"`
+}
+
+type BatchExecutionHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ExecutionID     string `json:"execution_id,omitempty"`
+	Error           string `json:"error,omitempty"`
+}
+
+// ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
+func ValidateScriptPlatform(scriptName, platform string) bool {
+	switch filepath.Ext(scriptName) {
+	case ".sh":
+		return IsUnixLike(platform)
+	case ".ps1":
+		return platform == "windows"
 	default:
 		return false
 	}

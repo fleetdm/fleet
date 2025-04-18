@@ -1153,6 +1153,11 @@ type Service interface {
 	// hosts with no team.
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) ([]ScriptResponse, error)
 
+	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
+	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error)
+	// BatchScriptSummary returns the status of a batch script execution
+	BatchScriptSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
+
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)

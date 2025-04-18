@@ -1057,6 +1057,110 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bulk script execution
+////////////////////////////////////////////////////////////////////////////////
+
+type batchScriptRunRequest struct {
+	ScriptID uint   `json:"-" query:"script_id"`
+	HostIDs  []uint `json:"-" query:"host_ids"`
+}
+
+type batchScriptRunResponse struct {
+	BatchExecutionID string `json:"batch_execution_id"`
+	Err              error  `json:"error,omitempty"`
+}
+
+func (r batchScriptRunResponse) Error() error { return r.Err }
+
+func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptRunRequest)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs)
+	if err != nil {
+		return batchScriptRunResponse{Err: err}, nil
+	}
+	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
+}
+
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+	// First check if scripts are disabled globally. If so, no need for further processing.
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return "", err
+	}
+
+	if cfg.ServerSettings.ScriptsDisabled {
+		svc.authz.SkipAuthorization(ctx)
+		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
+	}
+
+	// TODO AUTH!!!!
+
+	script, err := svc.ds.Script(ctx, scriptID)
+	if err != nil {
+		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+	}
+
+	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
+	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
+
+	// Check that all hosts exist before attempting to process them
+	for _, hostID := range hostIDs {
+		host, err := svc.ds.Host(ctx, hostID)
+		if err != nil {
+			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
+		}
+
+		fullHosts = append(fullHosts, host)
+	}
+
+	for _, host := range fullHosts {
+		noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
+		scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
+
+		if noNodeKey || scriptsDisabled {
+			// TODO Cannot run scripts
+		}
+
+		if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
+			// TODO incompaticle script/platform combo
+		}
+
+		// TODO Maybe we do this as a big SQL query??
+	}
+
+	return "", nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Bulk script execution summary
+////////////////////////////////////////////////////////////////////////////////
+
+type batchScriptSummaryRequest struct {
+	ExecutionID string `json:"-" query:"batch_execution_id"`
+}
+
+type batchScriptSummaryResponse struct {
+	*fleet.BatchExecutionSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchScriptSummaryResponse) Error() error { return r.Err }
+
+func batchScriptSummaryEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptSummaryRequest)
+	summary, err := svc.BatchScriptSummary(ctx, req.ExecutionID)
+	if err != nil {
+		return batchScriptSummaryResponse{Err: err}, nil
+	}
+	return batchScriptSummaryResponse{BatchExecutionSummary: summary}, nil
+}
+
+func (svc *Service) BatchScriptSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+	return nil, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Lock host
 ////////////////////////////////////////////////////////////////////////////////
 
