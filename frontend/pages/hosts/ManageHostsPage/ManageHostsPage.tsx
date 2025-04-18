@@ -30,6 +30,8 @@ import hostCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
+import scriptsAPI from "services/entities/scripts";
+
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,
@@ -61,6 +63,7 @@ import {
   BootstrapPackageStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
+import { IScript } from "interfaces/script";
 
 import sortUtils from "utilities/sort";
 import {
@@ -113,7 +116,7 @@ import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
-import { TooltipContent } from "interfaces/dropdownOption";
+import RunScriptBatchModal from "./components/RunScriptBatchModal";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -215,6 +218,8 @@ const ManageHostsPage = ({
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
+  const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
@@ -225,9 +230,7 @@ const ManageHostsPage = ({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
-  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
-  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   // ========= queryParams
   const policyId = queryParams?.policy_id;
@@ -531,6 +534,10 @@ const ManageHostsPage = ({
 
   const toggleAddHostsModal = () => {
     setShowAddHostsModal(!showAddHostsModal);
+  };
+
+  const toggleRunScriptBatchModal = () => {
+    setShowRunScriptBatchModal(!showRunScriptBatchModal);
   };
 
   const toggleEditColumnsModal = () => {
@@ -964,7 +971,7 @@ const ManageHostsPage = ({
       newSecrets.push({ secret: enrollSecretString });
     }
 
-    setIsUpdatingSecret(true);
+    setIsUpdating(true);
 
     try {
       if (isAnyTeamSelected) {
@@ -1001,7 +1008,7 @@ const ManageHostsPage = ({
         } enroll secret. Please try again.`
       );
     } finally {
-      setIsUpdatingSecret(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1017,7 +1024,7 @@ const ManageHostsPage = ({
       (s) => s.secret !== selectedSecret?.secret
     );
 
-    setIsUpdatingSecret(true);
+    setIsUpdating(true);
 
     try {
       if (isAnyTeamSelected) {
@@ -1045,7 +1052,7 @@ const ManageHostsPage = ({
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
     } finally {
-      setIsUpdatingSecret(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1054,7 +1061,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
-    setIsUpdatingLabel(true);
+    setIsUpdating(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -1074,7 +1081,7 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash("error", getDeleteLabelErrorMessages(error));
     } finally {
-      setIsUpdatingLabel(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1084,8 +1091,41 @@ const ManageHostsPage = ({
   };
 
   const onRunScriptBatchClick = (hostIds: number[]) => {
-    console.log("running");
+    toggleRunScriptBatchModal();
+    setSelectedHostIds(hostIds);
   };
+
+  const onRunScriptBatch = useCallback(
+    async (script: IScript) => {
+      setIsUpdating(true);
+      try {
+        await scriptsAPI.runScriptBatch({
+          host_ids: selectedHostIds,
+          script_id: script.id,
+        });
+        renderFlash(
+          "success",
+          `Script is running on ${selectedHostIds.length} hosts, or will run as each host comes online. See host details for individual results.`
+        );
+        setResetSelectedRows(true);
+        toggleRunScriptBatchModal();
+        setSelectedHostIds([]);
+      } catch (error) {
+        renderFlash("error", "Could not run script. Please try again.");
+        // TODO - how to determine more specific error case? may require additional call to batch
+        // run summary endpoint?
+      } finally {
+        setIsUpdating(false);
+      }
+      // final return of script enables descendent `PaginatedList`'s `dirtyItems` logic
+    },
+    [
+      renderFlash,
+      selectedHostIds,
+      setResetSelectedRows,
+      toggleRunScriptBatchModal,
+    ]
+  );
 
   const onDeleteHostsClick = (hostIds: number[]) => {
     toggleDeleteHostModal();
@@ -1094,7 +1134,7 @@ const ManageHostsPage = ({
 
   // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
-    setIsUpdatingHosts(true);
+    setIsUpdating(true);
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
 
@@ -1143,13 +1183,13 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
     } finally {
-      setIsUpdatingHosts(false);
+      setIsUpdating(false);
     }
   };
 
   // Bulk delete is hidden for defined unsupportedFilters
   const onDeleteHostSubmit = async () => {
-    setIsUpdatingHosts(true);
+    setIsUpdating(true);
 
     try {
       await (isAllMatchingHostsSelected
@@ -1198,7 +1238,7 @@ const ManageHostsPage = ({
         }. Please try again.`
       );
     } finally {
-      setIsUpdatingHosts(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1234,7 +1274,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
-      isUpdatingSecret={isUpdatingSecret}
+      isUpdatingSecret={isUpdating}
     />
   );
 
@@ -1244,7 +1284,7 @@ const ManageHostsPage = ({
       selectedTeam={teamIdForApi || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
-      isUpdatingSecret={isUpdatingSecret}
+      isUpdatingSecret={isUpdating}
     />
   );
 
@@ -1264,7 +1304,7 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
-      isUpdatingLabel={isUpdatingLabel}
+      isUpdatingLabel={isUpdating}
     />
   );
 
@@ -1295,7 +1335,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
-        isUpdating={isUpdatingHosts}
+        isUpdating={isUpdating}
         multipleHosts={selectedHostIds.length > 1}
       />
     );
@@ -1308,7 +1348,7 @@ const ManageHostsPage = ({
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
       hostsCount={hostsCount}
-      isUpdating={isUpdatingHosts}
+      isUpdating={isUpdating}
     />
   );
 
@@ -1528,7 +1568,7 @@ const ManageHostsPage = ({
           organization settings.
         </>
       );
-    } else if (isAllTeamsSelected) {
+    } else if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a team to run a script";
     } else if (isAllMatchingHostsSelected) {
       disableRunScriptBatchTooltipContent =
@@ -1772,6 +1812,14 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
+      {showRunScriptBatchModal && (
+        <RunScriptBatchModal
+          selectedHostsCount={selectedHostIds.length}
+          onRunScript={onRunScriptBatch}
+          onCancel={toggleRunScriptBatchModal}
+          isUpdating={isUpdating}
+        />
+      )}
     </>
   );
 };

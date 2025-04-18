@@ -46,9 +46,9 @@ interface IPaginatedListProps<TItem> {
     // to the item, for example if a dropdown is changed.
     onChange: (item: TItem) => void
   ) => ReactElement | false | null | undefined;
-  // A function to call when an item's checkbox is toggled.
+  // A function to call when an item is toggled.
   // Parents can use this to change whatever item metadata is needed to toggle
-  // the value indicated by `isSelected`.
+  // the value indicated by `isSelected`. Can return the item to allow use of `dirtyItems` or `void`
   onToggleItem: (item: TItem) => TItem;
   // The size of the page to fetch and show.
   pageSize?: number;
@@ -215,7 +215,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 className={`${baseClass}__row`}
                 key={item[idKey]}
                 onClick={() => {
-                  // When checkbox is toggled, set item as dirty.
+                  // When entity is toggled, set item as dirty.
                   // The parent is responsible for actually updating item properties via onToggleItem().
                   setDirtyItems({
                     ...dirtyItems,

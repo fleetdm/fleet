@@ -98,32 +98,34 @@ export interface IRunScriptBatchResponse {
   batch_execution_id: string;
 }
 
-interface IScriptBatchHostResponse {
-  host_id: number;
-  host_display_name: string;
-}
+// Summary types + endpoint coming in following iteration
 
-type IScriptBatchHostErrorReason =
-  | "incompatible-platform"
-  | "incompatbile-fleetd";
+// interface IScriptBatchHostResponse {
+//   host_id: number;
+//   host_display_name: string;
+// }
 
-type IScriptBatchHostError = IScriptBatchHostResponse & {
-  execution_id?: never;
-  error: IScriptBatchHostErrorReason;
-};
+// type IScriptBatchHostErrorReason =
+//   | "incompatible-platform"
+//   | "incompatbile-fleetd";
 
-type IScriptBatchHostResult = IScriptBatchHostResponse & {
-  execution_id: string;
-  error?: never;
-};
+// type IScriptBatchHostError = IScriptBatchHostResponse & {
+//   execution_id?: never;
+//   error: IScriptBatchHostErrorReason;
+// };
 
-// 200 successful response
-export interface IRunScriptBatchSummaryResponse {
-  script_id: number;
-  team_id: number | null;
-  script_name: string;
-  hosts: (IScriptBatchHostResult | IScriptBatchHostError)[];
-}
+// type IScriptBatchHostResult = IScriptBatchHostResponse & {
+//   execution_id: string;
+//   error?: never;
+// };
+
+// // 200 successful response
+// export interface IRunScriptBatchSummaryResponse {
+//   script_id: number;
+//   team_id: number | null;
+//   script_name: string;
+//   hosts: (IScriptBatchHostResult | IScriptBatchHostError)[];
+// }
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -199,10 +201,10 @@ export default {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
   },
-  getRunScriptBatchSummary(
-    batchExecutionId: string
-  ): Promise<IRunScriptBatchSummaryResponse> {
-    const { SCRIPT_RUN_BATCH_SUMMARY } = endpoints;
-    return sendRequest("GET", SCRIPT_RUN_BATCH_SUMMARY(batchExecutionId));
-  },
+  // getRunScriptBatchSummary(
+  //   batchExecutionId: string
+  // ): Promise<IRunScriptBatchSummaryResponse> {
+  //   const { SCRIPT_RUN_BATCH_SUMMARY } = endpoints;
+  //   return sendRequest("GET", SCRIPT_RUN_BATCH_SUMMARY(batchExecutionId));
+  // },
 };
