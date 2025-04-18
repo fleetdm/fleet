@@ -29,8 +29,6 @@ const getDefaultUninstallScript = (fileName: string): string => {
       return "";
     case "tar.gz":
       return "";
-    case "tgz":
-      return "";
     default:
       throw new Error(`unsupported file extension: ${extension}`);
   }
