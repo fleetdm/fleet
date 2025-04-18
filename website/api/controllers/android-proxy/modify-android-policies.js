@@ -12,7 +12,7 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    profileId: {
+    policyId: {
       type: 'string',
       required: true,
     },
@@ -33,7 +33,7 @@ module.exports = {
   },
 
 
-  fn: async function ({androidEnterpriseId, profileId, fleetServerSecret, policy}) {
+  fn: async function ({androidEnterpriseId, policyId, fleetServerSecret, policy}) {
 
     // Authenticate this request
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
@@ -65,7 +65,7 @@ module.exports = {
       google.options({auth: authClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
       let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
-        name: `enterprises/${androidEnterpriseId}/policies/${profileId}`,
+        name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
         requestBody: policy
       });
       return patchPoliciesResponse.data;
