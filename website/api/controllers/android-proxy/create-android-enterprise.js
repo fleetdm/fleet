@@ -60,7 +60,10 @@ module.exports = {
       let { google } = require('googleapis');
       let androidmanagement = google.androidmanagement('v1');
       let googleAuth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
+        scopes: [
+          'https://www.googleapis.com/auth/androidmanagement',
+          'https://www.googleapis.com/auth/pubsub'
+        ],
         credentials: {
           client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
           private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
@@ -92,7 +95,7 @@ module.exports = {
       // Add the Fleet android MDM service account to the policy bindings.
       newPubSubTopicIamPolicy.bindings.push({
         role: 'roles/pubsub.publisher',
-        members: [sails.config.custom.androidEnterpriseServiceAccountEmailAddress]
+        members: ['serviceAccount:'+sails.config.custom.androidEnterpriseServiceAccountEmailAddress]
       });
 
       // Update the pubsub topic's IAM policy
@@ -130,15 +133,15 @@ module.exports = {
       });
       return createEnterpriseResponse.data;
     }).intercept((err)=>{
-      return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${err}`);
+      return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 
-    let newAndroidEnterpriseId = newEnterprise.id;
+    let newAndroidEnterpriseId = newEnterprise.name;
     // Create a new fleetServerSecret for this Fleet server. This will be included in the response body and will be required in all subsequent requests to Android proxy endpoints.
     let newFleetServerSecret = await sails.helpers.strings.random.with({len: 30});
     // Update the database record to include details about the created enterprise.
-    await AndroidEnterprise.createOne({
+    await AndroidEnterprise.create({
       fleetServerUrl: fleetServerUrl,
       fleetLicenseKey: fleetLicenseKey,
       androidEnterpriseId: newAndroidEnterpriseId,
