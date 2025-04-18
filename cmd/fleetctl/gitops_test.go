@@ -1049,6 +1049,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return team, nil
 	}
 
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+
 	// Policies
 	policy := fleet.Policy{}
 	policy.ID = 1
@@ -2137,6 +2141,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(testing_utils.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2285,8 +2292,8 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/team_software_installer_valid_exclude.yml", ""},
@@ -2357,6 +2364,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 				}
 				return ret, nil
 			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -2382,6 +2392,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
 	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
@@ -2520,8 +2533,8 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.self_service\" must be a bool, found string"},
+		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
 		{"testdata/gitops/no_team_software_installer_valid_exclude.yml", ""},
@@ -2589,6 +2602,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")

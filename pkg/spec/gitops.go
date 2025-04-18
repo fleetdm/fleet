@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -940,6 +941,8 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	return multiError
 }
 
+var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
+
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
@@ -1014,6 +1017,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 		}
+		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+			multiError = multierror.Append(multiError, fmt.Errorf("hash_256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
+			continue
+		}
+		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
+			continue
+		}
 		if softwarePackageSpec.UninstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
@@ -1022,10 +1033,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
-			continue
-		}
-		if softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("software URL is required"))
 			continue
 		}
 		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {

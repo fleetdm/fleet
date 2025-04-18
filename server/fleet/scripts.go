@@ -406,6 +406,7 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
+	SHA256          string `json:"sha256"`
 }
 
 type HostLockWipeStatus struct {
