@@ -1499,7 +1499,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if payload.URL == "" && payload.SHA256 == "" {
 			return "", fleet.NewInvalidArgumentError(
 				"software",
-				"Couldn't edit software. One or more software packages has neither url nor hash_sha256 fields.",
+				"Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.",
 			)
 		}
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
@@ -1707,7 +1707,12 @@ func (svc *Service) softwareBatchUpload(
 			case !ok && len(teamIDs) > 0:
 				// Installer exists, but for another team. We should copy it over to this team
 				// (if we have access to the other team).
-				userctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: userID}})
+				user, err := svc.ds.UserByID(ctx, userID)
+				if err != nil {
+					return err
+				}
+
+				userctx := viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 				for tmID, i := range teamIDs {
 					// use the first one to which this user has access; the specific one shouldn't
@@ -1716,7 +1721,7 @@ func (svc *Service) softwareBatchUpload(
 					if tmID != 0 {
 						tmIDPtr = ptr.Uint(tmID)
 					}
-					if err = svc.authz.Authorize(userctx, &fleet.SoftwareInstaller{TeamID: tmIDPtr}, fleet.ActionWrite); err != nil {
+					if authErr := svc.authz.Authorize(userctx, &fleet.SoftwareInstaller{TeamID: tmIDPtr}, fleet.ActionWrite); authErr != nil {
 						continue
 					}
 

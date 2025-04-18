@@ -17038,7 +17038,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	ctx := context.Background()
 
 	// create a team
-	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name:        t.Name(),
 		Description: "desc",
 	})
@@ -17048,7 +17048,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	var hitInstallerURL bool
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitInstallerURL = true
-		if r.URL.Path != "/ruby.deb" {
+		if r.URL.Path != "/ruby.deb" && r.URL.Path != "/updated/ruby.deb" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -17069,26 +17069,26 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 		{URL: rubyURL, SHA256: "foobar"},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
-	errMsg := waitBatchSetSoftwareInstallersFailed(t, s, tm.Name, batchResponse.RequestUUID)
-	require.Equal(t, "downloaded installer hash does not match provided hash for installer", errMsg)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg := waitBatchSetSoftwareInstallersFailed(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Equal(t, fmt.Sprintf("downloaded installer hash does not match provided hash for installer with url %s", rubyURL), errMsg)
 
 	// payload without URL or hash should fail
 	softwareToInstall[0].SHA256 = ""
 	softwareToInstall[0].URL = ""
-	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
-	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages has neither url nor hash_sha256 fields.")
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.")
 
 	// Pass in valid URL
 	softwareToInstall[0].URL = rubyURL
 	softwareToInstall[0].SHA256 = ""
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
-	packages := waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
-	require.Equal(t, tm.ID, *packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
 	require.True(t, hitInstallerURL)
 	hitInstallerURL = false
 
@@ -17102,62 +17102,98 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[0].SHA256 = installerHash
 
 	// dry run shouldn't hit the download endpoint since we included the SHA
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name, "dry_run", "true")
-	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
-	require.Equal(t, tm.ID, *packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
 	require.False(t, hitInstallerURL)
 
 	// since we provided the SHA and we'd already added the installer, we should not hit the
 	// download endpoint
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
-	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
-	require.Equal(t, tm.ID, *packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
 	require.False(t, hitInstallerURL)
 
 	// create a new team
-	tm2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        t.Name() + "2",
 		Description: "desc",
 	})
 	require.NoError(t, err)
 
-	// dry run shouldn't hit the download endpoint since we included the SHA and the installer
-	// exists on the first team
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm2.Name, "dry_run", "true")
-	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
-	require.Len(t, packages, 1)
-	require.NotNil(t, packages[0].TitleID)
-	require.Equal(t, rubyURL, packages[0].URL)
-	require.NotNil(t, packages[0].TeamID)
-	require.Equal(t, tm.ID, *packages[0].TeamID)
-	require.False(t, hitInstallerURL)
+	// create a new user for team 2; doesn't have access to team 1
+	team2Admin := &fleet.User{
+		Name:       "Team 2 Admin",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team2,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, team2Admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), team2Admin)
+	require.NoError(t, err)
+
+	s.setTokenForTest(t, team2Admin.Email, test.GoodPassword)
+
+	// Remove the URL; since the user doesn't have access to team 1 and only the hash is provided,
+	// this should fail
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "package not found with hash")
+
+	// user doesn't have access to team1: we should hit the download endpoint
+	softwareToInstall[0].URL = rubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Empty(t, packages)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
 
 	// same for real run
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm2.Name)
-	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
-	require.Equal(t, tm.ID, *packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// Send payload with just the SHA; should succeed and not hit the download endpoint because we
+	// downloaded it just above
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Empty(t, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
 	require.False(t, hitInstallerURL)
 
-	// Send payload with just the SHA; should succeed
-	softwareToInstall[0].URL = ""
-	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm2.Name)
-	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	// Update the URL, should re-download
+	updatedRubyURL := srv.URL + "/updated/ruby.deb"
+	softwareToInstall[0].URL = updatedRubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 1)
 	require.NotNil(t, packages[0].TitleID)
-	require.Equal(t, rubyURL, packages[0].URL)
+	require.Equal(t, updatedRubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
-	require.Equal(t, tm.ID, *packages[0].TeamID)
-	require.False(t, hitInstallerURL)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
 }

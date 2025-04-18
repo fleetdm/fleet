@@ -2350,6 +2350,7 @@ WHERE
 
 	set := make(map[uint]*fleet.ExistingSoftwareInstaller, len(installers))
 	for _, installer := range installers {
+		// team ID 0 is No team in this context
 		var tmID uint
 		if installer.TeamID != nil {
 			tmID = *installer.TeamID
