@@ -1,5 +1,7 @@
 # Deploying SentinelOne with Fleet
 
+![Fleet and SentinelOne](../website/assets/images/articles/installing-sentinel-one-with-fleet-1600x900.png)
+
 SentinelOne is a cybersecurity platform that provides endpoint protection, detection, and response capabilities to organizations. It uses artificial intelligence and machine learning to detect and prevent various types of cyber threats, including malware, ransomware, and zero-day exploits. It's a common toolset deployed by system admins through Fleet. This guide covers off deployment through macOS and Windows.
 
 ## MacOS
