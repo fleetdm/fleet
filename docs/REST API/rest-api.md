@@ -6846,7 +6846,8 @@ _Available in Fleet Premium_
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
-      "calendar_events_enabled": true
+      "calendar_events_enabled": true,
+      "conditional_access_enabled": true
     },
     {
       "id": 2,
@@ -6866,6 +6867,7 @@ _Available in Fleet Premium_
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
       "run_script": {
         "name": "Encrypt Windows disk with BitLocker",
         "id": 234
@@ -6889,6 +6891,7 @@ _Available in Fleet Premium_
       "failing_host_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
       "install_software": {
         "name": "Adobe Acrobat.app",
         "software_title_id": 1234
@@ -6945,7 +6948,9 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
     },
     {
       "id": 2,
@@ -6963,7 +6968,9 @@ _Available in Fleet Premium_
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
-      "host_count_updated_at": "2023-12-20T15:23:57Z"
+      "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
     },
     {
       "id": 136,
@@ -7128,6 +7135,7 @@ _Available in Fleet Premium_
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
+    "conditional_access_enabled": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
@@ -7377,6 +7385,7 @@ _Available in Fleet Premium_
 | platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                      |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
+| conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 
@@ -7422,6 +7431,7 @@ _Available in Fleet Premium_
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
+    "conditional_access_enabled": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
       "software_title_id": 1234
