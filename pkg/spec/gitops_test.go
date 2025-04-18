@@ -1167,5 +1167,5 @@ func TestInvalidSoftwareInstallerHash(t *testing.T) {
 		Tier: fleet.TierPremium,
 	}
 	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
-	assert.ErrorContains(t, err, "sha256 is not a valid sha256 value")
+	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
 }

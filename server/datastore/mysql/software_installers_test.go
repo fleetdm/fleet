@@ -2385,76 +2385,96 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	hash1, hash2, hash3 := "hash1", "hash2", "hash3"
 
 	// Add some software installers to No team
-	installer1NoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    tfr1,
-		BundleIdentifier: "bid1",
-		Extension:        "pkg",
-		StorageID:        hash1,
-		Filename:         "installer1.pkg",
-		Title:            "installer1",
-		Version:          "1.0",
-		Source:           "apps",
-		UserID:           user.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		Platform:         "darwin",
-	})
-	require.NoError(t, err)
-
-	installer2NoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    tfr1,
-		BundleIdentifier: "bid2",
-		Extension:        "pkg",
-		StorageID:        hash2,
-		Filename:         "installer2.pkg",
-		Title:            "installer2",
-		Version:          "2.0",
-		Source:           "apps",
-		UserID:           user.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		Platform:         "darwin",
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr1,
+			BundleIdentifier: "bid1",
+			Extension:        "pkg",
+			StorageID:        hash1,
+			Filename:         "installer1.pkg",
+			Title:            "installer1",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			Platform:         "darwin",
+			URL:              "https://example.com/1",
+		}, {
+			InstallerFile:    tfr1,
+			BundleIdentifier: "bid2",
+			Extension:        "pkg",
+			StorageID:        hash2,
+			Filename:         "installer2.pkg",
+			Title:            "installer2",
+			Version:          "2.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			Platform:         "darwin",
+			URL:              "https://example.com/2",
+		},
 	})
 	require.NoError(t, err)
 
 	// Add some installers to Team 1
-	installer1Team1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    tfr1,
-		BundleIdentifier: "bid1",
-		Extension:        "pkg",
-		StorageID:        hash1,
-		Filename:         "installer1.pkg",
-		Title:            "installer1",
-		Version:          "1.0",
-		Source:           "apps",
-		UserID:           user.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		TeamID:           &team1.ID,
-		Platform:         "darwin",
+	err = ds.BatchSetSoftwareInstallers(ctx, &team1.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallerFile:    tfr1,
+			BundleIdentifier: "bid1",
+			Extension:        "pkg",
+			StorageID:        hash1,
+			Filename:         "installer1.pkg",
+			Title:            "installer1",
+			Version:          "1.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/1",
+		},
+		{
+			InstallerFile:    tfr1,
+			BundleIdentifier: "bid3",
+			Extension:        "pkg",
+			StorageID:        hash3,
+			Filename:         "installer3.pkg",
+			Title:            "installer3",
+			Version:          "3.0",
+			Source:           "apps",
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &team1.ID,
+			Platform:         "darwin",
+			URL:              "https://example.com/4",
+		},
 	})
 	require.NoError(t, err)
 
-	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		InstallerFile:    tfr1,
-		BundleIdentifier: "bid3",
-		Extension:        "pkg",
-		StorageID:        hash3,
-		Filename:         "installer3.pkg",
-		Title:            "installer3",
-		Version:          "3.0",
-		Source:           "apps",
-		UserID:           user.ID,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		TeamID:           &team1.ID,
-		Platform:         "darwin",
+	// get installer IDs from added installers
+	var installer1NoTeam, installer1Team1, installer2NoTeam uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &installer1NoTeam, "SELECT id FROM software_installers WHERE filename = ? AND global_or_team_id = ?", "installer1.pkg", 0)
+		require.NoError(t, err)
+		require.NotEmpty(t, installer1NoTeam)
+
+		err = sqlx.GetContext(ctx, q, &installer1Team1, "SELECT id FROM software_installers WHERE filename = ? AND global_or_team_id = ?", "installer1.pkg", team1.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, installer1Team1)
+
+		err = sqlx.GetContext(ctx, q, &installer2NoTeam, "SELECT id FROM software_installers WHERE filename = ? AND global_or_team_id = ?", "installer2.pkg", 0)
+		require.NoError(t, err)
+		require.NotEmpty(t, installer2NoTeam)
+		return nil
 	})
-	require.NoError(t, err)
 
 	// fetching by non-existent hash returns empty map
-	installers, err := ds.GetTeamsWithInstallerByHash(ctx, "not_found")
+	installers, err := ds.GetTeamsWithInstallerByHash(ctx, "not_found", "foobar")
 	require.NoError(t, err)
 	require.Empty(t, installers)
 
 	// there should be 2 installers, one for No team and one for Team 1
-	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash1)
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash1, "https://example.com/1")
 	require.NoError(t, err)
 	require.Len(t, installers, 2)
 
@@ -2472,7 +2492,7 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		require.Equal(t, "darwin", i.Platform)
 	}
 
-	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2)
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2, "https://example.com/2")
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
 	require.Equal(t, installers[0].InstallerID, installer2NoTeam)

@@ -1018,7 +1018,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
-			multiError = multierror.Append(multiError, errors.New("hash_sha256 is not a valid sha256 value"))
+			multiError = multierror.Append(multiError, fmt.Errorf("hash_256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
 			continue
 		}
 		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {

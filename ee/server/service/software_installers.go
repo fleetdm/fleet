@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -1677,8 +1678,8 @@ func (svc *Service) softwareBatchUpload(
 				ValidatedLabels:    p.ValidatedLabels,
 			}
 
-			// check if we already have the installer based on the SHA256
-			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256)
+			// check if we already have the installer based on the SHA256 and URL
+			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
 				return err
 			}
@@ -1692,6 +1693,7 @@ func (svc *Service) softwareBatchUpload(
 
 			switch {
 			case ok:
+				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
 				installer.Extension = foundInstaller.Extension
 				installer.Filename = foundInstaller.Filename
@@ -1703,10 +1705,21 @@ func (svc *Service) softwareBatchUpload(
 				}
 				installer.Title = foundInstaller.Title
 			case !ok && len(teamIDs) > 0:
-				installer.StorageID = p.SHA256
-				for _, i := range teamIDs {
-					// use the first one we find; which one shouldn't matter because they're all the
-					// same installer bytes
+				// Installer exists, but for another team. We should copy it over to this team
+				// (if we have access to the other team).
+				userctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: userID}})
+
+				for tmID, i := range teamIDs {
+					// use the first one to which this user has access; the specific one shouldn't
+					// matter because they're all the same installer bytes
+					var tmIDPtr *uint
+					if tmID != 0 {
+						tmIDPtr = ptr.Uint(tmID)
+					}
+					if err = svc.authz.Authorize(userctx, &fleet.SoftwareInstaller{TeamID: tmIDPtr}, fleet.ActionWrite); err != nil {
+						continue
+					}
+
 					installer.Extension = i.Extension
 					installer.Filename = i.Filename
 					installer.Version = i.Version
@@ -1716,15 +1729,17 @@ func (svc *Service) softwareBatchUpload(
 						installer.BundleIdentifier = *i.BundleIdentifier
 					}
 					installer.Title = i.Title
+					installer.StorageID = p.SHA256
 					break
 				}
-			default:
+			}
+
+			// no accessible matching installer was found, so attempt to download it from URL.
+			if installer.StorageID == "" {
 				if p.SHA256 != "" && p.URL == "" {
-					// there's a hash specified, but no existing installer with that hash and no way
-					// to download the installer (because the URL is empty).
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
-				// no existing installer bytes, so we should download it
+
 				var filename string
 				headers, tfr, err := downloadURLFn(ctx, p.URL)
 				if err != nil {
@@ -1755,7 +1770,7 @@ func (svc *Service) softwareBatchUpload(
 
 				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
 					// this isn't the specified installer, so return an error
-					return errors.New("downloaded installer hash does not match provided hash for installer")
+					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
 			}
 

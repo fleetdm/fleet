@@ -2317,7 +2317,7 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT 
 	si.id AS installer_id,
@@ -2333,10 +2333,18 @@ FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	storage_id = ?` // TODO(JVE): do we need to include URL in this search? If so, do we need to change the index?
+	si.storage_id = ?%s`
+
+	var urlFilter string
+	args := []any{sha256}
+	if url != "" {
+		urlFilter = " AND url = ?"
+		args = append(args, url)
+	}
+	stmt = fmt.Sprintf(stmt, urlFilter)
 
 	var installers []*fleet.ExistingSoftwareInstaller
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installers, stmt, sha256); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installers, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get software installer by hash")
 	}
 
@@ -2347,8 +2355,7 @@ WHERE
 			tmID = *installer.TeamID
 		}
 		if _, ok := set[tmID]; ok {
-			// don't allow more than 1 installer per team with the same hash
-			return nil, errors.New("cannot have multiple installers with the same hash on one team")
+			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
 		}
 		set[tmID] = installer
 	}
