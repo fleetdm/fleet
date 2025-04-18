@@ -43,7 +43,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
-		{"GetSoftwareInstallerByHash", testGetSoftwareInstallerByHash},
+		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
 	}
 
 	for _, c := range cases {
@@ -2374,7 +2374,7 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foobar", title)
 }
 
-func testGetSoftwareInstallerByHash(t *testing.T, ds *Datastore) {
+func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
@@ -2449,12 +2449,12 @@ func testGetSoftwareInstallerByHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// fetching by non-existent hash returns empty map
-	installers, err := ds.GetSoftwareInstallerByHash(ctx, "not_found")
+	installers, err := ds.GetTeamsWithInstallerByHash(ctx, "not_found")
 	require.NoError(t, err)
 	require.Empty(t, installers)
 
 	// there should be 2 installers, one for No team and one for Team 1
-	installers, err = ds.GetSoftwareInstallerByHash(ctx, hash1)
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash1)
 	require.NoError(t, err)
 	require.Len(t, installers, 2)
 
@@ -2472,7 +2472,7 @@ func testGetSoftwareInstallerByHash(t *testing.T, ds *Datastore) {
 		require.Equal(t, "darwin", i.Platform)
 	}
 
-	installers, err = ds.GetSoftwareInstallerByHash(ctx, hash2)
+	installers, err = ds.GetTeamsWithInstallerByHash(ctx, hash2)
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
 	require.Equal(t, installers[0].InstallerID, installer2NoTeam)
