@@ -1051,8 +1051,6 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 			<integer>1</integer>
 		</dict>
 		<dict>
-			<key>AccessRights</key>
-			<integer>8191</integer>
 			<key>CheckOutWhenRemoved</key>
 			<true/>
 			<key>IdentityCertificateUUID</key>
@@ -1065,8 +1063,13 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>AssignedManagedAppleID</key>
+			<string>BOZO@fleetdm.com</string>
+			<key>EnrollmentMode</key>
+			<string>BYOD</string>
 			<key>ServerCapabilities</key>
 			<array>
+				<string>UserEnrollment</string>
 				<string>com.apple.mdm.per-user-connections</string>
 				<string>com.apple.mdm.bootstraptoken</string>
 			</array>
@@ -1085,7 +1088,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 	<key>PayloadOrganization</key>
 	<string>{{ .Organization | xml }}</string>
 	<key>PayloadScope</key>
-	<string>System</string>
+	<string>User</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>

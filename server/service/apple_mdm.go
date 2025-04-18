@@ -26,6 +26,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1673,6 +1674,89 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
+type mdmAppleAccountEnrollTokenRequest struct {
+	Code        string
+	ClientID    string
+	RedirectURI string
+}
+
+func (mdmAppleAccountEnrollTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := mdmAppleAccountEnrollTokenRequest{}
+
+	if err := r.ParseForm(); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse form",
+			InternalErr: err,
+		}
+	}
+
+	decoded.Code = r.PostFormValue("code")
+	if decoded.Code == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "code parameter is required",
+		}
+	}
+
+	decoded.ClientID = r.PostFormValue("client_id")
+	if decoded.ClientID == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "client_id parameter is required",
+		}
+	}
+
+	decoded.RedirectURI = r.PostFormValue("redirect_uri")
+	if decoded.RedirectURI == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "redirect_uri parameter is required",
+		}
+	}
+
+	return &decoded, nil
+}
+
+type mdmAppleEnrollTokenResponse struct {
+	Resp *http.Response
+	Err  error `json:"error,omitempty"`
+}
+
+func (r mdmAppleEnrollTokenResponse) Error() error { return r.Err }
+
+func (r mdmAppleEnrollTokenResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	// Copy headers
+	for k, v := range r.Resp.Header {
+		w.Header()[k] = v
+	}
+
+	// Copy status code
+	w.WriteHeader(r.Resp.StatusCode)
+
+	// Copy body
+	if _, err := io.Copy(w, r.Resp.Body); err != nil {
+		fmt.Printf("failed to copy response body: %v\n", err)
+	}
+	r.Resp.Body.Close()
+}
+
+func mdmAppleAccountEnrollTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*mdmAppleAccountEnrollTokenRequest)
+	svc.SkipAuth(ctx)
+
+	client := fleethttp.NewClient()
+
+	data := url.Values{}
+	data.Set("grant_type", "authorization_code")
+	data.Set("code", req.Code)
+	data.Set("redirect_uri", req.RedirectURI)
+	data.Set("client_id", req.ClientID)
+	data.Set("client_secret", os.Getenv("OKTA_CLIENT_SECRET"))
+
+	resp, err := client.PostForm(os.Getenv("OKTA_URL")+"/v1/token", data)
+	if err != nil {
+		return mdmAppleEnrollTokenResponse{Err: err}, nil
+	}
+	return mdmAppleEnrollTokenResponse{Resp: resp}, nil
+}
+
 func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string) (profile []byte, err error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
@@ -1709,6 +1793,94 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
+		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		topic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generating enrollment profile")
+	}
+
+	signed, err := mdmcrypto.Sign(ctx, enrollmentProf, svc.ds)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	return signed, nil
+}
+
+func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*mdmAppleAccountEnrollRequest)
+	if !req.HasBearer {
+		svc.SkipAuth(ctx)
+		return mdmAppleAccountEnrollAuthenticateResponse{}, nil
+	}
+
+	profile, err := svc.GetMDMAppleAccountEnrollmentProfile(ctx)
+	if err != nil {
+		return mdmAppleEnrollResponse{Err: err}, nil
+	}
+	return mdmAppleEnrollResponse{Profile: profile}, nil
+}
+
+type mdmAppleAccountEnrollRequest struct {
+	HasBearer bool
+}
+
+func (mdmAppleAccountEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := mdmAppleAccountEnrollRequest{}
+
+	auth := r.Header.Get("Authorization")
+	fmt.Printf("Authorization: %s", auth)
+	decoded.HasBearer = strings.HasPrefix(strings.ToLower(auth), "bearer ")
+
+	return &decoded, nil
+}
+
+type mdmAppleAccountEnrollAuthenticateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r mdmAppleAccountEnrollAuthenticateResponse) Error() error { return r.Err }
+
+func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate",
+		`Bearer method="apple-oauth2" `+
+			` authorization-url="`+os.Getenv("OKTA_URL")+`/v1/authorize" `+
+			`token-url="`+os.Getenv("FLEET_SERVER_URL")+`/api/mdm/apple/enroll/token" `+
+			`redirect-url="apple-remotemanagement-user-login:/api/mdm/apple/enroll/redirection" `+
+			`client-id="`+os.Getenv("OKTA_CLIENT_ID")+`" scope="openid"`,
+	)
+	w.WriteHeader(http.StatusUnauthorized)
+	return
+}
+
+func (svc *Service) SkipAuth(ctx context.Context) {
+	svc.authz.SkipAuthorization(ctx)
+}
+
+func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context) (profile []byte, err error) {
+	// skipauth: The enroll profile endpoint is unauthenticated.
+	svc.authz.SkipAuthorization(ctx)
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	topic, err := svc.mdmPushCertTopic(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
+	}
+
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetSCEPChallenge,
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+	}
+	enrollmentProf, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.MDMUrl(),
 		string(assets[fleet.MDMAssetSCEPChallenge].Value),
 		topic,
 	)
