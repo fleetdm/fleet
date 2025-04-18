@@ -36,6 +36,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const maxRequestLogSize = 10240
+
 type SoapRequestContainer struct {
 	Data   *fleet.SoapRequest
 	Params url.Values
@@ -60,7 +62,9 @@ func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u 
 		// Unmarshal the XML data from the request into the SoapRequest struct
 		err = xml.Unmarshal(reqBytes, &req.Data)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "unmarshalling soap mdm request")
+			// We log the request body for debug by using an error implementing ErrWithInternal interface.
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "unmarshalling soap mdm request: " + err.Error(),
+				InternalErr: fmt.Errorf("request: %s", truncateString(string(reqBytes), maxRequestLogSize))})
 		}
 	}
 
@@ -2347,4 +2351,12 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 	}
 
 	return command, nil
+}
+
+// truncateString truncates a string to maxLen characters, adding "..." if truncated
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
