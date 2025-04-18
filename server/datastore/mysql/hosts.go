@@ -3173,8 +3173,8 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	//
 	// host_seen_time entries are not available for ios/ipados devices, since they're updated on
 	// osquery check-in. Instead we fall back to detail_updated_at, which is updated every time a
-	// full detail refetch happens. For the detail_updated_at value, we consider the value '2000-01-01
-	// 00:00:00' to be nullish because this value is set as the default in some scenarios, in which
+	// full detail refetch happens. For the detail_updated_at value, we consider server.NeverTimestamp
+	// to be nullish because this value is set as the default in some scenarios, in which
 	// case we will fall back to the created_at timestamp.
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the

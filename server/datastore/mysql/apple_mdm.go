@@ -886,7 +886,6 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnrolledAt time.Time) {
 	supportsOsquery := mdmHost.SupportsOsquery()
-	// 2000-01-01 00:00:00 is what Fleet considers the zero/"Never" time.
 	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
 	if err != nil {
 		panic(err)
