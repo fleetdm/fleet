@@ -9,12 +9,6 @@
     align-content: center;
   }
 
-  &__icon-wrap {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
-  }
-
   &__actions-heading {
     margin: -$pad-medium 0; // Remove vertical padding of button increasing container height
   }

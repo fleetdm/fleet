@@ -123,6 +123,12 @@ $max-width: 2560px;
   filter: grayscale(0.5);
   pointer-events: none;
   cursor: default;
+
+  // Must override
+  &:hover,
+  &:focus {
+    cursor: default;
+  }
 }
 
 @mixin disabled-checkbox {

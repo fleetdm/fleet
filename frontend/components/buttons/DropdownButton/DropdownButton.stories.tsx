@@ -36,6 +36,7 @@ const meta: Meta<typeof DropdownButton> = {
         "pill",
         "text-link",
         "text-icon",
+        "icon",
         "inverse",
         "inverse-alert",
         "unstyled",

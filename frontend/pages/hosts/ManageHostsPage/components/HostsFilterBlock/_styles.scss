@@ -16,6 +16,12 @@
       display: flex;
       align-items: center;
     }
+
+    &__action-btn {
+      svg {
+        padding: $pad-small;
+      }
+    }
   }
 
   &__os_settings-dropdown,

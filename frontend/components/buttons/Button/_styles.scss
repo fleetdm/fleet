@@ -14,7 +14,7 @@ $base-class: "button";
     padding: $pad-small;
 
     &:hover {
-      background-color: rgba(#192147, 0.05);
+      background-color: rgba($core-fleet-black, 0.05);
 
       &:active {
         background-color: $ui-fleet-black-10;
@@ -181,10 +181,9 @@ $base-class: "button";
     }
   }
 
-  // &--icon, &--small-icon used for no text and svg icons
+  // &--icon is used for svg icon buttons without text
   &--text-icon,
-  &--icon,
-  &--small-icon {
+  &--icon {
     @include button-variant(transparent);
     padding: 0;
     border: 0;
@@ -236,16 +235,25 @@ $base-class: "button";
         }
       }
 
-      // The SVG icons in these buttons contain a `stroke` instead of a `fill`,
+      // If .button--icon-stroke is present, use stroke instead of fill
+      // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
       // so we need to modify that property instead. Adding a custom `fill`
       // could make these icons render incorrectly.
-      &.input-field__copy-value-button,
-      &.windows-details-button,
-      [data-testid="chevron-right-icon"] {
-        svg {
-          path {
-            fill: none;
-            stroke: $core-vibrant-blue-over;
+      &.button--icon-stroke {
+        &:hover,
+        &:focus {
+          svg {
+            path {
+              fill: none; // Prevent fill from interfering
+              stroke: $core-vibrant-blue-over;
+            }
+          }
+          &:active {
+            svg {
+              path {
+                stroke: $core-vibrant-blue-down;
+              }
+            }
           }
         }
       }
@@ -258,12 +266,7 @@ $base-class: "button";
   }
 
   &--icon {
-    svg {
-      padding: $pad-icon;
-    }
-  }
-
-  &--small-icon {
+    height: initial; // Override 38px height
     svg {
       padding: $pad-small;
     }
@@ -297,11 +300,6 @@ $base-class: "button";
 
   &--disabled {
     @include disabled;
-
-    &:hover,
-    &:focus {
-      cursor: default;
-    }
   }
 
   &--unstyled {

@@ -13,8 +13,7 @@
     gap: $small;
 
     button {
-      padding: $pad-small; // Enlarge clickable area
-      margin: -$pad-small; // Enlarge clickable area
+      margin: -$pad-small; // Keep button padding from affecting parent padding
     }
 
     .premium-icon-tip {

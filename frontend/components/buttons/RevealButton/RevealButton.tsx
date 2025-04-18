@@ -71,6 +71,7 @@ const RevealButton = ({
       onClick={onClick}
       autofocus={autofocus}
       disabled={disabled}
+      iconStroke
     >
       {buttonContent()}
     </Button>

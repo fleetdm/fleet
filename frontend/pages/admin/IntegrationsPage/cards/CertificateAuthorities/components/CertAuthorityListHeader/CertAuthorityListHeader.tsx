@@ -24,11 +24,12 @@ const CertAuthorityListHeader = ({
               variant="text-icon"
               className={`${baseClass}__add-button`}
               onClick={onClickAddCertAuthority}
+              iconStroke
             >
-              <span className={`${baseClass}__btn-label`}>
+              <>
                 <Icon name="plus" />
-                <span>Add CA</span>
-              </span>
+                Add CA
+              </>
             </Button>
           )}
         />

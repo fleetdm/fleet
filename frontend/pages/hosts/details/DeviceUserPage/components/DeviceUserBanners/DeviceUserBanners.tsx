@@ -6,6 +6,7 @@ import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
 import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import { Link } from "react-router";
 
 const baseClass = "device-user-banners";
 
@@ -44,8 +45,8 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={onTurnOnMdm}>
-      <b>Turn on MDM</b>
+    <Button variant="text-link" onClick={onTurnOnMdm}>
+      Turn on MDM
     </Button>
   );
 
@@ -106,7 +107,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="unstyled"
+                variant="text-link"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >
