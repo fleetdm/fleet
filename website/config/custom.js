@@ -410,10 +410,8 @@ module.exports.custom = {
   // dealRegistrationContactEmailAddress: '…',
 
   // Android proxy
-  // androidEnterpriseServiceAccountClientId: '…',
-  // androidEnterpriseServiceAccountPrivateKey: '…',
   // androidEnterpriseProjectId: '…',
   // androidEnterpriseServiceAccountEmailAddress: '…',
-  //…
+  // androidEnterpriseServiceAccountPrivateKey: '…',
 
 };
