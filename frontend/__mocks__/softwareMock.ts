@@ -294,6 +294,7 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   post_install_script: 'echo "Installed"',
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  slug: "applications/test-app",
   url: "http://www.testurl1234abcd.com/testapp",
 };
 
