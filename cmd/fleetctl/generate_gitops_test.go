@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"testing"
@@ -31,6 +32,20 @@ func (MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 	return &appConfig, nil
 }
 
+func (MockClient) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
+	spec := &fleet.EnrollSecretSpec{
+		Secrets: []*fleet.EnrollSecret{
+			{
+				Secret: "some-secret-number-one",
+			},
+			{
+				Secret: "some-secret-number-two",
+			},
+		},
+	}
+	return spec, nil
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
@@ -52,10 +67,18 @@ func TestGenerateOrgSettings(t *testing.T) {
 	appConfig, err := fleetClient.GetAppConfig()
 	require.NoError(t, err)
 
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: []FileToWrite{},
+	}
+
 	// Generate the org settings.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	orgSettingsRaw, err := generateOrgSettings(nil, appConfig, nil)
+	orgSettingsRaw, err := cmd.generateOrgSettings(appConfig)
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
@@ -65,6 +88,44 @@ func TestGenerateOrgSettings(t *testing.T) {
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings.yaml")
+	require.NoError(t, err)
+	var expectedAppConfig map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedAppConfig)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedAppConfig, orgSettings)
+}
+
+func TestGenerateOrgSettingsInsecure(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.Bool("insecure", true, "Output sensitive information in plaintext.")
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
+		Messages:     Messages{},
+		FilesToWrite: []FileToWrite{},
+	}
+
+	// Generate the org settings.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	orgSettingsRaw, err := cmd.generateOrgSettings(appConfig)
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+	var orgSettings map[string]interface{}
+	b, err := yaml.Marshal(orgSettingsRaw)
+	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &orgSettings)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings-insecure.yaml")
 	require.NoError(t, err)
 	var expectedAppConfig map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedAppConfig)

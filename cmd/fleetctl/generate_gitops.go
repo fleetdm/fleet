@@ -13,7 +13,7 @@ import (
 
 type SecretWarning struct {
 	Filename string
-	Path     string
+	Key      string
 }
 
 type Note struct {
@@ -26,8 +26,19 @@ type Messages struct {
 	Notes          []Note
 }
 
+type Comment struct {
+	Filename string
+	Comment  string
+	Token    string
+}
+
+type FileToWrite struct {
+	Path    string
+	Content string
+}
 type client interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
+	GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -64,16 +75,12 @@ func getValueAtKey(data map[string]interface{}, path string) (interface{}, bool)
 	return cur, true
 }
 
-type FileToWrite struct {
-	Path    string
-	Content string
-}
-
 type GenerateGitopsCommand struct {
 	Client       client
 	CLI          *cli.Context
 	Messages     Messages
 	FilesToWrite []FileToWrite
+	Comments     []Comment
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -168,25 +175,46 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	return nil
 }
 
-func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedAppConfig) (orgSettings *map[string]interface{}, err error) {
+func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
+	token := fmt.Sprintf("___GITOPS_COMMENT_%d___", len(cmd.Comments))
+	cmd.Comments = append(cmd.Comments, Comment{
+		Filename: filename,
+		Comment:  comment,
+		Token:    token,
+	})
+	return token
+}
+
+func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedAppConfig) (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
-	orgSettings = &map[string]interface{}{
+	orgSettings = map[string]interface{}{
 		jsonFieldName(t, "Features"):           appConfig.Features,
 		jsonFieldName(t, "FleetDesktop"):       appConfig.FleetDesktop,
 		jsonFieldName(t, "HostExpirySettings"): appConfig.HostExpirySettings,
 		jsonFieldName(t, "OrgInfo"):            appConfig.OrgInfo,
-		"secrets": []map[string]interface{}{
-			{
-				"secret": "# TODO: Add your secret here",
-			},
-		},
-		jsonFieldName(t, "ServerSettings"):  appConfig.ServerSettings,
-		jsonFieldName(t, "Integrations"):    cmd.generateIntegrations(&appConfig.Integrations),
-		jsonFieldName(t, "WebhookSettings"): appConfig.WebhookSettings,
-		jsonFieldName(t, "MDM"):             cmd.generateMDM(&appConfig.MDM),
-		jsonFieldName(t, "YaraRules"):       cmd.generateYaraRules(appConfig.YaraRules),
+		jsonFieldName(t, "ServerSettings"):     appConfig.ServerSettings,
+		jsonFieldName(t, "Integrations"):       cmd.generateIntegrations(&appConfig.Integrations),
+		jsonFieldName(t, "WebhookSettings"):    appConfig.WebhookSettings,
+		jsonFieldName(t, "MDM"):                cmd.generateMDM(&appConfig.MDM),
+		jsonFieldName(t, "YaraRules"):          cmd.generateYaraRules(appConfig.YaraRules),
 	}
-	if (*orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(appConfig.SSOSettings); err != nil {
+
+	// If --insecure is set, add real secrets.
+	if cmd.CLI.Bool("insecure") {
+		enrollSecrets, err := cmd.Client.GetEnrollSecretSpec()
+		if err != nil {
+			return nil, err
+		}
+		secrets := make([]map[string]string, len(enrollSecrets.Secrets))
+		for i, spec := range enrollSecrets.Secrets {
+			secrets[i] = map[string]string{"secret": spec.Secret}
+		}
+		orgSettings["secrets"] = secrets
+	} else {
+		(orgSettings)["secrets"] = cmd.AddComment("default.yml", "# TODO: Add your secret here")
+	}
+
+	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(appConfig.SSOSettings); err != nil {
 		return nil, err
 	}
 	return orgSettings, nil
@@ -195,8 +223,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedA
 func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSettings) (map[string]interface{}, error) {
 	t := reflect.TypeOf(fleet.SSOSettings{})
 	result := map[string]interface{}{
-		jsonFieldName(t, "EnableSSO"): ssoSettings.EnableSSO,
-
+		jsonFieldName(t, "EnableSSO"):             ssoSettings.EnableSSO,
 		jsonFieldName(t, "IDPName"):               ssoSettings.IDPName,
 		jsonFieldName(t, "IDPImageURL"):           ssoSettings.IDPImageURL,
 		jsonFieldName(t, "EntityID"):              ssoSettings.EntityID,
@@ -204,6 +231,14 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 		jsonFieldName(t, "MetadataURL"):           ssoSettings.MetadataURL,
 		jsonFieldName(t, "EnableJITProvisioning"): ssoSettings.EnableJITProvisioning,
 		jsonFieldName(t, "EnableSSOIdPLogin"):     ssoSettings.EnableSSOIdPLogin,
+	}
+	if !cmd.CLI.Bool("insecure") {
+		if ssoSettings.Metadata != "" {
+			result[jsonFieldName(t, "Metadata")] = cmd.AddComment("default.yml", "TODO: Add your SSO metadata here")
+		}
+		if ssoSettings.MetadataURL != "" {
+			result[jsonFieldName(t, "MetadataURL")] = cmd.AddComment("default.yml", "TODO: Add your SSO metadata URL here")
+		}
 	}
 	return result, nil
 }

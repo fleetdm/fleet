@@ -14,7 +14,8 @@ org_info:
   org_logo_url_light_background: ""
   org_name: Fleet
 secrets:
-- secret: # TODO: Add your secret here
+- secret: some-secret-number-one
+- secret: some-secret-number-two
 server_settings:
   ai_features_disabled: false
   debug_host_ids:
@@ -34,8 +35,8 @@ sso_settings:
   entity_id: dogfood.fleetdm.com
   idp_image_url: http://some-sso-idp-image-url.com
   idp_name: some-idp-name
-  metadata: # TODO: Add your SSO metadata here
-  metadata_url: # TODO: Add your SSO metadata URL here
+  metadata: some-sso-metadata
+  metadata_url: http://some-sso-metadata-url.com
 webhook_settings:
   activities_webhook:
     destination_url: https://some-activities-webhook-url.com
