@@ -2317,7 +2317,7 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT 
 	si.id AS installer_id,

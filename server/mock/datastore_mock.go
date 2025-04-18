@@ -1216,7 +1216,7 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
-type GetSoftwareInstallerByHashFunc func(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
@@ -3114,8 +3114,8 @@ type DataStore struct {
 	GetHostAwaitingConfigurationFunc        GetHostAwaitingConfigurationFunc
 	GetHostAwaitingConfigurationFuncInvoked bool
 
-	GetSoftwareInstallerByHashFunc        GetSoftwareInstallerByHashFunc
-	GetSoftwareInstallerByHashFuncInvoked bool
+	GetTeamsWithInstallerByHashFunc        GetTeamsWithInstallerByHashFunc
+	GetTeamsWithInstallerByHashFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -7455,11 +7455,11 @@ func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID s
 	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) GetSoftwareInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 	s.mu.Lock()
-	s.GetSoftwareInstallerByHashFuncInvoked = true
+	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareInstallerByHashFunc(ctx, sha256)
+	return s.GetTeamsWithInstallerByHashFunc(ctx, sha256)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {

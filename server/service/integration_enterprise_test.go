@@ -17077,7 +17077,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[0].SHA256 = ""
 	softwareToInstall[0].URL = ""
 	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
-	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. Must have one of url or sha256")
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages has neither url nor hash_sha256 fields.")
 
 	// Pass in valid URL
 	softwareToInstall[0].URL = rubyURL

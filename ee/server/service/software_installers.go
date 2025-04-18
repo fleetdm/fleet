@@ -1498,7 +1498,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if payload.URL == "" && payload.SHA256 == "" {
 			return "", fleet.NewInvalidArgumentError(
 				"software",
-				"Couldn't edit software. Must have one of url or sha256",
+				"Couldn't edit software. One or more software packages has neither url nor hash_sha256 fields.",
 			)
 		}
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
@@ -1678,7 +1678,7 @@ func (svc *Service) softwareBatchUpload(
 			}
 
 			// check if we already have the installer based on the SHA256
-			teamIDs, err := svc.ds.GetSoftwareInstallerByHash(ctx, p.SHA256)
+			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256)
 			if err != nil {
 				return err
 			}
