@@ -1,4 +1,4 @@
-# API Endpoints HOWTO
+# API endpoints how-to
 
 ## Steps to add a new endpoint
 
