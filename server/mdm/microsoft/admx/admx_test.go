@@ -13,6 +13,37 @@ func TestIsADMX(t *testing.T) {
 	assert.False(t, IsADMX(`<![CDATA[bozo]]>`))
 	assert.False(t, IsADMX(`<![CDATA[<bozo/>]]>`))
 	assert.False(t, IsADMX(`<![CDATA[<bozo]]>`))
+
+	// This is a WLAN XML profile
+	assert.False(t, IsADMX(
+		`&lt;?xml version=&quot;1.0&quot;?&gt;
+&lt;WLANProfile xmlns=&quot;http://www.microsoft.com/networking/WLAN/profile/v1&quot;&gt;
+	&lt;name&gt;Test&lt;/name&gt;
+	&lt;SSIDConfig&gt;
+		&lt;SSID&gt;
+                    &lt;hex&gt;54657374&lt;/hex&gt;
+                    &lt;name&gt;Test&lt;/name&gt;
+                &lt;/SSID&gt;
+                &lt;nonBroadcast&gt;false&lt;/nonBroadcast&gt;
+	&lt;/SSIDConfig&gt;
+	&lt;connectionType&gt;ESS&lt;/connectionType&gt;
+	&lt;connectionMode&gt;auto&lt;/connectionMode&gt;
+	&lt;MSM&gt;
+		&lt;security&gt;
+			&lt;authEncryption&gt;
+				&lt;authentication&gt;WPA2PSK&lt;/authentication&gt;
+				&lt;encryption&gt;AES&lt;/encryption&gt;
+				&lt;useOneX&gt;false&lt;/useOneX&gt;
+			&lt;/authEncryption&gt;
+			&lt;sharedKey&gt;
+				&lt;keyType&gt;passPhrase&lt;/keyType&gt;
+				&lt;protected&gt;false&lt;/protected&gt;
+				&lt;keyMaterial&gt;sup3rs3cr3t&lt;/keyMaterial&gt;
+			&lt;/sharedKey&gt;
+		&lt;/security&gt;
+	&lt;/MSM&gt;
+&lt;/WLANProfile&gt;`))
+
 	assert.True(t, IsADMX(`<![CDATA[<enabled/>]]>`))
 	assert.True(t, IsADMX(`<![CDATA[<disabled/>]]>`))
 	assert.True(t, IsADMX(`<![CDATA[<data id="id" value="value"/>]]>`))

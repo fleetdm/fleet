@@ -177,12 +177,7 @@ const LoginForm = ({
       {/* Actions displayed using CSS column-reverse to preserve tab order */}
       <div className={`${baseClass}__actions`}>
         <div className={`${baseClass}__login-actions`}>
-          <Button
-            className="login-btn"
-            isLoading={isSubmitting}
-            type="submit"
-            variant="brand"
-          >
+          <Button className="login-btn" isLoading={isSubmitting} type="submit">
             Log in
           </Button>
           {ssoEnabled && renderSingleSignOnButton()}

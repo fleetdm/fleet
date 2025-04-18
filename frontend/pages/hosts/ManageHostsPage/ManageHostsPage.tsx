@@ -1491,7 +1491,7 @@ const ManageHostsPage = ({
           emptyHosts.info =
             "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
-            <Button variant="brand" onClick={toggleAddHostsModal} type="button">
+            <Button onClick={toggleAddHostsModal} type="button">
               Add hosts
             </Button>
           );
@@ -1672,7 +1672,6 @@ const ManageHostsPage = ({
                 <Button
                   onClick={toggleAddHostsModal}
                   className={`${baseClass}__add-hosts`}
-                  variant="brand"
                 >
                   <span>Add hosts</span>
                 </Button>

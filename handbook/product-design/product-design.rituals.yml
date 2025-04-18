@@ -75,7 +75,7 @@
   task: "🦢✅🎉Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
   frequency: "Triweekly" 
-  description: "Review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done." 
+  description: "Ahead of the call, Product Designers review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. During the call, Head of Product Design notifies the requester." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
