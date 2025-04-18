@@ -271,7 +271,7 @@
             "entity_id": "some-mdm-entity-id.com",
             "issuer_uri": "https://some-mdm-issuer-uri.com",
             "metadata": "some-mdm-metadata",
-            "metadata_url": "",
+            "metadata_url": "http://some-mdm-metadata-url.com",
             "idp_name": "some-other-idp-name"
         },
         "windows_enabled_and_configured": true,

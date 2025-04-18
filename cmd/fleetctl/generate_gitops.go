@@ -227,7 +227,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedA
 		}
 		orgSettings["secrets"] = secrets
 	} else {
-		(orgSettings)["secrets"] = cmd.AddComment("default.yml", "TODO: Add your secret here")
+		(orgSettings)["secrets"] = []map[string]string{{"string": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
 	}
 
 	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(appConfig.SSOSettings); err != nil {
@@ -260,7 +260,6 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 }
 
 func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integrations) map[string]interface{} {
-	// t := reflect.TypeOf(fleet.Integrations{})
 	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
 	// to get the keys we want.
 	b, err := yaml.Marshal(integrations)
@@ -311,7 +310,26 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integ
 }
 
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) map[string]interface{} {
-	return map[string]interface{}{}
+	t := reflect.TypeOf(fleet.MDM{})
+	result := map[string]interface{}{
+		jsonFieldName(t, "AppleBusinessManager"):    mdm.AppleBusinessManager,
+		jsonFieldName(t, "VolumePurchasingProgram"): mdm.VolumePurchasingProgram,
+		jsonFieldName(t, "AppleServerURL"):          mdm.AppleServerURL,
+		jsonFieldName(t, "EndUserAuthentication"):   mdm.EndUserAuthentication,
+	}
+	if !cmd.CLI.Bool("insecure") {
+		if auth, ok := result[jsonFieldName(t, "EndUserAuthentication")]; ok {
+			endUserAuth := auth.(fleet.MDMEndUserAuthentication)
+			if endUserAuth.Metadata != "" {
+				endUserAuth.Metadata = cmd.AddComment("default.yml", "TODO: Add your MDM end user auth metadata here")
+			}
+			if endUserAuth.MetadataURL != "" {
+				endUserAuth.MetadataURL = cmd.AddComment("default.yml", "TODO: Add your MDM end user auth metadata URL here")
+			}
+			result[jsonFieldName(t, "EndUserAuthentication")] = endUserAuth
+		}
+	}
+	return result
 }
 
 func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) map[string]interface{} {
