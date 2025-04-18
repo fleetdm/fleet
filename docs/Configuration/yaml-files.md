@@ -914,6 +914,8 @@ org_settings:
     end_user_license_agreement: ./lib/eula.pdf
 ```
 
+Can only be configured for all teams (`org_settings`).
+
 ##### apple_server_url
 
 Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
