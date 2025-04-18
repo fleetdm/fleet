@@ -144,7 +144,7 @@ module.exports = {
     await AndroidEnterprise.create({
       fleetServerUrl: fleetServerUrl,
       fleetLicenseKey: fleetLicenseKey,
-      androidEnterpriseId: newAndroidEnterpriseId,
+      androidEnterpriseId: newAndroidEnterpriseId.replace(/enterprises\//, ''),// Remove the /enterprises prefix from the androidEnterpriseId that we save in the website database.
       pubsubTopicName: fullPubSubTopicName,
       fleetServerSecret: newFleetServerSecret,
     });
