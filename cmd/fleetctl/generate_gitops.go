@@ -243,8 +243,55 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateIntegrations(ssoSettings *fleet.Integrations) map[string]interface{} {
-	return map[string]interface{}{}
+func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integrations) map[string]interface{} {
+	// t := reflect.TypeOf(fleet.Integrations{})
+	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
+	// to get the keys we want.
+	b, err := yaml.Marshal(integrations)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling integrations: %s\n", err)
+		return nil
+	}
+	var result map[string]interface{}
+	if err := yaml.Unmarshal(b, &result); err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling integrations: %s\n", err)
+		return nil
+	}
+	// Obfuscate secrets if not in insecure mode.
+	if !cmd.CLI.Bool("insecure") {
+		if googleCalendar, ok := result["google_calendar"]; ok {
+			for _, intg := range googleCalendar.([]interface{}) {
+				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
+					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment("default.yml", "# TODO: Add your Google Calendar API key JSON here")
+				}
+			}
+		}
+		if jira, ok := result["jira"]; ok {
+			for _, intg := range jira.([]interface{}) {
+				intg.(map[string]interface{})["api_token"] = cmd.AddComment("default.yml", "# TODO: Add your Jira API token here")
+			}
+		}
+		if zendesk, ok := result["zendesk"]; ok {
+			for _, intg := range zendesk.([]interface{}) {
+				intg.(map[string]interface{})["api_token"] = cmd.AddComment("default.yml", "# TODO: Add your Zendesk API token here")
+			}
+		}
+		if digicert, ok := result["digicert"]; ok && digicert != nil {
+			for _, intg := range digicert.([]interface{}) {
+				intg.(map[string]interface{})["api_token"] = cmd.AddComment("default.yml", "# TODO: Add your Digicert API token here")
+			}
+		}
+		if ndes_scep_proxy, ok := result["ndes_scep_proxy"]; ok && ndes_scep_proxy != nil {
+			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment("default.yml", "# TODO: Add your NDES SCEP proxy password here")
+		}
+		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
+			for _, intg := range custom_scep_proxy.([]interface{}) {
+				intg.(map[string]interface{})["challenge"] = cmd.AddComment("default.yml", "# TODO: Add your custom SCEP proxy challenge here")
+			}
+		}
+	}
+
+	return result
 }
 
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) map[string]interface{} {

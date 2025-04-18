@@ -169,8 +169,22 @@
         "interval": "6h0m0s"
     },
     "integrations": {
-        "jira": [],
-        "zendesk": [],
+        "jira": [
+            {
+                "url": "https://some-jira-url.com",
+                "username": "some-jira-username",
+                "api_token": "some-jira-api-token",
+                "project_key": "some-jira-project-key"
+            }
+        ],
+        "zendesk": [
+            {
+                "url": "https://some-zendesk-url.com",
+                "email": "some-zendesk-email@example.com",
+                "api_token": "some-zendesk-api-token",
+                "group_id": 123456789
+            }
+        ],
         "google_calendar": [
             {
                 "domain": "fleetdm.com",
@@ -179,9 +193,33 @@
                 }
             }
         ],
-        "digicert": null,
-        "ndes_scep_proxy": null,
-        "custom_scep_proxy": null
+        "digicert": [
+            {
+                "name": "some-digicert-name",
+                "url": "https://some-digicert-url.com",
+                "api_token": "some-digicert-api-token",
+                "profile_id": "some-digicert-profile-id",
+                "certificate_common_name": "some-digicert-certificate-common-name",
+                "certificate_user_principal_names": [
+                    "some-digicert-certificate-user-principal-name",
+                    "some-other-digicert-certificate-user-principal-name"
+                ],
+                "certificate_seat_id": "some-digicert-certificate-seat-id"
+            }
+        ],
+        "ndes_scep_proxy": {
+            "url": "https://some-ndes-scep-proxy-url.com",
+            "admin_url": "https://some-ndes-admin-url.com",
+            "username": "some-ndes-username",
+            "password": "some-ndes-password"
+        },
+        "custom_scep_proxy": [
+            {
+                "name": "some-custom-scep-proxy-name",
+                "url": "https://some-custom-scep-proxy-url.com",
+                "challenge": "some-custom-scep-proxy-challenge"
+            }
+        ]
     },
     "mdm": {
         "apple_server_url": "",
