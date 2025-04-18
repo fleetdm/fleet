@@ -38,7 +38,7 @@ For admins that are leveraging the macOS Setup Experience in Fleet, we recommend
 
 SentinelOne offers admins both an .exe and .msi installer, and Fleet recommends leveraging the .msi to deploy. These installers are better suited for enterprise environments with features like silent install and richer management capabilities at time of install. Additionally, the **Automatic install** functionality of Fleet is only available when deploying an .msi.
 
-### Installer + Script
+### Installer + script
 
 After downloading the latest SentinelOne installer from your admin console, and retrieving your site token, from the **Software** tab in Fleet, **Add software** > **Custom package**. Upload the installer from the previous step. Select **Automatic install** or **Self-service** if those options apply to your environment. 
 
@@ -77,7 +77,7 @@ As in previous steps, find the latest installer for your Linux distro and **Down
 
 From the **Software** tab in Fleet, **Add software** > **Custom package**. Upload the installer from the previous step. Select **Automatic install** or **Self-service** if those options apply to your environment.
 
-### Post-Install Script
+### Post-install script
 
 The default install script that is populated in Fleet is sufficient, but a post-install script is needed to set the site token and start the agent services. Here is an example post-install script that will set the token, start the service and check the status. Adjust the sleep time if needed.
 
@@ -109,3 +109,5 @@ Want to learn more? Reach out directly to me or the [team at Fleet](https://flee
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-04-15">
+<meta name="description" value="Deploying SentinelOne with Fleet">
+<meta name="articleImageUrl" value="../website/assets/images/articles/installing-sentinel-one-with-fleet-1600x900.png">
