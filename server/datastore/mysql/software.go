@@ -3725,7 +3725,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				for index, vppAppAdamIdStr := range vppAppAdamIDList {
 					if vppAppAdamIdStr != "" {
 						softwareTitle = byVPPAdamID[vppAppAdamIdStr]
-						softwareTitleRecord.VPPAppAdamID = softwareTitle.VPPAppAdamID
+						softwareTitleRecord.VPPAppAdamID = &vppAppAdamIdStr
 					}
 
 					vppAppSelfService := vppAppSelfServiceList[index]
@@ -3759,13 +3759,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			// Merge the data of `software title` into `softwareTitleRecord`
 			// We should try to move as much of these attributes into the `stmt` query
-			softwareTitleRecord.Status = softwareTitle.Status
-			softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
-			softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
-			softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
-			softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
-			if softwareTitle.PackageSelfService != nil {
-				softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
+			if softwareTitle != nil {
+				softwareTitleRecord.Status = softwareTitle.Status
+				softwareTitleRecord.LastInstallInstallUUID = softwareTitle.LastInstallInstallUUID
+				softwareTitleRecord.LastInstallInstalledAt = softwareTitle.LastInstallInstalledAt
+				softwareTitleRecord.LastUninstallScriptExecutionID = softwareTitle.LastUninstallScriptExecutionID
+				softwareTitleRecord.LastUninstallUninstalledAt = softwareTitle.LastUninstallUninstalledAt
+				if softwareTitle.PackageSelfService != nil {
+					softwareTitleRecord.PackageSelfService = softwareTitle.PackageSelfService
+				}
 			}
 
 			// promote the package name and version to the proper destination fields

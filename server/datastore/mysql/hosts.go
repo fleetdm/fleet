@@ -13,6 +13,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -3172,11 +3173,17 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	//
 	// host_seen_time entries are not available for ios/ipados devices, since they're updated on
 	// osquery check-in. Instead we fall back to detail_updated_at, which is updated every time a
-	// full detail refetch happens.
+	// full detail refetch happens. For the detail_updated_at value, we consider server.NeverTimestamp
+	// to be nullish because this value is set as the default in some scenarios, in which
+	// case we will fall back to the created_at timestamp.
+	//
+	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
+	// host_dep_assignments table.
 	findHostsSql := `SELECT h.id FROM hosts h
-		LEFT JOIN host_seen_times hst
-		ON h.id = hst.host_id
-		WHERE COALESCE(hst.seen_time, h.detail_updated_at, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`
+		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
+		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
+		WHERE COALESCE(hst.seen_time, NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
+			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
 
 	var allIdsToDelete []uint
 	// Process hosts using global expiry

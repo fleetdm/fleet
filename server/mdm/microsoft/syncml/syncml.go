@@ -317,18 +317,24 @@ const (
 	SyncMLVerProto = "DM/" + SyncMLSupportedVersion
 )
 
-func ForTestWithData(locURIs map[string]string) []byte {
+type TestCommand struct {
+	Verb   string
+	LocURI string
+	Data   string
+}
+
+func ForTestWithData(commands []TestCommand) []byte {
 	var syncMLBuf bytes.Buffer
-	for locURI, data := range locURIs {
+	for _, command := range commands {
 		syncMLBuf.WriteString(fmt.Sprintf(`
-<Replace>
+<%s>
   <Item>
     <Target>
       <LocURI>%s</LocURI>
     </Target>
     <Data>%s</Data>
   </Item>
-</Replace>`, locURI, data))
+</%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
 	}
 	return syncMLBuf.Bytes()
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
@@ -17,15 +18,36 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func generateTestWlanProfiles(t *testing.T) (wlanXMLOriginalProfile, wlanXMLModifiedProfile string) {
+	wlanSSIDConfig := wlanxml.WlanXmlProfileSSIDConfig{
+		SSID: []wlanxml.WlanXmlProfileSSID{
+			{
+				Name: "Test",
+			},
+		},
+		NonBroadcast: false,
+	}
+	var err error
+	wlanXMLOriginalProfile, err = wlanxml.GenerateWLANXMLProfileForTests("Test", wlanSSIDConfig)
+	require.NoError(t, err)
+	wlanSSIDConfig.NonBroadcast = true
+	wlanXMLModifiedProfile, err = wlanxml.GenerateWLANXMLProfileForTests("Test", wlanSSIDConfig)
+	require.NoError(t, err)
+	return
+}
+
 func TestLoopHostMDMLocURIs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 
 	ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
 		return map[string]*fleet.ExpectedMDMProfile{
-			"N1": {Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-			"N2": {Name: "N2", RawProfile: syncml.ForTestWithData(map[string]string{"L2": "D2"})},
-			"N3": {Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
+			"N1": {Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+			"N2": {Name: "N2", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L2", Data: "D2"}})},
+			"N3": {Name: "N3", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{
+				{Verb: "Replace", LocURI: "L3", Data: "D3"},
+				{Verb: "Add", LocURI: "L3.1", Data: "D3.1"},
+			})},
 		}, nil
 	}
 	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
@@ -119,6 +141,7 @@ func TestVerifyHostMDMProfilesErrors(t *testing.T) {
 }
 
 func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
+	wlanXMLOriginalProfile, wlanXMLModifiedProfile := generateTestWlanProfiles(t)
 	cases := []struct {
 		name              string
 		hostProfiles      []hostProfile
@@ -137,9 +160,9 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toRetry:      []string{},
 		},
 		{
-			name: "single profile reported and verified",
+			name: `single "Replace" profile reported and verified`,
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1"}), 0},
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}}), 0},
 			},
 			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
 			toVerify: []string{"N1"},
@@ -147,9 +170,29 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toRetry:  []string{},
 		},
 		{
-			name: "single profile with secret variables reported and verified",
+			name: `single "Add" profile reported and verified`,
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{"L1": "$FLEET_SECRET_VALUE"}), 0},
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L1", Data: "D1"}}), 0},
+			},
+			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: `single "Replace" profile with secret variables reported and verified`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "$FLEET_SECRET_VALUE"}}), 0},
+			},
+			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: `single "Add" profile with secret variables reported and verified`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L1", Data: "$FLEET_SECRET_VALUE"}}), 0},
 			},
 			report:   []osqueryReport{{"N1", "200", "L1", "D1"}},
 			toVerify: []string{"N1"},
@@ -159,10 +202,10 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 		{
 			name: "Get succeeds but has missing data",
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1"}), 0},
-				{"N2", syncml.ForTestWithData(map[string]string{"L2": "D2"}), 1},
-				{"N3", syncml.ForTestWithData(map[string]string{"L3": "D3"}), 0},
-				{"N4", syncml.ForTestWithData(map[string]string{"L4": "D4"}), 1},
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L2", Data: "D2"}}), 1},
+				{"N3", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}}), 0},
+				{"N4", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L4", Data: "D4"}}), 1},
 			},
 			report: []osqueryReport{
 				{"N1", "200", "L1", ""},
@@ -177,10 +220,10 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 		{
 			name: "Get fails",
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1"}), 0},
-				{"N2", syncml.ForTestWithData(map[string]string{"L2": "D2"}), 1},
-				{"N3", syncml.ForTestWithData(map[string]string{"L3": "D3"}), 0},
-				{"N4", syncml.ForTestWithData(map[string]string{"L4": "D4"}), 1},
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L2", Data: "D2"}}), 1},
+				{"N3", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}}), 0},
+				{"N4", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L4", Data: "D4"}}), 1},
 			},
 			report: []osqueryReport{
 				{"N1", "400", "L1", ""},
@@ -195,21 +238,35 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 		{
 			name: "missing report",
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1"}), 0},
-				{"N2", syncml.ForTestWithData(map[string]string{"L2": "D2"}), 1},
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}}), 1},
+				{"N3", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L3", Data: "D3"}}), 0},
+				{"N4", syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L4", Data: "D4"}}), 1},
 			},
 			report:   []osqueryReport{},
 			toVerify: []string{},
-			toFail:   []string{"N2"},
-			toRetry:  []string{"N1"},
+			toFail:   []string{"N2", "N4"},
+			toRetry:  []string{"N1", "N3"},
 		},
 		{
 			name: "profiles with multiple locURIs",
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{"L1": "D1", "L1.1": "D1.1"}), 0},
-				{"N2", syncml.ForTestWithData(map[string]string{"L2": "D2", "L2.1": "D2.1"}), 1},
-				{"N3", syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"}), 0},
-				{"N4", syncml.ForTestWithData(map[string]string{"L4": "D4", "L4.1": "D4.1"}), 1},
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L1", Data: "D1"},
+					{Verb: "Add", LocURI: "L1.1", Data: "D1.1"},
+				}), 0},
+				{"N2", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Add", LocURI: "L2", Data: "D2"},
+					{Verb: "Replace", LocURI: "L2.1", Data: "D2.1"},
+				}), 1},
+				{"N3", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Add", LocURI: "L3", Data: "D3"},
+					{Verb: "Add", LocURI: "L3.1", Data: "D3.1"},
+				}), 0},
+				{"N4", syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: "Replace", LocURI: "L4", Data: "D4"},
+					{Verb: "Replace", LocURI: "L4.1", Data: "D4.1"},
+				}), 1},
 			},
 			report: []osqueryReport{
 				{"N1", "400", "L1", ""},
@@ -227,37 +284,148 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 		{
 			name: "single profile with CDATA reported and verified",
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{
-					"L1": `
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Replace",
+					LocURI: "L1",
+					Data: `
       <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="Listbox_ModuleNames" value="*"/>
       <data id="OutputDirectory" value="false"/>
       <data id="EnableScriptBlockInvocationLogging" value="true"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
-				}), 0},
+				}}), 0},
 			},
-			report: []osqueryReport{{"N1", "200", "L1",
+			report: []osqueryReport{{
+				"N1", "200", "L1",
 				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
 			}},
 			toVerify: []string{"N1"},
 			toFail:   []string{},
 			toRetry:  []string{},
 		},
+
 		{
-			name: "single profile with CDATA to retry",
+			name: `single profile with CDATA to retry`,
 			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData(map[string]string{
-					"L1": `
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Replace",
+					LocURI: "L1",
+					Data: `
       <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="SourcePathForUpdateHelp" value="false"/>]]>`,
-				}), 0},
+				}}), 0},
 			},
-			report: []osqueryReport{{"N1", "200", "L1",
+			report: []osqueryReport{{
+				"N1", "200", "L1",
 				"&lt;Enabled/&gt;&lt;Data id=\"EnableScriptBlockInvocationLogging\" value=\"true\"/&gt;&lt;Data id=\"ExecutionPolicy\" value=\"AllSigned\"/&gt;&lt;Data id=\"Listbox_ModuleNames\" value=\"*\"/&gt;&lt;Data id=\"OutputDirectory\" value=\"false\"/&gt;&lt;Data id=\"SourcePathForUpdateHelp\" value=\"false\"/&gt;",
 			}},
 			toVerify: []string{},
 			toFail:   []string{},
 			toRetry:  []string{"N1"},
+		},
+
+		{
+			name: `single "Replace" profile with wireless XML reported and verified`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Replace",
+					LocURI: "L1",
+					Data:   wlanXMLOriginalProfile,
+				}}), 0},
+			},
+			report: []osqueryReport{{
+				"N1", "200", "L1",
+				wlanXMLOriginalProfile,
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: `single "Replace" profile with wireless XML to retry`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Replace",
+					LocURI: "L1",
+					Data:   wlanXMLOriginalProfile,
+				}}), 0},
+			},
+			report: []osqueryReport{{
+				"N1", "200", "L1",
+				wlanXMLModifiedProfile,
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `single "Replace" profile with wireless XML to fail`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Replace",
+					LocURI: "L1",
+					Data:   wlanXMLOriginalProfile,
+				}}), 1},
+			},
+			report: []osqueryReport{{
+				"N1", "200", "L1",
+				wlanXMLModifiedProfile,
+			}},
+			toVerify: []string{},
+			toFail:   []string{"N1"},
+			toRetry:  []string{},
+		},
+
+		{
+			name: `single "Add" profile with wireless XML reported and verified`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Add",
+					LocURI: "L1",
+					Data:   wlanXMLOriginalProfile,
+				}}), 0},
+			},
+			report: []osqueryReport{{
+				"N1", "200", "L1",
+				wlanXMLOriginalProfile,
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: `single "Add" profile with wireless XML to retry`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Add",
+					LocURI: "L1",
+					Data:   wlanXMLOriginalProfile,
+				}}), 0},
+			},
+			report: []osqueryReport{{
+				"N1", "200", "L1",
+				wlanXMLModifiedProfile,
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `single "Add" profile with wireless XML to fail`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{{
+					Verb:   "Add",
+					LocURI: "L1",
+					Data:   wlanXMLOriginalProfile,
+				}}), 1},
+			},
+			report: []osqueryReport{{
+				"N1", "200", "L1",
+				wlanXMLModifiedProfile,
+			}},
+			toVerify: []string{},
+			toFail:   []string{"N1"},
+			toRetry:  []string{},
 		},
 	}
 

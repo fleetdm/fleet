@@ -1,0 +1,1 @@
+Log invalid Windows MDM SOAP message and return 400 instead of 5XX. This change helps debug Windows MDM issues.
