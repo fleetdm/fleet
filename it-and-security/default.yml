@@ -91,6 +91,8 @@ queries:
   - path: ./lib/macos/queries/collect-app-hashes.yml
 controls: 
   enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
   macos_migration:
     enable: true
     mode: voluntary
