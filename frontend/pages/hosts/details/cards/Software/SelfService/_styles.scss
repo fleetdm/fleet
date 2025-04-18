@@ -4,8 +4,14 @@
     margin: 64px 0;
   }
 
-  &__items-count {
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin: 0 0 24px 0;
+  }
+
+  &__items-count {
     font-size: $x-small;
     font-weight: $bold;
   }
@@ -13,7 +19,24 @@
   &__items {
     display: grid;
     gap: $pad-large;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+
+    // Default show 4 cards per row
+    grid-template-columns: repeat(4, 1fr);
+
+    @media (max-width: ($break-lg - 1px)) {
+      // For screens under 1400px, show 3 cards per row
+      grid-template-columns: repeat(3, minmax(250px, 1fr));
+    }
+
+    @media (max-width: ($break-md - 1px)) {
+      // For screens under 990px, show 2 cards per row
+      grid-template-columns: repeat(2, minmax(250px, 1fr));
+    }
+
+    @media (max-width: ($break-mobile-lg - 1px)) {
+      // For very small screens, show only one card per row
+      grid-template-columns: repeat(1, minmax(250px, 1fr));
+    }
   }
 
   &__pagination {
