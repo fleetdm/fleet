@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -40,6 +41,7 @@ type FileToWrite struct {
 type client interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
 	GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error)
+	ListTeams(query string) ([]fleet.Team, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -134,14 +136,88 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return err
 	}
 
-	orgSettings, err := cmd.generateOrgSettings(appConfig)
+	// Get the list of teams.
+	teams, err := cmd.Client.ListTeams("")
 	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting teams: %s\n", err)
 		return ErrGeneric
 	}
+	// Add in a fake team to use for generating global control and software settings.
+	teams = append(teams, fleet.Team{
+		ID: 0,
+	})
+	for _, team := range teams {
+		var fileName string
+		// If it's a real team, start the filename with the team name.
+		if team.ID != 0 {
+			fileName = "teams/" + generateTeamFilename(team.Name)
+			cmd.FilesToWrite[fileName] = map[string]interface{}{}
+		} else {
+			fileName = "default.yml"
+		}
 
-	cmd.FilesToWrite["default.yml"] = map[string]interface{}{
-		"org_settings": orgSettings,
+		// Generate org settings.
+		if team.ID == 0 {
+			orgSettings, err := cmd.generateOrgSettings(appConfig)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
+				return ErrGeneric
+			}
+
+			cmd.FilesToWrite["default.yml"] = map[string]interface{}{
+				"org_settings": orgSettings,
+			}
+		}
+
+		// Generate controls.
+		controls, err := cmd.generateControls(fileName, team.ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
+			return ErrGeneric
+		}
+		cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
+
+		// Generate software.
+		software, err := cmd.generateSoftware(fileName, team.ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for team %s: %s\n", team.Name, err)
+			return ErrGeneric
+		}
+		cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = software
+
+		// Generate policies.
+		policies, err := cmd.generatePolicies(fileName, team.ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
+			return ErrGeneric
+		}
+		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
+
+		// Generate queries.
+		queries, err := cmd.generateQueries(fileName, team.ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
+			return ErrGeneric
+		}
+		cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
+
+		// Generate agent options.
+		agentOptions, err := cmd.generateAgentOptions(fileName, team.ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating agent options for team %s: %s\n", team.Name, err)
+			return ErrGeneric
+		}
+		cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = agentOptions
+
+		if team.ID != 0 {
+			// Generate team settings
+			teamSettings, err := cmd.generateTeamSettings(fileName, team.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating team settings for team %s: %s\n", team.Name, err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+		}
 	}
 
 	if cmd.CLI.String("key") != "" {
@@ -201,6 +277,17 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
+func generateTeamFilename(teamName string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			return unicode.ToLower(r)
+		default:
+			return '_'
+		}
+	}, teamName) + ".yml"
+}
+
 func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedAppConfig) (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 	orgSettings = map[string]interface{}{
@@ -209,11 +296,23 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedA
 		jsonFieldName(t, "HostExpirySettings"): appConfig.HostExpirySettings,
 		jsonFieldName(t, "OrgInfo"):            appConfig.OrgInfo,
 		jsonFieldName(t, "ServerSettings"):     appConfig.ServerSettings,
-		jsonFieldName(t, "Integrations"):       cmd.generateIntegrations(&appConfig.Integrations),
 		jsonFieldName(t, "WebhookSettings"):    appConfig.WebhookSettings,
-		jsonFieldName(t, "MDM"):                cmd.generateMDM(&appConfig.MDM),
-		jsonFieldName(t, "YaraRules"):          cmd.generateYaraRules(appConfig.YaraRules),
 	}
+	integrations, err := cmd.generateIntegrations(&appConfig.Integrations)
+	if err != nil {
+		return nil, err
+	}
+	orgSettings[jsonFieldName(t, "Integrations")] = integrations
+	mdm, err := cmd.generateMDM(&appConfig.MDM)
+	if err != nil {
+		return nil, err
+	}
+	orgSettings[jsonFieldName(t, "MDM")] = mdm
+	yaraRules, err := cmd.generateYaraRules(appConfig.YaraRules)
+	if err != nil {
+		return nil, err
+	}
+	orgSettings[jsonFieldName(t, "YaraRules")] = yaraRules
 
 	// If --insecure is set, add real secrets.
 	if cmd.CLI.Bool("insecure") {
@@ -259,18 +358,18 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integrations) map[string]interface{} {
+func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integrations) (map[string]interface{}, error) {
 	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
 	// to get the keys we want.
 	b, err := yaml.Marshal(integrations)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling integrations: %s\n", err)
-		return nil
+		return nil, err
 	}
 	var result map[string]interface{}
 	if err := yaml.Unmarshal(b, &result); err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling integrations: %s\n", err)
-		return nil
+		return nil, err
 	}
 	// Obfuscate secrets if not in insecure mode.
 	if !cmd.CLI.Bool("insecure") {
@@ -306,10 +405,10 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integ
 		}
 	}
 
-	return result
+	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) map[string]interface{} {
+func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
 	t := reflect.TypeOf(fleet.MDM{})
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleBusinessManager"):    mdm.AppleBusinessManager,
@@ -329,39 +428,40 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) map[string]interfa
 			result[jsonFieldName(t, "EndUserAuthentication")] = endUserAuth
 		}
 	}
-	return result
+	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) map[string]interface{} {
-	return map[string]interface{}{}
+func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) (map[string]interface{}, error) {
+	// TODC -- come up with a way to export Yara rules.
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateTeamSettings(teamID int) string {
-	return fmt.Sprintf("team_settings_%d.yaml", teamID)
+func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, teamID uint) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateAgentOptions() string {
-	return "agent_options.yaml"
+func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId uint) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls() string {
-	return "controls.yaml"
+func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies() string {
-	return "policies.yaml"
+func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateQueries() string {
-	return "queries.yaml"
+func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware() string {
-	return "software.yaml"
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateLabels() string {
-	return "labels.yaml"
+func (cmd *GenerateGitopsCommand) generateLabels() (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
 }
 
 var _ client = (*service.Client)(nil)
