@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/admx"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -53,6 +54,12 @@ func LoopOverExpectedHostProfiles(
 			ref := HashLocURI(expectedProf.Name, locURI)
 			fn(expectedProf, ref, locURI, data)
 		}
+		for _, ac := range prof.AddCommands {
+			locURI := ac.GetTargetURI()
+			data := ac.GetTargetData()
+			ref := HashLocURI(expectedProf.Name, locURI)
+			fn(expectedProf, ref, locURI, data)
+		}
 	}
 
 	return nil
@@ -73,7 +80,8 @@ func HashLocURI(profileName, locURI string) string {
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
 func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
-	rawProfileResultsSyncML []byte) error {
+	rawProfileResultsSyncML []byte,
+) error {
 	profileResults, err := transformProfileResults(rawProfileResultsSyncML)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "transforming policy results")
@@ -98,7 +106,8 @@ func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.Prof
 
 func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host,
 	missing map[string]struct{},
-	verified map[string]struct{}) ([]string, []string, error) {
+	verified map[string]struct{},
+) ([]string, []string, error) {
 	toFail := make([]string, 0, len(missing))
 	toRetry := make([]string, 0, len(missing))
 	if len(missing) > 0 {
@@ -131,7 +140,8 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 }
 
 func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
-	profileResults profileResultsTransform) (verified map[string]struct{}, missing map[string]struct{}, err error) {
+	profileResults profileResultsTransform,
+) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
 	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
@@ -153,6 +163,12 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 			equal = false
 		case wantData == gotResults:
 			equal = true
+		case wlanxml.IsWLANXML(wantData):
+			equal, err = wlanxml.Equal(wantData, gotResults)
+			if err != nil {
+				err = fmt.Errorf("comparing WLAN XML profiles: %w", err)
+				return
+			}
 		case admx.IsADMX(wantData):
 			equal, err = admx.Equal(wantData, gotResults)
 			if err != nil {
@@ -168,7 +184,6 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 			}
 			return
 		}
-
 		verified[profile.Name] = struct{}{}
 	})
 	if err != nil {
