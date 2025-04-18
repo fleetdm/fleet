@@ -46,7 +46,7 @@ const DeviceUserBanners = ({
 
   const turnOnMdmButton = (
     <Button variant="text-link" onClick={onTurnOnMdm}>
-      <b>Turn on MDM</b>
+      Turn on MDM
     </Button>
   );
 

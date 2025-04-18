@@ -42,7 +42,7 @@ class InputField extends Component {
       PropTypes.arrayOf(PropTypes.string),
       PropTypes.object,
     ]),
-    /** Use in conjunction with type "password" to see eye icon to view */
+    /** Use in conjunction with type "password" and enableCopy to see eye icon to view */
     enableShowSecret: PropTypes.bool,
     enableCopy: PropTypes.bool,
     copyButtonPosition: PropTypes.oneOf(["inside", "outside"]),

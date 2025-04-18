@@ -40,6 +40,10 @@
 
   &--password {
     letter-spacing: 4px;
+
+    &::placeholder {
+      letter-spacing: normal;
+    }
   }
 
   &--error {
