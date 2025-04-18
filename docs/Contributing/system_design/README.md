@@ -61,7 +61,7 @@ graph LR
 #### Fleetd package
 - Example: Install the Fleetd package on hosts, which includes pre-configured settings for seamless enrollment with the Fleet server.
 
-#### Automatic enrollment
+#### [Automatic enrollment](workflows/automatic-enrollment.md)
 - Example: Use an MDM solution to automatically enroll devices into the Fleet server during the provisioning process.
 
 #### BYOD MDM
