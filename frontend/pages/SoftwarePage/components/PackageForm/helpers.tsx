@@ -4,6 +4,7 @@ import React from "react";
 import validateQuery from "components/forms/validators/validate_query";
 
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
@@ -60,10 +61,12 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForTgz",
         isValid: (formData) => {
-          // application/x-gzip is the MIME type for .tar.gz files
-          if (formData.software?.type === "application/x-gzip") {
+          if (
+            formData.software?.name &&
+            getExtensionFromFileName(formData.software.name) === "tar.gz"
+          ) {
             // Handle undefined safely with nullish coalescing
-            return (formData.installScript ?? "").trim().length > 0;
+            return (formData.uninstallScript ?? "").trim().length > 0;
           }
           return true;
         },
@@ -87,8 +90,10 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "requiredForTgz",
         isValid: (formData) => {
-          // application/x-gzip is the MIME type for .tar.gz files
-          if (formData.software?.type === "application/x-gzip") {
+          if (
+            formData.software?.name &&
+            getExtensionFromFileName(formData.software.name) === "tar.gz"
+          ) {
             // Handle undefined safely with nullish coalescing
             return (formData.uninstallScript ?? "").trim().length > 0;
           }

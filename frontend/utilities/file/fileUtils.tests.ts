@@ -7,6 +7,7 @@ import {
 describe("fileUtils", () => {
   describe("fileUtils - getExtensionFromFileName", () => {
     const testCases = [
+      // Simple extensions
       { fileName: "test.pkg", expectedExtension: "pkg" },
       { fileName: "test.json", expectedExtension: "json" },
       { fileName: "test.mobileconfig", expectedExtension: "mobileconfig" },
@@ -15,8 +16,22 @@ describe("fileUtils", () => {
       { fileName: "test.xml", expectedExtension: "xml" },
       { fileName: "test.deb", expectedExtension: "deb" },
       { fileName: "test.rpm", expectedExtension: "rpm" },
-      { fileName: "test.tar.gz", expectedExtension: "tar.gz" }, // compound extension
-      { fileName: "no_extension", expectedExtension: undefined }, // no extension
+      { fileName: "test.tar", expectedExtension: "tar" },
+
+      // Compound extensions
+      { fileName: "test.tar.gz", expectedExtension: "tar.gz" },
+      { fileName: "test.tar.xz", expectedExtension: "tar.xz" },
+      { fileName: "test.tar.bz2", expectedExtension: "tar.bz2" },
+      { fileName: "test.tar.zst", expectedExtension: "tar.zst" },
+
+      // Alias for compound extensions
+      { fileName: "test.tgz", expectedExtension: "tar.gz" },
+      { fileName: "test.tbz2", expectedExtension: "tar.bz2" },
+      { fileName: "test.tzst", expectedExtension: "tar.zst" },
+      { fileName: "test.txz", expectedExtension: "tar.xz" },
+
+      // No extension
+      { fileName: "no_extension", expectedExtension: undefined },
     ];
 
     testCases.forEach(({ fileName, expectedExtension }) => {
