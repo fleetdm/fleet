@@ -9,34 +9,36 @@ For instructions on using our testings tools, check out our [testing docs](https
 
 **Table of contents**
 
-- [Testing strategy](#testing-strategy)
-  - [Testing philosophy](#testing-philosophy)
-  - [Who tests](#who-tests)
-  - [What we test](#what-we-test)
-    - [Shared utilities](#shared-utilities)
-    - [UI building blocks](#ui-building-blocks-resusable-components-and-hooks)
-    - [App widgets](#app-widgets)
-    - [User journeys](#user-journeys)
-- [Testing plan](#testing-plan)
-  - [Types of tests](#types-of-tests)
-    - [Testing cheat sheet](#testing-cheat-sheet)
-    - [Manual testing](#manual-testing)
-    - [Static analysis](#static-analysis)
-    - [Unit testing](#unit-testing)
-      - [Shared utilities testing](#shared-utilities-testing)
-      - [UI building block testing](#ui-building-block-testing)
-      - [Reusable hook testing](#reusable-hooks-testing)
-    - [Integration testing](#integration-testing)
-      - [App widgets testing](#app-widget-testing)
-    - [E2E testing](#e-2-e-testing)
-  - [Tooling](#tooling)
-    - [ESLint and TypeScript](#es-lint-and-typescript)
-    - [Jest](#jest)
-    - [Testing library](#testing-library)
-  - [Additional examples](#additional-examples)
-    - [Roles and permissions](#roles-and-permissions)
-    - [Mac and Windows hosts](#mac-and-windows-hosts)
-    - [Error states](#error-states)
+- [Fleet UI testing](#fleet-ui-testing)
+  - [Testing strategy](#testing-strategy)
+    - [Testing philosophy](#testing-philosophy)
+    - [Who tests](#who-tests)
+    - [What we test](#what-we-test)
+      - [Shared utilities](#shared-utilities)
+      - [UI building blocks (reusable components and hooks)](#ui-building-blocks-reusable-components-and-hooks)
+      - [App widgets](#app-widgets)
+      - [User journeys](#user-journeys)
+  - [Testing plan](#testing-plan)
+    - [Testing utilities for development](#testing-utilities-for-development)
+    - [Types of tests](#types-of-tests)
+      - [Testing cheat sheet](#testing-cheat-sheet)
+      - [Manual testing](#manual-testing)
+      - [Static analysis](#static-analysis)
+      - [Unit testing](#unit-testing)
+        - [Shared utilities testing](#shared-utilities-testing)
+        - [UI building block testing](#ui-building-block-testing)
+        - [Reusable hooks testing](#reusable-hooks-testing)
+      - [Integration testing](#integration-testing)
+        - [App widget testing](#app-widget-testing)
+      - [E2E testing](#e2e-testing)
+    - [Tooling](#tooling)
+      - [ESLint and TypeScript](#eslint-and-typescript)
+      - [Jest](#jest)
+      - [Testing library](#testing-library)
+    - [Additional examples](#additional-examples)
+      - [Roles and permissions](#roles-and-permissions)
+      - [Mac and Windows hosts](#mac-and-windows-hosts)
+      - [Error states](#error-states)
 
 ---
 
@@ -106,6 +108,10 @@ at some level, we are still missing a large chunk of important testing that woul
 and maintained at the integration/unit level. We'd like to utilize separation of concerns more
 between our systems as this will allow us to test more in the integration and unit layers, which are
 quicker to run and generally easier to work with.
+
+### Testing utilities for development
+- `make test-js` will run all frontend unit tests
+- See `frontend/services/mock_service/README.md` for guidance on how to use our backend mocking infrastructure
 
 ### Types of tests
 
