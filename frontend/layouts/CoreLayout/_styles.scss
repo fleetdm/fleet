@@ -14,7 +14,7 @@
   display: flex;
 
   // App hidden below 768px
-  @media (max-width: $break-xs - 1px) {
+  @media (max-width: ($break-xxs - 1px)) {
     display: none;
   }
 
@@ -40,7 +40,7 @@
   z-index: 100;
 
   // Nav hidden below 768px;
-  @media (max-width: $break-xs - 1px) {
+  @media (max-width: ($break-xxs - 1px)) {
     display: none;
   }
 
