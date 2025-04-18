@@ -8745,7 +8745,7 @@ Run a script on multiple hosts.
 
 The script will be added to each host's list of upcoming activities.
 
-`POST /api/v1/fleet/scripts/batch/run`
+`POST /api/v1/fleet/scripts/run/batch`
 
 #### Parameters
 
@@ -8757,7 +8757,7 @@ The script will be added to each host's list of upcoming activities.
 
 #### Example
 
-`POST /api/v1/fleet/scripts/batch/run`
+`POST /api/v1/fleet/scripts/run/batch`
 
 ##### Request body
 
