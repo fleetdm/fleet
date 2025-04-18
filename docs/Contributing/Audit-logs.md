@@ -1765,7 +1765,7 @@ This activity contains the following fields:
 }
 ```
 
-## ran_script_bulk
+## ran_script_batch
 
 Generated when a script is run on a batch of hosts.
 
