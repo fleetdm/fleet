@@ -101,6 +101,9 @@ policies:
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
     platform: darwin
     critical: false
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 #### Separate file
@@ -450,12 +453,13 @@ Can only be configured for all teams (`default.yml`).
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
+The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
 Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, .deb, or .tar.gz).
 - `app_store_apps` is a list of Apple App Store apps.
+- `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -473,9 +477,12 @@ software:
         - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any: # Available in Fleet Premium
-        - Product
-        - Marketing
+  fleet_maintained_apps:
+    - slug: slack/darwin
+      self_service: true
+      labels_include_any:
+        - Design
+        - Sales
 ```
 
 Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -511,6 +518,12 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+
+### fleet_maintained_apps
+
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+
+> Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
 
 ## org_settings and team_settings
 
@@ -658,6 +671,8 @@ In addition, you can configure your certificate authorities (CA) to help your en
 
 #### Example
 
+`default.yml`
+
 ```yaml
 org_settings:
   integrations:
@@ -692,6 +707,16 @@ org_settings:
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
+```
+
+`/teams/team-name.yml`
+
+At the team level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium for managed cloud customers. Must have Microsoft Entra connected.)
+
+```yaml
+team_settings:
+  integrations:
+    conditional_access_enabled: true
 ```
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)

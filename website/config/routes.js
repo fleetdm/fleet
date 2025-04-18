@@ -883,6 +883,8 @@ module.exports.routes = {
   'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
   'GET /learn-more-about/certificates-query': '/tables/certificates',
   'GET /learn-more-about/gitops': 'https://github.com/fleetdm/fleet-gitops/',
+  'GET /learn-more-about/connect-idp': '/guides/add-user-info-from-idp-to-host',
+  'GET /learn-more-about/troubleshoot-idp-connection': '/guides/add-user-info-from-idp-to-host#verify-connection-in-fleet',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
   // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
   'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
