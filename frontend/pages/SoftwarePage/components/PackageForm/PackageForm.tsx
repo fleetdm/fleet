@@ -4,11 +4,13 @@ import classnames from "classnames";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { getFileDetails } from "utilities/file/fileUtils";
+import {
+  getExtensionFromFileName,
+  getFileDetails,
+} from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
-import { PackageType } from "interfaces/package_type";
 
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -67,11 +69,11 @@ interface IPackageFormProps {
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
   className?: string;
-  /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
+  /** Indicates that this PackageForm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
 }
-
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
+// application/gzip is used for .tar.gz files because browsers can't handle double-extensions correctly
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,application/gzip,.tgz";
 
 const PackageForm = ({
   labels,
@@ -120,6 +122,7 @@ const PackageForm = ({
       if (isEditingSoftware) {
         const newData = { ...formData, software: file };
         setFormData(newData);
+
         setFormValidation(generateFormValidation(newData));
       } else {
         let newDefaultInstallScript: string;
@@ -219,19 +222,21 @@ const PackageForm = ({
 
   const classNames = classnames(baseClass, className);
 
-  const ext = formData?.software?.name.split(".").pop() as PackageType;
+  const ext = getExtensionFromFileName(formData?.software?.name || "");
   const isExePackage = ext === "exe";
+  const isTarballPackage = ext === "tar.gz";
 
   // If a user preselects automatic install and then uploads a .exe
   // which automatic install is not supported, the form will default
   // back to manual install
   useEffect(() => {
-    if (isExePackage && formData.automaticInstall) {
+    if ((isExePackage || isTarballPackage) && formData.automaticInstall) {
       onToggleAutomaticInstallCheckbox(false);
     }
   }, [
     formData.automaticInstall,
     isExePackage,
+    isTarballPackage,
     onToggleAutomaticInstallCheckbox,
   ]);
 
@@ -242,7 +247,7 @@ const PackageForm = ({
           canEdit={isEditingSoftware}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
-          message=".pkg, .msi, .exe, .deb, or .rpm"
+          message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
           onFileUpload={onFileSelect}
           buttonMessage="Choose file"
           buttonType="link"
@@ -274,6 +279,7 @@ const PackageForm = ({
                 isCustomPackage
                 isEditingSoftware={isEditingSoftware}
                 isExePackage={isExePackage}
+                isTarballPackage={isTarballPackage}
               />
             </Card>
             <Card
@@ -346,6 +352,9 @@ const PackageForm = ({
               )
             }
           />
+          <Button variant="inverse" onClick={onCancel}>
+            Cancel
+          </Button>
         </div>
       </form>
     </div>

@@ -3,6 +3,7 @@ import React from "react";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
@@ -55,7 +56,21 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return true;
         },
-        message: "Install script is required for .exe files.",
+        message: "Install script is required for .exe packages.",
+      },
+      {
+        name: "requiredForTgz",
+        isValid: (formData) => {
+          if (
+            formData.software?.name &&
+            getExtensionFromFileName(formData.software.name) === "tar.gz"
+          ) {
+            // Handle undefined safely with nullish coalescing
+            return (formData.uninstallScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Install script is required for .tar.gz archives.",
       },
     ],
   },
@@ -70,7 +85,21 @@ const FORM_VALIDATION_CONFIG: Record<
           }
           return true;
         },
-        message: "Uninstall script is required for .exe files.",
+        message: "Uninstall script is required for .exe packages.",
+      },
+      {
+        name: "requiredForTgz",
+        isValid: (formData) => {
+          if (
+            formData.software?.name &&
+            getExtensionFromFileName(formData.software.name) === "tar.gz"
+          ) {
+            // Handle undefined safely with nullish coalescing
+            return (formData.uninstallScript ?? "").trim().length > 0;
+          }
+          return true;
+        },
+        message: "Uninstall script is required for .tar.gz archives.",
       },
     ],
   },

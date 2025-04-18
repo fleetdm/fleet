@@ -10,8 +10,10 @@ const baseClass = "advanced-options-fields";
 
 interface IAdvancedOptionsFieldsProps {
   showSchemaButton: boolean;
+  installScriptTooltip?: string;
   installScriptHelpText: ReactNode;
   postInstallScriptHelpText: ReactNode;
+  uninstallScriptTooltip?: string;
   uninstallScriptHelpText: ReactNode;
   errors: { preInstallQuery?: string; postInstallScript?: string };
   preInstallQuery?: string;
@@ -28,8 +30,10 @@ interface IAdvancedOptionsFieldsProps {
 
 const AdvancedOptionsFields = ({
   showSchemaButton,
+  installScriptTooltip,
   installScriptHelpText,
   postInstallScriptHelpText,
+  uninstallScriptTooltip,
   uninstallScriptHelpText,
   errors,
   preInstallQuery,
@@ -81,6 +85,7 @@ const AdvancedOptionsFields = ({
         value={installScript}
         helpText={installScriptHelpText}
         label="Install script"
+        labelTooltip={installScriptTooltip}
         isFormField
       />
       <Editor
@@ -97,6 +102,7 @@ const AdvancedOptionsFields = ({
       />
       <Editor
         label="Uninstall script"
+        labelTooltip={uninstallScriptTooltip}
         focus
         wrapEnabled
         name="uninstall-script-editor"
