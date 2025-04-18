@@ -20,6 +20,8 @@ Fleet now pulls end user details from your identity provider (IdP)—like IdP em
 
 Security engineers can now target policies to specific hosts using labels. This gives teams more precise control over enforcement within a [Fleet team](https://fleetdm.com/guides/teams), helping apply the right checks to the right hosts.
 
+Heads up, if you're using [GitOps](https://fleetdm.com/docs/configuration/yaml-files), policy targets via labels isn't for production quite yet because of [this bug](https://github.com/fleetdm/fleet/issues/28154). Fix is coming in Fleet 4.67.1.
+
 ### Cancel activities
 
 IT admins can now cancel activities—like software installs or scripts—before they run. This helps correct mistakes or reprioritize tasks without waiting for actions to complete.
