@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -940,6 +941,8 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	return multiError
 }
 
+var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
+
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
@@ -1014,11 +1017,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 		}
-		if softwarePackageSpec.SHA265 != "" && len(softwarePackageSpec.SHA265) != 64 {
-			multiError = multierror.Append(multiError, errors.New("sha256 is not a valid sha256 value"))
+		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+			multiError = multierror.Append(multiError, errors.New("hash_sha256 is not a valid sha256 value"))
+			continue
 		}
-		if softwarePackageSpec.SHA265 == "" && softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("either sha256 or url is required"))
+		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
+			continue
 		}
 		if softwarePackageSpec.UninstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {

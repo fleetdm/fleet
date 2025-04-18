@@ -208,11 +208,6 @@ type SoftwareTitle struct {
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
-type UploadSoftwareInstallerResponsePayload struct {
-	TitleID         uint               `json:"software_title_id"`
-	SoftwarePackage *SoftwareInstaller `json:"software_package"`
-}
-
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
 // SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
 // the above type is used when fetching them individually.

@@ -50,8 +50,8 @@ type updateSoftwareInstallerRequest struct {
 }
 
 type uploadSoftwareInstallerResponse struct {
-	*fleet.UploadSoftwareInstallerResponsePayload
-	Err error `json:"error,omitempty"`
+	SoftwarePackage *fleet.SoftwareInstaller `json:"software_package,omitempty"`
+	Err             error                    `json:"error,omitempty"`
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -364,8 +364,8 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
-	respPayload := fleet.UploadSoftwareInstallerResponsePayload{TitleID: *installer.TitleID, SoftwarePackage: installer}
-	return &uploadSoftwareInstallerResponse{&respPayload, nil}, nil
+
+	return &uploadSoftwareInstallerResponse{SoftwarePackage: installer}, nil
 }
 
 func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
