@@ -431,15 +431,17 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 			return "apps", nil
 		}
 		return "pkg_packages", nil
+	case "tar.gz":
+		return "tgz_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 
-func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
+func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm":
+	case "deb", "rpm", "tar.gz":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil

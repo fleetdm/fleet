@@ -73,9 +73,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		//
 		// For "msi", addMetadataToSoftwarePayload fails before this point if product code cannot be extracted.
 		//
-		case payload.Extension == "exe":
+		case payload.Extension == "exe" || payload.Extension == "tar.gz":
 			return &fleet.BadRequestError{
-				Message: "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.",
+				Message: fmt.Sprintf("Couldn't add. Fleet can't create a policy to detect existing installations for .%s packages. Please add the software, add a custom policy, and enable the install software policy automation.", payload.Extension),
 			}
 		case payload.Extension == "pkg" && payload.BundleIdentifier == "":
 			// For pkgs without bundle identifier the request usually fails before reaching this point,
@@ -1385,14 +1385,20 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb or .rpm.",
+				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .deb, .rpm, or .tar.gz.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
+		if errors.Is(err, file.ErrInvalidTarball) {
+			return "", &fleet.BadRequestError{
+				Message:     "Couldn't edit software. Uploaded file is not a valid .tar.gz archive.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
-	if len(meta.PackageIDs) == 0 {
+	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" {
 		return "", &fleet.BadRequestError{
 			Message:     "Couldn't add. Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
@@ -1443,7 +1449,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		payload.Source = source
 	}
 
-	platform, err := fleet.SofwareInstallerPlatformFromExtension(meta.Extension)
+	platform, err := fleet.SoftwareInstallerPlatformFromExtension(meta.Extension)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
