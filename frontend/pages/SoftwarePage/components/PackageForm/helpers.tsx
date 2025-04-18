@@ -3,8 +3,8 @@ import React from "react";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
+import { IPackageFormData, IPackageFormValidation } from "./PackageForm";
 
 type IMessageFunc = (formData: IPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
