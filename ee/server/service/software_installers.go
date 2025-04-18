@@ -1517,12 +1517,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				)
 			}
 		}
-		validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
-		if err != nil {
-			return "", err
+		if !dryRun {
+			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+			if err != nil {
+				return "", err
+			}
+			payload.ValidatedLabels = validatedLabels
 		}
-		payload.ValidatedLabels = validatedLabels
-
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
 	}
 
