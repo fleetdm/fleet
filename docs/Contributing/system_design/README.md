@@ -23,6 +23,7 @@ graph LR
         direction TB
         I[TUF server]
         J@{ shape: processes, label: "Cloud customers on AWS" }
+        L@{ shape: processes, label: "Github repos" }
         K[Fleetdm.com]
     end
     subgraph Client Devices
