@@ -28,7 +28,6 @@ module.exports = {
 
     // Look up the database record for this Android enterprise
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
-      fleetServerSecret: fleetServerSecret,
       androidEnterpriseId: androidEnterpriseId,
     });
 
@@ -36,6 +35,12 @@ module.exports = {
     if(!thisAndroidEnterprise) {
       return this.res.notFound();
     }
+
+    // Return an unauthorized response if the provided secret does not match.
+    if(thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
+      return this.res.unauthorized();
+    }
+
     // Delete the Android enterprise
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     await sails.helpers.flow.build(async ()=>{

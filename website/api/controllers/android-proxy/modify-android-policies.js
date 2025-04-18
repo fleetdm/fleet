@@ -18,6 +18,7 @@ module.exports = {
     },
     fleetServerSecret: {
       type: 'string',
+      required: true,
     },
     policy: {
       type: {},
@@ -36,13 +37,16 @@ module.exports = {
 
     // Authenticate this request
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
-      fleetServerSecret: fleetServerSecret,
-      androidEnterpriseId: androidEnterpriseId,
+      androidEnterpriseId: androidEnterpriseId
     });
 
     // Return a 404 response if no records are found.
     if(!thisAndroidEnterprise) {
       return this.res.notFound();
+    }
+    // Return an unauthorized response if the provided secret does not match.
+    if(thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
+      return this.res.unauthorized();
     }
     // Update the policy for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.

@@ -32,13 +32,17 @@ module.exports = {
   fn: async function ({fleetServerSecret, androidEnterpriseId, enrollmentToken}) {
     // Authenticate this request
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
-      fleetServerSecret: fleetServerSecret,
       androidEnterpriseId: androidEnterpriseId,
     });
 
     // Return a 404 response if no records are found.
     if(!thisAndroidEnterprise) {
       return this.res.notFound();
+    }
+
+    // Return an unauthorized response if the provided secret does not match.
+    if(thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
+      return this.res.unauthorized();
     }
 
     let newEnrollmentToken = await sails.helpers.flow.build(async ()=>{
