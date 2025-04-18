@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
@@ -337,6 +338,16 @@ func gitopsCommand() *cli.Command {
 							}
 						}
 					}
+				}
+			}
+
+			if !noTeamPresent {
+				defaultNoTeamConfig := new(spec.GitOps)
+				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
+				_, err = fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
+					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
+				if err != nil {
+					return err
 				}
 			}
 
