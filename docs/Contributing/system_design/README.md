@@ -9,7 +9,8 @@
 5. [Mobile Hosts](./mobile-host.md)
 6. [TUF](./TUF.md)
 7. [UI](./UI.md)
-7. [Fleetctl](./fleetctl.md)
+8. [Repos](./repos.md)
+9. [Fleetctl](./fleetctl.md)
 
 ```mermaid
 graph LR
@@ -23,7 +24,7 @@ graph LR
         direction TB
         I[TUF server]
         J@{ shape: processes, label: "Cloud customers on AWS" }
-        L@{ shape: processes, label: "Github repos" }
+        M@{ shape: processes, label: "Github repos" }
         K[Fleetdm.com]
     end
     subgraph Client Devices
@@ -42,6 +43,8 @@ graph LR
     B -->|API Requests| E[Fleet Server UI]
     E -->|Display Data| F[IT Admins]
     B -->|Device API Requests| L
+    B -->|Some centralized tasks| K
+    B -->|Pull periodic data| M
     L -->|Display Host Data| H
     I[TUF server] -->|Pull updates| D
 ```
