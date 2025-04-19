@@ -6,7 +6,7 @@
 
 ### MacOS enrolled in ABM and assigned to MDM server
 
-This example will follow a macOS host assigned to the MDM server in ABM that matches the fleet
+This example will follow a macOS host with serial AAAA assigned to the MDM server in ABM that matches the fleet
 server with the corresponding ABM token uploaded.
 
 ```mermaid
@@ -18,6 +18,7 @@ sequenceDiagram
         participant W as Fleet Webview
         participant A as Apple
 
+        S->>S: Cron every 1hr to pull list of host serials from ABM
         S->>A: Define a profile
         A-->>S: Get UUID
         S->>A: Assign Serial number to UUID (bulk list sometimes)
