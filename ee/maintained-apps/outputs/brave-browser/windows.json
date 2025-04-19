@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "135.1.77.97",
+      "version": "135.1.77.100",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Brave' AND publisher = 'Brave Software Inc';"
       },
-      "installer_url": "https://updates-cdn.bravesoftware.com/build/Brave-Release/x64-rel/win/135.1.77.97/brave_installer-x64.exe",
+      "installer_url": "https://github.com/brave/brave-browser/releases/download/v1.77.100/BraveBrowserStandaloneSilentSetup.exe",
       "install_script_ref": "0319c426",
       "uninstall_script_ref": "da8237ee",
-      "sha256": "284f27ad9448634efc4f0f7b418501f0c77b5eab8ab0138da34034a9989706ff"
+      "sha256": "d7a3ead2626902fe26a1a435325607e08fae6971d44f21af3a58ef2c378b7fda"
     }
   ],
   "refs": {
