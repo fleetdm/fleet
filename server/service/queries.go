@@ -263,6 +263,17 @@ func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return createQueryResponse{query, nil}, nil
 }
 
+func (svc *Service) getTeamName(ctx context.Context, teamID *uint) (*string, error) {
+	if teamID == nil {
+		return nil, nil
+	}
+	team, err := svc.ds.Team(ctx, *teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching team name")
+	}
+	return &team.Name, nil
+}
+
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
 	// Check the user is allowed to create a new query on the team.
 	if err := svc.authz.Authorize(ctx, fleet.Query{
@@ -339,12 +350,19 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	teamName, err := svc.getTeamName(ctx, query.TeamID)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedSavedQuery{
-			ID:   query.ID,
-			Name: query.Name,
+			ID:       query.ID,
+			Name:     query.Name,
+			TeamID:   query.TeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query creation")
@@ -464,12 +482,19 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
+	teamName, err := svc.getTeamName(ctx, query.TeamID)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedSavedQuery{
-			ID:   query.ID,
-			Name: query.Name,
+			ID:       query.ID,
+			Name:     query.Name,
+			TeamID:   query.TeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for query modification")
@@ -520,6 +545,8 @@ func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
 	// Load query first to determine if the user can delete it.
+	fmt.Println("🚨 DeleteQuery function triggered!")
+
 	query, err := svc.ds.QueryByName(ctx, teamID, name)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -533,11 +560,18 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
+	teamName, err := svc.getTeamName(ctx, query.TeamID)
+	if err != nil {
+		return err
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
-			Name: name,
+			Name:     name,
+			TeamID:   query.TeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query deletion")
@@ -570,6 +604,9 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	// Load query first to determine if the user can delete it.
+	// try modifying this function
+	fmt.Println("🚨 DeleteQueryByID function triggered!")
+
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -583,11 +620,18 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
+	teamName, err := svc.getTeamName(ctx, query.TeamID)
+	if err != nil {
+		return err
+	}
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
-			Name: query.Name,
+			Name:     query.Name,
+			TeamID:   query.TeamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for query deletion by id")
