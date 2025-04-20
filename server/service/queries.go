@@ -545,8 +545,6 @@ func deleteQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
 	// Load query first to determine if the user can delete it.
-	fmt.Println("🚨 DeleteQuery function triggered!")
-
 	query, err := svc.ds.QueryByName(ctx, teamID, name)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -605,7 +603,6 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	// Load query first to determine if the user can delete it.
 	// try modifying this function
-	fmt.Println("🚨 DeleteQueryByID function triggered!")
 
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
