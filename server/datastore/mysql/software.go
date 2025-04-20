@@ -3314,6 +3314,45 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					tempBySoftwareTitleID[s] = software
 				}
 			}
+			// software installed on the host not by fleet and there exists a vpp app that matches this software
+			// so that makes it available for install
+			installedVPPAppsSql := `
+			SELECT
+				vpp_apps.title_id AS id,
+				vpp_apps.adam_id AS vpp_app_adam_id,
+				vpp_apps.latest_version AS vpp_app_version,
+				vpp_apps.platform as vpp_app_platform,
+				NULLIF(vpp_apps.icon_url, '') as vpp_app_icon_url,
+				vpp_apps_teams.self_service AS vpp_app_self_service,
+				'installed' AS status
+			FROM
+				host_software
+			INNER JOIN
+				software ON host_software.software_id = software.id
+			INNER JOIN
+				vpp_apps ON software.title_id = vpp_apps.title_id AND :host_platform IN (:vpp_apps_platforms)
+			INNER JOIN
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+			WHERE
+				host_software.host_id = :host_id
+			`
+			installedVPPAppsSql, args, err := sqlx.Named(installedVPPAppsSql, namedArgs)
+			if err != nil {
+				return nil, nil, err
+			}
+			installedVPPAppsSql, args, err = sqlx.In(installedVPPAppsSql, args...)
+			if err != nil {
+				return nil, nil, err
+			}
+			var installedVPPAppIDs []*hostSoftware
+			err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedVPPAppIDs, installedVPPAppsSql, args...)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, s := range installedVPPAppIDs {
+				tempBySoftwareTitleID[s.ID] = s
+				hostVPPInstalledTitles[s.ID] = s
+			}
 		}
 		for _, s := range availableSoftwareTitles {
 			// If it's a VPP app
