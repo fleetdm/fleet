@@ -10549,6 +10549,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
+	require.Len(t, getDeviceSw.Software[0].SoftwarePackage.Categories, 1)
 
 	// =========================================
 	// test label scoping
@@ -17196,4 +17197,58 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
 	require.True(t, hitInstallerURL)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareCategories() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Enroll a host
+	token := "good_token"
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "ruby.deb",
+		Version:       "1:2.5.1",
+		SelfService:   true,
+	}
+
+	// Non-existent category, should fail
+	payload.Categories = []string{"not_found"}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "some or all of the categories provided don't exist")
+
+	// Add some categories
+	cat1, err := s.ds.NewSoftwareCategory(ctx, "test_category_1")
+	require.NoError(t, err)
+
+	cat2, err := s.ds.NewSoftwareCategory(ctx, "test_category_2")
+	require.NoError(t, err)
+
+	payload.Categories = []string{cat1.Name, cat2.Name}
+	// TODO(JVE): persist relationship on upload
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+	require.NotEmpty(t, titleID)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_categories")
+		mysql.DumpTable(t, q, "software_installer_software_categories")
+		return nil
+	})
+
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw := getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
+	require.Len(t, getDeviceSw.Software[0].SoftwarePackage.Categories, 2)
 }

@@ -641,6 +641,10 @@ type Datastore interface {
 	// the given team.
 	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
+	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
+	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
+	GetCategoriesForSoftwareInstallers(ctx context.Context, softwareInstallerIDs []uint, team_id *uint) (map[uint][]string, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 

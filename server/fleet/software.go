@@ -481,3 +481,8 @@ type VPPBatchPayloadWithPlatform struct {
 	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string            `json:"labels_include_any"`
 }
+
+type SoftwareCategory struct {
+	ID   uint   `db:"id"`
+	Name string `db:"name"`
+}

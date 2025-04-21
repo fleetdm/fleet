@@ -380,6 +380,8 @@ type UploadSoftwareInstallerPayload struct {
 	ValidatedLabels       *LabelIdentsWithScope
 	AutomaticInstall      bool
 	AutomaticInstallQuery string
+	Categories            []string
+	CategoryIDs           []uint
 }
 
 type ExistingSoftwareInstaller struct {
@@ -517,6 +519,7 @@ type SoftwarePackageOrApp struct {
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
 	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	Categories         []string
 }
 
 type SoftwarePackageSpec struct {

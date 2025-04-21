@@ -33,6 +33,7 @@ type uploadSoftwareInstallerRequest struct {
 	UninstallScript   string
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
+	Categories        []string
 	AutomaticInstall  bool
 }
 
@@ -295,8 +296,8 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// decode labels
-	var inclAny, exclAny []string
-	var existsInclAny, existsExclAny bool
+	var inclAny, exclAny, categories []string
+	var existsInclAny, existsExclAny, existsCategories bool
 
 	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
 	switch {
@@ -316,6 +317,16 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.LabelsExcludeAny = []string{}
 	default:
 		decoded.LabelsExcludeAny = exclAny
+	}
+
+	categories, existsCategories = r.MultipartForm.Value["categories"]
+	switch {
+	case !existsCategories:
+		decoded.Categories = nil
+	case len(exclAny) == 1 && exclAny[0] == "":
+		decoded.Categories = []string{}
+	default:
+		decoded.Categories = categories
 	}
 
 	val, ok = r.MultipartForm.Value["automatic_install"]
@@ -358,6 +369,7 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		LabelsIncludeAny:  req.LabelsIncludeAny,
 		LabelsExcludeAny:  req.LabelsExcludeAny,
 		AutomaticInstall:  req.AutomaticInstall,
+		Categories:        req.Categories,
 	}
 
 	installer, err := svc.UploadSoftwareInstaller(ctx, payload)

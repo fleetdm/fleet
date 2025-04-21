@@ -19,24 +19,24 @@ func Up_20250418162727(tx *sql.Tx) error {
 		return fmt.Errorf("failed to create software_categories table: %w", err)
 	}
 
-	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS software_categories_software_installers  (
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS software_installer_software_categories  (
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    		category_id INT UNSIGNED NOT NULL,
+    		software_category_id INT UNSIGNED NOT NULL,
 			software_installer_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
   			updated_at DATETIME(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6))`)
 	if err != nil {
-		return fmt.Errorf("failed to create software_categories_software_installers table: %w", err)
+		return fmt.Errorf("failed to create software_installer_software_categories table: %w", err)
 	}
 
-	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS software_categories_vpp_apps_teams  (
+	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS vpp_app_team_software_categories  (
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    		category_id INT UNSIGNED NOT NULL,
+    		software_category_id INT UNSIGNED NOT NULL,
 			vpp_apps_teams_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
   			updated_at DATETIME(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6))`)
 	if err != nil {
-		return fmt.Errorf("failed to create software_categories_vpp_apps_teams table: %w", err)
+		return fmt.Errorf("failed to create vpp_app_team_software_categories table: %w", err)
 	}
 
 	return nil

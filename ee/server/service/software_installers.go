@@ -52,6 +52,22 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.ValidatedLabels = validatedLabels
 
+	// validate categories
+	fmt.Printf("[JVE_LOG] payload.Categories: %v\n", payload.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(payload.Categories) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+		}
+	}
+
+	payload.CategoryIDs = catIDs
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext

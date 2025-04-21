@@ -597,6 +597,12 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 		require.NoError(t, w.WriteField("automatic_install", "true"))
 	}
 
+	if payload.Categories != nil {
+		for _, c := range payload.Categories {
+			require.NoError(t, w.WriteField("categories", c))
+		}
+	}
+
 	w.Close()
 
 	headers := map[string]string{

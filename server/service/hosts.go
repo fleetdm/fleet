@@ -2769,6 +2769,21 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IsMDMEnrolled = mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
+	var titleIDs []uint
+	softwareByTitleID := make(map[uint]*fleet.HostSoftwareWithInstaller)
+	for _, s := range software {
+		titleIDs = append(titleIDs, s.ID)
+		softwareByTitleID[s.ID] = s
+	}
+	categories, err := svc.ds.GetCategoriesForSoftwareInstallers(ctx, titleIDs, host.TeamID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting categories for software titles")
+	}
+	fmt.Printf("[JVE_LOG] categories found: %v titleIDs: %v software: %#v\n", categories, titleIDs, software)
+	for id, c := range categories {
+		fmt.Printf("[JVE_LOG] setting title id %v categories to c: %v\n", id, c)
+		softwareByTitleID[id].SoftwarePackage.Categories = c
+	}
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
 }
 
