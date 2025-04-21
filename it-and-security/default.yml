@@ -90,6 +90,8 @@ queries:
   - path: ./lib/macos/queries/detect-apns-certificate.yml
 controls: 
   enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
   macos_migration:
     enable: true
     mode: voluntary
