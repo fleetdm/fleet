@@ -1,0 +1,4 @@
+macos_settings: null
+scripts:
+- path: ../lib/some_team/scripts/Script B.ps1
+windows_settings: null

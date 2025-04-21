@@ -187,7 +187,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate controls.
-		controls, err := cmd.generateControls(fileName, team.ID, teamFileName)
+		controls, err := cmd.generateControls(team.ID, teamFileName)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -487,7 +487,7 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint, teamName string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string) (map[string]interface{}, error) {
 	t := reflect.TypeOf(spec.GitOpsControls{})
 	result := map[string]interface{}{}
 

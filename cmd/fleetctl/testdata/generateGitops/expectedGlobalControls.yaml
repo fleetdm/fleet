@@ -1,0 +1,4 @@
+macos_settings: null
+scripts:
+- path: ./lib/scripts/Script A.sh
+windows_settings: null

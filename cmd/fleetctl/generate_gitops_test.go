@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
@@ -52,15 +53,46 @@ func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
 			ID:   1,
 			Name: "Team A",
 		},
-		{
-			ID:   2,
-			Name: "Team B",
-		},
 	}
 	return teams, nil
 }
 
 func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
+	switch query {
+	case "team_id=1":
+		return []*fleet.Script{{
+			ID:              2,
+			TeamID:          ptr.Uint(1),
+			Name:            "Script B.ps1",
+			ScriptContentID: 2,
+		}}, nil
+	case "":
+		return []*fleet.Script{{
+			ID:              1,
+			TeamID:          nil,
+			Name:            "Script A.sh",
+			ScriptContentID: 1,
+		}}, nil
+	default:
+		return nil, fmt.Errorf("unexpected query: %s", query)
+	}
+}
+
+func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
+	return nil, nil
+}
+
+func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
+	if scriptID == 1 {
+		return []byte("pop goes the weasel!"), nil
+	}
+	if scriptID == 2 {
+		return []byte("#!/usr/bin/env pwsh\necho \"Hello from Script B!\""), nil
+	}
+	return nil, fmt.Errorf("script not found")
+}
+
+func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 	return nil, nil
 }
 
@@ -151,4 +183,59 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+}
+
+func TestGenerateControls(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+	}
+
+	// Generate global controls.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	controlsRaw, err := cmd.generateControls(0, "")
+	require.NoError(t, err)
+	require.NotNil(t, controlsRaw)
+	var controls map[string]interface{}
+	b, err := yaml.Marshal(controlsRaw)
+	fmt.Println("Controls raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &controls)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalControls.yaml")
+	require.NoError(t, err)
+	var expectedAppConfig map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedAppConfig)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedAppConfig, controls)
+
+	// Generate controls for a team.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	controlsRaw, err = cmd.generateControls(1, "some_team")
+	require.NoError(t, err)
+	require.NotNil(t, controlsRaw)
+	b, err = yaml.Marshal(controlsRaw)
+	fmt.Println("Controls raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &controls)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &expectedAppConfig)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedAppConfig, controls)
 }
