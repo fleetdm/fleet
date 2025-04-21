@@ -98,19 +98,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
-      - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
-      - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
-      - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
-      - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
-        labels_include_any:
-          - "Santa test devices"
-      - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
+      - path: ../lib/macos/configuration-profiles/santa-configuration-moroz.mobileconfig
         labels_include_any:
           - "Santa test devices"
   macos_setup:
@@ -171,8 +159,10 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
-    - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
+    - path: ../lib/macos/software/santa.yml # Santa for macOS
+      labels_include_any:
+        - "Santa test devices"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
