@@ -3,4 +3,3 @@ policies:
 software:
 controls:
   macos_settings:
-    custom_settings:
