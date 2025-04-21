@@ -2395,7 +2395,10 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			software_titles.id AS id,
 			host_software.software_id AS software_id,
 			host_software.last_opened_at,
-			NULL AS status
+			software.source AS software_source,
+			software.version AS version,
+			software.bundle_identifier AS bundle_identifier,
+			'installed' AS status
 		FROM 
 			host_software
 		INNER JOIN
@@ -3013,6 +3016,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	hostInstalledSoftware, err := hostInstalledSoftware(ds, ctx, host.ID)
 	hostInstalledSoftwareTitleSet := make(map[uint]struct{})
+	hostInstalledSoftwareSet := make(map[uint]*hostSoftware)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3026,6 +3030,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		hostInstalledSoftwareTitleSet[s.ID] = struct{}{}
 		if s.SoftwareID != nil {
 			bySoftwareID[*s.SoftwareID] = s
+			hostInstalledSoftwareSet[*s.SoftwareID] = s
 		}
 	}
 
@@ -3749,6 +3754,31 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
 			softwareTitle := bySoftwareTitleID[softwareTitleRecord.ID]
+
+			if softwareTitle != nil && softwareTitle.SoftwareID != nil {
+				// if we have a software id, that means that this record has been installed on the host,
+				// we should double check the hostInstalledSoftwareSet,
+				// but we want to make sure that software id is present on the InstalledVersions list to be processed
+				if s, ok := hostInstalledSoftwareSet[*softwareTitle.SoftwareID]; ok {
+					softwareIDStr := strconv.FormatUint(uint64(*softwareTitle.SoftwareID), 10)
+
+					seperator := ","
+					if softwareTitleRecord.SoftwareIDList == nil {
+						softwareTitleRecord.SoftwareIDList = ptr.String("")
+						softwareTitleRecord.SoftwareSourceList = ptr.String("")
+						softwareTitleRecord.VersionList = ptr.String("")
+						softwareTitleRecord.BundleIdentifierList = ptr.String("")
+						seperator = ""
+					}
+
+					if !strings.Contains(*softwareTitleRecord.SoftwareIDList, softwareIDStr) {
+						*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
+						*softwareTitleRecord.SoftwareSourceList += seperator + s.Source
+						*softwareTitleRecord.VersionList += seperator + *s.Version
+						*softwareTitleRecord.BundleIdentifierList += seperator + *s.BundleIdentifier
+					}
+				}
+			}
 
 			if softwareTitleRecord.SoftwareIDList != nil {
 				softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
