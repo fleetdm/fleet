@@ -3323,8 +3323,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vpp_apps.latest_version AS vpp_app_version,
 				vpp_apps.platform as vpp_app_platform,
 				NULLIF(vpp_apps.icon_url, '') as vpp_app_icon_url,
-				vpp_apps_teams.self_service AS vpp_app_self_service,
-				'installed' AS status
+				vpp_apps_teams.self_service AS vpp_app_self_service
 			FROM
 				host_software
 			INNER JOIN

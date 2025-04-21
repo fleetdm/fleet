@@ -5006,6 +5006,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vPPApp.Name, sw[0].Name)
 	assert.Equal(t, vPPApp.AdamID, sw[0].AppStoreApp.AppStoreID)
 	assert.Equal(t, "0.1.0", sw[0].InstalledVersions[0].Version)
+	assert.Nil(t, sw[0].Status)
 }
 
 func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
