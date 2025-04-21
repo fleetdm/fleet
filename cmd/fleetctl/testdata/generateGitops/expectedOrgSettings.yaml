@@ -6,15 +6,72 @@ fleet_desktop:
 host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
-integrations: {}
-mdm: {}
+integrations:
+  custom_scep_proxy:
+  - challenge: ___GITOPS_COMMENT_5___
+    name: some-custom-scep-proxy-name
+    url: https://some-custom-scep-proxy-url.com
+  digicert:
+  - api_token: ___GITOPS_COMMENT_3___
+    certificate_common_name: some-digicert-certificate-common-name
+    certificate_seat_id: some-digicert-certificate-seat-id
+    certificate_user_principal_names:
+    - some-digicert-certificate-user-principal-name
+    - some-other-digicert-certificate-user-principal-name
+    name: some-digicert-name
+    profile_id: some-digicert-profile-id
+    url: https://some-digicert-url.com
+  google_calendar:
+  - api_key_json:
+      owl: hoot
+      private_key: ___GITOPS_COMMENT_0___
+    domain: fleetdm.com
+  jira:
+  - api_token: ___GITOPS_COMMENT_1___
+    enable_failing_policies: false
+    enable_software_vulnerabilities: false
+    project_key: some-jira-project-key
+    url: https://some-jira-url.com
+    username: some-jira-username
+  ndes_scep_proxy:
+    admin_url: https://some-ndes-admin-url.com
+    password: ___GITOPS_COMMENT_4___
+    url: https://some-ndes-scep-proxy-url.com
+    username: some-ndes-username
+  zendesk:
+  - api_token: ___GITOPS_COMMENT_2___
+    email: some-zendesk-email@example.com
+    enable_failing_policies: false
+    enable_software_vulnerabilities: false
+    group_id: 123456789
+    url: https://some-zendesk-url.com
+mdm:
+  apple_business_manager:
+  - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    macos_team: "\U0001F4BB Workstations"
+    organization_name: Fleet Device Management Inc.
+  apple_server_url: http://some-apple-server-url.com
+  end_user_authentication:
+    entity_id: some-mdm-entity-id.com
+    idp_name: some-other-idp-name
+    issuer_uri: https://some-mdm-issuer-uri.com
+    metadata: ___GITOPS_COMMENT_6___
+    metadata_url: ___GITOPS_COMMENT_7___
+  volume_purchasing_program:
+  - location: Fleet Device Management Inc.
+    teams:
+    - "\U0001F4BB Workstations"
+    - "\U0001F4BB\U0001F423 Workstations (canary)"
+    - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    - "\U0001F4F1\U0001F510 Personal mobile devices"
 org_info:
   contact_url: https://fleetdm.com/company/contact
-  org_logo_url: ""
-  org_logo_url_light_background: ""
+  org_logo_url: http://some-org-logo-url.com
+  org_logo_url_light_background: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
-- secret: # TODO: Add your secret here
+- string: ___GITOPS_COMMENT_8___
 server_settings:
   ai_features_disabled: false
   debug_host_ids:
@@ -34,8 +91,8 @@ sso_settings:
   entity_id: dogfood.fleetdm.com
   idp_image_url: http://some-sso-idp-image-url.com
   idp_name: some-idp-name
-  metadata: # TODO: Add your SSO metadata here
-  metadata_url: # TODO: Add your SSO metadata URL here
+  metadata: ___GITOPS_COMMENT_9___
+  metadata_url: ___GITOPS_COMMENT_10___
 webhook_settings:
   activities_webhook:
     destination_url: https://some-activities-webhook-url.com

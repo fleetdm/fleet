@@ -6,12 +6,68 @@ fleet_desktop:
 host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
-integrations: {}
-mdm: {}
+integrations:
+  custom_scep_proxy:
+  - challenge: some-custom-scep-proxy-challenge
+    name: some-custom-scep-proxy-name
+    url: https://some-custom-scep-proxy-url.com
+  digicert:
+  - api_token: some-digicert-api-token
+    certificate_common_name: some-digicert-certificate-common-name
+    certificate_seat_id: some-digicert-certificate-seat-id
+    certificate_user_principal_names:
+    - some-digicert-certificate-user-principal-name
+    - some-other-digicert-certificate-user-principal-name
+    name: some-digicert-name
+    profile_id: some-digicert-profile-id
+    url: https://some-digicert-url.com
+  google_calendar:
+  - api_key_json:
+      owl: hoot
+    domain: fleetdm.com
+  jira:
+  - api_token: some-jira-api-token
+    enable_failing_policies: false
+    enable_software_vulnerabilities: false
+    project_key: some-jira-project-key
+    url: https://some-jira-url.com
+    username: some-jira-username
+  ndes_scep_proxy:
+    admin_url: https://some-ndes-admin-url.com
+    password: some-ndes-password
+    url: https://some-ndes-scep-proxy-url.com
+    username: some-ndes-username
+  zendesk:
+  - api_token: some-zendesk-api-token
+    email: some-zendesk-email@example.com
+    enable_failing_policies: false
+    enable_software_vulnerabilities: false
+    group_id: 123456789
+    url: https://some-zendesk-url.com
+mdm:
+  apple_business_manager:
+  - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    macos_team: "\U0001F4BB Workstations"
+    organization_name: Fleet Device Management Inc.
+  apple_server_url: http://some-apple-server-url.com
+  end_user_authentication:
+    entity_id: some-mdm-entity-id.com
+    idp_name: some-other-idp-name
+    issuer_uri: https://some-mdm-issuer-uri.com
+    metadata: some-mdm-metadata
+    metadata_url: http://some-mdm-metadata-url.com
+  volume_purchasing_program:
+  - location: Fleet Device Management Inc.
+    teams:
+    - "\U0001F4BB Workstations"
+    - "\U0001F4BB\U0001F423 Workstations (canary)"
+    - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+    - "\U0001F4F1\U0001F510 Personal mobile devices"
 org_info:
   contact_url: https://fleetdm.com/company/contact
-  org_logo_url: ""
-  org_logo_url_light_background: ""
+  org_logo_url: http://some-org-logo-url.com
+  org_logo_url_light_background: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
 - secret: some-secret-number-one

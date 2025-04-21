@@ -46,6 +46,20 @@ func (MockClient) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 	return spec, nil
 }
 
+func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
+	teams := []fleet.Team{
+		{
+			ID:   1,
+			Name: "Team A",
+		},
+		{
+			ID:   2,
+			Name: "Team B",
+		},
+	}
+	return teams, nil
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)

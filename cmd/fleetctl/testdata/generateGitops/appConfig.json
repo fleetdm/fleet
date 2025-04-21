@@ -62,8 +62,8 @@
     "android_enabled": true,
     "org_info": {
         "org_name": "Fleet",
-        "org_logo_url": "",
-        "org_logo_url_light_background": "",
+        "org_logo_url": "http://some-org-logo-url.com",
+        "org_logo_url_light_background": "http://some-org-logo-url-light-background.com",
         "contact_url": "https://fleetdm.com/company/contact"
     },
     "server_settings": {
@@ -222,7 +222,7 @@
         ]
     },
     "mdm": {
-        "apple_server_url": "",
+        "apple_server_url": "http://some-apple-server-url.com",
         "apple_business_manager": [
             {
                 "organization_name": "Fleet Device Management Inc.",

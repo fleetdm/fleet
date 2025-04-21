@@ -261,7 +261,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				)
 			}
 		}
-		fmt.Fprintf(cmd.CLI.App.Writer, "%s:\n %+v\n", path, string(b))
+		fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", path, string(b))
 	}
 
 	return nil
