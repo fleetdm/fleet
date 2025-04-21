@@ -42,6 +42,7 @@ func TestScripts(t *testing.T) {
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
 		{"UpdateScriptContents", testUpdateScriptContents},
+		{"BatchExecute", testBatchExecute},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1673,4 +1674,24 @@ func testUpdateScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "updated script", string(updatedContents))
 	require.NotEqual(t, oldScript.UpdatedAt, updatedScript.UpdatedAt)
+}
+
+func testBatchExecute(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.3", "host3key", "host3uuid", time.Now())
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	fmt.Printf("execID: %v\n", execID)
 }

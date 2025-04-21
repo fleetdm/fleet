@@ -29,13 +29,11 @@ CREATE TABLE batch_script_execution_host_results (
   created_at timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_batch_script_execution_host_result_execution_id (batch_execution_id)
+  KEY idx_batch_script_execution_host_result_execution_id (batch_execution_id),
   CONSTRAINT batch_script_batch_id FOREIGN KEY (batch_execution_id) REFERENCES batch_script_executions (id) ON DELETE CASCADE,
   CONSTRAINT batch_script_host_execution_id FOREIGN KEY (host_execution_id) REFERENCES host_script_results (execution_id) ON DELETE CASCADE
 )
 `
-
-	// TODO ADD KEY FOR EXECUTION ID!
 
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("creating batch script tables: %w", err)

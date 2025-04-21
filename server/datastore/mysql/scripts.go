@@ -1639,7 +1639,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			if noNodeKey || scriptsDisabled {
 				executions = append(executions, fleet.BatchExecutionHost{
 					HostID: host.ID,
-					Error:  fleet.BatchExecuteIncompatibleFleetd,
+					Error:  &fleet.BatchExecuteIncompatibleFleetd,
 				})
 				continue
 			}
@@ -1647,7 +1647,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
 				executions = append(executions, fleet.BatchExecutionHost{
 					HostID: host.ID,
-					Error:  fleet.BatchExecuteIncompatiblePlatform,
+					Error:  &fleet.BatchExecuteIncompatiblePlatform,
 				})
 				continue
 			}
@@ -1664,7 +1664,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 
 			executions = append(executions, fleet.BatchExecutionHost{
 				HostID:      host.ID,
-				ExecutionID: executionID,
+				ExecutionID: &executionID,
 			})
 		}
 

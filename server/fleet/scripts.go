@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -560,8 +559,8 @@ func (s HostLockWipeStatus) IsWiped() bool {
 	}
 }
 
-const BatchExecuteIncompatiblePlatform = "incompatible-platform"
-const BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
+var BatchExecuteIncompatiblePlatform = "incompatible-platform"
+var BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
 
 type BatchExecutionSummary struct {
 	ScriptID   uint                 `json:"script_id"`
@@ -571,10 +570,10 @@ type BatchExecutionSummary struct {
 }
 
 type BatchExecutionHost struct {
-	HostID          uint   `json:"host_id"`
-	HostDisplayName string `json:"host_display_name"`
-	ExecutionID     string `json:"execution_id,omitempty"`
-	Error           string `json:"error,omitempty"`
+	HostID          uint    `json:"host_id"`
+	HostDisplayName string  `json:"host_display_name"`
+	ExecutionID     *string `json:"execution_id,omitempty"`
+	Error           *string `json:"error,omitempty"`
 }
 
 // ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
