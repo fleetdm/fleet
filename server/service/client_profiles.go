@@ -49,6 +49,25 @@ func (c *Client) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProf
 	return responseBody.Profiles, nil
 }
 
+// Get the contents of a saved profile.
+func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/mdm/profiles/"+profileID
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	c.parseResponse(verb, path, response, nil)
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}
+
 func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, error) {
 	if c.token == "" {
 		return 0, errors.New("authentication token is empty")

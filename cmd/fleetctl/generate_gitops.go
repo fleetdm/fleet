@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -46,6 +47,7 @@ type client interface {
 	ListScripts(query string) ([]*fleet.Script, error)
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
+	GetProfileContents(profileID string) ([]byte, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -297,6 +299,29 @@ func generateTeamFilename(teamName string) string {
 	}, teamName) + ".yml"
 }
 
+var isJSON = regexp.MustCompile("^\\s*\\{")
+
+func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileContentsString string) string {
+	fileName := strings.Map(func(r rune) rune {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			return unicode.ToLower(r)
+		default:
+			return '_'
+		}
+	}, profile.Name)
+	if profile.Platform == "darwin" {
+		if isJSON.MatchString(profileContentsString) {
+			fileName = fileName + ".json"
+		} else {
+			fileName = fileName + ".mobileconfig"
+		}
+	} else {
+		fileName = fileName + ".xml"
+	}
+	return fileName
+}
+
 func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedAppConfig) (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 	orgSettings = map[string]interface{}{
@@ -469,7 +494,8 @@ func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint,
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
 		return nil, err
 	}
-	result[jsonFieldName(t, "MacOSSettings")] = profiles
+	result[jsonFieldName(t, "MacOSSettings")] = profiles["apple_profiles"]
+	result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
 
 	return result, nil
 }
@@ -484,10 +510,58 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 	if len(profiles) == 0 {
 		return nil, nil
 	}
+	appleProfilesSlice := make([]map[string]interface{}, 0)
+	windowsProfilesSlice := make([]map[string]interface{}, 0)
 	for _, profile := range profiles {
-		fmt.Println(profile.Name)
+		// Marshall/unmarshall the profile to get the keys we want.
+		b, err := yaml.Marshal(profile)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling profile: %s\n", err)
+			return nil, err
+		}
+		var result map[string]interface{}
+		if err := yaml.Unmarshal(b, &result); err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling profile: %s\n", err)
+			return nil, err
+		}
+
+		// Download the profile contents.
+		profileContents, err := cmd.Client.GetProfileContents(profile.ProfileUUID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting profile contents: %s\n", err)
+			return nil, err
+		}
+		profileContentsString := string(profileContents)
+
+		fileName := fmt.Sprintf("profiles/%s", generateProfileFilename(profile, profileContentsString))
+		if teamId == 0 {
+			fileName = fmt.Sprintf("lib/%s", fileName)
+		} else {
+			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+		}
+
+		cmd.FilesToWrite[fileName] = string(profileContentsString)
+		var path string
+		if teamId == 0 {
+			path = fmt.Sprintf("./%s", fileName)
+		} else {
+			path = fmt.Sprintf("../%s", fileName)
+		}
+		if profile.Platform == "darwin" {
+			appleProfilesSlice = append(appleProfilesSlice, map[string]interface{}{
+				"path": path,
+			})
+		} else {
+			windowsProfilesSlice = append(windowsProfilesSlice, map[string]interface{}{
+				"path": path,
+			})
+		}
 	}
-	return nil, nil
+
+	return map[string]interface{}{
+		"apple_profiles":   appleProfilesSlice,
+		"windows_profiles": windowsProfilesSlice,
+	}, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) ([]map[string]interface{}, error) {
