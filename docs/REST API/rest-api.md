@@ -9888,7 +9888,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | labels_include_any        | array     | body | Only display within self-service, and install automatically, on hosts with one or more of the specified labels. |
 | labels_exclude_any | array | body | Only display within self-service, and install automatically, on hosts with none of the specified labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified and, any compatible host on the team will be able to install the app via self-service (if `self_service` is set), and all compatible hosts on the team will have the app auto-installed (if `ensure` is set to `present`). At least one of `ensure` or `self_service` must be set if label scoping is included.
+Only one of `labels_include_any` or `labels_exclude_any` can be specified, and if they're specified At least one of `ensure` or `self_service` must be set. If neither are specified and `self_service` is set, any compatible host on the team will be able to install the app via self-service. If neither are specified and `ensure` is set to `present`, all compatible hosts on the team will have the app auto-installed. 
 
 
 #### Example
