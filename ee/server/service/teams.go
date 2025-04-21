@@ -1039,6 +1039,20 @@ func (svc *Service) createTeamFromSpec(
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
+	if macOSSetup.ManualAgentInstall.Valid && macOSSetup.ManualAgentInstall.Value {
+		if macOSSetup.BootstrapPackage.Value == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't add macos_setup.manual_agent_install. To use this option specify macos_setup.bootstrap_package first.`))
+		}
+		if macOSSetup.Script.Value != "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't add. "manual_agent_install" is enabled. Use your bootstrap package to run a script during the setup experience.`))
+		}
+		if len(macOSSetup.Software.Value) > 0 {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
+				`Couldn't add. "manual_agent_install" is enabled. Use your bootstrap package to install software during the setup experience.`))
+		}
+	}
 
 	enableDiskEncryption := spec.MDM.EnableDiskEncryption.Value
 	if !spec.MDM.EnableDiskEncryption.Valid {
