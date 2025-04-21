@@ -23,9 +23,9 @@ sequenceDiagram
     ios->>+fleet: POST /enroll (with Bearer token)
     fleet-->>-ios: Enrollment profile
     ios->>fleet: Get SCEP certificate flow
-    ios->>+fleet: PUT /mdm/apple/mdm<br/>MessageType: Authenticate
+    ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: Authenticate
     fleet-->>-ios: OK
-    ios->>+fleet: PUT /mdm/apple/mdm<br/>MessageType: TokenUpdate
+    ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: TokenUpdate
     fleet-->>-ios: OK
     deactivate ios
 ```

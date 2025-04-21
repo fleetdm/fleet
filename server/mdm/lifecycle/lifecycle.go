@@ -18,9 +18,9 @@ type HostAction string
 const (
 	// HostActionTurnOn performs tasks right after a host turns on MDM.
 	HostActionTurnOn HostAction = "turn-on"
-	// HostActionTurnOn performs tasks right after a host turns off MDM.
+	// HostActionTurnOff performs tasks right after a host turns off MDM.
 	HostActionTurnOff HostAction = "turn-off"
-	// HostActionTurnOn perform tasks to reset mdm-related information.
+	// HostActionReset perform tasks to reset mdm-related information.
 	HostActionReset HostAction = "reset"
 	// HostActionDelete perform tasks to cleanup MDM information when a
 	// host is deleted from fleet.
