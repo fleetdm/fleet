@@ -399,6 +399,29 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	} else {
 		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
+	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid {
+		if !license.IsPremium() {
+			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+		if appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
+			if appConfig.MDM.MacOSSetup.BootstrapPackage.Valid && appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" ||
+				!appConfig.MDM.MacOSSetup.BootstrapPackage.Valid && oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
+				invalid.Append("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg)
+				return nil, ctxerr.Wrap(ctx, invalid)
+			}
+			if appConfig.MDM.MacOSSetup.Script.Valid && appConfig.MDM.MacOSSetup.Script.Value != "" ||
+				!appConfig.MDM.MacOSSetup.Script.Valid && oldAppConfig.MDM.MacOSSetup.Script.Value != "" {
+				invalid.Append("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallScriptErrMsg)
+				return nil, ctxerr.Wrap(ctx, invalid)
+			}
+			if appConfig.MDM.MacOSSetup.Software.Valid && len(appConfig.MDM.MacOSSetup.Software.Value) > 0 ||
+				!appConfig.MDM.MacOSSetup.Software.Valid && len(oldAppConfig.MDM.MacOSSetup.Software.Value) > 0 {
+				invalid.Append("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallSoftwareErrMsg)
+				return nil, ctxerr.Wrap(ctx, invalid)
+			}
+		}
+	}
 
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
@@ -1487,6 +1510,9 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())

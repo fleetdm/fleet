@@ -1040,17 +1040,15 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 	if macOSSetup.ManualAgentInstall.Valid && macOSSetup.ManualAgentInstall.Value {
+		// manual_agent_install expects bootstrap package to exist and script/software to be empty.
 		if macOSSetup.BootstrapPackage.Value == "" {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
-				`Couldn't add macos_setup.manual_agent_install. To use this option specify macos_setup.bootstrap_package first.`))
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup", fleet.MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg))
 		}
 		if macOSSetup.Script.Value != "" {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
-				`Couldn't add. "manual_agent_install" is enabled. Use your bootstrap package to run a script during the setup experience.`))
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup", fleet.MDMMacOSSetupManualAgentInstallScriptErrMsg))
 		}
 		if len(macOSSetup.Software.Value) > 0 {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
-				`Couldn't add. "manual_agent_install" is enabled. Use your bootstrap package to install software during the setup experience.`))
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup", fleet.MDMMacOSSetupManualAgentInstallSoftwareErrMsg))
 		}
 	}
 
@@ -1273,6 +1271,26 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
+	if spec.MDM.MacOSSetup.ManualAgentInstall.Valid && spec.MDM.MacOSSetup.ManualAgentInstall.Value {
+		if !appCfg.MDM.EnabledAndConfigured {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install",
+				`Couldn't update macos_setup.manual_agent_install because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+		}
+		if spec.MDM.MacOSSetup.BootstrapPackage.Valid && spec.MDM.MacOSSetup.BootstrapPackage.Value == "" ||
+			!spec.MDM.MacOSSetup.BootstrapPackage.Valid && oldMacOSSetup.BootstrapPackage.Value == "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install",
+				fleet.MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg))
+		}
+		if spec.MDM.MacOSSetup.Script.Valid && spec.MDM.MacOSSetup.Script.Value != "" ||
+			!spec.MDM.MacOSSetup.Script.Valid && oldMacOSSetup.Script.Value != "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallScriptErrMsg))
+		}
+		if spec.MDM.MacOSSetup.Software.Valid && len(spec.MDM.MacOSSetup.Software.Value) > 0 ||
+			!spec.MDM.MacOSSetup.Software.Valid && len(oldMacOSSetup.Software.Value) > 0 {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install",
+				fleet.MDMMacOSSetupManualAgentInstallSoftwareErrMsg))
+		}
+	}
 
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {

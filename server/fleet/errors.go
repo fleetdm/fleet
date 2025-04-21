@@ -629,7 +629,10 @@ const (
 	InvalidLabelSpecifiedErrMsg = "Invalid label name(s):"
 
 	// Config
-	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
+	InvalidServerURLMsg                              = `Fleet server URL must use “https” or “http”.`
+	MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg = `Couldn't add macos_setup.manual_agent_install. To use this option specify macos_setup.bootstrap_package first.`
+	MDMMacOSSetupManualAgentInstallScriptErrMsg      = `Couldn't add. "manual_agent_install" is enabled. Use your bootstrap package to run a script during the setup experience.`
+	MDMMacOSSetupManualAgentInstallSoftwareErrMsg    = `Couldn't add. "manual_agent_install" is enabled. Use your bootstrap package to install software during the setup experience.`
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
