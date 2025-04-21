@@ -64,7 +64,7 @@ import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import SelfService from "../cards/Software/SelfService";
+import SelfService from "../cards/Software/SelfServiceNew";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";

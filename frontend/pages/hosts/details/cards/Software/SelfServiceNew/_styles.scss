@@ -1,0 +1,50 @@
+.software-self-service {
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
+  .empty-table__container {
+    margin: 64px 0;
+  }
+
+  &__header-filters {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: $pad-medium;
+    align-items: center;
+    margin: 0 0 24px 0;
+  }
+
+  &__table {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+
+    > *:nth-child(2) {
+      flex-grow: 1;
+    }
+    .data-table-block .data-table__wrapper {
+      margin-top: 0;
+    }
+
+    .self-service-table__status-with-tooltip,
+    .table-container .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .self-service-table__status-content {
+      max-width: min-content; // Centers tooltip over status and not over cell
+    }
+  }
+
+  .categories-menu {
+    display: none;
+  }
+  @media (min-width: $break-sm) {
+    .categories-menu {
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+    }
+  }
+}

@@ -49,12 +49,14 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findAllByText("test1");
+    await screen.findByText("test1");
 
-    expect(screen.getAllByText("test1").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("test2").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("test3").length).toBeGreaterThan(0);
+    expect(true).toBe(true);
+    expect(screen.getByText("test1")).toBeInTheDocument();
+    expect(screen.getByText("test2")).toBeInTheDocument();
+    expect(screen.getByText("test3")).toBeInTheDocument();
     expect(screen.getByText("3 items")).toBeInTheDocument();
+    screen.debug();
   });
 
   it("should render the contact link text if contact url is provided", () => {
@@ -110,7 +112,7 @@ describe("SelfService", () => {
     );
 
     // waiting for the device software data to render
-    await screen.findAllByText("test-software");
+    await screen.findByText("test-software");
 
     expect(
       screen.getByTestId("self-service-item__status--test")
@@ -137,7 +139,7 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findAllByText("test-software");
+    await screen.findByText("test-software");
 
     expect(
       screen.getByTestId("self-service-item__status--test")
@@ -164,7 +166,7 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findAllByText("test-software");
+    await screen.findByText("test-software");
 
     expect(
       screen.queryByTestId("self-service-item__status--test")
@@ -191,11 +193,11 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findAllByText("test-software");
+    await screen.findByText("test-software");
 
     expect(
       screen.getByTestId("self-service-item__status--test")
-    ).toHaveTextContent("Installing...");
+    ).toHaveTextContent("Pending");
 
     expect(
       screen.queryByTestId("self-service-item__item-action-button--test")
