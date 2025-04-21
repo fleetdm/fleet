@@ -233,4 +233,13 @@
   description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
   moreInfoUrl: ""
   dri: "onasismunro"
-
+-
+  task: "Connect with active community members"
+  startedOn: "2025-04-25"
+  frequency: "Weekly"
+  description: "Connect with active community members"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#connect-with-active-community-members"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
