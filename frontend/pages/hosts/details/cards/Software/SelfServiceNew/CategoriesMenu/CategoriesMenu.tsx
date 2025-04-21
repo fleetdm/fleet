@@ -13,8 +13,12 @@ export interface ICategoriesMenu {
   className?: string;
 }
 
-const CategoriesMenu = ({ categories, queryParams }: ICategoriesMenu) => {
-  const wrapperClasses = classNames(baseClass);
+const CategoriesMenu = ({
+  categories,
+  queryParams,
+  className,
+}: ICategoriesMenu) => {
+  const wrapperClasses = classNames(baseClass, className);
 
   return (
     <div className={wrapperClasses}>

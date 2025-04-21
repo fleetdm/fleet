@@ -181,7 +181,9 @@ const SoftwareSelfService = ({
     );
   };
 
-  const onCategoryDropdownChange = (option: SingleValue<CustomOptionType>) => {
+  const onCategoriesDropdownChange = (
+    option: SingleValue<CustomOptionType>
+  ) => {
     router.push(
       getPathWithQueryParams(pathname, {
         category_id: option?.value !== "undefined" ? option?.value : undefined,
@@ -242,9 +244,9 @@ const SoftwareSelfService = ({
             value: String(category.value), // DropdownWrapper only accepts string
           }))}
           value={String(queryParams.category_id) || ""}
-          onChange={onCategoryDropdownChange}
+          onChange={onCategoriesDropdownChange}
           name="categories-dropdown"
-          className={`${baseClass}__category-dropdown`}
+          className={`${baseClass}__categories-dropdown`}
         />
       </div>
     );
@@ -253,7 +255,6 @@ const SoftwareSelfService = ({
       <CategoriesMenu
         queryParams={queryParams}
         categories={CATEGORIES_NAV_ITEMS}
-        className={`${baseClass}__category-menu`}
       />
     );
 
@@ -336,8 +337,8 @@ const SoftwareSelfService = ({
             showMarkAllPages={false}
             isAllPagesSelected={false}
             searchable={false}
-            manualSortBy
-            disableMultiRowSelect
+            disableTableHeader
+            disableCount
           />
         </div>
 

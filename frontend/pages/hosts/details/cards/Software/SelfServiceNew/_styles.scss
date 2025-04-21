@@ -21,6 +21,7 @@
     > *:nth-child(2) {
       flex-grow: 1;
     }
+
     .data-table-block .data-table__wrapper {
       margin-top: 0;
     }
@@ -40,11 +41,14 @@
   .categories-menu {
     display: none;
   }
+
   @media (min-width: $break-sm) {
     .categories-menu {
       display: flex;
-      flex-direction: column;
-      width: 300px;
+    }
+
+    &__categories-dropdown {
+      display: none;
     }
   }
 }

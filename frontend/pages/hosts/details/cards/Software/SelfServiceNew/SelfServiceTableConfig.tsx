@@ -27,6 +27,7 @@ import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 
 import { IStatusDisplayConfig } from "../InstallStatusCell/InstallStatusCell";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -83,8 +84,8 @@ const InstallerStatus = ({
 }: IInstallerStatusProps) => {
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
-    // API should ensure this never happens, but just in case
-    return null;
+    // This is shown mid-install
+    return DEFAULT_EMPTY_CELL_VALUE;
   }
 
   return (
@@ -222,7 +223,7 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-action`}>
-        {!!installButtonText && (
+        {installButtonText ? (
           <Button
             variant="text-icon"
             type="button"
@@ -241,6 +242,8 @@ const InstallerStatusAction = ({
               {installButtonText}
             </span>
           </Button>
+        ) : (
+          DEFAULT_EMPTY_CELL_VALUE
         )}
       </div>
     </div>
@@ -276,7 +279,14 @@ export const generateSoftwareTableHeaders = ({
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
         const { name, source } = cellProps.row.original;
-        return <SoftwareNameCell name={name} source={source} myDevicePage />;
+        return (
+          <SoftwareNameCell
+            name={name}
+            source={source}
+            myDevicePage
+            isSelfService
+          />
+        );
       },
       sortType: "caseInsensitive",
     },
