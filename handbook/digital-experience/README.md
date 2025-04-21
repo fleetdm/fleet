@@ -847,11 +847,15 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
   7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
   8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
-### TOOO title
 
-Go in, visit a salesforce report (TODO: link) and then add those things from Salesforce to dripify (TODO link) from CEO
- 1. Export the linkedin URL
- 2. Paste the linkedin URLs into dripify
+### Connect with active community members
+
+1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
+2. Copy the linkedIn URLs.
+3. Paste the linkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+
+   ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
+
 
 
 ### Schedule travel for the CEO
