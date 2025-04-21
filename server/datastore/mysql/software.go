@@ -3770,8 +3770,15 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						softwareTitleRecord.BundleIdentifierList = ptr.String("")
 						seperator = ""
 					}
-
-					if !strings.Contains(*softwareTitleRecord.SoftwareIDList, softwareIDStr) {
+					softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
+					found := false
+					for _, id := range softwareIDList {
+						if id == softwareIDStr {
+							found = true
+							break
+						}
+					}
+					if !found {
 						*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
 						*softwareTitleRecord.SoftwareSourceList += seperator + s.Source
 						*softwareTitleRecord.VersionList += seperator + *s.Version
