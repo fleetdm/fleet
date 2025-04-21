@@ -30,6 +30,9 @@ module.exports = {
 
   fn: async function ({start}) {
 
+    if(!this.req.me) {
+      throw {redirect: '/register#tryfleet'};
+    }
     let trialLicenseKey;
     // Check to see if this user has a Fleet premium trial license key.
     let userHasTrialLicense = this.req.me.fleetPremiumTrialLicenseKey;
