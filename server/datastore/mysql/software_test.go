@@ -5001,6 +5001,7 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
 	}
 	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
 	require.NoError(t, err)
@@ -5013,6 +5014,7 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}},
 		Name:             "vpp2",
 		BundleIdentifier: "com.app.vpp2",
+		LatestVersion:    "1.0.1",
 	}
 	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp2, &tm.ID)
 	require.NoError(t, err)
@@ -5020,7 +5022,7 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vPPApp2.Name, vPPApp2.LatestVersion, "apps", vPPApp2.BundleIdentifier, vPPApp2.TitleID, hex.EncodeToString([]byte("vpp2")),
+		vPPApp2.Name, "0.5.0", "apps", vPPApp2.BundleIdentifier, vPPApp2.TitleID, hex.EncodeToString([]byte("vpp2")),
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -5041,6 +5043,15 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 2)
+
+	assert.NotNil(t, sw[0].AppStoreApp)
+	assert.Equal(t, "1.0.0", sw[0].AppStoreApp.Version)
+	assert.Nil(t, sw[0].InstalledVersions)
+
+	assert.NotNil(t, sw[1].AppStoreApp)
+	assert.Equal(t, "1.0.1", sw[1].AppStoreApp.Version)
+	assert.NotNil(t, sw[1].InstalledVersions)
+	assert.Equal(t, "0.5.0", sw[1].InstalledVersions[0].Version)
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
