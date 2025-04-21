@@ -1624,6 +1624,11 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
 		}
 
+		// All hosts must be on the same team as the script
+		if host.TeamID != script.TeamID {
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team")
+		}
+
 		fullHosts = append(fullHosts, host)
 	}
 
@@ -1671,8 +1676,9 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		batchExecID = uuid.New().String()
 		res, err := tx.ExecContext(
 			ctx,
-			"INSERT INTO batch_script_executions (execution_id, user_id) VALUES (?, ?)",
+			"INSERT INTO batch_script_executions (execution_id, script_id, user_id) VALUES (?, ?, ?)",
 			batchExecID,
+			script.ID,
 			userID,
 		)
 		if err != nil {
@@ -1683,18 +1689,16 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		questionMarks := strings.Join(
 			slices.Repeat([]string{"(?, ?, ?)"}, len(executions)),
-			",",
+			", ",
 		)
 		args := make([]any, 0, len(executions))
 		for _, execHost := range executions {
 			args = append(args, batchID, execHost.ExecutionID, execHost.Error)
 		}
 
-		insertStmt := `
-INSERT INTO batch_script_execution_host_results (batch_execution_id, host_execution_id, error)
-VALUES %s`
+		insertStmt := fmt.Sprintf(`INSERT INTO batch_script_execution_host_results (batch_execution_id, host_execution_id, error) VALUES %s`, questionMarks)
 
-		if _, err := tx.ExecContext(ctx, fmt.Sprintf(insertStmt, questionMarks), args...); err != nil {
+		if _, err := tx.ExecContext(ctx, insertStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
 		}
 
@@ -1704,4 +1708,51 @@ VALUES %s`
 	}
 
 	return batchExecID, nil
+}
+
+func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+	stmtScript := `
+SELECT
+	bse.script_id,
+	s.name AS script_name,
+	s.team_id
+FROM
+	batch_script_executions bse
+LEFT JOIN
+	scripts s
+		ON bse.script_id = s.id
+WHERE
+	bse.execution_id = ?`
+
+	stmtHosts := `
+SELECT
+	hsr.host_id,
+	h.hostname,
+	bshr.host_execution_id AS execution_id,
+	bshr.error
+FROM
+	batch_script_executions bse
+LEFT JOIN
+	batch_script_execution_host_results bshr
+		ON bshr.batch_execution_id = bse.id
+LEFT JOIN
+	host_script_results hsr
+		ON bshr.host_execution_id = hsr.execution_id
+LEFT JOIN
+	hosts h
+		ON hsr.host_id = h.id
+WHERE
+	bse.execution_id = ?`
+
+	var summary fleet.BatchExecutionSummary
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScript, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting script information for bulk execution summary")
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary.Hosts, stmtHosts, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting host execution info for bulk execution summary")
+	}
+
+	return &summary, nil
 }

@@ -117,12 +117,15 @@ CREATE TABLE `batch_script_execution_host_results` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `batch_script_executions` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `script_id` int unsigned NOT NULL,
   `execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_id` int unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_batch_script_executions_execution_id` (`execution_id`)
+  UNIQUE KEY `idx_batch_script_executions_execution_id` (`execution_id`),
+  KEY `batch_script_executions_script_id` (`script_id`),
+  CONSTRAINT `batch_script_executions_script_id` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

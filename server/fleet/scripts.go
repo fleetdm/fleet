@@ -563,17 +563,17 @@ var BatchExecuteIncompatiblePlatform = "incompatible-platform"
 var BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
 
 type BatchExecutionSummary struct {
-	ScriptID   uint                 `json:"script_id"`
-	TeamID     *uint                `json:"team_id"`
-	ScriptName string               `json:"script_name"`
+	ScriptID   uint                 `json:"script_id" db:"script_id"`
+	ScriptName string               `json:"script_name" db:"script_name"`
+	TeamID     *uint                `json:"team_id" db:"team_id"`
 	Hosts      []BatchExecutionHost `json:"hosts"`
 }
 
 type BatchExecutionHost struct {
-	HostID          uint    `json:"host_id"`
-	HostDisplayName string  `json:"host_display_name"`
-	ExecutionID     *string `json:"execution_id,omitempty"`
-	Error           *string `json:"error,omitempty"`
+	HostID          uint    `json:"host_id" db:"host_id"`
+	HostDisplayName string  `json:"host_display_name" db:"hostname"`
+	ExecutionID     *string `json:"execution_id,omitempty" db:"execution_id"`
+	Error           *string `json:"error,omitempty" db:"error"`
 }
 
 // ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform

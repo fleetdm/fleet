@@ -1124,7 +1124,14 @@ func batchScriptSummaryEndpoint(ctx context.Context, request any, svc fleet.Serv
 }
 
 func (svc *Service) BatchScriptSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
-	return nil, nil
+	// TODO authz
+
+	summary, err := svc.ds.BatchExecuteSummary(ctx, executionID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching execution summary")
+	}
+
+	return summary, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

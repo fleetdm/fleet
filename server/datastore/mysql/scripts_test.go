@@ -1681,9 +1681,15 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 
 	user := test.NewUser(t, ds, "user1", "user@example.com", true)
 
+	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.0", "hostnoscripts", "hostnoscriptsuuid", time.Now())
 	host1 := test.NewHost(t, ds, "host1", "10.0.0.1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "10.0.0.3", "host3key", "host3uuid", time.Now())
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "INSERT INTO host_orbit_info (host_id, scripts_enabled) VALUES (?, 1), (?, 1), (?, 1)", host1.ID, host2.ID, host3.ID)
+		return err
+	})
 
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script1",
@@ -1691,7 +1697,11 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID})
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
-	fmt.Printf("execID: %v\n", execID)
+
+	summary, err := ds.BatchExecuteSummary(ctx, execID)
+	require.NoError(t, err)
+
+	fmt.Printf("summary: %#v\n", summary)
 }
