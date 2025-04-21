@@ -452,27 +452,45 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 }
 
 func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint, teamName string) (map[string]interface{}, error) {
-	scripts, err := cmd.Client.ListScripts("")
+	result := map[string]interface{}{}
+	query := ""
+	if teamId != 0 {
+		query = fmt.Sprintf("team_id=%d", teamId)
+	}
+	scripts, err := cmd.Client.ListScripts(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %s\n", err)
 		return nil, err
 	}
-	// For each script, get the contents and add a new file for output.
-	for _, script := range scripts {
-		fileName := fmt.Sprintf("scripts/%s.yml", script.Name)
-		if teamId == 0 {
-			fileName = fmt.Sprintf("lib/%s", fileName)
-		} else {
-			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+	if len(scripts) > 0 {
+		scriptSlice := make([]map[string]interface{}, len(scripts))
+		result["scripts"] = scriptSlice
+		// For each script, get the contents and add a new file for output.
+		for i, script := range scripts {
+			fileName := fmt.Sprintf("scripts/%s", script.Name)
+			if teamId == 0 {
+				fileName = fmt.Sprintf("lib/%s", fileName)
+			} else {
+				fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+			}
+			scriptContents, err := cmd.Client.GetScriptContents(script.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
+				return nil, err
+			}
+			cmd.FilesToWrite[fileName] = string(scriptContents)
+			var path string
+			if teamId == 0 {
+				path = fmt.Sprintf("./%s", fileName)
+			} else {
+				path = fmt.Sprintf("../%s", fileName)
+			}
+			scriptSlice[i] = map[string]interface{}{
+				"path": path,
+			}
 		}
-		script, err := cmd.Client.GetScriptContents(scripts[0].ID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
-			return nil, err
-		}
-		cmd.FilesToWrite[fileName] = string(script)
 	}
-	return map[string]interface{}{}, nil
+	return result, nil
 }
 
 func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint) (map[string]interface{}, error) {
