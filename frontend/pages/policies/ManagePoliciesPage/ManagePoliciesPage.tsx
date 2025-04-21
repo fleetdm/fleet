@@ -57,7 +57,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import PoliciesTable from "./components/PoliciesTable";
 import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
-import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
@@ -69,6 +68,9 @@ import {
   getInstallSoftwareErrorMessage,
   getRunScriptErrorMessage,
 } from "./helpers";
+import { DEFAULT_POLICY } from "../constants";
+import ConditionalAccessModal from "./components/ConditionalAccessModal";
+import { IConditionalAccessFormData } from "./components/ConditionalAccessModal/ConditionalAccessModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -88,9 +90,9 @@ interface IManagePoliciesPageProps {
   };
 }
 
-const DEFAULT_SORT_DIRECTION = "asc";
-const DEFAULT_PAGE_SIZE = 20;
-const DEFAULT_SORT_COLUMN = "name";
+export const DEFAULT_SORT_DIRECTION = "asc";
+export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_SORT_COLUMN = "name";
 const [
   DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG,
   DEFAULT_AUTOMATION_UPDATE_ERR_MSG,
@@ -112,6 +114,7 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
+    config: globalConfigFromContext,
     setConfig,
     setFilteredPoliciesPath,
     filteredPoliciesPath,
@@ -124,6 +127,9 @@ const ManagePolicyPage = ({
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
+    setLastEditedQueryBody,
+    setLastEditedQueryId,
+    setPolicyTeamId,
   } = useContext(PolicyContext);
 
   const {
@@ -154,7 +160,6 @@ const ManagePolicyPage = ({
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
 
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showInstallSoftwareModal, setShowInstallSoftwareModal] = useState(
     false
@@ -164,13 +169,13 @@ const ManagePolicyPage = ({
   );
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
   const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
+  const [showConditionalAccessModal, setShowConditionalAccessModal] = useState(
+    false
+  );
   const [
     policiesAvailableToAutomate,
     setPoliciesAvailableToAutomate,
   ] = useState<IPolicyStats[]>([]);
-  // the purpose of this state is to cue the descendant TableContainer to reset its internal page state to 0, via an effect there that watches
-  // this prop.
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -244,7 +249,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "globalPolicies",
-        page: tableQueryDataForApi?.pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -300,7 +305,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "teamPolicies",
-        page: tableQueryDataForApi?.pageIndex,
+        page,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: sortDirection,
@@ -341,7 +346,7 @@ const ManagePolicyPage = ({
         scope: "teamPoliciesCountMergeInherited",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
-        mergeInherited: !!teamIdForApi,
+        mergeInherited: true,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -360,9 +365,9 @@ const ManagePolicyPage = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const {
-    data: config,
-    isFetching: isFetchingConfig,
-    refetch: refetchConfig,
+    data: globalConfig,
+    isFetching: isFetchingGlobalConfig,
+    refetch: refetchGlobalConfig,
   } = useQuery<IConfig, Error>(
     ["config"],
     () => {
@@ -401,32 +406,10 @@ const ManagePolicyPage = ({
     }
   };
 
-  // NOTE: used to reset page number to 0 when modifying filters
-  // NOTE: Solution reused from ManageHostPage.tsx
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    // this function encapsulates setting local page state to 0 and triggering the descendant
-    // TableContainer to do the same via resetPageIndex – see comment above that state definition.
-    setTableQueryDataForApi(
-      (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
-    );
-    // change in state triggers effect in TableContainer (see comment above this state definition)
-    setResetPageIndex(true);
-  };
-
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
-      handleResetPageIndex();
     },
     [handleTeamChange]
   );
@@ -490,8 +473,6 @@ const ManagePolicyPage = ({
   const toggleOtherWorkflowsModal = () =>
     setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
-  const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
-
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
@@ -507,6 +488,10 @@ const ManagePolicyPage = ({
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
+  const toggleConditionalAccessModal = () => {
+    setShowConditionalAccessModal(!showConditionalAccessModal);
+  };
+
   const onSelectAutomationOption = (option: SingleValue<CustomOptionType>) => {
     switch (option?.value) {
       case "calendar_events":
@@ -517,6 +502,9 @@ const ManagePolicyPage = ({
         break;
       case "run_script":
         togglePolicyRunScriptModal();
+        break;
+      case "conditional_access":
+        toggleConditionalAccessModal();
         break;
       case "other_workflows":
         toggleOtherWorkflowsModal();
@@ -540,7 +528,7 @@ const ManagePolicyPage = ({
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
-      !isAllTeamsSelected ? refetchTeamConfig() : refetchConfig();
+      !isAllTeamsSelected ? refetchTeamConfig() : refetchGlobalConfig();
     }
   };
 
@@ -773,12 +761,65 @@ const ManagePolicyPage = ({
     }
   };
 
+  const onUpdateConditionalAccess = async ({
+    enabled: enableConditionalAccess,
+  }: IConditionalAccessFormData) => {
+    setIsUpdatingPolicies(true);
+
+    try {
+      if (teamIdForApi === API_NO_TEAM_ID) {
+        // patch global config (No team case)
+        const payload = {
+          integrations: {
+            ...globalConfig?.integrations,
+            conditional_access_enabled: enableConditionalAccess,
+          },
+        };
+        // TODO - confirm nothing getting unintentionally overwritten here
+        await configAPI.update(payload);
+        refetchGlobalConfig();
+      } else {
+        const payload = {
+          integrations: {
+            // These fields will never actually be changed here. See comment above
+            // IGlobalIntegrations definition.
+            zendesk: teamConfig?.integrations.zendesk || [],
+            jira: teamConfig?.integrations.jira || [],
+            conditional_access_enabled: enableConditionalAccess,
+          },
+        };
+        await teamsAPI.update(payload, teamIdForApi);
+        refetchTeamConfig();
+      }
+      renderFlash(
+        "success",
+        "Successfully updated conditional access automations."
+      );
+    } catch {
+      renderFlash("error", "Could not update conditional access automations.");
+    } finally {
+      toggleConditionalAccessModal();
+      setIsUpdatingPolicies(false);
+    }
+  };
+
   const onAddPolicyClick = () => {
     setLastEditedQueryName("");
     setLastEditedQueryDescription("");
     setLastEditedQueryResolution("");
     setLastEditedQueryCritical(false);
-    toggleAddPolicyModal();
+    setPolicyTeamId(
+      currentTeamId === API_ALL_TEAMS_ID
+        ? APP_CONTEXT_ALL_TEAMS_ID
+        : currentTeamId
+    );
+    setLastEditedQueryBody(DEFAULT_POLICY.query);
+    setLastEditedQueryId(null);
+    router.push(
+      currentTeamId === API_ALL_TEAMS_ID
+        ? PATHS.NEW_POLICY
+        : `${PATHS.NEW_POLICY}?team_id=${currentTeamId}`
+    );
   };
 
   const onDeletePolicyClick = (selectedTableIds: number[]): void => {
@@ -827,7 +868,7 @@ const ManagePolicyPage = ({
   // Show CTA buttons if there are no errors
   const showCtaButtons = !policiesErrors;
 
-  const automationsConfig = !isAllTeamsSelected ? teamConfig : config;
+  const automationsConfig = !isAllTeamsSelected ? teamConfig : globalConfig;
   const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
   const showAutomationsDropdown = canManageAutomations;
 
@@ -904,7 +945,7 @@ const ManagePolicyPage = ({
       return (
         <PoliciesTable
           policiesList={globalPolicies || []}
-          isLoading={isFetchingGlobalPolicies || isFetchingConfig}
+          isLoading={isFetchingGlobalPolicies || isFetchingGlobalConfig}
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
           hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
@@ -917,12 +958,12 @@ const ManagePolicyPage = ({
               globalPolicies
             )
           }
+          count={globalPoliciesCount || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
-          resetPageIndex={resetPageIndex}
         />
       );
     }
@@ -936,7 +977,9 @@ const ManagePolicyPage = ({
         <PoliciesTable
           policiesList={teamPolicies || []}
           isLoading={
-            isFetchingTeamPolicies || isFetchingTeamConfig || isFetchingConfig
+            isFetchingTeamPolicies ||
+            isFetchingTeamConfig ||
+            isFetchingGlobalConfig
           }
           onDeletePolicyClick={onDeletePolicyClick}
           canAddOrDeletePolicy={canAddOrDeletePolicy}
@@ -950,35 +993,44 @@ const ManagePolicyPage = ({
             )
           }
           isPremiumTier={isPremiumTier}
+          count={teamPoliciesCountMergeInherited || 0}
           searchQuery={searchQuery}
           sortHeader={sortHeader}
           sortDirection={sortDirection}
           page={page}
           onQueryChange={onQueryChange}
-          resetPageIndex={resetPageIndex}
         />
       </div>
     );
   };
 
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const gitOpsModeEnabled = globalConfig?.gitops.gitops_mode_enabled;
 
   const isCalEventsConfigured =
-    (config?.integrations.google_calendar &&
-      config?.integrations.google_calendar.length > 0) ??
+    (globalConfig?.integrations.google_calendar &&
+      globalConfig?.integrations.google_calendar.length > 0) ??
     false;
 
   const isCalEventsEnabled =
     teamConfig?.integrations.google_calendar?.enable_calendar_events ?? false;
 
+  const isConditionalAccessConfigured =
+    globalConfig?.conditional_access?.microsoft_entra_connection_configured ??
+    false;
+
+  const isConditionalAccessEnabled =
+    teamConfig?.integrations.conditional_access_enabled ?? false;
+
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
     let disabledCalendarTooltipContent: TooltipContent;
     let disabledRunScriptTooltipContent: TooltipContent;
+    let disabledConditionalAccessTooltipContent: TooltipContent;
     if (!isPremiumTier) {
-      disabledInstallTooltipContent = "Available in Fleet Premium.";
-      disabledCalendarTooltipContent = "Available in Fleet Premium.";
-      disabledRunScriptTooltipContent = "Available in Fleet Premium.";
+      disabledInstallTooltipContent = "Available in Fleet Premium";
+      disabledCalendarTooltipContent = "Available in Fleet Premium";
+      disabledRunScriptTooltipContent = "Available in Fleet Premium";
+      disabledConditionalAccessTooltipContent = "Available in Fleet Premium";
     } else if (isAllTeamsSelected) {
       disabledInstallTooltipContent = (
         <>
@@ -1001,6 +1053,13 @@ const ManagePolicyPage = ({
           run script automation.
         </>
       );
+      disabledConditionalAccessTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          condtional access.
+        </>
+      );
     } else if (
       (isGlobalMaintainer || isTeamMaintainer) &&
       !isCalEventsEnabled
@@ -1016,21 +1075,21 @@ const ManagePolicyPage = ({
 
     const options: CustomOptionType[] = [
       {
-        label: "Calendar events",
+        label: "Calendar",
         value: "calendar_events",
         isDisabled: !!disabledCalendarTooltipContent,
         helpText: "Automatically reserve time to resolve failing policies.",
         tooltipContent: disabledCalendarTooltipContent,
       },
       {
-        label: "Install software",
+        label: "Software",
         value: "install_software",
         isDisabled: !!disabledInstallTooltipContent,
         helpText: "Install software to resolve failing policies.",
         tooltipContent: disabledInstallTooltipContent,
       },
       {
-        label: "Run script",
+        label: "Scripts",
         value: "run_script",
         isDisabled: !!disabledRunScriptTooltipContent,
         helpText: "Run script to resolve failing policies.",
@@ -1038,10 +1097,23 @@ const ManagePolicyPage = ({
       },
     ];
 
+    if (
+      globalConfigFromContext?.license.managed_cloud &&
+      featureFlags.allowConditionalAccess === "true"
+    ) {
+      options.push({
+        label: "Conditional access",
+        value: "conditional_access",
+        isDisabled: !!disabledConditionalAccessTooltipContent,
+        helpText: "Block single sign-on for hosts failing policies.",
+        tooltipContent: disabledConditionalAccessTooltipContent,
+      });
+    }
+
     // Maintainers do not have access to other workflows
     if (configPresent && !isGlobalMaintainer && !isTeamMaintainer) {
       options.push({
-        label: "Other workflows",
+        label: "Other",
         value: "other_workflows",
         isDisabled: false,
         helpText: "Create tickets or fire webhooks for failing policies.",
@@ -1143,7 +1215,6 @@ const ManagePolicyPage = ({
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
-                    variant="brand"
                     className={`${baseClass}__select-policy-button`}
                     onClick={onAddPolicyClick}
                   >
@@ -1158,25 +1229,16 @@ const ManagePolicyPage = ({
           <p>{teamsDropdownHelpText}</p>
         </div>
         {renderMainTable()}
-        {config && automationsConfig && showOtherWorkflowsModal && (
+        {globalConfig && automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
-            availableIntegrations={config.integrations}
+            availableIntegrations={globalConfig.integrations}
             availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
             onSubmit={onUpdateOtherWorkflows}
             teamId={currentTeamId ?? 0}
             gitOpsModeEnabled={gitOpsModeEnabled}
-          />
-        )}
-        {showAddPolicyModal && (
-          <AddPolicyModal
-            onCancel={toggleAddPolicyModal}
-            router={router}
-            // default to all teams, though should be present here
-            teamId={currentTeamId ?? API_ALL_TEAMS_ID}
-            teamName={currentTeamName}
           />
         )}
         {showDeletePolicyModal && (
@@ -1214,6 +1276,16 @@ const ManagePolicyPage = ({
             enabled={isCalEventsEnabled}
             url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             teamId={currentTeamId ?? 0}
+            isUpdating={isUpdatingPolicies}
+            gitOpsModeEnabled={gitOpsModeEnabled}
+          />
+        )}
+        {showConditionalAccessModal && (
+          <ConditionalAccessModal
+            onExit={toggleConditionalAccessModal}
+            onSubmit={onUpdateConditionalAccess}
+            configured={isConditionalAccessConfigured}
+            enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
           />

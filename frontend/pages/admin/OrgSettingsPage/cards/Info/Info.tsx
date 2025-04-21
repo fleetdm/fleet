@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import isDataURI from "validator/lib/isDataURI";
+
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -29,6 +31,9 @@ interface IOrgInfoFormErrors {
 // other components in the app.
 const baseClass = "app-config-form";
 const cardClass = "org-info";
+
+const validateOrgLogoURL = (url: string) =>
+  isDataURI(url) || validUrl({ url, protocols: ["http", "https"] });
 
 const Info = ({
   appConfig,
@@ -67,11 +72,15 @@ const Info = ({
       errors.org_name = "Organization name must be present";
     }
 
-    if (
-      orgLogoURL &&
-      !validUrl({ url: orgLogoURL, protocols: ["http", "https"] })
-    ) {
+    if (orgLogoURL && !validateOrgLogoURL(orgLogoURL)) {
       errors.org_logo_url = `${orgLogoURL} is not a valid URL`;
+    }
+
+    if (
+      orgLogoURLLightBackground &&
+      !validateOrgLogoURL(orgLogoURLLightBackground)
+    ) {
+      errors.org_logo_url_light_background = `${orgLogoURL} is not a valid URL`;
     }
 
     if (!orgSupportURL) {
@@ -179,7 +188,6 @@ const Info = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}

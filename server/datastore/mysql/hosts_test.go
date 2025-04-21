@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -119,6 +120,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
 		{"IOSHostExpiration", testIOSHostsExpiration},
+		{"DEPHostExpiration", testDEPHostsExpiration},
 		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
@@ -904,6 +906,14 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsFilter: fleet.OSSettingsVerifying}, 1)  // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
+
+	// disk encryption for linux, must enable disk encryption for no team first
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
 	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)) // set host 1 to verified
@@ -938,6 +948,12 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID}))
+
+	// enable disk encryption for that team
+	team1.Config.MDM.EnableDiskEncryption = true
+	_, err = ds.SaveTeam(context.Background(), team1)
+	require.NoError(t, err)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
 	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)) // set host 1 to verified
@@ -4234,6 +4250,74 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 5)
 }
 
+func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	devices := []godep.Device{
+		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+		{SerialNumber: "def", Model: "iPad", OS: "iOS", OpType: "added"},
+	}
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte(uuid.NewString())})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	ac.HostExpirySettings.HostExpiryWindow = 30
+
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	count, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, nil, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), count)
+
+	// set created_at to a date outside the expiry window
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		r, err := q.ExecContext(ctx,
+			`UPDATE hosts SET created_at = '2020-01-01 00:00:01' WHERE hardware_serial IN (?, ?)`,
+			devices[0].SerialNumber, devices[1].SerialNumber)
+		require.NoError(t, err)
+		rowsAffected, _ := r.RowsAffected()
+		require.Equal(t, int64(2), rowsAffected)
+		return nil
+	})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
+	for _, host := range hosts {
+		// confirm that the created_at date is set to the date we set above
+		require.Equal(t, "2020-01-01 00:00:01", host.CreatedAt.Format("2006-01-02 15:04:05"))
+		// confirm that the detail_updated_at date is the default NeverTimestamp
+		require.Equal(t, server.NeverTimestamp, host.DetailUpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	deletedIDs, err := ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, deletedIDs, 0) // no hosts should be deleted
+
+	// soft delete one of the host_dep_assignments
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		r, err := q.ExecContext(ctx,
+			`UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?`,
+			hosts[0].ID)
+		require.NoError(t, err)
+		rowsAffected, _ := r.RowsAffected()
+		require.Equal(t, int64(1), rowsAffected)
+		return nil
+	})
+
+	deletedIDs, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Len(t, deletedIDs, 1)
+	require.Equal(t, hosts[0].ID, deletedIDs[0])
+
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1) // only one host should remain
+}
+
 func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	// Set global host expiry windows
 	const hostExpiryWindow = 70
@@ -7069,6 +7153,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	VALUES (?, ?);
 	`, host.ID, uuid.NewString())
 	require.NoError(t, err)
+
+	// Create a SCIM user and link it to host
+	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUserID))
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {

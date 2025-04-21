@@ -1,2 +1,0 @@
-- Fixed an issue with Fleet's processing of Python versions to ensure that the correct CPEs are
-  checked for vulnerabilities.

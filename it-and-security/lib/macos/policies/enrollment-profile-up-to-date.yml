@@ -5,7 +5,7 @@
   resolution: |-
     You must manually remove your enrollment profile to fix this issue by following these steps: 
 
-     > System Settings > General > Device Management > Click on the profile "Fleet enrollment" followed by the "-" button 
+     > System Settings > General > Device Management > Click on the profile "Fleet enrollment" followed by the "-" (minus) button 
 
     After a few minutes, your device may initiate automatic re-enrollment. If it does not, open Fleet Desktop and follow the steps for manually enabling MDM. 
 

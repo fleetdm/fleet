@@ -1,2 +1,0 @@
-- Fixed an issue with assigning Windows MDM profiles to large numbers (> 65k) of hosts by batching
-  the relevant database queries.

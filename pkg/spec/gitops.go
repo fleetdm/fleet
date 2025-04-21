@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -81,6 +83,11 @@ type Query struct {
 	fleet.QuerySpec
 }
 
+type Label struct {
+	BaseItem
+	fleet.LabelSpec
+}
+
 type SoftwarePackage struct {
 	BaseItem
 	fleet.SoftwarePackageSpec
@@ -100,6 +107,7 @@ type GitOps struct {
 	Controls     GitOpsControls
 	Policies     []*GitOpsPolicySpec
 	Queries      []*fleet.QuerySpec
+	Labels       []*fleet.LabelSpec
 	// Software is only allowed on teams, not on global config.
 	Software GitOpsSoftware
 	// FleetSecrets is a map of secret names to their values, extracted from FLEET_SECRET_ environment variables used in profiles and scripts.
@@ -135,7 +143,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	result := &GitOps{}
 	result.FleetSecrets = make(map[string]string)
 
-	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software"}
+	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software", "labels"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -173,7 +181,19 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
-	// Validate the required top level options
+	// Get the labels. If `labels:` is specified but no labels are listed, this will
+	// set Labels as nil.  If `labels:` isn't present at all, it will be set as an
+	// empty array.
+	_, ok := top["labels"]
+	if !ok || !result.IsGlobal() {
+		if ok && !result.IsGlobal() {
+			logFn("[!] 'labels' is only supported in global settings.  This key will be ignored.\n")
+		}
+		result.Labels = make([]*fleet.LabelSpec, 0)
+	} else {
+		multiError = parseLabels(top, result, baseDir, multiError)
+	}
+	// Get other top-level entities.
 	multiError = parseControls(top, result, multiError, filePath)
 	multiError = parseAgentOptions(top, result, baseDir, logFn, multiError)
 	multiError = parseQueries(top, result, baseDir, logFn, multiError)
@@ -203,6 +223,10 @@ func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error
 
 func (g *GitOps) global() bool {
 	return g.TeamName == nil || *g.TeamName == ""
+}
+
+func (g *GitOps) IsGlobal() bool {
+	return g.global()
 }
 
 func (g *GitOps) IsNoTeam() bool {
@@ -578,6 +602,80 @@ func resolveScriptPaths(input []BaseItem, baseDir string) ([]BaseItem, error) {
 	return resolved, nil
 }
 
+func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+	labelsRaw, ok := top["labels"]
+
+	// This shouldn't happen as we check for the property earlier,
+	// but better safe than sorry.
+	if !ok {
+		return multiError
+	}
+
+	var labels []Label
+	if err := json.Unmarshal(labelsRaw, &labels); err != nil {
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels: %v", err))
+	}
+	for _, item := range labels {
+		item := item
+		if item.Path == nil {
+			result.Labels = append(result.Labels, &item.LabelSpec)
+		} else {
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			if err != nil {
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read labels file %s: %v", *item.Path, err))
+				continue
+			}
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *item.Path, err),
+				)
+			} else {
+				var pathLabels []*Label
+				if err := yaml.Unmarshal(fileBytes, &pathLabels); err != nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal labels file %s: %v", *item.Path, err))
+					continue
+				}
+				for _, pq := range pathLabels {
+					pq := pq
+					if pq != nil {
+						if pq.Path != nil {
+							multiError = multierror.Append(
+								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
+							)
+						} else {
+							result.Labels = append(result.Labels, &pq.LabelSpec)
+						}
+					}
+				}
+			}
+		}
+	}
+	// Make sure team name is correct and do additional validation
+	for _, l := range result.Labels {
+		if l.Name == "" {
+			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
+		}
+		if l.Query == "" && len(l.Hosts) == 0 {
+			multiError = multierror.Append(multiError, errors.New("a SQL query or hosts list is required for each label"))
+		}
+		// Don't use non-ASCII
+		if !isASCII(l.Name) {
+			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
+		}
+	}
+	duplicates := getDuplicateNames(
+		result.Labels, func(l *fleet.LabelSpec) string {
+			return l.Name
+		},
+	)
+	if len(duplicates) > 0 {
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate label names: %v", duplicates))
+	}
+	return multiError
+}
+
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	policiesRaw, ok := top["policies"]
 	if !ok {
@@ -843,6 +941,8 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	return multiError
 }
 
+var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
+
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
@@ -917,24 +1017,43 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 		}
+		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+			multiError = multierror.Append(multiError, fmt.Errorf("hash_256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
+			continue
+		}
+		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
+			continue
+		}
 		if softwarePackageSpec.UninstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
 		}
-		if softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("software URL is required"))
+		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 			continue
 		}
 		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
 			multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
 			continue
 		}
-		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
+		parsedUrl, err := url.Parse(softwarePackageSpec.URL)
+		if err != nil {
+			multiError = multierror.Append(multiError, fmt.Errorf("software URL %s is not a valid URL", softwarePackageSpec.URL))
 			continue
 		}
+
+		if softwarePackageSpec.InstallScript.Path == "" || softwarePackageSpec.UninstallScript.Path == "" {
+			// URL checks won't catch everything, but might as well include a lightweight check here to fail fast if it's
+			// certain that the package will fail later.
+			if strings.HasSuffix(parsedUrl.Path, ".exe") {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+				continue
+			}
+		}
+
 		result.Software.Packages = append(result.Software.Packages, &softwarePackageSpec)
 	}
 

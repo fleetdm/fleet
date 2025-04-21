@@ -50,7 +50,8 @@ type updateSoftwareInstallerRequest struct {
 }
 
 type uploadSoftwareInstallerResponse struct {
-	Err error `json:"error,omitempty"`
+	SoftwarePackage *fleet.SoftwareInstaller `json:"software_package,omitempty"`
+	Err             error                    `json:"error,omitempty"`
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -77,7 +78,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var nerr net.Error
 		if errors.As(err, &nerr) && nerr.Timeout() {
 			return nil, fleet.NewUserMessageError(
-				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				ctxerr.New(ctx, "Couldn't add. Please ensure your internet connection speed is sufficient and stable."),
 				http.StatusRequestTimeout,
 			)
 		}
@@ -228,7 +229,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		var nerr net.Error
 		if errors.As(err, &nerr) && nerr.Timeout() {
 			return nil, fleet.NewUserMessageError(
-				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				ctxerr.New(ctx, "Couldn't add. Please ensure your internet connection speed is sufficient and stable."),
 				http.StatusRequestTimeout,
 			)
 		}
@@ -359,18 +360,20 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		AutomaticInstall:  req.AutomaticInstall,
 	}
 
-	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
+	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
+	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return &uploadSoftwareInstallerResponse{}, nil
+
+	return &uploadSoftwareInstallerResponse{SoftwarePackage: installer}, nil
 }
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 type deleteSoftwareInstallerRequest struct {

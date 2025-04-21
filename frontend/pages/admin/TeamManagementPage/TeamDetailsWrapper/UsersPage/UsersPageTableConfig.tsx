@@ -168,20 +168,12 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          renderChildren={(disableChildren) => (
-            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
-              <ActionsDropdown
-                options={cellProps.cell.value}
-                onChange={(value: string) =>
-                  actionSelectHandler(value, cellProps.row.original)
-                }
-                placeholder="Actions"
-                disabled={disableChildren}
-              />
-            </div>
-          )}
+        <ActionsDropdown
+          options={cellProps.cell.value}
+          onChange={(value: string) =>
+            actionSelectHandler(value, cellProps.row.original)
+          }
+          placeholder="Actions"
         />
       ),
     },

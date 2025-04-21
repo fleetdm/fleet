@@ -181,6 +181,8 @@ type Datastore interface {
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
 	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec) error
+	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
+	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
 	// GetLabelSpecs returns all of the stored LabelSpecs.
 	GetLabelSpecs(ctx context.Context) ([]*LabelSpec, error)
 	// GetLabelSpec returns the spec for the named label.
@@ -393,14 +395,6 @@ type Datastore interface {
 	// The returned OSVersion is accompanied by the time it was last updated.
 	OSVersion(ctx context.Context, osVersionID uint, teamFilter *TeamFilter) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
-
-	// ////////////////////////////////////////////////////////////////////////////
-	// Android
-
-	GetAndroidDS() android.Datastore
-	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
-	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TargetStore
@@ -641,7 +635,7 @@ type Datastore interface {
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
-	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
+	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
@@ -685,8 +679,10 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
+	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -1007,7 +1003,7 @@ type Datastore interface {
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 
 	// IsEnrollSecretAvailable checks if the provided secret is available for enrollment.
-	IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error)
+	IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
 	// EnrollHost will enroll a new host with the given identifier, setting the node key, and team. Implementations of
 	// this method should respect the provided host enrollment cooldown, by returning an error if the host has enrolled
@@ -1446,8 +1442,8 @@ type Datastore interface {
 	// tx parameter is optional and can be used to pass an existing transaction.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset, tx sqlx.ExtContext) error
 
-	// GetAllCAConfigAssets returns the config assets for DigiCert and custom SCEP CAs.
-	GetAllCAConfigAssets(ctx context.Context) (map[string]CAConfigAsset, error)
+	// GetAllCAConfigAssetsByType returns the config assets for DigiCert and custom SCEP CAs.
+	GetAllCAConfigAssetsByType(ctx context.Context, assetType CAConfigAssetType) (map[string]CAConfigAsset, error)
 	GetCAConfigAsset(ctx context.Context, name string, assetType CAConfigAssetType) (*CAConfigAsset, error)
 	SaveCAConfigAssets(ctx context.Context, assets []CAConfigAsset) error
 	DeleteCAConfigAssets(ctx context.Context, names []string) error
@@ -1505,6 +1501,16 @@ type Datastore interface {
 	// when it turns on again, e.g. after removing the enrollment profile - it may
 	// not necessarily report as "turned off" in that scenario).
 	ClearMDMUpcomingActivitiesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error
+
+	// GetMDMAppleEnrolledDeviceDeletedFromFleet returns the information of a
+	// device that is still enrolled in Fleet MDM but the corresponding host has
+	// been deleted from Fleet.
+	GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx context.Context, hostUUID string) (*MDMAppleEnrolledDeviceInfo, error)
+
+	// ListMDMAppleEnrolledIphoneIpadDeletedFromFleet returns a list of nano
+	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
+	// but deleted from Fleet.
+	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -1623,7 +1629,7 @@ type Datastore interface {
 
 	// GetMDMWindowsProfilesContents retrieves the XML contents of the
 	// profiles requested.
-	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string][]byte, error)
+	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
 
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
@@ -1903,6 +1909,10 @@ type Datastore interface {
 	// in the setup experience flow (which runs during macOS Setup Assistant).
 	GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
 
+	// GetTeamsWithInstallerByHash gets a map of teamIDs (0 for No team) to software installers
+	// metadata by the installer's hash.
+	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//
@@ -1952,12 +1962,19 @@ type Datastore interface {
 	// Fleet-maintained apps
 	//
 
-	// ListAvailableFleetMaintainedApps returns a list of
-	// Fleet-maintained apps available to a specific team (or the full list of apps if no team is specified)
+	// ListAvailableFleetMaintainedApps returns a list of Fleet-maintained apps, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
 	ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
 
-	// GetMaintainedAppByID gets a Fleet-maintained app by its ID.
-	GetMaintainedAppByID(ctx context.Context, appID uint) (*MaintainedApp, error)
+	// ClearRemovedFleetMaintainedApps deletes all Fleet-maintained apps that are not in the given
+	// set of slugs.
+	ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error
+
+	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
+	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
+	// if a team is specified.
+	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
@@ -1971,7 +1988,7 @@ type Datastore interface {
 
 	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
 	// nil is returned if the profile is not found.
-	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string) (*HostMDMCertificateProfile, error)
+	GetHostMDMCertificateProfile(ctx context.Context, hostUUID string, profileUUID string, caName string) (*HostMDMCertificateProfile, error)
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
@@ -2000,8 +2017,61 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Android
 
-	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	AndroidDatastore
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// CreateScimUser creates a new SCIM user in the database
+	CreateScimUser(ctx context.Context, user *ScimUser) (uint, error)
+	// ScimUserByID retrieves a SCIM user by ID
+	ScimUserByID(ctx context.Context, id uint) (*ScimUser, error)
+	// ScimUserByUserName retrieves a SCIM user by username
+	ScimUserByUserName(ctx context.Context, userName string) (*ScimUser, error)
+	// ScimUserByUserNameOrEmail finds a SCIM user by username. If it cannot find one, then it tries email, if set.
+	// If multiple users are found with the same email, we log an error and return nil.
+	// Emails and groups are NOT populated in this method.
+	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
+	// ScimUserByHostID retrieves a SCIM user associated with a host ID
+	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
+	// ReplaceScimUser replaces an existing SCIM user in the database
+	ReplaceScimUser(ctx context.Context, user *ScimUser) error
+	// DeleteScimUser deletes a SCIM user from the database
+	DeleteScimUser(ctx context.Context, id uint) error
+	// ListScimUsers retrieves a list of SCIM users with optional filtering
+	ListScimUsers(ctx context.Context, opts ScimUsersListOptions) (users []ScimUser, totalResults uint, err error)
+	// CreateScimGroup creates a new SCIM group in the database
+	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
+	// ScimGroupByID retrieves a SCIM group by ID
+	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// ScimGroupByDisplayName retrieves a SCIM group by display name
+	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
+	// ReplaceScimGroup replaces an existing SCIM group in the database
+	ReplaceScimGroup(ctx context.Context, group *ScimGroup) error
+	// DeleteScimGroup deletes a SCIM group from the database
+	DeleteScimGroup(ctx context.Context, id uint) error
+	// ListScimGroups retrieves a list of SCIM groups with pagination
+	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
+	// ScimLastRequest retrieves the last SCIM request info
+	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
+	// UpdateScimLastRequest updates the last SCIM request info
+	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+}
+
+type AndroidDatastore interface {
+	android.Datastore
+	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
+	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
+	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
+		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
+	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
+	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
+	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
+	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
+	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
+	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

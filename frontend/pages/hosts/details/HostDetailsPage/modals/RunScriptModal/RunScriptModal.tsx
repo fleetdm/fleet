@@ -152,7 +152,7 @@ const RunScriptModal = ({
               isLoading={runScriptRequested || isFetching}
               onQueryChange={onQueryChange}
               disableNextPage={!hostScriptResponse?.meta.has_next_results}
-              defaultPageIndex={page}
+              pageIndex={page}
               pageSize={10}
               disableCount
               disableTableHeader
@@ -160,9 +160,7 @@ const RunScriptModal = ({
           )}
         </div>
         <div className={`modal-cta-wrap`}>
-          <Button onClick={onClose} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onClose}>Done</Button>
         </div>
       </>
     </Modal>

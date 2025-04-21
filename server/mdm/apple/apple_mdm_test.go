@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/go-kit/log"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/require"
 )
 

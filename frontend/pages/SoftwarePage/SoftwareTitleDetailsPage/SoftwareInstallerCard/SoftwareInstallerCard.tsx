@@ -1,3 +1,5 @@
+/** software/titles/:id > Second section */
+
 import React, { useCallback, useContext, useState } from "react";
 
 import PATHS from "router/paths";
@@ -147,6 +149,10 @@ const SoftwareActionsDropdown = ({
   onDeleteClick,
   onEditSoftwareClick,
 }: IActionsDropdownProps) => {
+  const config = useContext(AppContext).config;
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    config?.gitops || {};
+
   const onSelect = (action: string) => {
     switch (action) {
       case "download":
@@ -163,18 +169,49 @@ const SoftwareActionsDropdown = ({
     }
   };
 
+  let options =
+    installerType === "package"
+      ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
+      : [...APP_STORE_APP_DROPDOWN_OPTIONS];
+
+  if (gitOpsModeEnabled) {
+    const tooltipContent = (
+      <>
+        {repoURL && (
+          <>
+            Manage in{" "}
+            <CustomLink
+              newTab
+              text="YAML"
+              variant="tooltip-link"
+              url={repoURL}
+            />
+            <br />
+          </>
+        )}
+        (GitOps mode enabled)
+      </>
+    );
+    options = options.map((option) => {
+      if (option.value === "edit" || option.value === "delete") {
+        return {
+          ...option,
+          disabled: true,
+          tooltipContent,
+        };
+      }
+      return option;
+    });
+  }
+
   return (
     <div className={`${baseClass}__actions`}>
       <ActionsDropdown
         className={`${baseClass}__software-actions-dropdown`}
         onChange={onSelect}
         placeholder="Actions"
-        options={
-          installerType === "package"
-            ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
-            : [...APP_STORE_APP_DROPDOWN_OPTIONS]
-        }
         menuAlign="right"
+        options={options}
       />
     </div>
   );
@@ -215,13 +252,13 @@ const SoftwareInstallerCard = ({
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
     : "vpp";
-
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
+
   const { renderFlash } = useContext(NotificationContext);
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);

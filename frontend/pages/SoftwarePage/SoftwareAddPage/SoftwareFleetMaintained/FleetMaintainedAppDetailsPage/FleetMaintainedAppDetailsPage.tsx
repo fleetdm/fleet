@@ -34,18 +34,11 @@ import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetai
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
-import {
-  getErrorMessage,
-  getFleetAppPolicyDescription,
-  getFleetAppPolicyName,
-  getFleetAppPolicyQuery,
-} from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 const REQUEST_TIMEOUT_ERROR_MESSAGE =
-  "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-const AUTOMATIC_POLICY_ERROR_MESSAGE =
-  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
+  "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -147,7 +140,7 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
-    () => softwareAPI.getFleetMaintainedApp(appId),
+    () => softwareAPI.getFleetMaintainedApp(appId, teamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -275,9 +268,11 @@ const FleetMaintainedAppDetailsPage = ({
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}
               defaultUninstallScript={fleetApp.uninstall_script}
+              teamId={teamId}
               onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
+              softwareTitleId={fleetApp.software_title_id}
             />
           </div>
         </>

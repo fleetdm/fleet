@@ -5,15 +5,6 @@ import type { SVGProps } from "react";
 const Postman = (props: SVGProps<SVGSVGElement>) => (
   <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
     <path fill="#EEE" d="M0 0h32v32H0z" />
-    <rect
-      x="-15.5"
-      y="-975.5"
-      width="63"
-      height="1551"
-      rx="4.5"
-      stroke="#9747FF"
-      strokeDasharray="10 5"
-    />
     <path fill="#FF6C37" d="M0 0h32v32H0z" />
     <path
       d="M11.567 17.011a.06.06 0 0 0 .07.032l2.56-.552-1.076-1.091-1.534 1.534a.06.06 0 0 0-.02.077ZM23.555 6.02a2.386 2.386 0 1 0 1.005 4.55l-1.623-1.623a.2.2 0 0 1 0-.283l2.12-2.118a2.386 2.386 0 0 0-1.502-.527Z"

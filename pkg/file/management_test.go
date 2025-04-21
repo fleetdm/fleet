@@ -45,9 +45,9 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 			"uninstall": "./scripts/uninstall_rpm.sh",
 		},
 		"exe": {
-			"install":   "./scripts/install_exe.ps1",
+			"install":   "",
 			"remove":    "./scripts/remove_exe.ps1",
-			"uninstall": "./scripts/uninstall_exe.ps1",
+			"uninstall": "",
 		},
 	}
 
@@ -65,6 +65,11 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 
 func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update bool) {
 	t.Helper()
+	if goldenFile == "" {
+		require.Empty(t, actual)
+		return
+	}
+
 	goldenPath := filepath.Join("testdata", goldenFile+".golden")
 
 	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644)

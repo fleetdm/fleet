@@ -1,0 +1,19 @@
+name: dconf_read
+platforms:
+  - linux
+description: Returns GNOME configuration using the "dconf read" command.
+columns:
+  - name: username
+    type: text
+    required: true
+    description: End user's username. 
+  - name: key
+    type: text
+    required: true
+    description: Name of the configuration key to read.
+  - name: value
+    type: text
+    required: false
+    description: Value of the provided key.
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+evented: false

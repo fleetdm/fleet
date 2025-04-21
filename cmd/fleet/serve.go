@@ -22,7 +22,9 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
+	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -732,6 +734,8 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				eeservice.NewSCEPConfigService(logger, nil),
+				digicert.NewService(digicert.WithLogger(logger)),
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -977,6 +981,13 @@ the way that the Fleet server works.
 				}
 
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+					return newIPhoneIPadReviver(ctx, instanceID, ds, commander, logger)
+				}); err != nil {
+					initFatal(err, "failed to register apple_mdm_iphone_ipad_reviver schedule")
+				}
+
+				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					return newMaintainedAppSchedule(ctx, instanceID, ds, logger)
 				}); err != nil {
 					initFatal(err, "failed to register maintained apps schedule")
@@ -1161,10 +1172,13 @@ the way that the Fleet server works.
 				}
 			}
 
-			// SCEP proxy (for NDES, etc.)
 			if license.IsPremium() {
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger); err != nil {
+				// SCEP proxy (for NDES, etc.)
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
 					initFatal(err, "setup SCEP proxy")
+				}
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
+					initFatal(err, "setup SCIM")
 				}
 			}
 
@@ -1201,14 +1215,22 @@ the way that the Fleet server works.
 					// add an additional 30 seconds to prevent race conditions where the
 					// request is terminated early.
 					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for script sync run",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 				}
 
 				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
 					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
 						"/fleet/software/titles/")) ||
-					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) {
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet_maintained_apps")) ||
+					(req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/package/token")) ||
+					(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
 					var zeroTime time.Time
 					rc := http.NewResponseController(rw)
 					// For large software installers and bootstrap packages, the server time needs time to read the full
@@ -1217,7 +1239,12 @@ the way that the Fleet server works.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
 					// timeout be better?
 					if err := rc.SetReadDeadline(zeroTime); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint read timeout for software package upload",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 					// For large software installers, the server time needs time to store the
 					// installer to S3 (or the configured storage location) and write the response
@@ -1226,7 +1253,12 @@ the way that the Fleet server works.
 					// TODO: Is this really how we want to handle this? Or would an arbitrarily long
 					// timeout be better?
 					if err := rc.SetWriteDeadline(zeroTime); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for software package upload",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, fleet.MaxSoftwareInstallerSize)
 				}
@@ -1235,12 +1267,22 @@ the way that the Fleet server works.
 					// When enabling Android MDM, frontend UI will wait for the admin to finish the setup in Google.
 					rc := http.NewResponseController(rw)
 					if err := rc.SetWriteDeadline(time.Now().Add(30 * time.Minute)); err != nil {
-						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+						level.Error(logger).Log(
+							"msg", "http middleware failed to override endpoint write timeout for android enterpriset setup",
+							"response_writer_type", fmt.Sprintf("%T", rw),
+							"response_writer", fmt.Sprintf("%+v", rw),
+							"err", err,
+						)
 					}
 				}
 
 				apiHandler.ServeHTTP(rw, req)
 			})
+			// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
+			// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
+			// The Fleet API was designed this way for end-user simplicity.
+			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
+			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

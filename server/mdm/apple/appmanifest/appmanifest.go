@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/groob/plist"
 	"github.com/micromdm/micromdm/mdm/appmanifest"
+	"github.com/micromdm/plist"
 )
 
 type Manifest appmanifest.Manifest

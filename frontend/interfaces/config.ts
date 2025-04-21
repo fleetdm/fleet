@@ -13,6 +13,8 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
+  // Whether the Fleet instance is managed by FleetDM
+  managed_cloud: boolean;
 }
 
 export interface IEndUserAuthentication {
@@ -144,6 +146,12 @@ export interface IConfig {
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
   };
+  // configuration details for conditional access. For enabled/disabled status per team, see
+  // subfields under `integrations`
+  conditional_access?: {
+    microsoft_entra_tenant_id: string;
+    microsoft_entra_connection_configured: boolean;
+  };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window?: number;
@@ -169,10 +177,6 @@ export interface IConfig {
     disable_data_sync: boolean;
     recent_vulnerability_max_age: number;
   };
-  // Note: `vulnerability_settings` is deprecated and should not be used
-  // vulnerability_settings: {
-  //   databases_path: string;
-  // };
   webhook_settings: IWebhookSettings;
   integrations: IGlobalIntegrations;
   logging: {

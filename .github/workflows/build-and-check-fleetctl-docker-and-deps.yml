@@ -15,10 +15,6 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-env:
-  AWS_REGION: us-east-2
-  AWS_IAM_ROLE: arn:aws:iam::160035666661:role/github-actions-role
-
 permissions:
   contents: read
 
@@ -37,24 +33,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
-        with:
-          role-to-assume: ${{env.AWS_IAM_ROLE}}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
-
       - name: Set up Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version-file: "go.mod"
-
-      - name: Install Go Dependencies
-        run: make deps-go
 
       - name: Build fleetdm/wix
         run: make wix-docker
@@ -64,6 +46,32 @@ jobs:
 
       - name: Build fleetdm/fleetctl
         run: make fleetctl-docker
+
+      - name: List VEX files
+        id: generate_vex_files
+        run: |
+          echo "VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
+
+      # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
+      - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        run: |
+          mkdir trivy-download
+          cd trivy-download
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
+          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
+          mv trivy ..
+          cd ..
+          chmod +x ./trivy
+          ./trivy image \
+            --exit-code=1 \
+            --ignore-unfixed \
+            --pkg-types=os,library \
+            --severity=HIGH,CRITICAL \
+            --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
+            fleetdm/fleetctl
 
       - name: Run Trivy vulnerability scanner on fleetdm/wix
         uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
@@ -91,15 +99,23 @@ jobs:
           vuln-type: "os,library"
           severity: "CRITICAL"
 
-      - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
-        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8
-        env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+      - name: Slack root notification
+        if: github.event.schedule == '0 6 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
-          image-ref: "fleetdm/fleetctl"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL"
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ Build fleetctl docker dependencies and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

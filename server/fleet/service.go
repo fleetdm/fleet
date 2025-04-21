@@ -74,6 +74,9 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
+	GetTransparencyURL(ctx context.Context) (string, error)
+
 	// AuthenticateOrbitHost loads host identified by orbit's nodeKey. Returns an error if that nodeKey doesn't exist
 	AuthenticateOrbitHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
 	// EnrollOrbit enrolls an orbit instance to Fleet by using the host information + enroll secret
@@ -599,6 +602,11 @@ type Service interface {
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
+	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
+	// host. If the activity does not exist in the queue of upcoming activities
+	// (e.g. it did complete), it returns a not found error.
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 
@@ -1073,7 +1081,7 @@ type Service interface {
 	// team or for hosts with no team.
 	BatchSetMDMProfiles(
 		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
-		assumeEnabled *bool,
+		assumeEnabled *bool, noCache bool,
 	) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1154,7 +1162,7 @@ type Service interface {
 	// Software installers
 	//
 
-	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
+	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
@@ -1187,10 +1195,10 @@ type Service interface {
 
 	// AddFleetMaintainedApp adds a Fleet-maintained app to the given team.
 	AddFleetMaintainedApp(ctx context.Context, teamID *uint, appID uint, installScript, preInstallQuery, postInstallScript, uninstallScript string, selfService bool, automaticInstall bool, labelsIncludeAny, labelsExcludeAny []string) (uint, error)
-	// ListFleetMaintainedApps lists Fleet-maintained apps available to a specific team
+	// ListFleetMaintainedApps lists Fleet-maintained apps, including associated software title for supplied team ID (if any)
 	ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts ListOptions) ([]MaintainedApp, *PaginationMetadata, error)
-	// GetFleetMaintainedApp returns a Fleet-maintained app by ID
-	GetFleetMaintainedApp(ctx context.Context, appID uint) (*MaintainedApp, error)
+	// GetFleetMaintainedApp returns a Fleet-maintained app by ID, including associated software title for supplied team ID (if any)
+	GetFleetMaintainedApp(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Maintenance windows
@@ -1203,6 +1211,12 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
+	ScimDetails(ctx context.Context) (ScimDetails, error)
 }
 
 type KeyValueStore interface {

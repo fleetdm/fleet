@@ -47,7 +47,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/rs/zerolog"
 
 	howett "howett.net/plist"

@@ -239,29 +239,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
-        const chromebooks = data.platforms?.find(
+        const chomeOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
-        const iphones = data.platforms?.find(
+        const iOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "ios"
         ) || { platform: "ios", hosts_count: 0 };
 
-        const ipads = data.platforms?.find(
+        const iPadOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
         ) || { platform: "ipados", hosts_count: 0 };
 
-        const android = data.platforms?.find(
+        const androidHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "android"
         ) || { platform: "android", hosts_count: 0 };
 
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
-        setChromeCount(chromebooks.hosts_count);
-        setIosCount(iphones.hosts_count);
-        setIpadosCount(ipads.hosts_count);
-        setAndroidCount(android.hosts_count);
+        setChromeCount(chomeOSHosts.hosts_count);
+        setIosCount(iOSHosts.hosts_count);
+        setIpadosCount(iPadOSHosts.hosts_count);
+        setAndroidCount(androidHosts.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -498,6 +498,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareActionUrl(
         index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
+    setSoftwarePageIndex(0);
   };
 
   let refetchActivities = () => {
@@ -648,6 +649,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
         router={router}
+        softwarePageIndex={softwarePageIndex}
       />
     ),
   });

@@ -102,7 +102,7 @@ func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, querie
 		if err := q.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
-		_, err := stmt.ExecContext(
+		result, err := stmt.ExecContext(
 			ctx,
 			q.Name,
 			q.Description,
@@ -120,6 +120,47 @@ func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, querie
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "exec queries insert")
+		}
+
+		// Get the ID of the row, if it was a new query.
+		id, _ := result.LastInsertId()
+		// If the ID is 0, it was an update, so we need to get the ID.
+		if id == 0 {
+			var (
+				rows *sql.Rows
+				err  error
+			)
+			// Get the query that was updated.
+			if q.TeamID == nil {
+				rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id is NULL", q.Name)
+			} else {
+				rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id = ?", q.Name, q.TeamID)
+			}
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "select queries id")
+			}
+			// Get the ID from the rows
+			if rows.Next() {
+				if err := rows.Scan(&id); err != nil {
+					return ctxerr.Wrap(ctx, err, "scan queries id")
+				}
+			} else {
+				return ctxerr.Wrap(ctx, err, "could not find query after update")
+			}
+			if err = rows.Err(); err != nil {
+				return ctxerr.Wrap(ctx, err, "err queries id")
+			}
+			if err := rows.Close(); err != nil {
+				return ctxerr.Wrap(ctx, err, "close queries id")
+			}
+
+		}
+		//nolint:gosec // dismiss G115
+		q.ID = uint(id)
+
+		err = ds.updateQueryLabelsInTx(ctx, q, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "exec queries update labels")
 		}
 	}
 
@@ -256,9 +297,18 @@ func (ds *Datastore) NewQuery(
 	return query, nil
 }
 
+func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+	return ds.updateQueryLabelsInTx(ctx, query, nil)
+}
+
 // updates the LabelsIncludeAny for a query, using the string value of
 // the label. Labels IDs are populated
-func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, query *fleet.Query, txToUse *sqlx.Tx) error {
+	var (
+		tx  *sqlx.Tx
+		err error
+	)
+
 	insertLabelSql := `
 		INSERT INTO query_labels (
 			query_id,
@@ -274,36 +324,57 @@ func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) 
 		WHERE query_id = ?
 	`
 
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+	// If we aren't given a transaction, start our own.
+	if txToUse == nil {
+		tx, err = ds.writer(ctx).BeginTxx(ctx, nil)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing old query labels")
+			return ctxerr.Wrap(ctx, err, "begin updateQueryLabelsInTx")
 		}
-
-		if len(query.LabelsIncludeAny) == 0 {
-			return nil
-		}
-
-		labelNames := []string{}
-		for _, label := range query.LabelsIncludeAny {
-			labelNames = append(labelNames, label.LabelName)
-		}
-
-		labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query label update statement")
-		}
-
-		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query labels")
-		}
-
-		return nil
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query labels")
+		// Handle errors by attempting to roll back.
+		defer func() {
+			if err != nil {
+				rbErr := tx.Rollback()
+				// Handle error in rollback.
+				if rbErr != nil && rbErr != sql.ErrTxDone {
+					panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+				}
+			}
+		}()
+		// When we're done updating labels, commit our transaction.
+		defer func() {
+			if err != nil {
+				return
+			}
+			err = tx.Commit()
+		}()
+	} else {
+		tx = txToUse
 	}
 
-	if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {
+	_, err = tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "removing old query labels")
+	}
+
+	if len(query.LabelsIncludeAny) == 0 {
+		return nil
+	}
+
+	labelNames := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelNames = append(labelNames, label.LabelName)
+	}
+
+	labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query label update statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query labels")
+	}
+
+	if err := loadLabelsForQueries(ctx, tx, []*fleet.Query{query}); err != nil {
 		return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
 	}
 

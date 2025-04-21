@@ -1,1 +1,0 @@
-* Allowed VPP apps to be automatically installed via a Fleet-created policy. Also added auto-install to FMA via the API, replacing a more brittle client-side implementation.

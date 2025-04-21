@@ -295,7 +295,7 @@ func readFlagFile(rootDir string) (map[string]string, error) {
 			continue
 		}
 		// split each line by "="
-		str := strings.Split(line, "=")
+		str := strings.SplitN(line, "=", 2)
 		if len(str) == 2 {
 			result[str[0]] = str[1]
 		}

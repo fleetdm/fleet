@@ -4,15 +4,15 @@ import UploadList from "pages/ManageControlsPage/components/UploadList";
 
 import CertAuthorityListHeader from "../CertAuthorityListHeader";
 import CertAuthorityListItem from "../CertAuthorityListItem";
-import { ICertAuthority } from "../../helpers";
+import { ICertAuthorityListData } from "../../helpers";
 
 const baseClass = "certificate-authority-list";
 
 interface ICertificateAuthorityListProps {
-  certAuthorities: ICertAuthority[];
+  certAuthorities: ICertAuthorityListData[];
   onAddCertAuthority: () => void;
-  onClickEdit: (cert: ICertAuthority) => void;
-  onClickDelete: (cert: ICertAuthority) => void;
+  onClickEdit: (cert: ICertAuthorityListData) => void;
+  onClickDelete: (cert: ICertAuthorityListData) => void;
 }
 
 const CertificateAuthorityList = ({
@@ -22,7 +22,7 @@ const CertificateAuthorityList = ({
   onClickDelete,
 }: ICertificateAuthorityListProps) => {
   return (
-    <UploadList<ICertAuthority>
+    <UploadList<ICertAuthorityListData>
       className={baseClass}
       keyAttribute="name"
       listItems={certAuthorities}

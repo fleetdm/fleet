@@ -11,7 +11,8 @@ var ManifestXMLTemplate = template.Must(template.New("").Option("missingkey=erro
     type="win32"
     name="Fleet osquery"
     version="{{.Version}}"
-    processorArchitecture="*"/>
+    processorArchitecture="{{.Arch}}"
+  />
  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
    <security>
      <requestedPrivileges>
@@ -92,7 +93,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 <CreateFolder>
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </CreateFolder>
-                <File Source="root\bin\orbit\windows\{{ .OrbitChannel }}\orbit.exe">
+                <File Source="root\bin\orbit\{{ .NativePlatform }}\{{ .OrbitChannel }}\orbit.exe">
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </File>
                 <Environment Id='OrbitUpdateInterval' Name='ORBIT_UPDATE_INTERVAL' Value='{{ .OrbitUpdateInterval }}' Action='set' System='yes' />

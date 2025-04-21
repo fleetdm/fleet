@@ -52,8 +52,8 @@ const AdvancedOptionsFields = ({
 
     return (
       <Button variant="text-icon" onClick={onClickShowSchema}>
+        Schema
         <Icon name="info" size="small" />
-        <span>Show schema</span>
       </Button>
     );
   };

@@ -23,6 +23,13 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
+      "name": "Box Drive",
+      "slug": "box-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Box",
+      "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",
@@ -30,10 +37,24 @@
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
+      "name": "Brave",
+      "slug": "brave-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Brave",
+      "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
       "name": "Cloudflare WARP",
       "slug": "cloudflare-warp/darwin",
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
+      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Cloudflare WARP",
+      "slug": "cloudflare-warp/windows",
+      "platform": "windows",
+      "unique_identifier": "Cloudflare WARP",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
@@ -62,6 +83,13 @@
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Google Chrome",
+      "slug": "google-chrome/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
@@ -121,10 +149,24 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "TeamViewer",
+      "slug": "teamviewer/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer",
+      "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.VSCode",
+      "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Microsoft Visual Studio Code",
+      "slug": "visual-studio-code/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
@@ -135,8 +177,8 @@
       "description": "WhatsApp's native desktop client for seamless messaging and calling on macOS."
     },
     {
-      "name": "Zoom for IT Admins",
-      "slug": "zoom-for-it-admins/darwin",
+      "name": "Zoom",
+      "slug": "zoom/darwin",
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."

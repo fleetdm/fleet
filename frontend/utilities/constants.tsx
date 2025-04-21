@@ -3,7 +3,7 @@ import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IconNames } from "components/icons";
+import { ICampaign } from "interfaces/campaign";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -83,6 +83,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.17.0 +", value: "5.17.0" },
   { label: "5.16.0 +", value: "5.16.0" },
   { label: "5.15.0 +", value: "5.15.0" },
   { label: "5.14.1 +", value: "5.14.1" },
@@ -171,26 +172,34 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
 
 export const DEFAULT_CAMPAIGN = {
   created_at: "",
-  errors: [],
-  hosts: [],
-  hosts_count: {
-    total: 0,
-    successful: 0,
-    failed: 0,
-  },
-  id: 0,
-  query_id: 0,
-  query_results: [],
-  status: "",
+
   totals: {
     count: 0,
     missing_in_action: 0,
     offline: 0,
     online: 0,
   },
+
+  errors: [],
+  hosts: [],
+  uiHostCounts: {
+    total: 0,
+    successful: 0,
+    failed: 0,
+  },
+  queryResults: [],
+
+  status: "",
+  serverHostCounts: {
+    countOfHostsWithResults: 0,
+    countOfHostsWithNoResults: 0,
+  },
+
+  id: 0,
+  query_id: 0,
   updated_at: "",
   user_id: 0,
-};
+} as ICampaign;
 
 export const DEFAULT_CAMPAIGN_STATE = {
   observerShowSql: false,

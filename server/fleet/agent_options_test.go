@@ -149,12 +149,12 @@ func TestValidateAgentOptions(t *testing.T) {
 		}}`, true, ``},
 		{"setting an invalid value for an os-specific flag", `{"command_line_flags":{
 			"disable_endpointsecurity": "ok"
-		}}`, true, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.disable_endpointsecurity of type bool`},
+		}}`, true, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.OsqueryCommandLineFlagsMacOS.disable_endpointsecurity of type bool`},
 		{"setting an invalid value for an os-specific option", `{"config":{
 			"options": {
 				"disable_endpointsecurity": "ok"
 			}
-		}}`, true, `common config: json: cannot unmarshal string into Go struct field osqueryOptions.options.disable_endpointsecurity of type bool`},
+		}}`, true, `common config: json: cannot unmarshal string into Go struct field osqueryOptions.options.OsqueryCommandLineFlagsMacOS.disable_endpointsecurity of type bool`},
 		{"setting an empty update_channels", `{
 			"update_channels": null
 		}`, true, `update_channels cannot be null`},

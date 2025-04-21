@@ -3,13 +3,13 @@
 You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq#can-you-host-fleet-for-me).  Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-md-row flex-column">
-    <a href="#render">
+    <a href="#render" id="deploy-render">
         <div>
             <img src="/images/docs/render-logo-147x80@2x.png">
             <p>Deploy to Render in 5 minutes</p>
         </div>
     </a>
-    <a href="#aws">
+    <a href="#aws" id="deploy-aws">
         <div>
         <img src="/images/docs/aws-logo-133x80@2x.png">
         <p>Scale on AWS with Terraform</p>
@@ -17,7 +17,7 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
     </a>
 </div>
 
-Want to host Fleet yourself? Check out the [reference architecture](https://fleetdm.com/docs/deploy/reference-architectures#reference-architectures).
+Want to enable premium features?  You can easily [configure your license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key) as an environment variable.
 
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
@@ -41,7 +41,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 ### Instructions
 
 <div purpose="deploy-to-render-button">
-    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet">
+    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet" id="render-button">
         <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
     </a>
 </div>

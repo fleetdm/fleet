@@ -82,8 +82,8 @@
       </div>
       <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
-        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
         <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
+        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
@@ -338,7 +338,7 @@
               //  ██║     ██║  ██║╚██████╔╝    ██║  ██║ ██║
               //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝ ╚═╝
               %>
-              You already know how to manage the operating system. In Fleet, you can focus on managing Apple, Windows and Linux; not Intune, Omnissa, and your anxiety.
+              You already know how to manage the operating system. In Fleet, you can focus on managing {{ bowser.windows ? 'Windows, Apple' : 'Apple, Windows'}} and Linux; not "Android MDM", "Apple MDM", "config management", etc.
             </p>
           </div>
           <div purpose="accordion-item">
@@ -363,7 +363,7 @@
               //  ██║     ██║  ██║╚██████╔╝    ██║  ██║███████╗
               //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝╚══════╝
               %>
-              We're moving pretty fast, and we have every incentive to listen. At Fleet, everyone can contribute. We also regularly deliver customer promises, and all the code is 100% source-available.
+              We're moving pretty fast, and we have every incentive to listen. At Fleet, everyone can contribute. We also regularly deliver customer promises, and all the code is <a href="https://github.com/fleetdm/fleet">100% source-available</a>.
             </p>
           </div>
           <div purpose="accordion-item">
@@ -388,12 +388,12 @@
               //  ██║     ██║  ██║╚██████╔╝    ██║  ██║██████╔╝
               //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝╚═════╝
               %>
-              Fleet <a href="https://fleetdm.com/handbook/company#history">started as an osquery management server</a>. After 10 years of production osquery use at scale in huge organizations, Fleet added "write" and "execute" device management capabilities, with all the necessary integrations to be comparable with other device management platforms like Omnissa (fka WS1, fka Airwatch), Jamf, Intune, and more. Today, Fleet is actively used as the next-gen MDM in homelabs all over the world, and at larger fleets at Epic Games, Cisco, Stripe, Fastly, Lear, and more.
+              Fleet <a href="https://fleetdm.com/handbook/company#history">started as an osquery management server</a>. After 10 years of production osquery use at scale in huge organizations, Fleet added "write" and "execute" device management capabilities, with all the necessary integrations to be comparable with other device management platforms like Omnissa (fka WS1, fka Airwatch), Jamf, Intune, and more. Today, Fleet is used in homelabs all over the world, and at larger fleets at Epic Games, Cisco, Stripe, Fastly, Lear, and more.
             </p>
           </div>
         </div>
         <div class="d-flex flex-row justify-content-start">
-          <p purpose="contact-note">Couldn’t find an answer? <a href="/contact">Talk to an engineer</a>.</p>
+          <p purpose="contact-note">Couldn’t find an answer? <a href="/docs/get-started/faq">Read the FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
         </div>
       </div>
     </div>
@@ -404,5 +404,6 @@
       <a :href="selectedFeature.documentationUrl" target="_blank" v-if="selectedFeature.documentationUrl" no-icon>Learn more</a>
     </div>
   </modal>
+  <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

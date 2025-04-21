@@ -30,8 +30,7 @@ const (
 type Service struct {
 	logger   kitlog.Logger
 	authz    *authz.Authorizer
-	ds       android.Datastore
-	fleetDS  fleet.Datastore
+	ds       fleet.AndroidDatastore
 	proxy    android.Proxy
 	fleetSvc fleet.Service
 
@@ -42,16 +41,16 @@ type Service struct {
 func NewService(
 	ctx context.Context,
 	logger kitlog.Logger,
-	fleetDS fleet.Datastore,
+	ds fleet.AndroidDatastore,
 	fleetSvc fleet.Service,
 ) (android.Service, error) {
 	prx := proxy.NewProxy(ctx, logger)
-	return NewServiceWithProxy(logger, fleetDS, prx, fleetSvc)
+	return NewServiceWithProxy(logger, ds, prx, fleetSvc)
 }
 
 func NewServiceWithProxy(
 	logger kitlog.Logger,
-	fleetDS fleet.Datastore,
+	ds fleet.AndroidDatastore,
 	proxy android.Proxy,
 	fleetSvc fleet.Service,
 ) (android.Service, error) {
@@ -63,8 +62,7 @@ func NewServiceWithProxy(
 	return &Service{
 		logger:            logger,
 		authz:             authorizer,
-		ds:                fleetDS.GetAndroidDS(),
-		fleetDS:           fleetDS,
+		ds:                ds,
 		proxy:             proxy,
 		fleetSvc:          fleetSvc,
 		SignupSSEInterval: DefaultSignupSSEInterval,
@@ -129,7 +127,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 }
 
 func (svc *Service) checkIfAndroidAlreadyConfigured(ctx context.Context) (*fleet.AppConfig, error) {
-	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
@@ -192,7 +190,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "generating pubsub token")
 	}
-	err = svc.fleetDS.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
+	err = svc.ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{
 		Name:  fleet.MDMAssetAndroidPubSubToken,
 		Value: []byte(pubSubToken),
 	})
@@ -261,12 +259,12 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "deleting temp enterprises")
 	}
 
-	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, true)
+	err = svc.ds.SetAndroidEnabledAndConfigured(ctx, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting android enabled and configured")
 	}
 
-	user, err := svc.fleetDS.UserOrDeletedUserByID(ctx, enterprise.UserID)
+	user, err := svc.ds.UserOrDeletedUserByID(ctx, enterprise.UserID)
 	switch {
 	case fleet.IsNotFound(err):
 		// This should never happen.
@@ -341,12 +339,12 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "deleting enterprises")
 	}
 
-	err = svc.fleetDS.SetAndroidEnabledAndConfigured(ctx, false)
+	err = svc.ds.SetAndroidEnabledAndConfigured(ctx, false)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "clearing android enabled and configured")
 	}
 
-	err = svc.fleetDS.BulkSetAndroidHostsUnenrolled(ctx)
+	err = svc.ds.BulkSetAndroidHostsUnenrolled(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set android hosts as unenrolled")
 	}
@@ -355,7 +353,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
-	err = svc.fleetDS.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken})
+	err = svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting pubsub token")
 	}
@@ -391,7 +389,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		return nil, err
 	}
 
-	_, err = svc.fleetDS.VerifyEnrollSecret(ctx, enrollSecret)
+	_, err = svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, fleet.NewAuthFailedError("invalid secret")
@@ -425,7 +423,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 
 func (svc *Service) checkIfAndroidNotConfigured(ctx context.Context) (*fleet.AppConfig, error) {
 	// This call uses cached_mysql implementation, so it's safe to call it multiple times
-	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
@@ -508,7 +506,7 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 }
 
 func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
-	appConfig, err := svc.fleetDS.AppConfig(ctx)
+	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		done <- fmt.Sprintf("Error getting app config: %v", err)
 		return true

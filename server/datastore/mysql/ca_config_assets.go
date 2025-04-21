@@ -12,16 +12,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetAllCAConfigAssets(ctx context.Context) (map[string]fleet.CAConfigAsset, error) {
+func (ds *Datastore) GetAllCAConfigAssetsByType(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
 	stmt := `
 SELECT
-    name, type, value
+	   name, type, value
 FROM
-   ca_config_assets
-	`
+	  ca_config_assets
+WHERE
+	  type = ?
+		`
 
 	var res []fleet.CAConfigAsset
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, assetType); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get CA config assets")
 	}
 

@@ -141,10 +141,11 @@ const generateColumnConfigs = ({
         const { id, team_id, observer_can_run } = cellProps.row.original;
         return (
           <LinkCell
-            className="w400 query-name-cell"
-            value={
+            className="w400"
+            tooltipTruncate
+            value={cellProps.cell.value as string}
+            suffix={
               <>
-                <div className="query-name-text">{cellProps.cell.value}</div>
                 {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
                   <div className="observer-can-run-badge">
                     <span

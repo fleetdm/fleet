@@ -11,6 +11,8 @@ $base-class: "button";
   background-color: $color;
 
   @if $inverse {
+    padding: $pad-small;
+
     &:hover {
       background-color: rgba(#192147, 0.05);
 
@@ -85,7 +87,7 @@ $base-class: "button";
     align-items: center;
   }
 
-  &--brand {
+  &--default {
     @include button-variant(
       $core-vibrant-blue,
       $core-vibrant-blue-over,
@@ -96,7 +98,9 @@ $base-class: "button";
   }
 
   &--success {
-    @include button-variant($ui-success);
+    @include button-variant($ui-success, $ui-success-over, $ui-success-down);
+    display: flex;
+    text-wrap: nowrap;
   }
 
   &--alert {
@@ -116,27 +120,7 @@ $base-class: "button";
     }
   }
 
-  &--blue-green {
-    @include button-variant($ui-success);
-  }
-
-  &--grey {
-    @include button-variant(
-      $core-fleet-blue,
-      $core-fleet-blue-over,
-      $core-fleet-blue-down
-    );
-  }
-
-  &--warning {
-    @include button-variant($ui-warning);
-  }
-
-  &--link {
-    @include button-variant($core-fleet-purple);
-  }
-
-  &--label {
+  &--pill {
     @include button-variant(
       $ui-off-white,
       $core-vibrant-blue-over,
@@ -174,12 +158,6 @@ $base-class: "button";
     line-height: normal;
     text-align: left;
 
-    &:active {
-      color: $core-vibrant-blue-down;
-      box-shadow: none;
-      top: 0;
-    }
-
     &:focus {
       outline: none;
     }
@@ -190,6 +168,12 @@ $base-class: "button";
       background-color: transparent;
       box-shadow: none;
       text-decoration: underline;
+    }
+
+    &:active {
+      color: $core-vibrant-blue-down;
+      box-shadow: none;
+      top: 0;
     }
 
     &.light-text {
@@ -215,10 +199,6 @@ $base-class: "button";
       transform: scale(0.5);
     }
 
-    &:active {
-      color: $core-vibrant-blue-down;
-    }
-
     &:focus {
       outline: none;
     }
@@ -238,11 +218,21 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      color: $core-vibrant-blue;
+      color: $core-vibrant-blue-over;
 
       svg {
         path {
-          fill: $core-vibrant-blue;
+          fill: $core-vibrant-blue-over;
+        }
+      }
+
+      &:active {
+        color: $core-vibrant-blue-down;
+
+        svg {
+          path {
+            fill: $core-vibrant-blue-down;
+          }
         }
       }
 
@@ -279,43 +269,6 @@ $base-class: "button";
     }
   }
 
-  &--small-text-icon {
-    @include button-variant(transparent);
-    margin-left: $pad-medium;
-    padding: 4px;
-    border: 1px solid $ui-fleet-black-25;
-    box-shadow: none;
-    color: $core-fleet-black;
-    font-size: $xx-small;
-    font-weight: $bold;
-    cursor: pointer;
-    height: 28px;
-
-    img {
-      width: 12px;
-      height: 12px;
-      padding: $pad-small;
-    }
-
-    &:active {
-      color: $core-vibrant-blue-down;
-    }
-
-    &:focus-visible {
-      color: $core-vibrant-blue-over;
-      border: 1px;
-      border-radius: 2px; // Visble when tabbing
-      background: var(--Core-White, #fff);
-      outline: none;
-      box-shadow: 0px 0px 0px 2px #fff, 0px 0px 0px 4px #d9d9fe;
-    }
-
-    &:hover,
-    &:focus {
-      color: $core-vibrant-blue-over;
-    }
-  }
-
   &--inverse {
     @include button-variant(
       $core-white,
@@ -325,7 +278,10 @@ $base-class: "button";
     );
     color: $core-vibrant-blue;
     box-sizing: border-box;
-    padding: $pad-small;
+
+    .children-wrapper {
+      gap: $pad-small; // For icons next to text like Pagination buttons
+    }
   }
 
   &--inverse-alert {
@@ -336,18 +292,7 @@ $base-class: "button";
       $inverse: true
     );
     color: $core-vibrant-red;
-    border: 0;
     box-sizing: border-box;
-
-    &:hover,
-    &:focus {
-      border: 0;
-    }
-  }
-
-  &--block {
-    display: block;
-    width: 100%;
   }
 
   &--disabled {
@@ -427,12 +372,6 @@ $base-class: "button";
         }
       }
     }
-  }
-
-  &--contextual-nav-item {
-    @include button-variant(transparent, $ui-vibrant-blue-10);
-    display: flex;
-    justify-content: space-between;
   }
 
   &--oversized {

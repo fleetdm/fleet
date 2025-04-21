@@ -15,10 +15,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) GetAndroidDS() android.Datastore {
-	return ds.androidDS
-}
-
 func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")
@@ -116,7 +112,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
-		host.Device, err = ds.androidDS.CreateDeviceTx(ctx, tx, host.Device)
+		host.Device, err = ds.Datastore.CreateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
 		}
@@ -191,7 +187,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			}
 		}
 
-		err = ds.androidDS.UpdateDeviceTx(ctx, tx, host.Device)
+		err = ds.Datastore.UpdateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android device")
 		}

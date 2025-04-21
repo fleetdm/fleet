@@ -79,6 +79,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	// structure (Target>Item>LocURI) so we don't need to track all the tags.
 	var inValidNode bool
 	var inLocURI bool
+	var inComment bool
 
 	for {
 		tok, err := dec.Token()
@@ -96,7 +97,20 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		case xml.ProcInst:
 			return errors.New("The file should include valid XML: processing instructions are not allowed.")
 
+		case xml.Comment:
+			inComment = true
+			continue
+
 		case xml.StartElement:
+			// Top-level comments should be followed by <Replace> or <Add> elements
+			if inComment {
+				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements after comments")
+				}
+				inValidNode = true
+				inComment = false
+			}
+
 			switch t.Name.Local {
 			case "Replace", "Add":
 				inValidNode = true
@@ -132,8 +146,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	return nil
 }
 
-var fleetProvidedLocURIValidationMap = map[string][2]string{
-	syncml.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+var fleetProvidedLocURIValidationMap = map[string][]string{
+	syncml.FleetBitLockerTargetLocURI: nil,
 	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
@@ -141,7 +155,14 @@ func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
+			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
+				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
+			}
+			if len(errHints) == 2 {
+				return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.",
+					errHints[0], errHints[1])
+			}
+			return fmt.Errorf("Custom configuration profiles can't include these settings. %q", errHints)
 		}
 	}
 
@@ -149,26 +170,30 @@ func validateFleetProvidedLocURI(locURI string) error {
 }
 
 type MDMWindowsProfilePayload struct {
-	ProfileUUID   string             `db:"profile_uuid"`
-	ProfileName   string             `db:"profile_name"`
-	HostUUID      string             `db:"host_uuid"`
-	Status        *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType MDMOperationType   `db:"operation_type"`
-	Detail        string             `db:"detail"`
-	CommandUUID   string             `db:"command_uuid"`
-	Retries       int                `db:"retries"`
+	ProfileUUID      string             `db:"profile_uuid"`
+	ProfileName      string             `db:"profile_name"`
+	HostUUID         string             `db:"host_uuid"`
+	Status           *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType    MDMOperationType   `db:"operation_type"`
+	Detail           string             `db:"detail"`
+	CommandUUID      string             `db:"command_uuid"`
+	Retries          int                `db:"retries"`
+	Checksum         []byte             `db:"checksum"`
+	SecretsUpdatedAt *time.Time         `db:"secrets_updated_at"`
 }
 
 func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
 	statusEqual := p.Status == nil && other.Status == nil || p.Status != nil && other.Status != nil && *p.Status == *other.Status
-	return statusEqual &&
+	secretsEqual := p.SecretsUpdatedAt == nil && other.SecretsUpdatedAt == nil || p.SecretsUpdatedAt != nil && other.SecretsUpdatedAt != nil && p.SecretsUpdatedAt.Equal(*other.SecretsUpdatedAt)
+	return statusEqual && secretsEqual &&
 		p.ProfileUUID == other.ProfileUUID &&
 		p.HostUUID == other.HostUUID &&
 		p.ProfileName == other.ProfileName &&
 		p.OperationType == other.OperationType &&
 		p.Detail == other.Detail &&
 		p.CommandUUID == other.CommandUUID &&
-		p.Retries == other.Retries
+		p.Retries == other.Retries &&
+		bytes.Equal(p.Checksum, other.Checksum)
 }
 
 type MDMWindowsBulkUpsertHostProfilePayload struct {
@@ -179,4 +204,10 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 	OperationType MDMOperationType
 	Status        *MDMDeliveryStatus
 	Detail        string
+	Checksum      []byte
+}
+
+type MDMWindowsProfileContents struct {
+	SyncML   []byte `db:"syncml"`
+	Checksum []byte `db:"checksum"`
 }

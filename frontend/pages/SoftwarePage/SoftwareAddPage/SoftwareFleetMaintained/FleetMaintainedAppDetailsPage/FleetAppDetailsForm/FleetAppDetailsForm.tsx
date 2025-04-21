@@ -1,23 +1,52 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+} from "pages/SoftwarePage/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+import paths from "router/paths";
 
 import RevealButton from "components/buttons/RevealButton";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import {
-  CUSTOM_TARGET_OPTIONS,
-  generateHelpText,
-} from "pages/SoftwarePage/helpers";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { generateFormValidation } from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
+export const softwareAlreadyAddedTipContent = (
+  softwareTitleId?: number,
+  teamId?: string
+) => {
+  const pathToSoftwareTitles = softwareTitleId
+    ? getPathWithQueryParams(
+        paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString()),
+        {
+          team_id: teamId,
+        }
+      )
+    : "";
+  return (
+    <>
+      You already added this software.
+      <br />
+      <CustomLink
+        url={pathToSoftwareTitles}
+        text="View software"
+        variant="tooltip-link"
+      />
+    </>
+  );
+};
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
   automaticInstall: boolean;
@@ -42,10 +71,12 @@ interface IFleetAppDetailsFormProps {
   defaultInstallScript: string;
   defaultPostInstallScript: string;
   defaultUninstallScript: string;
+  teamId?: string;
   showSchemaButton: boolean;
   onClickShowSchema: () => void;
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
+  softwareTitleId?: number;
 }
 
 const FleetAppDetailsForm = ({
@@ -54,11 +85,16 @@ const FleetAppDetailsForm = ({
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,
+  teamId,
   showSchemaButton,
   onClickShowSchema,
   onCancel,
   onSubmit,
+  softwareTitleId,
 }: IFleetAppDetailsFormProps) => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const [formData, setFormData] = useState<IFleetMaintainedAppFormData>({
@@ -137,16 +173,21 @@ const FleetAppDetailsForm = ({
     onSubmit(formData);
   };
 
-  const isSubmitDisabled = !formValidation.isValid;
+  const gitOpsModeDisabledClass = gitOpsModeEnabled
+    ? "form-fields--disabled"
+    : "";
+  const isSoftwareAlreadyAdded = !!softwareTitleId;
+  const isSubmitDisabled = !formValidation.isValid || isSoftwareAlreadyAdded;
 
   return (
-    <form className={baseClass} onSubmit={onSubmitForm}>
-      <div className={`${baseClass}__form-frame`}>
+    <form className={`${baseClass}`} onSubmit={onSubmitForm}>
+      <div className={`${baseClass}__form-frame ${gitOpsModeDisabledClass}`}>
         <Card paddingSize="medium" borderRadiusSize="large">
           <SoftwareOptionsSelector
             formData={formData}
             onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
             onToggleSelfService={onToggleSelfServiceCheckbox}
+            disableOptions={isSoftwareAlreadyAdded}
           />
         </Card>
         <Card paddingSize="medium" borderRadiusSize="large">
@@ -164,10 +205,13 @@ const FleetAppDetailsForm = ({
             onSelectCustomTarget={onSelectCustomTargetOption}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            disableOptions={isSoftwareAlreadyAdded}
           />
         </Card>
       </div>
-      <div className={`${baseClass}__advanced-options-section`}>
+      <div
+        className={`${baseClass}__advanced-options-section ${gitOpsModeDisabledClass}`}
+      >
         <RevealButton
           className={`${baseClass}__accordion-title`}
           isShowing={showAdvancedOptions}
@@ -175,6 +219,7 @@ const FleetAppDetailsForm = ({
           hideText="Advanced options"
           caretPosition="after"
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+          disabled={isSoftwareAlreadyAdded}
         />
         {showAdvancedOptions && (
           <AdvancedOptionsFields
@@ -199,9 +244,28 @@ const FleetAppDetailsForm = ({
         )}
       </div>
       <div className={`${baseClass}__action-buttons`}>
-        <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
-          Add software
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <TooltipWrapper
+              tipContent={softwareAlreadyAddedTipContent(
+                softwareTitleId,
+                teamId
+              )}
+              disableTooltip={!isSoftwareAlreadyAdded}
+              position="left"
+              showArrow
+              underline={false}
+              tipOffset={10}
+            >
+              <Button
+                type="submit"
+                disabled={disableChildren || isSubmitDisabled}
+              >
+                Add software
+              </Button>
+            </TooltipWrapper>
+          )}
+        />
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>

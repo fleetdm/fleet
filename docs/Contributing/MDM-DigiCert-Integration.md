@@ -10,6 +10,11 @@ _Notes:_
 - Profile enrollment method must be `REST API` and Authentication method must be `3rd Party App`
 - To add User Principal Name to the issued certificate, the `Seat type` must be `User`, and `Subject Alternative Name (SAN) > Other name (UPN)` must be set to `REST request` as the source.
 
+## Issues and limitations
+
+- CA name should be treated as a unique identifier and never changed once set. The profiles (and potential renewals) are tied to the CA name. To cleanly change the CA name, remove any profiles using the old CA name (which will remove the associated certificates from devices), change the CA name, upload new profiles using the new CA name.
+- Although you can have multiple PKCS12 payloads in a profile, each CA can only be used once per profile.
+
 ## Architecture diagrams
 
 ```mermaid
@@ -17,6 +22,7 @@ _Notes:_
 title: Enable DigiCert integration
 ---
 sequenceDiagram
+    autonumber
     actor admin as Admin
     participant fleet as Fleet server
     participant digicert as DigiCert
@@ -33,6 +39,7 @@ sequenceDiagram
 title: Deploy DigiCert certificate to Apple host
 ---
 sequenceDiagram
+    autonumber
     actor admin as Admin
     participant host as Host
     participant fleet as Fleet server
@@ -45,6 +52,7 @@ sequenceDiagram
     fleet--)+fleet: Process profiles every 30 seconds
     fleet->>fleet: Validate profile
     fleet->>fleet: Decrypt API token
+    fleet->>fleet: Inject Fleet variables
     fleet->>+digicert: Get certificate
     digicert-->>-fleet: Certificate
     fleet->>fleet: Save NotValidAfter date
@@ -55,6 +63,7 @@ sequenceDiagram
     host--)+fleet: Idle message
     fleet-->>-host: PKCS12 profile (DigiCert certificate)
     activate host
+    host->>host: Add certificate to keychain
     host-->>-fleet: Acknowledged message
     activate fleet
     fleet-->>-host: Empty

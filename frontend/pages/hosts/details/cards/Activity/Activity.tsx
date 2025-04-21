@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
@@ -8,6 +9,7 @@ import {
 } from "services/entities/activities";
 
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Spinner from "components/Spinner";
@@ -35,7 +37,9 @@ interface IActivityProps {
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
+  className?: string;
   upcomingCount: number;
+  canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -48,26 +52,30 @@ const Activity = ({
   activities,
   isLoading,
   isError,
+  className,
   upcomingCount,
+  canCancelActivities,
   onChangeTab,
   onNextPage,
   onPreviousPage,
   onShowDetails,
   onCancel,
 }: IActivityProps) => {
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      largePadding
-      className={baseClass}
+      className={classNames}
     >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
-          <Spinner />
+          <Spinner centered />
         </div>
       )}
-      <h2>Activity</h2>
+      <CardHeader header="Activity" />
       <TabNav>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
@@ -101,6 +109,7 @@ const Activity = ({
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
+              canCancelActivities={canCancelActivities}
             />
           </TabPanel>
         </Tabs>

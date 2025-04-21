@@ -196,7 +196,6 @@ const ManageQueryAutomationsModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 onClick={onSubmitQueryAutomations}
                 className="save-loading"
                 isLoading={isUpdatingAutomations}

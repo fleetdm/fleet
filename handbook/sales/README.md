@@ -6,11 +6,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Team
 
 | Role                                  | Contributor(s)           |
-|:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief Revenue Officer (CRO)                  | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Solutions Consulting (SC)                    | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_
-| Channel Sales                                | [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_
-| Account Executive (AE)                       | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Kendra McKeever](https://www.linkedin.com/in/kendramckeever/) _([@KendraAtFleet](https://github.com/KendraAtFleet))_
+|:--------------------------------------|:------------------------------------------------------------------------------------------|
+| Head of Customers                     | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
 
 
 ## Contact us
@@ -24,23 +22,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
-
-### Communicate marketing priority level
-
-All GTM stakeholders are responsible for communicating when a new or existing prospect is actively intriged. AEs, ADRs, and operations team members use multiple tools and [CRM reports](https://fleetdm.lightning.force.com/lightning/o/Report/home?queryScope=mru) to collect this data. Once you've identified an account as active, use the following steps to add an account to the "[🆘 Marketing priority list](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view?queryScope=userFolders)":
-1. Find the account in Salesforce.
-2. Click the "🕹️ GTM actions" tab.
-3. Set the account's "Marketing stage" to indicate the desired next step to move this account forward.
-4. Set the account's "Marketing priority level" to indicate how time-sensitive the next step is.
-5. Add any necessary context to the "Marketing priority context" field to help guide the ADR as they review the account (e.g. "Research for MDM expansion"). 
-
-
-### Set up a Fleet trial
-
-You can set up a Fleet Managed Cloud environment for a prospect with >300 hosts, or you can help them generate a trial license key to configure on their own self-managed Fleet server.
-
-- **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
-- **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
 
 ### Demo Fleet to a prospect
 
@@ -115,7 +96,7 @@ Once an order form has been signed by both Fleet and the new customer, create an
 
 ### Process a security questionnaire
 
-- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Digital Experience (#g-digital-experience)](https://fleetdm.com/handbook/digital-experience#contact-us)  with a requested timeline for completion defined.
+- The AE will [use the handbook](https://fleetdm.com/handbook/company/communications#vendor-questionnaires) to answer most of the questions with links to appropriate sections in the handbook. After this first pass has been completed, and if there are outstanding questions, the AE will [assign the issue to Digital Experience (#g-digital-experience)](https://fleetdm.com/handbook/digital-experience#contact-us) with a requested timeline for completion defined.
 - Digital Experience consults the handbook to validate that nothing was missed by the AE. After the second pass has been completed, and if there are outstanding questions, Digital Experience will [reassign the issue to Sales (#g-sales)](https://fleetdm.com/handbook/sales#contact-us) for intake.
 - The issue will be assigned to the Solutions Consultant (SC) associated to the opportunity in order to complete any unanswered questions.
 - The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the SC. Any unanswered questions after this pass has been completed by the SC will need to be [escalated to the Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us) with the requested timeline for completion defined in the issue. Once complete, the infra team will assign the issue back to the #g-sales board.

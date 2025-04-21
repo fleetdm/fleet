@@ -12,6 +12,7 @@ type eopts struct {
 	args       [][2]string
 	stderrPath string //nolint:structcheck,unused
 	timeout    time.Duration
+	user       string
 }
 
 // Option allows configuring the application.
@@ -35,6 +36,13 @@ func WithArg(name, value string) Option {
 func WithTimeout(duration time.Duration) Option {
 	return func(a *eopts) {
 		a.timeout = duration
+	}
+}
+
+// WithUser sets the user to run the application as. Currently only supported on MacOS.
+func WithUser(user string) Option {
+	return func(a *eopts) {
+		a.user = user
 	}
 }
 

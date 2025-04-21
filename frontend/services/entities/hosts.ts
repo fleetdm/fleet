@@ -159,12 +159,30 @@ export interface IGetHostSoftwareResponse {
   };
 }
 
+export interface IHostSoftwareApiParams extends QueryParams {
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderKey?: string;
+  orderDirection?: "asc" | "desc";
+  availableForInstall?: boolean;
+  vulnerable?: boolean;
+  maxCvssScore?: string;
+  minCvssScore?: string;
+  exploit?: boolean;
+}
+
 export interface IHostSoftwareQueryParams extends QueryParams {
   page: number;
   per_page: number;
   query: string;
   order_key: string;
   order_direction: "asc" | "desc";
+  available_for_install?: boolean;
+  vulnerable?: boolean;
+  min_cvss_score?: number;
+  max_cvss_score?: number;
+  exploit?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -185,7 +203,7 @@ export interface IGetHostCertificatesResponse {
   };
 }
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 const LABEL_PREFIX = "labels/";
 

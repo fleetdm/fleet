@@ -1,6 +1,6 @@
 # Agent configuration
 
-Agent configuration (agent options) updates the settings of the [Fleet agent (fleed)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
+Agent configuration (agent options) updates the settings of the [Fleet agent (fleetd)](https://fleetdm.com/docs/get-started/anatomy#fleetd) installed on all your hosts.
 
 You can modify agent options in **Settings > Organization settings > Agent options** or via Fleet's [API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or [YAML files](https://fleetdm.com/docs/configuration/yaml-files).
 

@@ -25,16 +25,18 @@ module.exports = {
 
     // Specify an order for the testimonials on this page using the last names of quote authors
     let testimonialOrderForThisPage = [
-      'Wes Whetstone',
-      'Kenny Botelho',
-      'Andre Shields',
-      'Erik Gomez',
-      'Arsenio Figueroa',
-      'Eric Tan',
-      'Chandra Majumdar',
-      'Nico Waisman',
-      'Dan Grzelak',
       'Luis Madrigal',
+      'Arsenio Figueroa',
+      'Bart Reardon',
+      'Andre Shields',
+      'Wes Whetstone',
+      'Nico Waisman',
+      'Chandra Majumdar',
+      'Kenny Botelho',
+      'Erik Gomez',
+      'Eric Tan',
+      'Dan Grzelak',
+      'Justin LaBo'
     ];
 
     // Filter the testimonials by product category

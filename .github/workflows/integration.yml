@@ -88,17 +88,18 @@ jobs:
       timeout-minutes: 10
       run: |
         chmod +x ./build/fleetctl
-        ./build/fleetctl preview --no-hosts
+        ./build/fleetctl preview --no-hosts --disable-open-browser
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
         docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
         # Wait for all of the hosts to be enrolled
         EXPECTED=3
-        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+        until [ $(./build/fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
-          sleep 20
+          ./build/fleetctl get hosts --json
+          sleep 10
         done
         echo "Success! $EXPECTED hosts enrolled."
 
@@ -206,6 +207,14 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -238,7 +247,7 @@ jobs:
 
     - name: Uninstall Orbit
       run: |
-        sudo ./orbit/tools/cleanup/cleanup_macos.sh
+        sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 10
@@ -274,6 +283,14 @@ jobs:
 
     - name: Build Fleetctl
       run: make fleetctl
+
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
 
     - name: Install Orbit
       run: |
@@ -335,6 +352,14 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Build Orbit
       run: |
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
@@ -386,7 +411,7 @@ jobs:
       shell: cmd
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
-        sleep 30
+        sleep 120
 
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job

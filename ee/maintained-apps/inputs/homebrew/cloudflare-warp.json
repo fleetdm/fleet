@@ -1,0 +1,10 @@
+{
+  "name": "Cloudflare WARP",
+  "slug": "cloudflare-warp/darwin",
+  "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
+  "token": "cloudflare-warp",
+  "installer_format": "pkg",
+  "post_uninstall_scripts": [
+    "/Applications/Cloudflare\\ WARP.app/Contents/Resources/uninstall.sh"
+  ]
+}

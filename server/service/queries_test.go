@@ -958,3 +958,67 @@ func TestComparePlatforms(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyQuerySpec(t *testing.T) {
+	ds := new(mock.Store)
+	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+		return query, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return nil, newNotFoundError()
+	}
+	ds.ApplyQueriesFunc = func(ctx context.Context, authID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+		return nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		labels := make(map[string]*fleet.Label, len(names))
+		for _, name := range names {
+			if name == "foo" {
+				labels["foo"] = &fleet.Label{
+					Name: "foo",
+					ID:   1,
+				}
+			}
+		}
+		return labels, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+
+	// Test that a query spec with a label that exists doesn't return an error
+	err := svc.ApplyQuerySpecs(viewerCtx, []*fleet.QuerySpec{
+		{
+			Name:             "test query",
+			Query:            "select 1",
+			LabelsIncludeAny: []string{"foo"},
+			Platform:         "darwin,windows",
+		},
+	})
+	require.NoError(t, err)
+
+	// Test that a query spec with a label that doesn't exist returns an error.
+	err = svc.ApplyQuerySpecs(viewerCtx, []*fleet.QuerySpec{
+		{
+			Name:             "test query",
+			Query:            "select 1",
+			LabelsIncludeAny: []string{"foo", "bar"},
+			Platform:         "darwin,windows",
+		},
+	})
+	assert.Error(t, err)
+}

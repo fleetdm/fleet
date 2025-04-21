@@ -108,7 +108,7 @@ func (s *enterpriseTestSuite) TestEnterpriseSSE() {
 	assert.Equal(s.T(), service.SignupSSESuccess, string(data))
 
 	// Test with error
-	s.WithServer.FleetDS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+	s.WithServer.DS.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return nil, assert.AnError
 	}
 	resp = s.Do("GET", "/api/v1/fleet/android_enterprise/signup_sse", nil, http.StatusOK)

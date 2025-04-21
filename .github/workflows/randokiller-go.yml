@@ -34,7 +34,7 @@ jobs:
       json: ${{steps.get_config_json.outputs.json}}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
           egress-policy: audit
 
@@ -80,10 +80,6 @@ jobs:
         run: |
           sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
           sudo update-ca-certificates
-
-      # It seems faster not to cache Go dependencies
-      - name: Install Go Dependencies
-        run: make deps-go
 
       - name: Generate static files
         run: |
