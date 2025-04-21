@@ -42,7 +42,7 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 7. In **CN**, **UPN**, and **Certificate seat ID**, you can use fixed values or one of the [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings). Organizations usually use the host's serial number or end user's email to deliver a certificate that's unique to the host.
 8. Select **Add CA**. Your DigiCert certificate authority (CA) should appear in your list of CAs in Fleet.
 
-> For information on adding the DigiCert certificate authority (CA) via GitOps, see the [GitOps Documentation](https://fleetdm.com/docs/configuration/yaml-files#integrations).
+> For information on adding a certificate authority (CA) via GitOps, see the [GitOps Documentation](https://fleetdm.com/docs/configuration/yaml-files#integrations).
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
