@@ -153,10 +153,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		ID: 0,
 	})
 	for _, team := range teams {
+		teamFileName := generateFilename(team.Name)
 		var fileName string
 		// If it's a real team, start the filename with the team name.
 		if team.ID != 0 {
-			fileName = "teams/" + generateTeamFilename(team.Name)
+			fileName = "teams/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{}
 		} else {
 			fileName = "default.yml"
@@ -176,7 +177,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate controls.
-		controls, err := cmd.generateControls(fileName, team.ID, team.Name)
+		controls, err := cmd.generateControls(fileName, team.ID, teamFileName)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -288,28 +289,26 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
-func generateTeamFilename(teamName string) string {
-	return strings.Map(func(r rune) rune {
+func generateFilename(name string) string {
+	fileName := strings.Map(func(r rune) rune {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
 			return unicode.ToLower(r)
-		default:
+		case unicode.IsSpace(r):
 			return '_'
+		default:
+			return -1
 		}
-	}, teamName) + ".yml"
+	}, name)
+	// Strip any leading/trailing underscores using regex.
+	fileName = strings.Trim(fileName, "_")
+	return fileName
 }
 
 var isJSON = regexp.MustCompile("^\\s*\\{")
 
 func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileContentsString string) string {
-	fileName := strings.Map(func(r rune) rune {
-		switch {
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			return unicode.ToLower(r)
-		default:
-			return '_'
-		}
-	}, profile.Name)
+	fileName := generateFilename(profile.Name)
 	if profile.Platform == "darwin" {
 		if isJSON.MatchString(profileContentsString) {
 			fileName = fileName + ".json"
