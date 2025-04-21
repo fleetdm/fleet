@@ -36,6 +36,19 @@ func (c *Client) ListProfiles(teamID *uint) ([]*fleet.MDMAppleConfigProfile, err
 	return responseBody.ConfigProfiles, nil
 }
 
+func (c *Client) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
+	verb, path := "GET", "/api/latest/fleet/configuration_profiles"
+	query := make(url.Values)
+	if teamID != nil {
+		query.Add("team_id", strconv.FormatUint(uint64(*teamID), 10))
+	}
+	var responseBody listMDMConfigProfilesResponse
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode()); err != nil {
+		return nil, err
+	}
+	return responseBody.Profiles, nil
+}
+
 func (c *Client) AddProfile(teamID uint, configurationProfile []byte) (uint, error) {
 	if c.token == "" {
 		return 0, errors.New("authentication token is empty")

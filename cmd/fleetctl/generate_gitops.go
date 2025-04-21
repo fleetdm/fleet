@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
@@ -43,6 +44,7 @@ type client interface {
 	GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error)
 	ListTeams(query string) ([]fleet.Team, error)
 	ListScripts(query string) ([]*fleet.Script, error)
+	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 }
 
@@ -452,7 +454,44 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 }
 
 func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint, teamName string) (map[string]interface{}, error) {
+	t := reflect.TypeOf(spec.GitOpsControls{})
 	result := map[string]interface{}{}
+
+	scripts, err := cmd.generateScripts(teamId, teamName)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating scripts: %s\n", err)
+		return nil, err
+	}
+	result[jsonFieldName(t, "Scripts")] = scripts
+
+	profiles, err := cmd.generateProfiles(teamId, teamName)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
+		return nil, err
+	}
+	result[jsonFieldName(t, "MacOSSettings")] = profiles
+
+	return result, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string) (map[string]interface{}, error) {
+	// Get profiles.
+	profiles, err := cmd.Client.ListConfigurationProfiles(&teamId)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %s\n", err)
+		return nil, err
+	}
+	if len(profiles) == 0 {
+		return nil, nil
+	}
+	for _, profile := range profiles {
+		fmt.Println(profile.Name)
+	}
+	return nil, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) ([]map[string]interface{}, error) {
+	// Get scripts.
 	query := ""
 	if teamId != 0 {
 		query = fmt.Sprintf("team_id=%d", teamId)
@@ -462,35 +501,36 @@ func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint,
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %s\n", err)
 		return nil, err
 	}
-	if len(scripts) > 0 {
-		scriptSlice := make([]map[string]interface{}, len(scripts))
-		result["scripts"] = scriptSlice
-		// For each script, get the contents and add a new file for output.
-		for i, script := range scripts {
-			fileName := fmt.Sprintf("scripts/%s", script.Name)
-			if teamId == 0 {
-				fileName = fmt.Sprintf("lib/%s", fileName)
-			} else {
-				fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
-			}
-			scriptContents, err := cmd.Client.GetScriptContents(script.ID)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
-				return nil, err
-			}
-			cmd.FilesToWrite[fileName] = string(scriptContents)
-			var path string
-			if teamId == 0 {
-				path = fmt.Sprintf("./%s", fileName)
-			} else {
-				path = fmt.Sprintf("../%s", fileName)
-			}
-			scriptSlice[i] = map[string]interface{}{
-				"path": path,
-			}
+	if len(scripts) == 0 {
+		return nil, nil
+	}
+
+	scriptSlice := make([]map[string]interface{}, len(scripts))
+	// For each script, get the contents and add a new file for output.
+	for i, script := range scripts {
+		fileName := fmt.Sprintf("scripts/%s", script.Name)
+		if teamId == 0 {
+			fileName = fmt.Sprintf("lib/%s", fileName)
+		} else {
+			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+		}
+		scriptContents, err := cmd.Client.GetScriptContents(script.ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
+			return nil, err
+		}
+		cmd.FilesToWrite[fileName] = string(scriptContents)
+		var path string
+		if teamId == 0 {
+			path = fmt.Sprintf("./%s", fileName)
+		} else {
+			path = fmt.Sprintf("../%s", fileName)
+		}
+		scriptSlice[i] = map[string]interface{}{
+			"path": path,
 		}
 	}
-	return result, nil
+	return scriptSlice, nil
 }
 
 func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint) (map[string]interface{}, error) {
