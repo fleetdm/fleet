@@ -235,20 +235,20 @@
         "apple_bm_terms_expired": false,
         "enabled_and_configured": true,
         "macos_updates": {
-            "minimum_version": "",
-            "deadline": ""
+            "minimum_version": "15.1",
+            "deadline": "2024-12-31"
         },
         "ios_updates": {
-            "minimum_version": "",
-            "deadline": ""
+            "minimum_version": "18.1",
+            "deadline": "2025-12-31"
         },
         "ipados_updates": {
-            "minimum_version": "",
-            "deadline": ""
+            "minimum_version": "18.2",
+            "deadline": "2026-12-31"
         },
         "windows_updates": {
-            "deadline_days": null,
-            "grace_period_days": null
+            "deadline_days": 5,
+            "grace_period_days": 2
         },
         "macos_settings": {
             "custom_settings": null

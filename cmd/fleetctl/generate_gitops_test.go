@@ -137,7 +137,28 @@ func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
 }
 
 func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
-	return nil, nil
+	switch profileID {
+	case "global-macos-mobileconfig-profile-uuid":
+		return []byte("<xml>global macos mobileconfig profile</xml>"), nil
+	case "global-macos-json-profile-uuid":
+		return []byte(`{"profile": "global macos json profile"}`), nil
+	case "global-windows-profile-uuid":
+		return []byte("<xml>global windows profile</xml>"), nil
+	case "test-mobileconfig-profile-uuid":
+		return []byte("<xml>test mobileconfig profile</xml>"), nil
+	}
+	return nil, fmt.Errorf("profile not found")
+}
+
+func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
+	if teamID == 1 {
+		return &fleet.Team{
+			ID:   1,
+			Name: "Team A",
+		}, nil
+	}
+
+	return nil, fmt.Errorf("team not found")
 }
 
 func TestGenerateGitops(t *testing.T) {
@@ -167,12 +188,13 @@ func TestGenerateOrgSettings(t *testing.T) {
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
 		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
 	}
 
 	// Generate the org settings.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	orgSettingsRaw, err := cmd.generateOrgSettings(appConfig)
+	orgSettingsRaw, err := cmd.generateOrgSettings()
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
@@ -205,12 +227,13 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 		CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
 		Messages:     Messages{},
 		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
 	}
 
 	// Generate the org settings.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	orgSettingsRaw, err := cmd.generateOrgSettings(appConfig)
+	orgSettingsRaw, err := cmd.generateOrgSettings()
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
@@ -232,6 +255,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 func TestGenerateControls(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
@@ -239,12 +263,21 @@ func TestGenerateControls(t *testing.T) {
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
 		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
 	}
 
 	// Generate global controls.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	controlsRaw, err := cmd.generateControls(0, "")
+	mdmConfig := fleet.TeamMDM{
+		EnableDiskEncryption: appConfig.MDM.EnableDiskEncryption.Value,
+		MacOSUpdates:         appConfig.MDM.MacOSUpdates,
+		IOSUpdates:           appConfig.MDM.IOSUpdates,
+		IPadOSUpdates:        appConfig.MDM.IPadOSUpdates,
+		WindowsUpdates:       appConfig.MDM.WindowsUpdates,
+		MacOSSetup:           appConfig.MDM.MacOSSetup,
+	}
+	controlsRaw, err := cmd.generateControls(0, "", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	var controls map[string]interface{}
@@ -266,7 +299,7 @@ func TestGenerateControls(t *testing.T) {
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	controlsRaw, err = cmd.generateControls(1, "some_team")
+	controlsRaw, err = cmd.generateControls(1, "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)

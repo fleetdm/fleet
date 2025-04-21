@@ -48,6 +48,7 @@ type client interface {
 	ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error)
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
+	GetTeam(teamID uint) (*fleet.Team, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -90,6 +91,7 @@ type GenerateGitopsCommand struct {
 	Messages     Messages
 	FilesToWrite map[string]interface{}
 	Comments     []Comment
+	AppConfig    *fleet.EnrichedAppConfig
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -137,7 +139,8 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 func (cmd *GenerateGitopsCommand) Run() error {
 	fmt.Println("Generating GitOps configuration files...")
 
-	appConfig, err := cmd.Client.GetAppConfig()
+	var err error
+	cmd.AppConfig, err = cmd.Client.GetAppConfig()
 	if err != nil {
 		return err
 	}
@@ -165,9 +168,10 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "default.yml"
 		}
 
+		var mdmConfig fleet.TeamMDM
 		// Generate org settings.
 		if team.ID == 0 {
-			orgSettings, err := cmd.generateOrgSettings(appConfig)
+			orgSettings, err := cmd.generateOrgSettings()
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
 				return ErrGeneric
@@ -176,7 +180,21 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			cmd.FilesToWrite["default.yml"] = map[string]interface{}{
 				"org_settings": orgSettings,
 			}
+
+			mdmConfig = fleet.TeamMDM{
+				EnableDiskEncryption: cmd.AppConfig.MDM.EnableDiskEncryption.Value,
+				MacOSUpdates:         cmd.AppConfig.MDM.MacOSUpdates,
+				IOSUpdates:           cmd.AppConfig.MDM.IOSUpdates,
+				IPadOSUpdates:        cmd.AppConfig.MDM.IPadOSUpdates,
+				WindowsUpdates:       cmd.AppConfig.MDM.WindowsUpdates,
+				MacOSSetup:           cmd.AppConfig.MDM.MacOSSetup,
+			}
 		} else {
+			team, err := cmd.Client.GetTeam(team.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting team %s: %s\n", team.Name, err)
+				return ErrGeneric
+			}
 			teamSettings, err := cmd.generateTeamSettings(fileName, team.ID)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
@@ -184,10 +202,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+			mdmConfig = team.Config.MDM
+		}
+
+		if team.ID != 0 {
 		}
 
 		// Generate controls.
-		controls, err := cmd.generateControls(team.ID, teamFileName)
+		controls, err := cmd.generateControls(team.ID, teamFileName, &mdmConfig)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -331,27 +353,27 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 	return fileName
 }
 
-func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedAppConfig) (orgSettings map[string]interface{}, err error) {
+func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
 	orgSettings = map[string]interface{}{
-		jsonFieldName(t, "Features"):           appConfig.Features,
-		jsonFieldName(t, "FleetDesktop"):       appConfig.FleetDesktop,
-		jsonFieldName(t, "HostExpirySettings"): appConfig.HostExpirySettings,
-		jsonFieldName(t, "OrgInfo"):            appConfig.OrgInfo,
-		jsonFieldName(t, "ServerSettings"):     appConfig.ServerSettings,
-		jsonFieldName(t, "WebhookSettings"):    appConfig.WebhookSettings,
+		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
+		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
+		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
+		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
+		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
+		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
 	}
-	integrations, err := cmd.generateIntegrations(&appConfig.Integrations)
+	integrations, err := cmd.generateIntegrations(&cmd.AppConfig.Integrations)
 	if err != nil {
 		return nil, err
 	}
 	orgSettings[jsonFieldName(t, "Integrations")] = integrations
-	mdm, err := cmd.generateMDM(&appConfig.MDM)
+	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
 	if err != nil {
 		return nil, err
 	}
 	orgSettings[jsonFieldName(t, "MDM")] = mdm
-	yaraRules, err := cmd.generateYaraRules(appConfig.YaraRules)
+	yaraRules, err := cmd.generateYaraRules(cmd.AppConfig.YaraRules)
 	if err != nil {
 		return nil, err
 	}
@@ -372,7 +394,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings(appConfig *fleet.EnrichedA
 		(orgSettings)["secrets"] = []map[string]string{{"string": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
 	}
 
-	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(appConfig.SSOSettings); err != nil {
+	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
 		return nil, err
 	}
 	return orgSettings, nil
@@ -487,7 +509,7 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {
 	t := reflect.TypeOf(spec.GitOpsControls{})
 	result := map[string]interface{}{}
 
@@ -508,6 +530,23 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string)
 	}
 	if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
 		result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
+	}
+
+	if teamMdm != nil {
+		mdmT := reflect.TypeOf(fleet.TeamMDM{})
+
+		result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
+		result[jsonFieldName(mdmT, "MacOSUpdates")] = teamMdm.MacOSUpdates
+		result[jsonFieldName(mdmT, "IOSUpdates")] = teamMdm.IOSUpdates
+		result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
+		result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
+
+		if teamId == 0 {
+			mdmT := reflect.TypeOf(fleet.MDM{})
+			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
+			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
+		}
+		// result[jsonFieldName(mdmT, "MacOSSetup")] = teamMdm.MacOSSetup
 	}
 
 	return result, nil
