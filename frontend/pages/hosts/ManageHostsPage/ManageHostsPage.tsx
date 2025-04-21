@@ -1818,6 +1818,7 @@ const ManageHostsPage = ({
           onRunScript={onRunScriptBatch}
           onCancel={toggleRunScriptBatchModal}
           isUpdating={isUpdating}
+          teamId={currentTeamId}
         />
       )}
     </>

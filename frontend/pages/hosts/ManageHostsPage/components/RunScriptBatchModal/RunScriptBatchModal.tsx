@@ -10,9 +10,10 @@ const baseClass = "run-script-batch-modal";
 
 interface IRunScriptBatchModal {
   selectedHostsCount: number;
-  onRunScript: (script: IScript) => IScript;
+  onRunScript: (script: IScript) => Promise<void>;
   onCancel: () => void;
   isUpdating: boolean;
+  teamId?: number;
 }
 
 const RunScriptBatchModal = ({
@@ -20,12 +21,8 @@ const RunScriptBatchModal = ({
   onRunScript,
   onCancel,
   isUpdating,
+  teamId,
 }: IRunScriptBatchModal) => {
-  // use to know whether to show "rerun" icon
-  const [scriptIdsHaveRunSinceOpen, setScriptIdsHaveRunSinceOpen] = useState(
-    new Set<number>()
-  );
-
   return (
     <Modal
       title="Run script"
@@ -42,8 +39,7 @@ const RunScriptBatchModal = ({
         <RunScriptBatchPaginatedList
           onRunScript={onRunScript}
           isUpdating={isUpdating}
-          scriptIdsHaveRunSinceOpen={scriptIdsHaveRunSinceOpen}
-          // teamId={teamId}
+          teamId={teamId}
         />
       </>
     </Modal>

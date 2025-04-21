@@ -33,10 +33,11 @@ interface IPaginatedListProps<TItem> {
   idKey?: string;
   // Property to use as an item's label. Defaults to `name`.
   labelKey?: string;
-  // How to determine whether to check an item's checkbox.
+  // How to determine whether an item is selected.
   // If string, a key in an item whose truthiness will be checked.
   // if function, a function that given an item, returns a boolean.
-  isSelected: string | ((item: TItem) => boolean);
+  // *required in conjunction with `useCheckBoxes`
+  isSelected?: string | ((item: TItem) => boolean);
   // Custom function to render the label for an item.
   renderItemLabel?: (item: TItem) => ReactElement | null;
   // Custom function to render extra markup (besides the label) in an item row.
@@ -46,10 +47,12 @@ interface IPaginatedListProps<TItem> {
     // to the item, for example if a dropdown is changed.
     onChange: (item: TItem) => void
   ) => ReactElement | false | null | undefined;
-  // A function to call when an item is toggled.
+  // A function to call when an item's "primary action" is triggered, e.g., toggle a policy or run a
+  // script. `renderItemRow` may contain logic to carry out additional actions, e.g. opening a model
+  // to preview the item, but not triggering any action with that item.
   // Parents can use this to change whatever item metadata is needed to toggle
-  // the value indicated by `isSelected`. Can return the item to allow use of `dirtyItems` or `void`
-  onToggleItem: (item: TItem) => TItem;
+  // the value indicated by `isSelected`.
+  onFireItemPrimaryAction: (item: TItem) => TItem;
   // The size of the page to fetch and show.
   pageSize?: number;
   // An optional header component.
@@ -58,6 +61,8 @@ interface IPaginatedListProps<TItem> {
   onUpdate?: (changedItems: TItem[]) => void;
   // Whether the list should be disabled.
   disabled?: boolean;
+  // also requires an `isSelected` function be passed in for correct functionality
+  useCheckBoxes?: boolean;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
@@ -69,11 +74,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     pageSize: _pageSize,
     renderItemLabel,
     renderItemRow,
-    onToggleItem,
+    onFireItemPrimaryAction,
     onUpdate,
     isSelected,
     disabled = false,
     heading,
+    useCheckBoxes = true,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
@@ -215,29 +221,31 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 className={`${baseClass}__row`}
                 key={item[idKey]}
                 onClick={() => {
-                  // When entity is toggled, set item as dirty.
+                  // When entity's primary action is fired, set item as dirty.
                   // The parent is responsible for actually updating item properties via onToggleItem().
                   setDirtyItems({
                     ...dirtyItems,
-                    [item[idKey]]: onToggleItem(item),
+                    [item[idKey]]: onFireItemPrimaryAction(item),
                   });
                 }}
               >
-                <Checkbox
-                  disabled={disabled}
-                  value={
-                    typeof isSelected === "function"
-                      ? isSelected(item)
-                      : item[isSelected]
-                  }
-                  name={`item_${item[idKey]}_checkbox`}
-                >
-                  {renderItemLabel ? (
-                    renderItemLabel(item)
-                  ) : (
-                    <TooltipTruncatedText value={<>{item[labelKey]}</>} />
-                  )}
-                </Checkbox>
+                {useCheckBoxes && isSelected && (
+                  <Checkbox
+                    disabled={disabled}
+                    value={
+                      typeof isSelected === "function"
+                        ? isSelected(item)
+                        : item[isSelected]
+                    }
+                    name={`item_${item[idKey]}_checkbox`}
+                  >
+                    {renderItemLabel ? (
+                      renderItemLabel(item)
+                    ) : (
+                      <TooltipTruncatedText value={<>{item[labelKey]}</>} />
+                    )}
+                  </Checkbox>
+                )}
                 {renderItemRow &&
                   // If a custom row renderer was supplied, call it with the item value
                   // as well as the callback the parent can use to indicate changes to an item.
