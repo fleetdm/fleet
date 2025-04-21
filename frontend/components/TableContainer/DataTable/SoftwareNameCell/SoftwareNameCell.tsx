@@ -118,8 +118,8 @@ const SoftwareNameCell = ({
   installType,
   iconUrl,
 }: ISoftwareNameCellProps) => {
-  // My device page
-  if (myDevicePage) {
+  // My device page > Software
+  if (myDevicePage && !isSelfService) {
     return (
       <LinkCell
         tooltipTruncate
@@ -131,6 +131,7 @@ const SoftwareNameCell = ({
 
   // NO path or router means it's not clickable. return
   // a non-clickable cell early
+  // e.g. My device page > SelfService
   if (!router || !path) {
     return (
       <div className={baseClass}>
