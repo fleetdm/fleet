@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/crewjam/saml"
@@ -36,7 +37,7 @@ var _ fleet.Auth = resp{}
 
 // UserID partially implements the fleet.Auth interface.
 func (r resp) UserID() string {
-	if r.response != nil {
+	if r.response != nil && r.response.Assertion != nil && r.response.Assertion.Subject != nil && r.response.Assertion.Subject.NameID != nil {
 		return r.response.Assertion.Subject.NameID.Value
 	}
 	return ""
@@ -122,4 +123,19 @@ func decodeSAMLResponse(rawXML []byte) (fleet.Auth, error) {
 		response: &samlResponse,
 		rawResp:  rawXML,
 	}, nil
+}
+
+func ValidateAudiences(assertion *saml.Assertion, expectedAudiences []string) error {
+	if assertion.Conditions == nil {
+		return errors.New("missing conditions in assertion")
+	}
+	if len(assertion.Conditions.AudienceRestrictions) == 0 {
+		return errors.New("missing audience restrictions")
+	}
+	for _, audienceRestriction := range assertion.Conditions.AudienceRestrictions {
+		if slices.Contains(expectedAudiences, audienceRestriction.Audience.Value) {
+			return nil
+		}
+	}
+	return fmt.Errorf("wrong audience: %+v", assertion.Conditions.AudienceRestrictions)
 }

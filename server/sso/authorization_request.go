@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -62,7 +61,7 @@ func deflate(xmlBuffer *bytes.Buffer) (string, error) {
 	return encoded, nil
 }
 
-func CreateAuthorizationRequest2(ctx context.Context,
+func CreateAuthorizationRequest(ctx context.Context,
 	sessionStore SessionStore,
 	originalURL string,
 	samlProvider *saml.ServiceProvider,
@@ -103,19 +102,4 @@ func CreateAuthorizationRequest2(ctx context.Context,
 		return "", ctxerr.Wrap(ctx, err, "generating redirect")
 	}
 	return idpRedirectURL.String(), nil
-}
-
-func ValidateAudiences(assertion *saml.Assertion, expectedAudiences []string) error {
-	if assertion.Conditions == nil {
-		return errors.New("missing conditions in assertion")
-	}
-	if len(assertion.Conditions.AudienceRestrictions) == 0 {
-		return errors.New("missing audience restrictions")
-	}
-	for _, audienceRestriction := range assertion.Conditions.AudienceRestrictions {
-		if slices.Contains(expectedAudiences, audienceRestriction.Audience.Value) {
-			return nil
-		}
-	}
-	return fmt.Errorf("wrong audience: %+v", assertion.Conditions.AudienceRestrictions)
 }

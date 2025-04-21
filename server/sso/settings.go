@@ -15,15 +15,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func GetMetadata2(config *fleet.SSOProviderSettings) (*saml.EntityDescriptor, error) {
+func GetMetadata(config *fleet.SSOProviderSettings) (*saml.EntityDescriptor, error) {
 	if config.MetadataURL == "" && config.Metadata == "" {
-		return nil, fmt.Errorf("missing metadata for idp %s", config.IDPName)
+		return nil, fmt.Errorf("missing metadata for idp %q", config.IDPName)
 	}
 
 	var xmlMetadata []byte
 	if config.MetadataURL != "" {
 		var err error
-		xmlMetadata, err = getMetadata2(config.MetadataURL)
+		xmlMetadata, err = getMetadata(config.MetadataURL)
 		if err != nil {
 			return nil, err
 		}
@@ -34,7 +34,7 @@ func GetMetadata2(config *fleet.SSOProviderSettings) (*saml.EntityDescriptor, er
 	return ParseMetadata(xmlMetadata)
 }
 
-func getMetadata2(metadataURL string) ([]byte, error) {
+func getMetadata(metadataURL string) ([]byte, error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
 	request, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
@@ -69,7 +69,7 @@ func SAMLProviderFromConfiguredMetadata(
 	acsURL string,
 	settings *fleet.SSOProviderSettings,
 ) (*saml.ServiceProvider, error) {
-	entityDescriptor, err := GetMetadata2(settings)
+	entityDescriptor, err := GetMetadata(settings)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to get and parse IdP metadata",

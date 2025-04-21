@@ -50,7 +50,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	idpURL, err := CreateAuthorizationRequest2(context.Background(),
+	idpURL, err := CreateAuthorizationRequest(context.Background(),
 		store,
 		"/redir",
 		samlProvider,

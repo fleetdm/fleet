@@ -143,7 +143,7 @@ type MDMAppleVolumePurchasingProgramInfo struct {
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
 	// AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM
-	// requests from fleetd requests on customer networks.  AppleServerURL DNS should resolve to the
+	// requests from fleetd requests on customer networks. AppleServerURL DNS should resolve to the
 	// same IP as the Fleet Server URL.
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`

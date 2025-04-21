@@ -67,7 +67,7 @@ func TestGetMetadata(t *testing.T) {
 		_, err := w.Write([]byte(metadata))
 		require.NoError(t, err)
 	}))
-	xmlMetadata, err := getMetadata2(ts.URL)
+	xmlMetadata, err := getMetadata(ts.URL)
 	require.NoError(t, err)
 	settings, err := ParseMetadata(xmlMetadata)
 	require.NoError(t, err)

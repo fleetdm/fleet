@@ -415,7 +415,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, err, "failed to create provider from configured metadata")
 	}
 
-	idpURL, err := sso.CreateAuthorizationRequest2(ctx, svc.ssoSessionStore, redirectURL, samlProvider)
+	idpURL, err := sso.CreateAuthorizationRequest(ctx, svc.ssoSessionStore, redirectURL, samlProvider)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
 	}
@@ -543,22 +543,25 @@ func (svc *Service) InitSSOCallback(ctx context.Context, authResponse fleet.Auth
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
-	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
+	acsURL, err := url.Parse(serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback")
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
+	}
+
 	samlProvider, redirectURL, err := svc.samlProviderFromMetadata(ctx, authResponse.RequestID(), serverURL, acsURL, appConfig.SSOSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	destinationURL, err := url.Parse(serverURL)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "failed to parse server URL")
-	}
-
 	if _, err := samlProvider.ParseXMLResponse(
 		authResponse.RawResponse(),
 		[]string{authResponse.RequestID()},
-		*destinationURL,
+		*acsURL,
 	); err != nil {
+		// Set SAML error as the internal error for troubleshooting purposes.
+		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
+			err = samlErr.PrivateErr
+		}
 		return "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to parse and validate response",
 			InternalErr: err,
@@ -584,14 +587,9 @@ func (svc *Service) samlProviderFromMetadata(
 	ctx context.Context,
 	samlRequestID string,
 	serverURL string,
-	acsURL string,
+	acsURL *url.URL,
 	settings *fleet.SSOSettings,
 ) (*saml.ServiceProvider, string, error) {
-	acsURL_, err := url.Parse(acsURL)
-	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "parse ACS URL")
-	}
-
 	// Load the request metadata if available.
 	var (
 		entityDescriptor *saml.EntityDescriptor
@@ -601,7 +599,7 @@ func (svc *Service) samlProviderFromMetadata(
 		// Missing request ID indicates this was IdP-initiated. Only allow if
 		// configured to do so.
 		var err error
-		entityDescriptor, err = sso.GetMetadata2(&settings.SSOProviderSettings)
+		entityDescriptor, err = sso.GetMetadata(&settings.SSOProviderSettings)
 		if err != nil {
 			return nil, "", ctxerr.Wrap(ctx, err, "failed to parse metadata")
 		}
@@ -620,7 +618,7 @@ func (svc *Service) samlProviderFromMetadata(
 
 	return &saml.ServiceProvider{
 		EntityID:                    serverURL,
-		AcsURL:                      *acsURL_,
+		AcsURL:                      *acsURL,
 		DefaultRedirectURI:          redirectURL,
 		IDPMetadata:                 entityDescriptor,
 		ValidateAudienceRestriction: svc.audienceValidation(ctx),
