@@ -158,7 +158,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// If it's a real team, start the filename with the team name.
 		if team.ID != 0 {
 			fileName = "teams/" + teamFileName + ".yml"
-			cmd.FilesToWrite[fileName] = map[string]interface{}{}
+			cmd.FilesToWrite[fileName] = map[string]interface{}{
+				"name": team.Name,
+			}
 		} else {
 			fileName = "default.yml"
 		}
@@ -174,6 +176,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			cmd.FilesToWrite["default.yml"] = map[string]interface{}{
 				"org_settings": orgSettings,
 			}
+		} else {
+			teamSettings, err := cmd.generateTeamSettings(fileName, team.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
+				return ErrGeneric
+			}
+
+			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
 		}
 
 		// Generate controls.
