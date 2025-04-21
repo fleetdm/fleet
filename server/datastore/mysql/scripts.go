@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -1605,4 +1606,102 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 		return 0, err
 	}
 	return scriptContentsID, nil
+}
+
+func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	script, err := ds.Script(ctx, scriptID)
+	if err != nil {
+		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+	}
+
+	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
+	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
+
+	// Check that all hosts exist before attempting to process them
+	for _, hostID := range hostIDs {
+		host, err := ds.Host(ctx, hostID)
+		if err != nil {
+			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
+		}
+
+		fullHosts = append(fullHosts, host)
+	}
+
+	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
+
+	batchExecID := ""
+
+	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		for _, host := range fullHosts {
+			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
+			scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
+
+			if noNodeKey || scriptsDisabled {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  fleet.BatchExecuteIncompatibleFleetd,
+				})
+				continue
+			}
+
+			if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  fleet.BatchExecuteIncompatiblePlatform,
+				})
+				continue
+			}
+
+			executionID, _, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
+				HostID:          host.ID,
+				UserID:          userID,
+				ScriptID:        &script.ID,
+				ScriptContentID: script.ScriptContentID,
+			}, false)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "queueing script for bulk execution")
+			}
+
+			executions = append(executions, fleet.BatchExecutionHost{
+				HostID:      host.ID,
+				ExecutionID: executionID,
+			})
+		}
+
+		batchExecID = uuid.New().String()
+		res, err := tx.ExecContext(
+			ctx,
+			"INSERT INTO batch_script_executions (execution_id, user_id) VALUES (?, ?)",
+			batchExecID,
+			userID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
+		}
+
+		batchID, _ := res.LastInsertId()
+
+		questionMarks := strings.Join(
+			slices.Repeat([]string{"(?, ?, ?)"}, len(executions)),
+			",",
+		)
+		args := make([]any, 0, len(executions))
+		for _, execHost := range executions {
+			args = append(args, batchID, execHost.ExecutionID, execHost.Error)
+		}
+
+		insertStmt := `
+INSERT INTO batch_script_execution_host_results (batch_execution_id, host_execution_id, error)
+VALUES %s`
+
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(insertStmt, questionMarks), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
+		}
+
+		return nil
+	}); err != nil {
+		return "", fmt.Errorf("creating bulk execution order: %w", err)
+	}
+
+	return batchExecID, nil
 }
