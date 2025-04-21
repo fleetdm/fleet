@@ -2,3 +2,5 @@ name: No team
 policies:
 queries:
 software:
+controls:
+  macos_settings:
