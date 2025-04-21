@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 import { createCustomRenderer } from "test/test-utils";
-import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockConfig from "__mocks__/configMock";
 
 import AddHostsModal from "./AddHostsModal";
 

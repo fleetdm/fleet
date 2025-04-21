@@ -1130,6 +1130,8 @@ Per [the spec](https://developer.apple.com/library/archive/documentation/Network
 
 ### Preassign profiles to devices
 
+> The Puppet module API endpoints are deprecated as of Fleet 4.66. They are maintained for backwards compatibility.
+
 _Available in Fleet Premium_
 
 This endpoint stores a profile to be assigned to a host at some point in the future. The actual assignment happens when the [Match preassigned profiles](#match-preassigned-profiles) endpoint is called. The reason for this "pre-assign" step is to collect all profiles that are meant to be assigned to a host, and match the list of profiles to an existing team (or create one with that set of profiles if none exist) so that the host can be assigned to that team and inherit its list of profiles.
@@ -1205,6 +1207,8 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 
 
 ### Match preassigned profiles
+
+> The Puppet module API endpoints are deprecated as of Fleet 4.66. They are maintained for backwards compatibility.
 
 _Available in Fleet Premium_
 

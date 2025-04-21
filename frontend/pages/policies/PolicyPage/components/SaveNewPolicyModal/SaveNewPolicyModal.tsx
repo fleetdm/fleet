@@ -331,7 +331,6 @@ const SaveNewPolicyModal = ({
             >
               <Button
                 type="submit"
-                variant="brand"
                 onClick={handleSavePolicy}
                 disabled={disableSave}
                 className="save-policy-loading"
