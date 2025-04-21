@@ -503,8 +503,12 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string)
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
 		return nil, err
 	}
-	result[jsonFieldName(t, "MacOSSettings")] = profiles["apple_profiles"]
-	result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
+	if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+		result[jsonFieldName(t, "MacOSSettings")] = profiles["apple_profiles"]
+	}
+	if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+		result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
+	}
 
 	return result, nil
 }
@@ -513,7 +517,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 	// Get profiles.
 	profiles, err := cmd.Client.ListConfigurationProfiles(&teamId)
 	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %s\n", err)
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %v\n", err)
 		return nil, err
 	}
 	if len(profiles) == 0 {
@@ -522,16 +526,28 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 	appleProfilesSlice := make([]map[string]interface{}, 0)
 	windowsProfilesSlice := make([]map[string]interface{}, 0)
 	for _, profile := range profiles {
-		// Marshall/unmarshall the profile to get the keys we want.
-		b, err := yaml.Marshal(profile)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling profile: %s\n", err)
-			return nil, err
+		profileSpec := map[string]interface{}{}
+		// Parse any labels.
+		if profile.LabelsIncludeAll != nil {
+			labels := make([]string, len(profile.LabelsIncludeAll))
+			for i, label := range profile.LabelsIncludeAll {
+				labels[i] = label.LabelName
+			}
+			profileSpec["labels_include_all"] = labels
 		}
-		var result map[string]interface{}
-		if err := yaml.Unmarshal(b, &result); err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling profile: %s\n", err)
-			return nil, err
+		if profile.LabelsIncludeAny != nil {
+			labels := make([]string, len(profile.LabelsIncludeAny))
+			for i, label := range profile.LabelsIncludeAny {
+				labels[i] = label.LabelName
+			}
+			profileSpec["labels_include_any"] = labels
+		}
+		if profile.LabelsExcludeAny != nil {
+			labels := make([]string, len(profile.LabelsExcludeAny))
+			for i, label := range profile.LabelsExcludeAny {
+				labels[i] = label.LabelName
+			}
+			profileSpec["labels_exclude_any"] = labels
 		}
 
 		// Download the profile contents.
@@ -556,14 +572,13 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 		} else {
 			path = fmt.Sprintf("../%s", fileName)
 		}
+
+		profileSpec["path"] = path
+
 		if profile.Platform == "darwin" {
-			appleProfilesSlice = append(appleProfilesSlice, map[string]interface{}{
-				"path": path,
-			})
+			appleProfilesSlice = append(appleProfilesSlice, profileSpec)
 		} else {
-			windowsProfilesSlice = append(windowsProfilesSlice, map[string]interface{}{
-				"path": path,
-			})
+			windowsProfilesSlice = append(windowsProfilesSlice, profileSpec)
 		}
 	}
 

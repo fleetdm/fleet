@@ -79,7 +79,51 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 }
 
 func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
-	return nil, nil
+	switch *teamID {
+	case 0:
+		return []*fleet.MDMConfigProfilePayload{
+			{
+				ProfileUUID: "global-macos-mobileconfig-profile-uuid",
+				Name:        "Global MacOS MobileConfig Profile",
+				Platform:    "darwin",
+				Identifier:  "com.example.global-macos-mobileconfig-profile",
+				LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{
+					LabelName: "Label A",
+				}, {
+					LabelName: "Label B",
+				}},
+			},
+			{
+				ProfileUUID: "global-macos-json-profile-uuid",
+				Name:        "Global MacOS JSON Profile",
+				Platform:    "darwin",
+				Identifier:  "com.example.global-macos-json-profile",
+				LabelsExcludeAny: []fleet.ConfigurationProfileLabel{{
+					LabelName: "Label C",
+				}},
+			},
+			{
+				ProfileUUID: "global-windows-profile-uuid",
+				Name:        "Global Windows Profile",
+				Platform:    "windows",
+				Identifier:  "com.example.global-windows-profile",
+				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
+					LabelName: "Label D",
+				}},
+			},
+		}, nil
+	case 1:
+		return []*fleet.MDMConfigProfilePayload{
+			{
+				ProfileUUID: "test-mobileconfig-profile-uuid",
+				Name:        "Team MacOS MobileConfig Profile",
+				Platform:    "darwin",
+				Identifier:  "com.example.team-macos-mobileconfig-profile",
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected team ID: %v", teamID)
+	}
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
@@ -192,7 +236,7 @@ func TestGenerateControls(t *testing.T) {
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
 		Client:       fleetClient,
-		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
 		FilesToWrite: make(map[string]interface{}),
 	}
