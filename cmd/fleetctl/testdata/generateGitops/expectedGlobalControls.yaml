@@ -35,7 +35,7 @@ enable_disk_encryption: true
 #   software:
 #     - app_store_id: '1091189122'
 #     - package_path: ../lib/software/adobe-acrobat.software.yml
-# macos_migration: # Available in Fleet Premium
-#   enable: true
-#   mode: voluntary
-#   webhook_url: https://example.org/webhook_handler
+macos_migration: # Available in Fleet Premium
+  enable: true
+  mode: voluntary
+  webhook_url: https://some-macos-migration-webhook-url.com

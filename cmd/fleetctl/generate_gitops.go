@@ -545,6 +545,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string,
 			mdmT := reflect.TypeOf(fleet.MDM{})
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
+			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
 		}
 		// result[jsonFieldName(mdmT, "MacOSSetup")] = teamMdm.MacOSSetup
 	}
