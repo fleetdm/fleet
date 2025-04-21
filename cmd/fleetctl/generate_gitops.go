@@ -42,6 +42,8 @@ type client interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
 	GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error)
 	ListTeams(query string) ([]fleet.Team, error)
+	ListScripts(query string) ([]*fleet.Script, error)
+	GetScriptContents(scriptID uint) ([]byte, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -445,6 +447,17 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 }
 
 func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint) (map[string]interface{}, error) {
+	scripts, err := cmd.Client.ListScripts("")
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %s\n", err)
+		return nil, err
+	}
+	script, err := cmd.Client.GetScriptContents(scripts[0].ID)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
+		return nil, err
+	}
+	fmt.Printf("Script contents: %s\n", string(script))
 	return map[string]interface{}{}, nil
 }
 

@@ -60,6 +60,10 @@ func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
 	return teams, nil
 }
 
+func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
+	return nil, nil
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
