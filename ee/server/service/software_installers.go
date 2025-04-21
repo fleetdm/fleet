@@ -320,6 +320,22 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.ValidatedLabels = validatedLabels
 
+	fmt.Printf("[JVE_LOG] update payload.Categories: %v\n", payload.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(payload.Categories) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+		}
+	}
+
+	payload.CategoryIDs = catIDs
+	dirty["Categories"] = true
+
 	// activity team ID must be null if no team, not zero
 	var actTeamID *uint
 	if payload.TeamID != nil && *payload.TeamID != 0 {

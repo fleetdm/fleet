@@ -17227,7 +17227,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareCategories() {
 	require.NoError(t, err)
 
 	payload.Categories = []string{cat1.Name, cat2.Name}
-	// TODO(JVE): persist relationship on upload
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 	require.NotEmpty(t, titleID)
@@ -17251,4 +17250,33 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareCategories() {
 	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
 	require.Len(t, getDeviceSw.Software[0].SoftwarePackage.Categories, 2)
+
+	// change to a different category (should remove the other 2)
+	cat3, err := s.ds.NewSoftwareCategory(ctx, "test_category_3")
+	require.NoError(t, err)
+
+	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       titleID,
+		Filename:      "ruby.deb",
+		InstallScript: ptr.String("install"),
+		Version:       "1:2.5.1",
+		SelfService:   ptr.Bool(true),
+		Categories:    []string{cat3.Name},
+	}
+
+	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+	getDeviceSw = getDeviceSoftwareResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+	require.NoError(t, err)
+	require.Len(t, getDeviceSw.Software, 1)
+	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
+	require.Len(t, getDeviceSw.Software[0].SoftwarePackage.Categories, 1)
 }

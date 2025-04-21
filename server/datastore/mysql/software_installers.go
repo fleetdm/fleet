@@ -561,6 +561,13 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
+		fmt.Printf("in update payload.CategoryIDs: %v\n", payload.CategoryIDs)
+		if payload.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {

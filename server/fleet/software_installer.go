@@ -423,6 +423,8 @@ type UpdateSoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
+	Categories      []string
+	CategoryIDs     []uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
