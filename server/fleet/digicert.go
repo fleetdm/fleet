@@ -9,6 +9,7 @@ type DigiCertCertificate struct {
 	PfxData       []byte
 	Password      string
 	NotValidAfter time.Time
+	SerialNumber  string
 }
 
 type DigiCertService interface {

@@ -66,7 +66,6 @@ func WithLogger(logger kitlog.Logger) Opt {
 }
 
 func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertIntegration) error {
-
 	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
 	config.URL = strings.TrimRight(config.URL, "/")
@@ -282,5 +281,6 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 		PfxData:       pkcs12Data,
 		Password:      password,
 		NotValidAfter: cert.NotAfter,
+		SerialNumber:  certResp.SerialNumber,
 	}, nil
 }

@@ -4340,6 +4340,7 @@ func preprocessProfileContents(
 						NotValidAfter: &cert.NotValidAfter,
 						Type:          fleet.CAConfigDigiCert,
 						CAName:        caName,
+						Serial:        &cert.SerialNumber,
 					})
 				default:
 					// This was handled in the above switch statement, so we should never reach this case

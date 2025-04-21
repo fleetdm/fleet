@@ -551,6 +551,54 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	return nil
 }
 
+// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
+	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(status=null) and which
+	// * Have a validity period > 30 days and are expiring in the next 30 days
+	// * Have a validity period < 30 days and are within half the validity period of expiration
+	// nb: we SELECT not_valid_after and validity_period here so we can use them in the having, but
+	// we don't actually need them for the update logic.
+	hostCertsToRenew, err := ds.reader(ctx).QueryContext(ctx, `SELECT hmmc.host_uuid, hmmc.profile_uuid, hmmc.not_valid_after, DATEDIFF(hmmc.not_valid_after, hmmc.updated_at) AS validity_period
+	FROM host_mdm_managed_certificates hmmc
+	LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
+	WHERE hmap.host_uuid IS NOT NULL AND hmmc.type = 'digicert' AND hmap.status IS NOT NULL
+	HAVING
+	((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
+	(validity_period < 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
+	LIMIT 1000`)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+	}
+	defer hostCertsToRenew.Close()
+	var hostUUID, profileUUID string
+	var notValidAfter time.Time
+	var validityPeriod int
+	// This will trigger a resend next time profiles are checked
+	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE `
+	hostProfileClause := ``
+	values := []interface{}{}
+	for hostCertsToRenew.Next() {
+		if err := hostCertsToRenew.Scan(&hostUUID, &profileUUID, &notValidAfter, &validityPeriod); err != nil {
+			return ctxerr.Wrap(ctx, err, "scanning mdm managed certificates to renew")
+		}
+		hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
+		values = append(values, hostUUID, profileUUID)
+	}
+	if len(values) == 0 {
+		level.Info(ds.logger).Log("msg", "No digicert certificates to renew")
+		return nil
+	}
+	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert certificates", "len(certificates)", len(values)/2)
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, updateQuery+strings.TrimSuffix(hostProfileClause, " OR "), values...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
+		}
+		return nil
+	})
+	return nil
+}
+
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	payload fleet.MDMAppleEnrollmentProfilePayload,
@@ -5885,14 +5933,16 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
               challenge_retrieved_at,
 	          not_valid_after,
 			  type,
-			  ca_name
+			  ca_name,
+			  serial
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
               challenge_retrieved_at = VALUES(challenge_retrieved_at),
 			  not_valid_after = VALUES(not_valid_after),
 			  type = VALUES(type),
-			  ca_name = VALUES(ca_name)`,
+			  ca_name = VALUES(ca_name),
+			  serial = VALUES(serial)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -5901,8 +5951,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter, p.Type, p.CAName}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter, p.Type, p.CAName, p.Serial}
 		return valuePart, args
 	}
 
