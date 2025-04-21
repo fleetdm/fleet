@@ -81,6 +81,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   min_cvss_score?: string;
   max_cvss_score?: string;
   available_for_install?: string;
+  category_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -93,6 +94,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     queryParams
   );
   const availableForInstall = queryParams.available_for_install === "true";
+  const categoryId = queryParams?.category_id
+    ? parseInt(queryParams.category_id, 10)
+    : undefined;
 
   return {
     page,
@@ -105,6 +109,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     max_cvss_score: softwareVulnFilters.maxCvssScore,
     exploit: softwareVulnFilters.exploit,
     available_for_install: availableForInstall,
+    category_id: categoryId,
   };
 };
 
