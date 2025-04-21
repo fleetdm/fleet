@@ -172,7 +172,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate controls.
-		controls, err := cmd.generateControls(fileName, team.ID)
+		controls, err := cmd.generateControls(fileName, team.ID, team.Name)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -250,20 +250,25 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
-		b, err := yaml.Marshal(fileToWrite)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
-			return ErrGeneric
-		}
-		for _, comment := range cmd.Comments {
-			if comment.Filename == path {
-				b = bytes.ReplaceAll(b,
-					[]byte(comment.Token),
-					[]byte("# "+comment.Comment),
-				)
+		// If the filename ends in .yml, marshal it to YAML.
+		if strings.HasSuffix(path, ".yml") {
+			b, err := yaml.Marshal(fileToWrite)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
+				return ErrGeneric
 			}
+			for _, comment := range cmd.Comments {
+				if comment.Filename == path {
+					b = bytes.ReplaceAll(b,
+						[]byte(comment.Token),
+						[]byte("# "+comment.Comment),
+					)
+				}
+			}
+			fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", path, string(b))
+		} else {
+			fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", path, fileToWrite)
 		}
-		fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", path, string(b))
 	}
 
 	return nil
@@ -446,18 +451,27 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateControls(filePath string, teamId uint, teamName string) (map[string]interface{}, error) {
 	scripts, err := cmd.Client.ListScripts("")
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %s\n", err)
 		return nil, err
 	}
-	script, err := cmd.Client.GetScriptContents(scripts[0].ID)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
-		return nil, err
+	// For each script, get the contents and add a new file for output.
+	for _, script := range scripts {
+		fileName := fmt.Sprintf("scripts/%s.yml", script.Name)
+		if teamId == 0 {
+			fileName = fmt.Sprintf("lib/%s", fileName)
+		} else {
+			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
+		}
+		script, err := cmd.Client.GetScriptContents(scripts[0].ID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting script contents: %s\n", err)
+			return nil, err
+		}
+		cmd.FilesToWrite[fileName] = string(script)
 	}
-	fmt.Printf("Script contents: %s\n", string(script))
 	return map[string]interface{}{}, nil
 }
 
