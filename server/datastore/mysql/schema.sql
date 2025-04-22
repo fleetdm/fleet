@@ -2292,7 +2292,7 @@ CREATE TABLE `vpp_app_team_labels` (
 CREATE TABLE `vpp_app_team_software_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `software_category_id` int unsigned NOT NULL,
-  `vpp_apps_teams_id` int unsigned NOT NULL,
+  `vpp_app_team_id` int unsigned NOT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`)

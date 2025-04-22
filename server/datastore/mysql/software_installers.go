@@ -251,11 +251,6 @@ INSERT INTO software_installers (
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 		}
 
-		// TODO(JVE): add categories to installer here
-		if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, installerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
-			return ctxerr.Wrap(ctx, err, "upsert software installer categories")
-		}
-
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
 			if payload.AutomaticInstallQuery != "" {
@@ -305,7 +300,7 @@ func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtCo
 	}
 	_, err := tx.ExecContext(ctx, delStmt, delArgs...)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete existing software software categories")
+		return ctxerr.Wrap(ctx, err, "delete existing software categories")
 	}
 
 	if len(categoryIDs) > 0 {

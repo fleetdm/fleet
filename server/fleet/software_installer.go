@@ -380,8 +380,6 @@ type UploadSoftwareInstallerPayload struct {
 	ValidatedLabels       *LabelIdentsWithScope
 	AutomaticInstall      bool
 	AutomaticInstallQuery string
-	Categories            []string
-	CategoryIDs           []uint
 }
 
 type ExistingSoftwareInstaller struct {

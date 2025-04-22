@@ -3983,8 +3983,8 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	return ids, nil
 }
 
-func (ds *Datastore) GetCategoriesForSoftwareInstallers(ctx context.Context, softwareInstallerIDs []uint, teamID *uint) (map[uint][]string, error) {
-	if len(softwareInstallerIDs) == 0 {
+func (ds *Datastore) GetCategoriesForSoftwareInstallers(ctx context.Context, softwareTitleIDs []uint, teamID *uint) (map[uint][]string, error) {
+	if len(softwareTitleIDs) == 0 {
 		return map[uint][]string{}, nil
 	}
 
@@ -4006,7 +4006,7 @@ WHERE
 		tmID = *teamID
 	}
 
-	stmt, args, err := sqlx.In(stmt, softwareInstallerIDs, tmID)
+	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get categories for software installers")
 	}

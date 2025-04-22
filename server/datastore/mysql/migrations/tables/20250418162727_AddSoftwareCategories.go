@@ -32,7 +32,7 @@ func Up_20250418162727(tx *sql.Tx) error {
 	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS vpp_app_team_software_categories  (
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		software_category_id INT UNSIGNED NOT NULL,
-			vpp_apps_teams_id INT UNSIGNED NOT NULL,
+			vpp_app_team_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
   			updated_at DATETIME(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6))`)
 	if err != nil {
