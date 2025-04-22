@@ -16,6 +16,13 @@
   autoIssue:   
     labels: [ "#g-digital-experience" ]
     repo: "fleet"
+-
+  task: "Confirm closed lost is happening within 30 days"
+  startedOn: "2025-01-25"
+  frequency: "Weekly"
+  description: "Check Salesforce for opportunities 30 days or older and escalate to sales manager who will follow up with prospect and return the deal to marketing via resting and changing the owner"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  dri: "Sampfluger88"
 - 
   task: "Prep 1:1s for OKR planning"
   startedOn: "2024-09-09" 
@@ -226,4 +233,13 @@
   description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
   moreInfoUrl: ""
   dri: "onasismunro"
-
+-
+  task: "Connect with active community members"
+  startedOn: "2025-04-25"
+  frequency: "Weekly"
+  description: "Connect with active community members"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#connect-with-active-community-members"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"

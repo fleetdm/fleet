@@ -70,7 +70,7 @@ locals {
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
-  idp_metadata_file = "${path.module}/files/idp-metadata.xml"
+  # idp_metadata_file = "${path.module}/files/idp-metadata.xml"
 }
 
 module "main" {
@@ -514,7 +514,7 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.2.0"
+  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.3.0"
   zone_id = aws_route53_zone.main.zone_id
   domain  = "dogfood.fleetdm.com"
 }
@@ -537,29 +537,29 @@ module "ses" {
 # }
 
 # This is intended to be public
-module "dogfood_idp_metadata_bucket" {
-  source                                = "terraform-aws-modules/s3-bucket/aws"
-  version                               = "3.15.1"
-  bucket                                = "fleet-dogfood-idp-metadata"
-  attach_deny_insecure_transport_policy = true
-  attach_require_latest_tls_policy      = true
-  attach_public_policy                  = true
-  block_public_acls                     = false
-  block_public_policy                   = false
-  ignore_public_acls                    = false
-  restrict_public_buckets               = false
-  acl                                   = "public-read"
-  control_object_ownership              = true
-  object_ownership                      = "BucketOwnerPreferred"
-}
+# module "dogfood_idp_metadata_bucket" {
+#   source                                = "terraform-aws-modules/s3-bucket/aws"
+#   version                               = "3.15.1"
+#   bucket                                = "fleet-dogfood-idp-metadata"
+#   attach_deny_insecure_transport_policy = true
+#   attach_require_latest_tls_policy      = true
+#   attach_public_policy                  = true
+#   block_public_acls                     = false
+#   block_public_policy                   = false
+#   ignore_public_acls                    = false
+#   restrict_public_buckets               = false
+#   acl                                   = "public-read"
+#   control_object_ownership              = true
+#   object_ownership                      = "BucketOwnerPreferred"
+# }
 
-resource "aws_s3_object" "idp_metadata" {
-  bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
-  key    = "idp-metadata.xml"
-  source = local.idp_metadata_file
-  etag   = filemd5(local.idp_metadata_file)
-  acl    = "public-read"
-}
+# resource "aws_s3_object" "idp_metadata" {
+#   bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
+#   key    = "idp-metadata.xml"
+#   source = local.idp_metadata_file
+#   etag   = filemd5(local.idp_metadata_file)
+#   acl    = "public-read"
+# }
 
 module "geolite2" {
   source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"

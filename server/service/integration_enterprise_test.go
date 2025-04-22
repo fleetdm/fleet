@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -39,7 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -2553,6 +2554,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
 			"gitops": { "gitops_mode_enabled": false, "repository_url": "a.b.cc" }
 	  }`), http.StatusOK)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Make sure URL isn't cleared after another setting is changed
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"org_info": {"org_name": "Changes"}
+	  }`), http.StatusOK)
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "a.b.cc", config.UIGitOpsMode.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -10397,7 +10406,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	t := s.T()
 
 	token := "good_token"
-	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
 	// no software yet
@@ -10421,7 +10430,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.1", Source: "apps"},
+		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
 	}
 	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -10674,35 +10683,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 
-	// Add new software to host -- installed on host, but not by Fleet
-	installedVersion := "1.0.1"
-	softwareAlreadyInstalled := fleet.Software{
-		Name: "DummyApp.app", Version: installedVersion, Source: "apps",
-		BundleIdentifier: "com.example.dummy",
-	}
-	software = append(software, softwareAlreadyInstalled)
-	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-	// Add installer for software that is already installed on host
-	payload = &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "dummy_installer.pkg",
-		Version:       "0.0.2", // The version can be anything -- we match on title
-	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
-
 	// Get software available for install
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install",
 		"true", "order_key", "name", "order_direction", "asc")
-	require.Len(t, getHostSw.Software, 2) // DummyApp.app and ruby
-	assert.Equal(t, softwareAlreadyInstalled.Name, getHostSw.Software[0].Name)
-	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
-	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+	require.Len(t, getHostSw.Software, 1) // ruby.app
+	assert.Equal(t, "ruby", getHostSw.Software[0].Name)
+	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
-	assert.Nil(t, getHostSw.Software[0].Status)
+	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
@@ -11567,6 +11556,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+
+	require.NotEmpty(t, installerHash)
+
 	softwareToInstallBadSecret := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:           rubyURL,
@@ -11654,7 +11650,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	// Do a request with a valid URL with no team
 	//////////////////////////
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL},
+		{URL: rubyURL, SHA256: installerHash},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
@@ -13481,7 +13477,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
 }
 
-func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
+func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -13489,7 +13485,21 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
 	require.NoError(t, err)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some installer script",
+		Filename:      "hello-world-installer.exe",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename: "hello-world-installer.exe",
+		TeamID:   &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
+		UninstallScript:  "some uninstall script",
 		Filename:         "hello-world-installer.exe",
 		TeamID:           &team.ID,
 		AutomaticInstall: true,
@@ -16188,7 +16198,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
 		var id uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_library_app_id = ?", mappID)
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?", mappID)
 		})
 
 		return id
@@ -16198,26 +16208,58 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	insertedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
-	var expectedApps []fleet.MaintainedApp
-	for _, app := range insertedApps {
-		app.Version = "" // we don't expect version to be returned in list view anymore
-		expectedApps = append(expectedApps, app)
-	}
+	insertedApps := maintained_apps.SyncApps(t, s.ds)
+	expectedApps := insertedApps
 
-	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		h := sha256.New()
-		_, err := h.Write(installerBytes)
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA := hex.EncodeToString(h.Sum(nil))
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       installerServer.URL + "/installer.zip",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             spoofedSHA,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		switch slug {
+		case "fail":
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+
+		case "notfound":
+			w.WriteHeader(http.StatusNotFound)
+			return
+
+		case "badinstaller":
+			manifest.Versions[0].InstallerURL = installerServer.URL + "/badinstaller"
+
+		case "timeout":
+			manifest.Versions[0].InstallerURL = installerServer.URL + "/timeout"
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
 		require.NoError(t, err)
-		spoofedSHA := hex.EncodeToString(h.Sum(nil))
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, installerServer.URL+"/installer.zip")
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", installerServer.URL+"/badinstaller")
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", installerServer.URL+"/timeout")
-		return err
-	})
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -16232,19 +16274,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
-	var listAppsNoID []fleet.MaintainedApp
-	for _, app := range listMAResp.FleetMaintainedApps {
-		app.ID = 0
-		listAppsNoID = append(listAppsNoID, app)
-	}
 
-	slices.SortFunc(listAppsNoID, func(a, b fleet.MaintainedApp) int {
+	slices.SortFunc(listMAResp.FleetMaintainedApps, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
-	require.Equal(t, expectedApps, listAppsNoID)
+	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse
 	s.DoJSON(
@@ -16261,7 +16298,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.True(t, listMAResp2.Meta.HasPreviousResults)
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
-	require.Equal(t, listMAResp.FleetMaintainedApps[4:6], listMAResp2.FleetMaintainedApps)
+	require.Contains(t, listMAResp.FleetMaintainedApps, listMAResp2.FleetMaintainedApps[0])
 
 	// Check individual app fetch
 	var getMAResp getFleetMaintainedAppResponse
@@ -16269,9 +16306,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// TODO this will change when actual install scripts are created.
 	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
 	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, dbAppRecord)
+	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
 		Name:            dbAppRecord.Name,
+		Slug:            dbAppRecord.Slug,
 		Version:         dbAppRecord.Version,
 		Platform:        dbAppRecord.Platform,
 		InstallerURL:    dbAppRecord.InstallerURL,
@@ -16338,7 +16378,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:            &team.ID,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
-		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
@@ -16353,17 +16392,19 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Validate software installer fields
 	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
 	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, mapp)
+	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
 	require.Equal(t, mapp.TitleID, i.TitleID)
-	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
+	require.Equal(t, ptr.Uint(1), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err := s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
 	require.NoError(t, err)
-	require.Equal(t, req.InstallScript, string(install))
+	require.Equal(t, mapp.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
 	postinstall, err := s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
@@ -16385,7 +16426,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.UniqueIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
@@ -16396,6 +16437,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		fmt.Sprintf(`{"software_title": "%[1]s", "software_package": "installer.zip", "team_name": "%s", "team_id": %d, "self_service": true, "software_title_id": %d}`, mapp.Name, team.Name, team.ID, title.ID),
 		0,
 	)
+
+	// Edit DB to point some apps at bad-installer/timeout slugs
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 2", "badinstaller")
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 3", "timeout")
+		return err
+	})
 
 	// Should return an error; SHAs don't match up
 	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
@@ -16413,7 +16462,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		AppID:             4,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
-		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
 
@@ -16435,24 +16483,23 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
 	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, mapp)
+	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
-	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
 	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(4), i.FleetLibraryAppID)
+	require.Equal(t, ptr.Uint(4), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
-	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
 	require.NoError(t, err)
-	require.Equal(t, req.InstallScript, string(install))
+	require.Equal(t, mapp.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
 	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
@@ -16983,4 +17030,170 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		Status:          string(fleet.SoftwareInstalled),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	// create a team
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create an HTTP server to host the software installer
+	var hitInstallerURL bool
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitInstallerURL = true
+		if r.URL.Path != "/ruby.deb" && r.URL.Path != "/updated/ruby.deb" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with a valid URL, but invalid hash, should fail
+	rubyURL := srv.URL + "/ruby.deb"
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, SHA256: "foobar"},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg := waitBatchSetSoftwareInstallersFailed(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Equal(t, fmt.Sprintf("downloaded installer hash does not match provided hash for installer with url %s", rubyURL), errMsg)
+
+	// payload without URL or hash should fail
+	softwareToInstall[0].SHA256 = ""
+	softwareToInstall[0].URL = ""
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.")
+
+	// Pass in valid URL
+	softwareToInstall[0].URL = rubyURL
+	softwareToInstall[0].SHA256 = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+	require.NotEmpty(t, installerHash)
+
+	// add the hash to the payload
+	softwareToInstall[0].SHA256 = installerHash
+
+	// dry run shouldn't hit the download endpoint since we included the SHA
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// since we provided the SHA and we'd already added the installer, we should not hit the
+	// download endpoint
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// create a new team
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + "2",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create a new user for team 2; doesn't have access to team 1
+	team2Admin := &fleet.User{
+		Name:       "Team 2 Admin",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team2,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, team2Admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), team2Admin)
+	require.NoError(t, err)
+
+	s.setTokenForTest(t, team2Admin.Email, test.GoodPassword)
+
+	// Remove the URL; since the user doesn't have access to team 1 and only the hash is provided,
+	// this should fail
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "package not found with hash")
+
+	// user doesn't have access to team1: we should hit the download endpoint
+	softwareToInstall[0].URL = rubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Empty(t, packages)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// same for real run
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// Send payload with just the SHA; should succeed and not hit the download endpoint because we
+	// downloaded it just above
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Empty(t, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// Update the URL, should re-download
+	updatedRubyURL := srv.URL + "/updated/ruby.deb"
+	softwareToInstall[0].URL = updatedRubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, updatedRubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
 }

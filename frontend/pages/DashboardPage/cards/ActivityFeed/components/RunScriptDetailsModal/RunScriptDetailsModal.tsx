@@ -20,12 +20,9 @@ interface IScriptContentProps {
 
 const ScriptContent = ({ content }: IScriptContentProps) => {
   return (
-    <div className={`${baseClass}__script-content`}>
-      <span>Script content:</span>
-      <Textarea className={`${baseClass}__script-content-textarea`}>
-        {content}
-      </Textarea>
-    </div>
+    <Textarea label="Script content:" variant="code">
+      {content}
+    </Textarea>
   );
 };
 
@@ -126,20 +123,24 @@ interface IScriptOutputProps {
 
 const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
   return (
-    <div className={`${baseClass}__script-output`}>
-      <p>
-        The{" "}
-        <TooltipWrapper
-          tipContent="Fleet records the last 10,000 characters to prevent downtime."
-          tooltipClass={`${baseClass}__output-tooltip`}
-          isDelayed
-        >
-          output recorded
-        </TooltipWrapper>{" "}
-        when <b>{hostname}</b> ran the script above:
-      </p>
-      <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
-    </div>
+    <Textarea
+      label={
+        <>
+          The{" "}
+          <TooltipWrapper
+            tipContent="Fleet records the last 10,000 characters to prevent downtime."
+            tooltipClass={`${baseClass}__output-tooltip`}
+            isDelayed
+          >
+            output recorded
+          </TooltipWrapper>{" "}
+          when <b>{hostname}</b> ran the script above:
+        </>
+      }
+      variant="code"
+    >
+      {output}
+    </Textarea>
   );
 };
 
@@ -237,11 +238,7 @@ const RunScriptDetailsModal = ({
   const renderFooter = () => (
     <ModalFooter
       isTopScrolling={isTopScrolling}
-      primaryButtons={
-        <Button onClick={onCancel} variant="brand">
-          Done
-        </Button>
-      }
+      primaryButtons={<Button onClick={onCancel}>Done</Button>}
     />
   );
   return (

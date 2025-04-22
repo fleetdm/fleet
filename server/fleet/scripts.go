@@ -270,6 +270,10 @@ type HostScriptResult struct {
 	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
 	// was part of setup experience.
 	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
+
+	// Canceled indicates if that script execution request was canceled by a
+	// user.
+	Canceled bool `json:"-" db:"canceled"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -406,6 +410,7 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
+	SHA256          string `json:"sha256"`
 }
 
 type HostLockWipeStatus struct {

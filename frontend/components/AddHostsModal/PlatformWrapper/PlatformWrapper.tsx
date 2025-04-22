@@ -347,15 +347,24 @@ const PlatformWrapper = ({
 }`,
     };
 
-    let packageTypeHelpText = "";
+    let packageTypeHelpText;
     if (packageType === "deb") {
-      packageTypeHelpText =
-        "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
+      packageTypeHelpText = (
+        <>
+          For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
+          For ARM, use <code>--arch=arm64</code>
+        </>
+      );
     } else if (packageType === "msi") {
-      packageTypeHelpText =
-        "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
+      packageTypeHelpText = (
+        <>
+          For ARM, use <code>--arch=arm64</code>
+        </>
+      );
     } else if (packageType === "pkg") {
       packageTypeHelpText = "Install this package to add hosts to Fleet.";
+    } else {
+      packageTypeHelpText = "";
     }
 
     if (packageType === "chromeos") {
@@ -613,9 +622,7 @@ const PlatformWrapper = ({
         </Tabs>
       </TabNav>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel} variant="brand">
-          Done
-        </Button>
+        <Button onClick={onCancel}>Done</Button>
       </div>
     </div>
   );

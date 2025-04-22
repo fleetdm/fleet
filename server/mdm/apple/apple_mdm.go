@@ -1303,3 +1303,33 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 
 	return profileBuf.Bytes(), nil
 }
+
+func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+		return nil
+	}
+
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 500)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to revive")
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, ids); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+	}
+	return nil
+}

@@ -61,9 +61,6 @@ jobs:
       # let's smoke test pkg/msi generation before pushing.
       #
 
-      - name: Install Go Dependencies
-        run: make deps-go
-
       - name: Build fleetctl
         run: make fleetctl
 

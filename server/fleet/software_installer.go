@@ -126,7 +126,7 @@ type SoftwareInstaller struct {
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
-	StorageID string `json:"-" db:"storage_id"`
+	StorageID string `json:"hash_sha256" db:"storage_id"`
 	// Status is the status of the software installer package.
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
@@ -136,8 +136,8 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
-	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetMaintainedAppID *uint `json:"-" db:"fleet_maintained_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -145,6 +145,7 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	Source           string               `json:"-" db:"source"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -352,32 +353,45 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID             *uint
-	InstallScript      string
-	PreInstallQuery    string
-	PostInstallScript  string
-	InstallerFile      *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID          string
-	Filename           string
-	Title              string
-	Version            string
-	Source             string
-	Platform           string
-	BundleIdentifier   string
-	SelfService        bool
-	UserID             uint
-	URL                string
-	FleetLibraryAppID  *uint
-	PackageIDs         []string
-	UninstallScript    string
-	Extension          string
-	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
-	LabelsIncludeAny   []string // names of "include any" labels
-	LabelsExcludeAny   []string // names of "exclude any" labels
+	TeamID               *uint
+	InstallScript        string
+	PreInstallQuery      string
+	PostInstallScript    string
+	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID            string
+	Filename             string
+	Title                string
+	Version              string
+	Source               string
+	Platform             string
+	BundleIdentifier     string
+	SelfService          bool
+	UserID               uint
+	URL                  string
+	FleetMaintainedAppID *uint
+	PackageIDs           []string
+	UninstallScript      string
+	Extension            string
+	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny     []string // names of "include any" labels
+	LabelsExcludeAny     []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
-	ValidatedLabels  *LabelIdentsWithScope
-	AutomaticInstall bool
+	ValidatedLabels       *LabelIdentsWithScope
+	AutomaticInstall      bool
+	AutomaticInstallQuery string
+}
+
+type ExistingSoftwareInstaller struct {
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -524,6 +538,7 @@ type SoftwarePackageSpec struct {
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
 	ReferencedYamlPath string `json:"referenced_yaml_path"`
+	SHA256             string `json:"hash_sha256"`
 }
 
 type SoftwareSpec struct {

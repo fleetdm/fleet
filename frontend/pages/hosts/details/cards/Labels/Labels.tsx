@@ -13,17 +13,22 @@ const baseClass = "labels-card";
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
   labels: ILabel[];
+  className?: string;
 }
 
-const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
-  const classNames = classnames(baseClass, "card", "labels");
+const Labels = ({
+  onLabelClick,
+  labels,
+  className,
+}: ILabelsProps): JSX.Element => {
+  const classNames = classnames(baseClass, className);
 
   const labelItems = labels.map((label: ILabel) => {
     return (
       <li className="list__item" key={label.id}>
         <Button
           onClick={() => onLabelClick(label)}
-          variant="label"
+          variant="pill"
           className="list__button"
         >
           {label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP

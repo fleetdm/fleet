@@ -1117,7 +1117,7 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Grant Wi-Fi access
-  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  description: Help your end users connect to Wi-Fi by adding your certificate authority (CA).                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
@@ -1168,7 +1168,7 @@
 - industryName: Third-party orchestration
   friendlyName: Borrow off-the-shelf tactics from legendary brands
   documentationUrl: https://fleetdm.com/integrations
-  description: Plug Fleet into other frameworks and tools like Puppet, Vanta, etc.
+  description: Plug Fleet into other frameworks and tools like Tines, Torq, Vanta, etc.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
@@ -1176,10 +1176,9 @@
   tier: Premium
   waysToUse:
     - description: (Vanta) Trigger a workflow based on a failing policy.
-    - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-    - description: (Torq) Build custom workflows that trigger in various situations.
+    - description: (Tines, Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
-  buzzwords: [Vanta,Puppet,Custom IdP]
+  buzzwords: [Vanta,Torq,Custom IdP]
 #  
 #  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦ 
 #  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝ 

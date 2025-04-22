@@ -1,11 +1,13 @@
 import React from "react";
 
-import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 
+import CustomLink from "components/CustomLink";
+
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
-  { label: "Digicert", value: "digicert" },
+  { label: "DigiCert", value: "digicert" },
   {
     label: "Microsoft NDES (Network Device Enrollment Service)",
     value: "ndes",
@@ -42,7 +44,7 @@ const PRIVATE_KEY_NOT_CONFIGURED_ERROR = (
     Private key must be configured.{" "}
     <CustomLink
       text="Learn more"
-      url="https://learn-more-about/fleet-server-private-key"
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-server-private-key`}
       newTab
       variant="flash-message-link"
     />
@@ -69,7 +71,10 @@ export const getDisplayErrMessage = (err: unknown) => {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile GUID")) {
     message = INVALID_PROFILE_GUID_ERROR;
-  } else if (reason.includes("invalid URL")) {
+  } else if (
+    reason.includes("invalid URL") ||
+    reason.includes("no such host")
+  ) {
     message = INVALID_URL_ERROR;
   } else if (reason.includes("private key")) {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
@@ -89,5 +94,7 @@ export const getDisplayErrMessage = (err: unknown) => {
 };
 
 export const getErrorMessage = (err: unknown) => {
-  return `Couldn't add certificate authority. ${getDisplayErrMessage(err)}`;
+  return (
+    <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
+  );
 };

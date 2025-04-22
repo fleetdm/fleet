@@ -860,8 +860,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	ctx := context.Background()
 
 	testProfiles := []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-		{Name: "N2", Contents: syncml.ForTestWithData(map[string]string{"L2": "D2", "L3": "D3"})},
+		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}, {Verb: "Add", LocURI: "L3", Data: "D3"}})},
 	}
 
 	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1023,7 +1023,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 	t.Run("retry after device error", func(t *testing.T) {
 		// add another profile
-		newProfile := syncml.ForTestWithData(map[string]string{"L3": "D3"})
+		newProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}})
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N3",
 			Contents: newProfile,
@@ -1059,7 +1059,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N4",
-			Contents: syncml.ForTestWithData(map[string]string{"L4": "D4"}),
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L4", Data: "D4"}}),
 		})
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// trigger a profile sync and confirm that the install profile command for N4 was sent and
@@ -1086,7 +1086,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N5",
-			Contents: syncml.ForTestWithData(map[string]string{"L5": "D5"}),
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L5", Data: "D5"}}),
 		})
 		// hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
@@ -1133,8 +1133,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	ctx := context.Background()
 
 	testProfiles := []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-		{Name: "N2", Contents: syncml.ForTestWithData(map[string]string{"L2": "D2", "L3": "D3"})},
+		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}, {Verb: "Replace", LocURI: "L3", Data: "D3"}})},
 	}
 
 	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1285,7 +1285,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		// Change one profile and upload
 		copiedTestProfiles := make([]fleet.MDMProfileBatchPayload, len(testProfiles))
 		copy(copiedTestProfiles, testProfiles)
-		copiedTestProfiles[0].Contents = syncml.ForTestWithData(map[string]string{"L1": "D1-modified"})
+		copiedTestProfiles[0].Contents = syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1-Modified"}})
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: copiedTestProfiles}, http.StatusNoContent)
 		// Confirm that one profile was sent and its status
 		verifyCommands(1, syncml.CmdStatusOK)
@@ -2346,11 +2346,20 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 			mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -3203,8 +3212,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("foo.txt", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 
 	// Windows-reserved LocURI
-	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest, "Couldn't add. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest, "Couldn't add. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest,
+		syncml.DiskEncryptionProfileRestrictionErrMsg)
+	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest,
+		"Couldn't add. Custom configuration profiles can't include Windows updates settings.")
 
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
@@ -4298,13 +4309,22 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -4354,7 +4374,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -4573,12 +4593,21 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -4599,7 +4628,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		"N3":                              syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
@@ -4715,7 +4744,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// batch set only windows profiles doesn't remove the reserved names
-	newWinProfile := syncml.ForTestWithData(map[string]string{"l1": "d1"})
+	newWinProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "l1", Data: "d1"}})
 	var testProfiles []fleet.MDMProfileBatchPayload
 	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 		Name:     "n1",

@@ -81,10 +81,11 @@ func orbitCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("goreleaser-orbit.yaml", gitTag, map[string]string{
-				"macos":       "orbit-macos",
-				"linux":       "orbit-linux",
-				"linux-arm64": "orbit-linux-arm64",
-				"windows":     "orbit-windows",
+				"macos":         "orbit-macos",
+				"linux":         "orbit-linux",
+				"linux-arm64":   "orbit-linux-arm64",
+				"windows":       "orbit-windows",
+				"windows-arm64": "orbit-windows-arm64",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
@@ -92,7 +93,7 @@ func orbitCommand() *cli.Command {
 
 func desktopCommand() *cli.Command {
 	var (
-		gitBranch       string
+		gitTag          string
 		outputDirectory string
 		githubUsername  string
 		githubAPIToken  string
@@ -103,11 +104,11 @@ func desktopCommand() *cli.Command {
 		Usage: "Fetch Fleet Desktop executables from the generate-desktop-targets.yml action",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:        "git-branch",
-				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GIT_BRANCH"},
+				Name:        "git-tag",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GIT_TAG"},
 				Required:    true,
-				Destination: &gitBranch,
-				Usage:       "branch name used to bump the Fleet Desktop version",
+				Destination: &gitTag,
+				Usage:       "git tag generated for the desktop release",
 			},
 			&cli.StringFlag{
 				Name:        "output-directory",
@@ -138,11 +139,12 @@ func desktopCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			return downloadComponents("generate-desktop-targets.yml", gitBranch, map[string]string{
-				"macos":       "desktop.app.tar.gz",
-				"linux":       "desktop.tar.gz",
-				"linux-arm64": "desktop-arm64.tar.gz",
-				"windows":     "fleet-desktop.exe",
+			return downloadComponents("generate-desktop-targets.yml", gitTag, map[string]string{
+				"macos":         "desktop.app.tar.gz",
+				"linux":         "desktop.tar.gz",
+				"linux-arm64":   "desktop-arm64.tar.gz",
+				"windows":       "fleet-desktop.exe",
+				"windows-arm64": "fleet-desktop-arm64.exe",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
@@ -252,7 +254,7 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 	if err := os.RemoveAll(outputDirectory); err != nil {
 		return err
 	}
-	for _, osPath := range []string{"macos", "windows", "linux", "linux-arm64"} {
+	for _, osPath := range []string{"macos", "windows", "windows-arm64", "linux", "linux-arm64"} {
 		if err := os.MkdirAll(filepath.Join(outputDirectory, osPath), constant.DefaultDirMode); err != nil {
 			return err
 		}
@@ -301,17 +303,19 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 				urls["macos"] = *artifact.ArchiveDownloadURL
 			case *artifact.Name == artifactNames["windows"]:
 				urls["windows"] = *artifact.ArchiveDownloadURL
+			case *artifact.Name == artifactNames["windows-arm64"]:
+				urls["windows-arm64"] = *artifact.ArchiveDownloadURL
 			default:
 				fmt.Printf("skipping artifact name: %q\n", *artifact.Name)
 			}
 		}
-		if len(urls) == 4 || !retry {
+		if len(urls) == 5 || !retry {
 			break
 		}
 		fmt.Printf("All artifacts are not available yet, the workflow might still be running, retrying in 60s...\n")
 		time.Sleep(60 * time.Second)
 	}
-	if len(urls) != 4 {
+	if len(urls) != 5 {
 		return fmt.Errorf("missing some artifact: %+v", urls)
 	}
 	for osName, downloadURL := range urls {
@@ -373,10 +377,11 @@ func osquerydCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("generate-osqueryd-targets.yml", gitBranch, map[string]string{
-				"macos":       "osqueryd.app.tar.gz",
-				"linux":       "osqueryd",
-				"linux-arm64": "osqueryd-arm64",
-				"windows":     "osqueryd.exe",
+				"macos":         "osqueryd.app.tar.gz",
+				"linux":         "osqueryd",
+				"linux-arm64":   "osqueryd-arm64",
+				"windows":       "osqueryd.exe",
+				"windows-arm64": "osqueryd-arm64.exe",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}

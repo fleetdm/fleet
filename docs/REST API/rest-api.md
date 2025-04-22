@@ -745,7 +745,7 @@ None.
 
 Returns all information about the Fleet's configuration.
 
-The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin users with global access. Learn more about roles and permissions [here](https://fleetdm.com/guides/role-based-access).
+The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin and GitOps users with global access. Learn more about roles and permissions [here](https://fleetdm.com/guides/role-based-access).
 
 `mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
 
@@ -855,7 +855,6 @@ None.
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
@@ -974,12 +973,37 @@ None.
       }
     ],
     "jira": [],
+    "digicert": [
+      {
+        "name": "DIGICERT_WIFI",
+        "url": "https://one.digicert.com",
+        "api_token": "********",
+        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
+        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_user_principal_names": [
+          "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        ]
+        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
+      }
+    ],
     "ndes_scep_proxy": {
       "admin_url": "https://example.com/certsrv/mscep_admin/",
       "password": "********",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
     },
+    "custom_scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "url": "https://example.com/scep",
+        "challenge": "********",
+      },
+      {
+        "name": "SCEP_VPN",
+        "url": "https://example.com/scep",
+        "challenge": "********",
+      }
+    ],
     "zendesk": []
   },
   "logging": {
@@ -1039,11 +1063,12 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| gitops        | object  | body  | See [gitops](#gitops). |
-| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
+| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
+| yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 
@@ -1153,7 +1178,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile2.json",
           "labels_include_all": ["Label 3", "Label 4"]
         },
-	{
+	      {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
         },
@@ -1169,7 +1194,6 @@ Modifies the Fleet's configuration with the supplied information.
     },
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
@@ -1602,7 +1626,9 @@ _Available in Fleet Premium._
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| digicert | array | See [`integrations.digicert`](#integrations-digicert). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+| custom_scep_proxy | array | See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
 
 
 <br/>
@@ -1652,9 +1678,30 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### integrations.digicert
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+`integrations.digicert` is an array of objects with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url   | string | DigiCert instance URL, used as base URL for DigiCert API requests. |
+| api_token        | string | API token used to authenticate requests to DigiCert. |
+| profile_id       | string  | The ID of certificate profile in DigiCert. |
+| certificate_common_name      | string  | The certificate's common name. |
+| certificate_user_principal_names    | array  | The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). |
+| certificate_seat_id     | string  | The ID of the DigiCert seat. Seats are license units in DigiCert. |
+
+<br/>
+
+> Note that when making changes to the `integrations.digicert` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
+
 ##### integrations.ndes_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 `integrations.ndes_scep_proxy` is an object with the following structure:
 
 | Name      | Type   | Description                                             |
@@ -1666,6 +1713,21 @@ _Available in Fleet Premium._
 
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
+##### integrations.custom_scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+`integrations.custom_scep_proxy` is an array of objects with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name   | string | Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url        | boolean | URL of the Simple Certificate Enrollment Protocol (SCEP) server |
+| challenge         | string  | Static challenge password used to authenticate requests to SCEP server. |
+
+<br/>
+
+> Note that when making changes to the `integrations.custom_scep_proxy` array, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
 
 
 ##### Example request body
@@ -1690,12 +1752,35 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
         "api_key_json": "<API KEY JSON>"
       }
     ],
+    "digicert": [
+      {
+        "name": "DIGICERT_WIFI",
+        "url": "https://one.digicert.com",
+        "api_token": "********",
+        "profile_id": "7ed77396-9186-4bfa-9fa7-63dddc46b8a3",
+        "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
+        "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
+      }
+    ],
     "ndes_scep_proxy": {
       "admin_url": "https://example.com/certsrv/mscep_admin/",
       "password": "abc123",
       "url": "https://example.com/certsrv/mscep/mscep.dll",
       "username": "Administrator@example.com"
-    }
+    },
+    "custom_scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "url": "https://example.com/scep",
+        "challenge": "********"
+      },
+      {
+        "name": "SCEP_VPN",
+        "url": "https://example.com/scep",
+        "challenge": "********"
+      }
+    ]
   }
 }
 ```
@@ -1818,6 +1903,19 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### mdm.end_user_authentication
+
+`mdm.end_user_authentication` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| entity_id                         | string  | **Required**. The entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
+| idp_name                          | string  | **Required.** A human friendly name for the identity provider that will provide single sign-on authentication.                                                              |
+| metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http. |
+| metadata                          | string  | Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -1855,7 +1953,6 @@ _Available in Fleet Premium._
     },
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
@@ -4753,7 +4850,7 @@ Add a dynamic or manual label.
 | name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
-| hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name`) the label will apply to. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label)  can be included in the request. |
+| hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label)  can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 If both `query` and `hosts` aren't specified, a manual label with no hosts will be created.
@@ -4766,10 +4863,10 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
 
 ```json
 {
-  "name": "Ubuntu hosts",
-  "description": "Filters ubuntu hosts",
-  "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-  "platform": ""
+  "name": "macOS hosts (x86_64)",
+  "description": "Filters macOS hosts with x86_64 architecture",
+  "query": "SELECT 1 FROM os_version WHERE platform = 'darwin' AND instr(arch, 'x86_64')",
+  "platform": "darwin"
 }
 ```
 
@@ -4782,15 +4879,16 @@ If both `query` and `hosts` aren't specified, a manual label with no hosts will 
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "name": "Ubuntu hosts",
-    "description": "Filters ubuntu hosts",
-    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+    "id": 42,
+    "name": "macOS hosts (x86_64)",
+    "description": "Filters macOS hosts with x86_64 architecture",
+    "query": "SELECT 1 FROM os_version WHERE platform = 'darwin' AND instr(arch, 'x86_64')",
     "label_type": "regular",
     "label_membership_type": "dynamic",
-    "display_text": "Ubuntu hosts",
+    "display_text": "macOS hosts (x86_64)",
     "count": 0,
-    "host_ids": null
+    "host_ids": null,
+    "author_id": 1
   }
 }
 ```
@@ -4808,20 +4906,18 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
-| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name`) the label will apply to. |
+| hosts       | array   | body | If updating a manual label: the list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. The provided list fully replaces the previous list. |
 
 
 #### Example
 
-`PATCH /api/v1/fleet/labels/1`
+`PATCH /api/v1/fleet/labels/21`
 
 ##### Request body
 
 ```json
 {
-  "name": "macOS label",
-  "description": "Now this label only includes macOS machines",
-  "platform": "darwin"
+  "hosts": ["ABC1234", "XYZ5678"]
 }
 ```
 
@@ -4834,16 +4930,17 @@ Updates the specified label. Note: Label queries and platforms are immutable. To
   "label": {
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
-    "id": 1,
-    "name": "Ubuntu hosts",
-    "description": "Filters ubuntu hosts",
-    "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
-    "platform": "darwin",
+    "id": 21,
+    "name": "My label",
+    "description": "Some hosts that I want to manually group together",
+    "query": "",
+    "platform": "",
     "label_type": "regular",
-    "label_membership_type": "dynamic",
-    "display_text": "Ubuntu hosts",
-    "count": 0,
-    "host_ids": null
+    "label_membership_type": "manual",
+    "display_text": "My label",
+    "count": 2,
+    "host_ids": [42, 43],
+    "author_id": 1
   }
 }
 ```
@@ -4881,7 +4978,8 @@ Returns the specified label.
     "label_membership_type": "dynamic",
     "display_text": "Ubuntu",
     "count": 0,
-    "host_ids": null
+    "host_ids": null,
+    "author_id": 1
   }
 }
 ```
@@ -4973,7 +5071,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 7,
       "display_text": "All Hosts",
       "count": 7,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -4988,7 +5087,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 1,
       "display_text": "macOS",
       "count": 1,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5003,7 +5103,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 3,
       "display_text": "Ubuntu Linux",
       "count": 3,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5017,7 +5118,8 @@ Returns a list of all the labels in Fleet.
       "host_count": 3,
       "display_text": "CentOS Linux",
       "count": 3,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     },
     {
       "created_at": "2021-02-02T23:55:25Z",
@@ -5031,7 +5133,8 @@ Returns a list of all the labels in Fleet.
       "label_membership_type": "dynamic",
       "display_text": "MS Windows",
       "count": 0,
-      "host_ids": null
+      "host_ids": null,
+      "author_id": 1
     }
   ]
 }
@@ -5793,6 +5896,7 @@ Upload a bootstrap package that will be automatically installed during DEP setup
 | ------- | ------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | package | file   | form | **Required**. The bootstrap package installer. It must be a signed `pkg` file.                                                                                                                                         |
 | team_id | string | form | The team ID for the package. If specified, the package will be installed to hosts that are assigned to the specified team. If not specified, the package will be installed to hosts that are not assigned to any team. |
+| manual_agent_install | boolean | form | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -7501,6 +7605,7 @@ Returns a list of global queries or team queries.
       "author_id": 1,
       "author_name": "noah",
       "author_email": "noah@example.com",
+      "labels_include_any": [],
       "packs": [
         {
           "created_at": "2021-01-05T21:13:04Z",
@@ -7539,6 +7644,7 @@ Returns a list of global queries or team queries.
       "author_id": 1,
       "author_name": "noah",
       "author_email": "noah@example.com",
+      "labels_include_any": ["macOS 13+"],
       "packs": [
         {
           "created_at": "2021-01-19T17:08:31Z",
@@ -7608,6 +7714,7 @@ Returns the query specified by ID.
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
+    "labels_include_any": [],
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -7799,6 +7906,7 @@ Creates a global query or team query.
 | team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | interval                        | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
+| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging                         | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
@@ -7821,7 +7929,10 @@ Creates a global query or team query.
   "min_osquery_version": "",
   "automations_enabled": true,
   "logging": "snapshot",
-  "discard_data": false
+  "discard_data": false,
+  "labels_include_any": [
+    "Hosts with Docker installed"
+  ]
 }
 ```
 
@@ -7850,7 +7961,10 @@ Creates a global query or team query.
     "author_email": "",
     "observer_can_run": true,
     "discard_data": false,
-    "packs": []
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed"
+    ]
   }
 }
 ```
@@ -7872,6 +7986,7 @@ Modifies the query specified by ID.
 | observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
 | interval                   | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
+| labels_include_any          | list    | body | _Available in Fleet Premium_. Labels to target with this query. If specified, the query will run on hosts that match **any of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the query's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
@@ -7879,6 +7994,7 @@ Modifies the query specified by ID.
 
 > Note that any of the following conditions will cause the existing query report to be deleted:
 > - Updating the `query` (SQL) field
+> - Updating the filters for targeted hosts (`platform`, `min_osquery_version`, `labels_include_any`)
 > - Changing `discard_data` from `false` to `true`
 > - Changing `logging` from `"snapshot"` to `"differential"` or `"differential_ignore_removals"`
 
@@ -7895,7 +8011,11 @@ Modifies the query specified by ID.
   "platform": "",
   "min_osquery_version": "",
   "automations_enabled": false,
-  "discard_data": true
+  "discard_data": true,
+  "labels_include_any": [
+    "Hosts with Docker installed",
+    "macOS 13+"
+  ]
 }
 ```
 
@@ -7923,7 +8043,11 @@ Modifies the query specified by ID.
     "author_name": "noah",
     "observer_can_run": true,
     "discard_data": true,
-    "packs": []
+    "packs": [],
+    "labels_include_any": [
+      "Hosts with Docker installed",
+      "macOS 13+"
+    ]
   }
 }
 ```
@@ -9812,7 +9936,7 @@ List available Fleet-maintained apps.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id  | integer | query | If supplied, only list apps for which an installer doesn't already exist for the specified team.  |
+| team_id  | integer | query | If specified, each app includes the `software_title_id` if the software has already been added to that team.  |
 | page     | integer | query | Page number of the results to fetch.  |
 | per_page | integer | query | Results per page.  |
 
@@ -9830,21 +9954,22 @@ List available Fleet-maintained apps.
     {
       "id": 1,
       "name": "1Password",
-      "version": "8.10.40",
-      "platform": "darwin"
+      "platform": "darwin",
+      "software_title_id": 3
     },
     {
       "id": 2,
-      "name": "Adobe Acrobat Reader",
-      "version": "24.002.21005",
-      "platform": "darwin"
+      "name": "1Password",
+      "platform": "darwin",
+      "software_title_id": 1
     },
     {
       "id": 3,
-      "name": "Box Drive",
-      "version": "2.39.179",
-      "platform": "darwin"
+      "name": "Adobe Acrobat Reader",
+      "platform": "darwin",
+      "software_title_id": null
     },
+    ...
   ],
   "meta": {
     "has_next_results": false,
@@ -9856,6 +9981,7 @@ List available Fleet-maintained apps.
 ### Get Fleet-maintained app
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 Returns information about the specified Fleet-maintained app.
 
 `GET /api/v1/fleet/software/fleet_maintained_apps/:id`
@@ -9865,7 +9991,7 @@ Returns information about the specified Fleet-maintained app.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The Fleet-maintained app's ID. |
-
+| team_id  | integer | query | If supplied, set `software_title_id` on the response when an installer or VPP app has already been added to that team for that software.  |
 
 #### Example
 
@@ -9879,6 +10005,7 @@ Returns information about the specified Fleet-maintained app.
 {
   "fleet_maintained_app": {
     "id": 1,
+    "slug": "1password/darwin",
     "name": "1Password",
     "filename": "1Password-8.10.50-aarch64.zip",
     "version": "8.10.50",
@@ -9886,6 +10013,7 @@ Returns information about the specified Fleet-maintained app.
     "url": "https://downloads.1password.com/mac/1Password-8.10.50-aarch64.zip",
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
+    "software_title_id": 3
   }
 }
 ```

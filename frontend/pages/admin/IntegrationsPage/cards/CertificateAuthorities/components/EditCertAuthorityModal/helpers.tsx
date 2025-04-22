@@ -9,6 +9,9 @@ import {
 
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 
 export const getCertificateAuthorityType = (
   certAuthority: ICertificateIntegration
@@ -35,7 +38,8 @@ export const generateDefaultFormData = (
       apiToken: certAuthority.api_token,
       profileId: certAuthority.profile_id,
       commonName: certAuthority.certificate_common_name,
-      userPrincipalName: certAuthority.certificate_user_principal_names[0],
+      userPrincipalName:
+        certAuthority.certificate_user_principal_names?.[0] ?? "",
       certificateSeatId: certAuthority.certificate_seat_id,
     };
   }
@@ -46,6 +50,50 @@ export const generateDefaultFormData = (
     scepURL: customSCEPcert.url,
     challenge: customSCEPcert.challenge,
   };
+};
+
+export const updateFormData = (
+  certAuthority: ICertificateIntegration,
+  prevFormData: ICertFormData,
+  update: { name: string; value: string }
+) => {
+  const newData = { ...prevFormData, [update.name]: update.value };
+
+  // for some inputs that change we want to reset one of the other inputs
+  // and force users to re-enter it. we only want to clear these values if it
+  // has not been updated. The characters "********" is the value the API sends
+  // back so we check for that value to determine if its been changed or not.
+  if (isDigicertCertIntegration(certAuthority)) {
+    const formData = prevFormData as IDigicertFormData;
+    if (
+      update.name === "name" ||
+      update.name === "url" ||
+      update.name === "profileId"
+    ) {
+      return {
+        ...newData,
+        apiToken: formData.apiToken === "********" ? "" : formData.apiToken,
+      };
+    }
+  } else if (isNDESCertIntegration(certAuthority)) {
+    const formData = prevFormData as INDESFormData;
+    if (update.name === "adminURL" || update.name === "username") {
+      return {
+        ...newData,
+        password: formData.password === "********" ? "" : formData.password,
+      };
+    }
+  } else if (isCustomSCEPCertIntegration(certAuthority)) {
+    const formData = prevFormData as ICustomSCEPFormData;
+    if (update.name === "name" || update.name === "scepURL") {
+      return {
+        ...newData,
+        challenge: formData.challenge === "********" ? "" : formData.challenge,
+      };
+    }
+  }
+
+  return newData;
 };
 
 export const getErrorMessage = (err: unknown) => {

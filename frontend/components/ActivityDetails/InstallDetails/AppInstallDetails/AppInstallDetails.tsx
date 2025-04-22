@@ -1,3 +1,5 @@
+// Used on: Dashboard > activity, Host details > past activity
+
 import React from "react";
 import { useQuery } from "react-query";
 
@@ -114,20 +116,17 @@ export const AppInstallDetails = ({
           </span>
         </div>
         {showCommandPayload && (
-          <div className={`${baseClass}__script-output`}>
-            Request payload:
-            <Textarea className={`${baseClass}__output-textarea`}>
-              {result.payload}
-            </Textarea>
-          </div>
+          <Textarea label="Request payload:" variant="code">
+            {result.payload}
+          </Textarea>
         )}
         {showCommandResponse && (
-          <div className={`${baseClass}__script-output`}>
-            The response from {formattedHost}:
-            <Textarea className={`${baseClass}__output-textarea`}>
-              {result.result}
-            </Textarea>
-          </div>
+          <Textarea
+            label={<>The response from {formattedHost}:</>}
+            variant="code"
+          >
+            {result.result}
+          </Textarea>
         )}
       </div>
     </>
@@ -153,9 +152,7 @@ export const AppInstallDetailsModal = ({
           <AppInstallDetails {...details} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

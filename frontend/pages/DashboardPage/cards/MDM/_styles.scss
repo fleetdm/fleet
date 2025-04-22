@@ -17,18 +17,5 @@
         }
       }
     }
-
-    tbody {
-      .mdm-solution-link {
-        opacity: 0;
-        transition: 250ms;
-        text-overflow: none;
-      }
-      tr:hover {
-        .mdm-solution-link {
-          opacity: 1;
-        }
-      }
-    }
   }
 }

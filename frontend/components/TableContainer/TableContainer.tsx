@@ -43,7 +43,8 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
-  defaultPageIndex?: number;
+  /**  When page index is externally managed like from the URL, this prop must be set to control currentPageIndex */
+  pageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
   /** Button visible above the table container next to search bar */
   actionButton?: ITableContainerActionButtonProps;
@@ -61,10 +62,12 @@ interface ITableContainerProps<T = any> {
   searchable?: boolean;
   wideSearch?: boolean;
   disablePagination?: boolean;
-  disableNextPage?: boolean; // disableNextPage is a temporary workaround for the case
-  // where the number of items on the last page is equal to the page size.
-  // The old page controls for server-side pagination render a no results screen
-  // with a back button. This fix instead disables the next button in that case.
+  /**
+   * Disables the "Next" button when the last page contains exactly the page size items.
+   * This is determined using either the API's `meta.has_next_page` response
+   * or by calculating `isLastPage` in the frontend.
+   */
+  disableNextPage?: boolean;
   disableCount?: boolean;
   /** Main button after selecting a row */
   primarySelectAction?: IActionButtonProps;
@@ -108,9 +111,6 @@ interface ITableContainerProps<T = any> {
    * rows of data are present. */
   renderTableHelpText?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
-  /** Use for serverside filtering: Set to true when filters change in URL
-   * bar and API call so TableContainer will reset its page state to 0  */
-  resetPageIndex?: boolean;
   disableTableHeader?: boolean;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
@@ -130,7 +130,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
-  defaultPageIndex = DEFAULT_PAGE_INDEX,
+  pageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
   defaultSelectedRows,
@@ -171,7 +171,6 @@ const TableContainer = <T,>({
   renderCount,
   renderTableHelpText,
   setExportRows,
-  resetPageIndex,
   disableTableHeader,
   persistSelectedRows,
   onClearSelection = noop,
@@ -181,15 +180,23 @@ const TableContainer = <T,>({
   const [sortDirection, setSortDirection] = useState(
     defaultSortDirection || ""
   );
-  const [pageIndex, setPageIndex] = useState<number>(defaultPageIndex);
+  const [currentPageIndex, setCurrentPageIndex] = useState<number>(pageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {
-    if (isClientSidePagination && pageIndex !== defaultPageIndex) {
-      setPageIndex(defaultPageIndex);
+    if (isClientSidePagination && currentPageIndex !== DEFAULT_PAGE_INDEX) {
+      setCurrentPageIndex(DEFAULT_PAGE_INDEX);
     }
-  }, [defaultPageIndex, pageIndex, isClientSidePagination]);
+  }, [currentPageIndex, isClientSidePagination]);
+
+  // pageIndex must update currentPageIndex anytime it's changed or else it causes bugs
+  // e.g. bug of filter dd not reverting table to page 0
+  useEffect(() => {
+    if (!isClientSidePagination) {
+      setCurrentPageIndex(pageIndex);
+    }
+  }, [pageIndex, isClientSidePagination]);
 
   const prevPageIndex = useRef(0);
 
@@ -215,23 +222,14 @@ const TableContainer = <T,>({
     setSearchQuery(value.trim());
   };
 
-  const hasPageIndexChangedRef = useRef(false);
   const onPaginationChange = useCallback(
     (newPage: number) => {
       if (!isClientSidePagination) {
-        setPageIndex(newPage);
-        hasPageIndexChangedRef.current = true;
+        setCurrentPageIndex(newPage);
       }
     },
-    [hasPageIndexChangedRef, isClientSidePagination]
+    [isClientSidePagination]
   );
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    if (pageIndex !== 0 && resetPageIndex && !isClientSidePagination) {
-      onPaginationChange(0);
-    }
-  }, [resetPageIndex, pageIndex, isClientSidePagination]);
 
   useDeepEffect(() => {
     if (!onQueryChange) {
@@ -243,42 +241,44 @@ const TableContainer = <T,>({
       sortHeader,
       sortDirection,
       pageSize,
-      pageIndex,
+      pageIndex: currentPageIndex,
     };
 
-    if (prevPageIndex.current === pageIndex) {
-      setPageIndex(0);
+    if (prevPageIndex.current === currentPageIndex) {
+      setCurrentPageIndex(0);
     }
 
     // NOTE: used to reset page number to 0 when modifying filters
     const newPageIndex = onQueryChange(queryData);
     if (newPageIndex === 0) {
-      setPageIndex(0);
+      setCurrentPageIndex(0);
     }
 
-    prevPageIndex.current = pageIndex;
+    prevPageIndex.current = currentPageIndex;
   }, [
     searchQuery,
     sortHeader,
     sortDirection,
     pageSize,
-    pageIndex,
+    currentPageIndex,
     additionalQueries,
   ]);
 
-  /** Clientside pagination is handled in data table using react-table builtins */
-  const renderPagination = useCallback(() => {
+  /** This is server side pagination. Clientside pagination is handled in
+   * data table using react-table builtins */
+  const renderServersidePagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
       return null;
     }
-
     return (
       <Pagination
         disablePrev={pageIndex === 0}
         disableNext={disableNextPage || data.length < pageSize}
         onPrevPage={() => onPaginationChange(pageIndex - 1)}
         onNextPage={() => onPaginationChange(pageIndex + 1)}
-        hidePagination={disableNextPage && pageIndex === 0}
+        hidePagination={
+          (disableNextPage || data.length < pageSize) && pageIndex === 0
+        }
       />
     );
   }, [
@@ -302,7 +302,7 @@ const TableContainer = <T,>({
               <Button
                 disabled={disableActionButton || disableChildren}
                 onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "brand"}
+                variant={actionButton.variant || "default"}
                 className={`${baseClass}__table-action-button`}
               >
                 <>
@@ -318,7 +318,7 @@ const TableContainer = <T,>({
         <Button
           disabled={disableActionButton}
           onClick={actionButton.onActionButtonClick}
-          variant={actionButton.variant || "brand"}
+          variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
         >
           <>
@@ -491,15 +491,15 @@ const TableContainer = <T,>({
           !isMultiColumnFilter &&
           !isLoading) ? (
           <>
-            <EmptyComponent pageIndex={pageIndex} />
+            <EmptyComponent pageIndex={currentPageIndex} />
             {/* This UI only shows if a user navigates to a table page with a URL page param that is outside the # of pages available */}
-            {pageIndex !== 0 && (
+            {currentPageIndex !== 0 && (
               <div className={`${baseClass}__empty-page`}>
                 <div className={`${baseClass}__previous-button`}>
                   <Pagination
                     disableNext
-                    onNextPage={() => onPaginationChange(pageIndex + 1)}
-                    onPrevPage={() => onPaginationChange(pageIndex - 1)}
+                    onNextPage={() => onPaginationChange(currentPageIndex + 1)}
+                    onPrevPage={() => onPaginationChange(currentPageIndex - 1)}
                   />
                 </div>
               </div>
@@ -510,7 +510,7 @@ const TableContainer = <T,>({
             {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
             {!isLoading && clientFilterCount === 0 && !isMultiColumnFilter && (
-              <EmptyComponent pageIndex={pageIndex} />
+              <EmptyComponent pageIndex={currentPageIndex} />
             )}
             <div
               className={
@@ -534,7 +534,7 @@ const TableContainer = <T,>({
                 toggleAllPagesSelected={toggleAllPagesSelected}
                 resultsTitle={resultsTitle}
                 defaultPageSize={pageSize}
-                defaultPageIndex={defaultPageIndex}
+                defaultPageIndex={pageIndex}
                 defaultSelectedRows={defaultSelectedRows}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
@@ -551,7 +551,9 @@ const TableContainer = <T,>({
                 selectedDropdownFilter={selectedDropdownFilter}
                 renderTableHelpText={renderTableHelpText}
                 renderPagination={
-                  isClientSidePagination ? undefined : renderPagination
+                  isClientSidePagination
+                    ? undefined
+                    : renderServersidePagination
                 }
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}

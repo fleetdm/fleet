@@ -127,7 +127,7 @@ To provide full-time focus to the role, the on-call engineer is not expected to 
 
 ### Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
@@ -273,12 +273,12 @@ In these cases there are two differences in our pull request process:
 
 ### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When a user story selected for a release has not merged into `main` by the time the release candidate is created, it is the product group EM's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the EM suspects a user story is at risk for getting pushed, it is the product group EM's responsibility to notify stakeholders:
 
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
+3. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
 
 
 ### Run Fleet locally for QA purposes

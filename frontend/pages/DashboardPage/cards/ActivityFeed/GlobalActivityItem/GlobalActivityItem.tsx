@@ -17,22 +17,6 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 
 const baseClass = "global-activity-item";
 
-const PREMIUM_ACTIVITIES = new Set([
-  "created_team",
-  "deleted_team",
-  "applied_spec_team",
-  "changed_user_team_role",
-  "deleted_user_team_role",
-  "read_host_disk_encryption_key",
-  "enabled_macos_disk_encryption",
-  "disabled_macos_disk_encryption",
-  "enabled_macos_setup_end_user_auth",
-  "disabled_macos_setup_end_user_auth",
-  "tranferred_hosts",
-  "enabled_windows_mdm_migration",
-  "disabled_windows_mdm_migration",
-]);
-
 const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
@@ -1086,6 +1070,79 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  configuredMSEntraConditionalAccess: () => (
+    <> configured Microsoft Entra conditional access.</>
+  ),
+  deletedMSEntraConditionalAccess: () => (
+    <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  enabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        enabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  disabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        disabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  canceledRunScript: (activity: IActivity) => {
+    const { script_name: scriptName, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled {formatScriptNameForActivityItem(scriptName)} on{" "}
+        <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledInstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledUninstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> uninstall on <b>{hostName}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1345,6 +1402,28 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
+    }
+    case ActivityType.ConfiguredMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
+    }
+    case ActivityType.DeletedMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.EnabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.DisabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.CanceledRunScript: {
+      return TAGGED_TEMPLATES.canceledRunScript(activity);
+    }
+    case ActivityType.CanceledInstallSoftware:
+    case ActivityType.CanceledInstallAppStoreApp: {
+      return TAGGED_TEMPLATES.canceledInstallSoftware(activity);
+    }
+    case ActivityType.CanceledUninstallSoftware: {
+      return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
     }
 
     default: {

@@ -41,20 +41,28 @@ export const generateLabelKey = (
 interface ITargetChooserProps {
   selectedTarget: string;
   onSelect: (val: string) => void;
+  disableOptions?: boolean;
+  title: string | null;
 }
 
-const TargetChooser = ({ selectedTarget, onSelect }: ITargetChooserProps) => {
+const TargetChooser = ({
+  selectedTarget,
+  onSelect,
+  disableOptions = false,
+  title,
+}: ITargetChooserProps) => {
   return (
     <div className="form-field">
-      <div className="form-field__label">Target</div>
+      {title && <div className="form-field__label">{title}</div>}
       <Radio
         className={`${baseClass}__radio-input`}
         label="All hosts"
         id="all-hosts-target-radio-btn"
-        checked={selectedTarget === "All hosts"}
+        checked={!disableOptions && selectedTarget === "All hosts"}
         value="All hosts"
         name="target-type"
         onChange={onSelect}
+        disabled={disableOptions}
       />
       <Radio
         className={`${baseClass}__radio-input`}
@@ -64,6 +72,7 @@ const TargetChooser = ({ selectedTarget, onSelect }: ITargetChooserProps) => {
         value="Custom"
         name="target-type"
         onChange={onSelect}
+        disabled={disableOptions}
       />
     </div>
   );
@@ -80,6 +89,7 @@ interface ILabelChooserProps {
   dropdownHelpText?: ReactNode;
   onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
+  disableOptions: boolean;
 }
 
 const LabelChooser = ({
@@ -169,6 +179,9 @@ interface ITargetLabelSelectorProps {
   onSelectTargetType: (val: string) => void;
   onSelectCustomTarget?: (val: string) => void;
   onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
+  disableOptions?: boolean;
+  title?: string;
+  suppressTitle?: boolean;
 }
 
 const TargetLabelSelector = ({
@@ -185,6 +198,9 @@ const TargetLabelSelector = ({
   onSelectTargetType,
   onSelectCustomTarget,
   onSelectLabel,
+  disableOptions = false,
+  title = "Target",
+  suppressTitle = false,
 }: ITargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
 
@@ -193,6 +209,8 @@ const TargetLabelSelector = ({
       <TargetChooser
         selectedTarget={selectedTargetType}
         onSelect={onSelectTargetType}
+        disableOptions={disableOptions}
+        title={suppressTitle ? null : title}
       />
       {selectedTargetType === "Custom" && (
         <LabelChooser
@@ -206,6 +224,7 @@ const TargetLabelSelector = ({
           dropdownHelpText={dropdownHelpText}
           onSelectCustomTarget={onSelectCustomTarget}
           onSelectLabel={onSelectLabel}
+          disableOptions={disableOptions}
         />
       )}
     </div>

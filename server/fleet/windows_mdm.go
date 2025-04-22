@@ -79,6 +79,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	// structure (Target>Item>LocURI) so we don't need to track all the tags.
 	var inValidNode bool
 	var inLocURI bool
+	var inComment bool
 
 	for {
 		tok, err := dec.Token()
@@ -97,9 +98,19 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			return errors.New("The file should include valid XML: processing instructions are not allowed.")
 
 		case xml.Comment:
+			inComment = true
 			continue
 
 		case xml.StartElement:
+			// Top-level comments should be followed by <Replace> or <Add> elements
+			if inComment {
+				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements after comments")
+				}
+				inValidNode = true
+				inComment = false
+			}
+
 			switch t.Name.Local {
 			case "Replace", "Add":
 				inValidNode = true
@@ -135,8 +146,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	return nil
 }
 
-var fleetProvidedLocURIValidationMap = map[string][2]string{
-	syncml.FleetBitLockerTargetLocURI: {"BitLocker", "mdm.enable_disk_encryption"},
+var fleetProvidedLocURIValidationMap = map[string][]string{
+	syncml.FleetBitLockerTargetLocURI: nil,
 	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
@@ -144,7 +155,14 @@ func validateFleetProvidedLocURI(locURI string) error {
 	sanitizedLocURI := strings.TrimSpace(locURI)
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
 		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.", errHints[0], errHints[1])
+			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
+				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
+			}
+			if len(errHints) == 2 {
+				return fmt.Errorf("Custom configuration profiles can't include %s settings. To control these settings, use the %s option.",
+					errHints[0], errHints[1])
+			}
+			return fmt.Errorf("Custom configuration profiles can't include these settings. %q", errHints)
 		}
 	}
 

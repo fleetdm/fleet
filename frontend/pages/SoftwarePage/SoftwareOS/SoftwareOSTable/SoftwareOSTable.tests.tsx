@@ -34,7 +34,6 @@ describe("Software operating systems table", () => {
         currentPage={0}
         teamId={1}
         isLoading={false}
-        resetPageIndex={false}
       />
     );
 
@@ -56,7 +55,6 @@ describe("Software operating systems table", () => {
         currentPage={0}
         teamId={1}
         isLoading={false}
-        resetPageIndex={false}
       />
     );
 

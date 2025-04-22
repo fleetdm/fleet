@@ -218,7 +218,7 @@ For the address of the Redis server that Fleet should connect to, include the ho
 - Config file format:
   ```yaml
   redis:
-    address: 127.0.0.1:7369
+    address: 127.0.0.1:6379
   ```
 
 ### redis_username
@@ -602,6 +602,19 @@ Setting to true will disable the origin check.
   ```yaml
   server:
     websockets_allow_unsafe_origin: true
+  ```
+
+### server_force_h2c
+
+Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
+is serving TLS, this setting is ignored if TLS is enabled. This configuration might be required if Fleet is hosted in certain
+cloud providers that have limitations on their API gateways, such as GCP Cloud Run.
+- Default value: false
+- Environment variable: FLEET_SERVER_FORCE_H2C
+- Config file format:
+  ```yaml
+  server:
+    force_h2c: true
   ```
 
 ### server_private_key
