@@ -28,6 +28,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/clbanning/mxj v1.8.4
+	github.com/crewjam/saml v0.5.1
 	github.com/danieljoos/wincred v1.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.4
@@ -97,7 +98,6 @@ require (
 	github.com/prometheus/client_golang v1.19.0
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
 	github.com/rs/zerolog v1.32.0
-	github.com/russellhaering/goxmldsig v1.4.0
 	github.com/saferwall/pe v1.5.5
 	github.com/sassoftware/relic/v8 v8.0.1
 	github.com/scim2/filter-parser/v2 v2.2.0
@@ -179,8 +179,6 @@ require (
 	github.com/cloudflare/circl v1.3.8 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.3 // indirect
-	github.com/crewjam/httperr v0.2.0 // indirect
-	github.com/crewjam/saml v0.5.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
@@ -254,6 +252,7 @@ require (
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0 // indirect
+	github.com/russellhaering/goxmldsig v1.4.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/secDre4mer/pkcs7 v0.0.0-20240322103146-665324a4461d // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.5.0 // indirect
