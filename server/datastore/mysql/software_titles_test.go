@@ -1248,6 +1248,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 		TeamID:           nil,
 		UserID:           user1.ID,
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		StorageID:        "abc123",
 	})
 	require.NoError(t, err)
 
@@ -1309,6 +1310,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	type nameSource struct {
 		name   string
 		source string
+		hash   *string
 	}
 	names := make([]nameSource, 0, len(titles))
 	for _, title := range titles {
@@ -1336,12 +1338,13 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	assert.Len(t, titles, 3)
 	names = make([]nameSource, 0, len(titles))
 	for _, title := range titles {
-		names = append(names, nameSource{name: title.Name, source: title.Source})
+		names = append(names, nameSource{name: title.Name, source: title.Source, hash: title.HashSHA256})
 	}
+	expectedHash := "abc123"
 	assert.ElementsMatch(t, []nameSource{
 		{name: "bar", source: "deb_packages"},
 		{name: "foo", source: "chrome_extensions"},
-		{name: "foobar", source: "apps"},
+		{name: "foobar", source: "apps", hash: &expectedHash},
 	}, names)
 
 	// List software for "team1". Should list Canva for iOS and macOS.
