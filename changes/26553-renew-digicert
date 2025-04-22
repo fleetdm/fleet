@@ -1,0 +1,1 @@
+Fleet-managed DigiCert certificates will be renewed 30 days before expiry for those valid longer than 30 days or when half the validity period remains for certificates valid 30 days or less.

@@ -556,7 +556,7 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(hmap.status=null) and which
 	// * Have a validity period > 30 days and are expiring in the next 30 days
-	// * Have a validity period < 30 days and are within half the validity period of expiration
+	// * Have a validity period <= 30 days and are within half the validity period of expiration
 	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
 	// we don't actually need them for the update logic.
 	hostCertsToRenew, err := ds.reader(ctx).QueryContext(ctx, `SELECT hmmc.host_uuid, hmmc.profile_uuid, hmmc.not_valid_after, DATEDIFF(hmmc.not_valid_after, hmmc.updated_at) AS validity_period
@@ -565,7 +565,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	WHERE hmap.host_uuid IS NOT NULL AND hmmc.type = ? AND hmap.status IS NOT NULL
 	HAVING
 	((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
-	(validity_period < 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
+	(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
 	LIMIT 1000`, fleet.CAConfigDigiCert)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
