@@ -160,10 +160,10 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	return loginResponse{user, availableTeams, session.Key, nil}, nil
 }
 
-//goland:noinspection GoErrorStringFormat
-var sendingMFAEmail = errors.New("sending MFA email")
-
 var (
+	//goland:noinspection GoErrorStringFormat
+	sendingMFAEmail = errors.New("sending MFA email")
+
 	noMFASupported           = errors.New("client with no MFA email support")
 	mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
 		"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
@@ -396,7 +396,10 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	serverURL := appConfig.ServerSettings.ServerURL
 	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
 
-	// If issuer is not explicitly set, default to host name.
+	// If entityID is not explicitly set, default to host name.
+	//
+	// NOTE(lucas): This code may be required if SSO was configured with an older version of Fleet
+	// where EntityID wasn't required to configure SSO.
 	entityID := appConfig.SSOSettings.EntityID
 	if entityID == "" {
 		u, err := url.Parse(serverURL)
@@ -523,13 +526,13 @@ func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
 	}
 }
 
-func getSSOSession(ctx context.Context, svc fleet.Service, authResponse fleet.Auth) (*fleet.SSOSession, error) {
-	redirectURL, err := svc.InitSSOCallback(ctx, authResponse)
+func getSSOSession(ctx context.Context, svc fleet.Service, auth fleet.Auth) (*fleet.SSOSession, error) {
+	redirectURL, err := svc.InitSSOCallback(ctx, auth)
 	if err != nil {
 		return nil, err
 	}
 
-	user, err := svc.GetSSOUser(ctx, authResponse)
+	user, err := svc.GetSSOUser(ctx, auth)
 	if err != nil {
 		return nil, err
 	}
@@ -567,8 +570,10 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	// The requestID was already verified in svc.samlProviderFromMetadata by checking the
-	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse.
+	// The samlRequestID was already verified in svc.samlProviderFromMetadata by checking the
+	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse because of
+	// how crewjam/saml implements verification, but for us it serves no purpose because the request ID was
+	// extracted from the SAMLResponse itself.
 	possibleRequestIDs := []string{samlRequestID}
 
 	if _, err := samlProvider.ParseXMLResponse(auth.RawResponse(), possibleRequestIDs, *acsURL); err != nil {
@@ -635,6 +640,7 @@ func (svc *Service) samlProviderFromMetadata(
 		DefaultRedirectURI:          redirectURL,
 		IDPMetadata:                 entityDescriptor,
 		ValidateAudienceRestriction: svc.audienceValidation(ctx),
+		AllowIDPInitiated:           settings.EnableSSOIdPLogin,
 	}, redirectURL, nil
 }
 

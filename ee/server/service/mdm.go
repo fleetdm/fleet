@@ -742,8 +742,10 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	// The requestID was already verified in svc.samlProviderFromMetadata by checking the
-	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse.
+	// The samlRequestID was already verified in svc.samlProviderFromMetadata by checking the
+	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse because of
+	// how crewjam/saml implements verification, but for us it serves no purpose because the request ID was
+	// extracted from the SAMLResponse itself.
 	possibleRequestIDs := []string{samlRequestID}
 
 	if _, err := samlProvider.ParseXMLResponse(auth.RawResponse(), possibleRequestIDs, *acsURL); err != nil {
