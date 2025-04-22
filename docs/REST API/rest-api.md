@@ -3512,7 +3512,7 @@ _Available in Fleet Premium_
 | filters | object  | body | **Required**. See [filters](#filters)  |
 
 
-#### Filters
+##### Filters
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
@@ -3578,7 +3578,7 @@ Turns off MDM for the specified macOS, iOS, or iPadOS host.
 | filters | object  | body | **Required**. See [filters](#filters2). Required if `ids` not specified. Only one of `ids` or `filters` may be included in the request.   |
 
 
-#### Filters
+##### Filters
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ----------------------------------------------------------------------------------- |
