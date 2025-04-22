@@ -83,6 +83,6 @@ For changes to supported apps:
 1. A pull request (PR) is automatically opened in `outputs/` and a Product Designer is automatically added as reviwer.
 2. The Product Designer is responsible for testing the app:
 - If the app is a new app, add an icon for the app to the PR. TODO: What spot in the repo?
-- Run Fleet locally to test the app: Does the icon look right? Does the app install? Can you open the app once it's installed?
+- [Run Fleet locally](TODO link to spot in docs for this) to test the app: Does the icon look right? Does the app install? Can you open the app once it's installed?
 3. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
 4. If the test is successful, the PD approves and merges the PR.
