@@ -6891,6 +6891,29 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, map[uint]struct{}{host.ID: {}}, hostsInScope)
 
+	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, anotherHost, false)
+	// intall vpp app
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, anotherHost, vppApp.AdamID, user1)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), anotherHost.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, anotherHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// Insert software entry for vpp app
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vppApp.Name, vppApp.LatestVersion, "apps", vppApp.BundleIdentifier, vppApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	// update host label timestamp
+	require.NoError(t, ds.AddLabelsToHost(ctx, anotherHost.ID, []uint{label1.ID}))
+	anotherHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, anotherHost)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -6904,11 +6927,27 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{host.ID: {}}, hostsNotInScope)
+	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}}, hostsNotInScope)
 
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
 	require.Empty(t, hostsInScope)
+
+	// vpp app is installed, so should come back in list of software
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Name, vppApp.Name)
+	expectedStatus := fleet.SoftwareInstallerStatus("installed")
+	require.Equal(t, software[0].Status, &expectedStatus)
+	require.NotNil(t, software[0].AppStoreApp)
+
+	// filtering by only available for install should exclude the vpp app
+	opts.OnlyAvailableForInstall = true
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer1.Filename, vppApp.Name)
+	opts.OnlyAvailableForInstall = false
 
 	// Make the label include any. We should have both of them back.
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
