@@ -4,6 +4,7 @@ _Available in Fleet Premium_
 
 Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
+> For information on adding a certificate authority (CA) via GitOps, see the [GitOps Documentation](https://fleetdm.com/docs/configuration/yaml-files#integrations).
 
 ## DigiCert
 
@@ -41,8 +42,6 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 6. In **Profile GUID**, paste your DigiCert One certificate profile GUID (from step 2). To get your profile GUID, in DigiCert, head to the [Certificate profiles](https://one.digicert.com/mpki/policies/profiles) page, open your profile, and copy **GUID**.
 7. In **CN**, **UPN**, and **Certificate seat ID**, you can use fixed values or one of the [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings). Organizations usually use the host's serial number or end user's email to deliver a certificate that's unique to the host.
 8. Select **Add CA**. Your DigiCert certificate authority (CA) should appear in your list of CAs in Fleet.
-
-> For information on adding a certificate authority (CA) via GitOps, see the [GitOps Documentation](https://fleetdm.com/docs/configuration/yaml-files#integrations).
 
 ### Step 4: Add PKCS12 configuration profile to Fleet
 
