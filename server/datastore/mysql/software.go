@@ -2800,7 +2800,7 @@ func filterVppAppsByLabel(
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
 					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 1
-				LEFT OUTER JOIN labels
+				INNER JOIN labels
 					ON labels.id = vpp_app_team_labels.label_id
 				LEFT OUTER JOIN label_membership
 					ON label_membership.label_id = vpp_app_team_labels.label_id AND label_membership.host_id = :host_id
