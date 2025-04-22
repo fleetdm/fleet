@@ -2741,10 +2741,8 @@ func filterVppAppsByLabel(
 	for _, st := range byVppAppID {
 		if onlyAvailableForInstall || selfServiceOnly {
 			vppAppIDsToCheck = append(vppAppIDsToCheck, *st.VPPAppAdamID)
-		} else {
-			if st.VPPAppAdamID != nil {
-				filteredbyVppAppID[*st.VPPAppAdamID] = st
-			}
+		} else if st.VPPAppAdamID != nil {
+			filteredbyVppAppID[*st.VPPAppAdamID] = st
 		}
 	}
 
