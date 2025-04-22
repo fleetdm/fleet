@@ -8637,7 +8637,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
-- [Get host's scripts](#get-hosts-scripts)
+- [List host's scripts](#list-hosts-scripts)
 - [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-hosts-scripts)
 
@@ -8929,7 +8929,7 @@ Deletes an existing script.
 
 ```
 
-### Get host's scripts
+### List host's scripts
 
 `GET /api/v1/fleet/hosts/:id/scripts`
 
