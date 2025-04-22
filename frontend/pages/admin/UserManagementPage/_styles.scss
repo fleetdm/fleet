@@ -4,6 +4,9 @@
   }
 
   .data-table-block {
+    .data-table__wrapper {
+      overflow: visible;
+    }
     .data-table__table {
       thead {
         // need specificity to override datatable css

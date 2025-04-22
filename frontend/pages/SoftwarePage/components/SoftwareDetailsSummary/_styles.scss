@@ -25,6 +25,11 @@
 
   &__description-list {
     display: flex;
-    gap: $pad-xxlarge;
+    flex-direction: column;
+    gap: $pad-medium;
+    @media (min-width: $break-sm) {
+      flex-direction: row;
+      gap: $pad-xxlarge;
+    }
   }
 }

@@ -1,5 +1,8 @@
 .team-management {
   .data-table-block {
+    .data-table__wrapper {
+      overflow: visible;
+    }
     .data-table__table {
       thead {
         .name__header {
@@ -9,6 +12,13 @@
         .host_count__header,
         .user_count__header {
           width: $col-md;
+        }
+
+        .host_count__header {
+          display: none;
+          @media (min-width: $break-sm) {
+            display: block;
+          }
         }
 
         .actions__header {
@@ -28,6 +38,13 @@
         .host_count__cell,
         .user_count__cell {
           max-width: $col-md;
+        }
+
+        .host_count__cell {
+          display: none;
+          @media (min-width: $break-sm) {
+            display: block;
+          }
         }
 
         .actions__cell {

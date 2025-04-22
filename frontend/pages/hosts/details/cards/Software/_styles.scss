@@ -65,6 +65,7 @@
           // "Actions" column
           .id__header {
             width: px-to-rem(72);
+            left: -10px;
           }
           @media (min-width: $break-xl) {
             .source__header {

@@ -1,6 +1,7 @@
 .stacked-white-boxes {
   transition: opacity 300ms ease-in;
-  width: 516px;
+  max-width: 516px;
+  width: 100%;
 
   &__box {
     background-color: $core-white;
