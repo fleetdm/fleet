@@ -13,7 +13,7 @@ const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;
   buttonText: string | ((targetIds: number[]) => string);
-  onActionButtonClick?: (ids: number[]) => void;
+  onClick?: (ids: number[]) => void;
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
@@ -38,7 +38,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   const {
     name,
     buttonText,
-    onActionButtonClick,
+    onClick,
     targetIds = [],
     variant = "default",
     hideButton,
@@ -47,7 +47,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     isDisabled,
     tooltipContent,
   } = buttonProps;
-  const onButtonClick = useActionCallback(onActionButtonClick || noop);
+  const onButtonClick = useActionCallback(onClick || noop);
 
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases

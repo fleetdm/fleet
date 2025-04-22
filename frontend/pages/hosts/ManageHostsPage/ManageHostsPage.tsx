@@ -1578,7 +1578,7 @@ const ManageHostsPage = ({
     const secondarySelectActions: IActionButtonProps[] = [
       {
         name: "run-script",
-        onActionButtonClick: onRunScriptBatchClick,
+        onClick: onRunScriptBatchClick,
         buttonText: "Run script",
         variant: "text-icon",
         iconSvg: "run",
@@ -1588,7 +1588,7 @@ const ManageHostsPage = ({
       },
       {
         name: "transfer",
-        onActionButtonClick: onTransferToTeamClick,
+        onClick: onTransferToTeamClick,
         buttonText: "Transfer",
         variant: "text-icon",
         iconSvg: "transfer",
@@ -1660,14 +1660,14 @@ const ManageHostsPage = ({
           buttonText: "Edit columns",
           iconSvg: "columns",
           variant: "text-icon",
-          onActionButtonClick: toggleEditColumnsModal,
+          onClick: toggleEditColumnsModal,
         }}
         primarySelectAction={{
           name: "delete host",
           buttonText: "Delete",
           iconSvg: "trash",
           variant: "text-icon",
-          onActionButtonClick: onDeleteHostsClick,
+          onClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257

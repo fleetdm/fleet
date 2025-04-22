@@ -12,6 +12,9 @@ import {
 import React, { useState, useCallback } from "react";
 import { useQueryClient } from "react-query";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import ActionButton from "components/TableContainer/DataTable/ActionButton";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "run-script-batch-paginated-list";
 
@@ -59,7 +62,8 @@ const RunScriptBatchPaginatedList = ({
       );
 
       return fetchPromise.then(({ scripts, meta }: IScriptsResponse) => {
-        // TODO - use `meta` to determine enable/disable of next/previous buttons
+        // TODO - use `meta` to determine enable/disable of next/previous buttons? currently
+        // calculated within paginatedlist
         return scripts;
       });
     },
@@ -80,16 +84,41 @@ const RunScriptBatchPaginatedList = ({
     // TODO - open script preview modal, maintain current modal state, incorporate into `renderItemRow`
   }, []);
 
+  const toggleScriptPreview = useCallback((script: IScript) => {
+    // TODO
+  }, []);
+
+  const renderScriptRow = (script: IScript) => (
+    // TODO - stop propagarion?
+    // TODO -change text and icon after ran once
+    <>Run Script</>
+    // <span onClick={() => toggleScriptPreview(script)}>
+    //   <>
+    //     <span>{script.name}</span>
+    //     <Button
+    //       onClick={() => {
+    //         // TODO - this will somehow need to set the paginatedlist-level dirty items, OR that
+    //         // entire state management needs to happen here, not inside the list.
+    //       }}
+    //     >
+    //       Run script
+    //       <Icon name="run" />
+    //     </Button>
+    //   </>
+    // </span>
+  );
+
   return (
     <div className={`${baseClass}`}>
       <PaginatedList<IScript>
-        // ref
+        renderItemRow={renderScriptRow}
         fetchPage={fetchPage}
         // TODO - use dirtyItems to determine if script has been run
         onFireItemPrimaryAction={onRunScript}
         pageSize={PAGE_SIZE}
         disabled={isUpdating}
         // TODO - heading prop, use for ordering by name?
+        useCheckBoxes={false}
       />
     </div>
   );

@@ -181,12 +181,9 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     },
   }));
 
-  const disableNext = () => {
-    if (!totalItems) {
-      return items.length < pageSize;
-    }
-    return currentPage * pageSize + items.length >= totalItems;
-  };
+  const disableNext = !totalItems
+    ? items.length < pageSize
+    : currentPage * pageSize + items.length >= totalItems;
 
   // TODO -- better error state?
   if (error) return <p>Error: {error.message}</p>;
@@ -220,6 +217,9 @@ function PaginatedListInner<TItem extends Record<string, any>>(
               <li
                 className={`${baseClass}__row`}
                 key={item[idKey]}
+                // TODO - right now, this is using the row-level click to set dirtyItems. Since this
+                // feature calls for setting a script as "run" when it's "run" button is clicked,
+                // not when the row is clicked, this needs to be made more flexible
                 onClick={() => {
                   // When entity's primary action is fired, set item as dirty.
                   // The parent is responsible for actually updating item properties via onToggleItem().
@@ -261,10 +261,10 @@ function PaginatedListInner<TItem extends Record<string, any>>(
         </ul>
         <Pagination
           disablePrev={currentPage === 0}
-          disableNext={disableNext()}
+          disableNext={disableNext}
           onNextPage={() => setCurrentPage(currentPage + 1)}
           onPrevPage={() => setCurrentPage(currentPage - 1)}
-          hidePagination={currentPage === 0 && disableNext()}
+          hidePagination={currentPage === 0 && disableNext}
         />
       </div>
     </div>

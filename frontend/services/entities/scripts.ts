@@ -8,7 +8,7 @@ export type IScriptResponse = IScript;
 
 /** All scripts response from GET /scripts */
 export interface IScriptsResponse {
-  scripts: IScript[];
+  scripts: IScript[] | null;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
