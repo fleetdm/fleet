@@ -1094,9 +1094,23 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
 	}
 
-	// TODO AUTH!!!!
+	// Use the authorize script by ID to handle authz
+	_, err = svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
+	if err != nil {
+		return "", err
+	}
 
-	return "", nil
+	var userId *uint
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		userId = &ctxUser.ID
+	}
+
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
+	if err != nil {
+		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
+	}
+
+	return batchID, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
