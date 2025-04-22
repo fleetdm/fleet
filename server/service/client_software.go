@@ -42,7 +42,7 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
-	if err := c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
+	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
 		return nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {
