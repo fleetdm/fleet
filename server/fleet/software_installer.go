@@ -126,7 +126,7 @@ type SoftwareInstaller struct {
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
-	StorageID string `json:"-" db:"storage_id"`
+	StorageID string `json:"hash_sha256" db:"storage_id"`
 	// Status is the status of the software installer package.
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
@@ -145,6 +145,7 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	Source           string               `json:"-" db:"source"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -381,6 +382,18 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 }
 
+type ExistingSoftwareInstaller struct {
+	InstallerID      uint    `db:"installer_id"`
+	TeamID           *uint   `db:"team_id"`
+	Filename         string  `db:"filename"`
+	Extension        string  `db:"extension"`
+	Version          string  `db:"version"`
+	Platform         string  `db:"platform"`
+	Source           string  `db:"source"`
+	BundleIdentifier *string `db:"bundle_identifier"`
+	Title            string  `db:"title"`
+}
+
 type UpdateSoftwareInstallerPayload struct {
 	// find the installer via these fields
 	TitleID     uint
@@ -525,6 +538,7 @@ type SoftwarePackageSpec struct {
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
 	ReferencedYamlPath string `json:"referenced_yaml_path"`
+	SHA256             string `json:"hash_sha256"`
 }
 
 type SoftwareSpec struct {
