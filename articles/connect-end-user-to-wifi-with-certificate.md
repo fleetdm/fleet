@@ -4,7 +4,6 @@ _Available in Fleet Premium_
 
 Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
-Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
 
 ## DigiCert
 
@@ -29,9 +28,8 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 3. Select your **Business unit** and **Issuing CA**.
 4. Select **REST API** from **Enrollment method**. Then select **3rd party app** from the **Authentication method** dropdown and select **Next**.
 5. Configure the certificate expiration. At most organizations, this is set to 90 days.
-6. In the **Flow options** section, make sure that **Allow dupliate certificates** is checked.
-7. In the **Subject DN and SAN fields** section, make sure to add **Common name**. **Other name (UPN)** is optional. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. If you use **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. Organizations usually use device's serial number or user's email, you can use Fleet variables in the next section, and Fleet will replace these variables with the actual values before certificate is delivered to a device.
-8. Click **Next** and leave all default options. We'll come back to this later.
+6. In the **Subject DN and SAN fields** section, make sure to add **Common name**. **Other name (UPN)** is optional. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. If you use **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. Organizations usually use device's serial number or user's email, you can use Fleet variables in the next section, and Fleet will replace these variables with the actual values before certificate is delivered to a device.
+7. Click **Next** and leave all default options. We'll come back to this later.
 
 ### Step 3: Connect Fleet to DigiCert
 
@@ -54,11 +52,7 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 
 When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-More DigiCert details:
-- Each DigiCert device type seat (license) can have multiple certificates only if they have the same CN and seat ID. If a new certificate has a different CN, a new DigiCert license is required.
-- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means, if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
-- DigiCert seats aren't automatically revoked when hosts are deleted in Fleet. To revoke a license, ask the team that owns DigiCert to follow the instructions above.
-
+If you resend the profile (select **Resend** in **Host details > OS settings**), Fleet will get a new certificate and create a new seat in DigiCert, which will take 1 license. If you want to revoke a license, in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
 
 #### Example configuration profile
 
@@ -119,8 +113,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
-
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_NDES_SCEP_CHALLENGE`. For `URL`, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 
 2. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with end user authentication enabled (learn more [here](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping)). You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
@@ -155,7 +148,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% $WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
                           </array>
                         </array>
                         <array>
@@ -211,8 +204,7 @@ To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the foll
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
-1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
-
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`.
 
 2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
@@ -247,7 +239,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
                           </array>
                         </array>
                         <array>
