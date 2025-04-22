@@ -2240,7 +2240,7 @@ None.
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
-- [Batch delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
+- [Batch-delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
 - [Get human-device mapping](#get-human-device-mapping)
 - [Update custom human-device mapping](#update-custom-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
@@ -3553,7 +3553,7 @@ Turns off MDM for the specified macOS, iOS, or iPadOS host.
 `Status: 204`
 
 
-### Batch delete hosts by filter or ids
+### Batch-delete hosts by filter or ids
 
 `POST /api/v1/fleet/hosts/delete`
 
