@@ -972,4 +972,9 @@ module.exports.routes = {
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+
+  // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
+  // =============================================================================================================
+  // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27391
+  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://getvictor.ngrok.io/api/mdm/apple/enroll?token=bozo'}]});},
 };

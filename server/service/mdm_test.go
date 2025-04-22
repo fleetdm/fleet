@@ -1219,9 +1219,11 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
-		{"BitLocker profile", 0,
+		{
+			"BitLocker profile", 0,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
-			syncml.DiskEncryptionProfileRestrictionErrMsg},
+			syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
@@ -1233,9 +1235,11 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
-		{"team BitLocker profile", 1,
+		{
+			"team BitLocker profile", 1,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
-			syncml.DiskEncryptionProfileRestrictionErrMsg},
+			syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
@@ -2117,8 +2121,10 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		m := map[string]uint{}
 		for _, label := range labels {
-			labelID++
-			m[label] = labelID
+			if label != "baddy" {
+				labelID++
+				m[label] = labelID
+			}
 		}
 		return m, nil
 	}
@@ -2196,4 +2202,21 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
 	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
+
+	// Test that a bad label doesn't pass validation...
+	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+		Name:             "Baddy",
+		Contents:         declarationForTest("Baddy"),
+		LabelsExcludeAny: []string{"baddy"},
+	}}, false, false, ptr.Bool(true), false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "some or all the labels provided don't exist")
+
+	// ...unless we're in dry run mode
+	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+		Name:             "Baddy",
+		Contents:         declarationForTest("Baddy"),
+		LabelsExcludeAny: []string{"baddy"},
+	}}, true, false, ptr.Bool(true), false)
+	require.NoError(t, err)
 }

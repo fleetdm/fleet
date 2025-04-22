@@ -1,0 +1,1 @@
+- Added download validation and existing-installer matching in GitOps via a new `hash_sha256` field in software YAML.

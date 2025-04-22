@@ -2,7 +2,12 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { IActivity, IActivityDetails } from "interfaces/activity";
+import {
+  IActivity,
+  IActivityDetails,
+  IHostPastActivity,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   addGravatarUrlToResource,
   internationalTimeFormat,
@@ -18,6 +23,15 @@ import Icon from "components/Icon";
 import { noop } from "lodash";
 
 const baseClass = "activity-item";
+
+const generateActivityId = (
+  activity: IActivity | IHostPastActivity | IHostUpcomingActivity
+) => {
+  if ("id" in activity) {
+    return `activity-${activity.id}`;
+  }
+  return `activity-${activity.uuid}`;
+};
 
 export interface IShowActivityDetailsData {
   type: string;
@@ -35,7 +49,7 @@ export type ShowActivityDetailsHandler = ({
 }: IShowActivityDetailsData) => void;
 
 interface IActivityItemProps {
-  activity: IActivity;
+  activity: IActivity | IHostPastActivity | IHostUpcomingActivity;
   children: React.ReactNode;
   /**
    * Set this to `true` when rendering only this activity by itself. This will
@@ -108,6 +122,8 @@ const ActivityItem = ({
     onCancel();
   };
 
+  const tooltipId = generateActivityId(activity);
+
   return (
     <div className={classNames}>
       <div className={`${baseClass}__avatar-wrapper`}>
@@ -133,7 +149,7 @@ const ActivityItem = ({
           <span
             className={`${baseClass}__details-bottomline`}
             data-tip
-            data-for={`activity-${activity.id}`}
+            data-for={tooltipId}
           >
             {activityCreatedAt && dateAgo(activityCreatedAt)}
           </span>
@@ -143,7 +159,7 @@ const ActivityItem = ({
               place="top"
               type="dark"
               effect="solid"
-              id={`activity-${activity.id}`}
+              id={tooltipId}
               backgroundColor={COLORS["tooltip-bg"]}
             >
               {internationalTimeFormat(activityCreatedAt)}

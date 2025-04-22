@@ -325,7 +325,7 @@ Premium support for support/troubleshooting: **All versions**
 
 When a release is in testing, QA should use the Slack channel #help-qa to keep everyone aware of issues found. All bugs found should be reported in the channel after creating the bug first.
 
-When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/handbook/engineering#notify-community-members-about-a-critical-bug) below.
+When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug) below.
 
 All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#bug-process).
 
@@ -340,7 +340,7 @@ All unreleased bugs are addressed before publishing a release. Released bugs tha
 
 ### Notify the community about a critical bug
 
-We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-mdm` or `#g-endpoint-ops` channel with the filed bug.
+We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-mdm`, `#g-software`, or `#g-orchestration` channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
@@ -474,14 +474,14 @@ Remove the “:reproduce” label, add the following labels:
 2. The `:incoming` label indicates that it is a new bug to be triaged.
 3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
+> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
 
 #### In product drafting
 
 After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated.
 
-It will stay in this state until product design closes the bug, assigns to a non-engineering team, or moves to the "Ready to estimate" column of the drafting board for engineering review and estimation.
+It will stay in this state until product design closes the bug, updates it to a feature request by removing all bug labels and leaving the issue in the "New requests" column, assigns it to a non-engineering team, or moves it to the "Ready to estimate" column of the drafting board for engineering review and estimation.
 
 If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and product design follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
 

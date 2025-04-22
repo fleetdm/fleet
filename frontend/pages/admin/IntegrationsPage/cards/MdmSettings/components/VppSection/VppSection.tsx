@@ -51,7 +51,6 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
         <Button
           className={`${baseClass}__add-vpp-button`}
           onClick={navigateToVppSetup}
-          variant="brand"
         >
           Add VPP
         </Button>

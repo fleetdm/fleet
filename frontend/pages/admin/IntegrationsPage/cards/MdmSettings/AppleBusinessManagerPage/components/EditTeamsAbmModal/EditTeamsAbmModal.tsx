@@ -188,7 +188,6 @@ const EditTeamsAbmModal = ({
           <div className="modal-cta-wrap">
             <Button
               type="submit"
-              variant="brand"
               className="save-abm-teams-loading"
               isLoading={isSaving}
             >

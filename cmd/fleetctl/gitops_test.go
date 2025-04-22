@@ -115,6 +115,11 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
 
 	// Mock appConfig
 	savedAppConfig := &fleet.AppConfig{}
@@ -350,6 +355,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		default:
 			return nil, &notFoundError{}
 		}
+	}
+
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+		return nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -720,6 +737,11 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	policy.ID = 1
 	policy.Name = "Policy to delete"
 	policyDeleted := false
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return []*fleet.Policy{&policy}, nil
 	}
@@ -1069,6 +1091,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return team, nil
 	}
 
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+
 	// Policies
 	policy := fleet.Policy{}
 	policy.ID = 1
@@ -1078,7 +1104,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
-		return []*fleet.Policy{&policy}, nil, nil
+		if teamID != 0 {
+			return []*fleet.Policy{&policy}, nil, nil
+		}
+		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 		if slices.Contains(ids, 1) {
@@ -1136,7 +1165,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		appliedSoftwareInstallers = installers
+		if teamID != nil && *teamID != 0 {
+			appliedSoftwareInstallers = installers
+		}
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -2157,6 +2188,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(testing_utils.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2320,7 +2354,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
+		{"testdata/gitops/team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
@@ -2392,6 +2426,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 				}
 				return ret, nil
 			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -2410,13 +2447,16 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		if installers[0].PreInstallQuery != "select IT_WORKS" {
+		if len(installers) != 0 && installers[0].PreInstallQuery != "select IT_WORKS" {
 			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
 	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
@@ -2555,7 +2595,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
+		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
@@ -2624,6 +2664,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")

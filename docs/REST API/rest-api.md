@@ -859,7 +859,6 @@ None.
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
@@ -1069,12 +1068,12 @@ Modifies the Fleet's configuration with the supplied information.
 | agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
-| gitops        | object  | body  | See [gitops](#gitops). |
+| gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
 | integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
-| yara_rules                  | array   | body  | A list of YARA rule files to add.                                                               |
+| yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 
@@ -1188,7 +1187,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile2.json",
           "labels_include_all": ["Label 3", "Label 4"]
         },
-	{
+	      {
           "path": "path/to/profile3.json",
           "labels_include_any": ["Label 5", "Label 6"]
         },
@@ -1204,7 +1203,6 @@ Modifies the Fleet's configuration with the supplied information.
     },
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
@@ -1914,6 +1912,19 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### mdm.end_user_authentication
+
+`mdm.end_user_authentication` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| entity_id                         | string  | **Required**. The entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
+| idp_name                          | string  | **Required.** A human friendly name for the identity provider that will provide single sign-on authentication.                                                              |
+| metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http. |
+| metadata                          | string  | Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -1951,7 +1962,6 @@ _Available in Fleet Premium._
     },
     "end_user_authentication": {
       "entity_id": "",
-      "issuer_uri": "",
       "metadata": "",
       "metadata_url": "",
       "idp_name": ""
@@ -3532,8 +3542,21 @@ _Available in Fleet Premium_
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. Note: `label_id` and `status` cannot be used at the same time. |
+| team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to. |
+| filters | object  | body | **Required**. See [filters](#filters)  |
+
+
+##### Filters
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ----------------------------------------------------------------------------------- |
+| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
+| status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
+| label_id                          | number  | ID of a label to filter by.  |
+| team_id                           | number  | ID of the team to filter by. | 
+
+> Note: `label_id` and `status` filters cannot be used at the same time.
+
 
 #### Example
 
@@ -3585,12 +3608,23 @@ Turns off MDM for the specified macOS, iOS, or iPadOS host.
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ids     | array   | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
-| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+| ids     | array   | body | A list of the host IDs you'd like to delete. Required if `filters` not specified. Only one of `ids` or `filters` may be included in the request. |
+| filters | object  | body | **Required**. See [filters](#filters2). Required if `ids` not specified. Only one of `ids` or `filters` may be included in the request.   |
 
-Either ids or filters are required.
 
-Request (`ids` is specified):
+##### Filters
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ----------------------------------------------------------------------------------- |
+| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
+| status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
+| label_id                          | number  | ID of a label to filter by.  |
+| team_id                           | number  | ID of the team to filter by. | 
+
+> Notes: `label_id` and `status` filters cannot be used at the same time.
+
+
+Request (using `ids`):
 
 ```json
 {
@@ -3598,7 +3632,7 @@ Request (`ids` is specified):
 }
 ```
 
-Request (`filters` is specified):
+Request (using `filters`):
 ```json
 {
   "filters": {
