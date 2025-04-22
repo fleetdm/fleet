@@ -590,6 +590,9 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
 		values = append(values, hostUUID, profileUUID)
 	}
+	if hostCertsToRenew.Err() != nil {
+		return ctxerr.Wrap(ctx, hostCertsToRenew.Err(), "iterating mdm managed certificates to renew")
+	}
 	if len(values) == 0 {
 		level.Debug(ds.logger).Log("msg", "No digicert certificates to renew")
 		return nil
@@ -602,7 +605,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		}
 		return nil
 	})
-	return nil
+	return err
 }
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
