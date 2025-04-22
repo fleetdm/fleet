@@ -18,7 +18,6 @@ org_settings:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      issuer_uri: $DOGFOOD_SSO_ISSUER_URI
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
@@ -53,13 +52,11 @@ org_settings:
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true
-    enable_jit_role_sync: false
     enable_sso: true
-    enable_sso_idp_login: false
+    enable_sso_idp_login: true
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
     idp_name: Google Workspace
-    issuer_uri: $DOGFOOD_SSO_ISSUER_URI
     metadata: |-
       $DOGFOOD_SSO_METADATA
     metadata_url: ""
