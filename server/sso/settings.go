@@ -15,6 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// GetMetadata returns the parsed IdP metadata from the config.MetadataURL or config.Metadata.
+// If config.MetadataURL is set, then it's used to request the metadata.
+// If config.MetadataURL is not set, then config.Metadata is used.
 func GetMetadata(config *fleet.SSOProviderSettings) (*saml.EntityDescriptor, error) {
 	if config.MetadataURL == "" && config.Metadata == "" {
 		return nil, fmt.Errorf("missing metadata for idp %q", config.IDPName)
@@ -55,6 +58,7 @@ func getMetadata(metadataURL string) ([]byte, error) {
 	return xmlData, nil
 }
 
+// ParseMetadata parses SSO IdP metadata from the given raw XML bytes.
 func ParseMetadata(xmlMetadata []byte) (*saml.EntityDescriptor, error) {
 	var entityDescriptor saml.EntityDescriptor
 	if err := xml.Unmarshal(xmlMetadata, &entityDescriptor); err != nil {
@@ -63,6 +67,8 @@ func ParseMetadata(xmlMetadata []byte) (*saml.EntityDescriptor, error) {
 	return &entityDescriptor, nil
 }
 
+// SAMLProviderFromConfiguredMetadata is used in SSO initiation to create a
+// crewjam/saml.ServiceProvider from the configured SSO metadata.
 func SAMLProviderFromConfiguredMetadata(
 	ctx context.Context,
 	entityID string,

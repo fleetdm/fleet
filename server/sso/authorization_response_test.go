@@ -162,7 +162,7 @@ Ze7A</ds:X509Certificate>
 }
 
 func TestDecodeWithCommentInName(t *testing.T) {
-	t.Skip("TODO(lucas): Must be fixed on the crewjam/saml upstream")
+	t.Skip("TODO(lucas): Must be fixed on the crewjam/saml upstream, PR in review: https://github.com/crewjam/saml/pull/611")
 
 	// Testing for vuln described at
 	// https://duo.com/blog/duo-finds-saml-vulnerabilities-affecting-multiple-implementations
