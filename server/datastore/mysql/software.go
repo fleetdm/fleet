@@ -2397,8 +2397,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			host_software.last_opened_at,
 			software.source AS software_source,
 			software.version AS version,
-			software.bundle_identifier AS bundle_identifier,
-			'installed' AS status
+			software.bundle_identifier AS bundle_identifier
 		FROM 
 			host_software
 		INNER JOIN
