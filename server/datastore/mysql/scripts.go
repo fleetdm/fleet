@@ -1688,15 +1688,15 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		batchID, _ := res.LastInsertId()
 
 		questionMarks := strings.Join(
-			slices.Repeat([]string{"(?, ?, ?)"}, len(executions)),
+			slices.Repeat([]string{"(?, ?, ?, ?)"}, len(executions)),
 			", ",
 		)
 		args := make([]any, 0, len(executions))
 		for _, execHost := range executions {
-			args = append(args, batchID, execHost.ExecutionID, execHost.Error)
+			args = append(args, batchID, execHost.HostID, execHost.ExecutionID, execHost.Error)
 		}
 
-		insertStmt := fmt.Sprintf(`INSERT INTO batch_script_execution_host_results (batch_execution_id, host_execution_id, error) VALUES %s`, questionMarks)
+		insertStmt := fmt.Sprintf(`INSERT INTO batch_script_execution_host_results (batch_execution_id, host_id, host_execution_id, error) VALUES %s`, questionMarks)
 
 		if _, err := tx.ExecContext(ctx, insertStmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
@@ -1726,8 +1726,8 @@ WHERE
 
 	stmtHosts := `
 SELECT
-	hsr.host_id,
 	h.hostname,
+	bshr.host_id,
 	bshr.host_execution_id AS execution_id,
 	bshr.error
 FROM
@@ -1740,7 +1740,7 @@ LEFT JOIN
 		ON bshr.host_execution_id = hsr.execution_id
 LEFT JOIN
 	hosts h
-		ON hsr.host_id = h.id
+		ON bshr.host_id = h.id
 WHERE
 	bse.execution_id = ?`
 
