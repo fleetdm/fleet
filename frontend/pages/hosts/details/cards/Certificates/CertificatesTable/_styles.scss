@@ -1,3 +1,24 @@
 .certificates-table {
-
+    .data-table-block {
+        .common_name__cell {
+            max-width: 92px;
+            font-size: $xx-small;
+            @media (min-width: $break-sm) {
+                max-width: unset;
+                font-size: $x-small;
+            }
+        }
+        .status-indicator {
+            font-size: $xx-small;
+            @media (min-width: $break-sm) {
+                font-size: $x-small;
+            }
+        }
+        .view-all-hosts-link {
+            font-size: $xx-small;
+            @media (min-width: $break-sm) {
+                font-size: $x-small;
+            }
+        }
+    }
 }

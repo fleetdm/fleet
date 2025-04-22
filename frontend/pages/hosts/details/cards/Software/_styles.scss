@@ -32,6 +32,14 @@
       }
     }
 
+    .data-table__table {
+      th,
+      td {
+        padding-left: $pad-medium;
+        padding-right: $pad-medium;
+      }
+    }
+
     .data-table-block {
       .data-table__table {
         thead {
@@ -40,15 +48,14 @@
             width: auto;
           }
           .status__header {
-            display: table-cell;
-            width: auto;
+            display: none;
           }
           .Version__header {
             display: table-cell;
             width: auto;
           }
           .source__header {
-            display: table-cell;
+            display: none;
           }
           .Vulnerabilities__header {
             display: table-cell;
@@ -59,16 +66,16 @@
           .id__header {
             width: px-to-rem(72);
           }
-          @media (max-width: ($break-xl - 1)) {
+          @media (min-width: $break-xl) {
             .source__header {
-              display: none;
-              width: 0;
+              display: table-cell;
+              width: auto;
             }
           }
-          @media (max-width: ($break-lg - 1)) {
+          @media (min-width: $break-lg) {
             .status__header {
-              display: none;
-              width: 0;
+              display: table-cell;
+              width: auto;
             }
           }
         }
@@ -77,58 +84,54 @@
             .name__cell {
               display: table-cell;
               width: auto;
+              .software-name {
+                max-width: 190px;
+              }
             }
             .status__cell {
-              display: table-cell;
-              width: auto;
+              display: none;
             }
             .Version__cell {
               display: table-cell;
               width: auto;
+              .text-cell {
+                max-width: 95px;
+              }
             }
             .source__cell {
-              display: table-cell;
+              display: none;
             }
             .Vulnerabilities__cell {
               display: table-cell;
             }
-            @media (max-width: ($break-xl - 1)) {
-              .source__cell {
-                display: none;
-                width: 0;
-              }
-            }
-            @media (max-width: ($break-lg - 1)) {
+
+            @media (min-width: $break-lg) {
               .status__cell {
-                display: none;
-                width: 0;
+                display: table-cell;
+                width: auto;
               }
             }
 
-            // Very little real estate at 768px
-            @media (max-width: ($break-sm - 1)) {
+            @media (min-width: $break-xl) {
+              .source__cell {
+                display: table-cell;
+                width: auto;
+              }
+            }
+            
+            @media (min-width: $break-sm) {
               .name__cell {
                 .software-name {
-                  max-width: 190px;
+                  max-width: auto;
                 }
               }
 
               .Version__cell {
                 .text-cell {
-                  max-width: 95px;
+                  max-width: auto;
                 }
               }
             }
-          }
-        }
-      }
-
-      @media (max-width: ($break-sm - 1)) {
-        .data-table__table {
-          th,
-          td {
-            padding-left: $pad-medium;
-            padding-right: $pad-medium;
           }
         }
       }

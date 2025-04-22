@@ -14,7 +14,13 @@
 
   .software-name {
     @include ellipse-text();
-    max-width: 250px;
+    max-width: 150px;
+    @media (min-width: ($break-xs + 100px)) {
+      max-width: 200px;
+    }
+    @media (min-width: $break-sm) {
+      max-width: 250px;
+    }
   }
 
   @media (min-width: $break-md) {

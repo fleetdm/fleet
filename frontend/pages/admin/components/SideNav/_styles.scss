@@ -1,6 +1,10 @@
 .side-nav {
   &__container {
     display: flex;
+    flex-direction: column;
+    @media (min-width: $break-sm) {
+      flex-direction: row;
+    }
   }
 
   &__nav-list {
@@ -10,11 +14,14 @@
     // TODO: find a way to calculate these sticky positions this and use variables.
     //  will be tedious to update otherwise.
     top: 217px;
-    width: 178px;
     margin: 0;
-    padding: 0 110px 0 0;
+    padding: 0 0 $pad-medium 0;
     list-style: none;
     font-size: $x-small;
+    @media (min-width: $break-sm) {
+      padding: 0 110px 0 0;
+      width: 178px;
+    }
   }
 
   &__card-container {

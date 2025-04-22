@@ -13,8 +13,12 @@
     min-width: max-content;
     align-content: center;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: $pad-medium;
+
+    @media (min-width: $break-sm) {
+      flex-direction: row;
+    }
 
     > div {
       display: flex;

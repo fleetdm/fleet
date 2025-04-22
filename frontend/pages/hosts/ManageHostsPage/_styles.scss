@@ -178,6 +178,33 @@
       }
     }
 
+    @media (max-width: $break-sm) {
+      &__header {
+        gap: 0;
+      }
+      &__header-left {
+        .controls {
+          flex-direction: column-reverse;
+          align-items: start;
+
+          .manage-hosts__filter-dropdowns {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            margin: 0 0 $pad-small 0;
+
+            .form-field--dropdown,
+            .manage-hosts__label-filter-dropdown {
+              width: 100%;
+              &:last-child {
+                margin: $pad-small 0 0 0;
+              }
+            }
+          }
+        }
+      }
+    }
+
     .table-container__data-table-block {
       .data-table-block {
         .data-table {
