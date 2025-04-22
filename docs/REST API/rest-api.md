@@ -9724,8 +9724,8 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "title_id": 123,
   "software_package": {
+    "title_id": 123,
     "name": "FalconSensor-6.44.pkg",
     "version": "6.44",
     "platform": "darwin",
@@ -9737,11 +9737,10 @@ Content-Type: application/octet-stream
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
     "self_service": true,
-    "status": {
-      "installed": 0,
-      "pending": 0,
-      "failed": 0
-    }
+    "url": "",
+    "automatic_install_policies": null,
+    "labels_include_any": null,
+    "labels_exclude_any": null
   }
 }
 ```
