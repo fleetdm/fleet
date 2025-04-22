@@ -10,8 +10,8 @@
   justify-content: center;
   gap: $pad-medium;
 
-  // Overlay below 768px
-  @media (min-width: ($break-xxs - 1)) {
+  // Hide overlay at 480px
+  @media (min-width: $break-xs) {
     display: none;
   }
 

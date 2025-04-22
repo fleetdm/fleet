@@ -123,7 +123,7 @@
     }
 
     // table header content responsive styles
-    @media (max-width: $table-controls-break) {
+    @media (max-width: $break-lg) {
       &__header {
         flex-direction: column;
       }
@@ -224,7 +224,7 @@
   &__status-filter {
     width: 175px;
 
-    @media (min-width: $table-controls-break) {
+    @media (min-width: $break-lg) {
       width: 190px;
     }
 

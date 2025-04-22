@@ -11,11 +11,11 @@
   padding: 0;
   position: relative;
   background-color: $core-white;
-  display: flex;
+  display: none;
 
-  // App hidden below 768px
-  @media (max-width: ($break-xxs - 1px)) {
-    display: none;
+  // Show app at 480px
+  @media (min-width: $break-xs) {
+    display: flex;
   }
 
   // App not hidden when printing
@@ -38,10 +38,11 @@
   top: 0;
   left: 0;
   z-index: 100;
+  display: none;
 
-  // Nav hidden below 768px;
-  @media (max-width: ($break-xxs - 1px)) {
-    display: none;
+  // Show nav at 480px;
+  @media (min-width: $break-xs) {
+    display: block;
   }
 
   // Nav not hidden when printing

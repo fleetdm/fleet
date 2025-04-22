@@ -39,72 +39,65 @@
         }
       }
 
+      .status__header,
+      .status__cell {
+        display: none;
+        width: 0;
+      }
+
+      .email__header,
+      .email__cell {
+        display: none;
+        width: 0;
+      }
+
+      .role__header,
+      .role__cell {
+        display: none;
+        width: 0;
+      }
+
+      .teams__header,
+      .teams__cell {
+        display: none;
+        width: 0;
+      }
+
+      // Splits header to 3 lines; user count, wide add user button, wide search
+      .table-container__header {
+        flex-direction: column;
+        align-items: start;
+        width: 100%;
+
+        &-left {
+          width: 100%;
+
+          .controls,
+          .button {
+            width: 100%;
+          }
+        }
+      }
+
+      // Splits header to 2 lines with user count on the first line
+      // .table-container__header {
+      //   align-items: end;
+
+      //   &-left {
+      //     flex-direction: column;
+      //     width: initial;
+      //     align-items: start;
+      //   }
+
+      //   .table-container__search {
+      //     width: 100%;
+      //   }
+      // }
+
       @media (min-width: ($break-lg)) {
         .name__header,
         .name__cell {
           max-width: $col-md;
-        }
-      }
-
-      @media (max-width: ($break-sm - 1)) {
-        .email__header,
-        .email__cell {
-          display: none;
-          width: 0;
-        }
-      }
-
-      @media (max-width: ($break-xs - 1)) {
-        .status__header,
-        .status__cell {
-          display: none;
-          width: 0;
-        }
-      }
-
-      @media (max-width: ($break-mobile-md - 1)) {
-        .teams__header,
-        .teams__cell {
-          display: none;
-          width: 0;
-        }
-
-        // Splits header to 2 lines with user count on the first line
-        .table-container__header {
-          align-items: end;
-          &-left {
-            flex-direction: column;
-            width: initial;
-            align-items: start;
-          }
-
-          .table-container__search {
-            width: 100%;
-          }
-        }
-      }
-
-      @media (max-width: ($break-mobile-sm - 1)) {
-        .role__header,
-        .role__cell {
-          display: none;
-          width: 0;
-        }
-
-        // Splits header to 3 lines; user count, wide add user button, wide search
-        .table-container__header {
-          flex-direction: column;
-          align-items: start;
-          width: 100%;
-
-          &-left {
-            width: 100%;
-
-            .controls,
-            .button {
-              width: 100%;
-            }
-          }
         }
       }
     }

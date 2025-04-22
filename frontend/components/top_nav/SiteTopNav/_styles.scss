@@ -80,7 +80,11 @@
     text-decoration: none;
     vertical-align: middle;
     font-weight: $regular;
-    font-size: $x-small;
+    font-size: $xx-small;
+
+    @media (min-width: 600px) {
+      font-size: $x-small;
+    }
 
     // Bolding text when the button is active causes a layout shift
     // so we add a hidden pseudo element with the same text string
@@ -97,12 +101,19 @@
 
   &__link {
     color: $core-white;
-    padding: 15px 24px;
+    padding: 15px 10px;
     text-decoration: none;
 
-    // Prevents user menu from overlapping with nav bar buttons
-    @media (max-width: 825px) {
+    @media (min-width: 530px) {
+      padding: 15px 16px;
+    }
+
+    @media (min-width: 600px) {
       padding: 15px 18px;
+    }
+    
+    @media (min-width: $break-sm) {
+      padding: 15px 24px;
     }
 
     &:focus-visible {

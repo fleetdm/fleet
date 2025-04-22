@@ -17,18 +17,14 @@
       }
 
       tbody {
-        // Override data-table td max-width at low widths to fit screen
-        @media (max-width: ($break-md - 1)) {
+        .name__cell {
+          max-width: 330px;
+        }
+        @media (min-width: $break-md) {
           .name__cell {
             max-width: 430px;
           }
         }
-        @media (max-width: ($break-sm - 1)) {
-          .name__cell {
-            max-width: 330px;
-          }
-        }
-
         .host_count__cell,
         .user_count__cell {
           max-width: $col-md;

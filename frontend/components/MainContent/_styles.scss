@@ -1,5 +1,5 @@
 .main-content {
-  padding: $pad-xlarge;
+  padding: $pad-medium;
   background-color: $core-white;
   flex-grow: 1;
   // overflow: auto allows for horizontal scrolling
@@ -19,14 +19,16 @@
   }
 }
 
-@media (max-width: ($break-xs - 1)) {
+@media (min-width: $break-md) {
   .main-content {
     padding: $pad-large;
   }
 }
 
-@media (max-width: ($break-mobile-md - 1)) {
+@media (min-width: $break-lg) {
   .main-content {
-    padding: 20px;
+    padding: $pad-xlarge;
   }
 }
+
+

@@ -1,19 +1,15 @@
 .platform-host-counts {
   display: grid;
   gap: $pad-smedium;
-
-  // >= 320px and < 480px
-  @media (min-width: $break-mobile-xs) {
-    grid-template-columns: repeat(2, 1fr);
-
-    // For odd number of cards, make the first one span 2 columns
-    & > :first-child:nth-child(odd) {
-      grid-column: span 2;
-    }
+  grid-template-columns: repeat(2, 1fr);
+  
+  // For odd number of cards, make the first one span 2 columns
+  &> :first-child:nth-child(odd) {
+    grid-column: span 2;
   }
 
-  // >= 480px
-  @media (min-width: $break-mobile-sm) {
+  // >= 768px
+  @media (min-width: $break-sm) {
     grid-template-columns: 1fr;
     grid-template-rows: initial; // undo multi row
 
@@ -62,8 +58,8 @@
     }
   }
 
-  // > 576px
-  @media (min-width: $break-mobile-md) {
+  // > 1024px
+  @media (min-width: $break-md) {
     // Special case for exactly 7 items
     &:has(> :nth-child(7)) {
       grid-template-columns: repeat(
@@ -87,7 +83,7 @@
   }
 
   // >= 880px
-  @media (min-width: $break-sm) {
+  @media (min-width: $break-lg) {
     &#{&} {
       // Apply to all cases except when there are exactly 7 items
       &:not(:has(> :nth-child(7))) {
@@ -99,7 +95,7 @@
   }
 
   // >= 990px
-  @media (min-width: $break-md) {
+  @media (min-width: $break-xl) {
     // Special case for exactly 7 items
     &:has(> :nth-child(7)) {
       grid-template-columns: repeat(7, 1fr);
