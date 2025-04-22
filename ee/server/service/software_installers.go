@@ -304,7 +304,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.ValidatedLabels = validatedLabels
 
-	fmt.Printf("[JVE_LOG] update payload.Categories: %v\n", payload.Categories)
 	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")

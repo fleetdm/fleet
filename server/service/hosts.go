@@ -2779,9 +2779,8 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting categories for software titles")
 	}
-	fmt.Printf("[JVE_LOG] categories found: %v titleIDs: %v software: %#v\n", categories, titleIDs, software)
+
 	for id, c := range categories {
-		fmt.Printf("[JVE_LOG] setting title id %v categories to c: %v\n", id, c)
 		softwareByTitleID[id].SoftwarePackage.Categories = c
 	}
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
