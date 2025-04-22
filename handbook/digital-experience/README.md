@@ -848,6 +848,17 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
   8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
 
+### Connect with active community members
+
+Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
+ 1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
+ 2. Copy the LinkedIn URLs.
+ 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+
+ ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
+
+
+
 ### Schedule travel for the CEO
 
 The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:

@@ -187,3 +187,8 @@ func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
 	}
 	return list
 }
+
+// NeverTimestamp is the timestamp used to indicate that an event has never
+// occurred. For example, `hosts.detail_updated_at` is set to this value to indicate
+// that Fleet has never updated the host vitals.
+const NeverTimestamp = "2000-01-01 00:00:00"

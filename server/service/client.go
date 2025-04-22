@@ -976,6 +976,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	for i, si := range specs {
 		var qc string
 		var err error
+
 		if si.PreInstallQuery.Path != "" {
 			queryFile := si.PreInstallQuery.Path
 			rawSpec, err := os.ReadFile(queryFile)
@@ -1072,6 +1073,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
+			SHA256:             si.SHA256,
 		}
 	}
 
