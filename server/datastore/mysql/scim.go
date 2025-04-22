@@ -213,6 +213,16 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// load the username before updating the user, to check if it changed
+		var oldUsername string
+		err := sqlx.GetContext(ctx, tx, &oldUsername, `SELECT user_name FROM scim_users WHERE id = ?`, user.ID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return notFound("scim user").WithID(user.ID)
+			}
+			return ctxerr.Wrap(ctx, err, "load existing scim username before update")
+		}
+
 		// Update the SCIM user
 		const updateUserQuery = `
 		UPDATE scim_users SET
@@ -243,6 +253,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		if rowsAffected == 0 {
 			return notFound("scim user").WithID(user.ID)
 		}
+		usernameChanged := oldUsername != user.UserName
 
 		// We assume that email is not blank/null.
 		// However, we do not assume that email/type are unique for a user. To keep the code simple, we:
@@ -271,7 +282,14 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		user.Groups = groups
 
-		// TODO(mna): resend profiles that depend on this username if it changed
+		// resend profiles that depend on this username if it changed
+		if usernameChanged {
+			err = triggerResendProfilesForIDPUsernameChange(ctx, tx, user.ID)
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 }
@@ -312,6 +330,14 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 // DeleteScimUser deletes a SCIM user from the database
 func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// get the host IDs associated with the user about to be deleted
+		const getAssociatedHostIDsQuery = `SELECT host_id FROM host_scim_user WHERE scim_user_id = ?`
+		var deletedUserAssociatedHostIDs []uint
+		err := sqlx.SelectContext(ctx, tx, &deletedUserAssociatedHostIDs, getAssociatedHostIDsQuery, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get scim user host IDs")
+		}
+
 		// Delete the user
 		const deleteUserQuery = `DELETE FROM scim_users WHERE id = ?`
 		result, err := tx.ExecContext(ctx, deleteUserQuery, id)
@@ -328,8 +354,13 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 			return notFound("scim user").WithID(id)
 		}
 
-		// TODO(mna): trigger resend of profiles that depend on this SCIM user?
-
+		// trigger resend of profiles that depend on this SCIM user
+		if len(deletedUserAssociatedHostIDs) > 0 {
+			err = triggerResendProfilesForIDPDeletedUser(ctx, tx, deletedUserAssociatedHostIDs)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 }
@@ -565,8 +596,13 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 
 		// Insert user-group relationships if any
 		if len(group.ScimUsers) > 0 {
-			// TODO(mna): resend profiles that depend on the users now part of this new group
-			return insertScimGroupUsers(ctx, tx, group.ID, group.ScimUsers)
+			if err := insertScimGroupUsers(ctx, tx, group.ID, group.ScimUsers); err != nil {
+				return err
+			}
+			// this is a new group, but it is associated with existing users -
+			// trigger a resend of profiles that use the IdP groups variable for
+			// hosts related to this group's users.
+			return triggerResendProfilesForIDPGroupChange(ctx, tx, group.ID)
 		}
 
 		return nil
@@ -686,6 +722,16 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// load the display name before updating the group, to check if it changed
+		var oldDisplayName string
+		err := sqlx.GetContext(ctx, tx, &oldDisplayName, `SELECT display_name FROM scim_groups WHERE id = ?`, group.ID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return notFound("scim group").WithID(group.ID)
+			}
+			return ctxerr.Wrap(ctx, err, "load existing scim group display name before update")
+		}
+
 		// Update the SCIM group
 		const updateGroupQuery = `
 		UPDATE scim_groups SET
@@ -710,6 +756,7 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 		if rowsAffected == 0 {
 			return notFound("scim group").WithID(group.ID)
 		}
+		groupNameChanged := oldDisplayName != group.DisplayName
 
 		// Get existing user-group relationships
 		existingUsers, err := ds.getScimGroupUsers(ctx, tx, group.ID)
@@ -755,7 +802,7 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 		// Remove old user-group relationships
 		if len(usersToRemove) > 0 {
 			batchSize := 10000
-			return common_mysql.BatchProcessSimple(usersToRemove, batchSize, func(usersToRemoveInBatch []uint) error {
+			err = common_mysql.BatchProcessSimple(usersToRemove, batchSize, func(usersToRemoveInBatch []uint) error {
 				params := make([]interface{}, len(usersToRemoveInBatch)+1)
 				params[0] = group.ID
 				for i, userID := range usersToRemoveInBatch {
@@ -771,10 +818,22 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 				}
 				return nil
 			})
+			if err != nil {
+				return err
+			}
 		}
 
-		// TODO(mna): resend profiles that depend on the updated group
-		return nil
+		// resend profiles that depend on the updated group to hosts that are
+		// related to the users in the updated group (only for those users that
+		// were affected by the group change)
+		if groupNameChanged {
+			// if the name of the group changed, all hosts with users part of this group
+			// are affected
+			err = triggerResendProfilesForIDPGroupChange(ctx, tx, group.ID)
+		} else if len(usersToAdd) > 0 || len(usersToRemove) > 0 {
+			err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, append(append([]uint{}, usersToAdd...), usersToRemove...))
+		}
+		return err
 	})
 }
 
@@ -798,6 +857,7 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 		}
 
 		// TODO(mna): resend profiles that depend on the deleted group
+		err = ds.triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, deletedGroupUsers)
 		return nil
 	})
 }
