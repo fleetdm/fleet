@@ -3,6 +3,9 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func init() {
@@ -58,9 +61,9 @@ func Up_20250422095806(tx *sql.Tx) error {
 			FOREIGN KEY (apple_profile_uuid) REFERENCES mdm_apple_configuration_profiles (profile_uuid) ON DELETE CASCADE,
 		CONSTRAINT fk_mdm_configuration_profile_variables_windows_profile_uuid
 			FOREIGN KEY (windows_profile_uuid) REFERENCES mdm_windows_configuration_profiles (profile_uuid) ON DELETE CASCADE,
-		CONSTRAINT mdm_configuration_profile_variables_fleet_variable_id 
+		CONSTRAINT mdm_configuration_profile_variables_fleet_variable_id
 			FOREIGN KEY (fleet_variable_id) REFERENCES fleet_variables (id) ON DELETE CASCADE,
-		CONSTRAINT ck_mdm_configuration_profile_variables_apple_or_windows 
+		CONSTRAINT ck_mdm_configuration_profile_variables_apple_or_windows
 			CHECK (((apple_profile_uuid is null) <> (windows_profile_uuid is null)))
 	) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 `)
@@ -68,7 +71,35 @@ func Up_20250422095806(tx *sql.Tx) error {
 		return fmt.Errorf("failed to create mdm_configuration_profile_variables table: %s", err)
 	}
 
-	// TODO(mna): insert known Fleet variables, scan profile contents to insert the relationships.
+	insStmt := `
+	INSERT INTO fleet_variables (
+		name, is_prefix, created_at
+	) VALUES
+		('FLEET_VAR_NDES_SCEP_CHALLENGE', 0, :created_at),
+		('FLEET_VAR_NDES_SCEP_PROXY_URL', 0, :created_at),
+		('FLEET_VAR_HOST_END_USER_EMAIL_IDP', 0, :created_at),
+		('FLEET_VAR_HOST_HARDWARE_SERIAL', 0, :created_at),
+		('FLEET_VAR_HOST_END_USER_IDP_USERNAME', 0, :created_at),
+		('FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART', 0, :created_at),
+		('FLEET_VAR_HOST_END_USER_IDP_GROUPS', 0, :created_at),
+		('FLEET_VAR_DIGICERT_DATA_', 1, :created_at),
+		('FLEET_VAR_DIGICERT_PASSWORD_', 1, :created_at),
+		('FLEET_VAR_CUSTOM_SCEP_CHALLENGE_', 1, :created_at),
+		('FLEET_VAR_CUSTOM_SCEP_PROXY_URL_', 1, :created_at)
+`
+	// use a constant time so that the generated schema is deterministic
+	createdAt := time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC)
+	stmt, args, err := sqlx.Named(insStmt, map[string]any{"created_at": createdAt})
+	if err != nil {
+		return fmt.Errorf("failed to prepare insert for fleet_variables: %s", err)
+	}
+	_, err = tx.Exec(stmt, args...)
+	if err != nil {
+		return fmt.Errorf("failed to insert into fleet_variables: %s", err)
+	}
+
+	// TODO(mna): scan existing profile contents to insert the relationships.
+
 	return nil
 }
 

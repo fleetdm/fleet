@@ -60,6 +60,11 @@ const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
 	// Currently, we assume the variables are fully unique and not substrings of each other.
+	//
+	// NOTE: if you add new variables, make sure you create a DB migration to insert them
+	// in the fleet_variables table. At some point we should refactor those constants/regexp
+	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
+	// (not doing it now because of time constraints to finish the story for the release).
 	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
 	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
