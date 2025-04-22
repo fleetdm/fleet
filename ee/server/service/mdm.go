@@ -679,13 +679,13 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	idpURL, err := sso.CreateAuthorizationRequest(ctx, svc.ssoSessionStore, originalURL, samlProvider)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
+		return "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
 	}
 
 	return idpURL, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
