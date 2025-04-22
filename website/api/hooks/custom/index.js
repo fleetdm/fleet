@@ -322,8 +322,6 @@ will be disabled and/or hidden in the UI.
                       loginUrl : 'https://fleetdm.my.salesforce.com'
                     });
                     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
-                    let today = new Date();
-                    let nowOn = today.toISOString().replace('Z', '+0000');
                     let websiteVisitReason;
                     if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
                       let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
@@ -339,7 +337,7 @@ will be disabled and/or hidden in the UI.
                         Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
                         Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
                         Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
-                        Visited_on__c: nowOn,// eslint-disable-line camelcase
+                        Event_type__c: 'Website page view',// eslint-disable-line camelcase
                         Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
                       });
                     }).intercept((err)=>{
