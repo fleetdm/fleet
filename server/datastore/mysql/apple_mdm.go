@@ -523,7 +523,8 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		hmmc.challenge_retrieved_at,
 		hmmc.not_valid_after,
 		hmmc.type,
-		hmmc.ca_name
+		hmmc.ca_name,
+		hmmc.serial
 	FROM
 		host_mdm_apple_profiles hmap
 	JOIN host_mdm_managed_certificates hmmc
@@ -553,26 +554,31 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
-	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(status=null) and which
+	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(hmap.status=null) and which
 	// * Have a validity period > 30 days and are expiring in the next 30 days
 	// * Have a validity period < 30 days and are within half the validity period of expiration
-	// nb: we SELECT not_valid_after and validity_period here so we can use them in the having, but
+	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
 	// we don't actually need them for the update logic.
 	hostCertsToRenew, err := ds.reader(ctx).QueryContext(ctx, `SELECT hmmc.host_uuid, hmmc.profile_uuid, hmmc.not_valid_after, DATEDIFF(hmmc.not_valid_after, hmmc.updated_at) AS validity_period
 	FROM host_mdm_managed_certificates hmmc
-	LEFT JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-	WHERE hmap.host_uuid IS NOT NULL AND hmmc.type = 'digicert' AND hmap.status IS NOT NULL
+	INNER JOIN host_mdm_apple_profiles hmap ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
+	WHERE hmap.host_uuid IS NOT NULL AND hmmc.type = ? AND hmap.status IS NOT NULL
 	HAVING
 	((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 	(validity_period < 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`)
+	LIMIT 1000`, fleet.CAConfigDigiCert)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+	}
+	if hostCertsToRenew == nil {
+		level.Debug(ds.logger).Log("msg", "No digicert certificates to renew")
+		return nil
 	}
 	defer hostCertsToRenew.Close()
 	var hostUUID, profileUUID string
 	var notValidAfter time.Time
 	var validityPeriod int
+
 	// This will trigger a resend next time profiles are checked
 	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE `
 	hostProfileClause := ``
@@ -585,7 +591,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		values = append(values, hostUUID, profileUUID)
 	}
 	if len(values) == 0 {
-		level.Info(ds.logger).Log("msg", "No digicert certificates to renew")
+		level.Debug(ds.logger).Log("msg", "No digicert certificates to renew")
 		return nil
 	}
 	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert certificates", "len(certificates)", len(values)/2)

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
 	"net/http"
 	"strings"
 	"time"
@@ -296,7 +295,7 @@ type HostMDMCertificateProfile struct {
 	NotValidAfter        *time.Time         `db:"not_valid_after"`
 	Type                 CAConfigAssetType  `db:"type"`
 	CAName               string             `db:"ca_name"`
-	SerialNumber         *big.Int           `db:"serial_number"`
+	Serial               *string            `db:"serial"`
 }
 
 type HostMDMProfileDetail string
