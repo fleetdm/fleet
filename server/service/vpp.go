@@ -57,6 +57,7 @@ type addAppStoreAppRequest struct {
 	AutomaticInstall bool                      `json:"automatic_install"`
 	LabelsIncludeAny []string                  `json:"labels_include_any"`
 	LabelsExcludeAny []string                  `json:"labels_exclude_any"`
+	Categories       []string                  `json:"categories"`
 }
 
 type addAppStoreAppResponse struct {
@@ -73,6 +74,7 @@ func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.
 		LabelsIncludeAny:     req.LabelsIncludeAny,
 		LabelsExcludeAny:     req.LabelsExcludeAny,
 		AddAutoInstallPolicy: req.AutomaticInstall,
+		Categories:           req.Categories,
 	})
 	if err != nil {
 		return &addAppStoreAppResponse{Err: err}, nil

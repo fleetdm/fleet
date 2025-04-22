@@ -388,6 +388,20 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	appID.ValidatedLabels = validatedLabels
+
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(appID.Categories) {
+		return &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", appID.Categories),
+		}
+	}
+	appID.CategoryIDs = catIDs
+
 	app := &fleet.VPPApp{
 		VPPAppTeam:       appID,
 		BundleIdentifier: assetMD.BundleID,

@@ -16244,17 +16244,16 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.True(t, len(appResp.AppStoreApps) > 0)
 	addedApp := appResp.AppStoreApps[0]
 
-	// TODO(JVE): add categories to add app store app endpoint
-
+	// Add the app with cat2 and cat3
 	var addedMacOSApp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:     nil,
 		Platform:   addedApp.Platform,
 		AppStoreID: addedApp.AdamID,
+		Categories: []string{cat2.Name, cat3.Name},
 	}, http.StatusOK, &addedMacOSApp)
 
-	// update the app and add categories
-	// Get software title ID of the added VPP app
+	// get the title ID
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
 		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
@@ -16262,6 +16261,15 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
+	// get the app
+	titleResponse := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
+	require.Len(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, 2)
+	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, cat2.Name)
+	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, cat3.Name)
+
+	// update the app and change categories
 	updateAppReq := &updateAppStoreAppRequest{TeamID: nil, SelfService: true}
 	updateAppReq.Categories = []string{cat1.Name, cat3.Name}
 	var updateAppResp updateAppStoreAppResponse
