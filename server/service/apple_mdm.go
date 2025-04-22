@@ -2869,20 +2869,33 @@ type callbackMDMAppleSSORequest struct{}
 // redirect to the UI and let the UI display an error instead. The errors are
 // rare enough (malformed data coming from the SSO provider) so they shouldn't
 // affect many users.
+//
+// NOTE(lucas): We currently perform XML decoding on the SAMLResponse twice:
+//
+// The first decode is it to extract the "RequestID" (just XML decode, no verification).
+//   - If the "RequestID" is empty it means the login request is IdP initiated.
+//   - If the "RequestID" is not empty, then it is used to load the session from Redis
+//     (session created by the previously Fleet initiated SSO login).
+//
+// The second decode performs the full decode and verification
+// (crewjam/saml's ParseXMLResponse which performs XML decode + full SAML response verification).
+//
+// In the future this could be optimized but would require some changes in how we store/load sessions
+// or support from crewjam/saml to allow verification of a decoded XML.
 func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to parse form",
 			InternalErr: err,
-		}, "decode sso callback")
+		}, "parse form in SSO callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to decode SAMLResponse",
 			InternalErr: err,
-		}, "decoding sso callback")
+		}, "decode SAMLResponse in SSO callback")
 	}
 	return authResponse, nil
 }

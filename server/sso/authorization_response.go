@@ -11,6 +11,7 @@ import (
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	xrv "github.com/mattermost/xml-roundtrip-validator"
 )
 
 // Since there's not a standard for display names, I have collected the most
@@ -61,6 +62,7 @@ func (r resp) UserDisplayName() string {
 	return ""
 }
 
+// status returns the status of the SAMLResponse (currently only used in tests).
 func (r resp) status() (string, error) {
 	if r.response != nil {
 		return r.response.Status.StatusCode.Value, nil
@@ -100,6 +102,7 @@ func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
 	return attrs
 }
 
+// RawResponse partially implements the fleet.Auth interface.
 func (r resp) RawResponse() []byte {
 	return r.rawResp
 }
@@ -115,6 +118,11 @@ func DecodeAuthResponse(samlResponse string) (fleet.Auth, error) {
 }
 
 func decodeSAMLResponse(rawXML []byte) (fleet.Auth, error) {
+	// Ensure that the response XML is well-formed before we parse it.
+	if err := xrv.Validate(bytes.NewReader(rawXML)); err != nil {
+		return nil, fmt.Errorf("invalid xml: %w", err)
+	}
+
 	var samlResponse saml.Response
 	if err := xml.NewDecoder(bytes.NewBuffer(rawXML)).Decode(&samlResponse); err != nil {
 		return nil, fmt.Errorf("decoding response xml: %w", err)
@@ -125,6 +133,7 @@ func decodeSAMLResponse(rawXML []byte) (fleet.Auth, error) {
 	}, nil
 }
 
+// ValidateAudiences validates that the audience restrictions of the assertion is one of the expected audiences.
 func ValidateAudiences(assertion *saml.Assertion, expectedAudiences []string) error {
 	if assertion.Conditions == nil {
 		return errors.New("missing conditions in assertion")

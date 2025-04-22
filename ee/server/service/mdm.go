@@ -654,7 +654,9 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
-	// Note: enable_end_user_authentication is a team-specific setting. This means some teams may not use SSO even if it is configured.
+	//
+	// Note: enable_end_user_authentication is a team-specific setting,
+	// this means some teams may not use SSO even if it is configured.
 	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
@@ -725,12 +727,15 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
 	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
+	//
+	// Note: enable_end_user_authentication is a team-specific setting,
+	// this means some teams may not use SSO even if it is configured.
 	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
-	samlProvider, err := svc.samlProviderFromMetadata(ctx, auth.RequestID(), serverURL, acsURL, mdmSSOSettings)
+	samlProvider, err := svc.samlProviderFromMetadata(ctx, auth.RequestID(), acsURL, mdmSSOSettings)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
@@ -808,7 +813,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 func (svc *Service) samlProviderFromMetadata(
 	ctx context.Context,
 	samlRequestID string,
-	serverURL string,
 	acsURL *url.URL,
 	mdmSSOSettings fleet.SSOProviderSettings,
 ) (*saml.ServiceProvider, error) {
@@ -822,7 +826,7 @@ func (svc *Service) samlProviderFromMetadata(
 	}
 
 	return &saml.ServiceProvider{
-		EntityID:                    serverURL,
+		EntityID:                    mdmSSOSettings.EntityID,
 		AcsURL:                      *acsURL,
 		IDPMetadata:                 entityDescriptor,
 		ValidateAudienceRestriction: svc.audienceValidation(ctx, mdmSSOSettings),

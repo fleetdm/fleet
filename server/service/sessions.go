@@ -429,20 +429,32 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 type callbackSSORequest struct{}
 
+// NOTE(lucas): We currently perform XML decoding on the SAMLResponse twice:
+//
+// The first decode is it to extract the "RequestID" (just XML decode, no verification).
+//   - If the "RequestID" is empty it means the login request is IdP initiated.
+//   - If the "RequestID" is not empty, then it is used to load the session from Redis
+//     (session created by the previously Fleet initiated SSO login).
+//
+// The second decode performs the full decode and verification
+// (crewjam/saml's ParseXMLResponse which performs XML decode + full SAML response verification).
+//
+// In the future this could be optimized but would require some changes in how we store/load sessions
+// or support from crewjam/saml to allow verification of a decoded XML.
 func (c callbackSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseForm()
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to parse form",
 			InternalErr: err,
-		}, "decode sso callback")
+		}, "parse form in SSO callback")
 	}
 	authResponse, err := sso.DecodeAuthResponse(r.FormValue("SAMLResponse"))
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message:     "failed to decode SAMLResponse",
 			InternalErr: err,
-		})
+		}, "decode SAMLResponse in SSO callback")
 	}
 	return authResponse, nil
 }
@@ -548,7 +560,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, authResponse fleet.Auth
 		return "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 
-	samlProvider, redirectURL, err := svc.samlProviderFromMetadata(ctx, authResponse.RequestID(), serverURL, acsURL, appConfig.SSOSettings)
+	samlProvider, redirectURL, err := svc.samlProviderFromMetadata(ctx, authResponse.RequestID(), acsURL, appConfig.SSOSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
@@ -586,7 +598,6 @@ func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.Use
 func (svc *Service) samlProviderFromMetadata(
 	ctx context.Context,
 	samlRequestID string,
-	serverURL string,
 	acsURL *url.URL,
 	settings *fleet.SSOSettings,
 ) (*saml.ServiceProvider, string, error) {
@@ -617,7 +628,7 @@ func (svc *Service) samlProviderFromMetadata(
 	}
 
 	return &saml.ServiceProvider{
-		EntityID:                    serverURL,
+		EntityID:                    settings.EntityID,
 		AcsURL:                      *acsURL,
 		DefaultRedirectURI:          redirectURL,
 		IDPMetadata:                 entityDescriptor,
