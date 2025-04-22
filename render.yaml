@@ -2,6 +2,7 @@ services:
   - name: fleet
     plan: standard
     type: web
+    region: frankfurt
     runtime: image
     image:
       url: 'fleetdm/fleet:latest'
@@ -49,6 +50,7 @@ services:
   - name: fleet-mysql
     plan: standard
     type: pserv
+    region: frankfurt
     runtime: docker
     repo: https://github.com/render-examples/mysql
     disk:
@@ -68,5 +70,6 @@ services:
   - name: fleet-redis
     plan: starter # May use free plan for testing or short-lived deployments
     type: redis
+    region: frankfurt
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []
