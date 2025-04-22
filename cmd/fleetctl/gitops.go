@@ -341,7 +341,10 @@ func gitopsCommand() *cli.Command {
 				}
 			}
 
-			if !noTeamPresent {
+			// we only want to reset the no-team config if the global config was loaded.
+			// NOTE: noTeamPresent is refering to the "No Team" team. It does not
+			// mean that other teams are not present.
+			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
 				_, err = fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
