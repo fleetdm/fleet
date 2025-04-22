@@ -22,11 +22,14 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -671,6 +674,10 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
+	}
+
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -754,6 +761,49 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 		}
 	}
 	return results, nil
+}
+
+func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	host, ok := hostctx.FromContext(ctx) // includes UUID and hostname so we have what we need to filter results
+	if !ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+
+	// check that command exists first, to return 404 on invalid commands
+	// (the command may exist but have no results yet).
+	p, err := svc.ds.GetMDMCommandPlatform(ctx, commandUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	var results []*fleet.MDMCommandResult
+	switch p {
+	case "darwin":
+		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
+	case "windows":
+		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
+	default:
+		// this should never happen, but just in case
+		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	var hostFilteredResults []*fleet.MDMCommandResult
+	for _, res := range results {
+		if res.HostUUID == host.UUID && res.RequestType == "InstallApplication" {
+			res.Hostname = host.Hostname
+			hostFilteredResults = append(hostFilteredResults, res)
+		}
+	}
+
+	if len(hostFilteredResults) == 0 {
+		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("MDMCommand").WithName(commandUUID))
+	}
+
+	return hostFilteredResults, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

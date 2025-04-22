@@ -816,6 +816,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_mdm", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
+		getDeviceMDMCommandResultsRequest{})
 
 	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),

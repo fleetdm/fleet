@@ -617,7 +617,7 @@ func getDeviceSoftwareInstallResultsEndpoint(ctx context.Context, request interf
 	_, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
-		return getDeviceSoftwareResponse{Err: err}, nil
+		return getSoftwareInstallResultsResponse{Err: err}, nil
 	}
 
 	req := request.(*getDeviceSoftwareInstallResultsRequest)
