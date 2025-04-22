@@ -735,16 +735,18 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
-	samlProvider, err := svc.samlProviderFromMetadata(ctx, auth.RequestID(), acsURL, mdmSSOSettings)
+	samlRequestID := auth.RequestID()
+
+	samlProvider, err := svc.samlProviderFromMetadata(ctx, samlRequestID, acsURL, mdmSSOSettings)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	if _, err := samlProvider.ParseXMLResponse(
-		auth.RawResponse(),
-		[]string{auth.RequestID()},
-		*acsURL,
-	); err != nil {
+	// The requestID was already verified in svc.samlProviderFromMetadata by checking the
+	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse.
+	possibleRequestIDs := []string{samlRequestID}
+
+	if _, err := samlProvider.ParseXMLResponse(auth.RawResponse(), possibleRequestIDs, *acsURL); err != nil {
 		// Set SAML error as the internal error for troubleshooting purposes.
 		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
 			err = samlErr.PrivateErr

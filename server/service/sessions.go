@@ -537,7 +537,7 @@ func getSSOSession(ctx context.Context, svc fleet.Service, authResponse fleet.Au
 	return svc.LoginSSOUser(ctx, user, redirectURL)
 }
 
-func (svc *Service) InitSSOCallback(ctx context.Context, authResponse fleet.Auth) (string, error) {
+func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (string, error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
@@ -560,16 +560,18 @@ func (svc *Service) InitSSOCallback(ctx context.Context, authResponse fleet.Auth
 		return "", ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
 	}
 
-	samlProvider, redirectURL, err := svc.samlProviderFromMetadata(ctx, authResponse.RequestID(), acsURL, appConfig.SSOSettings)
+	samlRequestID := auth.RequestID()
+
+	samlProvider, redirectURL, err := svc.samlProviderFromMetadata(ctx, samlRequestID, acsURL, appConfig.SSOSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	if _, err := samlProvider.ParseXMLResponse(
-		authResponse.RawResponse(),
-		[]string{authResponse.RequestID()},
-		*acsURL,
-	); err != nil {
+	// The requestID was already verified in svc.samlProviderFromMetadata by checking the
+	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse.
+	possibleRequestIDs := []string{samlRequestID}
+
+	if _, err := samlProvider.ParseXMLResponse(auth.RawResponse(), possibleRequestIDs, *acsURL); err != nil {
 		// Set SAML error as the internal error for troubleshooting purposes.
 		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
 			err = samlErr.PrivateErr
