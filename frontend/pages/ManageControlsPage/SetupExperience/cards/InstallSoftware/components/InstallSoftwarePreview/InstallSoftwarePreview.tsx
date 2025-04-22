@@ -12,8 +12,8 @@ const InstallSoftwarePreview = () => {
       <h3>End user experience</h3>
       <p>
         After the <b>Remote Management</b> screen, the end user will see
-        software being installed. They will not be able to continue until
-        software is installed.
+        selected software being installed. They won&apos;t be able to continue
+        until software is installed.
       </p>
       <p>
         If there are any errors, they will be able to continue and will be

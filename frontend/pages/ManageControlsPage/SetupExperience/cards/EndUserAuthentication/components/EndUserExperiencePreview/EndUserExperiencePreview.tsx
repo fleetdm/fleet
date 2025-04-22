@@ -18,13 +18,9 @@ const EndUserExperiencePreview = ({
     <div className={classes}>
       <h3>End user experience</h3>
       <p>
-        When the end user reaches the <b>Remote Management</b> screen in the
-        macOS Setup Assistant, they are asked to authenticate and agree to the
-        end user license agreement (EULA).
-      </p>
-      <p>
-        After, Fleet enrolls the Mac, applies macOS settings, and installs the
-        bootstrap package.
+        When the end user reaches the <b>Remote Management</b> screen, they are
+        first asked to authenticate and agree to the end user license agreement
+        (EULA).
       </p>
       <img
         className={`${baseClass}__preview-img`}

@@ -1,15 +1,14 @@
 .end-user-authentication {
   &__content {
     max-width: $break-xxl;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: $pad-xxlarge;
   }
 
   @media (max-width: $break-md) {
     &__content {
-      flex-direction: column;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

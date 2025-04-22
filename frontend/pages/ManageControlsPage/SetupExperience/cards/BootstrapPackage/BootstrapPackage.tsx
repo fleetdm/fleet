@@ -53,7 +53,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       renderFlash("success", "Successfully deleted!");
     } catch {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
       setShowDeletePackageModal(false);
       refretchBootstrapMetadata();
