@@ -602,6 +602,10 @@ type getDeviceSoftwareInstallResultsRequest struct {
 	InstallUUID string `url:"install_uuid"`
 }
 
+func (r *getDeviceSoftwareInstallResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
 type getSoftwareInstallResultsResponse struct {
 	Err     error                              `json:"error,omitempty"`
 	Results *fleet.HostSoftwareInstallerResult `json:"results,omitempty"`
