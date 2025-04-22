@@ -1,6 +1,6 @@
-# Fleet-maintained apps
+# Fleet-maintained apps (FMA)
 
-## Adding a new FMA
+## Adding a new app
 
 1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.
 2. Find that app's metadata. For homebrew, you can visit https://formulae.brew.sh/ and find the app there.
@@ -66,3 +66,23 @@ These are command lines that will be run _before_ the generated uninstall script
 
 #### `post_uninstall_scripts`
 These are command lines that will be run _after_ the generated uninstall script is executed.
+
+### Testing
+
+Fleet tests every change to supported Fleet-maintained apps (e.g. new version, updated install script, etc.) and all new apps.
+
+For new apps:
+
+1. When a pull request is opened in `inputs/`, the [#g-software Engineering Manager (EM)](TODO) is automatically added as reviewer.
+2. The EM is responsible to making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
+3. Then, the EM merges the PR. This automatically opens a PR to `outputs/`
+4. Next, follow steps under "For changes to supported apps." 
+
+For changes to supported apps:
+
+1. A pull request (PR) is automatically opened in `outputs/` and a Product Designer is automatically added as reviwer.
+2. The Product Designer is responsible for testing the app:
+- If the app is a new app, add an icon for the app to the PR. TODO: What spot in the repo?
+- Run Fleet locally to test the app: Does the icon look right? Does the app install? Can you open the app once it's installed?
+3. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
+4. If the test is successful, the PD approves and merges the PR.
