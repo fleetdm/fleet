@@ -1114,45 +1114,6 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Bulk script execution summary
-////////////////////////////////////////////////////////////////////////////////
-
-type batchScriptSummaryRequest struct {
-	ExecutionID string `json:"-" query:"batch_execution_id"`
-}
-
-type batchScriptSummaryResponse struct {
-	*fleet.BatchExecutionSummary
-	Err error `json:"error,omitempty"`
-}
-
-func (r batchScriptSummaryResponse) Error() error { return r.Err }
-
-func batchScriptSummaryEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*batchScriptSummaryRequest)
-	summary, err := svc.BatchScriptSummary(ctx, req.ExecutionID)
-	if err != nil {
-		return batchScriptSummaryResponse{Err: err}, nil
-	}
-	return batchScriptSummaryResponse{BatchExecutionSummary: summary}, nil
-}
-
-func (svc *Service) BatchScriptSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
-	summary, err := svc.ds.BatchExecuteSummary(ctx, executionID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching execution summary")
-	}
-
-	// Use the authorize script by ID to handle authz
-	_, err = svc.authorizeScriptByID(ctx, summary.ScriptID, fleet.ActionRead)
-	if err != nil {
-		return nil, err
-	}
-
-	return summary, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Lock host
 ////////////////////////////////////////////////////////////////////////////////
 
