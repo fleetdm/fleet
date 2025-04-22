@@ -37,7 +37,7 @@
                 </div>
               </div>
             </h1>
-            <p><%= primaryBuyingSituation === 'vm'? 'Replace the sprawl with secure, open-source reporting that works the way you want.' : primaryBuyingSituation === 'eo-security'? 'Replace the sprawl with secure, open-source telemetry that works the way you want.' : 'Freedom at every level. Device management your way with all the features you need. No surprises!' %></p>
+            <p><%= primaryBuyingSituation === 'vm'? 'Replace the sprawl with secure, open-source reporting that works the way you want.' : primaryBuyingSituation === 'eo-security'? 'Replace the sprawl with secure, open-source telemetry that works the way you want.' : 'Freedom at every level. Device management your way with all the features you need—no surprises.' %></p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/docs/get-started/why-fleet">Learn how</a>
               <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
@@ -98,7 +98,7 @@
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
           <strong>Real employee device choice — even Linux</strong>
-          <p>Enroll all your computing devices. Going only Apple or 50/50 Mac and Windows? What about Linux? Speak to them all in one language.</p>
+          <p>Enroll all your computing devices. Going only {{ bowser.windows ? 'Windows' : 'Apple'}} or 50/50 {{ bowser.windows ? 'Windows and Mac' : 'Mac and Windows'}}? What about Linux? Speak to them all in one language.</p>
           <strong>Define configuration as code</strong>
           <p>Ensure consistent deployment and eliminate configuration drift while maintaining an infinite audit trail. Need to roll back? Revert any changes with a single command.</p>
           <strong>Know the state of your devices in seconds</strong>
@@ -155,7 +155,7 @@
              <div purpose="category-text-block" class="d-flex flex-column personalized">
                <h4>Device management</h4>
                <h2>Manage everything in one place</h2>
-               <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
+               <p>Modernize your device management practice with a single, open platform for {{ bowser.windows ? 'Windows, Apple' : 'Apple, Windows'}}, and Linux.</p>
                <div>
                  <animated-arrow-button href="/device-management">Start with device management</animated-arrow-button>
                </div>
@@ -200,7 +200,7 @@
              <div purpose="category-text-block" class="d-flex flex-column personalized">
                <h4>Device management</h4>
                <h2>Manage everything in one place</h2>
-               <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
+               <p>Modernize your device management practice with a single, open platform for {{ bowser.windows ? 'Windows, Apple' : 'Apple, Windows'}}, and Linux.</p>
                <div>
                  <animated-arrow-button href="/device-management">Start with device management</animated-arrow-button>
                </div>
