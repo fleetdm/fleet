@@ -1625,8 +1625,11 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		// All hosts must be on the same team as the script
-		if host.TeamID != script.TeamID {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team")
+		sameTeamNoTeam := host.TeamID == nil && script.TeamID == nil
+		sameTeamNumber := host.TeamID != nil && script.TeamID != nil && *host.TeamID == *script.TeamID
+		sameTeam := sameTeamNoTeam || sameTeamNumber
+		if !sameTeam {
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
 		}
 
 		fullHosts = append(fullHosts, host)
@@ -1638,7 +1641,9 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 
 	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		for _, host := range fullHosts {
+			// Non-orbit-enrolled host (iOS, android)
 			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
+			// Scripts disabled on host
 			scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
 
 			if noNodeKey || scriptsDisabled {
