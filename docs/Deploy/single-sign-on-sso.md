@@ -159,11 +159,9 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
-Fleet supports two ways to automate user creation: Just-in-time (JIT) provisioning and SCIM-based provisioning.
+Fleet automates user creation using Just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is coming soon.
 
 This section explains how JIT user provisioning works. With JIT, Fleet will automatically create a user account when someone logs in for the first time using your configured SSO. This removes the need to create individual user accounts for a large organization.
-
-> **Note:** If you're using SCIM for automated user provisioning and updates, that setup happens through your identity provider and is separate from JIT. For more details on SCIM-based provisioning, refer to your IdP’s SCIM documentation.
 
 When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO.
 
