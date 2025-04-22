@@ -2248,7 +2248,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Get host's scripts](#get-hosts-scripts)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -4040,62 +4039,6 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
-### Get host's scripts
-
-`GET /api/v1/fleet/hosts/:id/scripts`
-
-#### Parameters
-
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
-| page | integer | query | Page number of the results to fetch.|
-| per_page | integer | query | Results per page.|
-
-#### Example
-
-`GET /api/v1/fleet/hosts/123/scripts`
-
-##### Default response
-
-`Status: 200`
-
-```json
-"scripts": [
-  {
-    "script_id": 3,
-    "name": "remove-zoom-artifacts.sh",
-    "last_execution": {
-      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "error"
-    }
-  },
-  {
-    "script_id": 5,
-    "name": "set-timezone.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "pending"
-    }
-  },
-  {
-    "script_id": 8,
-    "name": "uninstall-zoom.sh",
-    "last_execution": {
-      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "executed_at": "2021-12-15T15:23:57Z",
-      "status": "ran"
-    }
-  }
-],
-"meta": {
-  "has_next_results": false,
-  "has_previous_results": false
-}
-
-```
 
 ### Get host's software
 
@@ -8691,6 +8634,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
+- [Get host's scripts](#get-hosts-scripts)
 - [Get or download script](#get-or-download-script)
 - [Get script details by host](#get-hosts-scripts)
 
@@ -8936,6 +8880,63 @@ Deletes an existing script.
     "has_next_results": false,
     "has_previous_results": false
   }
+}
+
+```
+
+### Get host's scripts
+
+`GET /api/v1/fleet/hosts/:id/scripts`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"scripts": [
+  {
+    "script_id": 3,
+    "name": "remove-zoom-artifacts.sh",
+    "last_execution": {
+      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "executed_at": "2021-12-15T15:23:57Z",
+      "status": "error"
+    }
+  },
+  {
+    "script_id": 5,
+    "name": "set-timezone.sh",
+    "last_execution": {
+      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "executed_at": "2021-12-15T15:23:57Z",
+      "status": "pending"
+    }
+  },
+  {
+    "script_id": 8,
+    "name": "uninstall-zoom.sh",
+    "last_execution": {
+      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "executed_at": "2021-12-15T15:23:57Z",
+      "status": "ran"
+    }
+  }
+],
+"meta": {
+  "has_next_results": false,
+  "has_previous_results": false
 }
 
 ```
