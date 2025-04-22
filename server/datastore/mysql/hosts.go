@@ -544,6 +544,7 @@ var hostRefs = []string{
 	"host_certificates",
 	"android_devices",
 	"host_scim_user",
+	"batch_script_execution_host_results",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not

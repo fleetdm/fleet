@@ -1742,7 +1742,7 @@ LEFT JOIN
 LEFT JOIN
 	host_script_results hsr
 		ON bshr.host_execution_id = hsr.execution_id
-LEFT JOIN
+INNER JOIN
 	hosts h
 		ON bshr.host_id = h.id
 WHERE
