@@ -2,7 +2,7 @@
   display: grid;
   gap: $pad-smedium;
 
-  // >= 320px and < 480px
+  // >= 320px
   @media (min-width: $break-xs) {
     grid-template-columns: repeat(2, 1fr);
 
@@ -12,7 +12,7 @@
     }
   }
 
-  // >= 480px and < 880px
+  // >= 480px
   @media (min-width: $break-sm) {
     grid-template-columns: 1fr;
     grid-template-rows: initial; // undo multi row
@@ -62,8 +62,8 @@
     }
   }
 
-  // > 576px
-  @media (min-width: $break-mobile-md) {
+  // > 768px
+  @media (min-width: $break-sm) {
     // Special case for exactly 7 items
     &:has(> :nth-child(7)) {
       grid-template-columns: repeat(
