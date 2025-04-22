@@ -8729,8 +8729,8 @@ The script will be added to each host's list of upcoming activities.
 
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
+| script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body | **Required**. List of host IDs.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. |
 
 
 #### Example
