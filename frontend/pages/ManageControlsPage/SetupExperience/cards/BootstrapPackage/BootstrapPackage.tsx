@@ -13,7 +13,7 @@ import SectionHeader from "components/SectionHeader";
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
-import DeletePackageModal from "./components/DeletePackageModal";
+import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 
@@ -25,7 +25,10 @@ interface IBootstrapPackageProps {
 
 const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const [showDeletePackageModal, setShowDeletePackageModal] = useState(false);
+  const [
+    showDeleteBootstrapPackageModal,
+    setShowDeleteBootstrapPackageModal,
+  ] = useState(false);
 
   const {
     data: bootstrapMetadata,
@@ -57,7 +60,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
-      setShowDeletePackageModal(false);
+      setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();
     }
   };
@@ -74,7 +77,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
       <UploadedPackageView
         bootstrapPackage={bootstrapMetadata}
         currentTeamId={currentTeamId}
-        onDelete={() => setShowDeletePackageModal(true)}
+        onDelete={() => setShowDeleteBootstrapPackageModal(true)}
       />
     );
 
@@ -98,10 +101,10 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     <section className={baseClass}>
       <SectionHeader title="Bootstrap package" />
       {isLoading ? <Spinner /> : renderBootstrapView()}
-      {showDeletePackageModal && (
-        <DeletePackageModal
+      {showDeleteBootstrapPackageModal && (
+        <DeleteBootstrapPackageModal
           onDelete={onDelete}
-          onCancel={() => setShowDeletePackageModal(false)}
+          onCancel={() => setShowDeleteBootstrapPackageModal(false)}
         />
       )}
     </section>
