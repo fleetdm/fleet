@@ -4023,7 +4023,5 @@ WHERE
 		ret[c.InstallerID] = append(ret[c.InstallerID], c.CategoryName)
 	}
 
-	fmt.Printf("db getcategoriesforsoftwareinstallers titleIDs: %v categories: %v\n", softwareTitleIDs, categories)
-
 	return ret, nil
 }
