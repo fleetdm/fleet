@@ -1693,6 +1693,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
+	// TODO(mna): must collect variables and save them as part of variables used by the profile
 	err = validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err

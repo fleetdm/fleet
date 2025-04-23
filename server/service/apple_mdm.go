@@ -393,6 +393,8 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+	// TODO(mna): must collect fleet variables and save them as part of the variables
+	// used by this profile
 	err = validateConfigProfileFleetVariables(appConfig, expanded)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
