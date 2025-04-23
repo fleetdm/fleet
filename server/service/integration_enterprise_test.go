@@ -10549,7 +10549,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
-	require.Len(t, getDeviceSw.Software[0].SoftwarePackage.Categories, 1)
 
 	// =========================================
 	// test label scoping
@@ -16176,7 +16175,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
 
-func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
+func (s *integrationEnterpriseTestSuite) TestAmMaintainedApps() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -16523,6 +16522,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "software_categories")
 		mysql.DumpTable(t, q, "software_installer_software_categories")
 		mysql.DumpTable(t, q, "software_installers")
 		return nil

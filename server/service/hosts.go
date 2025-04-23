@@ -2769,6 +2769,10 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IsMDMEnrolled = mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+
 	var titleIDs []uint
 	softwareByTitleID := make(map[uint]*fleet.HostSoftwareWithInstaller)
 	for _, s := range software {
@@ -2783,7 +2787,8 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	for id, c := range categories {
 		softwareByTitleID[id].SoftwarePackage.Categories = c
 	}
-	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
+
+	return software, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

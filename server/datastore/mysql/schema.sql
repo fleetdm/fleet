@@ -1999,9 +1999,11 @@ CREATE TABLE `software_categories` (
   `name` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_software_categories_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `software_categories` VALUES (1,'Productivity','2025-04-23 19:31:45.330497','2025-04-23 19:31:45.330497'),(2,'Browser','2025-04-23 19:31:45.330497','2025-04-23 19:31:45.330497'),(3,'Communication','2025-04-23 19:31:45.330497','2025-04-23 19:31:45.330497'),(4,'Developer tools','2025-04-23 19:31:45.330497','2025-04-23 19:31:45.330497');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_cpe` (
@@ -2087,8 +2089,9 @@ CREATE TABLE `software_installer_software_categories` (
   `software_category_id` int unsigned NOT NULL,
   `software_installer_id` int unsigned NOT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `software_installer_id` (`software_installer_id`),
+  CONSTRAINT `software_installer_software_categories_ibfk_1` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -2294,8 +2297,9 @@ CREATE TABLE `vpp_app_team_software_categories` (
   `software_category_id` int unsigned NOT NULL,
   `vpp_app_team_id` int unsigned NOT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `vpp_app_team_id` (`vpp_app_team_id`),
+  CONSTRAINT `vpp_app_team_software_categories_ibfk_1` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

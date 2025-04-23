@@ -3958,7 +3958,7 @@ func (ds *Datastore) NewSoftwareCategory(ctx context.Context, name string) (*fle
 	}
 
 	r, _ := res.LastInsertId()
-	id := uint(r)
+	id := uint(r) //nolint:gosec // dismiss G115
 	return &fleet.SoftwareCategory{Name: name, ID: id}, nil
 }
 
@@ -4022,6 +4022,8 @@ WHERE
 	for _, c := range categories {
 		ret[c.InstallerID] = append(ret[c.InstallerID], c.CategoryName)
 	}
+
+	fmt.Printf("db getcategoriesforsoftwareinstallers titleIDs: %v categories: %v\n", softwareTitleIDs, categories)
 
 	return ret, nil
 }
