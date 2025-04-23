@@ -704,6 +704,10 @@ func TestHostAuth(t *testing.T) {
 		return nil, nil
 	}
 
+	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
+		return map[uint][]string{}, nil
+	}
+
 	testCases := []struct {
 		name                  string
 		user                  *fleet.User
