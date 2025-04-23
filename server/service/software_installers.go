@@ -167,7 +167,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	switch {
 	case !existsCategories:
 		decoded.Categories = nil
-	case len(exclAny) == 1 && exclAny[0] == "":
+	case len(categories) == 1 && categories[0] == "":
 		decoded.Categories = []string{}
 	default:
 		decoded.Categories = categories
