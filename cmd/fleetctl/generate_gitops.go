@@ -199,7 +199,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
-			teamSettings, err := cmd.generateTeamSettings(fileName, team.ID)
+			teamSettings, err := cmd.generateTeamSettings(fileName, team)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
 				return ErrGeneric
@@ -351,7 +351,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
 		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
 	}
-	integrations, err := cmd.generateIntegrations(&cmd.AppConfig.Integrations)
+	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +411,12 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integrations) (map[string]interface{}, error) {
+type GlobalOrTeamIntegrations struct {
+	GlobalIntegrations *fleet.Integrations     `json:"global_integrations,omitempty"`
+	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"`
+}
+
+func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrations *GlobalOrTeamIntegrations) (map[string]interface{}, error) {
 	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
 	// to get the keys we want.
 	b, err := yaml.Marshal(integrations)
@@ -424,36 +429,41 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(integrations *fleet.Integ
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling integrations: %s\n", err)
 		return nil, err
 	}
+	if result["global_integrations"] != nil {
+		result = result["global_integrations"].(map[string]interface{})
+	} else {
+		result = result["team_integrations"].(map[string]interface{})
+	}
 	// Obfuscate secrets if not in insecure mode.
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok {
 			for _, intg := range googleCalendar.([]interface{}) {
 				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
-					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment("default.yml", "TODO: Add your Google Calendar API key JSON here")
+					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 				}
 			}
 		}
 		if jira, ok := result["jira"]; ok {
 			for _, intg := range jira.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment("default.yml", "TODO: Add your Jira API token here")
+				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
 			}
 		}
 		if zendesk, ok := result["zendesk"]; ok {
 			for _, intg := range zendesk.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment("default.yml", "TODO: Add your Zendesk API token here")
+				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
 			}
 		}
 		if digicert, ok := result["digicert"]; ok && digicert != nil {
 			for _, intg := range digicert.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment("default.yml", "TODO: Add your Digicert API token here")
+				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
 			}
 		}
 		if ndes_scep_proxy, ok := result["ndes_scep_proxy"]; ok && ndes_scep_proxy != nil {
-			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment("default.yml", "TODO: Add your NDES SCEP proxy password here")
+			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
 			for _, intg := range custom_scep_proxy.([]interface{}) {
-				intg.(map[string]interface{})["challenge"] = cmd.AddComment("default.yml", "TODO: Add your custom SCEP proxy challenge here")
+				intg.(map[string]interface{})["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
 			}
 		}
 	}
@@ -489,8 +499,48 @@ func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) 
 	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, teamID uint) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fleet.Team) (teamSettings map[string]interface{}, err error) {
+	t := reflect.TypeOf(fleet.TeamConfig{})
+	teamSettings = map[string]interface{}{
+		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
+		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
+		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
+	}
+	integrations, err := cmd.generateIntegrations(filePath, &GlobalOrTeamIntegrations{TeamIntegrations: &team.Config.Integrations})
+	if err != nil {
+		return nil, err
+	}
+	teamSettings[jsonFieldName(t, "Integrations")] = integrations
+	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
+	if err != nil {
+		return nil, err
+	}
+	teamSettings[jsonFieldName(t, "MDM")] = mdm
+	yaraRules, err := cmd.generateYaraRules(cmd.AppConfig.YaraRules)
+	if err != nil {
+		return nil, err
+	}
+	teamSettings[jsonFieldName(t, "YaraRules")] = yaraRules
+
+	// If --insecure is set, add real secrets.
+	if cmd.CLI.Bool("insecure") {
+		enrollSecrets, err := cmd.Client.GetEnrollSecretSpec()
+		if err != nil {
+			return nil, err
+		}
+		secrets := make([]map[string]string, len(enrollSecrets.Secrets))
+		for i, spec := range enrollSecrets.Secrets {
+			secrets[i] = map[string]string{"secret": spec.Secret}
+		}
+		teamSettings["secrets"] = secrets
+	} else {
+		(teamSettings)["secrets"] = []map[string]string{{"string": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
+	}
+
+	if (teamSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
+		return nil, err
+	}
+	return teamSettings, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId uint) (map[string]interface{}, error) {
