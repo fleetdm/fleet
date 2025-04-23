@@ -480,6 +480,8 @@ software:
 
 Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
+##### Supported software categories
+
 Use `categories` to group self-service software on your end users' **Fleet Desktop > My device** page. Here are the supported categories:
 - `Browsers`: group under **🌎 Browser**
 - `Communication`: group under **👬 Communication**
@@ -495,7 +497,7 @@ Use `categories` to group self-service software on your end users' **Fleet Deskt
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
-- `categories` is an array of categories. See supported categories [here](#example7).
+- `categories` is an array of categories. See [supported categories](#supported-software-categories).
 
 #### Example
 
@@ -521,7 +523,7 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
-- `categories` is an array of categories. See supported categories [here](#example7).
+- `categories` is an array of categories. See [supported categories](#supported-software-categories).
 
 ## org_settings and team_settings
 
