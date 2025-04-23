@@ -11,6 +11,8 @@ import scriptAPI, {
 } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Spinner from "components/Spinner";
+import EmptyTable from "components/EmptyTable";
+import Button from "components/buttons/Button";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 
@@ -55,13 +57,21 @@ const RunScriptBatchModal = ({
   );
 
   const renderModalContent = () => {
-    // loading
     if (scripts === undefined) {
       return <Spinner />;
     }
     if (!scripts.length) {
-      // TODO - empty state, not designed
-      return <span>TODO - no scripts empty state</span>;
+      return (
+        <EmptyTable
+          header="No scripts available for this team"
+          info={
+            <>
+              You can add saved scripts{" "}
+              <a href={`/controls/scripts?team_id=${teamId}`}>here</a>.
+            </>
+          }
+        />
+      );
     }
     return (
       <>
@@ -87,7 +97,12 @@ const RunScriptBatchModal = ({
       className={`${baseClass}`}
       isLoading={isUpdating}
     >
-      {renderModalContent()}
+      <>
+        {renderModalContent()}
+        <div className="modal-cta-wrap">
+          <Button onClick={onCancel}>Done</Button>
+        </div>
+      </>
     </Modal>
   );
 };
