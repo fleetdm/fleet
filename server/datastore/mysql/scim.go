@@ -284,7 +284,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 
 		// resend profiles that depend on this username if it changed
 		if usernameChanged {
-			err = triggerResendProfilesForIDPUsernameChange(ctx, tx, user.ID)
+			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
 			}
@@ -330,12 +330,11 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 // DeleteScimUser deletes a SCIM user from the database
 func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// get the host IDs associated with the user about to be deleted
-		const getAssociatedHostIDsQuery = `SELECT host_id FROM host_scim_user WHERE scim_user_id = ?`
-		var deletedUserAssociatedHostIDs []uint
-		err := sqlx.SelectContext(ctx, tx, &deletedUserAssociatedHostIDs, getAssociatedHostIDsQuery, id)
+		// trigger resend of profiles that depend on this SCIM user (must be done
+		// _before_ deleting the scim user so that we can find the affected hosts)
+		err := triggerResendProfilesForIDPUserChange(ctx, tx, id)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get scim user host IDs")
+			return err
 		}
 
 		// Delete the user
@@ -354,13 +353,6 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 			return notFound("scim user").WithID(id)
 		}
 
-		// trigger resend of profiles that depend on this SCIM user
-		if len(deletedUserAssociatedHostIDs) > 0 {
-			err = triggerResendProfilesForIDPDeletedUser(ctx, tx, deletedUserAssociatedHostIDs, id)
-			if err != nil {
-				return err
-			}
-		}
 		return nil
 	})
 }
@@ -1035,35 +1027,39 @@ func (ds *Datastore) UpdateScimLastRequest(ctx context.Context, lastRequest *fle
 	})
 }
 
-func triggerResendProfilesForIDPUsernameChange(ctx context.Context, tx sqlx.ExtContext, userID uint) error {
+func getHostIDsHavingScimIDPUser(ctx context.Context, tx sqlx.ExtContext, scimUserID uint) ([]uint, error) {
 	// get all hosts that have this user as IdP user - this means that we only
 	// consider hosts where this user id is the smallest user id associated with
 	// the host (which is the one we consider as the IdP user of the host, see
 	// the query in ScimUserByHostID)
 	const getAssociatedHostIDsQuery = `
 	SELECT DISTINCT
-		host_id 
-	FROM 
+		host_id
+	FROM
 		host_scim_user hsu
-		LEFT JOIN host_scim_user extra_hsu ON 
+		LEFT JOIN host_scim_user extra_hsu ON
 			hsu.host_id = extra_hsu.host_id AND
 			hsu.scim_user_id != extra_hsu.scim_user_id AND
 			extra_hsu.scim_user_id < hsu.scim_user_id
-	WHERE 
+	WHERE
 		hsu.scim_user_id = ? AND
 		extra_hsu.host_id IS NULL
 `
 	var hostIDs []uint
-	err := sqlx.SelectContext(ctx, tx, &hostIDs, getAssociatedHostIDsQuery, userID)
+	err := sqlx.SelectContext(ctx, tx, &hostIDs, getAssociatedHostIDsQuery, scimUserID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get scim user host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get scim user host IDs")
 	}
-
-	return triggerResendProfilesForIDP(ctx, tx, hostIDs, []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart})
+	return hostIDs, nil
 }
 
-func triggerResendProfilesForIDPDeletedUser(ctx context.Context, tx sqlx.ExtContext, deletedUserAssociatedHostIDs []uint, deletedScimUserID uint) error {
-	panic("unimplemented")
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedUserID uint) error {
+	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedUserID)
+	if err != nil {
+		return err
+	}
+	return triggerResendProfilesForIDP(ctx, tx, hostIDs,
+		[]string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart})
 }
 
 func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, groupID uint) error {
