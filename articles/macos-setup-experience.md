@@ -131,7 +131,7 @@ Next, incorporate the generated fleetd package into your bootstrap package and a
 
 Then, navigate to **Controls > Setup Experience > Bootstrap package** in the Fleet interface and upload your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
 
-Once the option to manually install Fleet's agent is checked, the **Install software** and **Run script** options will be disabled.
+Once the option to manually install Fleet's agent is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
 
 ## macOS Setup Assistant
 
