@@ -68,6 +68,7 @@ export interface IFormValidation {
 
 interface IFleetAppDetailsFormProps {
   labels: ILabelSummary[] | null;
+  categories?: string[];
   name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
@@ -83,6 +84,7 @@ interface IFleetAppDetailsFormProps {
 
 const FleetAppDetailsForm = ({
   labels,
+  categories,
   name: appName,
   defaultInstallScript,
   defaultPostInstallScript,
@@ -110,7 +112,7 @@ const FleetAppDetailsForm = ({
     targetType: "All hosts",
     customTarget: "labelsIncludeAny",
     labelTargets: {},
-    categories: [],
+    categories: categories || [],
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
