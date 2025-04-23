@@ -105,12 +105,12 @@ const RunScriptBatchPaginatedList = ({
     onChange: (script: IPaginatedListScript) => void
   ) => (
     <>
-      <span>{script.name}</span>
+      <a>{script.name}</a>
       {/* TODO - only show button on over */}
       <Button
         variant="text-icon"
         // prevent filling in icon background on hover
-        iconStroke
+        iconStroke={!script.hasRun}
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
           onRunScript(script, onChange);
