@@ -23,8 +23,7 @@ func Up_20250418162727(tx *sql.Tx) error {
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		software_category_id INT UNSIGNED NOT NULL,
 			software_installer_id INT UNSIGNED NOT NULL,
-			created_at DATETIME(6) NULL DEFAULT NOW(6),
-  			updated_at DATETIME(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6))`)
+			created_at DATETIME(6) NULL DEFAULT NOW(6))`)
 	if err != nil {
 		return fmt.Errorf("failed to create software_installer_software_categories table: %w", err)
 	}
@@ -33,8 +32,7 @@ func Up_20250418162727(tx *sql.Tx) error {
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		software_category_id INT UNSIGNED NOT NULL,
 			vpp_app_team_id INT UNSIGNED NOT NULL,
-			created_at DATETIME(6) NULL DEFAULT NOW(6),
-  			updated_at DATETIME(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6))`)
+			created_at DATETIME(6) NULL DEFAULT NOW(6))`)
 	if err != nil {
 		return fmt.Errorf("failed to create vpp_app_team_software_categories table: %w", err)
 	}
