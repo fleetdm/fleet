@@ -168,9 +168,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 
 	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
 		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
-		t.Cleanup(func() {
-			s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
-		})
 		s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
 			EnableReleaseManually: false,
 			TeamID:                nil,
@@ -310,9 +307,6 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
 		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
-		t.Cleanup(func() {
-			s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
-		})
 		s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
 			EnableReleaseManually: true,
 			TeamID:                &tm.ID,
@@ -418,6 +412,12 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		payload["team_id"] = *opts.TeamID
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+	t.Cleanup(func() {
+		// Get back to the default state.
+		payload["enable_release_device_manually"] = false
+		payload["manual_agent_install"] = false
+		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+	})
 
 	// query all hosts - none yet
 	listHostsRes := listHostsResponse{}
