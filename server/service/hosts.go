@@ -1320,7 +1320,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
-	endUsers, err := svc.getEndUsers(ctx, host.ID)
+	endUsers, err := getEndUsers(ctx, svc.ds, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
@@ -1335,11 +1335,12 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}, nil
 }
 
-func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostEndUser, error) {
-	scimUser, err := svc.ds.ScimUserByHostID(ctx, hostID)
+func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get scim user by host id")
 	}
+
 	var endUsers []fleet.HostEndUser
 	if scimUser != nil {
 		endUser := fleet.HostEndUser{
@@ -1355,10 +1356,12 @@ func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostE
 		}
 		endUsers = append(endUsers, endUser)
 	}
-	deviceMapping, err := svc.ds.ListHostDeviceMapping(ctx, hostID)
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host device mapping")
 	}
+
 	if len(deviceMapping) > 0 {
 		endUser := fleet.HostEndUser{}
 		for _, email := range deviceMapping {
@@ -1377,6 +1380,7 @@ func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostE
 			endUsers = append(endUsers, endUser)
 		}
 	}
+
 	return endUsers, nil
 }
 
