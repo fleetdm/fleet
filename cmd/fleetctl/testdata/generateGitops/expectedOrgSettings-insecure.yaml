@@ -80,7 +80,7 @@ server_settings:
   deferred_save_host: false
   enable_analytics: true
   live_query_disabled: false
-  query_report_cap: 0
+  query_report_cap: 1
   query_reports_disabled: false
   scripts_disabled: false
   server_url: https://dogfood.fleetdm.com
@@ -100,7 +100,7 @@ webhook_settings:
   failing_policies_webhook:
     destination_url: https://some-failing-policies-webhook-url.com
     enable_failing_policies_webhook: true
-    host_batch_size: 0
+    host_batch_size: 2
     policy_ids: []
   host_status_webhook:
     days_count: 5
@@ -111,5 +111,5 @@ webhook_settings:
   vulnerabilities_webhook:
     destination_url: https://some-vulerabilities-webhook-url.com
     enable_vulnerabilities_webhook: true
-    host_batch_size: 0
+    host_batch_size: 3
 yara_rules: {}

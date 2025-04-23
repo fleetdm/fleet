@@ -379,7 +379,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		}
 		orgSettings["secrets"] = secrets
 	} else {
-		(orgSettings)["secrets"] = []map[string]string{{"string": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
+		orgSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
 	}
 
 	if (orgSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
@@ -429,21 +429,16 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling integrations: %s\n", err)
 		return nil, err
 	}
-	isTeam := false
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
 	} else {
-		isTeam = true
 		result = result["team_integrations"].(map[string]interface{})
+		// Team integrations don't have secrets right now, so just return as-is.
+		return result, nil
 	}
 	// Obfuscate secrets if not in insecure mode.
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok {
-			if isTeam {
-				// Cast googleCalendar to a slice of interfaces, since
-				// the team config only uses one integration.
-				googleCalendar = []interface{}{googleCalendar}
-			}
 			for _, intg := range googleCalendar.([]interface{}) {
 				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
 					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
@@ -526,7 +521,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		}
 		teamSettings["secrets"] = secrets
 	} else {
-		(teamSettings)["secrets"] = []map[string]string{{"string": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
+		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enrollment secrets here")}}
 	}
 	return teamSettings, nil
 }

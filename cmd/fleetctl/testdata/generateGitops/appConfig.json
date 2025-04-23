@@ -78,7 +78,7 @@
         "query_reports_disabled": false,
         "scripts_disabled": false,
         "ai_features_disabled": false,
-        "query_report_cap": 0
+        "query_report_cap": 1
     },
     "smtp_settings": {
         "enable_smtp": false,
@@ -159,12 +159,12 @@
             "enable_failing_policies_webhook": true,
             "destination_url": "https://some-failing-policies-webhook-url.com",
             "policy_ids": [],
-            "host_batch_size": 0
+            "host_batch_size": 2
         },
         "vulnerabilities_webhook": {
             "enable_vulnerabilities_webhook": true,
             "destination_url": "https://some-vulerabilities-webhook-url.com",
-            "host_batch_size": 0
+            "host_batch_size": 3
         },
         "interval": "6h0m0s"
     },

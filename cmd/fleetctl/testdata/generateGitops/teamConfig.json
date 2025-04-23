@@ -29,14 +29,14 @@
     },
     "host_expiry_settings": {
         "host_expiry_enabled": false,
-        "host_expiry_window": 0
+        "host_expiry_window": 1
     },
     "webhook_settings": {
         "host_status_webhook": {
             "enable_host_status_webhook": false,
             "destination_url": "https://some-team-host-status-webhook.com",
-            "host_percentage": 0,
-            "days_count": 0
+            "host_percentage": 2,
+            "days_count": 3
         },
         "failing_policies_webhook": {
             "enable_failing_policies_webhook": false,
@@ -46,7 +46,7 @@
                 2,
                 3
             ],
-            "host_batch_size": 0
+            "host_batch_size": 4
         }
     },
     "integrations": {
@@ -230,7 +230,7 @@
         ],
         "app_store_apps": null
     },
-    "user_count": 0,
+    "user_count": 5,
     "host_count": 24,
     "secrets": [
         {

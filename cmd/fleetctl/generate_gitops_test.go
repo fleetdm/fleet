@@ -161,6 +161,11 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 			ID:     1,
 			Name:   "Test Team",
 			Config: config,
+			Secrets: []*fleet.EnrollSecret{
+				{
+					Secret: "some-team-secret",
+				},
+			},
 		}, nil
 	}
 
@@ -332,7 +337,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	// require.Equal(t, expectedAppConfig, TeamSettings)
+	require.Equal(t, expectedAppConfig, TeamSettings)
 }
 
 func TestGenerateTeamSettingsInsecure(t *testing.T) {
@@ -371,7 +376,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compare.
-	// require.Equal(t, expectedAppConfig, TeamSettings)
+	require.Equal(t, expectedAppConfig, TeamSettings)
 }
 
 func TestGenerateControls(t *testing.T) {
