@@ -189,6 +189,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				WindowsUpdates:       cmd.AppConfig.MDM.WindowsUpdates,
 				MacOSSetup:           cmd.AppConfig.MDM.MacOSSetup,
 			}
+
+			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
+
 		} else {
 			team, err := cmd.Client.GetTeam(team.ID)
 			if err != nil {
@@ -202,6 +205,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
+			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
+
 			mdmConfig = team.Config.MDM
 		}
 
@@ -239,24 +244,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
-
-		// Generate agent options.
-		agentOptions, err := cmd.generateAgentOptions(fileName, team.ID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating agent options for team %s: %s\n", team.Name, err)
-			return ErrGeneric
-		}
-		cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = agentOptions
-
-		if team.ID != 0 {
-			// Generate team settings
-			teamSettings, err := cmd.generateTeamSettings(fileName, team.ID)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating team settings for team %s: %s\n", team.Name, err)
-				return ErrGeneric
-			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
-		}
 	}
 
 	if cmd.CLI.String("key") != "" {
