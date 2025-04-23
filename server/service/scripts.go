@@ -1061,8 +1061,8 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchScriptRunRequest struct {
-	ScriptID uint   `json:"-" query:"script_id"`
-	HostIDs  []uint `json:"-" query:"host_ids"`
+	ScriptID uint   `json:"script_id"`
+	HostIDs  []uint `json:"host_ids"`
 }
 
 type batchScriptRunResponse struct {

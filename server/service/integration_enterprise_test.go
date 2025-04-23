@@ -6564,6 +6564,50 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "script execution error: signal: killed", scriptResultResp.Output)
 }
 
+func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Team 1",
+	})
+	require.NoError(t, err)
+
+	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3Team1 := createOrbitEnrolledHost(t, "linux", "host3team1", s.ds)
+	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host3Team1.ID})
+	require.NoError(t, err)
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo bonjour",
+	})
+	require.NoError(t, err)
+
+	var batchRes batchScriptRunResponse
+	// Team mismatch
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID, host3Team1.ID},
+	}, http.StatusBadRequest, &batchRes)
+	require.Empty(t, batchRes.BatchExecutionID)
+
+	// Bad script ID
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: 999999,
+		HostIDs:  []uint{host1.ID},
+	}, http.StatusNotFound, &batchRes)
+	require.Empty(t, batchRes.BatchExecutionID)
+
+	// Good request
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+}
+
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	t := s.T()
 
