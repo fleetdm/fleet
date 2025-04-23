@@ -18,6 +18,7 @@ export interface IActionButtonProps {
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
+  iconStroke?: boolean;
   iconPosition?: string;
   isDisabled?: boolean;
   tooltipContent?: React.ReactNode;
@@ -43,6 +44,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     variant = "default",
     hideButton,
     iconSvg,
+    iconStroke = false,
     iconPosition,
     isDisabled,
     tooltipContent,
@@ -72,7 +74,11 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
 
   const renderButton = () => (
     <div className={buttonClasses}>
-      <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
+      <Button
+        onClick={() => onButtonClick(targetIds)}
+        variant={variant}
+        iconStroke={iconStroke}
+      >
         <>
           {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
           {buttonText}

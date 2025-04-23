@@ -536,9 +536,9 @@ const ManageHostsPage = ({
     setShowAddHostsModal(!showAddHostsModal);
   };
 
-  const toggleRunScriptBatchModal = () => {
+  const toggleRunScriptBatchModal = useCallback(() => {
     setShowRunScriptBatchModal(!showRunScriptBatchModal);
-  };
+  }, [showRunScriptBatchModal]);
 
   const toggleEditColumnsModal = () => {
     setShowEditColumnsModal(!showEditColumnsModal);
@@ -1582,6 +1582,7 @@ const ManageHostsPage = ({
         buttonText: "Run script",
         variant: "text-icon",
         iconSvg: "run",
+        iconStroke: true,
         hideButton: !canRunScriptBatch,
         isDisabled: !!disableRunScriptBatchTooltipContent,
         tooltipContent: disableRunScriptBatchTooltipContent,
