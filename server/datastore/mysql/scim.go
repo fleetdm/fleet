@@ -1041,7 +1041,7 @@ func getHostIDsHavingScimIDPUser(ctx context.Context, tx sqlx.ExtContext, scimUs
 	// the query in ScimUserByHostID)
 	const getAssociatedHostIDsQuery = `
 	SELECT DISTINCT
-		host_id
+		hsu.host_id
 	FROM
 		host_scim_user hsu
 		LEFT JOIN host_scim_user extra_hsu ON
@@ -1067,7 +1067,7 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	// the host, see the query in ScimUserByHostID)
 	const getAssociatedHostIDsQuery = `
 	SELECT DISTINCT
-		host_id
+		hsu.host_id
 	FROM
 		host_scim_user hsu
 		LEFT JOIN host_scim_user extra_hsu ON
@@ -1106,6 +1106,10 @@ func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtCont
 	if err != nil {
 		return err
 	}
+	if len(userIDs) == 0 {
+		return nil
+	}
+
 	// get hosts that have any of those users as IdP user
 	hostIDs, err := getHostIDsHavingScimIDPUsers(ctx, tx, userIDs)
 	if err != nil {
@@ -1116,6 +1120,10 @@ func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtCont
 }
 
 func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, scimUserIDs []uint) error {
+	if len(scimUserIDs) == 0 {
+		return nil
+	}
+
 	hostIDs, err := getHostIDsHavingScimIDPUsers(ctx, tx, scimUserIDs)
 	if err != nil {
 		return err
@@ -1140,6 +1148,10 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 }
 
 func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
+	if len(hostIDs) == 0 || len(affectedVars) == 0 {
+		return nil
+	}
+
 	// NOTE: this cannot reuse bulkSetPendingMDMAppleHostProfilesDB, as this
 	// (complex) function is based on changes it can detect itself, such as a
 	// profile content change, label membership changes, etc. It does not receive

@@ -37,6 +37,7 @@ func TestScim(t *testing.T) {
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
 		{"ScimLastRequest", testScimLastRequest},
+		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -325,7 +326,7 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 		ScimUsers:   []uint{user.ID},
 	}
 	group.ID, err = ds.CreateScimGroup(t.Context(), &group)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Verify the user was created correctly and has the group
 	createdUser, err := ds.ScimUserByID(t.Context(), user.ID)
@@ -445,7 +446,7 @@ func testDeleteScimUser(t *testing.T, ds *Datastore) {
 
 	// Delete the user
 	err = ds.DeleteScimUser(t.Context(), user.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Verify the user was deleted
 	_, err = ds.ScimUserByID(t.Context(), user.ID)
@@ -523,7 +524,7 @@ func testListScimUsers(t *testing.T, ds *Datastore) {
 	}
 	var err error
 	group.ID, err = ds.CreateScimGroup(t.Context(), &group)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Test 1: List all users without filters
 	allUsers, totalResults, err := ds.ListScimUsers(t.Context(), fleet.ScimUsersListOptions{
@@ -688,10 +689,10 @@ func testScimGroupCreate(t *testing.T, ds *Datastore) {
 		var err error
 		groupCopy := g
 		groupCopy.ID, err = ds.CreateScimGroup(t.Context(), &g)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 
 		verify, err := ds.ScimGroupByID(t.Context(), g.ID)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 
 		assert.Equal(t, groupCopy.ID, verify.ID)
 		assert.Equal(t, groupCopy.DisplayName, verify.DisplayName)
@@ -846,7 +847,7 @@ func createTestScimGroups(t *testing.T, ds *Datastore, userIDs []uint) []*fleet.
 	for _, g := range createGroups {
 		var err error
 		g.ID, err = ds.CreateScimGroup(t.Context(), &g)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		groups = append(groups, &g)
 	}
 	return groups
@@ -869,11 +870,11 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 
 	var err error
 	group.ID, err = ds.CreateScimGroup(t.Context(), &group)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Verify the group was created correctly
 	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
 	assert.Equal(t, group.ExternalID, createdGroup.ExternalID)
 	assert.Equal(t, 1, len(createdGroup.ScimUsers))
@@ -966,7 +967,7 @@ func testScimGroupReplaceValidation(t *testing.T, ds *Datastore) {
 		ScimUsers:   []uint{},
 	}
 	err = ds.ReplaceScimGroup(t.Context(), &validGroup)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func testDeleteScimGroup(t *testing.T, ds *Datastore) {
@@ -986,7 +987,7 @@ func testDeleteScimGroup(t *testing.T, ds *Datastore) {
 
 	var err error
 	group.ID, err = ds.CreateScimGroup(t.Context(), &group)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Verify the group was created correctly
 	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
@@ -1037,7 +1038,7 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 	for i := range groups {
 		var err error
 		groups[i].ID, err = ds.CreateScimGroup(t.Context(), &groups[i])
-		require.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	// Test 1: List all groups
@@ -1179,7 +1180,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 		ScimUsers:   []uint{user1.ID},
 	}
 	group.ID, err = ds.CreateScimGroup(t.Context(), &group)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Create a second test SCIM user without emails and without groups
 	user2 := fleet.ScimUser{
@@ -1527,4 +1528,7 @@ func testScimLastRequest(t *testing.T, ds *Datastore) {
 	// Verify that the updated timestamp is newer
 	assert.True(t, retrievedUpdatedRequest.RequestedAt.After(retrievedSameRequest.RequestedAt),
 		"Updated request timestamp should be after the original timestamp")
+}
+
+func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 }
