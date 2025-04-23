@@ -1,6 +1,6 @@
 import React from "react";
 
-import OsSetupPreview from "../../../../../../../../assets/images/os-setup-preview.gif";
+import BootstrapPackageEndUserPreview from "../../../../../../../../assets/videos/bootstrap-package-preview.mp4";
 
 const baseClass = "bootstrap-package-preview";
 
@@ -12,11 +12,14 @@ const BootstrapPackagePreview = () => {
         The bootstrap package is installed after the end user authenticates and
         agrees to the EULA.
       </p>
-      <img
-        className={`${baseClass}__preview-img`}
-        src={OsSetupPreview}
-        alt="End user experience during the macOS setup assistant with the
-        bootstrap package installation"
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video
+        className={`${baseClass}__preview-video`}
+        src={BootstrapPackageEndUserPreview}
+        controls
+        autoPlay
+        loop
+        muted
       />
     </div>
   );

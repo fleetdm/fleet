@@ -1,9 +1,9 @@
 import React from "react";
 import classnames from "classnames";
 
-import EndUserAuthPreviewVideo from "../../../../../../../../assets/videos/end-user-auth.mp4";
+import EndUserAuthEndUserPreview from "../../../../../../../../assets/videos/end-user-auth-preview.mp4";
 
-console.log(EndUserAuthPreviewVideo);
+console.log(EndUserAuthEndUserPreview);
 
 const baseClass = "end-user-experience-preview";
 
@@ -27,7 +27,7 @@ const EndUserExperiencePreview = ({
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         className={`${baseClass}__preview-video`}
-        src={EndUserAuthPreviewVideo}
+        src={EndUserAuthEndUserPreview}
         controls
         autoPlay
         loop

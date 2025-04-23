@@ -2,7 +2,7 @@ import React from "react";
 
 import Card from "components/Card";
 
-import InstallSoftwarePreviewImg from "../../../../../../../../assets/images/install-software-preview.png";
+import InstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/install-software-preview.mp4";
 
 const baseClass = "install-software-preview";
 
@@ -19,11 +19,14 @@ const InstallSoftwarePreview = () => {
         If there are any errors, they will be able to continue and will be
         instructed to contact their IT admin.
       </p>
-      <img
-        className={`${baseClass}__preview-img`}
-        src={InstallSoftwarePreviewImg}
-        alt="End user experience during the macOS setup assistant with selected
-        software being installed"
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video
+        className={`${baseClass}__preview-video`}
+        src={InstallSoftwareEndUserPreview}
+        controls
+        autoPlay
+        loop
+        muted
       />
     </Card>
   );
