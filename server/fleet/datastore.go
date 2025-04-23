@@ -641,8 +641,12 @@ type Datastore interface {
 	// the given team.
 	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
+	// NewSoftwareCategory creates a new category for software.
 	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
+	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
 	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
+	// GetCategoriesForSoftwareInstallers takes a set of software installer IDs and returns a map
+	// from the IDs to the categories assigned to those installers.
 	GetCategoriesForSoftwareInstallers(ctx context.Context, softwareInstallerIDs []uint, team_id *uint) (map[uint][]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////

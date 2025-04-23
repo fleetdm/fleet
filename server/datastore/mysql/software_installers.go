@@ -509,7 +509,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		postInstallScriptID = &sid
 	}
 
-	touchUploaded := ""
+	var touchUploaded string
 	if payload.InstallerFile != nil {
 		touchUploaded = ", uploaded_at = NOW()"
 	}

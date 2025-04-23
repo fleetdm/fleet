@@ -77,6 +77,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
+		{"SoftwareCategories", testSoftwareCategories},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6974,4 +6975,60 @@ func testDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	for _, value := range hostSoftwareInstalls {
 		assert.False(t, value.Removed)
 	}
+}
+
+func testSoftwareCategories(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1"+t.Name(), fmt.Sprintf("user1%s@example.com", t.Name()), false)
+
+	// create some categories
+	cat1, err := ds.NewSoftwareCategory(ctx, "category1")
+	require.NoError(t, err)
+	require.Equal(t, "category1", cat1.Name)
+	cat2, err := ds.NewSoftwareCategory(ctx, "category2")
+	require.NoError(t, err)
+	require.Equal(t, "category2", cat2.Name)
+
+	// get the IDs
+	ids, err := ds.GetSoftwareCategoryIDs(ctx, []string{cat1.Name, cat2.Name})
+	require.NoError(t, err)
+	require.Len(t, ids, 2)
+	require.Contains(t, ids, cat1.ID)
+	require.Contains(t, ids, cat2.ID)
+
+	// create a software installer for no team
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerNoTeam, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "hello",
+		InstallerFile:   tfr1,
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Add the categories to the installer
+	err = ds.SaveInstallerUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:         titleID,
+		InstallerID:     installerNoTeam,
+		CategoryIDs:     ids,
+		InstallScript:   ptr.String("hello"),
+		SelfService:     ptr.Bool(false),
+		UninstallScript: ptr.String(""),
+		PreInstallQuery: ptr.String(""),
+		UserID:          user.ID,
+	})
+	require.NoError(t, err)
+
+	categories, err := ds.GetCategoriesForSoftwareInstallers(ctx, []uint{titleID}, nil)
+	require.NoError(t, err)
+	require.Len(t, categories, 1)
+
+	require.Contains(t, categories[installerNoTeam], cat1.Name)
+	require.Contains(t, categories[installerNoTeam], cat2.Name)
 }
