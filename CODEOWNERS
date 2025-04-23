@@ -127,5 +127,9 @@ go.mod @fleetdm/go
 ##############################################################################################
 /.github/workflows/ @lukeheath @georgekarrv @sharon-fdm @mostlikelee
 
+##############################################################################################
+# 🌐 Fleet-maintained apps
+##############################################################################################
+/ee/maintained-apps/outputs/apps.json @eashaw
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
