@@ -1,7 +1,7 @@
 # Fleet 4.67.0 | Foreign vitals, policy targets, cancel activities
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/5L6Z7Vo2mBk?si=OfkVVcBdHfCeAk5y" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.67.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.67.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
