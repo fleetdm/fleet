@@ -979,94 +979,10 @@ spec:
   platform: darwin
   description: A software override query to append codesign information to macOS software entries. Requires fleetd
   query: |
-    WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
-     FROM users LEFT JOIN cached_groups USING (gid)
-     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'deb_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM deb_packages
-    WHERE status LIKE '% ok installed'
-    UNION
-    SELECT
-      package AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'portage_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM portage_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'rpm_packages' AS source,
-      release AS release,
-      vendor AS vendor,
-      arch AS arch,
-      '' AS installed_path
-    FROM rpm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'npm_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM npm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      identifier AS extension_id,
-      browser_type AS browser,
-      'chrome_extensions' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      identifier AS extension_id,
-      'firefox' AS browser,
-      'firefox_addons' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM cached_users CROSS JOIN firefox_addons USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM python_packages
+    SELECT a.path, c.team_identifier
+        FROM apps a
+        JOIN codesign c ON a.path = c.path
+  discovery: codesign
   purpose: Informational
   tags: built-in
 ---
@@ -1640,7 +1556,6 @@ spec:
   discovery: windows_update_history
   purpose: Informational
   tags: built-in
----
 #  
 #   ██████╗ ██╗   ██╗███████╗██████╗ ██╗███████╗███████╗
 #  ██╔═══██╗██║   ██║██╔════╝██╔══██╗██║██╔════╝██╔════╝
@@ -1650,6 +1565,18 @@ spec:
 #   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
 #                                                       
 # From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
 apiVersion: v1
 kind: query
 spec:

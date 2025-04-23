@@ -38,18 +38,24 @@ parasails.registerPage('login', {
       this.showCustomerLogin = false;
     }
 
-    // If we're redirecting this user to the license dispenser after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
-    if(window.location.hash && window.location.hash === '#purchaseLicense'){
-      this.registerSlug = '/register#purchaseLicense';
-      this.pageToRedirectToAfterLogin = '/new-license#login';
-      window.location.hash = '';
+    if(window.location.hash){
+      // If we're redirecting this user to the license dispenser after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
+      if(window.location.hash === '#purchaseLicense'){
+        this.registerSlug = '/register#purchaseLicense';
+        this.pageToRedirectToAfterLogin = '/new-license#login';
+        window.location.hash = '';
+      // If we're redirecting this user to the contact form after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
+      } else if(window.location.hash === '#contact'){
+        this.registerSlug = '/register';
+        this.pageToRedirectToAfterLogin = '/contact?sendMessage';
+        window.location.hash = '';
+      } else if(window.location.hash === '#tryfleet'){
+        this.registerSlug = '/register#tryfleet';
+        this.pageToRedirectToAfterLogin = '/try-fleet';
+        window.location.hash = '';
+      }
     }
-    // If we're redirecting this user to the contact form after they log in, modify the link to the /register page and the pageToRedirectToAfterLogin.
-    if(window.location.hash && window.location.hash === '#contact'){
-      this.registerSlug = '/register';
-      this.pageToRedirectToAfterLogin = '/contact?sendMessage';
-      window.location.hash = '';
-    }
+
   },
   mounted: async function() {
     //…

@@ -1,1 +1,0 @@
-* Fixed an issue where removing label conditions on configuration profiles (e.g. `labels_include_any`, `labels_include_all` or `labels_exclude_any`) did not clear the labels associated with the profile when applied via `fleetctl gitops`.

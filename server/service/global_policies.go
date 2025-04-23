@@ -25,13 +25,15 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type globalPolicyRequest struct {
-	QueryID     *uint  `json:"query_id"`
-	Query       string `json:"query"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-	Platform    string `json:"platform"`
-	Critical    bool   `json:"critical" premium:"true"`
+	QueryID          *uint    `json:"query_id"`
+	Query            string   `json:"query"`
+	Name             string   `json:"name"`
+	Description      string   `json:"description"`
+	Resolution       string   `json:"resolution"`
+	Platform         string   `json:"platform"`
+	Critical         bool     `json:"critical" premium:"true"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
 }
 
 type globalPolicyResponse struct {
@@ -44,13 +46,15 @@ func (r globalPolicyResponse) Error() error { return r.Err }
 func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*globalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:     req.QueryID,
-		Query:       req.Query,
-		Name:        req.Name,
-		Description: req.Description,
-		Resolution:  req.Resolution,
-		Platform:    req.Platform,
-		Critical:    req.Critical,
+		QueryID:          req.QueryID,
+		Query:            req.Query,
+		Name:             req.Name,
+		Description:      req.Description,
+		Resolution:       req.Resolution,
+		Platform:         req.Platform,
+		Critical:         req.Critical,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsExcludeAny: req.LabelsExcludeAny,
 	})
 	if err != nil {
 		return globalPolicyResponse{Err: err}, nil
@@ -529,6 +533,24 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
 		}
+
+		// Make sure any applied labels exist.
+		labels := policy.LabelsIncludeAny
+		labels = append(labels, policy.LabelsExcludeAny...)
+		if len(labels) > 0 {
+			labelsMap, err := svc.ds.LabelsByName(ctx, labels)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting labels by name")
+			}
+			for _, label := range labels {
+				if _, ok := labelsMap[label]; !ok {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("label %q does not exist", label),
+					})
+				}
+			}
+		}
+
 	}
 
 	// An empty string indicates there are no duplicate names.
@@ -547,6 +569,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			policies[i].Critical = false
 		}
 	}
+
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}

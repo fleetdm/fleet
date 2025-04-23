@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import { IHostUpcomingActivity } from "interfaces/activity";
@@ -36,7 +37,9 @@ interface IActivityProps {
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
+  className?: string;
   upcomingCount: number;
+  canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -49,23 +52,27 @@ const Activity = ({
   activities,
   isLoading,
   isError,
+  className,
   upcomingCount,
+  canCancelActivities,
   onChangeTab,
   onNextPage,
   onPreviousPage,
   onShowDetails,
   onCancel,
 }: IActivityProps) => {
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
       includeShadow
-      className={baseClass}
+      className={classNames}
     >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
-          <Spinner />
+          <Spinner centered />
         </div>
       )}
       <CardHeader header="Activity" />
@@ -102,6 +109,7 @@ const Activity = ({
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
+              canCancelActivities={canCancelActivities}
             />
           </TabPanel>
         </Tabs>

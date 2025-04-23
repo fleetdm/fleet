@@ -174,9 +174,7 @@ const CalendarEventsModal = ({
           newTab
         />
         <div className="modal-cta-wrap">
-          <Button onClick={onExit} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onExit}>Done</Button>
         </div>
       </div>
     );
@@ -295,7 +293,7 @@ const CalendarEventsModal = ({
             );
           }}
           footer={
-            <div className="form-field__help-text">
+            <>
               A calendar event will be created for end users if one of their
               hosts fail any of these policies.{" "}
               <CustomLink
@@ -304,7 +302,7 @@ const CalendarEventsModal = ({
                 newTab
                 disableKeyboardNavigation={!formData.enabled}
               />
-            </div>
+            </>
           }
           isUpdating={isUpdating}
           onSubmit={onUpdateCalendarEvents}

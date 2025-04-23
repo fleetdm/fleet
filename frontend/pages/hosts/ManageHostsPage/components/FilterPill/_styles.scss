@@ -13,10 +13,8 @@
     gap: $small;
 
     button {
-      height: auto;
-      padding: 0px;
-      border: none;
-      margin-left: 0;
+      padding: $pad-small; // Enlarge clickable area
+      margin: -$pad-small; // Enlarge clickable area
     }
 
     .premium-icon-tip {

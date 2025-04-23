@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,8 +17,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var automationActivityAuthor = "Fleet"
-var deleteIDsBatchSize = 1000
+var (
+	automationActivityAuthor = "Fleet"
+	deleteIDsBatchSize       = 1000
+)
 
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(
@@ -318,8 +321,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) as details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -360,8 +362,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) as details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -400,8 +401,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) as details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -439,8 +439,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
-			ua.fleet_initiated as fleet_initiated,
-			IF(ua.activated_at IS NULL, 1, 0) as cancellable
+			ua.fleet_initiated as fleet_initiated
 		FROM
 			upcoming_activities ua
 		INNER JOIN
@@ -469,8 +468,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			activity_type,
 			created_at,
 			details,
-			fleet_initiated,
-			cancellable
+			fleet_initiated
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming
 		ORDER BY topmost DESC, priority DESC, created_at ASC`
 
@@ -493,11 +491,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
-	}
-
-	// first activity (next one to execute) is always non-cancellable, per spec
-	if len(activities) > 0 && opt.Page == 0 {
-		activities[0].Cancellable = false
 	}
 
 	metaData := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
@@ -667,8 +660,390 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 	return nil
 }
 
-func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error {
-	panic("unimplemented")
+func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+	const (
+		loadScriptActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(ses.name, scr.name, '') as canceled_name, -- script name in this case
+		NULL as canceled_id, -- no ID for scripts in the canceled activity
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		scripts scr ON scr.id = sua.script_id
+	LEFT OUTER JOIN
+		setup_experience_scripts ses ON ses.id = sua.setup_experience_script_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'script'
+`
+
+		loadSoftwareInstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		software_installers si ON si.id = siua.software_installer_id
+	LEFT OUTER JOIN
+		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'software_install'
+`
+
+		loadSoftwareUninstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, ua.payload->>'$.software_title_name', '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		software_install_upcoming_activities siua ON siua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		software_installers si ON si.id = siua.software_installer_id
+	LEFT OUTER JOIN
+		software_titles st ON st.id = si.title_id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		activity_type = 'software_uninstall'
+`
+
+		loadVPPAppInstallActivityStmt = `
+	SELECT
+		ua.activity_type,
+		ua.host_id,
+		COALESCE(hdn.display_name, '') as host_display_name,
+		COALESCE(st.name, '') as canceled_name, -- software title name in this case
+		st.id as canceled_id,
+		IF(ua.activated_at IS NULL, 0, 1) as activated
+	FROM
+		upcoming_activities ua
+	INNER JOIN
+		vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+	LEFT OUTER JOIN
+		host_display_names hdn ON hdn.host_id = ua.host_id
+	LEFT OUTER JOIN
+		vpp_apps vpa ON vaua.adam_id = vpa.adam_id AND vaua.platform = vpa.platform
+	LEFT OUTER JOIN
+		software_titles st ON st.id = vpa.title_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id AND
+		ua.activity_type = 'vpp_app_install'
+`
+	)
+
+	type activityToCancel struct {
+		ActivityType    string `db:"activity_type"`
+		HostID          uint   `db:"host_id"`
+		HostDisplayName string `db:"host_display_name"`
+		CanceledName    string `db:"canceled_name"`
+		CanceledID      *uint  `db:"canceled_id"`
+		Activated       bool   `db:"activated"`
+	}
+
+	var act activityToCancel
+	var pastAct fleet.ActivityDetails
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// read the activity along with the required information to create the
+		// "canceled" past activity, and check if the activity was activated or
+		// not.
+		stmt := strings.Join([]string{
+			loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
+			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt,
+		}, " UNION ALL ")
+		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": executionID})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
+		}
+
+		if err := sqlx.GetContext(ctx, tx, &act, stmt, args...); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(executionID))
+			}
+			return ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
+		}
+
+		// in all cases, we must delete the row from upcoming_activities
+		const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
+		}
+
+		// if the activity is related to lock/wipe actions, clear the status for that
+		// action as it was canceled (note that lock/wipe is prevented at the service
+		// layer from being canceled if it was already activated).
+		if err := clearLockWipeForCanceledActivity(ctx, tx, hostID, executionID); err != nil {
+			return err
+		}
+
+		// must get the host uuid for the setup experience and nano table updates
+		const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
+		var hostUUID string
+		if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "get host uuid")
+		}
+
+		switch act.ActivityType {
+		case "script":
+			// if the script was part of the setup experience, then it must be marked
+			// as "failed" for that setup experience flow (regardless of whether or
+			// not it was activated).
+			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND script_execution_id = ?`
+			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+			}
+
+			if act.Activated {
+				const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+				}
+			}
+
+			pastAct = fleet.ActivityTypeCanceledRunScript{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				ScriptName:      act.CanceledName,
+			}
+
+		case "software_install":
+			// if the install was part of the setup experience, then it must be
+			// marked as "failed" for that setup experience flow (regardless of
+			// whether or not it was activated).
+			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND host_software_installs_execution_id = ?`
+			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+			}
+
+			if act.Activated {
+				const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+				}
+			}
+
+			var titleID uint
+			if act.CanceledID != nil {
+				titleID = *act.CanceledID
+			}
+			pastAct = fleet.ActivityTypeCanceledInstallSoftware{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				SoftwareTitle:   act.CanceledName,
+				SoftwareTitleID: titleID,
+			}
+
+		case "software_uninstall":
+			// uninstall cannot be part of setup experience, so there's no update for
+			// that in this case.
+
+			if act.Activated {
+				// uninstall is a combination of software install and script result,
+				// with the same execution id.
+				const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updSoftwareStmt, executionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+				}
+
+				const updScriptStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+				if _, err := tx.ExecContext(ctx, updScriptStmt, executionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+				}
+			}
+
+			var titleID uint
+			if act.CanceledID != nil {
+				titleID = *act.CanceledID
+			}
+			pastAct = fleet.ActivityTypeCanceledUninstallSoftware{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				SoftwareTitle:   act.CanceledName,
+				SoftwareTitleID: titleID,
+			}
+
+		case "vpp_app_install":
+			// if the VPP install was part of the setup experience, then it must be
+			// marked as "failed" for that setup experience flow (regardless of
+			// whether or not it was activated).
+			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ?`
+			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+			}
+
+			if act.Activated {
+				const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
+				if _, err := tx.ExecContext(ctx, updVPPStmt, executionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
+				}
+
+				const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
+				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
+				}
+			}
+
+			var titleID uint
+			if act.CanceledID != nil {
+				titleID = *act.CanceledID
+			}
+			pastAct = fleet.ActivityTypeCanceledInstallAppStoreApp{
+				HostID:          act.HostID,
+				HostDisplayName: act.HostDisplayName,
+				SoftwareTitle:   act.CanceledName,
+				SoftwareTitleID: titleID,
+			}
+
+		default:
+			// cannot happen since activity type comes from the UNION query above,
+			// but can be useful to detect a missing case in tests
+			panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
+		}
+
+		// must activate the next activity, if any (this should be required only if
+		// the canceled activity was already "activated", but there's no harm in
+		// doing it if it wasn't, and it makes sure there's always progress even in
+		// unsuspected scenarios)
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// creating the canceled activity must be done via svc.NewActivity (not
+	// ds.NewActivity), so we return the ready-to-insert activity struct to the
+	// caller and let svc do the rest.
+	return pastAct, nil
+}
+
+func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
+	const clearLockStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND lock_ref = ?`
+	resLock, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for lock")
+	}
+
+	const clearWipeStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND wipe_ref = ?`
+	resWipe, err := tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for wipe")
+	}
+
+	lockCnt, _ := resLock.RowsAffected()
+	wipeCnt, _ := resWipe.RowsAffected()
+	if lockCnt > 0 || wipeCnt > 0 {
+		// if it did delete host_mdm_actions, then it was a lock or wipe activity,
+		// we need to delete the "past" activity that gets created immediately
+		// when that command is queued.
+		actType := fleet.ActivityTypeLockedHost{}.ActivityName()
+		if wipeCnt > 0 {
+			actType = fleet.ActivityTypeWipedHost{}.ActivityName()
+		}
+
+		const findActStmt = `SELECT
+				id
+			FROM
+				activities
+				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
+			WHERE
+				host_activities.host_id = ? AND
+				activities.activity_type = ?
+			ORDER BY
+				activities.created_at DESC
+			LIMIT 1
+`
+		var activityID uint
+		if err := sqlx.GetContext(ctx, tx, &activityID, findActStmt, hostID, actType); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// no activity to delete, nothing to do
+				return nil
+			}
+			return ctxerr.Wrap(ctx, err, "find past activity for lock/wipe")
+		}
+
+		const delStmt = `DELETE FROM activities WHERE id = ?`
+		if _, err := tx.ExecContext(ctx, delStmt, activityID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete past activity for lock/wipe")
+		}
+	}
+	return nil
+}
+
+// GetHostUpcomingActivityMeta returns metadata for an upcoming activity,
+// such as whether it is activated or not, if the activity corresponds to a
+// lock/wipe/unlock command, etc.
+func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error) {
+	const getStmt = `
+	SELECT
+		ua.execution_id,
+		ua.activated_at,
+		ua.activity_type,
+		CASE
+			WHEN hma.lock_ref = :execution_id THEN :lock_action
+			WHEN hma.unlock_ref = :execution_id THEN :unlock_action
+			WHEN hma.wipe_ref = :execution_id THEN :wipe_action
+			ELSE :none_action
+		END AS well_known_action
+	FROM
+		upcoming_activities ua
+		LEFT JOIN host_mdm_actions hma ON hma.host_id = ua.host_id
+	WHERE
+		ua.host_id = :host_id AND
+		ua.execution_id = :execution_id
+`
+
+	namedArgs := map[string]any{
+		"host_id":       hostID,
+		"execution_id":  executionID,
+		"lock_action":   fleet.WellKnownActionLock,
+		"unlock_action": fleet.WellKnownActionUnlock,
+		"wipe_action":   fleet.WellKnownActionWipe,
+		"none_action":   fleet.WellKnownActionNone,
+	}
+	stmt, args, err := sqlx.Named(getStmt, namedArgs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build named query for upcoming activity meta")
+	}
+
+	var actMeta fleet.UpcomingActivityMeta
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &actMeta, stmt, args...)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("UpcomingActivity").WithName(executionID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "lookup upcoming activity meta")
+	}
+	return &actMeta, nil
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.

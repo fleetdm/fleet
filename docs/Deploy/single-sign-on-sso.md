@@ -62,6 +62,36 @@ Create a new SAML app in Google Workspace:
 
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
+## Entra
+Create a new SAML app in Microsoft Entra Admin Center:
+1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
+2. At the top of the page, click **+ New Application**.
+3. On the next page, click **+ Create your own application** and enter the following.
+   - For **Input name**, enter `Fleet`.
+   - For **What are you looking to do with your application?**, select `Integrate any other application you don't find in the gallery (Non-gallery)`.
+   - Click **Create**.
+4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
+5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
+   - For **Identifier (Entity ID)**, click **Add identifier** and enter `fleet`.
+   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+   - Click **Save**.
+6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
+ ![The new SAML app's details page in Enta Admin Center](../images/entra-sso-configuration-step-6.png)
+
+On your Fleet server: 
+1. Navigate to **Settings > Organization settings > Single sign-on options**.
+2. On the **Single sign-on options** page:
+   - Check the box to **Enable single sign-on**.
+   - For **Identity provider name**, enter `Entra`.
+   - For **Entity ID**, enter `fleet`.
+   - In the **Metadata URL** field, paste the URL that you copied from Entra in step 6 in the previous section.
+   - Click **Save**.
+
+ ![The configuration for the SSO connection in Fleet](../images/entra-sso-configuration-fleet-config.png) 
+3. Enable SSO for a test user and try to log in with Entra.
+   
+
+
 ## authentik
 
 Fleet can be configured to use authentik as an identity provider. To continue, you will need to have an authentik instance hosted on an HTTPS domain, and an admin account.

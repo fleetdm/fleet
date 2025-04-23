@@ -109,6 +109,8 @@ It's important to note that when sending a new enrollment profile, certain field
 
 ### Puppet module
 
+> The Puppet module is deprecated as of Fleet 4.66. It's maintained for backwards compatibility.
+
 The implementation of the Puppet module is described in detail at: `ee/tools/puppet/fleetdm/CONTRIBUTING.md`
 
 ### MDM migrations
@@ -184,14 +186,7 @@ On every run, we pull the list of added/modified/deleted devices and:
 
 If an IT admin deletes a host in the UI/API, and we have a non-deleted entry in `host_dep_assignments` for the host, we immediately create a new host entry as if the device was just ingested from the ABM sync.
 
-### IdP integration
+### End user authentication
 
-If the IT admin configured an MDM IdP integration, we change the `configuration_web_url` value in the JSON profile to be `{server_url}/mdm/sso`, this page initiates the SSO flow in the setup assistant webview.
-
-Key points about he IdP flow:
-
-1. The SSO flow ends with a callback to the Fleet server which contains information about the user that just logged in. We store this information in the `mdm_idp_accounts` table. Because at this point we don't know from which host UUID the request is coming in, we generate a random UUID as the key to look up this information.
-2. The Fleet server responds with an enrollment profile, that contains a special `ServerURL` with a query parameter `enrollment_reference`, this parameter has the random UUID generated in step 1.
-3. During MDM enrollment, we grab the `enrollment_reference` parameter, if present, and we try to match it to a host. This allows us to link end user IdP accounts used during enrollment with a host.
-4. Before releasing the device from awaiting configuration, we send an `AccountConfiguration` command to the host, to pre-set the macOS local account user name to the value we got stored in `mdm_idp_accounts`
-
+- Also known as: IdP integration, User account sync
+- See [MDM-end-user-authentication.md](./MDM-end-user-authentication.md)

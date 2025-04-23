@@ -82,7 +82,8 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
     script_contents pisnt
     ON pisnt.id = si.post_install_script_content_id
   WHERE
-    hsi.execution_id = ?
+    hsi.execution_id = ? AND
+    hsi.canceled = 0
 
 	UNION
 
@@ -536,11 +537,10 @@ func (ds *Datastore) ValidateOrbitSoftwareInstallerAccess(ctx context.Context, h
     FROM
       host_software_installs
     WHERE
-      software_installer_id = ?
-    AND
-      host_id = ?
-    AND
-      install_script_exit_code IS NULL
+      software_installer_id = ? AND
+      host_id = ? AND
+      install_script_exit_code IS NULL AND
+      canceled = 0
 `
 	var access bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &access, query, installerID, hostID)
@@ -1048,7 +1048,8 @@ FROM
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 WHERE
 	hsi.execution_id = :execution_id AND
-	hsi.uninstall = 0
+	hsi.uninstall = 0 AND
+	hsi.canceled = 0
 
 UNION
 
@@ -1141,6 +1142,7 @@ past AS (
 			ON hsi.host_id = hsi2.host_id AND
 				 hsi.software_installer_id = hsi2.software_installer_id AND
 				 hsi2.removed = 0 AND
+				 hsi2.canceled = 0 AND
 				 hsi2.host_deleted_at IS NULL AND
 				 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 	WHERE
@@ -1149,6 +1151,7 @@ past AS (
 		AND hsi.host_id NOT IN(SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hsi.host_deleted_at IS NULL
 		AND hsi.removed = 0
+		AND hsi.canceled = 0
 )
 
 -- count each status
@@ -1238,11 +1241,13 @@ FROM
 		ON hvsi.host_id = hvsi2.host_id AND
 			 hvsi.adam_id = hvsi2.adam_id AND
 			 hvsi.platform = hvsi2.platform AND
+			 hvsi2.canceled = 0 AND
 			 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 WHERE
 	hvsi2.id IS NULL
 	AND hvsi.adam_id = :adam_id
 	AND hvsi.platform = :platform
+	AND hvsi.canceled = 0
 	AND (%s) = :status
 	AND NOT EXISTS (
 		SELECT 1
@@ -1312,11 +1317,13 @@ FROM
 		ON hsi.host_id = hsi2.host_id AND
 			 hsi.software_title_id = hsi2.software_title_id AND
 			 hsi2.removed = 0 AND
+			 hsi2.canceled = 0 AND
 			 (hsi.created_at < hsi2.created_at OR (hsi.created_at = hsi2.created_at AND hsi.id < hsi2.id))
 WHERE
 	hsi2.id IS NULL
 	AND hsi.software_title_id = :title_id
 	AND hsi.removed = 0
+	AND hsi.canceled = 0
 	AND %s
 	AND NOT EXISTS (
 		SELECT 1
@@ -1393,7 +1400,7 @@ WHERE
 		FROM
 			host_software_installs hsi
 		WHERE
-			hsi.host_id = ? AND hsi.software_installer_id = ?)`
+			hsi.host_id = ? AND hsi.software_installer_id = ? AND hsi.canceled = 0)`
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostLastInstall, stmt, hostID, installerID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get lastest past install")
@@ -2160,7 +2167,7 @@ func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, host
 				SUM(CASE
 				WHEN
 					lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = :host_id) >= lbl.created_at THEN 1
-				WHEN 
+				WHEN
 					lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 				ELSE
 					0
@@ -2240,7 +2247,7 @@ FROM (
 			COUNT(*) AS count_installer_labels,
 			COUNT(lm.label_id) AS count_host_labels,
 			SUM(
-				CASE 
+				CASE
 				WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 0 AND (SELECT label_updated_at FROM hosts WHERE id = h.id) >= lbl.created_at THEN 1
 				WHEN lbl.created_at IS NOT NULL AND lbl.label_membership_type = 1 THEN 1
 				ELSE 0 END) AS count_host_updated_after_labels
@@ -2308,4 +2315,51 @@ WHERE
 	}
 
 	return res, nil
+}
+
+func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+	stmt := `
+SELECT 
+	si.id AS installer_id,
+	si.team_id AS team_id,
+	si.filename AS filename,
+	si.extension AS extension,
+	si.version AS version,
+	si.platform AS platform,
+	st.source AS source,
+	st.bundle_identifier AS bundle_identifier,
+	st.name AS title
+FROM
+	software_installers si
+	JOIN software_titles st ON si.title_id = st.id
+WHERE
+	si.storage_id = ?%s`
+
+	var urlFilter string
+	args := []any{sha256}
+	if url != "" {
+		urlFilter = " AND url = ?"
+		args = append(args, url)
+	}
+	stmt = fmt.Sprintf(stmt, urlFilter)
+
+	var installers []*fleet.ExistingSoftwareInstaller
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &installers, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installer by hash")
+	}
+
+	set := make(map[uint]*fleet.ExistingSoftwareInstaller, len(installers))
+	for _, installer := range installers {
+		// team ID 0 is No team in this context
+		var tmID uint
+		if installer.TeamID != nil {
+			tmID = *installer.TeamID
+		}
+		if _, ok := set[tmID]; ok {
+			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
+		}
+		set[tmID] = installer
+	}
+
+	return set, nil
 }

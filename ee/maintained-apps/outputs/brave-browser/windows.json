@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "134.1.76.82",
+      "version": "135.1.77.97",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Brave' AND publisher = 'Brave Software Inc';"
       },
-      "installer_url": "https://updates-cdn.bravesoftware.com/build/Brave-Release/x64-rel/win/134.1.76.82/brave_installer-x64.exe",
+      "installer_url": "https://updates-cdn.bravesoftware.com/build/Brave-Release/x64-rel/win/135.1.77.97/brave_installer-x64.exe",
       "install_script_ref": "0319c426",
       "uninstall_script_ref": "da8237ee",
-      "sha256": "c7861874015513a49a8790e7f957e26211355fd6da4a97fbf5e35dac59076c6b"
+      "sha256": "284f27ad9448634efc4f0f7b418501f0c77b5eab8ab0138da34034a9989706ff"
     }
   ],
   "refs": {

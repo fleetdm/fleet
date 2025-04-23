@@ -29,7 +29,7 @@ const ConfirmationPage = ({
         // wanted to use React ref here instead of class but ref is already used
         // in Button.tsx, which could break other button uses
         const confirmationButton = document.querySelector(
-          `.${baseClass} button.button--brand`
+          `.${baseClass} button.button--default`
         ) as HTMLElement;
         confirmationButton?.focus();
       }, 300);
@@ -102,12 +102,7 @@ const ConfirmationPage = ({
         your instance. Sending usage statistics from your Fleet instance is
         optional and can be disabled in settings.
       </p>
-      <Button
-        type="submit"
-        tabIndex={tabIndex}
-        disabled={!currentPage}
-        variant="brand"
-      >
+      <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
         Confirm
       </Button>
     </form>

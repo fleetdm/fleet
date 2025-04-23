@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (s *Suite) DoJSON(t *testing.T, verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+func (s *BaseSuite) DoJSON(t *testing.T, verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
 	resp := s.Do(t, verb, path, params, expectedStatusCode, queryParams...)
 	err := json.UnmarshalRead(resp.Body, v)
 	require.NoError(t, err)
@@ -21,7 +21,7 @@ func (s *Suite) DoJSON(t *testing.T, verb, path string, params interface{}, expe
 	}
 }
 
-func (s *Suite) Do(t *testing.T, verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
+func (s *BaseSuite) Do(t *testing.T, verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
 	j, err := json.Marshal(params)
 	require.NoError(t, err)
 
@@ -33,13 +33,13 @@ func (s *Suite) Do(t *testing.T, verb, path string, params interface{}, expected
 	return resp
 }
 
-func (s *Suite) DoRaw(t *testing.T, verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
+func (s *BaseSuite) DoRaw(t *testing.T, verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
 	return s.DoRawWithHeaders(t, verb, path, rawBytes, expectedStatusCode, map[string]string{
 		"Authorization": fmt.Sprintf("Bearer %s", s.Token),
 	}, queryParams...)
 }
 
-func (s *Suite) DoRawWithHeaders(
+func (s *BaseSuite) DoRawWithHeaders(
 	t *testing.T, verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
 	return httptest.DoHTTPReq(t, decodeJSON, verb, rawBytes, s.Server.URL+path, headers, expectedStatusCode, queryParams...)

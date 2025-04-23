@@ -405,18 +405,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             underline={false}
             tipContent={
               <div className={`${baseClass}__header__tooltip`}>
-                Select a team to add software.
+                {isPremiumTier
+                  ? "Select a team to add software."
+                  : "This feature is included in Fleet Premium."}
               </div>
             }
             disableTooltip={!isAllTeamsSelected}
             position="top"
             showArrow
           >
-            <Button
-              onClick={onAddSoftware}
-              variant="brand"
-              disabled={isAllTeamsSelected}
-            >
+            <Button onClick={onAddSoftware} disabled={isAllTeamsSelected}>
               <span>Add software</span>
             </Button>
           </TooltipWrapper>

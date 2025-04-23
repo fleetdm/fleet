@@ -44,7 +44,20 @@ const (
 func addLabelMocks(ds *mock.Store) {
 	var deletedLabels []string
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
-		return nil, nil
+		return []*fleet.LabelSpec{
+			{
+				Name:                "a",
+				Description:         "A global label",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts:               []string{"host2", "host3"},
+			},
+			{
+				Name:                "b",
+				Description:         "Another global label",
+				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				Query:               "SELECT 1 from osquery_info",
+			},
+		}, nil
 	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
@@ -101,6 +114,11 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
+	}
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
 	}
 
 	// Mock appConfig
@@ -337,6 +355,18 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		default:
 			return nil, &notFoundError{}
 		}
+	}
+
+	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
+		return nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -707,6 +737,11 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	policy.ID = 1
 	policy.Name = "Policy to delete"
 	policyDeleted := false
+	ds.ListTeamPoliciesFunc = func(
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
+		return nil, nil, nil
+	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 		return []*fleet.Policy{&policy}, nil
 	}
@@ -878,6 +913,13 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)
+	assert.Len(t, appliedPolicySpecs[0].LabelsIncludeAny, 1)
+	assert.Len(t, appliedPolicySpecs[0].LabelsExcludeAny, 0)
+	assert.Equal(t, appliedPolicySpecs[0].LabelsIncludeAny[0], "a")
+	assert.Len(t, appliedPolicySpecs[1].LabelsIncludeAny, 0)
+	assert.Len(t, appliedPolicySpecs[1].LabelsExcludeAny, 1)
+	assert.Equal(t, appliedPolicySpecs[1].LabelsExcludeAny[0], "b")
+
 	assert.True(t, queryDeleted)
 	assert.Len(t, appliedQueries, 3)
 	assert.Len(t, appliedScripts, 1)
@@ -1049,6 +1091,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 		return team, nil
 	}
 
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+
 	// Policies
 	policy := fleet.Policy{}
 	policy.ID = 1
@@ -1058,7 +1104,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
-		return []*fleet.Policy{&policy}, nil, nil
+		if teamID != 0 {
+			return []*fleet.Policy{&policy}, nil, nil
+		}
+		return nil, nil, nil
 	}
 	ds.PoliciesByIDFunc = func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error) {
 		if slices.Contains(ids, 1) {
@@ -1116,7 +1165,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 	var appliedSoftwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		appliedSoftwareInstallers = installers
+		if teamID != nil && *teamID != 0 {
+			appliedSoftwareInstallers = installers
+		}
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
@@ -2137,6 +2188,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
 		return 0, nil
 	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(testing_utils.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2260,6 +2314,21 @@ software:
 		require.Len(t, (*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value, 1)
 		assert.Equal(t, filepath.Base(cspFile.Name()), filepath.Base((*savedAppConfigPtr).MDM.WindowsSettings.CustomSettings.Value[0].Path))
 		assert.True(t, ds.BatchSetScriptsFuncInvoked)
+
+		// Get applied policies for the team
+		teamAppliedPoliceSpecs := make([]*fleet.PolicySpec, 0)
+		for _, appliedPolicySpec := range appliedPolicySpecs {
+			if appliedPolicySpec.Team == teamName {
+				teamAppliedPoliceSpecs = append(teamAppliedPoliceSpecs, appliedPolicySpec)
+			}
+		}
+		assert.Len(t, teamAppliedPoliceSpecs, 5)
+		assert.Len(t, teamAppliedPoliceSpecs[0].LabelsIncludeAny, 0)
+		assert.Len(t, teamAppliedPoliceSpecs[0].LabelsExcludeAny, 1)
+		assert.Equal(t, teamAppliedPoliceSpecs[0].LabelsExcludeAny[0], "a")
+		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny, 1)
+		assert.Len(t, teamAppliedPoliceSpecs[1].LabelsExcludeAny, 0)
+		assert.Equal(t, teamAppliedPoliceSpecs[1].LabelsIncludeAny[0], "b")
 	})
 }
 
@@ -2285,7 +2354,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
+		{"testdata/gitops/team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/team_software_installer_valid_include.yml", ""},
@@ -2357,6 +2426,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 				}
 				return ret, nil
 			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -2375,13 +2447,16 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	t.Setenv("QUERY_VAR", "IT_WORKS")
 
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		if installers[0].PreInstallQuery != "select IT_WORKS" {
+		if len(installers) != 0 && installers[0].PreInstallQuery != "select IT_WORKS" {
 			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
 		}
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 	}
 
 	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
@@ -2520,7 +2595,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
+		{"testdata/gitops/no_team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
 		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "\"packages.SoftwarePackageSpec.self_service\" must be a bool, found string"},
 		{"testdata/gitops/no_team_software_installer_invalid_both_include_exclude.yml", `only one of "labels_exclude_any" or "labels_include_any" can be specified`},
 		{"testdata/gitops/no_team_software_installer_valid_include.yml", ""},
@@ -2589,6 +2664,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -2714,13 +2792,13 @@ func TestGitOpsCustomSettings(t *testing.T) {
 	}{
 		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
 		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
 		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
-		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included`},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix_2.yml", "please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`"},
 		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `Please create the missing labels, or update your settings to not refer to these labels.`},
 	}
 	for _, c := range cases {

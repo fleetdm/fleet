@@ -20,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -38,7 +38,7 @@ The Digital Experience department is directly responsible for the culture, train
 
 1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
 2. Mark submission as seen with the "👀" emoji.
-3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
+3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=0#gid=0) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
 4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
 5. Mark the Slack message as complete with the "✅" emoji.
 
@@ -846,6 +846,17 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
   6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
   7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
   8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+
+
+### Connect with active community members
+
+Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
+ 1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
+ 2. Copy the LinkedIn URLs.
+ 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+
+ ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
+
 
 
 ### Schedule travel for the CEO

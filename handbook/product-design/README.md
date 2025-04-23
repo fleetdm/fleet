@@ -71,6 +71,8 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
    - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
    - Engage engineering to gain insight into technical costs and feasibility.
 
+> When significant input from engineering is necessary, notify the EM so that they can create a timebox issue and decide if planned work can be deprioritized.
+
 Additionally:
 
 - To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
@@ -78,6 +80,7 @@ Additionally:
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 
 - Each [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) stops drafting once they reach engineering capacity for the upcoming engineering sprint. This way, we avoid creating a backlog which causes us to spend time updating soon-to-be stale designs. It's up to the product group's Product Designer to stop drafting and shift their focus to the following tasks:
+  - Wireframing for air guitars. This way, we can see further ahead and make better design and engineering decisions.
   - Dogfooding: pick up any issues in the "New requests" or "Ready" column on the 🍽️ Dogfood board
   - Run back through the test plan for unestimated user stories and make sure they're as good as we think they are
   - Go through the Fleet UI and look for bad/inconsistent text
@@ -121,8 +124,8 @@ You'll know it's time for expedited drafting when:
 - A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
-1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
-2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
+1. If the story has a requester, notify the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). The customer support DRI should confirm that the updated scope still meets the requester's need.
+2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
 3. If the user story is already in the sprint, the EM, QA, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.

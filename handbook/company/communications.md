@@ -26,19 +26,17 @@ Fleet is successful because of our customers and community, and those relationsh
 Security policies are best when they're alive, in context of how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
-1. [Security policies](https://fleetdm.com/handbook/security/security-policies#security-policies)
-2. [Human resources security policy](https://fleetdm.com/handbook/security/security-policies#human-resources-security-policy)
-3. [Account recovery process](https://fleetdm.com/handbook/security#account-recovery-process)
-4. [Personal mobile devices](https://fleetdm.com/handbook/security#personal-mobile-devices)
-5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
+1. [Security policies](https://fleetdm.com/handbook/digital-experience/security#security-policies)
+2. [Human resources security policy](https://fleetdm.com/handbook/digital-experience/security#human-resources-security-policy)
+3. [Account recovery process](https://fleetdm.com/handbook/digital-experience/security#account-recovery-process)
+4. [Personal mobile devices](https://fleetdm.com/handbook/digital-experience/security#personal-mobile-devices)
+5. [Hardware security keys](https://fleetdm.com/handbook/digital-experience/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/digital-experience/security).
 
 
 ## SOC 2
 
-You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1mUwmCUdggONULr6OjDO--QtKfDWLcrI4/view?usp=sharing).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
-
-You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
+Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.com/trust), in its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet. Internal stakeholders can [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) to locate Fleet's SOC 2 report in Google Drive. You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
 
 ## Directly responsible individuals (DRIs)
@@ -75,7 +73,7 @@ You can learn more about how Fleet approaches security in the [security handbook
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| What goes in a release               | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
+| What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
@@ -95,7 +93,7 @@ You can learn more about how Fleet approaches security in the [security handbook
 
 **When sharing your screen** during a public meeting, refrain from displaying sensitive information such as customer names, private messages, or other confidential information.
 
-> **[OpenBlur]([OpenBlur](https://chromewebstore.google.com/detail/openblur/dlnglldcaegkgmhmmhhdknblccppichf?pli=1))** is a web extension that automatically blurs elements containing specific keywords on any webpage. This allows you to hide secrets from online meetings or anyone viewing your screen. Created by Victor Lyuboslavsky ([@getvictor](https://github.com/getvictor).
+> **[OpenBlur](https://chromewebstore.google.com/detail/openblur/dlnglldcaegkgmhmmhhdknblccppichf?pli=1)** is a web extension that automatically blurs elements containing specific keywords on any webpage. This allows you to hide secrets from online meetings or anyone viewing your screen. Created by Victor Lyuboslavsky ([@getvictor](https://github.com/getvictor)).
 
 **Take notes.** Every meeting should have a [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to ensure: 
   - The agenda creation and/or prep beforehand. 
@@ -700,18 +698,7 @@ Offsites are:
   - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
   - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
 
-Before spending any money on an offsite, inviting people, booking travel, or otherwise committing the company:
-  - **Make a plan:** Write a Google Doc with your proposed plan, listing:
-    - all participants with their current work locations
-    - tentative dates
-    - a lean budget (including links and street address of lodging and event spaces, estimated airfare, and spending for other food or accomodations)
-    - a detailed agenda of how time will be spent
-  - **Bring to e-group:** Ask your manager to bring your plan for the offsite to the next weekly e-group meeting for feedback, edits, and CEO approval.
-  - **Iteration:** The E-group will discuss live, make edits, and establish a DRI for the offsite.
-
-After the plan for the offsite is approved at the e-group meeting (including recommended participants, goals, and budget):
-  - The DRI will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
-  - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
+Follow the process to [request an offsite](https://fleetdm.com/handbook/company/leadership#request-a-team-offsite) and [plan an offsite](https://fleetdm.com/handbook/company/leadership#plan-a-team-offsite).
 
 
 ### Attending conferences
@@ -729,9 +716,8 @@ In this section, you can find information about Fleet's benefit strategies and d
 ### Paid time off
 
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
-For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/dc417031-82fd-4348-b811-6a2e73a654a2">
+For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
 
 #### Holidays
@@ -749,8 +735,6 @@ Either way, it's up to you to make sure that your responsibilities are covered, 
 
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/80808c80-8e39-4413-b87b-988014aa4348">
-
 
 #### Taking time off
 
@@ -758,7 +742,8 @@ When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
 - Find someone to cover anything that needs covering while you're out and communicate what they need to take over the responsibilities as well as who to refer to for help (e.g., meetings, planned tasks, unfinished business, important Slack/email threads, [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) coverage, anything where someone might be depending on you).
-- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
+- Mark an all-day "Out of office" event in Google Calendar for the day(s) you're taking off, or for the hours that you will be off if less than a day. Google Calendar recognizes the event title "OOO" and will give you the option to decline existing and new meetings or just new meetings. You are expected to attend any meetings that you have accepted, so be sure to decline meetings you are not going to attend.
+  - If you are the DRI of meetings, especially external meetings with prospects and customers, be sure not to use an "Out of office" event, because it will cancel the meeting.  Instead, you can find someone else at Fleet to cover the meeting.
 - If you can’t complete these steps because you need to take the day off quickly due to an emergency, let your manager know and they will help you complete the handoff.
 - If you ever want to take a day off, and the only thing stopping you is internal (Fleetie-only) meetings, don’t stress. Consider, “Is this a meeting that I can reschedule to another day, or is this a meeting that can go on without me and not interfere with the company’s plans?” Talk to your manager if you’re unsure, but it is perfectly OK to reschedule internal meetings that can wait so that you can take a day off.
 - This process is the same for any days you take off, whether it's a holiday or you just need a break.
@@ -820,8 +805,6 @@ Welcome to Fleet!
 4. Immerse yourself in the world of device management and cybersecurity.
 
 > Please see Fleet's ["🥽 Recommendations for new teammates"](https://docs.google.com/document/d/1xcnqKB9HHPd94POnZ_7LATiy_VjO2kJdbYx0SAgKVao/edit#).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/6b14f6ea-2e66-4369-9b71-d4babc0d00d5">
 
 
 ### Training expectations
@@ -1152,8 +1135,6 @@ Then use the short version for all other references.
 - A command-line interface (CLI) is a text-based user interface (UI) used to run programs, manage computer files, and interact with the computer.
 - The Fleet CLI is called fleetctl.
 If the abbreviation or acronym is well known, like API or HTML, use it instead (and don’t worry about spelling it out).
-
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/195a1406-dc03-43ec-ae81-0a98e40b1d84">
 
 
 ### Numbers and times

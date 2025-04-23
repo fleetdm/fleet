@@ -10,7 +10,7 @@
 #
 # TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
 -
-  quote: With its roots in osquery and a GitOps-driven approach, Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
+  quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
   quoteImageFilename: logo-mr-beast-130x73@2x.png
@@ -166,7 +166,14 @@
   youtubeVideoUrl: https://www.youtube.com/watch?v=nRbZJflWqCo
   productCategories: [Observability]
 -
-  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first.
+  quote: I’m a huge fan of Fleet and their approach to GitOps. # https://www.linkedin.com/posts/mathewcarr_gitops-for-device-management-activity-7306101943301455872-4cTx
+  quoteAuthorName: Matt Carr
+  quoteAuthorJobTitle: CPE manager
+  quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
+  productCategories: [Observability]
+-
+  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy! 
   quoteAuthorName: Matt Carr
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
@@ -176,6 +183,21 @@
   quote: I wanted an easy way to control osquery configurations, and I wanted to stream data as fast as possible into Snowflake. No other solution jumped out to solve those things except for Fleet.
   quoteAuthorName: Tom Larkin
   quoteAuthorJobTitle: IT Engineering Manager
+  quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
+  youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
+  productCategories: [Observability]
+-
+  quote: You can use data from Fleet to predict cost savings initiatives, do data driven hardware refresh, or drill into which devices are performing well versus which aren’t.
+  quoteAuthorName: Tom Larkin # https://t-lark.github.io/posts/building_endpoint_performance_metrics/
+  quoteAuthorJobTitle: Sr. Manager, Client Engineering & DevOps
+  quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
+  productCategories: [Device management]
+-
+  quote: I just want to brag again about how awesome Fleet and Snowflake are together. Osquery alone isn't a big data tool, but it's a powerful data collector.
+  quoteAuthorName: tom larkin # Note: this name is lowercased here so we can sort the two observability-related Tom larkin quotes in different spots. (The name will be capitalized via CSS)  
+  quoteAuthorJobTitle: Sr. Manager, Client Engineering & DevOps
   quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
   youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
@@ -213,3 +235,34 @@
   quoteAuthorJobTitle: Senior Systems Security Engineer
   productCategories: [Observability, Software management]
   # From social media company: “absolutely, will do! this amazing support has been one of the great things that helped make this decision easier and, trust me when I say this, you guys must be doing good if you can take some die-hards away from their ______ (competing product)”
+-
+  quote: I recently attended a GitOps workshop hosted by the team at Fleet—and WOW, it was truly inspiring! Seeing industry-standard tools like osquery and git combined with MDM and CI/CD to manage endpoints was impressive.  With support for Linux, macOS, Windows, iOS, iPadOS, and Chrome OS, managing everything from a single codebase is a game-changer. Super cool.  I’ve been a fan of Fleet, and the GitOps functionality showcased at the workshop added yet another dimension to an already exciting product. If you’re in IT or device management/client platform engineering, I highly recommend checking out one of these sessions.
+  quoteImageFilename: social-proof-logo-benchling-143x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/justinlabo/
+  quoteAuthorName: Justin LaBo
+  quoteAuthorProfileImageFilename: testimonial-author-justin-labo-48x48@2x.png
+  quoteAuthorJobTitle: Head of Core BT Engineering
+  productCategories: [Observability, Software management]
+-
+  quote: Thanks for a great run Jamf...  Foursquare has officially completed the migration to Fleet as our new device management platform.
+  quoteImageFilename: social-proof-logo-foursquare-170x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/mike-meyer-a5a21910_teamwork-engineering-devicemanagement-activity-7267672056970788866-Yt5Z?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAOYKwIBtKBLvbxqgjD2fs4ScGobCzMbCvg
+  quoteAuthorName: Mike Meyer
+  quoteAuthorProfileImageFilename: testimonial-author-mike-meyer-48x48@2x.png
+  quoteAuthorJobTitle: Senior Manager, Corporate Engineering
+  productCategories: [Device management]
+-
+  quote: My users love this. It's increasing security and compliance across our workforce.
+  quoteImageFilename: social-proof-logo-swiftdialog-145x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/bart-reardon-00647889/
+  quoteAuthorName: Bart Reardon
+  quoteAuthorProfileImageFilename: testimonial-author-bart-reardon-48x48@2x.png
+  quoteAuthorJobTitle: Creator of swiftDialog
+  productCategories: [Device management, Observability]
+-
+  quote: If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM.
+  quoteLinkUrl: https://www.reddit.com/r/Intune/comments/1jkzxyl/comment/mk02c2k/
+  quoteAuthorName: u/Heteronymous
+  quoteAuthorJobTitle: Redditor
+  quoteAuthorProfileImageFilename: testimonial-author-redditor-48x48@2x.png  
+  productCategories: [Device management]

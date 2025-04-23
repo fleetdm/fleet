@@ -577,6 +577,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
 - [Delete Android Enterprise](#delete-android-enterprise)
+- [Get Android enrollment token](#get-android-enrollment-token)
 - [Create Android enrollment token](#create-android-enrollment-token)
 - [Get Android Enterprise server-sent event](#get-android-enterprise-server-sent-event)
 - [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
@@ -1029,6 +1030,7 @@ Content-Type: application/octet-stream
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
+| no_cache  | bool   | query | Do not use the cached version of Fleet's configuration. This parameter should only be used when the configuration was updated less than 1 second ago. |
 | profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all`, `labels_include_any`, or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles). |
 
 
@@ -1128,6 +1130,8 @@ Per [the spec](https://developer.apple.com/library/archive/documentation/Network
 
 ### Preassign profiles to devices
 
+> The Puppet module API endpoints are deprecated as of Fleet 4.66. They are maintained for backwards compatibility.
+
 _Available in Fleet Premium_
 
 This endpoint stores a profile to be assigned to a host at some point in the future. The actual assignment happens when the [Match preassigned profiles](#match-preassigned-profiles) endpoint is called. The reason for this "pre-assign" step is to collect all profiles that are meant to be assigned to a host, and match the list of profiles to an existing team (or create one with that set of profiles if none exist) so that the host can be assigned to that team and inherit its list of profiles.
@@ -1203,6 +1207,8 @@ Get aggregate status counts of Apple disk encryption profiles applying to macOS 
 
 
 ### Match preassigned profiles
+
+> The Puppet module API endpoints are deprecated as of Fleet 4.66. They are maintained for backwards compatibility.
 
 _Available in Fleet Premium_
 
@@ -1289,6 +1295,7 @@ This endpoint is used to proxy SCEP requests to the configured SCEP server. It u
 ### Get Android Enterprise signup URL
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used to generate a URL, which opens Google's wizard to create Android Enterprise.
 
 `GET /api/v1/fleet/android_enterprise/signup_url`
@@ -1382,6 +1389,7 @@ This endpoint is used to generate enrollment token and enrollment URL which open
 ### Get Android Enterprise server-sent event
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used to get server-sent events (SSE) messages, so that UI know if Android Enterprise is created and bound to Fleet.
 
 `GET /api/v1/fleet/android_enterprise/signup_sse`
@@ -1401,6 +1409,7 @@ Android Enterprise successfully connected
 ### Android Enterprise PubSub push endpoint
 
 > **Experimental feature.** This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 `POST /api/v1/fleet/android_enterprise/pubsub`
@@ -3860,7 +3869,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ### Set Orbit device mapping
 
-`POST /api/fleet/orbit/device_mapping`
+`PUT /api/fleet/orbit/device_mapping`
 
 ##### Parameters
 
@@ -3871,7 +3880,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 
 ##### Example
 
-`POST /api/fleet/orbit/device_mapping`
+`PUT /api/fleet/orbit/device_mapping`
 
 ##### Request body
 

@@ -10406,7 +10406,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	t := s.T()
 
 	token := "good_token"
-	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
 	// no software yet
@@ -10430,7 +10430,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.1", Source: "apps"},
+		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
 	}
 	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -10683,35 +10683,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 
-	// Add new software to host -- installed on host, but not by Fleet
-	installedVersion := "1.0.1"
-	softwareAlreadyInstalled := fleet.Software{
-		Name: "DummyApp.app", Version: installedVersion, Source: "apps",
-		BundleIdentifier: "com.example.dummy",
-	}
-	software = append(software, softwareAlreadyInstalled)
-	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-	// Add installer for software that is already installed on host
-	payload = &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "dummy_installer.pkg",
-		Version:       "0.0.2", // The version can be anything -- we match on title
-	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
-
 	// Get software available for install
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install",
 		"true", "order_key", "name", "order_direction", "asc")
-	require.Len(t, getHostSw.Software, 2) // DummyApp.app and ruby
-	assert.Equal(t, softwareAlreadyInstalled.Name, getHostSw.Software[0].Name)
-	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
-	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+	require.Len(t, getHostSw.Software, 1) // ruby.app
+	assert.Equal(t, "ruby", getHostSw.Software[0].Name)
+	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
-	assert.Nil(t, getHostSw.Software[0].Status)
+	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
@@ -11576,6 +11556,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+
+	require.NotEmpty(t, installerHash)
+
 	softwareToInstallBadSecret := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:           rubyURL,
@@ -11663,7 +11650,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	// Do a request with a valid URL with no team
 	//////////////////////////
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL},
+		{URL: rubyURL, SHA256: installerHash},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
@@ -16500,8 +16487,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
-	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier()), title.BundleIdentifier)
 	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
@@ -16510,7 +16495,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.NoError(t, err)
 	require.Equal(t, ptr.Uint(4), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
-	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
@@ -17046,4 +17030,170 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailu
 		Status:          string(fleet.SoftwareInstalled),
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	// create a team
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create an HTTP server to host the software installer
+	var hitInstallerURL bool
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitInstallerURL = true
+		if r.URL.Path != "/ruby.deb" && r.URL.Path != "/updated/ruby.deb" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with a valid URL, but invalid hash, should fail
+	rubyURL := srv.URL + "/ruby.deb"
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, SHA256: "foobar"},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg := waitBatchSetSoftwareInstallersFailed(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Equal(t, fmt.Sprintf("downloaded installer hash does not match provided hash for installer with url %s", rubyURL), errMsg)
+
+	// payload without URL or hash should fail
+	softwareToInstall[0].SHA256 = ""
+	softwareToInstall[0].URL = ""
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.")
+
+	// Pass in valid URL
+	softwareToInstall[0].URL = rubyURL
+	softwareToInstall[0].SHA256 = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+	require.NotEmpty(t, installerHash)
+
+	// add the hash to the payload
+	softwareToInstall[0].SHA256 = installerHash
+
+	// dry run shouldn't hit the download endpoint since we included the SHA
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// since we provided the SHA and we'd already added the installer, we should not hit the
+	// download endpoint
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// create a new team
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + "2",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create a new user for team 2; doesn't have access to team 1
+	team2Admin := &fleet.User{
+		Name:       "Team 2 Admin",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team2,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, team2Admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), team2Admin)
+	require.NoError(t, err)
+
+	s.setTokenForTest(t, team2Admin.Email, test.GoodPassword)
+
+	// Remove the URL; since the user doesn't have access to team 1 and only the hash is provided,
+	// this should fail
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "package not found with hash")
+
+	// user doesn't have access to team1: we should hit the download endpoint
+	softwareToInstall[0].URL = rubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Empty(t, packages)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// same for real run
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// Send payload with just the SHA; should succeed and not hit the download endpoint because we
+	// downloaded it just above
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Empty(t, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// Update the URL, should re-download
+	updatedRubyURL := srv.URL + "/updated/ruby.deb"
+	softwareToInstall[0].URL = updatedRubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, updatedRubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
 }
