@@ -258,13 +258,10 @@ func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 // getEnrollmentInfo returns the MDM enrollment status by calling into OS API IsDeviceRegisteredWithManagement()
 func getEnrollmentInfo() (uint32, string, error) {
 	// variable to hold the MDM enrollment status
-	var isDeviceRegisteredWithMDM uint32 = 0
+	var isDeviceRegisteredWithMDM uint32
 
 	// heap-allocated buffer to hold the URI data
 	buffUriData := make([]uint16, 0, maxBufSize)
-	if buffUriData == nil {
-		return 0, "", errors.New("failed to allocate memory for URI data")
-	}
 
 	// IsDeviceRegisteredWithManagement is going to return the MDM enrollment status
 	// https://learn.microsoft.com/en-us/windows/win32/api/mdmregistration/nf-mdmregistration-isdeviceregisteredwithmanagement
@@ -428,7 +425,7 @@ func closeManagementMutex() error {
 	const bufsize = 2048                     // buffer allocation for native windows syscalls
 	currentProcessPID := uint32(os.Getpid()) // current process PID
 
-	var handleOccurences uint32 = 0
+	var handleOccurences uint32
 
 	// querying first the list of handles on the kernel using NtQuerySystemInformation() syscall and SystemHandleInformation
 	// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntquerysysteminformation
@@ -465,7 +462,7 @@ func closeManagementMutex() error {
 		// Calling NtQueryObject syscalls with ObjectTypeInformation to obtain object type information of a given handle. This requires static allocation.
 		// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryobject
 		var handleObjectTypeBuf [bufsize]byte
-		var outputLen uint32 = 0
+		var outputLen uint32
 		st := ntdll.NtQueryObject(ntdll.Handle(systemHandleEntry.HandleValue), ntdll.ObjectTypeInformation, &handleObjectTypeBuf[0], uint32(len(handleObjectTypeBuf)), &outputLen)
 		if st != ntdll.STATUS_SUCCESS || outputLen == 0 {
 			continue
@@ -479,7 +476,7 @@ func closeManagementMutex() error {
 			// Calling NtQueryObject syscalls with ObjectNameInformation to obtain named object information of a given handle. This requires static allocation.
 			// https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryobject
 			var handleObjectNameBuf [bufsize]byte
-			var outputLen uint32 = 0
+			var outputLen uint32
 			st := ntdll.NtQueryObject(ntdll.Handle(systemHandleEntry.HandleValue), ntdll.ObjectNameInformation, &handleObjectNameBuf[0], uint32(len(handleObjectNameBuf)), &outputLen)
 			if st != ntdll.STATUS_SUCCESS || outputLen == 0 {
 				continue

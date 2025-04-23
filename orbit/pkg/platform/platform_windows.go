@@ -322,7 +322,7 @@ func hardwareGetSMBiosUUID() (string, error) {
 
 			// As of version 2.6 of the SMBIOS specification, the first 3 fields of the UUID are
 			// supposed to be encoded in little-endian (section 7.2.1)
-			var smBiosUUID string = ""
+			var smBiosUUID string
 			if (biosMajor >= revMajorVersion) || (biosMajor >= minLegacyMajorVersion && biosMinor >= minLegacyMinorVersion) {
 				smBiosUUID = fmt.Sprintf("%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 					uuidBytes[3], uuidBytes[2], uuidBytes[1], uuidBytes[0], uuidBytes[5], uuidBytes[4], uuidBytes[7], uuidBytes[6], uuidBytes[8], uuidBytes[9], uuidBytes[10], uuidBytes[11], uuidBytes[12], uuidBytes[13], uuidBytes[14], uuidBytes[15])
@@ -553,7 +553,7 @@ func PreUpdateQuirks() {
 	if shouldQuirksRun() {
 		// Fixing the symlink not present quirk
 		// This is a best-effort fix, any error in fixSymlinkNotPresent is ignored
-		fixSymlinkNotPresent()
+		_ = fixSymlinkNotPresent()
 	}
 }
 

@@ -3,6 +3,7 @@
 package bitlocker
 
 import (
+	"errors"
 	"fmt"
 	"syscall"
 
@@ -361,7 +362,7 @@ func getKeyProtectors(item *ole.IDispatch) ([]string, error) {
 	for _, keyIDItemRaw := range keyProtectorValues {
 		keyIDItem, ok := keyIDItemRaw.(string)
 		if !ok {
-			return nil, fmt.Errorf("keyProtectorID wasn't a string")
+			return nil, errors.New("keyProtectorID wasn't a string")
 		}
 		kp = append(kp, keyIDItem)
 	}
@@ -395,7 +396,7 @@ func getLogicalVolumes() ([]string, error) {
 		return nil, fmt.Errorf("failed to get procedure address: %w", err)
 	}
 
-	ret, _, callErr := syscall.SyscallN(uintptr(getLogicalDrivesHandle), 0, 0, 0, 0)
+	ret, _, callErr := syscall.SyscallN(getLogicalDrivesHandle, 0, 0, 0, 0)
 	if callErr != 0 {
 		return nil, fmt.Errorf("syscall to GetLogicalDrives failed: %w", callErr)
 	}
