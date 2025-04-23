@@ -356,7 +356,7 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 
 		// trigger resend of profiles that depend on this SCIM user
 		if len(deletedUserAssociatedHostIDs) > 0 {
-			err = triggerResendProfilesForIDPDeletedUser(ctx, tx, deletedUserAssociatedHostIDs)
+			err = triggerResendProfilesForIDPDeletedUser(ctx, tx, deletedUserAssociatedHostIDs, id)
 			if err != nil {
 				return err
 			}
@@ -840,6 +840,14 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 // DeleteScimGroup deletes a SCIM group from the database
 func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// get the users that were part of this group
+		const getAssociatedUserIDsQuery = `SELECT scim_user_id FROM scim_user_group WHERE group_id = ?`
+		var deletedGroupUsers []uint
+		err := sqlx.SelectContext(ctx, tx, &deletedGroupUsers, getAssociatedUserIDsQuery, id)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get scim group users")
+		}
+
 		// Delete the group
 		const deleteGroupQuery = `DELETE FROM scim_groups WHERE id = ?`
 		result, err := tx.ExecContext(ctx, deleteGroupQuery, id)
@@ -856,8 +864,14 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 			return notFound("scim group").WithID(id)
 		}
 
-		// TODO(mna): resend profiles that depend on the deleted group
-		err = ds.triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, deletedGroupUsers)
+		// resend profiles that depend on the deleted group for hosts that are
+		// associated with users that were part of this group
+		if len(deletedGroupUsers) > 0 {
+			err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, deletedGroupUsers)
+			if err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 }
@@ -1019,4 +1033,51 @@ func (ds *Datastore) UpdateScimLastRequest(ctx context.Context, lastRequest *fle
 
 		return nil
 	})
+}
+
+func triggerResendProfilesForIDPUsernameChange(ctx context.Context, tx sqlx.ExtContext, userID uint) error {
+	// get all hosts that have this user as IdP user - this means that we only
+	// consider hosts where this user id is the smallest user id associated with
+	// the host (which is the one we consider as the IdP user of the host, see
+	// the query in ScimUserByHostID)
+	const getAssociatedHostIDsQuery = `
+	SELECT DISTINCT
+		host_id 
+	FROM 
+		host_scim_user hsu
+		LEFT JOIN host_scim_user extra_hsu ON 
+			hsu.host_id = extra_hsu.host_id AND
+			hsu.scim_user_id != extra_hsu.scim_user_id AND
+			extra_hsu.scim_user_id < hsu.scim_user_id
+	WHERE 
+		hsu.scim_user_id = ? AND
+		extra_hsu.host_id IS NULL
+`
+	var hostIDs []uint
+	err := sqlx.SelectContext(ctx, tx, &hostIDs, getAssociatedHostIDsQuery, userID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get scim user host IDs")
+	}
+
+	return triggerResendProfilesForIDP(ctx, tx, hostIDs, []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart})
+}
+
+func triggerResendProfilesForIDPDeletedUser(ctx context.Context, tx sqlx.ExtContext, deletedUserAssociatedHostIDs []uint, deletedScimUserID uint) error {
+	panic("unimplemented")
+}
+
+func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, groupID uint) error {
+	panic("unimplemented")
+}
+
+func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, userIDs []uint) error {
+	panic("unimplemented")
+}
+
+func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, scimUserID uint) error {
+	panic("unimplemented")
+}
+
+func triggerResendProfilesForIDP(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
+	panic("unimplemented")
 }
