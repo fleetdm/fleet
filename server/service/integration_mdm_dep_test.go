@@ -168,6 +168,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 
 	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
 		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
+		t.Cleanup(func() {
+			s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
+		})
 		s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
 			EnableReleaseManually: false,
 			TeamID:                nil,
@@ -307,6 +310,9 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
 		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		t.Cleanup(func() {
+			s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		})
 		s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
 			EnableReleaseManually: true,
 			TeamID:                &tm.ID,
@@ -535,7 +541,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// configuration, since enrollment_reference not set)
 		expectedCommands := 6
 		if opts.ManualAgentInstall {
-			expectedCommands = expectedCommands - 1
+			expectedCommands--
 		}
 		assert.Len(t, cmds, expectedCommands)
 	}
@@ -631,7 +637,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	require.Equal(t, 4, installProfileCount)
 	expectedInstallEnterpriseCount := 2
 	if opts.ManualAgentInstall {
-		expectedInstallEnterpriseCount = expectedInstallEnterpriseCount - 1
+		expectedInstallEnterpriseCount--
 		require.NotNil(t, lastInstallEnterpriseApplication)
 		require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
 		require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
