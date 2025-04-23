@@ -1095,19 +1095,28 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	}
 
 	// Use the authorize script by ID to handle authz
-	_, err = svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
 	if err != nil {
 		return "", err
 	}
 
 	var userId *uint
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+	ctxUser := authz.UserFromContext(ctx)
+	if ctxUser != nil {
 		userId = &ctxUser.ID
 	}
 
 	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
+	}
+
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+		ScriptName:       script.Name,
+		BatchExeuctionID: batchID,
+		HostCount:        uint(len(hostIDs)),
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
 	}
 
 	return batchID, nil
