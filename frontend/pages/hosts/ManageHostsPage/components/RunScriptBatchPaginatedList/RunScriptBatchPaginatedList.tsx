@@ -135,6 +135,7 @@ const RunScriptBatchPaginatedList = ({
   return (
     <div className={`${baseClass}`}>
       <PaginatedList<IPaginatedListScript>
+        // TODO - heading prop, use for ordering by name?
         renderItemRow={renderScriptRow}
         count={scriptCount}
         fetchPage={fetchPage}
@@ -143,8 +144,8 @@ const RunScriptBatchPaginatedList = ({
         setDirtyOnClickRow={false}
         pageSize={PAGE_SIZE}
         disabled={isUpdating}
-        // TODO - heading prop, use for ordering by name?
         useCheckBoxes={false}
+        isUpdating={isUpdating}
       />
     </div>
   );
