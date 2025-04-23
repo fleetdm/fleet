@@ -405,7 +405,6 @@ team_settings:
 		assert.Equal(t, 0, result)
 		return nil
 	})
-
 }
 
 // TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
@@ -542,7 +541,6 @@ queries:
 	require.NoError(t, err)
 	assert.Empty(t, appConfig.Integrations.DigiCert.Value)
 	assert.Empty(t, appConfig.Integrations.CustomSCEPProxy.Value)
-
 }
 
 // TestUnsetConfigurationProfileLabels tests the removal of labels associated with a
@@ -813,6 +811,86 @@ team_settings:
 	require.Equal(t, teamTitleID, *meta.TitleID)
 	require.Len(t, meta.LabelsExcludeAny, 0)
 	require.Len(t, meta.LabelsIncludeAny, 0)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestDeletingNoTeamYAML() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// global file setup
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	// setup script
+	const testScriptTemplate = `echo "Hello, world!"`
+
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(testScriptTemplate)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	// no team file setup
+	const (
+		noTeamTemplate = `name: No team
+policies:
+controls:
+  macos_setup:
+    script: %s
+software:
+`
+	)
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, scriptFile.Name()))
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+
+	// Check script existance
+	_, err = s.ds.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	// Check script does not exist
+	_, err = s.ds.GetSetupExperienceScript(ctx, nil)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetup() {
