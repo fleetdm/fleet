@@ -38,21 +38,7 @@
   }
 
   &__ex {
-    text-decoration: none;
-
-    &:hover {
-      .icon {
-        svg {
-          path {
-            stroke: $core-vibrant-blue;
-          }
-        }
-      }
-    }
-
-    .button {
-      padding: $pad-small;
-    }
+    height: 32px;
   }
 
   &__header {
