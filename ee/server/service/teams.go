@@ -1033,7 +1033,8 @@ func (svc *Service) createTeamFromSpec(
 	if !macOSSetup.EnableReleaseDeviceManually.Valid {
 		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" || macOSSetup.EnableReleaseDeviceManually.Value {
+	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
+		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
@@ -1216,7 +1217,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually bool
+	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall bool
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
@@ -1229,13 +1230,18 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateEnableReleaseManually = oldMacOSSetup.EnableReleaseDeviceManually.Value != spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = spec.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
+	if spec.MDM.MacOSSetup.ManualAgentInstall.Valid {
+		didUpdateManualAgentInstall = oldMacOSSetup.ManualAgentInstall.Value != spec.MDM.MacOSSetup.ManualAgentInstall.Value
+		team.Config.MDM.MacOSSetup.ManualAgentInstall = spec.MDM.MacOSSetup.ManualAgentInstall
+	}
 	// TODO(mna): doesn't look like we create an activity for macos updates when
 	// modified via spec? Doing the same for Windows, but should we?
 
 	if !appCfg.MDM.EnabledAndConfigured &&
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
 			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "") ||
-			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)) {
+			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) ||
+			(didUpdateManualAgentInstall && team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 			`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
@@ -1259,12 +1265,6 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
-	if spec.MDM.MacOSSetup.ManualAgentInstall.Valid && spec.MDM.MacOSSetup.ManualAgentInstall.Value {
-		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install",
-				`Couldn't update macos_setup.manual_agent_install because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
-	}
 
 	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {

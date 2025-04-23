@@ -861,7 +861,7 @@ software:
 		teamConfig = `
 controls:
   macos_setup:
-    manual_agent_install: true
+    manual_agent_install: %t
 software:
 queries:
 policies:
@@ -892,9 +892,15 @@ team_settings:
 	teamName := uuid.NewString()
 	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, teamName))
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, true, teamName))
 	require.NoError(t, err)
 	err = teamFile.Close()
+	require.NoError(t, err)
+	teamFileClear, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileClear.WriteString(fmt.Sprintf(teamConfig, false, teamName))
+	require.NoError(t, err)
+	err = teamFileClear.Close()
 	require.NoError(t, err)
 
 	globalFileOnlySet, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -926,14 +932,18 @@ team_settings:
 	require.NoError(t, err)
 	assert.True(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
 
-	// Apply global configs only
+	// Apply global configs without no-team
 	_ = runAppForTest(t,
-		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "--dry-run"})
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name()})
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name()})
 	appConfig, err = s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.False(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+	team, err = s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	assert.False(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
 
+	// Apply global configs only
 	_ = runAppForTest(t,
 		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name(), "--dry-run"})
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name()})
