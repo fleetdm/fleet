@@ -14,7 +14,7 @@ import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 
-import SoftwareIcon from "../icons/SoftwareIcon";
+import SoftwareIcon from "../../icons/SoftwareIcon";
 
 const baseClass = "software-details-summary";
 

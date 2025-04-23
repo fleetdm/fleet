@@ -1,6 +1,6 @@
 import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";

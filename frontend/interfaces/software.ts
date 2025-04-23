@@ -87,6 +87,7 @@ export interface ISoftwarePackage {
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: string[];
 }
 
 export const isSoftwarePackage = (
@@ -122,6 +123,7 @@ export interface IAppStoreApp {
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: string[];
 }
 
 export interface ISoftwareTitle {

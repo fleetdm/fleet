@@ -12,9 +12,12 @@ const defaultProps = {
     customTarget: "",
     labelTargets: {},
     selectedApp: null,
+    categories: [],
   },
   onToggleAutomaticInstall: jest.fn(),
   onToggleSelfService: jest.fn(),
+  onSelectCategory: jest.fn(),
+  onClickPreviewEndUserExperience: jest.fn(),
 };
 
 describe("SoftwareOptionsSelector", () => {

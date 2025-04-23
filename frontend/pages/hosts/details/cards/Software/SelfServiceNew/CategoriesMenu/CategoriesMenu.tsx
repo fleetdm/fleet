@@ -23,7 +23,7 @@ const CategoriesMenu = ({
   return (
     <div className={wrapperClasses}>
       {categories.map((cat: ICategory) => {
-        const isActive = cat.value === queryParams.category_id;
+        const isActive = cat.id === queryParams.category_id;
 
         return (
           <LinkWithContext
@@ -35,9 +35,7 @@ const CategoriesMenu = ({
             currentQueryParams={{
               ...queryParams,
               page: 0,
-              ...(cat.value
-                ? { category_id: cat.value }
-                : { category_id: undefined }),
+              category_id: cat.id !== 0 ? cat.id : undefined,
             }}
             to={location.pathname}
             className={classNames({

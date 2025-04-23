@@ -17,12 +17,12 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getPathWithQueryParams, QueryValues } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
@@ -35,7 +35,7 @@ import Pagination from "components/Pagination";
 
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
-import CATEGORIES_NAV_ITEMS from "./helpers";
+import { CATEGORIES_NAV_ITEMS, ICategory } from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
 
 const baseClass = "software-self-service";
@@ -239,9 +239,9 @@ const SoftwareSelfService = ({
           defaultValue={queryParams.query}
         />
         <DropdownWrapper
-          options={CATEGORIES_NAV_ITEMS.map((category) => ({
+          options={CATEGORIES_NAV_ITEMS.map((category: ICategory) => ({
             ...category,
-            value: String(category.value), // DropdownWrapper only accepts string
+            value: String(category.id), // DropdownWrapper only accepts string
           }))}
           value={String(queryParams.category_id) || ""}
           onChange={onCategoriesDropdownChange}

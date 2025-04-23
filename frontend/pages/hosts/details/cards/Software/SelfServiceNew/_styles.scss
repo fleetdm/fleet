@@ -1,5 +1,5 @@
 .software-self-service {
-  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
   .empty-table__container {
     margin: 64px 0;
   }
@@ -26,15 +26,11 @@
       margin-top: 0;
     }
 
-    .self-service-table__status-with-tooltip,
+    .self-service-table__status-content,
     .table-container .children-wrapper {
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-
-    .self-service-table__status-content {
-      max-width: min-content; // Centers tooltip over status and not over cell
+      gap: $pad-small;
     }
   }
 
@@ -45,6 +41,8 @@
   @media (min-width: $break-sm) {
     .categories-menu {
       display: flex;
+      flex-direction: column;
+      width: 300px;
     }
 
     &__categories-dropdown {

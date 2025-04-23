@@ -31,9 +31,9 @@ import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
 
-import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
+import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
-import DetailsNoHosts from "../components/DetailsNoHosts";
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
 import { getInstallerCardInfo } from "./helpers";
 

@@ -3,10 +3,7 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import {
-  SoftwareSource,
-  SOURCE_TYPE_CONVERSION,
   IAppLastInstall,
-  IDeviceSoftware,
   IHostSoftware,
   ISoftwareLastInstall,
   SoftwareInstallStatus,
@@ -18,16 +15,15 @@ import { NotificationContext } from "context/notification";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
-import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import { dateAgo } from "utilities/date_format";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { IStatusDisplayConfig } from "../InstallStatusCell/InstallStatusCell";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -85,16 +81,19 @@ const InstallerStatus = ({
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
     // This is shown mid-install
-    return DEFAULT_EMPTY_CELL_VALUE;
+    return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
   }
 
   return (
-    <div className={`${baseClass}__status-content`}>
-      <div
-        className={`${baseClass}__status-with-tooltip`}
-        data-tip
-        data-for={`install-tooltip__${id}`}
-      >
+    <TooltipWrapper
+      tipContent={displayConfig.tooltip({
+        lastInstalledAt: last_install?.installed_at,
+      })}
+      showArrow
+      underline={false}
+      position="top"
+    >
+      <div className={`${baseClass}__status-content`}>
         {displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />
         ) : (
@@ -123,20 +122,7 @@ const InstallerStatus = ({
           )}
         </span>
       </div>
-      <ReactTooltip
-        className={`${baseClass}__status-tooltip`}
-        effect="solid"
-        backgroundColor="#3e4771"
-        id={`install-tooltip__${id}`}
-        data-html
-      >
-        <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip({
-            lastInstalledAt: last_install?.installed_at,
-          })}
-        </span>
-      </ReactTooltip>
-    </div>
+    </TooltipWrapper>
   );
 };
 
