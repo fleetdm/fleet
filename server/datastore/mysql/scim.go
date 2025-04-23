@@ -594,7 +594,7 @@ func (ds *Datastore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup
 			// this is a new group, but it is associated with existing users -
 			// trigger a resend of profiles that use the IdP groups variable for
 			// hosts related to this group's users.
-			return triggerResendProfilesForIDPGroupChange(ctx, tx, group.ID)
+			return triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, group.ScimUsers)
 		}
 
 		return nil
@@ -652,7 +652,7 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGro
 	}
 
 	// Get the group's users
-	users, err := ds.getScimGroupUsers(ctx, ds.reader(ctx), id)
+	users, err := getScimGroupUsers(ctx, ds.reader(ctx), id)
 	if err != nil {
 		return nil, err
 	}
@@ -679,7 +679,7 @@ func (ds *Datastore) ScimGroupByDisplayName(ctx context.Context, displayName str
 	}
 
 	// Get the group's users
-	users, err := ds.getScimGroupUsers(ctx, ds.reader(ctx), group.ID)
+	users, err := getScimGroupUsers(ctx, ds.reader(ctx), group.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +689,7 @@ func (ds *Datastore) ScimGroupByDisplayName(ctx context.Context, displayName str
 }
 
 // getScimGroupUsers retrieves all user IDs for a SCIM group
-func (ds *Datastore) getScimGroupUsers(ctx context.Context, q sqlx.QueryerContext, groupID uint) ([]uint, error) {
+func getScimGroupUsers(ctx context.Context, q sqlx.QueryerContext, groupID uint) ([]uint, error) {
 	const query = `
 		SELECT
 			scim_user_id
@@ -699,9 +699,6 @@ func (ds *Datastore) getScimGroupUsers(ctx context.Context, q sqlx.QueryerContex
 	var userIDs []uint
 	err := sqlx.SelectContext(ctx, q, &userIDs, query, groupID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
 		return nil, ctxerr.Wrap(ctx, err, "select scim group users")
 	}
 	return userIDs, nil
@@ -751,7 +748,7 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 		groupNameChanged := oldDisplayName != group.DisplayName
 
 		// Get existing user-group relationships
-		existingUsers, err := ds.getScimGroupUsers(ctx, tx, group.ID)
+		existingUsers, err := getScimGroupUsers(ctx, tx, group.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get existing scim group users")
 		}
@@ -1053,27 +1050,76 @@ func getHostIDsHavingScimIDPUser(ctx context.Context, tx sqlx.ExtContext, scimUs
 	return hostIDs, nil
 }
 
+func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimUserIDs []uint) ([]uint, error) {
+	// get all hosts that have any of those users as IdP user - this means that
+	// we only consider hosts where the user id is the smallest user id
+	// associated with the host (which is the one we consider as the IdP user of
+	// the host, see the query in ScimUserByHostID)
+	const getAssociatedHostIDsQuery = `
+	SELECT DISTINCT
+		host_id
+	FROM
+		host_scim_user hsu
+		LEFT JOIN host_scim_user extra_hsu ON
+			hsu.host_id = extra_hsu.host_id AND
+			hsu.scim_user_id != extra_hsu.scim_user_id AND
+			extra_hsu.scim_user_id < hsu.scim_user_id
+	WHERE
+		hsu.scim_user_id IN (?) AND
+		extra_hsu.host_id IS NULL
+`
+	stmt, args, err := sqlx.In(getAssociatedHostIDsQuery, scimUserIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare get scim users host IDs")
+	}
+
+	var hostIDs []uint
+	err = sqlx.SelectContext(ctx, tx, &hostIDs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get scim users host IDs")
+	}
+	return hostIDs, nil
+}
+
 func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedUserID uint) error {
 	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedUserID)
 	if err != nil {
 		return err
 	}
-	return triggerResendProfilesForIDP(ctx, tx, hostIDs,
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
 		[]string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart})
 }
 
 func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, groupID uint) error {
-	panic("unimplemented")
+	// get the updated list of users for that group
+	userIDs, err := getScimGroupUsers(ctx, tx, groupID)
+	if err != nil {
+		return err
+	}
+	// get hosts that have any of those users as IdP user
+	hostIDs, err := getHostIDsHavingScimIDPUsers(ctx, tx, userIDs)
+	if err != nil {
+		return err
+	}
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
+		[]string{fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, userIDs []uint) error {
-	panic("unimplemented")
+	hostIDs, err := getHostIDsHavingScimIDPUsers(ctx, tx, userIDs)
+	if err != nil {
+		return err
+	}
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
+		[]string{fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, scimUserID uint) error {
+	// check that this user is indeed the scim IdP user for this host (and not an
+	// extra, unused one)
 	panic("unimplemented")
 }
 
-func triggerResendProfilesForIDP(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
+func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
 	panic("unimplemented")
 }
