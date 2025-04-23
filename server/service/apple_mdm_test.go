@@ -349,8 +349,8 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
 	checkAuthErr(t, err, true)
 	// works with device-authenticated context
-	ctx = test.HostContext(context.Background(), &fleet.Host{})
-	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
+	hostCtx := test.HostContext(context.Background(), &fleet.Host{})
+	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(hostCtx)
 	require.NoError(t, err)
 
 	hostUUIDsToTeamID := map[string]uint{
