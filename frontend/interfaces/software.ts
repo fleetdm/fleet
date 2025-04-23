@@ -379,6 +379,7 @@ export interface IHostSoftware {
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
+  categories?: string[];
 }
 
 export type IDeviceSoftware = IHostSoftware;
@@ -484,4 +485,5 @@ export interface IFleetMaintainedAppDetails {
   uninstall_script: string;
   url: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+  categories: string[];
 }

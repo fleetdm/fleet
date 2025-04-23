@@ -24,7 +24,6 @@ import TargetLabelSelector from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 import { createTooltipContent, generateFormValidation } from "./helpers";
@@ -68,6 +67,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
+  defaultCategories: string[];
   className?: string;
   /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -89,6 +89,7 @@ const PackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
+  defaultCategories,
   className,
   gitopsCompatible = false,
 }: IPackageFormProps) => {
@@ -107,7 +108,7 @@ const PackageForm = ({
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
     automaticInstall: false,
-    categories: [],
+    categories: defaultCategories || [],
   };
 
   const [formData, setFormData] = useState<IPackageFormData>(initialFormData);

@@ -1,3 +1,6 @@
+import { IDeviceSoftware, IHostSoftware } from "interfaces/software";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+
 export interface ICategory {
   /** Temporary Clientside IDs */
   id: number;
@@ -17,3 +20,21 @@ export const CATEGORIES_ITEMS = [
 ];
 
 export const CATEGORIES_NAV_ITEMS = [ALL_ITEM, ...CATEGORIES_ITEMS];
+
+export const filterSoftwareByCategory = (
+  software?: IDeviceSoftware[],
+  category_id?: number
+): IDeviceSoftware[] => {
+  // Find the category value string for the given id
+  const category = CATEGORIES_NAV_ITEMS.find((cat) => cat.id === category_id);
+
+  // If "All" is selected or category not found, return all software items
+  if (!category || category.value === "All") {
+    return software || [];
+  }
+
+  // Otherwise, filter software items whose categories include the category value
+  return (software || []).filter((softwareItem) =>
+    softwareItem.categories?.includes(category.value)
+  );
+};

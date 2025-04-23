@@ -29,6 +29,7 @@ export interface IAddVppAppPostBody {
   automatic_install?: boolean;
   labels_include_any?: string[];
   labels_exclude_any?: string[];
+  categories?: string[];
 }
 
 export interface IEditVppAppPostBody {
@@ -37,6 +38,7 @@ export interface IEditVppAppPostBody {
   // No automatic_install on edit VPP app
   labels_include_any?: string[];
   labels_exclude_any?: string[];
+  categories?: string[];
 }
 
 export interface IGetVppAppsResponse {
@@ -103,6 +105,11 @@ export default {
       automatic_install: formData.automaticInstall,
     };
 
+    // Add categories if present
+    if (formData.categories && formData.categories.length > 0) {
+      body.categories = formData.categories;
+    }
+
     if (formData.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
       if (formData.customTarget === "labelsIncludeAny") {
@@ -126,6 +133,11 @@ export default {
       self_service: formData.selfService,
       team_id: teamId,
     };
+
+    // Add categories if present
+    if (formData.categories && formData.categories.length > 0) {
+      body.categories = formData.categories;
+    }
 
     if (formData.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);

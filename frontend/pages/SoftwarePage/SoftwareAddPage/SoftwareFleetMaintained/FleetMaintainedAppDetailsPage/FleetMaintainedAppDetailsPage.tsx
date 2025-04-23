@@ -198,6 +198,7 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
+    console.log("formData onSubmit", formData);
     let titleId: number | undefined;
     try {
       const res = await softwareAPI.addFleetMaintainedApp(
@@ -273,6 +274,7 @@ const FleetMaintainedAppDetailsPage = ({
             />
             <FleetAppDetailsForm
               labels={labels || []}
+              categories={fleetApp.categories}
               name={fleetApp.name}
               showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}

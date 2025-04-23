@@ -35,14 +35,18 @@ import Pagination from "components/Pagination";
 
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
-import { CATEGORIES_NAV_ITEMS, ICategory } from "./helpers";
+import {
+  CATEGORIES_NAV_ITEMS,
+  filterSoftwareByCategory,
+  ICategory,
+} from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
 
 const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 24, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
+  per_page: 9999, // Note: There is no pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
   order_key: "name",
   order_direction: "asc",
   self_service: true,
@@ -322,7 +326,7 @@ const SoftwareSelfService = ({
           {renderCategoriesMenu()}
           <TableContainer
             columnConfigs={tableConfig}
-            data={data?.software || []}
+            data={filterSoftwareByCategory(data?.software || [])}
             isLoading={isLoading}
             defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
             defaultSortDirection={
