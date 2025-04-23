@@ -15,6 +15,7 @@ import Spinner from "components/Spinner";
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "install-software";
 
@@ -67,14 +68,14 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
 
     if (softwareTitles || softwareTitles === null) {
       return (
-        <div className={`${baseClass}__content`}>
+        <SetupExperienceContentContainer>
           <AddInstallSoftware
             currentTeamId={currentTeamId}
             softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
           />
           <InstallSoftwarePreview />
-        </div>
+        </SetupExperienceContentContainer>
       );
     }
 
@@ -82,7 +83,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   };
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="Install software" />
       <>{renderContent()}</>
       {showSelectSoftwareModal && softwareTitles && (
@@ -93,7 +94,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
           onExit={() => setShowSelectSoftwareModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 };
 

@@ -20,6 +20,7 @@ import SetupExperiencePreview from "./components/SetupExperienceScriptPreview";
 import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
 import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "setup-experience-script";
 
@@ -67,7 +68,7 @@ const SetupExperienceScript = ({
     }
 
     return (
-      <div className={`${baseClass}__content`}>
+      <SetupExperienceContentContainer>
         <div className={`${baseClass}__description-container`}>
           <p className={`${baseClass}__description`}>
             Upload a script to run on hosts that automatically enroll to Fleet.
@@ -96,12 +97,12 @@ const SetupExperienceScript = ({
           )}
         </div>
         <SetupExperiencePreview />
-      </div>
+      </SetupExperienceContentContainer>
     );
   };
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="Run script" />
       <>{renderContent()}</>
       {showDeleteScriptModal && script && (
@@ -112,7 +113,7 @@ const SetupExperienceScript = ({
           onExit={() => setShowDeleteScriptModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 };
 

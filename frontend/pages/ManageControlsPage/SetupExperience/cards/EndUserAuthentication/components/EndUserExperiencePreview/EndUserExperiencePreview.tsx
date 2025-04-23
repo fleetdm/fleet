@@ -1,7 +1,9 @@
 import React from "react";
 import classnames from "classnames";
 
-import OsSetupPreview from "../../../../../../../../assets/images/os-setup-preview.gif";
+import EndUserAuthPreviewVideo from "../../../../../../../../assets/videos/end-user-auth.mp4";
+
+console.log(EndUserAuthPreviewVideo);
 
 const baseClass = "end-user-experience-preview";
 
@@ -22,11 +24,14 @@ const EndUserExperiencePreview = ({
         first asked to authenticate and agree to the end user license agreement
         (EULA).
       </p>
-      <img
-        className={`${baseClass}__preview-img`}
-        src={OsSetupPreview}
-        alt="End user experience during the macOS setup assistant with the user
-        logging in with their IdP provider"
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video
+        className={`${baseClass}__preview-video`}
+        src={EndUserAuthPreviewVideo}
+        controls
+        autoPlay
+        loop
+        muted
       />
     </div>
   );

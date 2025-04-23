@@ -14,6 +14,7 @@ import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeletePackageModal from "./components/DeletePackageModal";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "bootstrap-package";
 
@@ -66,12 +67,12 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     (error && error.status === 404) || !bootstrapMetadata;
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="Bootstrap package" />
       {isLoading ? (
         <Spinner />
       ) : (
-        <div className={`${baseClass}__content`}>
+        <SetupExperienceContentContainer className={`${baseClass}__content`}>
           {noPackageUploaded ? (
             <>
               <PackageUploader
@@ -94,7 +95,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
               </div>
             </>
           )}
-        </div>
+        </SetupExperienceContentContainer>
       )}
       {showDeletePackageModal && (
         <DeletePackageModal
@@ -102,7 +103,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
           onCancel={() => setShowDeletePackageModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 };
 
