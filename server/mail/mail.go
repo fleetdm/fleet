@@ -82,9 +82,7 @@ func getMessageBody(e fleet.Email, f fromFunc) ([]byte, error) {
 	if len(e.To) == 1 {
 		to = "To: " + e.To[0] + "\r\n"
 	} else if len(e.To) > 1 {
-		// Splitting the header into multiple lines as a precaution
-		// https://www.rfc-editor.org/rfc/rfc2822.html#section-2.2.3
-		to = "Bcc: " + strings.Join(e.To, ",\r\n    ") + "\r\n"
+		to = "To: undisclosed-recipients\r\n"
 	}
 	msg := []byte(subject + from + to + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
