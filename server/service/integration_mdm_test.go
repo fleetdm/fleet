@@ -12283,6 +12283,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			cmdUUID = cmd.CommandUUID
 
+			if install.deviceToken != "" {
+				var cmdResResp getMDMCommandResultsResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK, &cmdResResp)
+				require.Len(t, cmdResResp.Results, 0)
+			}
+
 			// Get pending activity
 			var hostActivitiesResp listHostUpcomingActivitiesResponse
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
@@ -12317,6 +12323,16 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.NoError(t, err)
 			// No further commands expected
 			assert.Nil(t, cmd)
+
+			if install.deviceToken != "" {
+				var cmdResResp getMDMCommandResultsResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK, &cmdResResp)
+				require.Len(t, cmdResResp.Results, 1)
+				require.Equal(t, "Acknowledged", cmdResResp.Results[0].Status)
+
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/foobar/results", install.deviceToken), nil, http.StatusNotFound, &cmdResResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/foobar/software/commands/%s/results", cmdUUID), nil, http.StatusNotFound, &cmdResResp)
+			}
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",

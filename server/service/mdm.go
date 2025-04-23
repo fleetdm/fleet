@@ -769,41 +769,17 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 	}
 
-	// check that command exists first, to return 404 on invalid commands
-	// (the command may exist but have no results yet).
-	p, err := svc.ds.GetMDMCommandPlatform(ctx, commandUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
-	var results []*fleet.MDMCommandResult
-	switch p {
-	case "darwin":
-		results, err = svc.ds.GetMDMAppleCommandResults(ctx, commandUUID)
-	case "windows":
-		results, err = svc.ds.GetMDMWindowsCommandResults(ctx, commandUUID)
-	default:
-		// this should never happen, but just in case
-		level.Debug(svc.logger).Log("msg", "unknown MDM command platform", "platform", p)
-	}
-
+	// zero-length result (command exists but no responses) is different than not-found (no command, command isn't an install, or wrong host)
+	results, err := svc.ds.GetVPPCommandResults(ctx, commandUUID, host.UUID)
 	if err != nil {
 		return nil, err
 	}
 
-	var hostFilteredResults []*fleet.MDMCommandResult
 	for _, res := range results {
-		if res.HostUUID == host.UUID && res.RequestType == "InstallApplication" {
-			res.Hostname = host.Hostname
-			hostFilteredResults = append(hostFilteredResults, res)
-		}
+		res.Hostname = host.Hostname
 	}
 
-	if len(hostFilteredResults) == 0 {
-		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("MDMCommand").WithName(commandUUID))
-	}
-
-	return hostFilteredResults, nil
+	return results, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
