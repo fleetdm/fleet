@@ -692,8 +692,33 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) 
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint) ([]map[string]interface{}, error) {
+	var policyTeamId *uint
+	if teamId != 0 {
+		policyTeamId = &teamId
+	}
+	policies, err := cmd.Client.GetPolicies(policyTeamId)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
+		return nil, err
+	}
+	if len(policies) == 0 {
+		return nil, nil
+	}
+	t := reflect.TypeOf(fleet.Policy{})
+	result := make([]map[string]interface{}, len(policies))
+	for i, policy := range policies {
+		policySpec := map[string]interface{}{
+			jsonFieldName(t, "Name"):        policy.Name,
+			jsonFieldName(t, "Description"): policy.Description,
+			jsonFieldName(t, "Resolution"):  policy.Resolution,
+			jsonFieldName(t, "Platform"):    policy.Platform,
+		}
+		if teamId != 0 {
+			policySpec[jsonFieldName(t, "TeamID")] = teamId
+		}
+		result[i] = policySpec
+	}
 }
 
 func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) (map[string]interface{}, error) {
