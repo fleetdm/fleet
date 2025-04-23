@@ -177,7 +177,22 @@ func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAp
 		return err
 	}
 
-	if err := svc.validateMDMAppleSetupPayload(ctx, payload); err != nil {
+	var macOSSetup *fleet.MacOSSetup
+	if payload.TeamID != nil && *payload.TeamID != 0 {
+		tm, err := svc.teamByIDOrName(ctx, payload.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		macOSSetup = &tm.Config.MDM.MacOSSetup
+	} else {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return err
+		}
+		macOSSetup = &appCfg.MDM.MacOSSetup
+	}
+
+	if err := svc.validateMDMAppleSetupPayload(ctx, macOSSetup, payload); err != nil {
 		return err
 	}
 
@@ -216,6 +231,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.ManualAgentInstall != nil {
+		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -246,7 +268,10 @@ func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enabl
 	return nil
 }
 
-func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fleet.MDMAppleSetupPayload) error {
+func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, macOSSetup *fleet.MacOSSetup, payload fleet.MDMAppleSetupPayload) error {
+	if macOSSetup == nil {
+		return errors.New("macOSSetup is nil")
+	}
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
 	// such as gitops will fail to access it).
@@ -273,6 +298,19 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 
 		if hasCustomConfigurationWebURL {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+		}
+	}
+	if payload.ManualAgentInstall != nil && *payload.ManualAgentInstall {
+		// if macOSSetup.BootstrapPackage.Valid && macOSSetup.BootstrapPackage.Value == "" {
+		// 	return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install",
+		// 		fleet.MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg))
+		// }
+		if macOSSetup.Script.Valid && macOSSetup.Script.Value != "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallScriptErrMsg))
+		}
+		if macOSSetup.Software.Valid && len(macOSSetup.Software.Value) > 0 {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.manual_agent_install",
+				fleet.MDMMacOSSetupManualAgentInstallSoftwareErrMsg))
 		}
 	}
 
