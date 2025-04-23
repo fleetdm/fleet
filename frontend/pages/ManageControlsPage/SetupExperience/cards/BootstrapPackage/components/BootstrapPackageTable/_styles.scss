@@ -1,7 +1,4 @@
 .bootstrap-package-table {
-  padding: $pad-xxlarge;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius;
   // keep a minimum height to prevent UI jumping when the table data is done
   // loading.
   min-height: 191px;

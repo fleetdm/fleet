@@ -64,6 +64,8 @@ interface IDataTableProps {
   selectedDropdownFilter?: string;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
+  /** Set to `true` to not display the footer section of the table */
+  hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
@@ -110,6 +112,7 @@ const DataTable = ({
   searchQueryColumn,
   selectedDropdownFilter,
   persistSelectedRows = false,
+  hideFooter = false,
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
@@ -594,34 +597,36 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      <div className={`${baseClass}__footer`}>
-        {renderTableHelpText && !!rows?.length && (
-          <div className={`${baseClass}__table-help-text`}>
-            {renderTableHelpText()}
-          </div>
-        )}
-        {isClientSidePagination ? (
-          <Pagination
-            disablePrev={!canPreviousPage}
-            disableNext={!canNextPage}
-            onPrevPage={() => {
-              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-              onClientSidePaginationChange &&
-                onClientSidePaginationChange(pageIndex - 1);
-              previousPage();
-            }}
-            onNextPage={() => {
-              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-              onClientSidePaginationChange &&
-                onClientSidePaginationChange(pageIndex + 1);
-              nextPage();
-            }}
-            hidePagination={!canPreviousPage && !canNextPage}
-          />
-        ) : (
-          renderPagination && renderPagination()
-        )}
-      </div>
+      {!hideFooter && (
+        <div className={`${baseClass}__footer`}>
+          {renderTableHelpText && !!rows?.length && (
+            <div className={`${baseClass}__table-help-text`}>
+              {renderTableHelpText()}
+            </div>
+          )}
+          {isClientSidePagination ? (
+            <Pagination
+              disablePrev={!canPreviousPage}
+              disableNext={!canNextPage}
+              onPrevPage={() => {
+                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex - 1);
+                previousPage();
+              }}
+              onNextPage={() => {
+                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex + 1);
+                nextPage();
+              }}
+              hidePagination={!canPreviousPage && !canNextPage}
+            />
+          ) : (
+            renderPagination && renderPagination()
+          )}
+        </div>
+      )}
     </div>
   );
 };
