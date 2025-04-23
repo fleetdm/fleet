@@ -121,6 +121,18 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 3. Select **Upload** and choose your bootstrap package.
 
+### Install Fleet's agent (fleetd) with custom configuration
+
+By default, Fleet installs the fleetd agent during automatic enrollment (ADE) on macOS hosts. If you need to customize the fleetd configuration, follow these steps to install it manually using a bootstrap package.
+
+First, generate your fleetd package by running the command `fleetctl package`, ensuring you do **not** use the `--use-system-configuration` flag. 
+
+Next, incorporate the generated fleetd package into your bootstrap package and add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/1df3270545a721e92fceefaaa9d9585958de88e8/orbit/pkg/packaging/macos_templates.go#L96) with the required options.
+
+Then, navigate to **Controls > Setup Experience > Bootstrap package** in the Fleet interface and upload your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
+
+Once the option to manually install Fleet's agent is checked, the **Install software** and **Run script** options will be disabled.
+
 ## macOS Setup Assistant
 
 When an end user unboxes their new Mac, or starts up a freshly wiped Mac, they're presented with the macOS Setup Assistant. Here they see panes that allow them to configure accessibility, appearance, and more.
