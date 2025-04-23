@@ -50,7 +50,7 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 3. Select **Turn off Android MDM**
 
 When you turn off Android MDM, your Android Enterprise will be deleted, and MDM will be turned off
-on all hosts.
+on all hosts. The work profile from all BYOD hosts is deleted.
 
 
 <meta name="articleTitle" value="Android MDM setup">
