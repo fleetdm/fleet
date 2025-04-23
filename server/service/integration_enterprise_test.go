@@ -6619,6 +6619,10 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
