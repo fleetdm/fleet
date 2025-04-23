@@ -342,7 +342,7 @@ func (ds *Datastore) DeleteScimUser(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// trigger resend of profiles that depend on this SCIM user (must be done
 		// _before_ deleting the scim user so that we can find the affected hosts)
-		err := triggerResendProfilesForIDPUserChange(ctx, tx, id)
+		err := triggerResendProfilesForIDPUserDeleted(ctx, tx, id)
 		if err != nil {
 			return err
 		}
@@ -839,12 +839,11 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 // DeleteScimGroup deletes a SCIM group from the database
 func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// get the users that were part of this group
-		const getAssociatedUserIDsQuery = `SELECT scim_user_id FROM scim_user_group WHERE group_id = ?`
-		var deletedGroupUsers []uint
-		err := sqlx.SelectContext(ctx, tx, &deletedGroupUsers, getAssociatedUserIDsQuery, id)
+		// trigger resend of profiles that depend on this SCIM group (must be done
+		// _before_ deleting the scim group so that we can find the affected hosts)
+		err := triggerResendProfilesForIDPGroupChange(ctx, tx, id)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get scim group users")
+			return err
 		}
 
 		// Delete the group
@@ -863,14 +862,6 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 			return notFound("scim group").WithID(id)
 		}
 
-		// resend profiles that depend on the deleted group for hosts that are
-		// associated with users that were part of this group
-		if len(deletedGroupUsers) > 0 {
-			err = triggerResendProfilesForIDPGroupChangeByUsers(ctx, tx, deletedGroupUsers)
-			if err != nil {
-				return err
-			}
-		}
 		return nil
 	})
 }
@@ -1100,6 +1091,15 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		[]string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart})
 }
 
+func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) error {
+	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, deletedScimUserID)
+	if err != nil {
+		return err
+	}
+	return triggerResendProfilesUsingVariables(ctx, tx, hostIDs,
+		[]string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups})
+}
+
 func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, updatedScimGroupID uint) error {
 	// get the updated list of users for that group
 	userIDs, err := getScimGroupUsers(ctx, tx, updatedScimGroupID)
@@ -1169,7 +1169,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN hosts h
 			ON h.uuid = hmap.host_uuid
 		JOIN mdm_apple_configuration_profiles macp
-			ON macp.team_id = h.team_id OR (macp.team_id IS NULL AND h.team_id IS NULL) AND
+			ON macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL) AND
 				 macp.profile_uuid = hmap.profile_uuid
 		JOIN mdm_configuration_profile_variables mcpv
 			ON mcpv.apple_profile_uuid = macp.profile_uuid
