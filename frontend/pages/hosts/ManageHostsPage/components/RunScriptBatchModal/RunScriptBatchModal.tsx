@@ -1,17 +1,18 @@
 import React, { useState } from "react";
+import { useQuery } from "react-query";
 
 import { IScript } from "interfaces/script";
 
 import Modal from "components/Modal";
 
-import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
-import { useQuery } from "react-query";
 import scriptAPI, {
   IListScriptsQueryKey,
   IScriptsResponse,
 } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Spinner from "components/Spinner";
+
+import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 
 const baseClass = "run-script-batch-modal";
 
