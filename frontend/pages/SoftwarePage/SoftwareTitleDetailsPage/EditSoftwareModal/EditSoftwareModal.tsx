@@ -17,8 +17,9 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
-import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
+import FileProgressModal from "components/FileProgressModal";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
@@ -33,7 +34,6 @@ import {
 
 import { getErrorMessage } from "./helpers";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 const baseClass = "edit-software-modal";
 
