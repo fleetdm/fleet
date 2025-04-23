@@ -15,6 +15,7 @@ import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeletePackageModal from "./components/DeletePackageModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 
 const baseClass = "bootstrap-package";
 
@@ -66,37 +67,37 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   const noPackageUploaded =
     (error && error.status === 404) || !bootstrapMetadata;
 
+  const renderBootstrapView = () => {
+    const bootstrapPackageView = noPackageUploaded ? (
+      <PackageUploader currentTeamId={currentTeamId} onUpload={onUpload} />
+    ) : (
+      <UploadedPackageView
+        bootstrapPackage={bootstrapMetadata}
+        currentTeamId={currentTeamId}
+        onDelete={() => setShowDeletePackageModal(true)}
+      />
+    );
+
+    return (
+      <SetupExperienceContentContainer className={`${baseClass}__content`}>
+        <div className={`${baseClass}__uploader-container`}>
+          {bootstrapPackageView}
+          <BootstrapAdvancedOptions
+            enableInstallManually={!noPackageUploaded}
+            defaultInstallManually={false}
+          />
+        </div>
+        <div className={`${baseClass}__preview-container`}>
+          <BootstrapPackagePreview />
+        </div>
+      </SetupExperienceContentContainer>
+    );
+  };
+
   return (
     <section className={baseClass}>
       <SectionHeader title="Bootstrap package" />
-      {isLoading ? (
-        <Spinner />
-      ) : (
-        <SetupExperienceContentContainer className={`${baseClass}__content`}>
-          {noPackageUploaded ? (
-            <>
-              <PackageUploader
-                currentTeamId={currentTeamId}
-                onUpload={onUpload}
-              />
-              <div className={`${baseClass}__preview-container`}>
-                <BootstrapPackagePreview />
-              </div>
-            </>
-          ) : (
-            <>
-              <UploadedPackageView
-                bootstrapPackage={bootstrapMetadata}
-                currentTeamId={currentTeamId}
-                onDelete={() => setShowDeletePackageModal(true)}
-              />
-              <div className={`${baseClass}__preview-container`}>
-                <BootstrapPackagePreview />
-              </div>
-            </>
-          )}
-        </SetupExperienceContentContainer>
-      )}
+      {isLoading ? <Spinner /> : renderBootstrapView()}
       {showDeletePackageModal && (
         <DeletePackageModal
           onDelete={onDelete}

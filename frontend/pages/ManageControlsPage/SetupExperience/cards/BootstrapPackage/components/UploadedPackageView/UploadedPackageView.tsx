@@ -7,6 +7,7 @@ import UploadList from "pages/ManageControlsPage/components/UploadList";
 
 import BootstrapPackageListItem from "../BootstrapPackageListItem";
 import BootstrapPackageTable from "../BootstrapPackageTable/BootstrapPackageTable";
+import BootstrapAdvancedOptions from "../BootstrapAdvancedOptions";
 
 const baseClass = "uploaded-package-view";
 
