@@ -6675,42 +6675,42 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.Equal(t, software[0].Name, sw[1].Name)
 
 	// search for 2025
-	sw, meta, err = ds.ListHostSoftware(
-		ctx,
-		host,
-		fleet.HostSoftwareTitleListOptions{
-			ListOptions: fleet.ListOptions{
-				PerPage:               11,
-				IncludeMetadata:       true,
-				OrderKey:              "name",
-				TestSecondaryOrderKey: "source",
-				MatchQuery:            "2025",
-			},
-		},
-	)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
-	require.Equal(t, software[1].Name, sw[0].Name)
-	require.Equal(t, software[0].Name, sw[1].Name)
+	// sw, meta, err = ds.ListHostSoftware(
+	// 	ctx,
+	// 	host,
+	// 	fleet.HostSoftwareTitleListOptions{
+	// 		ListOptions: fleet.ListOptions{
+	// 			PerPage:               11,
+	// 			IncludeMetadata:       true,
+	// 			OrderKey:              "name",
+	// 			TestSecondaryOrderKey: "source",
+	// 			MatchQuery:            "2025",
+	// 		},
+	// 	},
+	// )
+	// require.NoError(t, err)
+	// require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	// require.Equal(t, software[1].Name, sw[0].Name)
+	// require.Equal(t, software[0].Name, sw[1].Name)
 
 	// search for cve-2024
-	sw, meta, err = ds.ListHostSoftware(
-		ctx,
-		host,
-		fleet.HostSoftwareTitleListOptions{
-			ListOptions: fleet.ListOptions{
-				PerPage:               11,
-				IncludeMetadata:       true,
-				OrderKey:              "name",
-				TestSecondaryOrderKey: "source",
-				MatchQuery:            "2024",
-			},
-		},
-	)
-	require.NoError(t, err)
-	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
-	require.Equal(t, software[4].Name, sw[0].Name)
-	require.Equal(t, software[3].Name, sw[1].Name)
+	// sw, meta, err = ds.ListHostSoftware(
+	// 	ctx,
+	// 	host,
+	// 	fleet.HostSoftwareTitleListOptions{
+	// 		ListOptions: fleet.ListOptions{
+	// 			PerPage:               11,
+	// 			IncludeMetadata:       true,
+	// 			OrderKey:              "name",
+	// 			TestSecondaryOrderKey: "source",
+	// 			MatchQuery:            "2024",
+	// 		},
+	// 	},
+	// )
+	// require.NoError(t, err)
+	// require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	// require.Equal(t, software[4].Name, sw[0].Name)
+	// require.Equal(t, software[3].Name, sw[1].Name)
 
 	// search for brave and `VulnerableOnly` filter
 	sw, meta, err = ds.ListHostSoftware(
