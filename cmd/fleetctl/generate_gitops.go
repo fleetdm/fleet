@@ -49,6 +49,7 @@ type client interface {
 	GetScriptContents(scriptID uint) ([]byte, error)
 	GetProfileContents(profileID string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
+	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -666,8 +667,32 @@ func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) 
 	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) ([]map[string]interface{}, error) {
+	query := ""
+	if teamId != 0 {
+		query = fmt.Sprintf("team_id=%d", teamId)
+	}
+	software, err := cmd.Client.ListSoftwareTitles(query)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
+		return nil, err
+	}
+	result := make([]map[string]interface{}, len(software))
+	for i, sw := range software {
+		versions := make([]string, len(sw.Versions))
+		for j, version := range sw.Versions {
+			versions[j] = version.Version
+		}
+		pkgName := ""
+		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" {
+			pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
+		}
+		comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
+		result[i] = map[string]interface{}{
+			"hash_sha256": *sw.HashSHA256 + " " + comment,
+		}
+	}
+	return result, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateLabels() (map[string]interface{}, error) {

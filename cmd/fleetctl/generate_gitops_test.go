@@ -161,6 +161,46 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 	return nil, fmt.Errorf("team not found")
 }
 
+func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
+	switch query {
+	case "":
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:   1,
+				Name: "Global Software",
+				Versions: []fleet.SoftwareVersion{{
+					ID:      1,
+					Version: "1.0.0",
+				}, {
+					ID:      2,
+					Version: "2.0.0",
+				}},
+				HashSHA256: ptr.String("global-software-hash"),
+			},
+		}, nil
+	case "team_id=1":
+		return []fleet.SoftwareTitleListResult{
+			{
+				ID:   1,
+				Name: "Team Software",
+				Versions: []fleet.SoftwareVersion{{
+					ID:      3,
+					Version: "5.6.7",
+				}, {
+					ID:      4,
+					Version: "8.9.10",
+				}},
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name: "team-software.pkg",
+				},
+				HashSHA256: ptr.String("team-software-hash"),
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unexpected query: %s", query)
+	}
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
@@ -289,12 +329,12 @@ func TestGenerateControls(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalControls.yaml")
 	require.NoError(t, err)
-	var expectedAppConfig map[string]interface{}
-	err = yaml.Unmarshal(b, &expectedAppConfig)
+	var expectedControls map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedAppConfig, controls)
+	require.Equal(t, expectedControls, controls)
 
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
@@ -310,9 +350,63 @@ func TestGenerateControls(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamControls.yaml")
 	require.NoError(t, err)
-	err = yaml.Unmarshal(b, &expectedAppConfig)
+	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedAppConfig, controls)
+	require.Equal(t, expectedControls, controls)
+}
+
+func TestSoftware(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+	}
+
+	softwareRaw, err := cmd.generateSoftware("default.yml", 0)
+	require.NoError(t, err)
+	require.NotNil(t, softwareRaw)
+	var software []map[string]interface{}
+	b, err := yaml.Marshal(softwareRaw)
+	fmt.Println("software raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &software)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalSoftware.yaml")
+	require.NoError(t, err)
+	var expectedSoftware []map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedSoftware)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedSoftware, software)
+
+	// Generate software for a team.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	softwareRaw, err = cmd.generateSoftware("team.yml", 1)
+	require.NoError(t, err)
+	require.NotNil(t, softwareRaw)
+	b, err = yaml.Marshal(softwareRaw)
+	fmt.Println("software raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &software)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSoftware.yaml")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &expectedSoftware)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedSoftware, software)
 }
