@@ -627,21 +627,23 @@ func (ts *withServer) updateSoftwareInstaller(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
-
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// add the software field
-	fw, err := w.CreateFormFile("software", payload.Filename)
-	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
-	require.NoError(t, err)
-	require.NotZero(t, n)
+	if payload.Filename != "" {
+		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+		require.NoError(t, err)
+		defer tfr.Close()
+
+		payload.InstallerFile = tfr
+
+		// add the software field
+		fw, err := w.CreateFormFile("software", payload.Filename)
+		require.NoError(t, err)
+		n, err := io.Copy(fw, payload.InstallerFile)
+		require.NoError(t, err)
+		require.NotZero(t, n)
+	}
 
 	// add the team_id field
 	var tmID uint

@@ -145,7 +145,11 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
-	Source           string               `json:"-" db:"source"`
+	// Source is the osquery source for this software.
+	Source string `json:"-" db:"source"`
+	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
+	// "Browsers", etc.
+	Categories []string `json:"categories"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.

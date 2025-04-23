@@ -93,8 +93,10 @@ type VPPAppStoreApp struct {
 	// BundleIdentifier is the bundle identifier for this app.
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 	// AddedAt is when the VPP app was added to the team
-	AddedAt    time.Time `db:"added_at" json:"created_at"`
-	Categories []string  `json:"categories"`
+	AddedAt time.Time `db:"added_at" json:"created_at"`
+	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
+	// "Browsers", etc.
+	Categories []string `json:"categories"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

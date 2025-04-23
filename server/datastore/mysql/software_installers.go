@@ -556,7 +556,6 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			}
 		}
 
-		fmt.Printf("in update payload.CategoryIDs: %v\n", payload.CategoryIDs)
 		if payload.CategoryIDs != nil {
 			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
@@ -705,6 +704,13 @@ WHERE
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
+
+	categories, err := ds.GetCategoriesForSoftwareInstallers(ctx, []uint{dest.InstallerID}, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
+	}
+
+	dest.Categories = categories[dest.InstallerID]
 
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
