@@ -7386,7 +7386,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// Set not_valid_before to 31 days in the past the validity window becomes 60 days, of which there are
 		// 29 left which should trigger the first renewal scenario(window > 30 days, renew when < 30
 		// days left)
-		notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
+		notValidBefore := time.Now().Add(-31 * 24 * time.Hour).UTC().Round(time.Microsecond)
 		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
 			{
 				HostUUID:             host.UUID,
@@ -7444,7 +7444,6 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// Set not_valid_before to 15 days in the past and not_valid_after to 14 days in the future so the
 		// validity window becomes 29 days, of which there are 14 left which should trigger the second
 		// renewal scenario(window < 30 days, renew when there is half that time left)
-
 		notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
 		notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
 		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
