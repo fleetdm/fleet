@@ -2003,7 +2003,7 @@ CREATE TABLE `software_categories` (
   UNIQUE KEY `idx_software_categories_name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `software_categories` VALUES (1,'Productivity','2025-04-23 20:33:22.093225','2025-04-23 20:33:22.093225'),(2,'Browser','2025-04-23 20:33:22.093225','2025-04-23 20:33:22.093225'),(3,'Communication','2025-04-23 20:33:22.093225','2025-04-23 20:33:22.093225'),(4,'Developer tools','2025-04-23 20:33:22.093225','2025-04-23 20:33:22.093225');
+INSERT INTO `software_categories` VALUES (1,'Productivity','2025-04-23 23:09:24.527556','2025-04-23 23:09:24.527556'),(2,'Browser','2025-04-23 23:09:24.527556','2025-04-23 23:09:24.527556'),(3,'Communication','2025-04-23 23:09:24.527556','2025-04-23 23:09:24.527556'),(4,'Developer tools','2025-04-23 23:09:24.527556','2025-04-23 23:09:24.527556');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_cpe` (
