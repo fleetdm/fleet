@@ -173,6 +173,9 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 // ScimUserByHostID retrieves a SCIM user associated with a host ID
 func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 	user, err := getScimUserLiteByHostID(ctx, ds.reader(ctx), hostID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Get the user's emails
 	emails, err := ds.getScimUserEmails(ctx, user.ID)
@@ -1151,9 +1154,9 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	const updateStatusQuery = `
 	UPDATE
 		host_mdm_apple_profiles hmap
-		JOIN hosts h 
+		JOIN hosts h
 			ON h.uuid = hmap.host_uuid
-		JOIN mdm_apple_configuration_profiles macp 
+		JOIN mdm_apple_configuration_profiles macp
 			ON macp.team_id = h.team_id OR (macp.team_id IS NULL AND h.team_id IS NULL) AND
 				 macp.profile_uuid = hmap.profile_uuid
 		JOIN mdm_configuration_profile_variables mcpv
@@ -1162,7 +1165,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 			ON mcpv.fleet_variable_id = fv.id
 	SET
 		hmap.status = NULL
-	WHERE 
+	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
 		hmap.status IS NOT NULL AND
