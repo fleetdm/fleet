@@ -21,60 +21,64 @@ export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
 }
 interface IPaginatedListProps<TItem> {
-  // Function to fetch one page of data.
-  // Parents should memoize this function with useCallback() so that
-  // it is only called when needed.
+  /** Function to fetch one page of data.
+  Parents should memoize this function with useCallback() so that
+  it is only called when needed. */
   fetchPage: (pageNumber: number) => Promise<TItem[]>;
-  // Function to fetch the total # of items.
-  // Parents should memoize this function with useCallback() so that
-  // it is only called when needed.
+  /** if the parent already knows the number of items. If `fetchCount` is also defined, it will be
+  called and its result used to replace count in local state. */
+  count?: number;
+  /** If the parent doens't alreayd know the numberof items, use this function to fetch the total # of items.
+  Parents should memoize this function with useCallback() so that
+  it is only called when needed. */
   fetchCount?: () => Promise<number>;
-  // UID property in an item. Defaults to `id`.
+  /** UID property in an item. Defaults to `id`. */
   idKey?: string;
-  // Property to use as an item's label. Defaults to `name`.
+  /** Property to use as an item's label. Defaults to `name`. */
   labelKey?: string;
-  // How to determine whether an item is selected.
-  // If string, a key in an item whose truthiness will be checked.
-  // if function, a function that given an item, returns a boolean.
-  // *required in conjunction with `useCheckBoxes`
+  /** How to determine whether an item is selected.
+   If string, a key in an item whose truthiness will be checked.
+   if function, a function that given an item, returns a boolean.
+   *required in conjunction with `useCheckBoxes` */
   isSelected?: string | ((item: TItem) => boolean);
-  // Custom function to render the label for an item.
+  /** Custom function to render the label for an item. */
   renderItemLabel?: (item: TItem) => ReactElement | null;
-  // Custom function to render extra markup (besides the label) in an item row.
+  /** Custom function to render extra markup (besides the label) in an item row. */
   renderItemRow?: (
     item: TItem,
-    // A callback function that the extra markup logic can call to indicate a change
-    // to the item, for example if a dropdown is changed.
+    /** A callback function that the extra markup logic can call to indicate a change
+    to the item, for example if a dropdown is changed. */
     onChange: (item: TItem) => void
   ) => ReactElement | false | null | undefined;
-  // A function to call when an item's "primary action" is triggered, e.g., toggle a policy or run a
-  // script. `renderItemRow` may contain logic to carry out additional actions, e.g. opening a model
-  // to preview the item, but not triggering any action with that item.
-  // Parents can use this to change whatever item metadata is needed to toggle
-  // the value indicated by `isSelected`.
-  onFireItemPrimaryAction: (item: TItem) => TItem;
-  // The size of the page to fetch and show.
+  /** Parents can use this to change whatever item metadata is needed to toggle
+  the value indicated by `isSelected`. */
+  onClickRow: (item: TItem) => TItem;
+  /** whether clicking a row should set the item as dirty. Default true. */
+  setDirtyOnClickRow?: boolean;
+  /** The size of the page to fetch and show. */
   pageSize?: number;
-  // An optional header component.
+  /** An optional header component. */
   heading?: JSX.Element;
-  // A function to call when the list of dirty items changes.
+  /** A function to call when the list of dirty items changes. */
   onUpdate?: (changedItems: TItem[]) => void;
-  // Whether the list should be disabled.
+  /** Whether the list should be disabled. */
   disabled?: boolean;
-  // also requires an `isSelected` function be passed in for correct functionality
+  /** also requires an `isSelected` function be passed in for correct functionality */
   useCheckBoxes?: boolean;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
   {
     fetchPage,
+    count,
     fetchCount,
     idKey: _idKey,
     labelKey: _labelKey,
     pageSize: _pageSize,
     renderItemLabel,
     renderItemRow,
-    onFireItemPrimaryAction,
+    onClickRow,
+    setDirtyOnClickRow = true,
     onUpdate,
     isSelected,
     disabled = false,
@@ -87,8 +91,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const [currentPage, setCurrentPage] = useState(0);
   // The set of items fetched via `fetchPage`.
   const [items, setItems] = useState<TItem[]>([]);
-  // The total # of items fetched via `fetchCount`.
-  const [totalItems, setTotalItems] = useState(0);
+  // The total # of items passed in from parent or fetched via `fetchCount`.
+  const [totalItems, setTotalItems] = useState(count || 0);
   // The set of items that have been changed in some way.
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
@@ -221,12 +225,12 @@ function PaginatedListInner<TItem extends Record<string, any>>(
                 // feature calls for setting a script as "run" when it's "run" button is clicked,
                 // not when the row is clicked, this needs to be made more flexible
                 onClick={() => {
-                  // When entity's primary action is fired, set item as dirty.
-                  // The parent is responsible for actually updating item properties via onToggleItem().
-                  setDirtyItems({
-                    ...dirtyItems,
-                    [item[idKey]]: onFireItemPrimaryAction(item),
-                  });
+                  const clickedItem = onClickRow(item);
+                  if (setDirtyOnClickRow)
+                    setDirtyItems({
+                      ...dirtyItems,
+                      [item[idKey]]: clickedItem,
+                    });
                 }}
               >
                 {useCheckBoxes && isSelected && (

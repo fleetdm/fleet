@@ -10,7 +10,7 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 import React, { useState, useCallback } from "react";
-import { useQueryClient } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import ActionButton from "components/TableContainer/DataTable/ActionButton";
 import Button from "components/buttons/Button";
@@ -18,10 +18,15 @@ import Icon from "components/Icon";
 
 const baseClass = "run-script-batch-paginated-list";
 
+interface IPaginatedListScript extends IScript {
+  hasRun?: boolean;
+}
+
 interface IRunScriptBatchPaginatedList {
-  onRunScript: (script: IScript) => Promise<void>;
+  onRunScript: (script: IPaginatedListScript) => Promise<void>;
   isUpdating: boolean;
   teamId?: number;
+  scriptCount: number;
 }
 
 const PAGE_SIZE = 6;
@@ -30,6 +35,7 @@ const RunScriptBatchPaginatedList = ({
   onRunScript: _onRunScript,
   isUpdating,
   teamId,
+  scriptCount,
 }: IRunScriptBatchPaginatedList) => {
   // const fetchPage = useCallback((pageNumber: number) => {
   // TODO - Scott's implementation on PoliciesPaginatedList uses UseQuery underlying query client,
@@ -64,57 +70,75 @@ const RunScriptBatchPaginatedList = ({
       return fetchPromise.then(({ scripts, meta }: IScriptsResponse) => {
         // TODO - use `meta` to determine enable/disable of next/previous buttons? currently
         // calculated within paginatedlist
-        return scripts;
+        return scripts || [];
       });
     },
     [queryClient, teamId]
   );
 
   const onRunScript = useCallback(
-    (script: IScript) => {
+    (
+      script: IPaginatedListScript,
+      onChange: (script: IPaginatedListScript) => void
+    ) => {
       _onRunScript(script);
       // regardless of result of async trigger of batch script run, consider script "dirty" and
       // display "run again"
+      onChange({ hasRun: true, ...script });
       return script;
     },
     [_onRunScript]
   );
 
-  const onClickScriptRow = useCallback((script: IScript) => {
+  const onClickScriptRow = useCallback((script: IPaginatedListScript) => {
     // TODO - open script preview modal, maintain current modal state, incorporate into `renderItemRow`
   }, []);
 
-  const toggleScriptPreview = useCallback((script: IScript) => {
-    // TODO
+  const toggleScriptPreview = useCallback((script: IPaginatedListScript) => {
+    // TODO - call for script details, render in preview modal
+    alert("script contents");
+    return script;
   }, []);
 
-  const renderScriptRow = (script: IScript) => (
-    // TODO - stop propagarion?
-    // TODO -change text and icon after ran once
-    <>Run Script</>
-    // <span onClick={() => toggleScriptPreview(script)}>
-    //   <>
-    //     <span>{script.name}</span>
-    //     <Button
-    //       onClick={() => {
-    //         // TODO - this will somehow need to set the paginatedlist-level dirty items, OR that
-    //         // entire state management needs to happen here, not inside the list.
-    //       }}
-    //     >
-    //       Run script
-    //       <Icon name="run" />
-    //     </Button>
-    //   </>
-    // </span>
+  const renderScriptRow = (
+    script: IPaginatedListScript,
+    onChange: (script: IPaginatedListScript) => void
+  ) => (
+    <>
+      <span>{script.name}</span>
+      {/* TODO - only show button on over */}
+      <Button
+        variant="text-icon"
+        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+          e.stopPropagation();
+          onRunScript(script, onChange);
+        }}
+      >
+        {script.hasRun ? (
+          <>
+            Run again
+            <Icon name="refresh" />
+          </>
+        ) : (
+          <>
+            Run script
+            <Icon name="run" />
+          </>
+        )}
+      </Button>
+    </>
   );
 
+  // TODO - implement grayed overlay with Spinner when `isUpdating`
   return (
     <div className={`${baseClass}`}>
-      <PaginatedList<IScript>
+      <PaginatedList<IPaginatedListScript>
         renderItemRow={renderScriptRow}
+        count={scriptCount}
         fetchPage={fetchPage}
-        // TODO - use dirtyItems to determine if script has been run
-        onFireItemPrimaryAction={onRunScript}
+        onClickRow={toggleScriptPreview}
+        // TODO - more elegant way?
+        setDirtyOnClickRow={false}
         pageSize={PAGE_SIZE}
         disabled={isUpdating}
         // TODO - heading prop, use for ordering by name?

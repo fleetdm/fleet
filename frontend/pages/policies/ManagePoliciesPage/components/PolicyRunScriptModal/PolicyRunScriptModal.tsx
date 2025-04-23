@@ -66,7 +66,7 @@ const PolicyRunScriptModal = ({
     ({ queryKey: [queryKey] }) =>
       scriptsAPI.getScripts(omit(queryKey, "scope")),
     {
-      select: (data) => data.scripts,
+      select: (data) => data.scripts || [],
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
   );

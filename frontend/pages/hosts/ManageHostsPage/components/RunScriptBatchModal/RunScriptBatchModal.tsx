@@ -5,6 +5,13 @@ import { IScript } from "interfaces/script";
 import Modal from "components/Modal";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
+import { useQuery } from "react-query";
+import scriptAPI, {
+  IListScriptsQueryKey,
+  IScriptsResponse,
+} from "services/entities/scripts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import Spinner from "components/Spinner";
 
 const baseClass = "run-script-batch-modal";
 
@@ -23,14 +30,39 @@ const RunScriptBatchModal = ({
   isUpdating,
   teamId,
 }: IRunScriptBatchModal) => {
-  return (
-    <Modal
-      title="Run script"
-      onExit={onCancel}
-      onEnter={onCancel}
-      className={`${baseClass}`}
-      isLoading={isUpdating}
-    >
+  // just used to get total number of scripts, could be optimized by implementing a dedicated scriptsCount endpoint
+  const { data: scripts } = useQuery<
+    IScriptsResponse,
+    Error,
+    IScript[],
+    IListScriptsQueryKey[]
+  >(
+    [
+      {
+        scope: "scripts",
+        team_id: teamId,
+      },
+    ],
+    ({ queryKey }) => {
+      return scriptAPI.getScripts(queryKey[0]);
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      keepPreviousData: true,
+      select: (data) => data.scripts || [],
+    }
+  );
+
+  const renderModalContent = () => {
+    // loading
+    if (scripts === undefined) {
+      return <Spinner />;
+    }
+    if (!scripts.length) {
+      // TODO - empty state, not designed
+      return <span>TODO - no scripts empty state</span>;
+    }
+    return (
       <>
         <p>
           Will run on <b>{selectedHostsCount} hosts</b>. You can see individual
@@ -40,8 +72,21 @@ const RunScriptBatchModal = ({
           onRunScript={onRunScript}
           isUpdating={isUpdating}
           teamId={teamId}
+          scriptCount={scripts.length}
         />
       </>
+    );
+  };
+
+  return (
+    <Modal
+      title="Run script"
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={`${baseClass}`}
+      isLoading={isUpdating}
+    >
+      {renderModalContent()}
     </Modal>
   );
 };

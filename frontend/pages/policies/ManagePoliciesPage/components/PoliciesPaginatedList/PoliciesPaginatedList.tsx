@@ -203,7 +203,7 @@ function PoliciesPaginatedList(
           fetchPage={fetchPage}
           fetchCount={fetchCount}
           isSelected={isSelected}
-          onFireItemPrimaryAction={onToggleItem}
+          onClickRow={onToggleItem}
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}

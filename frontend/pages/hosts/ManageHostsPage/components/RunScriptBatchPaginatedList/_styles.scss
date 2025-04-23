@@ -1,3 +1,6 @@
 .run-script-batch-paginated-list {
-
+  .paginated-list__row {
+    display: flex;
+    justify-content: space-between;
+  }
 }
