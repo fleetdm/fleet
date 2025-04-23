@@ -13,10 +13,9 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
 import FileDetails from "components/FileDetails";
-import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import {
@@ -103,6 +102,7 @@ export interface ISoftwareVppFormData {
   customTarget: string;
   labelTargets: Record<string, boolean>;
   selectedApp?: IVppApp | null;
+  categories: string[];
 }
 
 export interface IFormValidation {
@@ -117,6 +117,7 @@ interface ISoftwareVppFormProps {
   onSubmit: (formData: ISoftwareVppFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
+  onClickPreviewEndUserExperience: () => void;
 }
 
 const SoftwareVppForm = ({
@@ -126,6 +127,7 @@ const SoftwareVppForm = ({
   onSubmit,
   isLoading = false,
   onCancel,
+  onClickPreviewEndUserExperience,
 }: ISoftwareVppFormProps) => {
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
@@ -138,6 +140,7 @@ const SoftwareVppForm = ({
           targetType: getTargetType(softwareVppForEdit),
           customTarget: getCustomTarget(softwareVppForEdit),
           labelTargets: generateSelectedLabels(softwareVppForEdit),
+          categories: softwareVppForEdit.categories || [],
         }
       : {
           selectedApp: null,
@@ -146,6 +149,7 @@ const SoftwareVppForm = ({
           targetType: "All hosts",
           customTarget: "labelsIncludeAny",
           labelTargets: {},
+          categories: [],
         }
   );
 
@@ -180,6 +184,34 @@ const SoftwareVppForm = ({
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
+  };
+
+  const onSelectCategory = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    let newCategories: string[];
+
+    if (value) {
+      // Add the name if not already present
+      newCategories = formData.categories.includes(name)
+        ? formData.categories
+        : [...formData.categories, name];
+    } else {
+      // Remove the name if present
+      newCategories = formData.categories.filter((cat) => cat !== name);
+    }
+
+    const newData = {
+      ...formData,
+      categories: newCategories,
+    };
+
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const onToggleAutomaticInstall = (value: boolean) => {
@@ -229,7 +261,11 @@ const SoftwareVppForm = ({
                 formData={formData}
                 onToggleAutomaticInstall={onToggleAutomaticInstall}
                 onToggleSelfService={onToggleSelfServiceCheckbox}
+                onSelectCategory={onSelectCategory}
                 isEditingSoftware
+                onClickPreviewEndUserExperience={
+                  onClickPreviewEndUserExperience
+                }
               />
             </Card>
             <Card paddingSize="medium" borderRadiusSize="medium">
@@ -279,6 +315,10 @@ const SoftwareVppForm = ({
                 formData={formData}
                 onToggleAutomaticInstall={onToggleAutomaticInstall}
                 onToggleSelfService={onToggleSelfServiceCheckbox}
+                onSelectCategory={onSelectCategory}
+                onClickPreviewEndUserExperience={
+                  onClickPreviewEndUserExperience
+                }
               />
             </Card>
             <Card paddingSize="medium" borderRadiusSize="large">

@@ -23,10 +23,9 @@ import {
 import TargetLabelSelector from "components/TargetLabelSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
-import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
-
 import { createTooltipContent, generateFormValidation } from "./helpers";
 
 export const baseClass = "package-form";
@@ -42,6 +41,7 @@ export interface IPackageFormData {
   customTarget: string;
   labelTargets: Record<string, boolean>;
   automaticInstall: boolean; // Used on add but not edit
+  categories: string[];
 }
 
 export interface IPackageFormValidation {
@@ -59,6 +59,7 @@ interface IPackageFormProps {
   onCancel: () => void;
   onSubmit: (formData: IPackageFormData) => void;
   onClickShowSchema?: () => void;
+  onClickPreviewEndUserExperience: () => void;
   isEditingSoftware?: boolean;
   defaultSoftware?: any; // TODO
   defaultInstallScript?: string;
@@ -66,6 +67,7 @@ interface IPackageFormProps {
   defaultPostInstallScript?: string;
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
+  defaultCategories?: string[];
   className?: string;
   /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -79,6 +81,7 @@ const PackageForm = ({
   onClickShowSchema,
   onCancel,
   onSubmit,
+  onClickPreviewEndUserExperience,
   isEditingSoftware = false,
   defaultSoftware,
   defaultInstallScript,
@@ -86,6 +89,7 @@ const PackageForm = ({
   defaultPostInstallScript,
   defaultUninstallScript,
   defaultSelfService,
+  defaultCategories,
   className,
   gitopsCompatible = false,
 }: IPackageFormProps) => {
@@ -104,6 +108,7 @@ const PackageForm = ({
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
     automaticInstall: false,
+    categories: defaultCategories || [],
   };
 
   const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
@@ -193,6 +198,34 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectCategory = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    let newCategories: string[];
+
+    if (value) {
+      // Add the name if not already present
+      newCategories = formData.categories.includes(name)
+        ? formData.categories
+        : [...formData.categories, name];
+    } else {
+      // Remove the name if present
+      newCategories = formData.categories.filter((cat) => cat !== name);
+    }
+
+    const newData = {
+      ...formData,
+      categories: newCategories,
+    };
+
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const onSelectTargetType = (value: string) => {
     const newData = { ...formData, targetType: value };
     setFormData(newData);
@@ -271,9 +304,13 @@ const PackageForm = ({
                 formData={formData}
                 onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
                 onToggleSelfService={onToggleSelfServiceCheckbox}
+                onSelectCategory={onSelectCategory}
                 isCustomPackage
                 isEditingSoftware={isEditingSoftware}
                 isExePackage={isExePackage}
+                onClickPreviewEndUserExperience={
+                  onClickPreviewEndUserExperience
+                }
               />
             </Card>
             <Card

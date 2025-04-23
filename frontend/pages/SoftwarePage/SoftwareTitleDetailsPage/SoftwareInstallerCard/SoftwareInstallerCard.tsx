@@ -27,10 +27,12 @@ import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
-import SoftwareDetailsWidget from "pages/SoftwarePage/components/SoftwareDetailsWidget";
+import SoftwareDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/SoftwareDetailsWidget";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
+
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
   SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
