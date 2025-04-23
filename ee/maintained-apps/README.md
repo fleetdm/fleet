@@ -74,7 +74,7 @@ Fleet tests every change to supported Fleet-maintained apps (e.g. new version, u
 For new apps:
 
 1. When a pull request is opened in `inputs/`, the [#g-software Engineering Manager (EM)](TODO) is automatically added as reviewer.
-2. The EM is responsible to making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
+2. The EM is responsible to making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to Design Review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
 3. Then, the EM merges the PR. This automatically opens a PR to `outputs/`
 4. Next, follow steps under "For changes to supported apps." 
 
