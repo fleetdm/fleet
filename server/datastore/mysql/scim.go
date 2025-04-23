@@ -172,22 +172,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 
 // ScimUserByHostID retrieves a SCIM user associated with a host ID
 func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-	const query = `
-		SELECT
-			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.active, su.updated_at
-		FROM scim_users su
-		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
-		WHERE host_scim_user.host_id = ?
-		ORDER BY su.id LIMIT 1
-	`
-	user := &fleet.ScimUser{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), user, query, hostID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notFound("scim user for host").WithID(hostID)
-		}
-		return nil, ctxerr.Wrap(ctx, err, "select scim user by host ID")
-	}
+	user, err := getScimUserLiteByHostID(ctx, ds.reader(ctx), hostID)
 
 	// Get the user's emails
 	emails, err := ds.getScimUserEmails(ctx, user.ID)
@@ -204,6 +189,28 @@ func (ds *Datastore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.
 	user.Groups = groups
 
 	return user, nil
+}
+
+// returns the ScimUser for the host, without emails and groups filled (only
+// the scim_users table attributes).
+func getScimUserLiteByHostID(ctx context.Context, q sqlx.QueryerContext, hostID uint) (*fleet.ScimUser, error) {
+	const query = `
+		SELECT
+			su.id, su.external_id, su.user_name, su.given_name, su.family_name, su.active, su.updated_at
+		FROM scim_users su
+		JOIN host_scim_user ON su.id = host_scim_user.scim_user_id
+		WHERE host_scim_user.host_id = ?
+		ORDER BY su.id LIMIT 1
+	`
+	var user fleet.ScimUser
+	err := sqlx.GetContext(ctx, q, &user, query, hostID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("scim user for host").WithID(hostID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by host ID")
+	}
+	return &user, nil
 }
 
 // ReplaceScimUser replaces an existing SCIM user in the database
@@ -1081,8 +1088,8 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedUserID uint) error {
-	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedUserID)
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, updatedScimUserID uint) error {
+	hostIDs, err := getHostIDsHavingScimIDPUser(ctx, tx, updatedScimUserID)
 	if err != nil {
 		return err
 	}
@@ -1090,9 +1097,9 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		[]string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart})
 }
 
-func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, groupID uint) error {
+func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtContext, updatedScimGroupID uint) error {
 	// get the updated list of users for that group
-	userIDs, err := getScimGroupUsers(ctx, tx, groupID)
+	userIDs, err := getScimGroupUsers(ctx, tx, updatedScimGroupID)
 	if err != nil {
 		return err
 	}
@@ -1105,8 +1112,8 @@ func triggerResendProfilesForIDPGroupChange(ctx context.Context, tx sqlx.ExtCont
 		[]string{fleet.FleetVarHostEndUserIDPGroups})
 }
 
-func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, userIDs []uint) error {
-	hostIDs, err := getHostIDsHavingScimIDPUsers(ctx, tx, userIDs)
+func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.ExtContext, scimUserIDs []uint) error {
+	hostIDs, err := getHostIDsHavingScimIDPUsers(ctx, tx, scimUserIDs)
 	if err != nil {
 		return err
 	}
@@ -1114,12 +1121,75 @@ func triggerResendProfilesForIDPGroupChangeByUsers(ctx context.Context, tx sqlx.
 		[]string{fleet.FleetVarHostEndUserIDPGroups})
 }
 
-func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, scimUserID uint) error {
+func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.ExtContext, hostID, updatedScimUserID uint) error {
 	// check that this user is indeed the scim IdP user for this host (and not an
 	// extra, unused one)
-	panic("unimplemented")
+	user, err := getScimUserLiteByHostID(ctx, tx, hostID)
+	if err != nil {
+		return err
+	}
+	if updatedScimUserID != user.ID {
+		// host is not impacted, updated user is not its IdP user
+		return nil
+	}
+	return triggerResendProfilesUsingVariables(ctx, tx, []uint{hostID},
+		[]string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups})
 }
 
 func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []string) error {
-	panic("unimplemented")
+	// NOTE: this cannot reuse bulkSetPendingMDMAppleHostProfilesDB, as this
+	// (complex) function is based on changes it can detect itself, such as a
+	// profile content change, label membership changes, etc. It does not receive
+	// a list of host/profile to update, but relies on its own diff.
+	//
+	// In the case here where variable values change, we want a simple "resend"
+	// with the new values, so we don't need the complex diff logic, we only set
+	// to "pending" the profiles that depend on the variables that were already
+	// installed on the affected hosts. ReconcileAppleProfiles will take care of
+	// resending as appropriate based on label membershup and all at the time it
+	// runs.
+	const updateStatusQuery = `
+	UPDATE
+		host_mdm_apple_profiles hmap
+		JOIN hosts h 
+			ON h.uuid = hmap.host_uuid
+		JOIN mdm_apple_configuration_profiles macp 
+			ON macp.team_id = h.team_id OR (macp.team_id IS NULL AND h.team_id IS NULL) AND
+				 macp.profile_uuid = hmap.profile_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.apple_profile_uuid = macp.profile_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmap.status = NULL
+	WHERE 
+		h.id IN (:host_ids) AND
+		hmap.operation_type = :operation_type_install AND
+		hmap.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+	vars := make([]any, len(affectedVars))
+	for i, v := range affectedVars {
+		vars[i] = "FLEET_VAR_" + v
+	}
+
+	stmt, args, err := sqlx.Named(updateStatusQuery, map[string]any{
+		"host_ids":               hostIDs,
+		"operation_type_install": fleet.MDMOperationTypeInstall,
+		"affected_vars":          vars,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend profiles replace names")
+	}
+
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend profiles arguments")
+	}
+
+	_, err = tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "execute resend profiles")
+	}
+	return nil
 }
