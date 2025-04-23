@@ -8784,8 +8784,8 @@ The script will be added to each host's list of upcoming activities.
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
-| host_ids        | array   | body | **Required**. List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
-| filters | object  | body | **Required**. See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
+| filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
 
 
 ##### Filters
