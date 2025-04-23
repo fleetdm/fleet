@@ -33,15 +33,6 @@
   }
 
   &__close {
-    padding: $pad-small;
     margin: -$pad-small; // Offset clickable padding from making banner taller
-
-    &:hover {
-      cursor: pointer;
-
-      svg path {
-        stroke: $core-vibrant-blue;
-      }
-    }
   }
 }
