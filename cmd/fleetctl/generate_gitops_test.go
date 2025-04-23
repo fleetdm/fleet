@@ -19,9 +19,6 @@ import (
 type MockClient struct{}
 
 func (MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
-	cwd, _ := os.Getwd()
-	println("Current working directory:", cwd) // Debugging line
-
 	b, err := os.ReadFile("./testdata/generateGitops/appConfig.json")
 	if err != nil {
 		return nil, err
@@ -152,9 +149,18 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 
 func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 	if teamID == 1 {
+		b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
+		if err != nil {
+			return nil, err
+		}
+		var config fleet.TeamConfig
+		if err := json.Unmarshal(b, &config); err != nil {
+			return nil, err
+		}
 		return &fleet.Team{
-			ID:   1,
-			Name: "Team A",
+			ID:     1,
+			Name:   "Test Team",
+			Config: config,
 		}, nil
 	}
 
@@ -290,6 +296,82 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+}
+
+func TestGenerateTeamSettings(t *testing.T) {
+	// Get the test team.
+	fleetClient := &MockClient{}
+	team, err := fleetClient.GetTeam(1)
+	require.NoError(t, err)
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    nil,
+	}
+
+	// Generate the org settings.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	TeamSettingsRaw, err := cmd.generateTeamSettings("team.yml", team)
+	require.NoError(t, err)
+	require.NotNil(t, TeamSettingsRaw)
+	var TeamSettings map[string]interface{}
+	b, err := yaml.Marshal(TeamSettingsRaw)
+	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &TeamSettings)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSettings.yaml")
+	require.NoError(t, err)
+	var expectedAppConfig map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedAppConfig)
+	require.NoError(t, err)
+
+	// Compare.
+	// require.Equal(t, expectedAppConfig, TeamSettings)
+}
+
+func TestGenerateTeamSettingsInsecure(t *testing.T) {
+	// Get the test team.
+	fleetClient := &MockClient{}
+	team, err := fleetClient.GetTeam(1)
+	require.NoError(t, err)
+
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.Bool("insecure", true, "Output sensitive information in plaintext.")
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    nil,
+	}
+
+	// Generate the org settings.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	TeamSettingsRaw, err := cmd.generateTeamSettings("team.yml", team)
+	require.NoError(t, err)
+	require.NotNil(t, TeamSettingsRaw)
+	var TeamSettings map[string]interface{}
+	b, err := yaml.Marshal(TeamSettingsRaw)
+	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &TeamSettings)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSettings-insecure.yaml")
+	require.NoError(t, err)
+	var expectedAppConfig map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedAppConfig)
+	require.NoError(t, err)
+
+	// Compare.
+	// require.Equal(t, expectedAppConfig, TeamSettings)
 }
 
 func TestGenerateControls(t *testing.T) {

@@ -429,14 +429,21 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling integrations: %s\n", err)
 		return nil, err
 	}
+	isTeam := false
 	if result["global_integrations"] != nil {
 		result = result["global_integrations"].(map[string]interface{})
 	} else {
+		isTeam = true
 		result = result["team_integrations"].(map[string]interface{})
 	}
 	// Obfuscate secrets if not in insecure mode.
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok {
+			if isTeam {
+				// Cast googleCalendar to a slice of interfaces, since
+				// the team config only uses one integration.
+				googleCalendar = []interface{}{googleCalendar}
+			}
 			for _, intg := range googleCalendar.([]interface{}) {
 				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
 					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
@@ -502,43 +509,24 @@ func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) 
 func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fleet.Team) (teamSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.TeamConfig{})
 	teamSettings = map[string]interface{}{
-		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
-		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
-		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
+		jsonFieldName(t, "Features"):           team.Config.Features,
+		jsonFieldName(t, "HostExpirySettings"): team.Config.HostExpirySettings,
+		jsonFieldName(t, "WebhookSettings"):    team.Config.WebhookSettings,
 	}
 	integrations, err := cmd.generateIntegrations(filePath, &GlobalOrTeamIntegrations{TeamIntegrations: &team.Config.Integrations})
 	if err != nil {
 		return nil, err
 	}
 	teamSettings[jsonFieldName(t, "Integrations")] = integrations
-	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
-	if err != nil {
-		return nil, err
-	}
-	teamSettings[jsonFieldName(t, "MDM")] = mdm
-	yaraRules, err := cmd.generateYaraRules(cmd.AppConfig.YaraRules)
-	if err != nil {
-		return nil, err
-	}
-	teamSettings[jsonFieldName(t, "YaraRules")] = yaraRules
-
 	// If --insecure is set, add real secrets.
 	if cmd.CLI.Bool("insecure") {
-		enrollSecrets, err := cmd.Client.GetEnrollSecretSpec()
-		if err != nil {
-			return nil, err
-		}
-		secrets := make([]map[string]string, len(enrollSecrets.Secrets))
-		for i, spec := range enrollSecrets.Secrets {
+		secrets := make([]map[string]string, len(team.Secrets))
+		for i, spec := range team.Secrets {
 			secrets[i] = map[string]string{"secret": spec.Secret}
 		}
 		teamSettings["secrets"] = secrets
 	} else {
 		(teamSettings)["secrets"] = []map[string]string{{"string": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
-	}
-
-	if (teamSettings)[jsonFieldName(t, "SSOSettings")], err = cmd.generateSSOSettings(cmd.AppConfig.SSOSettings); err != nil {
-		return nil, err
 	}
 	return teamSettings, nil
 }
