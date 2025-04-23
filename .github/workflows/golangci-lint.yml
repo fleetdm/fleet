@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden Runner
