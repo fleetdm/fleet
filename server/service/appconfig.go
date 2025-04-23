@@ -404,21 +404,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
-		if appConfig.MDM.MacOSSetup.BootstrapPackage.Valid && appConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" ||
-			!appConfig.MDM.MacOSSetup.BootstrapPackage.Valid && oldAppConfig.MDM.MacOSSetup.BootstrapPackage.Value == "" {
-			invalid.Append("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg)
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
-		if appConfig.MDM.MacOSSetup.Script.Valid && appConfig.MDM.MacOSSetup.Script.Value != "" ||
-			!appConfig.MDM.MacOSSetup.Script.Valid && oldAppConfig.MDM.MacOSSetup.Script.Value != "" {
-			invalid.Append("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallScriptErrMsg)
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
-		if appConfig.MDM.MacOSSetup.Software.Valid && len(appConfig.MDM.MacOSSetup.Software.Value) > 0 ||
-			!appConfig.MDM.MacOSSetup.Software.Valid && len(oldAppConfig.MDM.MacOSSetup.Software.Value) > 0 {
-			invalid.Append("macos_setup.manual_agent_install", fleet.MDMMacOSSetupManualAgentInstallSoftwareErrMsg)
-			return nil, ctxerr.Wrap(ctx, invalid)
-		}
 	}
 
 	var legacyUsedWarning error

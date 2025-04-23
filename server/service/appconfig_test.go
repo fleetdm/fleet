@@ -1168,16 +1168,6 @@ func TestMDMAppleConfig(t *testing.T) {
 				},
 			},
 		},
-		{
-			name:        "enableManualAgentInstall",
-			licenseTier: "premium",
-			newMDM: fleet.MDM{
-				MacOSSetup: fleet.MacOSSetup{
-					ManualAgentInstall: optjson.SetBool(true),
-				},
-			},
-			expectedError: fleet.MDMMacOSSetupManualAgentInstallNoBootstrapErrMsg,
-		},
 	}
 
 	for _, tt := range testCases {

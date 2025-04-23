@@ -115,21 +115,19 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		awaitCmdUUIDs []string
 		appCfg        *fleet.AppConfig
 		team          *fleet.Team
+		err           error
 	)
 
 	if isMacOS(args.Platform) {
 		var manualAgentInstall bool
-		var err error
 		if args.TeamID == nil {
-			appCfg, err = a.Datastore.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting app config")
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
 			}
 			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
 		} else {
-			team, err = a.Datastore.Team(ctx, *args.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
 			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 		}
@@ -153,12 +151,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
-		if appCfg == nil {
-			var err error
-			appCfg, err = a.Datastore.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting app config")
-			}
+		if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+			return err
 		}
 
 		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
@@ -168,11 +162,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if args.TeamID != nil {
-			if team == nil {
-				team, err = a.Datastore.Team(ctx, *args.TeamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
-				}
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
@@ -202,21 +193,14 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	// release.
 	if !isMacOS(args.Platform) || args.UseWorkerDeviceRelease {
 		var manualRelease bool
-		var err error
 		if args.TeamID == nil {
-			if appCfg == nil {
-				appCfg, err = a.Datastore.AppConfig(ctx)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
-				}
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
 			}
 			manualRelease = appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		} else {
-			if team == nil {
-				team, err = a.Datastore.Team(ctx, *args.TeamID)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
-				}
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
 			manualRelease = team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		}
@@ -234,6 +218,30 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	}
 
 	return nil
+}
+
+// getTeamConfig gets team config from DB if not provided.
+func (a *AppleMDM) getTeamConfig(ctx context.Context, team *fleet.Team, teamID uint) (*fleet.Team, error) {
+	if team == nil {
+		var err error
+		team, err = a.Datastore.Team(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
+		}
+	}
+	return team, nil
+}
+
+// getAppConfig gets app config from DB if not provided.
+func (a *AppleMDM) getAppConfig(ctx context.Context, appConfig *fleet.AppConfig) (*fleet.AppConfig, error) {
+	if appConfig == nil {
+		var err error
+		appConfig, err = a.Datastore.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+	}
+	return appConfig, nil
 }
 
 func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAccount, args appleMDMArgs) (string, error) {
