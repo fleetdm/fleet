@@ -645,9 +645,9 @@ type Datastore interface {
 	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
 	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
 	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
-	// GetCategoriesForSoftwareInstallers takes a set of software installer IDs and returns a map
-	// from the IDs to the categories assigned to those installers.
-	GetCategoriesForSoftwareInstallers(ctx context.Context, softwareInstallerIDs []uint, team_id *uint) (map[uint][]string, error)
+	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
+	// from the IDs to the categories assigned to the installers for those titles.
+	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore

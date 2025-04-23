@@ -482,7 +482,7 @@ type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.Soft
 
 type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
 
-type GetCategoriesForSoftwareInstallersFunc func(ctx context.Context, softwareInstallerIDs []uint, team_id *uint) (map[uint][]string, error)
+type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -2019,8 +2019,8 @@ type DataStore struct {
 	GetSoftwareCategoryIDsFunc        GetSoftwareCategoryIDsFunc
 	GetSoftwareCategoryIDsFuncInvoked bool
 
-	GetCategoriesForSoftwareInstallersFunc        GetCategoriesForSoftwareInstallersFunc
-	GetCategoriesForSoftwareInstallersFuncInvoked bool
+	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
+	GetCategoriesForSoftwareTitlesFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -4901,11 +4901,11 @@ func (s *DataStore) GetSoftwareCategoryIDs(ctx context.Context, names []string) 
 	return s.GetSoftwareCategoryIDsFunc(ctx, names)
 }
 
-func (s *DataStore) GetCategoriesForSoftwareInstallers(ctx context.Context, softwareInstallerIDs []uint, team_id *uint) (map[uint][]string, error) {
+func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
 	s.mu.Lock()
-	s.GetCategoriesForSoftwareInstallersFuncInvoked = true
+	s.GetCategoriesForSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetCategoriesForSoftwareInstallersFunc(ctx, softwareInstallerIDs, team_id)
+	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {

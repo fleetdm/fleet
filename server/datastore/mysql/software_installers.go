@@ -705,7 +705,7 @@ WHERE
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
 
-	categories, err := ds.GetCategoriesForSoftwareInstallers(ctx, []uint{titleID}, teamID)
+	categories, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
 	}

@@ -3983,7 +3983,7 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	return ids, nil
 }
 
-func (ds *Datastore) GetCategoriesForSoftwareInstallers(ctx context.Context, softwareTitleIDs []uint, teamID *uint) (map[uint][]string, error) {
+func (ds *Datastore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, teamID *uint) (map[uint][]string, error) {
 	if len(softwareTitleIDs) == 0 {
 		return map[uint][]string{}, nil
 	}

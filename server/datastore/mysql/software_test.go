@@ -7025,7 +7025,7 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	categories, err := ds.GetCategoriesForSoftwareInstallers(ctx, []uint{titleID}, nil)
+	categories, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, nil)
 	require.NoError(t, err)
 	require.Len(t, categories, 1)
 

@@ -2779,7 +2779,7 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		titleIDs = append(titleIDs, s.ID)
 		softwareByTitleID[s.ID] = s
 	}
-	categories, err := svc.ds.GetCategoriesForSoftwareInstallers(ctx, titleIDs, host.TeamID)
+	categories, err := svc.ds.GetCategoriesForSoftwareTitles(ctx, titleIDs, host.TeamID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "getting categories for software titles")
 	}
