@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -1691,18 +1690,30 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		batchID, _ := res.LastInsertId()
 
-		questionMarks := strings.Join(
-			slices.Repeat([]string{"(?, ?, ?, ?)"}, len(executions)),
-			", ",
-		)
-		args := make([]any, 0, len(executions))
+		args := make([]map[string]any, 0, len(executions))
 		for _, execHost := range executions {
-			args = append(args, batchID, execHost.HostID, execHost.ExecutionID, execHost.Error)
+			args = append(args, map[string]any{
+				"batch_id":          batchID,
+				"host_id":           execHost.HostID,
+				"host_execution_id": execHost.ExecutionID,
+				"error":             execHost.Error,
+			})
 		}
 
-		insertStmt := fmt.Sprintf(`INSERT INTO batch_script_execution_host_results (batch_execution_id, host_id, host_execution_id, error) VALUES %s`, questionMarks)
+		insertStmt := `
+INSERT INTO batch_script_execution_host_results (
+	batch_execution_id,
+	host_id,
+	host_execution_id,
+	error
+) VALUES (
+	:batch_id,
+	:host_id,
+	:host_execution_id,
+	:error
+)`
 
-		if _, err := tx.ExecContext(ctx, insertStmt, args...); err != nil {
+		if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, args); err != nil {
 			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
 		}
 
