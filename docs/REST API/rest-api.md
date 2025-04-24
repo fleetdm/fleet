@@ -6665,8 +6665,7 @@ None.
 
 ```json
 {
-  "android_enterprise_id": "LC0445szuv",
-  "android_enterprise_disconnected": false
+  "android_enterprise_id": "LC0445szuv"
 }
 ```
 
