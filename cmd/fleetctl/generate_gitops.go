@@ -270,12 +270,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate controls.
-		controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
-			return ErrGeneric
+		// Only do this on the global team if we're on the free tier.
+		if teamToProcess.ID != nil || !cmd.AppConfig.License.IsPremium() {
+			controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
 		}
-		cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
 
 		// Generate software.
 		if team != nil {
