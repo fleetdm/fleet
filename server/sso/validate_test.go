@@ -70,7 +70,7 @@ func TestVerfiyValidResponse(t *testing.T) {
 
 	testResponseDecoded, err := base64.StdEncoding.DecodeString(testResponse)
 	require.NoError(t, err)
-	_, err = testSAMLProvider.ParseXMLResponse([]byte(testResponseDecoded), []string{testRequestID}, *testACSURL)
+	_, err = testSAMLProvider.ParseXMLResponse(testResponseDecoded, []string{testRequestID}, *testACSURL)
 	err = unwrapSAMLError(err)
 	require.NoError(t, err)
 }
@@ -98,7 +98,7 @@ func TestVerfiyValidTamperedWithDocFails(t *testing.T) {
 
 	tamperedSAMLResponseDecoded, err := base64.StdEncoding.DecodeString(tamperedSAMLResponse)
 	require.NoError(t, err)
-	_, err = testSAMLProvider.ParseXMLResponse([]byte(tamperedSAMLResponseDecoded), []string{testRequestID}, *testACSURL)
+	_, err = testSAMLProvider.ParseXMLResponse(tamperedSAMLResponseDecoded, []string{testRequestID}, *testACSURL)
 	err = unwrapSAMLError(err)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Signature could not be verified")
@@ -129,7 +129,7 @@ func TestVerfiyStaleMessageFails(t *testing.T) {
 
 	tamperedSAMLResponseDecoded, err := base64.StdEncoding.DecodeString(tamperedSAMLResponse)
 	require.NoError(t, err)
-	_, err = testSAMLProvider.ParseXMLResponse([]byte(tamperedSAMLResponseDecoded), []string{testRequestID}, *testACSURL)
+	_, err = testSAMLProvider.ParseXMLResponse(tamperedSAMLResponseDecoded, []string{testRequestID}, *testACSURL)
 	err = unwrapSAMLError(err)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "response IssueInstant expired")
@@ -200,7 +200,7 @@ func TestVerifyValidGoogleResponse(t *testing.T) {
 
 	googleSAMLResponseDecoded, err := base64.StdEncoding.DecodeString(testGoogleSAMLResponse)
 	require.NoError(t, err)
-	_, err = testGoogleServiceProvider.ParseXMLResponse([]byte(googleSAMLResponseDecoded), []string{testGoogleRequestID}, *testACSURL)
+	_, err = testGoogleServiceProvider.ParseXMLResponse(googleSAMLResponseDecoded, []string{testGoogleRequestID}, *testACSURL)
 	require.NoError(t, err)
 }
 
@@ -218,7 +218,7 @@ func TestVerifyGoogleResponseTampered(t *testing.T) {
 	// Tamper with the response by changing an attribute within the Assertion tag.
 	googleSAMLResponseDecoded := bytes.Replace(decoded, []byte("myattribute"), []byte("yourattribute"), 1)
 
-	_, err = testGoogleServiceProvider.ParseXMLResponse([]byte(googleSAMLResponseDecoded), []string{testGoogleRequestID}, *testACSURL)
+	_, err = testGoogleServiceProvider.ParseXMLResponse(googleSAMLResponseDecoded, []string{testGoogleRequestID}, *testACSURL)
 	require.Error(t, err)
 	err = unwrapSAMLError(err)
 	require.Contains(t, err.Error(), "Signature could not be verified")
@@ -235,7 +235,7 @@ func TestVerifyInvalidSignatureGoogleResponse(t *testing.T) {
 	saml.Clock = clock
 	googleSAMLResponseInvalidSignatureDecoded, err := base64.StdEncoding.DecodeString(googleSAMLResponseInvalidSignature)
 	require.NoError(t, err)
-	_, err = testGoogleServiceProvider.ParseXMLResponse([]byte(googleSAMLResponseInvalidSignatureDecoded), []string{testGoogleRequestID}, *testACSURL)
+	_, err = testGoogleServiceProvider.ParseXMLResponse(googleSAMLResponseInvalidSignatureDecoded, []string{testGoogleRequestID}, *testACSURL)
 	require.Error(t, err)
 	err = unwrapSAMLError(err)
 	require.Contains(t, err.Error(), "cannot validate signature on Assertion")
