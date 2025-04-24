@@ -28,6 +28,25 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 1. If your organization uses Microsoft 365, you can use your email to signup for Android Enterprise. When you select **Connect Android Enterprise**, you'll see option to **Sign in with Microsoft**.
 2. Follow the steps in Google's signup flow.
 3. After successful signup, Android Enterprise subscription (free) is added to your Google Workspace, and you can see in Fleet that Android MDM is turned on.
+4. Go to [Google Admin console](https://admin.google.com)
+5. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name and prevent others from signing up with your domain.
+6. From the side menu, select **Devices > Mobile & endpoints > Settings > Third-party integrations**.
+7. Select **Android EMM**, check **Enable third-party Android mobile management**, then select **Manage EMM providers**.
+8. Toggle **Authenticate Using Google** switch for your Android Enterprise, select the cross icon in the top left corner, and select **Save**.
+9. From the side menu, select **Directory > Directory Sync**, and select **Add Azure Active Directory** to sync users from your Microsoft 365 to Google Workspace, so your end user can login with Microsoft 365 to add work profile.
+10. Select **Continue**, add name and description, then select **Authorize and save**.
+11. In popup window, login with Microsoft 365 admin account, select **Consent on behalf of your organisation**, and select **Accept**.
+12. When you see **Connection successful** page, select **Continue**, and on the directory sync details page, select **Set up user sync**.
+13. Enter names of the groups that you want to sync from Microsoft 365, then select **Verify**, and after that, select **Continue**.
+14. Now choose organizational unit to add users to by selecting **Select organizational unit** button, then select **Continue**
+15. You can keep default user attribute mapping and select **Continue**, select **Don't send activation email** and select **Continue**.
+16. Keep **Suspend user in Google Directory** checked and select **Continue**
+17. You can keep default safeguards and select **Simulate sync**, then after successfull simulation, select **Close**. This can [take up to the hour](https://support.google.com/a/answer/10344342) to complete, depending on the size of your data.
+18. In the dialog, select **Activate and start sync**.
+19. Your users are synced to Google Workspace. Now your end users can use Microsoft account to enroll Android hosts.
+
+
+Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the Android Enterprise subscription is required for Android MDM features.
 
 ### Other
 
