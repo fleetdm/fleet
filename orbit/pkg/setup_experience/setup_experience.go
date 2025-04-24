@@ -4,15 +4,29 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	"net/http"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
+
+	// Packages below are not used explicitly, but are imported for initialization side-effects, which allows
+	// image.Decode to understand gif, jpeg, and png formatted images
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 )
 
 const doneMessage = `### Setup is complete\n\nPlease contact your IT Administrator if there were any errors.`
+
+const (
+	defaultIconSize = uint(80)
+	wideIconSize    = uint(200)
+	wideAspectRatio = 1.8 // 9:5 aspect ratio
+)
 
 // Client is the minimal interface needed to communicate with the Fleet server.
 type Client interface {
@@ -245,6 +259,13 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 		return errors.New("creating swiftDialog instance: %w")
 	}
 	s.sd = swiftDialog
+
+	iconSize, err := getIconSize(orgLogo)
+	if err != nil {
+		log.Error().Err(err).Msg("getting icon size")
+		iconSize = defaultIconSize
+	}
+
 	go func() {
 		initOpts := &swiftdialog.SwiftDialogOptions{
 			Title:            "none",
@@ -267,7 +288,7 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			log.Error().Err(err).Msg("setting initial setup experience progress")
 		}
 
-		if err := s.sd.SetIconSize(80); err != nil {
+		if err := s.sd.SetIconSize(iconSize); err != nil {
 			log.Error().Err(err).Msg("setting initial setup experience icon size")
 		}
 
@@ -305,4 +326,26 @@ func resultToListItem(result *fleet.SetupExperienceStatusResult) swiftdialog.Lis
 		Status:     status,
 		StatusText: statusText,
 	}
+}
+
+func getIconSize(imageURL string) (uint, error) {
+	// get bytes from the url so we can analyze the aspect ratio of the image
+	resp, err := http.Get(imageURL)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	// use image.DecodeConfig to get the dimensions of the image
+	ic, _, err := image.DecodeConfig(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+
+	// if image has wide aspect ratio, use wideIconSize
+	if float64(ic.Width) >= float64(ic.Height)*wideAspectRatio {
+		return wideIconSize, nil
+	}
+
+	return defaultIconSize, nil
 }
