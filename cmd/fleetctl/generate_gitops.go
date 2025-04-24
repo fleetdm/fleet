@@ -69,6 +69,7 @@ type client interface {
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
+	Me() (*fleet.User, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -143,6 +144,10 @@ func generateGitopsCommand() *cli.Command {
 				Name:  "print",
 				Usage: "Output to stdout instead of the specified directory.",
 			},
+			&cli.BoolFlag{
+				Name:  "force",
+				Usage: "Overwrite existing files.",
+			},
 		},
 	}
 }
@@ -175,9 +180,21 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
+	var err error
+
+	// User must be global admin
+	me, err := cmd.Client.Me()
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting user: %s\n", err)
+		return ErrGeneric
+	}
+	if me.GlobalRole != nil && *me.GlobalRole != fleet.RoleAdmin {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "You are not authorized to run this command.  Please contact your administrator.\n")
+		return nil
+	}
+
 	fmt.Println("Generating GitOps configuration files...")
 
-	var err error
 	cmd.AppConfig, err = cmd.Client.GetAppConfig()
 	if err != nil {
 		return err
@@ -375,14 +392,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			b = []byte(fileToWrite.(string))
 		}
 		if cmd.CLI.Bool("print") {
-			fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", fullPath, string(b))
+			fmt.Fprintf(cmd.CLI.App.Writer, "------------------------------------------------------------------\n%s\n------------------------------------------------------------------\n\n%+v\n\n", fullPath, string(b))
 		} else {
 			// Ensure the dir exists
 			os.MkdirAll(pathUtils.Dir(fullPath), 0o755)
 			// Write the file to the output directory.
 			err = os.WriteFile(fullPath, b, 0o644)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error writing file %s: %s\n", fullPath, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error writing file %s: %s\n\n", fullPath, err)
 				return ErrGeneric
 			}
 		}
