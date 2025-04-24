@@ -7186,4 +7186,26 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 
 	require.Contains(t, categories[installerNoTeam], cat1.Name)
 	require.Contains(t, categories[installerNoTeam], cat2.Name)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+
+	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}, CategoryIDs: ids}, BundleIdentifier: "b1"}
+	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	require.NoError(t, err)
+	vppAppTitleID := vppApp.TitleID
+
+	categories, err = ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID, vppAppTitleID}, nil)
+	require.NoError(t, err)
+	require.Len(t, categories, 2)
+
+	require.Contains(t, categories[installerNoTeam], cat1.Name)
+	require.Contains(t, categories[installerNoTeam], cat2.Name)
+
+	require.Contains(t, categories[installerNoTeam], cat1.Name)
+	require.Contains(t, categories[installerNoTeam], cat2.Name)
 }

@@ -705,12 +705,14 @@ WHERE
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
 
-	categories, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
+	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
 	}
 
-	dest.Categories = categories[dest.InstallerID]
+	if categories, ok := categoryMap[titleID]; ok {
+		dest.Categories = categories
+	}
 
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {

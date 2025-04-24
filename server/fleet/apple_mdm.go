@@ -292,9 +292,11 @@ type HostMDMCertificateProfile struct {
 	ProfileUUID          string             `db:"profile_uuid"`
 	Status               *MDMDeliveryStatus `db:"status"`
 	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+	NotValidBefore       *time.Time         `db:"not_valid_before"`
 	NotValidAfter        *time.Time         `db:"not_valid_after"`
 	Type                 CAConfigAssetType  `db:"type"`
 	CAName               string             `db:"ca_name"`
+	Serial               *string            `db:"serial"`
 }
 
 type HostMDMProfileDetail string
@@ -976,9 +978,11 @@ type MDMBulkUpsertManagedCertificatePayload struct {
 	ProfileUUID          string
 	HostUUID             string
 	ChallengeRetrievedAt *time.Time
+	NotValidBefore       *time.Time
 	NotValidAfter        *time.Time
 	Type                 CAConfigAssetType
 	CAName               string
+	Serial               *string
 }
 
 // MDMAppleEnrolledDeviceInfo represents the information of a device enrolled

@@ -16149,12 +16149,6 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 	require.NotEmpty(t, titleID)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_categories")
-		mysql.DumpTable(t, q, "software_installer_software_categories")
-		return nil
-	})
-
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 	getDeviceSw := getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
