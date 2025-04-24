@@ -12285,7 +12285,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 			if install.deviceToken != "" {
 				var cmdResResp getMDMCommandResultsResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK, &cmdResResp)
+				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK)
+				err = json.NewDecoder(res.Body).Decode(&cmdResResp)
+				require.NoError(t, err)
 				require.Len(t, cmdResResp.Results, 0)
 			}
 
@@ -12326,12 +12328,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 			if install.deviceToken != "" {
 				var cmdResResp getMDMCommandResultsResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK, &cmdResResp)
+				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK)
+				err = json.NewDecoder(res.Body).Decode(&cmdResResp)
+				require.NoError(t, err)
 				require.Len(t, cmdResResp.Results, 1)
 				require.Equal(t, "Acknowledged", cmdResResp.Results[0].Status)
 
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/foobar/results", install.deviceToken), nil, http.StatusNotFound, &cmdResResp)
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/device/foobar/software/commands/%s/results", cmdUUID), nil, http.StatusNotFound, &cmdResResp)
+				s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/foobar/results", install.deviceToken), nil, http.StatusNotFound)
+				s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/foobar/software/commands/%s/results", cmdUUID), nil, http.StatusNotFound)
 			}
 
 			listResp = listHostsResponse{}

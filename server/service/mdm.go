@@ -29,7 +29,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -769,7 +768,7 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
 	}
 
-	// zero-length result (command exists but no responses) is different than not-found (no command, command isn't an install, or wrong host)
+	// zero-length result (command exists but no responses) is different from not-found (no command, command isn't an install, or wrong host)
 	results, err := svc.ds.GetVPPCommandResults(ctx, commandUUID, host.UUID)
 	if err != nil {
 		return nil, err

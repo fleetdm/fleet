@@ -372,7 +372,7 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 
 type getDeviceMDMCommandResultsRequest struct {
 	Token       string `url:"token"`
-	CommandUUID string `query:"command_uuid,optional"`
+	CommandUUID string `url:"command_uuid"`
 }
 
 func (r *getDeviceMDMCommandResultsRequest) deviceAuthToken() string {
