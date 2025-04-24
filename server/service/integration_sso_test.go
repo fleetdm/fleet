@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -60,7 +61,6 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
 			"enable_jit_provisioning": false
@@ -100,7 +100,6 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadataURL() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "`+badMetadataUrl+`",
 			"enable_jit_provisioning": false
@@ -127,7 +126,6 @@ func (s *integrationSSOTestSuite) TestSSOInvalidMetadata() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata": "`+badMetadata+`",
 			"metadata_url": "",
@@ -168,7 +166,6 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 		}
@@ -289,7 +286,6 @@ func (s *integrationSSOTestSuite) TestPerformRequiredPasswordResetWithSSO() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 		}
@@ -339,4 +335,62 @@ func inflate(t *testing.T, s string) *saml.AuthnRequest {
 	var req saml.AuthnRequest
 	require.NoError(t, xml.NewDecoder(r).Decode(&req))
 	return &req
+}
+
+func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	metadata, err := json.Marshal([]byte(`<?xml version="1.0"?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="http://localhost:9080/simplesaml/saml2/idp/metadata.php">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDXTCCAkWgAwIBAgIJALmVVuDWu4NYMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMTYxMjMxMTQzNDQ3WhcNNDgwNjI1MTQzNDQ3WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzUCFozgNb1h1M0jzNRSCjhOBnR+uVbVpaWfXYIR+AhWDdEe5ryY+CgavOg8bfLybyzFdehlYdDRgkedEB/GjG8aJw06l0qF4jDOAw0kEygWCu2mcH7XOxRt+YAH3TVHa/Hu1W3WjzkobqqqLQ8gkKWWM27fOgAZ6GieaJBN6VBSMMcPey3HWLBmc+TYJmv1dbaO2jHhKh8pfKw0W12VM8P1PIO8gv4Phu/uuJYieBWKixBEyy0lHjyixYFCR12xdh4CA47q958ZRGnnDUGFVE1QhgRacJCOZ9bd5t9mr8KLaVBYTCJo5ERE8jymab5dPqe5qKfJsCZiqWglbjUo9twIDAQABo1AwTjAdBgNVHQ4EFgQUxpuwcs/CYQOyui+r1G+3KxBNhxkwHwYDVR0jBBgwFoAUxpuwcs/CYQOyui+r1G+3KxBNhxkwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAAiWUKs/2x/viNCKi3Y6blEuCtAGhzOOZ9EjrvJ8+COH3Rag3tVBWrcBZ3/uhhPq5gy9lqw4OkvEws99/5jFsX1FJ6MKBgqfuy7yh5s1YfM0ANHYczMmYpZeAcQf2CGAaVfwTTfSlzNLsF2lW/ly7yapFzlYSJLGoVE+OHEu8g5SlNACUEfkXw+5Eghh+KzlIN7R6Q7r2ixWNFBC/jWf7NKUfJyX8qIG5md1YUeT6GBW9Bm2/1/RiO24JTaYlfLdKK9TYb8sG5B+OLab2DImG99CJ25RkAcSobWNF5zD0O6lgOo3cEdB/ksCq3hmtlC/DlLZ/D8CJ+7VuZnS1rR2naQ==</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:KeyDescriptor use="encryption">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDXTCCAkWgAwIBAgIJALmVVuDWu4NYMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMTYxMjMxMTQzNDQ3WhcNNDgwNjI1MTQzNDQ3WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzUCFozgNb1h1M0jzNRSCjhOBnR+uVbVpaWfXYIR+AhWDdEe5ryY+CgavOg8bfLybyzFdehlYdDRgkedEB/GjG8aJw06l0qF4jDOAw0kEygWCu2mcH7XOxRt+YAH3TVHa/Hu1W3WjzkobqqqLQ8gkKWWM27fOgAZ6GieaJBN6VBSMMcPey3HWLBmc+TYJmv1dbaO2jHhKh8pfKw0W12VM8P1PIO8gv4Phu/uuJYieBWKixBEyy0lHjyixYFCR12xdh4CA47q958ZRGnnDUGFVE1QhgRacJCOZ9bd5t9mr8KLaVBYTCJo5ERE8jymab5dPqe5qKfJsCZiqWglbjUo9twIDAQABo1AwTjAdBgNVHQ4EFgQUxpuwcs/CYQOyui+r1G+3KxBNhxkwHwYDVR0jBBgwFoAUxpuwcs/CYQOyui+r1G+3KxBNhxkwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAAiWUKs/2x/viNCKi3Y6blEuCtAGhzOOZ9EjrvJ8+COH3Rag3tVBWrcBZ3/uhhPq5gy9lqw4OkvEws99/5jFsX1FJ6MKBgqfuy7yh5s1YfM0ANHYczMmYpZeAcQf2CGAaVfwTTfSlzNLsF2lW/ly7yapFzlYSJLGoVE+OHEu8g5SlNACUEfkXw+5Eghh+KzlIN7R6Q7r2ixWNFBC/jWf7NKUfJyX8qIG5md1YUeT6GBW9Bm2/1/RiO24JTaYlfLdKK9TYb8sG5B+OLab2DImG99CJ25RkAcSobWNF5zD0O6lgOo3cEdB/ksCq3hmtlC/DlLZ/D8CJ+7VuZnS1rR2naQ==</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://localhost:9080/simplesaml/saml2/idp/SingleLogoutService.php"/>
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="http://localhost:9080/simplesaml/saml2/idp/SSOService.php"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`))
+	require.NoError(t, err)
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"server_settings": {
+			"server_url": "https://localhost:8080"
+		},
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "https://localhost:8080",
+			"idp_name": "SimpleSAML",
+			"metadata": %s
+		}
+	}`, metadata)), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	// Create sso_user2@example.com if it doesn't exist (because this is
+	// a free instance and doesn't support enable_jit_provisioning).
+	u := &fleet.User{
+		Name:       "SSO User 2",
+		Email:      "sso_user2@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		SSOEnabled: true,
+	}
+	password := test.GoodPassword
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	s.ds.NewUser(context.Background(), u)
+
+	auth, body := s.LoginSSOUser("sso_user2", "user123#")
+	assert.Equal(t, "sso_user2@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at  ...")
 }

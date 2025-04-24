@@ -3828,11 +3828,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	t := s.T()
 
 	acResp := appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	require.NotNil(t, acResp)
-	require.False(t, acResp.SSOSettings.EnableJITProvisioning)
-
-	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"server_settings": {
 			"server_url": "https://localhost:8080"
@@ -3840,7 +3835,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
 			"enable_jit_provisioning": false
@@ -3865,7 +3859,6 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 		"sso_settings": {
 			"enable_sso": true,
 			"entity_id": "https://localhost:8080",
-			"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 			"idp_name": "SimpleSAML",
 			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
 			"enable_jit_provisioning": true
@@ -17206,4 +17199,29 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
 	require.True(t, hitInstallerURL)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSSOIdPInitiatedLogin() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"enable_jit_provisioning": true,
+			"enable_sso_idp_login": true,
+			"entity_id": "sso.test.com",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	auth, body := s.LoginSSOUserIDPInitiated("sso_user2", "user123#", "sso.test.com")
+	assert.Equal(t, "sso_user2@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
+	require.Contains(t, body, "Redirecting to Fleet at / ...")
 }

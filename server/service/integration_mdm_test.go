@@ -3974,7 +3974,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "https://localhost:8080",
-				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 		      }
@@ -4289,7 +4288,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
-					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 				},
@@ -4306,7 +4304,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "",
-					"issuer_uri": "",
 					"idp_name": "",
 					"metadata_url": ""
 				},
@@ -4323,7 +4320,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "",
-					"issuer_uri": "",
 					"idp_name": "",
 					"metadata_url": ""
 				},
@@ -4357,7 +4353,6 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "",
-					"issuer_uri": "",
 					"idp_name": "",
 					"metadata_url": ""
 				}
@@ -5063,7 +5058,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 			"enable_disk_encryption": true,
 			"end_user_authentication": {
 				"entity_id": "",
-				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
 			}
@@ -5219,7 +5213,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "",
-				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
 			},
@@ -5238,7 +5231,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "",
-				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
 			}
@@ -5251,7 +5243,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "",
-				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
 			},
@@ -5274,7 +5265,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "mdm.test.com",
-				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
@@ -5881,7 +5871,6 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "mdm.test.com",
-				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
@@ -5903,7 +5892,6 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 			"mdm": {
 				"end_user_authentication": {
 					"entity_id": "",
-					"issuer_uri": "",
 					"idp_name": "",
 					"metadata_url": ""
 				},
@@ -9627,7 +9615,6 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "https://localhost:8080",
-				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
@@ -9657,7 +9644,6 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "",
-				"issuer_uri": "",
 				"idp_name": "",
 				"metadata_url": ""
 			},
@@ -9691,7 +9677,6 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "https://localhost:8080",
-				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},
@@ -9732,7 +9717,6 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 		"mdm": {
 			"end_user_authentication": {
 				"entity_id": "https://localhost:8080",
-				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
 			},

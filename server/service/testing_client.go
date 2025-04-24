@@ -394,6 +394,20 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) (fleet.Auth, string) {
+	t := ts.s.T()
+	auth, res := ts.loginSSOUserIDPInitiated(
+		username, password,
+		"/api/v1/fleet/sso",
+		fmt.Sprintf("http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=%s", entityID),
+		http.StatusOK,
+	)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	return auth, string(body)
+}
+
 func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) (fleet.Auth, *http.Response) {
 	t := ts.s.T()
 
@@ -441,6 +455,59 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	require.NoError(t, err)
 	q := url.QueryEscape(rawSSOResp)
 	res := ts.DoRawNoAuth("POST", basePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
+
+	return auth, res
+}
+
+func (ts *withServer) loginSSOUserIDPInitiated(
+	username, password string,
+	callbackBasePath string,
+	idpURL string,
+	callbackStatus int,
+) (fleet.Auth, *http.Response) {
+	t := ts.s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
+
+	resp, err := client.Get(idpURL)
+	require.NoError(t, err)
+
+	// From the redirect Location header we can get the AuthState and the URL to
+	// which we submit the credentials
+	parsed, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	data := url.Values{
+		"username":  {username},
+		"password":  {password},
+		"AuthState": {parsed.Query().Get("AuthState")},
+	}
+	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
+	require.NoError(t, err)
+
+	// The response is an HTML form, we can extract the base64-encoded response
+	// to submit to the Fleet server from here
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	re := regexp.MustCompile(`value="(.*)"`)
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	rawSSOResp := string(matches[1])
+
+	auth, err := sso.DecodeAuthResponse(rawSSOResp)
+	require.NoError(t, err)
+	q := url.QueryEscape(rawSSOResp)
+	res := ts.DoRawNoAuth("POST", callbackBasePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
 
 	return auth, res
 }
