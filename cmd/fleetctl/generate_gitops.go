@@ -334,7 +334,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
-	nullVal := regexp.MustCompile("(?m):\\s*null\\s*$")
+	emptyVal := regexp.MustCompile(`(?m):\s*(null|""|\[\]|\{\})\s*$`)
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
 		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
@@ -355,8 +355,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 					)
 				}
 			}
-			// Replace any ": null" with empty string
-			b = nullVal.ReplaceAll(b, []byte(":"))
+			// Replace any empty values with a blank.
+			b = emptyVal.ReplaceAll(b, []byte(":"))
 		} else {
 			b = []byte(fileToWrite.(string))
 		}
