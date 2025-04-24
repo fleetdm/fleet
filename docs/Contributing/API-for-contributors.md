@@ -13,7 +13,6 @@
 - [Scripts](#scripts)
 - [Software](#software)
 - [Users](#users)
-- [Conditional access](#conditional-access)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
