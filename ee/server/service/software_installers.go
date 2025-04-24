@@ -443,6 +443,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.UninstallScript = &uninstallScript
 	}
 
+	fieldsShouldSideEffect := map[string]bool{
+		"SelfService":       false,
+		"Categories":        false,
+		"InstallerFile":     true,
+		"InstallScript":     true,
+		"UninstallScript":   true,
+		"PostInstallScript": true,
+		"PreInstallQuery":   true,
+		"Package":           true,
+		"Labels":            true,
+	}
+	var shouldDoSideEffects bool
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
 		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
@@ -508,11 +520,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 
+			for field, shouldSideEffect := range fieldsShouldSideEffect {
+				isDirty := dirty[field]
+				if isDirty && shouldSideEffect {
+					shouldDoSideEffects = true
+				}
+			}
+
 			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
 			// and if we're updating the package we reset counts. This is run in its own transaction internally
 			// for consistency, but independent of the installer update query as the main update should stick
 			// even if side effects fail.
-			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"]); err != nil {
+			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, shouldDoSideEffects, dirty["Package"]); err != nil {
 				return nil, err
 			}
 		}
