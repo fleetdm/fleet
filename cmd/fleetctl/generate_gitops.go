@@ -735,6 +735,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint)
 			jsonFieldName(t, "Critical"):              policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"): policy.CalendarEventsEnabled,
 		}
+		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
 				policySpec["install_software"] = map[string]interface{}{
@@ -742,12 +743,28 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint)
 				}
 			}
 		}
+		// Handle script automation.
 		if policy.RunScript != nil {
 			if scriptPath, ok := cmd.ScriptList[policy.RunScript.ID]; ok {
 				policySpec["run_script"] = map[string]interface{}{
 					"path": scriptPath,
 				}
 			}
+		}
+		// Parse any labels.
+		if policy.LabelsIncludeAny != nil {
+			labels := make([]string, len(policy.LabelsIncludeAny))
+			for i, label := range policy.LabelsIncludeAny {
+				labels[i] = label.LabelName
+			}
+			policySpec["labels_include_any"] = labels
+		}
+		if policy.LabelsExcludeAny != nil {
+			labels := make([]string, len(policy.LabelsExcludeAny))
+			for i, label := range policy.LabelsExcludeAny {
+				labels[i] = label.LabelName
+			}
+			policySpec["labels_exclude_any"] = labels
 		}
 		result[i] = policySpec
 	}
