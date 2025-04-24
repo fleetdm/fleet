@@ -5536,12 +5536,12 @@ The summary can optionally be filtered by team ID.
 
 ```json
 {
-  "verified": {"macos": 123, "windows": null, "linux": 13},
-  "verifying": {"macos": 123, "windows": null, "linux": 0},
-  "action_required": {"macos": 123, "windows": null, "linux": 37},
-  "enforcing": {"macos": 123, "windows": null, "linux": 0},
-  "failed": {"macos": 123, "windows": null, "linux": 0},
-  "removing_enforcement": {"macos": 123, "windows": null, "linux": 0}
+  "verified": {"macos": 123, "windows": 123, "linux": 13},
+  "verifying": {"macos": 123, "windows": 0, "linux": 0},
+  "action_required": {"macos": 123, "windows": 0, "linux": 37},
+  "enforcing": {"macos": 123, "windows": 123, "linux": 0},
+  "failed": {"macos": 123, "windows": 123, "linux": 0},
+  "removing_enforcement": {"macos": 123, "windows": 0, "linux": 0}
 }
 ```
 
