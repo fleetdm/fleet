@@ -1111,13 +1111,11 @@ const ManageHostsPage = ({
         toggleRunScriptBatchModal();
         setSelectedHostIds([]);
       } catch (error) {
-        renderFlash("error", "Could not run script. Please try again.");
-        // TODO - how to determine more specific error case? may require additional call to batch
-        // run summary endpoint?
+        renderFlash("error", "Could not run script.");
+        // TODO next iteration - determine more specific error case with additional call to summary endpoint
       } finally {
         setIsUpdating(false);
       }
-      // final return of script enables descendent `PaginatedList`'s `dirtyItems` logic
     },
     [
       renderFlash,
