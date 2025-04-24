@@ -5881,7 +5881,6 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 	}`), http.StatusOK, &acResp)
 	wantSettings := fleet.SSOProviderSettings{
 		EntityID:    "mdm.test.com",
-		IssuerURI:   "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 		IDPName:     "SimpleSAML",
 		MetadataURL: "http://localhost:9080/simplesaml/saml2/idp/metadata.php",
 	}
