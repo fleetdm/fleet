@@ -57,6 +57,7 @@ type client interface {
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
+	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -771,8 +772,44 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint)
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) ([]map[string]interface{}, error) {
+	var queryTeamId *uint
+	if teamId != 0 {
+		queryTeamId = &teamId
+	}
+	queries, err := cmd.Client.GetQueries(queryTeamId, nil)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting queries: %s\n", err)
+		return nil, err
+	}
+	if len(queries) == 0 {
+		return nil, nil
+	}
+	t := reflect.TypeOf(fleet.Query{})
+	result := make([]map[string]interface{}, len(queries))
+	for i, query := range queries {
+		querySpec := map[string]interface{}{
+			jsonFieldName(t, "Name"):               query.Name,
+			jsonFieldName(t, "Description"):        query.Description,
+			jsonFieldName(t, "Query"):              query.Query,
+			jsonFieldName(t, "Platform"):           query.Platform,
+			jsonFieldName(t, "Interval"):           query.Interval,
+			jsonFieldName(t, "ObserverCanRun"):     query.ObserverCanRun,
+			jsonFieldName(t, "AutomationsEnabled"): query.AutomationsEnabled,
+		}
+
+		// Parse any labels.
+		if query.LabelsIncludeAny != nil {
+			labels := make([]string, len(query.LabelsIncludeAny))
+			for i, label := range query.LabelsIncludeAny {
+				labels[i] = label.LabelName
+			}
+			querySpec["labels_include_any"] = labels
+		}
+
+		result[i] = querySpec
+	}
+	return result, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) ([]map[string]interface{}, error) {
