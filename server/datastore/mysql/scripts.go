@@ -1639,7 +1639,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 
 	batchExecID := ""
 
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, host := range fullHosts {
 			// Non-orbit-enrolled host (iOS, android)
 			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
