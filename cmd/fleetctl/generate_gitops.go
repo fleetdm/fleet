@@ -50,6 +50,7 @@ type client interface {
 	GetProfileContents(profileID string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
+	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -438,19 +439,19 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	}
 	// Obfuscate secrets if not in insecure mode.
 	if !cmd.CLI.Bool("insecure") {
-		if googleCalendar, ok := result["google_calendar"]; ok {
+		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
 			for _, intg := range googleCalendar.([]interface{}) {
 				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
 					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 				}
 			}
 		}
-		if jira, ok := result["jira"]; ok {
+		if jira, ok := result["jira"]; ok && jira != nil {
 			for _, intg := range jira.([]interface{}) {
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
 			}
 		}
-		if zendesk, ok := result["zendesk"]; ok {
+		if zendesk, ok := result["zendesk"]; ok && zendesk != nil {
 			for _, intg := range zendesk.([]interface{}) {
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
 			}
@@ -546,11 +547,13 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string,
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
 		return nil, err
 	}
-	if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-		result[jsonFieldName(t, "MacOSSettings")] = profiles["apple_profiles"]
-	}
-	if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-		result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
+	if profiles != nil {
+		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "MacOSSettings")] = profiles["apple_profiles"]
+		}
+		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
+		}
 	}
 
 	if teamMdm != nil {
@@ -578,7 +581,11 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 	// Get profiles.
 	profiles, err := cmd.Client.ListConfigurationProfiles(&teamId)
 	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting scripts: %v\n", err)
+		if strings.Contains(err.Error(), fleet.MDMNotConfiguredMessage) {
+			return nil, nil
+		}
+
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting profiles: %v\n", err)
 		return nil, err
 	}
 	if len(profiles) == 0 {
@@ -709,16 +716,17 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint)
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):        policy.Name,
-			jsonFieldName(t, "Description"): policy.Description,
-			jsonFieldName(t, "Resolution"):  policy.Resolution,
-			jsonFieldName(t, "Platform"):    policy.Platform,
-		}
-		if teamId != 0 {
-			policySpec[jsonFieldName(t, "TeamID")] = teamId
+			jsonFieldName(t, "Name"):                  policy.Name,
+			jsonFieldName(t, "Description"):           policy.Description,
+			jsonFieldName(t, "Resolution"):            policy.Resolution,
+			jsonFieldName(t, "Query"):                 policy.Query,
+			jsonFieldName(t, "Platform"):              policy.Platform,
+			jsonFieldName(t, "Critical"):              policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"): policy.CalendarEventsEnabled,
 		}
 		result[i] = policySpec
 	}
+	return result, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) (map[string]interface{}, error) {
@@ -726,9 +734,9 @@ func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) 
 }
 
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) ([]map[string]interface{}, error) {
-	query := ""
+	query := "available_for_install=1"
 	if teamId != 0 {
-		query = fmt.Sprintf("team_id=%d", teamId)
+		query += fmt.Sprintf("&team_id=%d", teamId)
 	}
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
