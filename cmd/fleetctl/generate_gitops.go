@@ -40,6 +40,12 @@ type FileToWrite struct {
 	Path    string
 	Content map[string]interface{}
 }
+
+type Software struct {
+	Hash    string
+	Comment string
+}
+
 type client interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
 	GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error)
@@ -94,6 +100,8 @@ type GenerateGitopsCommand struct {
 	FilesToWrite map[string]interface{}
 	Comments     []Comment
 	AppConfig    *fleet.EnrichedAppConfig
+	SoftwareList map[uint]Software
+	ScriptList   map[uint]string
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -133,6 +141,8 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 			CLI:          c,
 			Messages:     Messages{},
 			FilesToWrite: make(map[string]interface{}),
+			SoftwareList: make(map[uint]Software),
+			ScriptList:   make(map[uint]string),
 		}
 		return cmd.Run()
 	}
@@ -695,6 +705,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) 
 		scriptSlice[i] = map[string]interface{}{
 			"path": path,
 		}
+		cmd.ScriptList[script.ID] = path
 	}
 	return scriptSlice, nil
 }
@@ -723,6 +734,20 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint)
 			jsonFieldName(t, "Platform"):              policy.Platform,
 			jsonFieldName(t, "Critical"):              policy.Critical,
 			jsonFieldName(t, "CalendarEventsEnabled"): policy.CalendarEventsEnabled,
+		}
+		if policy.InstallSoftware != nil {
+			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
+				policySpec["install_software"] = map[string]interface{}{
+					"hash_sha256": software.Hash + " " + software.Comment,
+				}
+			}
+		}
+		if policy.RunScript != nil {
+			if scriptPath, ok := cmd.ScriptList[policy.RunScript.ID]; ok {
+				policySpec["run_script"] = map[string]interface{}{
+					"path": scriptPath,
+				}
+			}
 		}
 		result[i] = policySpec
 	}
@@ -756,6 +781,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 		comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
 		result[i] = map[string]interface{}{
 			"hash_sha256": *sw.HashSHA256 + " " + comment,
+		}
+		cmd.SoftwareList[sw.ID] = Software{
+			Hash:    *sw.HashSHA256,
+			Comment: comment,
 		}
 	}
 	return result, nil
