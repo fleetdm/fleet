@@ -686,11 +686,10 @@ FROM
 INNER JOIN
     nano_commands nc
 ON
-    ncr.command_uuid = nc.command_uuid AND ncr.id = ?
-INNER JOIN
-    host_vpp_software_installs hvsi
-ON
-    ncr.command_uuid = hvsi.command_uuid AND ncr.command_uuid = ?
+    ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
+LEFT JOIN host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
+LEFT JOIN upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
+WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
 `,
 		hostUUID,
 		commandUUID,
@@ -702,8 +701,12 @@ ON
 			ctx,
 			ds.reader(ctx),
 			&validCommandExists,
-			`SELECT COUNT(*) > 0 command_exists FROM host_vpp_software_installs hvsi
-				JOIN hosts h ON h.id = hvsi.host_id AND h.uuid = ? WHERE hvsi.command_uuid = ?`,
+			`SELECT COUNT(*) > 0 command_exists
+					FROM hosts h
+					LEFT JOIN host_vpp_software_installs hvsi ON h.id = hvsi.host_id AND hvsi.command_uuid = ?
+					LEFT JOIN upcoming_activities ua ON h.id = ua.host_id AND ua.execution_id = ?
+					WHERE h.uuid = ? AND (hvsi.id IS NOT NULL OR ua.id IS NOT NULL)`,
+			commandUUID,
 			commandUUID,
 			hostUUID,
 		)

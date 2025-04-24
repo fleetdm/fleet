@@ -11923,6 +11923,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
 	iOSHost, iOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
 	iPadOSHost, iPadOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ipados")
+	// ensure a valid alternate device token for self-service status access checking later
+	updateDeviceTokenForHost(t, s.ds, mdmHost.ID, "foobar")
 
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial,
