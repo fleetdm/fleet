@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
+	pathUtils "path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
@@ -44,6 +47,11 @@ type FileToWrite struct {
 type Software struct {
 	Hash    string
 	Comment string
+}
+
+type teamToProcess struct {
+	ID   *uint
+	Team *fleet.Team
 }
 
 type client interface {
@@ -124,6 +132,14 @@ func generateGitopsCommand() *cli.Command {
 				Name:  "key",
 				Usage: "A key to output the config value for.",
 			},
+			&cli.StringFlag{
+				Name:  "dir",
+				Usage: "The root directory to write the files to.",
+			},
+			&cli.BoolFlag{
+				Name:  "print",
+				Usage: "Output to stdout instead of the specified directory.",
+			},
 		},
 	}
 }
@@ -150,6 +166,12 @@ func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
 }
 
 func (cmd *GenerateGitopsCommand) Run() error {
+	// Either "key" or "dir" must be specified.
+	if cmd.CLI.String("key") == "" && cmd.CLI.String("dir") == "" {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Either --dir or --key must be specified\n")
+		return nil
+	}
+
 	fmt.Println("Generating GitOps configuration files...")
 
 	var err error
@@ -164,15 +186,37 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting teams: %s\n", err)
 		return ErrGeneric
 	}
-	// Add in a fake team to use for generating global control and software settings.
-	teams = append(teams, fleet.Team{
-		ID: 0,
-	})
-	for _, team := range teams {
-		teamFileName := generateFilename(team.Name)
+	teamsToProcess := make([]teamToProcess, len(teams)+2)
+	for i, team := range teams {
+		teamsToProcess[i] = teamToProcess{
+			ID:   &team.ID,
+			Team: &team,
+		}
+	}
+	teamsToProcess[len(teams)] = teamToProcess{
+		ID: ptr.Uint(0),
+		Team: &fleet.Team{
+			ID:   0,
+			Name: "No team",
+		},
+	}
+	teamsToProcess[len(teams)+1] = teamToProcess{
+		ID: nil,
+		Team: &fleet.Team{
+			Name: "Global",
+		},
+	}
+
+	for _, teamToProcess := range teamsToProcess {
+		var teamFileName string
 		var fileName string
+		var team *fleet.Team
+		if teamToProcess.ID != nil {
+			team = teamToProcess.Team
+		}
 		// If it's a real team, start the filename with the team name.
-		if team.ID != 0 {
+		if team != nil {
+			teamFileName = generateFilename(team.Name)
 			fileName = "teams/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
@@ -183,7 +227,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		var mdmConfig fleet.TeamMDM
 		// Generate org settings.
-		if team.ID == 0 {
+		if team == nil {
 			orgSettings, err := cmd.generateOrgSettings()
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
@@ -203,9 +247,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				MacOSSetup:           cmd.AppConfig.MDM.MacOSSetup,
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
+			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
 
-		} else {
+		} else if team.ID != 0 {
 			team, err := cmd.Client.GetTeam(team.ID)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting team %s: %s\n", team.Name, err)
@@ -223,11 +267,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			mdmConfig = team.Config.MDM
 		}
 
-		if team.ID != 0 {
-		}
-
 		// Generate controls.
-		controls, err := cmd.generateControls(team.ID, teamFileName, &mdmConfig)
+		controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -235,15 +276,21 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
 
 		// Generate software.
-		software, err := cmd.generateSoftware(fileName, team.ID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for team %s: %s\n", team.Name, err)
-			return ErrGeneric
+		if team != nil {
+			software, err := cmd.generateSoftware(fileName, team.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for team %s: %s\n", team.Name, err)
+				return ErrGeneric
+			}
+			if software == nil {
+				cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = nil
+			} else {
+				cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = software
+			}
 		}
-		cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = software
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(fileName, team.ID)
+		policies, err := cmd.generatePolicies(fileName, teamToProcess.ID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -251,7 +298,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
 
 		// Generate queries.
-		queries, err := cmd.generateQueries(fileName, team.ID)
+		queries, err := cmd.generateQueries(fileName, teamToProcess.ID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -285,11 +332,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
+	nullVal := regexp.MustCompile("(?m):\\s*null\\s*$")
 	// Add comments to the result.
 	for path, fileToWrite := range cmd.FilesToWrite {
+		fullPath := fmt.Sprintf("%s/%s", cmd.CLI.String("dir"), path)
+		var b []byte
+		var err error
 		// If the filename ends in .yml, marshal it to YAML.
 		if strings.HasSuffix(path, ".yml") {
-			b, err := yaml.Marshal(fileToWrite)
+			b, err = yaml.Marshal(fileToWrite)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling file to write: %s\n", err)
 				return ErrGeneric
@@ -302,9 +353,22 @@ func (cmd *GenerateGitopsCommand) Run() error {
 					)
 				}
 			}
-			fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", path, string(b))
+			// Replace any ": null" with empty string
+			b = nullVal.ReplaceAll(b, []byte(":"))
 		} else {
-			fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", path, fileToWrite)
+			b = []byte(fileToWrite.(string))
+		}
+		if cmd.CLI.Bool("print") {
+			fmt.Fprintf(cmd.CLI.App.Writer, "%s\n----------------------\n%+v\n", fullPath, string(b))
+		} else {
+			// Ensure the dir exists
+			os.MkdirAll(pathUtils.Dir(fullPath), 0o755)
+			// Write the file to the output directory.
+			err = os.WriteFile(fullPath, b, 0o644)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error writing file %s: %s\n", fullPath, err)
+				return ErrGeneric
+			}
 		}
 	}
 
@@ -327,7 +391,7 @@ func generateFilename(name string) string {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
 			return unicode.ToLower(r)
 		case unicode.IsSpace(r):
-			return '_'
+			return '-'
 		default:
 			return -1
 		}
@@ -542,7 +606,7 @@ func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId u
 	return map[string]interface{}{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {
 	t := reflect.TypeOf(spec.GitOpsControls{})
 	result := map[string]interface{}{}
 
@@ -576,7 +640,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string,
 		result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
 		result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
 
-		if teamId == 0 {
+		if teamId == nil {
 			mdmT := reflect.TypeOf(fleet.MDM{})
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
@@ -588,9 +652,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId uint, teamName string,
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string) (map[string]interface{}, error) {
 	// Get profiles.
-	profiles, err := cmd.Client.ListConfigurationProfiles(&teamId)
+	profiles, err := cmd.Client.ListConfigurationProfiles(teamId)
 	if err != nil {
 		if strings.Contains(err.Error(), fleet.MDMNotConfiguredMessage) {
 			return nil, nil
@@ -638,7 +702,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 		profileContentsString := string(profileContents)
 
 		fileName := fmt.Sprintf("profiles/%s", generateProfileFilename(profile, profileContentsString))
-		if teamId == 0 {
+		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {
 			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
@@ -646,7 +710,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 
 		cmd.FilesToWrite[fileName] = string(profileContentsString)
 		var path string
-		if teamId == 0 {
+		if teamId == nil {
 			path = fmt.Sprintf("./%s", fileName)
 		} else {
 			path = fmt.Sprintf("../%s", fileName)
@@ -667,11 +731,11 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId uint, teamName string)
 	}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string) ([]map[string]interface{}, error) {
 	// Get scripts.
 	query := ""
-	if teamId != 0 {
-		query = fmt.Sprintf("team_id=%d", teamId)
+	if teamId != nil {
+		query = fmt.Sprintf("team_id=%d", *teamId)
 	}
 	scripts, err := cmd.Client.ListScripts(query)
 	if err != nil {
@@ -686,7 +750,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) 
 	// For each script, get the contents and add a new file for output.
 	for i, script := range scripts {
 		fileName := fmt.Sprintf("scripts/%s", script.Name)
-		if teamId == 0 {
+		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {
 			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
@@ -698,7 +762,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) 
 		}
 		cmd.FilesToWrite[fileName] = string(scriptContents)
 		var path string
-		if teamId == 0 {
+		if teamId == nil {
 			path = fmt.Sprintf("./%s", fileName)
 		} else {
 			path = fmt.Sprintf("../%s", fileName)
@@ -711,12 +775,8 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId uint, teamName string) 
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint) ([]map[string]interface{}, error) {
-	var policyTeamId *uint
-	if teamId != 0 {
-		policyTeamId = &teamId
-	}
-	policies, err := cmd.Client.GetPolicies(policyTeamId)
+func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId *uint) ([]map[string]interface{}, error) {
+	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
 		return nil, err
@@ -772,12 +832,8 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId uint)
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId uint) ([]map[string]interface{}, error) {
-	var queryTeamId *uint
-	if teamId != 0 {
-		queryTeamId = &teamId
-	}
-	queries, err := cmd.Client.GetQueries(queryTeamId, nil)
+func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId *uint) ([]map[string]interface{}, error) {
+	queries, err := cmd.Client.GetQueries(teamId, nil)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting queries: %s\n", err)
 		return nil, err
@@ -821,6 +877,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
 		return nil, err
+	}
+	if len(software) == 0 {
+		return nil, nil
 	}
 	result := make([]map[string]interface{}, len(software))
 	for i, sw := range software {
