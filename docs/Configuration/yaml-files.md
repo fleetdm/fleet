@@ -483,7 +483,7 @@ Use `labels_include_any` to target hosts that have any label or `labels_exclude_
 ##### Supported software categories
 
 Use `categories` to group self-service software on your end users' **Fleet Desktop > My device** page. Here are the supported categories:
-- `Browsers`: group under **🌎 Browser**
+- `Browsers`: group under **🌎 Browsers**
 - `Communication`: group under **👬 Communication**
 - `Developer tools`: group under **🧰 Developer tools**
 - `Productivity`: group under **🖥️ Productivity**
