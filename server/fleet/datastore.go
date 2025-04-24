@@ -2001,6 +2001,9 @@ type Datastore interface {
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
 
+	// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+	RenewMDMManagedCertificates(ctx context.Context) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
