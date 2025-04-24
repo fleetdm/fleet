@@ -28,3 +28,12 @@ $metadata['sso.test.com'] = array(
     'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddres',
     'simplesaml.nameidattribute' => 'email',
 );
+
+# Used for testing when entity_id is not set, so that it matches the hostname (localhost).
+$metadata['localhost'] = array(
+    'AssertionConsumerService' => [
+        'https://localhost:8080/api/v1/fleet/sso/callback',
+    ],
+    'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddres',
+    'simplesaml.nameidattribute' => 'email',
+);

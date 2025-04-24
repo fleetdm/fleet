@@ -753,10 +753,9 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
 			err = samlErr.PrivateErr
 		}
-		return "", "", "", ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to parse and validate response",
-			InternalErr: err,
-		})
+		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
+		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
+		return "", "", "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
 	}
 
 	// Store information for automatic account population/creation

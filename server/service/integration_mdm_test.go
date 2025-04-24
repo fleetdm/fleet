@@ -5583,11 +5583,16 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/mdm/sso")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
+	// hitting the callback with an SAMLResponse redirects the user to the UI
+	rawSSOResp := `InvalidXML`
+	samlResponse := base64.URLEncoding.EncodeToString([]byte(rawSSOResp))
+	_ = s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+samlResponse, nil, http.StatusBadRequest)
+
 	// hitting the callback with an invalid session id redirects the user to the UI
-	rawSSOResp := `<?xml version="1.0" encoding="UTF-8"?>
+	rawSSOResp = `<?xml version="1.0" encoding="UTF-8"?>
 <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" Destination="https://localhost:8080/api/v1/kolide/sso/callback" ID="_7822b394622740aa92878ca6c7d1a28c53e80ec5ef" InResponseTo="4982b430-73e1-4ad2-885a-4a775a91f820" IssueInstant="2017-04-27T15:03:16.747Z" Version="2.0">
 </samlp:Response>`
-	samlResponse := base64.URLEncoding.EncodeToString([]byte(rawSSOResp))
+	samlResponse = base64.URLEncoding.EncodeToString([]byte(rawSSOResp))
 	res = s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+samlResponse, nil, http.StatusSeeOther)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	u, err = url.Parse(res.Header.Get("Location"))

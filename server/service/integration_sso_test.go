@@ -8,14 +8,18 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/crewjam/saml"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -208,8 +212,8 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	// users can't login if they don't have an account on free plans
 	// even if JIT provisioning is enabled
 	ac, err := s.ds.AppConfig(context.Background())
-	ac.SSOSettings.EnableJITProvisioning = true
 	require.NoError(t, err)
+	ac.SSOSettings.EnableJITProvisioning = true
 	err = s.ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 	_, body = s.LoginSSOUser("sso_user", "user123#")
@@ -393,4 +397,131 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	assert.Equal(t, "sso_user2@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
+}
+
+// This test increases coverage on using server_url.hostname as
+// entity_id when not set, and audience validation errors.
+func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "localhost",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	ac, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.SSOSettings.EntityID = ""
+	err = s.ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	// Create sso_user2@example.com if it doesn't exist (because this is
+	// a free instance and doesn't support enable_jit_provisioning).
+	u := &fleet.User{
+		Name:       "SSO User 2",
+		Email:      "sso_user2@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		SSOEnabled: true,
+	}
+	password := test.GoodPassword
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, _ = s.ds.NewUser(context.Background(), u)
+
+	auth, body := s.LoginSSOUser("sso_user2", "user123#")
+	assert.Equal(t, "sso_user2@example.com", auth.UserID())
+	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
+	// Fails due to `audience restriction validation failed: wrong audience: [{Audience:{Value:localhost}}]`
+	require.Contains(t, body, "/login?status=error")
+}
+
+// This test increases coverage to test failure on ParseXMLResponse.
+func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
+	t := s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+        "server_settings": {
+          "server_url": "https://localhost:8080"
+        },
+		"sso_settings": {
+			"enable_sso": true,
+			"entity_id": "sso.test.com",
+			"idp_name": "SimpleSAML",
+			"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+		}
+	}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	// Create sso_user2@example.com if it doesn't exist (because this is
+	// a free instance and doesn't support enable_jit_provisioning).
+	u := &fleet.User{
+		Name:       "SSO User 2",
+		Email:      "sso_user2@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		SSOEnabled: true,
+	}
+	password := test.GoodPassword
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, _ = s.ds.NewUser(context.Background(), u)
+
+	var (
+		idpUsername = "sso_user2"
+		idpPassword = "user123#"
+	)
+	var resIni initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
+	resp, err := client.Get(resIni.URL)
+	require.NoError(t, err)
+	// From the redirect Location header we can get the AuthState and the URL to
+	// which we submit the credentials
+	parsed, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	data := url.Values{
+		"username":  {idpUsername},
+		"password":  {idpPassword},
+		"AuthState": {parsed.Query().Get("AuthState")},
+	}
+	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
+	require.NoError(t, err)
+	// The response is an HTML form, we can extract the base64-encoded response
+	// to submit to the Fleet server from here
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	re := regexp.MustCompile(`value="(.*)"`)
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	rawSSOResp := string(matches[1])
+	rawSSORespDecoded, err := base64.RawStdEncoding.DecodeString(rawSSOResp)
+	require.NoError(t, err)
+	rawSSORespDecodedStr := strings.ReplaceAll(string(rawSSORespDecoded), idpUsername, "sso_us3r2")
+	rawSSORespEncoded := base64.RawStdEncoding.EncodeToString([]byte(rawSSORespDecodedStr))
+	q := url.QueryEscape(rawSSORespEncoded)
+	resp = s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+q, nil, http.StatusOK)
+
+	t.Cleanup(func() {
+		resp.Body.Close()
+	})
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "/login?status=error")
 }
