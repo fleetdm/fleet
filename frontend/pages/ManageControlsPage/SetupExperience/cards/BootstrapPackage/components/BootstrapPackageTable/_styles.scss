@@ -3,8 +3,15 @@
   // loading.
   min-height: 191px;
 
-  .data-table-block .data-table tbody td .w250 {
-    min-width: auto;
+  // some data table overrides to display the table correctly
+  .data-table-block .data-table {
+    tbody td .w250 {
+      min-width: auto;
+    }
+
+    &__wrapper {
+      margin-top: 0;
+    }
   }
 
   @media (max-width: $break-lg) {
