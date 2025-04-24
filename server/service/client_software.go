@@ -31,6 +31,17 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 	return responseBody.SoftwareTitles, nil
 }
 
+// GetSoftwareTitleByID retrieves a software title by ID.
+func (c *Client) GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error) {
+	verb, path := "GET", "/api/latest/fleet/software/titles/"+fmt.Sprint(ID)
+	var responseBody getSoftwareTitleResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.SoftwareTitle, nil
+}
+
 func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {

@@ -45,8 +45,9 @@ type FileToWrite struct {
 }
 
 type Software struct {
-	Hash    string
-	Comment string
+	Hash       string
+	AppStoreId string
+	Comment    string
 }
 
 type teamToProcess struct {
@@ -64,6 +65,7 @@ type client interface {
 	GetProfileContents(profileID string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
+	GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 }
@@ -509,6 +511,13 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["global_integrations"].(map[string]interface{})
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
+		if result["google_calendar"] != nil {
+			result = map[string]interface{}{
+				"google_calendar": result["google_calendar"],
+			}
+		} else {
+			result = nil
+		}
 		// Team integrations don't have secrets right now, so just return as-is.
 		return result, nil
 	}
@@ -868,7 +877,7 @@ func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId *uint)
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) (map[string]interface{}, error) {
 	query := "available_for_install=1"
 	if teamId != 0 {
 		query += fmt.Sprintf("&team_id=%d", teamId)
@@ -881,24 +890,81 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	if len(software) == 0 {
 		return nil, nil
 	}
-	result := make([]map[string]interface{}, len(software))
-	for i, sw := range software {
+	result := make(map[string]interface{})
+	packages := make([]map[string]interface{}, 0)
+	appStoreApps := make([]map[string]interface{}, 0)
+	for _, sw := range software {
 		versions := make([]string, len(sw.Versions))
 		for j, version := range sw.Versions {
 			versions[j] = version.Version
 		}
-		pkgName := ""
-		if sw.SoftwarePackage != nil && sw.SoftwarePackage.Name != "" {
-			pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
+		softwareSpec := make(map[string]interface{})
+		if sw.SoftwarePackage != nil {
+			pkgName := ""
+			if sw.SoftwarePackage.Name != "" {
+				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
+			}
+			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
+			softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
+			cmd.SoftwareList[sw.ID] = Software{
+				Hash:    *sw.HashSHA256,
+				Comment: comment,
+			}
+		} else if sw.AppStoreApp != nil {
+			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
+		} else {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
+			continue
 		}
-		comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
-		result[i] = map[string]interface{}{
-			"hash_sha256": *sw.HashSHA256 + " " + comment,
+
+		// If we're on the premium tier, get the software metadata to check for labels.
+		if cmd.AppConfig.License.IsPremium() {
+			softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
+				return nil, err
+			}
+			var labels []fleet.SoftwareScopeLabel
+			var labelKey string
+			if softwareTitle.SoftwarePackage != nil {
+				if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
+					labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
+					labelKey = "labels_include_any"
+				}
+				if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
+					labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
+					labelKey = "labels_exclude_any"
+				}
+			} else {
+				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
+					labels = softwareTitle.AppStoreApp.LabelsIncludeAny
+					labelKey = "labels_include_any"
+				}
+				if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
+					labels = softwareTitle.AppStoreApp.LabelsExcludeAny
+					labelKey = "labels_exclude_any"
+				}
+			}
+			if len(labels) > 0 {
+				labelsList := make([]string, len(labels))
+				for i, label := range labels {
+					labelsList[i] = label.LabelName
+				}
+				softwareSpec[labelKey] = labelsList
+			}
 		}
-		cmd.SoftwareList[sw.ID] = Software{
-			Hash:    *sw.HashSHA256,
-			Comment: comment,
+
+		if sw.SoftwarePackage != nil {
+			packages = append(packages, softwareSpec)
+		} else {
+			appStoreApps = append(appStoreApps, softwareSpec)
 		}
+	}
+	if len(packages) > 0 {
+		result["packages"] = packages
+	}
+	if len(appStoreApps) > 0 {
+		result["app_store_apps"] = appStoreApps
 	}
 	return result, nil
 }

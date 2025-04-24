@@ -817,8 +817,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" {
-		return errors.New("install_software must include either a package path or app store app ID")
+	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
+		return errors.New("install_software must include either a package path, an app store app ID or a hash")
 	}
 	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
 		return errors.New("install_software must have only one of package_path or app_store_id")
