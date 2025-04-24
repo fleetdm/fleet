@@ -7180,7 +7180,6 @@ func testSoftwareCategories(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// TODO(JVE): add a VPP app and validate that this returns its categories as well
 	categories, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, nil)
 	require.NoError(t, err)
 	require.Len(t, categories, 1)
