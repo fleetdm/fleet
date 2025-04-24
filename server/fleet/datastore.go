@@ -2246,6 +2246,9 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
+	// FleetIsRunning indicates that the Fleet server is currently running and should be stopped
+	// before performing migrations.
+	FleetIsRunning
 )
 
 // TODO: we have a similar but different interface in the service package,
