@@ -157,6 +157,8 @@ type SoftwarePackageResponse struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// HashSHA256 is the SHA256 hash of the software installer.
+	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.

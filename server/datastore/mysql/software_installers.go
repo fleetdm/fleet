@@ -2107,7 +2107,8 @@ func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]
 SELECT
   team_id,
   title_id,
-  url
+  url,
+  storage_id as hash_sha256
 FROM
   software_installers
 WHERE global_or_team_id = ?

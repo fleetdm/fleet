@@ -76,6 +76,7 @@ type PolicyRunScript struct {
 type PolicyInstallSoftware struct {
 	PackagePath string `json:"package_path"`
 	AppStoreID  string `json:"app_store_id"`
+	HashSHA256  string `json:"hash_sha256"`
 }
 
 type Query struct {
