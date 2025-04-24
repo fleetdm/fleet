@@ -70,6 +70,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2025-04-21">
+<meta name="publishedOn" value="2025-04-24">
 <meta name="articleTitle" value="Fleet 4.67.0 | Foreign vitals, policy targets, cancel activities">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.67.0-1600x900@2x.png">
