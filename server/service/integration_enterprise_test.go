@@ -6614,6 +6614,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
 
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s"}`, batchRes.BatchExecutionID, script.Name),
+		0,
+	)
+
 	// verify that script was queued for orbit
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
