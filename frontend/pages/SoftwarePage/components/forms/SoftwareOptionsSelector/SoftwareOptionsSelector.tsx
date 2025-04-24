@@ -120,6 +120,9 @@ const SoftwareOptionsSelector = ({
     return <>Automatically install only on hosts missing this software.</>;
   };
 
+  // Ability to set categories when adding software is in a future ticket #28061
+  const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
+
   return (
     <div className={`form-field ${classNames}`}>
       <div className="form-field__label">Options</div>
@@ -140,7 +143,7 @@ const SoftwareOptionsSelector = ({
         >
           Self-service
         </Checkbox>
-        {formData.selfService && (
+        {canSelectSoftwareCategories && (
           <CategoriesSelector
             onSelectCategory={onSelectCategory}
             selectedCategories={formData.categories}
