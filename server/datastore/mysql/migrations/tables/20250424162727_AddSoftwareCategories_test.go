@@ -18,7 +18,7 @@ func TestUp_20250424162727(t *testing.T) {
 	err := db.Select(&gotCategories, "SELECT id, name FROM software_categories")
 	require.NoError(t, err)
 	require.Len(t, gotCategories, 4)
-	expectedNames := []string{"Developer tools", "Browser", "Communication", "Productivity"}
+	expectedNames := []string{"Developer tools", "Browsers", "Communication", "Productivity"}
 	var gotNames []string
 	for _, c := range gotCategories {
 		gotNames = append(gotNames, c.Name)

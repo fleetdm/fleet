@@ -24,7 +24,8 @@ func Up_20250424162727(tx *sql.Tx) error {
     		software_category_id INT UNSIGNED NOT NULL,
 			software_installer_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
-			FOREIGN KEY (software_installer_id) REFERENCES software_installers (id) ON DELETE CASCADE
+			FOREIGN KEY (software_installer_id) REFERENCES software_installers (id) ON DELETE CASCADE,
+			FOREIGN KEY (software_category_id) REFERENCES software_categories (id) ON DELETE CASCADE
 			)`)
 	if err != nil {
 		return fmt.Errorf("failed to create software_installer_software_categories table: %w", err)
@@ -35,14 +36,15 @@ func Up_20250424162727(tx *sql.Tx) error {
     		software_category_id INT UNSIGNED NOT NULL,
 			vpp_app_team_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
-			FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams (id) ON DELETE CASCADE
+			FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams (id) ON DELETE CASCADE,
+			FOREIGN KEY (software_category_id) REFERENCES software_categories (id) ON DELETE CASCADE
 			)`)
 	if err != nil {
 		return fmt.Errorf("failed to create vpp_app_team_software_categories table: %w", err)
 	}
 
 	// insert categories
-	_, err = tx.Exec(`INSERT INTO software_categories (name) VALUES ('Productivity'), ('Browser'), ('Communication'), ('Developer tools')`)
+	_, err = tx.Exec(`INSERT INTO software_categories (name) VALUES ('Productivity'), ('Browsers'), ('Communication'), ('Developer tools')`)
 	if err != nil {
 		return fmt.Errorf("inserting default categories into software_categories table: %w", err)
 	}
