@@ -727,6 +727,65 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 	return rt, err
 }
 
+func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	var results []*fleet.MDMCommandResult
+	err := sqlx.SelectContext(
+		ctx,
+		ds.reader(ctx),
+		&results,
+		`
+SELECT
+    ncr.id as host_uuid,
+    ncr.command_uuid,
+    ncr.status,
+    ncr.result,
+    ncr.updated_at,
+    nc.request_type,
+    nc.command as payload
+FROM
+    nano_command_results ncr
+INNER JOIN
+    nano_commands nc
+ON
+    ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
+LEFT JOIN host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
+LEFT JOIN upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
+WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
+`,
+		hostUUID,
+		commandUUID,
+	)
+
+	if err == sql.ErrNoRows || len(results) == 0 {
+		var validCommandExists bool
+		err = sqlx.GetContext(
+			ctx,
+			ds.reader(ctx),
+			&validCommandExists,
+			`SELECT COUNT(*) > 0 command_exists
+					FROM hosts h
+					LEFT JOIN host_vpp_software_installs hvsi ON h.id = hvsi.host_id AND hvsi.command_uuid = ?
+					LEFT JOIN upcoming_activities ua ON h.id = ua.host_id AND ua.execution_id = ?
+					WHERE h.uuid = ? AND (hvsi.id IS NOT NULL OR ua.id IS NOT NULL)`,
+			commandUUID,
+			commandUUID,
+			hostUUID,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get vpp command existence")
+		}
+		if validCommandExists {
+			return nil, nil // no results, but command did reference a VPP install
+		}
+		return nil, notFound("HostMDMCommand").WithName(commandUUID)
+	}
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp command results")
+	}
+	return results, nil
+}
+
 func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `
 SELECT
@@ -755,6 +814,7 @@ WHERE
 		query,
 		commandUUID,
 	)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
