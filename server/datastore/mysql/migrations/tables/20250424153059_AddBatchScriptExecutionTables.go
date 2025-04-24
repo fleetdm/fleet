@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250416152709, Down_20250416152709)
+	MigrationClient.AddMigration(Up_20250424153059, Down_20250424153059)
 }
 
-func Up_20250416152709(tx *sql.Tx) error {
+func Up_20250424153059(tx *sql.Tx) error {
 	stmt := `
 CREATE TABLE batch_script_executions (
   id int unsigned NOT NULL AUTO_INCREMENT,
@@ -45,6 +45,6 @@ CREATE TABLE batch_script_execution_host_results (
 	return nil
 }
 
-func Down_20250416152709(tx *sql.Tx) error {
+func Down_20250424153059(tx *sql.Tx) error {
 	return nil
 }
