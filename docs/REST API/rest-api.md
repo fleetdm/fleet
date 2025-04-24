@@ -10850,7 +10850,6 @@ _Available in Fleet Premium_
         "macos_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
-
       }
     }
   }
