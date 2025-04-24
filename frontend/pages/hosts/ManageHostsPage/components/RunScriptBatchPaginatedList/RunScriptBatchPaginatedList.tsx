@@ -58,7 +58,7 @@ const RunScriptBatchPaginatedList = ({
             // TODO - check this covers No team correctly
             team_id: teamId,
             page: pageNumber,
-            perPage: PAGE_SIZE,
+            per_page: PAGE_SIZE,
             // TODO - allow changing order direction
           },
         ],
