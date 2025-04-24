@@ -1997,13 +1997,11 @@ CREATE TABLE `software` (
 CREATE TABLE `software_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
-  `updated_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_categories_name` (`name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `software_categories` VALUES (1,'Productivity','2025-04-24 00:23:56.009825','2025-04-24 00:23:56.009825'),(2,'Browser','2025-04-24 00:23:56.009825','2025-04-24 00:23:56.009825'),(3,'Communication','2025-04-24 00:23:56.009825','2025-04-24 00:23:56.009825'),(4,'Developer tools','2025-04-24 00:23:56.009825','2025-04-24 00:23:56.009825');
+INSERT INTO `software_categories` VALUES (2,'Browser'),(3,'Communication'),(4,'Developer tools'),(1,'Productivity');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `software_cpe` (
@@ -2088,6 +2086,7 @@ CREATE TABLE `software_installer_software_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `software_category_id` int unsigned NOT NULL,
   `software_installer_id` int unsigned NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `software_installer_id` (`software_installer_id`),
   CONSTRAINT `software_installer_software_categories_ibfk_1` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE
@@ -2295,6 +2294,7 @@ CREATE TABLE `vpp_app_team_software_categories` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `software_category_id` int unsigned NOT NULL,
   `vpp_app_team_id` int unsigned NOT NULL,
+  `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `vpp_app_team_id` (`vpp_app_team_id`),
   CONSTRAINT `vpp_app_team_software_categories_ibfk_1` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE

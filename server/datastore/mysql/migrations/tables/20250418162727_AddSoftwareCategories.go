@@ -9,14 +9,10 @@ func init() {
 	MigrationClient.AddMigration(Up_20250418162727, Down_20250418162727)
 }
 
-// TODO(JVE): add foreign keys and insert data
-
 func Up_20250418162727(tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS software_categories  (
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		name VARCHAR(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-			created_at DATETIME(6) NULL DEFAULT NOW(6),
-  			updated_at DATETIME(6) NULL DEFAULT NOW(6) ON UPDATE NOW(6),
 			UNIQUE KEY idx_software_categories_name (name)
 			)`)
 	if err != nil {
@@ -27,6 +23,7 @@ func Up_20250418162727(tx *sql.Tx) error {
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		software_category_id INT UNSIGNED NOT NULL,
 			software_installer_id INT UNSIGNED NOT NULL,
+			created_at DATETIME(6) NULL DEFAULT NOW(6),
 			FOREIGN KEY (software_installer_id) REFERENCES software_installers (id) ON DELETE CASCADE
 			)`)
 	if err != nil {
@@ -37,6 +34,7 @@ func Up_20250418162727(tx *sql.Tx) error {
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		software_category_id INT UNSIGNED NOT NULL,
 			vpp_app_team_id INT UNSIGNED NOT NULL,
+			created_at DATETIME(6) NULL DEFAULT NOW(6),
 			FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams (id) ON DELETE CASCADE
 			)`)
 	if err != nil {

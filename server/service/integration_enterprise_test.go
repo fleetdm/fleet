@@ -16175,7 +16175,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 }
 
-func (s *integrationEnterpriseTestSuite) TestAmMaintainedApps() {
+func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	t := s.T()
 	ctx := context.Background()
 
