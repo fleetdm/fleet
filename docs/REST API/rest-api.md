@@ -868,7 +868,8 @@ None.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": true
+      "enable_release_device_manually": false,
+      "manual_agent_install": false
     },
     "client_url": "https://instance.fleet.com"
   },
@@ -10846,7 +10847,10 @@ _Available in Fleet Premium_
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
+        "macos_setup_assistant": "path/to/config.json",
+        "enable_release_device_manually": false,
+        "manual_agent_install": false
+
       }
     }
   }
