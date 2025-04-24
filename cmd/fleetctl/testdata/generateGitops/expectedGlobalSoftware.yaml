@@ -1,1 +1,5 @@
-- hash_sha256: global-software-hash ___GITOPS_COMMENT_0___
+packages:
+  - hash_sha256: global-software-hash ___GITOPS_COMMENT_0___
+    labels_include_any:
+    - Label A
+    - Label B

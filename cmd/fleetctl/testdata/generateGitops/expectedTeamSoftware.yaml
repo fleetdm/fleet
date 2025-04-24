@@ -1,1 +1,5 @@
-- hash_sha256: team-software-hash ___GITOPS_COMMENT_1___
+app_store_apps:
+  - app_store_id: com.example.team-software
+    labels_exclude_any:
+     - Label C
+     - Label D

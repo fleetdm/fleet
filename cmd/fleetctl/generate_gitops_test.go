@@ -187,12 +187,15 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					Version: "2.0.0",
 				}},
 				HashSHA256: ptr.String("global-software-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name: "global-software.pkg",
+				},
 			},
 		}, nil
 	case "available_for_install=1&team_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
-				ID:   1,
+				ID:   2,
 				Name: "Team Software",
 				Versions: []fleet.SoftwareVersion{{
 					ID:      3,
@@ -201,8 +204,8 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					ID:      4,
 					Version: "8.9.10",
 				}},
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					Name: "team-software.pkg",
+				AppStoreApp: &fleet.SoftwarePackageOrApp{
+					AppStoreID: "com.example.team-software",
 				},
 				HashSHA256: ptr.String("team-software-hash"),
 			},
@@ -284,6 +287,35 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 			AutomationsEnabled: true,
 		},
 	}, nil
+}
+
+func (MockClient) GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error) {
+	switch ID {
+	case 1:
+		return &fleet.SoftwareTitle{
+			ID: 1,
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				LabelsIncludeAny: []fleet.SoftwareScopeLabel{{
+					LabelName: "Label A",
+				}, {
+					LabelName: "Label B",
+				}},
+			},
+		}, nil
+	case 2:
+		return &fleet.SoftwareTitle{
+			ID: 2,
+			AppStoreApp: &fleet.VPPAppStoreApp{
+				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{
+					LabelName: "Label C",
+				}, {
+					LabelName: "Label D",
+				}},
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("software title not found")
+	}
 }
 
 func TestGenerateGitops(t *testing.T) {
@@ -479,7 +511,7 @@ func TestGenerateControls(t *testing.T) {
 		WindowsUpdates:       appConfig.MDM.WindowsUpdates,
 		MacOSSetup:           appConfig.MDM.MacOSSetup,
 	}
-	controlsRaw, err := cmd.generateControls(0, "", &mdmConfig)
+	controlsRaw, err := cmd.generateControls(ptr.Uint(0), "", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	var controls map[string]interface{}
@@ -501,7 +533,7 @@ func TestGenerateControls(t *testing.T) {
 	// Generate controls for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	controlsRaw, err = cmd.generateControls(1, "some_team", nil)
+	controlsRaw, err = cmd.generateControls(ptr.Uint(1), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)
@@ -519,7 +551,7 @@ func TestGenerateControls(t *testing.T) {
 	require.Equal(t, expectedControls, controls)
 }
 
-func TestSoftware(t *testing.T) {
+func TestGenerateSoftware(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
@@ -531,12 +563,13 @@ func TestSoftware(t *testing.T) {
 		Messages:     Messages{},
 		FilesToWrite: make(map[string]interface{}),
 		AppConfig:    appConfig,
+		SoftwareList: make(map[uint]Software),
 	}
 
 	softwareRaw, err := cmd.generateSoftware("default.yml", 0)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
-	var software []map[string]interface{}
+	var software map[string]interface{}
 	b, err := yaml.Marshal(softwareRaw)
 	fmt.Println("software raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &software)
@@ -545,7 +578,7 @@ func TestSoftware(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalSoftware.yaml")
 	require.NoError(t, err)
-	var expectedSoftware []map[string]interface{}
+	var expectedSoftware map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedSoftware)
 	require.NoError(t, err)
 
@@ -573,7 +606,7 @@ func TestSoftware(t *testing.T) {
 	require.Equal(t, expectedSoftware, software)
 }
 
-func TestPolicies(t *testing.T) {
+func TestGeneratePolicies(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
@@ -596,7 +629,7 @@ func TestPolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies("default.yml", 0)
+	policiesRaw, err := cmd.generatePolicies("default.yml", ptr.Uint(0))
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var policies []map[string]interface{}
@@ -618,7 +651,7 @@ func TestPolicies(t *testing.T) {
 	// Generate policies for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	policiesRaw, err = cmd.generatePolicies("team.yml", 1)
+	policiesRaw, err = cmd.generatePolicies("team.yml", ptr.Uint(1))
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
@@ -636,7 +669,7 @@ func TestPolicies(t *testing.T) {
 	require.Equal(t, expectedPolicies, policies)
 }
 
-func TestQueries(t *testing.T) {
+func TestGenerateQueries(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
@@ -650,7 +683,7 @@ func TestQueries(t *testing.T) {
 		AppConfig:    appConfig,
 	}
 
-	queriesRaw, err := cmd.generateQueries("default.yml", 0)
+	queriesRaw, err := cmd.generateQueries("default.yml", ptr.Uint(0))
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
 	var queries []map[string]interface{}
@@ -672,7 +705,7 @@ func TestQueries(t *testing.T) {
 	// Generate queries for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	queriesRaw, err = cmd.generateQueries("team.yml", 1)
+	queriesRaw, err = cmd.generateQueries("team.yml", ptr.Uint(1))
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
 	b, err = yaml.Marshal(queriesRaw)
