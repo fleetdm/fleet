@@ -9063,6 +9063,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	// Test that the software titles endpoint returns a SHA256 hash.
+	require.Equal(t, *resp.SoftwareTitles[0].HashSHA256, "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628")
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
