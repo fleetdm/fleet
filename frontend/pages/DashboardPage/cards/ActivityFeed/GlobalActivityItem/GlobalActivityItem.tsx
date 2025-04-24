@@ -667,12 +667,12 @@ const TAGGED_TEMPLATES = {
     );
   },
   ranScriptBatch: (activity: IActivity) => {
-    // confirm where host count coming from
-    const { script_name, host_ids } = activity.details || {};
+    // next iteration, can grab `batch_execution_id` from details
+    const { script_name, host_count } = activity.details || {};
     return (
       <>
         {" "}
-        ran {formatScriptNameForActivityItem(script_name)} on {host_ids?.length}{" "}
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count}{" "}
         hosts.
       </>
     );

@@ -171,6 +171,7 @@ export type IHostUpcomingActivity = Omit<
 export interface IActivityDetails {
   app_store_id?: number;
   bootstrap_package_name?: string;
+  batch_exection_id?: string;
   command_uuid?: string;
   deadline_days?: number;
   deadline?: string;
@@ -181,6 +182,7 @@ export interface IActivityDetails {
   host_display_names?: string[];
   host_id?: number;
   host_ids?: number[];
+  host_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
