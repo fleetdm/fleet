@@ -1,0 +1,7 @@
+- automations_enabled: true
+  description: This is a team query
+  interval: 1800
+  name: Team Query
+  observer_can_run: false
+  platform: linux,windows
+  query: SELECT * FROM team_query WHERE id = 1

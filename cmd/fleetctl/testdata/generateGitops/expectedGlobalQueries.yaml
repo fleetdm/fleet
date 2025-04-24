@@ -1,0 +1,10 @@
+- automations_enabled: false
+  description: This is a global query
+  interval: 3600
+  labels_include_any:
+  - Label A
+  - Label B
+  name: Global Query
+  observer_can_run: true
+  platform: darwin
+  query: SELECT * FROM global_query WHERE id = 1

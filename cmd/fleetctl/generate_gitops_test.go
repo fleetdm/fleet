@@ -174,7 +174,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "":
+	case "available_for_install=1":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:   1,
@@ -189,7 +189,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				HashSHA256: ptr.String("global-software-hash"),
 			},
 		}, nil
-	case "team_id=1":
+	case "available_for_install=1&team_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:   1,
@@ -253,7 +253,37 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 }
 
 func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
-	return nil, nil
+	if teamID == nil {
+		return []fleet.Query{
+			{
+				ID:                 1,
+				Name:               "Global Query",
+				Query:              "SELECT * FROM global_query WHERE id = 1",
+				Description:        "This is a global query",
+				Platform:           "darwin",
+				Interval:           3600,
+				ObserverCanRun:     true,
+				AutomationsEnabled: false,
+				LabelsIncludeAny: []fleet.LabelIdent{{
+					LabelName: "Label A",
+				}, {
+					LabelName: "Label B",
+				}},
+			},
+		}, nil
+	}
+	return []fleet.Query{
+		{
+			ID:                 1,
+			Name:               "Team Query",
+			Query:              "SELECT * FROM team_query WHERE id = 1",
+			Description:        "This is a team query",
+			Platform:           "linux,windows",
+			Interval:           1800,
+			ObserverCanRun:     false,
+			AutomationsEnabled: true,
+		},
+	}, nil
 }
 
 func TestGenerateGitops(t *testing.T) {
@@ -261,12 +291,13 @@ func TestGenerateGitops(t *testing.T) {
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
 	cliContext := cli.NewContext(&cli.App{
-		Name:   "test",
-		Usage:  "test",
-		Writer: buf,
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
 	}, nil, nil)
 	err := action(cliContext)
-	require.NoError(t, err)
+	require.NoError(t, err, buf.String())
 
 	fmt.Println(buf.String()) // Debugging line
 }
@@ -603,4 +634,58 @@ func TestPolicies(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedPolicies, policies)
+}
+
+func TestQueries(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+	}
+
+	queriesRaw, err := cmd.generateQueries("default.yml", 0)
+	require.NoError(t, err)
+	require.NotNil(t, queriesRaw)
+	var queries []map[string]interface{}
+	b, err := yaml.Marshal(queriesRaw)
+	fmt.Println("queries raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &queries)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalQueries.yaml")
+	require.NoError(t, err)
+	var expectedQueries []map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedQueries)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedQueries, queries)
+
+	// Generate queries for a team.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	queriesRaw, err = cmd.generateQueries("team.yml", 1)
+	require.NoError(t, err)
+	require.NotNil(t, queriesRaw)
+	b, err = yaml.Marshal(queriesRaw)
+	fmt.Println("queries raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &queries)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamQueries.yaml")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &expectedQueries)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedQueries, queries)
 }
