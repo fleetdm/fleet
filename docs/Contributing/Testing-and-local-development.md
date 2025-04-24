@@ -850,6 +850,8 @@ The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo
 
 ### Puppet module
 
+> The Puppet module is deprecated as of Fleet 4.66. It is maintained for backwards compatibility.
+
 Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
 
 ### Testing the end user flow for MDM migrations

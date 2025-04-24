@@ -10,7 +10,7 @@ SentinelOne is a cybersecurity platform that provides endpoint protection, detec
 
 SentinelOne requires 5 separate mobileconfig files in order to properly function on macOS. Each of these serves an important operational function. These 5 profiles are available to download on my GitHub repo [here](https://github.com/harrisonravazzolo/Bluth-Company-GitOps/tree/main/lib/macos/SentinelOne). Let's quickly run through each one and highlight what it's actually doing on your endpoints.
 
-> It's possible these profiles can be combined into one payload, but we've kept them seperate here for troubleshooting purposes.
+> It's possible these profiles can be combined into one payload, but we've kept them separate here for troubleshooting purposes.
 
 `s1_install_token.mobileconfig` - The simplest of the payloads. Find the key S1InstallRegistrationToken and replace the corresponding string value with your site token. This token can be found under the Sentinels tab for the corresponding site where you want to enroll your hosts.
 

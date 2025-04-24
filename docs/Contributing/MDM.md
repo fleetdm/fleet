@@ -109,6 +109,8 @@ It's important to note that when sending a new enrollment profile, certain field
 
 ### Puppet module
 
+> The Puppet module is deprecated as of Fleet 4.66. It's maintained for backwards compatibility.
+
 The implementation of the Puppet module is described in detail at: `ee/tools/puppet/fleetdm/CONTRIBUTING.md`
 
 ### MDM migrations
