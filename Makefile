@@ -77,7 +77,8 @@ all: build
 	$(eval APP_NAME = fleetctl)
 
 # For the build target, decide which binaries to build.
-BINS_TO_BUILD =
+# Default to building both
+BINS_TO_BUILD = fleet fleetctl
 ifeq (build,$(filter build,$(MAKECMDGOALS)))
 	BINS_TO_BUILD = fleet fleetctl
 	ifeq ($(ARG1), fleet)
