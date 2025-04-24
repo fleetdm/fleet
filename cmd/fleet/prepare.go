@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +44,15 @@ To setup Fleet infrastructure, use one of the available commands.
 				noPrompt = true
 			}
 
+			fleetIsRunning, err := checkForRunningFleet()
+			if err != nil {
+				initFatal(err, "checking for active Fleet server")
+			}
+			if *fleetIsRunning == true {
+				printFleetIsRunningMessage()
+				os.Exit(1)
+			}
+
 			ds, err := mysql.New(config.Mysql, clock.C)
 			if err != nil {
 				initFatal(err, "creating db connection")
@@ -73,7 +84,6 @@ To setup Fleet infrastructure, use one of the available commands.
 			if err := ds.MigrateTables(cmd.Context()); err != nil {
 				initFatal(err, "migrating db schema")
 			}
-
 			if err := ds.MigrateData(cmd.Context()); err != nil {
 				initFatal(err, "migrating builtin data")
 			}
@@ -113,6 +123,15 @@ func printMissingMigrationsPrompt(tables []int64, data []int64) {
 		tablesAndDataToString(tables, data))
 }
 
+func printFleetIsRunningMessage() {
+	fmt.Printf("################################################################################\n" +
+		"# WARNING:\n" +
+		"# Performing database migrations while the Fleet server is running can cause issues.\n" +
+		"# Please stop Fleet before performing migrations.\n" +
+		"################################################################################\n",
+	)
+}
+
 func tablesAndDataToString(tables, data []int64) string {
 	switch {
 	case len(tables) > 0 && len(data) == 0:
@@ -125,4 +144,30 @@ func tablesAndDataToString(tables, data []int64) string {
 	default:
 		return fmt.Sprintf("tables=%v, data=%v", tables, data)
 	}
+}
+
+func checkForRunningFleet() (*bool, error) {
+	// run: ps aux | grep 'fleet serve'
+	// jq '[{"query":.queries[] | .query}]'
+	// out := exec.Command("bash", "-c", "ps", "aux", "|", "grep", "'[f]leet serve'", "|", "grep", "-q", ".")
+	cmd := exec.Command("bash", "-c", `ps aux | grep '[f]leet serve'`)
+	// var cmdOut bytes.Buffer
+
+	// var cmdStderr bytes.Buffer
+	// cmd.Stdout = &cmdOut
+	// cmd.Stderr = &cmdStderr
+	// err := cmd.Run()
+	output, err := cmd.CombinedOutput()
+	fmt.Printf("\n\noutput: %v\n\n", string(output))
+	if err != nil {
+		return nil, fmt.Errorf("Running command to find active `fleet serve`: %v\n", err)
+	}
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Couldn't check for running Fleet: %w", cmdStderr.String(), err)
+	// }
+	// if strings.Contains(string(cmdOut.Bytes()), "NOT") {
+	if len(string(output)) > 0 {
+		return ptr.Bool(true), nil
+	}
+	return ptr.Bool(false), nil
 }
