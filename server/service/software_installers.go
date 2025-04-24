@@ -597,12 +597,37 @@ type getSoftwareInstallResultsRequest struct {
 	InstallUUID string `url:"install_uuid"`
 }
 
+type getDeviceSoftwareInstallResultsRequest struct {
+	Token       string `url:"token"`
+	InstallUUID string `url:"install_uuid"`
+}
+
+func (r *getDeviceSoftwareInstallResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
 type getSoftwareInstallResultsResponse struct {
 	Err     error                              `json:"error,omitempty"`
 	Results *fleet.HostSoftwareInstallerResult `json:"results,omitempty"`
 }
 
 func (r getSoftwareInstallResultsResponse) Error() error { return r.Err }
+
+func getDeviceSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareInstallResultsRequest)
+	results, err := svc.GetSoftwareInstallResults(ctx, req.InstallUUID)
+	if err != nil {
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	return &getSoftwareInstallResultsResponse{Results: results}, nil
+}
 
 func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallResultsRequest)
