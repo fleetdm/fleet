@@ -1472,7 +1472,7 @@ This activity contains the following fields:
 
 ## installed_app_store_app
 
-Generated when an App Store app is installed on a host.
+Generated when an App Store app is installed on a device.
 
 This activity contains the following fields:
 - "host_id": ID of the host on which the app was installed.
@@ -1497,29 +1497,6 @@ This activity contains the following fields:
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro"
-}
-```
-
-## uninstalled_app_store_app
-
-Generated when an App Store app software is uninstalled on a host.
-
-This activity contains the following fields:
-- "host_id": ID of the host.
-- "host_display_name": Display name of the host.
-- "software_title": Name of the software.
-- "command_uuid": UUID of the MDM command used to install the app.
-- "status": Status of the software uninstallation.
-
-#### Example
-
-```json
-{
-  "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
-  "software_title": "Falcon.app",
-  "command_uuid": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
-  "status": "uninstalled"
 }
 ```
 
