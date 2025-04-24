@@ -387,7 +387,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	}
 	password := test.GoodPassword
 	require.NoError(t, u.SetPassword(password, 10, 10))
-	s.ds.NewUser(context.Background(), u)
+	_, _ = s.ds.NewUser(context.Background(), u)
 
 	auth, body := s.LoginSSOUser("sso_user2", "user123#")
 	assert.Equal(t, "sso_user2@example.com", auth.UserID())
