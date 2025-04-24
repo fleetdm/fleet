@@ -9124,6 +9124,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	// Test that the software titles endpoint returns a SHA256 hash.
+	require.Equal(t, *resp.SoftwareTitles[0].HashSHA256, "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628")
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -10470,6 +10472,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
+	otherToken := "other_token"
+	otherHost := createOrbitEnrolledHost(t, "rhel", "host2", s.ds)
+	createDeviceTokenForHost(t, s.ds, otherHost.ID, otherToken)
+
 	// no software yet
 	var getHostSw getHostSoftwareResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
@@ -10716,6 +10722,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
 	require.True(t, *getDeviceSw.Software[2].SoftwarePackage.SelfService)
+
+	// confirm device-auth'd install results are visible
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/"+getDeviceSw.Software[2].SoftwarePackage.LastInstall.InstallUUID+"/results", nil, http.StatusOK)
+	getDeviceInstallResult := getSoftwareInstallResultsResponse{}
+	err = json.NewDecoder(res.Body).Decode(&getDeviceInstallResult)
+	require.NoError(t, err)
+	require.Equal(t, getDeviceInstallResult.Results.SoftwareTitle, "ruby")
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/nope/results", nil, http.StatusNotFound)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+otherToken+"/software/install/"+getDeviceSw.Software[2].SoftwarePackage.LastInstall.InstallUUID+"/results", nil, http.StatusNotFound)
 
 	// still returned for self-service only too
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)

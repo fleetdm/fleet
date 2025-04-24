@@ -8857,6 +8857,90 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			scenarioD(platform)
 		})
 	}
+
+	// Scenario E:
+	//	- Fleet with MDM enabled.
+	// 	- two hosts with the same hardware identifiers (e.g. two cloned VMs) but platform may be different
+	//	- fleetd running with host identifier set to uuid (default).
+	//	- orbit enrolls first, then osquery
+	//  - host_mdm entry exists after first host enrolls
+	// Expected output: The two fleetd instances should be enrolled as one host and if the first host was
+	//   platform="windows" and the second host was not, the host_mdm entry should be removed
+	scenarioE := func(fromPlatform, toPlatform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+
+		h1Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       fromPlatform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h1Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		h1OsqueryFetched, err := ds.Host(ctx, h1Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h1OrbitFetched.LastEnrolledAt, h1OsqueryFetched.LastEnrolledAt)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm(host_id, enrolled, server_url, installed_from_dep, mdm_id, is_server)
+		VALUES(?, 1, 'https://example.com/mdm', 0, ?, 0)`, h1Orbit.ID, h1Orbit.ID+100)
+			return err
+		})
+		h1WithMdmFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		require.NotNil(t, h1WithMdmFetched.MDM.ServerURL)
+		require.NotNil(t, h1WithMdmFetched.MDM.EnrollmentStatus)
+
+		h2Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       toPlatform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
+		require.NoError(t, err)
+		// orbit should not update last_enrolled_at if re-enrolling (because last_enrolled_at
+		// is to be set by osquery only).
+		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+		h2OsqueryFetched, err := ds.Host(ctx, h2Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h2OrbitFetched.LastEnrolledAt, h2OsqueryFetched.LastEnrolledAt)
+
+		// the hosts compete for the host entry (all have same row id)
+		require.Equal(t, h1Orbit.ID, h2Orbit.ID)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+
+		if fromPlatform == "windows" && toPlatform != "windows" {
+			assert.Nil(t, h2OrbitFetched.MDM.EnrollmentStatus)
+			assert.Nil(t, h2OrbitFetched.MDM.ServerURL)
+		} else {
+			require.NotNil(t, h2OrbitFetched.MDM.EnrollmentStatus)
+			assert.Equal(t, *h1WithMdmFetched.MDM.EnrollmentStatus, *h2OrbitFetched.MDM.EnrollmentStatus)
+			require.NotNil(t, h2OrbitFetched.MDM.ServerURL)
+			assert.Equal(t, *h1WithMdmFetched.MDM.ServerURL, *h2OrbitFetched.MDM.ServerURL)
+		}
+	}
+	for _, fromPlatform := range []string{"ubuntu", "windows", "darwin"} {
+		for _, toPlatform := range []string{"ubuntu", "windows", "darwin"} {
+			fromPlatform := fromPlatform
+			toPlatform := toPlatform
+			t.Run("scenarioE_from_"+fromPlatform+"_to_"+toPlatform, func(t *testing.T) {
+				t.Parallel()
+				scenarioE(fromPlatform, toPlatform)
+			})
+		}
+	}
 }
 
 func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {

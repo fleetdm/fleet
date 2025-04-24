@@ -3044,6 +3044,8 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
 - [Get device's software](#get-devices-software)
+- [Get device's software install results](#get-devices-software-install-results)
+- [Get device's software MDM command results](#get-devices-software-mdm-command-results)
 - [Get device's policies](#get-devices-policies)
 - [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
@@ -3249,6 +3251,82 @@ Lists the software installed on the current device.
   }
 }
 ```
+
+### Get device's software install results
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/device/{token}/software/install/{install_uuid}/results`
+
+Get the results of a Fleet-maintained app or custom package install if it was performed on the authenticated host.
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| token | string | path | **Required**. The device's authentication token. |
+| install_uuid | string | path | **Required**. The software installation UUID. |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/b15ce221-e22e-4c6a-afe7-5b3400a017da/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+ {
+   "install_uuid": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+   "software_title": "Falcon.app",
+   "software_title_id": 8353,
+   "software_package": "FalconSensor-6.44.pkg",
+   "host_id": 123,
+   "host_display_name": "Marko's MacBook Pro",
+   "status": "failed_install",
+   "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "pre_install_query_output": "Query returned result\nSuccess",
+   "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
+ }
+```
+
+### Get device's software MDM command results
+
+This endpoint returns the results for a specific MDM command associated with a software (un)install.
+
+`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| token | string | path | **Required**. The device's authentication token. |
+| command_uuid  | string | path | The unique identifier of the command.  |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/commands/a2064cef-0000-1234-afb9-283e3c1d487e/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "InstallApplication",
+      "hostname": "mycomputer",
+      "payload": "[base64]",
+      "result": "[base64]"
+    }
+  ]
+}
+```
+
+> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
 #### Install self-service software
 
