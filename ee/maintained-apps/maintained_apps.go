@@ -33,6 +33,7 @@ type FMAManifestApp struct {
 	SHA256             string     `json:"sha256"`
 	Slug               string     `json:"-"`
 	Name               string     `json:"-"`
+	DefaultCategories  []string   `json:"default_categories"`
 }
 
 func (a *FMAManifestApp) Platform() string {

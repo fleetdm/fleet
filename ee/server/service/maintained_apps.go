@@ -15,7 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
