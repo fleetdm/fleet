@@ -55,6 +55,10 @@ Configuration:
 
 > Available in Fleet Premium
 
+![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog.png)
+
+See [reccommeded sizes](https://fleetdm.com/learn-more-about/organization-logo-size) for organization logo that is displayed on top of the window.
+
 End user experience:
 
 - To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section.
