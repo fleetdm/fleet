@@ -318,6 +318,22 @@ func (MockClient) GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error) {
 	}
 }
 
+func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
+	return []*fleet.LabelSpec{{
+		Name:                "Label A",
+		Platform:            "linux,macos",
+		Description:         "Label A description",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		Query:               "SELECT * FROM osquery_info",
+	}, {
+		Name:                "Label B",
+		Platform:            "windows",
+		Description:         "Label B description",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts:               []string{"host1", "host2"},
+	}}, nil
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
@@ -721,4 +737,38 @@ func TestGenerateQueries(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedQueries, queries)
+}
+
+func TestGenerateLabels(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+	}
+
+	labelsRaw, err := cmd.generateLabels()
+	require.NoError(t, err)
+	require.NotNil(t, labelsRaw)
+	var labels []map[string]interface{}
+	b, err := yaml.Marshal(labelsRaw)
+	fmt.Println("labels raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &labels)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedLabels.yaml")
+	require.NoError(t, err)
+	var expectedlabels []map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedlabels)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedlabels, labels)
 }

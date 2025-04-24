@@ -68,6 +68,7 @@ type client interface {
 	GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
+	GetLabels() ([]*fleet.LabelSpec, error)
 }
 
 func jsonFieldName(t reflect.Type, fieldName string) string {
@@ -972,8 +973,36 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateLabels() (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, error) {
+	labels, err := cmd.Client.GetLabels()
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting labels: %s\n", err)
+		return nil, err
+	}
+	if len(labels) == 0 {
+		return nil, nil
+	}
+	t := reflect.TypeOf(fleet.LabelSpec{})
+	result := make([]map[string]interface{}, len(labels))
+	for i, label := range labels {
+		if label.LabelType != fleet.LabelTypeRegular {
+			continue
+		}
+		labelSpec := map[string]interface{}{
+			jsonFieldName(t, "Name"):                label.Name,
+			jsonFieldName(t, "Description"):         label.Description,
+			jsonFieldName(t, "Platform"):            label.Platform,
+			jsonFieldName(t, "LabelMembershipType"): label.LabelMembershipType,
+		}
+		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
+			labelSpec[jsonFieldName(t, "Query")] = label.Query
+		} else {
+			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
+		}
+
+		result[i] = labelSpec
+	}
+	return result, nil
 }
 
 var _ client = (*service.Client)(nil)
