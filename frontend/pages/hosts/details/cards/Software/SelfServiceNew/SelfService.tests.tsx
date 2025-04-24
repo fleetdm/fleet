@@ -115,11 +115,11 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-item__status--test")
+      screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Installed");
 
     expect(
-      screen.getByTestId("self-service-item__item-action-button--test")
+      screen.getByTestId("self-service-table__item-action-button--test")
     ).toHaveTextContent("Reinstall");
   });
 
@@ -142,11 +142,11 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-item__status--test")
+      screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Failed");
 
     expect(
-      screen.getByTestId("self-service-item__item-action-button--test")
+      screen.getByTestId("self-service-table__item-action-button--test")
     ).toHaveTextContent("Retry");
   });
 
@@ -166,14 +166,14 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
-      screen.queryByTestId("self-service-item__status--test")
+      screen.queryByTestId("self-service-table__status--test")
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByTestId("self-service-item__item-action-button--test")
+      screen.getByTestId("self-service-table__item-action-button--test")
     ).toHaveTextContent("Install");
   });
 
@@ -193,14 +193,14 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-item__status--test")
+      screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Pending");
 
     expect(
-      screen.queryByTestId("self-service-item__item-action-button--test")
+      screen.queryByTestId("self-service-table__item-action-button--test")
     ).not.toBeInTheDocument();
   });
 });
