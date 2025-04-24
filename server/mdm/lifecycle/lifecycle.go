@@ -6,6 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -35,6 +36,7 @@ type HostOptions struct {
 	Action                  HostAction
 	Platform                string
 	UUID                    string
+	UserEnrollmentID        string
 	HardwareSerial          string
 	HardwareModel           string
 	EnrollReference         string
@@ -117,6 +119,12 @@ func (t *HostLifecycle) doWithUUIDValidation(ctx context.Context, action uuidFn,
 }
 
 func (t *HostLifecycle) resetDarwin(ctx context.Context, opts HostOptions) error {
+	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
+		// We are doing user enrollment, where we don't have access to device hardware details
+		opts.UUID = opts.UserEnrollmentID
+		opts.HardwareSerial = opts.UserEnrollmentID
+	}
+
 	if opts.UUID == "" || opts.HardwareSerial == "" || opts.HardwareModel == "" {
 		return ctxerr.New(ctx, "UUID, HardwareSerial and HardwareModel options are required for this action")
 	}
@@ -147,7 +155,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 
 	if nanoEnroll == nil ||
 		!nanoEnroll.Enabled ||
-		nanoEnroll.Type != "Device" ||
+		!(nanoEnroll.Type == mdm.EnrollType(mdm.Device).String() || nanoEnroll.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String()) ||
 		nanoEnroll.TokenUpdateTally != 1 {
 		// something unexpected, so we skip the turn on
 		// and log the details for debugging

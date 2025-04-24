@@ -1063,8 +1063,6 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
-			<key>AssignedManagedAppleID</key>
-			<string>BOZO@fleetdm.com</string>
 			<key>EnrollmentMode</key>
 			<string>BYOD</string>
 			<key>ServerCapabilities</key>
