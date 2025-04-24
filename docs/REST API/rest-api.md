@@ -9711,7 +9711,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
-| categories        | string | form | One or more (comma-separated) categories. Use `categories` to group self-service software on your end users' **Fleet Desktop > My device** page. See supported categories [here](https://fleetdm.com/docs/configuration/yaml-files#example7).|
+| categories        | string[] | form | One or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
