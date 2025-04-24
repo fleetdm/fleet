@@ -252,6 +252,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
 
+			// Generate labels.
+			labels, err := cmd.generateLabels()
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
+
 		} else if team.ID != 0 {
 			team, err := cmd.Client.GetTeam(team.ID)
 			if err != nil {
@@ -303,13 +311,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
 
-		// Generate queries.
-		queries, err := cmd.generateQueries(fileName, teamToProcess.ID)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
-			return ErrGeneric
+		if team == nil || team.ID != 0 {
+			// Generate queries (except for on No Team).
+			queries, err := cmd.generateQueries(fileName, teamToProcess.ID)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
+				return ErrGeneric
+			}
+			cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
 		}
-		cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
 	}
 
 	if cmd.CLI.String("key") != "" {
@@ -983,16 +993,18 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		return nil, nil
 	}
 	t := reflect.TypeOf(fleet.LabelSpec{})
-	result := make([]map[string]interface{}, len(labels))
-	for i, label := range labels {
+	result := make([]map[string]interface{}, 0)
+	for _, label := range labels {
 		if label.LabelType != fleet.LabelTypeRegular {
 			continue
 		}
 		labelSpec := map[string]interface{}{
 			jsonFieldName(t, "Name"):                label.Name,
 			jsonFieldName(t, "Description"):         label.Description,
-			jsonFieldName(t, "Platform"):            label.Platform,
 			jsonFieldName(t, "LabelMembershipType"): label.LabelMembershipType,
+		}
+		if label.Platform != "" {
+			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
 		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
 			labelSpec[jsonFieldName(t, "Query")] = label.Query
@@ -1000,7 +1012,7 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
 		}
 
-		result[i] = labelSpec
+		result = append(result, labelSpec)
 	}
 	return result, nil
 }

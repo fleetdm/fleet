@@ -1,10 +1,8 @@
 - name: Label A
-  platform: linux,macos
   description: Label A description
   label_membership_type: dynamic
   query: SELECT * FROM osquery_info
 - name: Label B
-  platform: windows
   description: Label B description
   label_membership_type: manual
   hosts:
