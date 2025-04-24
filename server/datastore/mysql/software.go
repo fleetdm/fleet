@@ -4294,15 +4294,31 @@ func (ds *Datastore) GetCategoriesForSoftwareTitles(ctx context.Context, softwar
 
 	stmt := `
 SELECT
+	st.id AS title_id,
 	sc.name AS software_category_name,
-	si.id as software_installer_id
+	si.id AS installer_id
 FROM
 	software_installers si
 	JOIN software_titles st ON st.id = si.title_id
 	JOIN software_installer_software_categories sisc ON sisc.software_installer_id = si.id
 	JOIN software_categories sc ON sc.id = sisc.software_category_id
 WHERE
-	st.id IN(?) AND si.global_or_team_id = ?
+	st.id IN (?) AND si.global_or_team_id = ?
+
+UNION
+
+SELECT
+	st.id AS title_id,
+	sc.name AS software_category_name,
+	vat.id AS installer_id
+FROM
+	vpp_apps va
+	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
+	JOIN software_titles st ON st.id = va.title_id
+	JOIN vpp_app_team_software_categories vatsc ON vatsc.vpp_app_team_id = vat.id
+	JOIN software_categories sc ON vatsc.software_category_id = sc.id
+WHERE
+	st.id IN (?) AND vat.global_or_team_id = ?;
 `
 
 	var tmID uint
@@ -4310,12 +4326,13 @@ WHERE
 		tmID = *teamID
 	}
 
-	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID)
+	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID, softwareTitleIDs, tmID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get categories for software installers")
 	}
 	var categories []struct {
-		InstallerID  uint   `db:"software_installer_id"`
+		TitleID      uint   `db:"title_id"`
+		InstallerID  uint   `db:"installer_id"`
 		CategoryName string `db:"software_category_name"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
@@ -4324,7 +4341,7 @@ WHERE
 
 	ret := make(map[uint][]string, len(categories))
 	for _, c := range categories {
-		ret[c.InstallerID] = append(ret[c.InstallerID], c.CategoryName)
+		ret[c.TitleID] = append(ret[c.TitleID], c.CategoryName)
 	}
 
 	return ret, nil
