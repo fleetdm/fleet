@@ -23,6 +23,8 @@ const GitOpsModeTooltipWrapper = ({
   const { config } = useContext(AppContext);
   const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
   const repoURL = config?.gitops.repository_url;
+  // const gitOpsModeEnabled = true;
+  // const repoURL = "test";
 
   if (!gitOpsModeEnabled) {
     return <>{renderChildren()}</>;

@@ -8,14 +8,14 @@ import {
   errorNoSetupExperienceScript,
 } from "test/handlers/setup-experience-handlers";
 
-import SetupExperienceScript from "./SetupExperienceScript";
+import RunScript from "./RunScript";
 
-describe("SetupExperienceScript", () => {
+describe("RunScript", () => {
   it("should render the script uploader when no script has been uploaded", async () => {
     mockServer.use(errorNoSetupExperienceScript);
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<SetupExperienceScript currentTeamId={1} />);
+    render(<RunScript currentTeamId={1} />);
 
     expect(await screen.findByRole("button", { name: "Upload" })).toBeVisible();
   });
@@ -24,7 +24,7 @@ describe("SetupExperienceScript", () => {
     mockServer.use(defaultSetupExperienceScriptHandler);
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<SetupExperienceScript currentTeamId={1} />);
+    render(<RunScript currentTeamId={1} />);
 
     expect(
       await screen.findByText("Script will run during setup:")

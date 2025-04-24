@@ -22,15 +22,13 @@ import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
 import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
-const baseClass = "setup-experience-script";
+const baseClass = "run-script";
 
-interface ISetupExperienceScriptProps {
+interface IRunScriptProps {
   currentTeamId: number;
 }
 
-const SetupExperienceScript = ({
-  currentTeamId,
-}: ISetupExperienceScriptProps) => {
+const RunScript = ({ currentTeamId }: IRunScriptProps) => {
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const {
@@ -117,4 +115,4 @@ const SetupExperienceScript = ({
   );
 };
 
-export default SetupExperienceScript;
+export default RunScript;

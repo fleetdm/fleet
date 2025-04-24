@@ -9,6 +9,8 @@ import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
 import LinkWithContext from "components/LinkWithContext";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { Tooltip } from "react-tooltip-5";
 
 const baseClass = "add-install-software";
 
@@ -79,6 +81,13 @@ const AddInstallSoftware = ({
 
   const addedText = getAddedText();
   const buttonText = getButtonText();
+  const manuallyInstallTooltipText = (
+    <>
+      Disabled because you manually install Fleet&apos;s agent (
+      <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap
+      package to install software during the setup experience.
+    </>
+  );
 
   return (
     <div className={baseClass}>
@@ -94,13 +103,26 @@ const AddInstallSoftware = ({
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
       <div>
-        <Button
-          className={`${baseClass}__button`}
-          onClick={onAddSoftware}
-          disabled={hasNoSoftware}
-        >
-          {buttonText}
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <TooltipWrapper
+              className={`${baseClass}__manual-install-tooltip`}
+              tipContent={manuallyInstallTooltipText}
+              disableTooltip={disableChildren && !hasNoSoftware} // TODO: manually install check
+              position="top"
+              showArrow
+              underline={false}
+            >
+              <Button
+                className={`${baseClass}__button`}
+                onClick={onAddSoftware}
+                disabled={hasNoSoftware || disableChildren}
+              >
+                {buttonText}
+              </Button>
+            </TooltipWrapper>
+          )}
+        />
       </div>
     </div>
   );
