@@ -212,6 +212,50 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 	}
 }
 
+func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
+	if teamID == nil {
+		return []*fleet.Policy{
+			{
+				PolicyData: fleet.PolicyData{
+					ID:          1,
+					Name:        "Global Policy",
+					Query:       "SELECT * FROM global_policy WHERE id = 1",
+					Resolution:  ptr.String("Do a global thing"),
+					Description: "This is a global policy",
+					Platform:    "darwin",
+					LabelsIncludeAny: []fleet.LabelIdent{{
+						LabelName: "Label A",
+					}, {
+						LabelName: "Label B",
+					}},
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 1,
+				},
+			},
+		}, nil
+	}
+	return []*fleet.Policy{
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          1,
+				Name:        "Team Policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:  ptr.String("Do a team thing"),
+				Description: "This is a team policy",
+				Platform:    "linux,windows",
+			},
+			RunScript: &fleet.PolicyScript{
+				ID: 1,
+			},
+		},
+	}, nil
+}
+
+func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
+	return nil, nil
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
@@ -496,4 +540,67 @@ func TestSoftware(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
+}
+
+func TestPolicies(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+		SoftwareList: map[uint]Software{
+			1: {
+				Hash:    "global-software-hash",
+				Comment: "__GLOBAL_SOFTWARE_COMMENT_TOKEN__",
+			},
+		},
+		ScriptList: map[uint]string{
+			1: "/path/to/script1.sh",
+		},
+	}
+
+	policiesRaw, err := cmd.generatePolicies("default.yml", 0)
+	require.NoError(t, err)
+	require.NotNil(t, policiesRaw)
+	var policies []map[string]interface{}
+	b, err := yaml.Marshal(policiesRaw)
+	fmt.Println("policies raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &policies)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalPolicies.yaml")
+	require.NoError(t, err)
+	var expectedPolicies []map[string]interface{}
+	err = yaml.Unmarshal(b, &expectedPolicies)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedPolicies, policies)
+
+	// Generate policies for a team.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	policiesRaw, err = cmd.generatePolicies("team.yml", 1)
+	require.NoError(t, err)
+	require.NotNil(t, policiesRaw)
+	b, err = yaml.Marshal(policiesRaw)
+	fmt.Println("policies raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &policies)
+	require.NoError(t, err)
+
+	// Get the expected org settings YAML.
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamPolicies.yaml")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &expectedPolicies)
+	require.NoError(t, err)
+
+	// Compare.
+	require.Equal(t, expectedPolicies, policies)
 }
