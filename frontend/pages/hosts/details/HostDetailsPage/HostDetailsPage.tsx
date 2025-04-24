@@ -112,6 +112,7 @@ import {
   generateOtherEmailsValues,
   generateUsernameValues,
 } from "../cards/User/helpers";
+import HostHeader from "../cards/HostHeader";
 
 const baseClass = "host-details";
 
@@ -916,22 +917,27 @@ const HostDetailsPage = ({
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
           />
         </div>
-        <HostSummaryCard
-          summaryData={summaryData}
-          bootstrapPackageData={bootstrapPackageData}
-          isPremiumTier={isPremiumTier}
-          toggleOSSettingsModal={toggleOSSettingsModal}
-          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostSettings={host?.mdm.profiles ?? []}
-          showRefetchSpinner={showRefetchSpinner}
-          onRefetchHost={onRefetchHost}
-          renderActionDropdown={renderActionDropdown}
-          osSettings={host?.mdm.os_settings}
-          osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-            host.platform
-          )}
-          hostMdmDeviceStatus={hostMdmDeviceStatus}
-        />
+        <div className={`${baseClass}__header-summary`}>
+          <HostHeader
+            summaryData={summaryData}
+            showRefetchSpinner={showRefetchSpinner}
+            onRefetchHost={onRefetchHost}
+            renderActionDropdown={renderActionDropdown}
+            hostMdmDeviceStatus={hostMdmDeviceStatus}
+          />
+          <HostSummaryCard
+            summaryData={summaryData}
+            bootstrapPackageData={bootstrapPackageData}
+            isPremiumTier={isPremiumTier}
+            toggleOSSettingsModal={toggleOSSettingsModal}
+            toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+            hostSettings={host?.mdm.profiles ?? []}
+            osSettings={host?.mdm.os_settings}
+            osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+              host.platform
+            )}
+          />
+        </div>
         <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}

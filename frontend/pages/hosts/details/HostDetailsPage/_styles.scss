@@ -5,6 +5,12 @@
     gap: $pad-medium;
   }
 
+  &__header-summary {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
   @media screen and (min-width: $break-md) {
     &__details-panel.react-tabs__tab-panel--selected {
       // Must be selected to show grid

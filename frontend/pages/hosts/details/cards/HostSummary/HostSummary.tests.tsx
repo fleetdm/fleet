@@ -22,14 +22,7 @@ describe("Host Summary section", () => {
       });
       const summaryData = createMockHostSummary({});
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.queryByText("Issues")).not.toBeInTheDocument();
     });
@@ -50,14 +43,7 @@ describe("Host Summary section", () => {
       const osqueryVersion = summaryData.osquery_version as string;
       const fleetdVersion = summaryData.fleet_desktop_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
 
@@ -89,14 +75,7 @@ describe("Host Summary section", () => {
       const orbitVersion = summaryData.orbit_version as string;
       const osqueryVersion = summaryData.osquery_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
 
@@ -127,14 +106,7 @@ describe("Host Summary section", () => {
 
       const fleetdChromeVersion = summaryData.osquery_version as string;
 
-      const { user } = render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      const { user } = render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
       await user.hover(screen.getByText(new RegExp(fleetdChromeVersion, "i")));
@@ -164,15 +136,7 @@ describe("Host Summary section", () => {
       const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
       const osVersion = summaryData.os_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
@@ -213,15 +177,7 @@ describe("Host Summary section", () => {
       const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
       const osVersion = summaryData.os_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
@@ -261,15 +217,7 @@ describe("Host Summary section", () => {
       });
       const prettyStartTime = /Jun 24 at 8:48 PM/;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
       expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
