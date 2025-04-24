@@ -1,0 +1,1 @@
+When querying the 'windows_updates' Orbit table return non-installed windows updates only.

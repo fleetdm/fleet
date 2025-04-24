@@ -27,6 +27,13 @@ const (
 	HistoryTable
 )
 
+type WindowsUpdatesSearcher interface {
+	QueryHistoryAll() ([]*windowsupdate.IUpdateHistoryEntry, error)
+	Search(criteria string) (*windowsupdate.ISearchResult, error)
+}
+
+type queryFuncType func(searcher WindowsUpdatesSearcher) (interface{}, error)
+
 type Table struct {
 	logger    zerolog.Logger
 	queryFunc queryFuncType
@@ -55,15 +62,22 @@ func TablePlugin(mode tableMode, logger zerolog.Logger) *table.Plugin {
 	return table.NewPlugin(t.name, columns, t.generate)
 }
 
-func queryUpdates(searcher *windowsupdate.IUpdateSearcher) (interface{}, error) {
-	return searcher.Search("Type='Software'")
+func queryUpdates(searcher WindowsUpdatesSearcher) (interface{}, error) {
+	searchResult, err := searcher.Search("Type='Software' AND IsInstalled=0")
+	if err != nil {
+		return nil, err
+	}
+
+	// We only care about the results iff we got some updates
+	if searchResult != nil && len(searchResult.Updates) == 0 {
+		return nil, nil
+	}
+	return searchResult, nil
 }
 
-func queryHistory(searcher *windowsupdate.IUpdateSearcher) (interface{}, error) {
+func queryHistory(searcher WindowsUpdatesSearcher) (interface{}, error) {
 	return searcher.QueryHistoryAll()
 }
-
-type queryFuncType func(*windowsupdate.IUpdateSearcher) (interface{}, error)
 
 func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	var results []map[string]string
