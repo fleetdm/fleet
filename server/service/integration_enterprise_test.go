@@ -16521,12 +16521,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		Categories:    []string{cat1.Name, cat2.Name},
 	}
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "software_categories")
-		mysql.DumpTable(t, q, "software_installer_software_categories")
-		mysql.DumpTable(t, q, "software_installers")
-		return nil
-	})
 
 	titleResponse := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
