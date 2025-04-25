@@ -67,6 +67,7 @@ const (
 	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
 	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
 
 	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
@@ -88,11 +89,12 @@ var (
 	fleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsername))
 	fleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPUsernameLocalPart))
 	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPGroups))
+	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
 
 	fleetVarsSupportedInConfigProfiles = []string{
 		FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial, FleetVarHostEndUserIDPUsername, FleetVarHostEndUserIDPUsernameLocalPart,
-		FleetVarHostEndUserIDPGroups,
+		FleetVarHostEndUserIDPGroups, FleetVarSCEPRenewalID,
 	}
 )
 
@@ -499,9 +501,9 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		customSCEPVars *customSCEPVarsFound
 	)
 	for _, k := range fleetVars {
+		ok := true
 		if !slices.Contains(fleetVarsSupportedInConfigProfiles, k) {
 			found := false
-			ok := true
 			switch {
 			case strings.HasPrefix(k, FleetVarDigiCertDataPrefix):
 				caName := strings.TrimPrefix(k, FleetVarDigiCertDataPrefix)
@@ -543,10 +545,13 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			if !found {
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
-			if !ok {
-				// We limit CA variables to once per profile
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
-			}
+		}
+		if k == "$"+FleetVarSCEPRenewalID {
+			customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
+		}
+		if !ok {
+			// We limit CA variables to once per profile
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
 		}
 	}
 	if digiCertVars.Found() {
@@ -638,8 +643,9 @@ func (p *PKCS12PayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 	return nil
 }
 
-// additionalCustomSCEPValidation checks that Challenge/URL fields march Custom SCEP Fleet variables exactly,
-// and that these variables are only present in a "com.apple.security.scep" payload
+// additionalCustomSCEPValidation checks that Challenge/URL fields march Custom SCEP Fleet variables
+// exactly, that the SCEP renewal ID variable is present in the CN and that these variables are only
+// present in a "com.apple.security.scep" payload
 func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPVarsFound) error {
 	// Replace any Fleet variables in data fields. SCEP payload does not need them and we cannot unmarshal if they are present.
 	contents = mdm_types.ProfileDataVariableRegex.ReplaceAllString(contents, "")
@@ -669,6 +675,9 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 						scepURL + " in SCEP payload."}
 				}
 			}
+			if !strings.Contains(payload.PayloadContent.CommonName, "$"+FleetVarSCEPRenewalID) {
+				return &fleet.BadRequestError{Message: "Variable $" + FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
+			}
 		}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
@@ -690,14 +699,26 @@ type SCEPPayload struct {
 	PayloadType    string             `plist:"PayloadType"`
 }
 type SCEPPayloadContent struct {
-	Challenge string
-	URL       string
+	Challenge  string
+	URL        string
+	CommonName string
 }
 
 func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 	val := &struct {
 		Challenge string `plist:"Challenge"`
 		URL       string `plist:"URL"`
+		// Subject is an RDN Sequence which is ultimately a nested key-value pair structure with a
+		// shape like the one shown below. We just need to extract the CN value from it.
+		// Subject: [
+		//   [
+		//     [ "CN", "Fleet" ]
+		//   ],
+		//   [
+		//      [ "OU", "Fleet Device Management"]
+		//   ]
+		// ]
+		Subject [][][]string
 	}{}
 	err := f(&val)
 	if err != nil {
@@ -705,9 +726,19 @@ func (p *SCEPPayloadContent) UnmarshalPlist(f func(interface{}) error) error {
 		*p = SCEPPayloadContent{}
 		return nil
 	}
+	commonName := ""
+	for i := 0; i < len(val.Subject) && commonName == ""; i++ {
+		for j := 0; j < len(val.Subject[i]); j++ {
+			if len(val.Subject[i][j]) == 2 && val.Subject[i][j][0] == "CN" {
+				commonName = val.Subject[i][j][1]
+				break
+			}
+		}
+	}
 	*p = SCEPPayloadContent{
-		Challenge: val.Challenge,
-		URL:       val.URL,
+		Challenge:  val.Challenge,
+		URL:        val.URL,
+		CommonName: commonName,
 	}
 	return nil
 }
@@ -4099,7 +4130,7 @@ func preprocessProfileContents(
 					break
 				}
 
-			case strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
+			case fleetVar == FleetVarSCEPRenewalID || strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 				var caName string
 				if strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) {
 					caName = strings.TrimPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix)
@@ -4112,7 +4143,7 @@ func preprocessProfileContents(
 				configured, err := isCustomSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, customSCEPCAs, profUUID, target, caName,
 					fleetVar)
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
+					return ctxerr.Wrap(ctx, err, "checking custom SCEP configuration")
 				}
 				if !configured {
 					valid = false
@@ -4229,6 +4260,11 @@ func preprocessProfileContents(
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
 						url.PathEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, profUUID)))
 					hostContents = replaceFleetVariableInXML(fleetVarNDESSCEPProxyURLRegexp, hostContents, proxyURL)
+
+				case fleetVar == FleetVarSCEPRenewalID:
+					// Insert the SCEP renewal ID into the SCEP Payload CN
+					fleetRenewalID := "fleet-" + profUUID
+					hostContents = replaceFleetVariableInXML(fleetVarSCEPRenewalIDRegexp, hostContents, fleetRenewalID)
 
 				case strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix):
 					caName := strings.TrimPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix)
@@ -4471,7 +4507,8 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *cmdT
 }
 
 func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdTarget,
-	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint) (*fleet.HostEndUser, bool, error) {
+	hostUUID, fleetVar string, hostIDForUUIDCache map[string]uint,
+) (*fleet.HostEndUser, bool, error) {
 	hostID, ok := hostIDForUUIDCache[hostUUID]
 	if !ok {
 		filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
@@ -4736,8 +4773,9 @@ func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 }
 
 type customSCEPVarsFound struct {
-	urlCA       map[string]struct{}
-	challengeCA map[string]struct{}
+	urlCA          map[string]struct{}
+	challengeCA    map[string]struct{}
+	renewalIdFound bool
 }
 
 // Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
@@ -4753,6 +4791,9 @@ func (cs *customSCEPVarsFound) Ok() bool {
 		if _, ok := cs.urlCA[ca]; !ok {
 			return false
 		}
+	}
+	if !cs.renewalIdFound {
+		return false
 	}
 	return true
 }
@@ -4773,6 +4814,10 @@ func (cs *customSCEPVarsFound) CAs() []string {
 }
 
 func (cs *customSCEPVarsFound) ErrorMessage() string {
+	// TODO This doesn't quite match the figma
+	if !cs.renewalIdFound {
+		return "Missing $FLEET_VAR_RENEWAL_ID in the profile"
+	}
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {
 			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", FleetVarCustomSCEPProxyURLPrefix, ca)
@@ -4809,6 +4854,15 @@ func (cs *customSCEPVarsFound) SetChallenge(value string) (*customSCEPVarsFound,
 	_, alreadyPresent := cs.challengeCA[value]
 	cs.challengeCA[value] = struct{}{}
 	return cs, !alreadyPresent
+}
+
+func (cs *customSCEPVarsFound) SetRenewalIDFound() (*customSCEPVarsFound, bool) {
+	if cs == nil {
+		cs = &customSCEPVarsFound{}
+	}
+	renewalIdAlreadyPresent := cs.renewalIdFound
+	cs.renewalIdFound = true
+	return cs, renewalIdAlreadyPresent
 }
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
