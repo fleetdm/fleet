@@ -391,10 +391,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 
-			if err = updateExistingBundleIDs(ctx, tx, hostID, existingBundleIDsToUpdate); err != nil {
-				return err
-			}
-
 			if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
 				return err
 			}
