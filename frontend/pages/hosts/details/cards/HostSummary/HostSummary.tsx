@@ -622,8 +622,11 @@ const HostSummary = ({
           <div className="display-name-container">
             <TooltipWrapper
               disableTooltip={!isTruncated}
-              tipContent="This is a very long host name that exceeds the usual length for
-                display purposes"
+              tipContent={
+                deviceUser
+                  ? "My device"
+                  : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE
+              }
               underline={false}
               position="top"
               showArrow
