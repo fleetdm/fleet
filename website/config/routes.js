@@ -820,7 +820,7 @@ module.exports.routes = {
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
-  'GET /learn-more-about/yaml-software': 'https://fleetdm.com/docs/configuration/yaml-files#packages',
+  'GET /learn-more-about/yaml-software': 'https://fleetdm.com/docs/configuration/yaml-files#software',
   'GET /learn-more-about/tarball-archives': 'https://fleetdm.com/guides/deploy-software-packages',
   'GET /learn-more-about/reinstall-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/abm-apps': 'https://business.apple.com/#/main/appsandbooks',
