@@ -597,14 +597,16 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSettings) (map[string]interface{}, error) {
 	t := reflect.TypeOf(fleet.SSOSettings{})
 	result := map[string]interface{}{
-		jsonFieldName(t, "EnableSSO"):             ssoSettings.EnableSSO,
-		jsonFieldName(t, "IDPName"):               ssoSettings.IDPName,
-		jsonFieldName(t, "IDPImageURL"):           ssoSettings.IDPImageURL,
-		jsonFieldName(t, "EntityID"):              ssoSettings.EntityID,
-		jsonFieldName(t, "Metadata"):              ssoSettings.Metadata,
-		jsonFieldName(t, "MetadataURL"):           ssoSettings.MetadataURL,
-		jsonFieldName(t, "EnableJITProvisioning"): ssoSettings.EnableJITProvisioning,
-		jsonFieldName(t, "EnableSSOIdPLogin"):     ssoSettings.EnableSSOIdPLogin,
+		jsonFieldName(t, "EnableSSO"):         ssoSettings.EnableSSO,
+		jsonFieldName(t, "IDPName"):           ssoSettings.IDPName,
+		jsonFieldName(t, "IDPImageURL"):       ssoSettings.IDPImageURL,
+		jsonFieldName(t, "EntityID"):          ssoSettings.EntityID,
+		jsonFieldName(t, "Metadata"):          ssoSettings.Metadata,
+		jsonFieldName(t, "MetadataURL"):       ssoSettings.MetadataURL,
+		jsonFieldName(t, "EnableSSOIdPLogin"): ssoSettings.EnableSSOIdPLogin,
+	}
+	if cmd.AppConfig.License.IsPremium() {
+		result[jsonFieldName(t, "EnableJITProvisioning")] = ssoSettings.EnableJITProvisioning
 	}
 	if !cmd.CLI.Bool("insecure") {
 		if ssoSettings.Metadata != "" {
@@ -722,11 +724,14 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
 	t := reflect.TypeOf(fleet.MDM{})
 	result := map[string]interface{}{
-		jsonFieldName(t, "AppleBusinessManager"):    mdm.AppleBusinessManager,
-		jsonFieldName(t, "VolumePurchasingProgram"): mdm.VolumePurchasingProgram,
-		jsonFieldName(t, "AppleServerURL"):          mdm.AppleServerURL,
-		jsonFieldName(t, "EndUserAuthentication"):   mdm.EndUserAuthentication,
+		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
+		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
 	}
+	if cmd.AppConfig.License.IsPremium() {
+		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
+		result[jsonFieldName(t, "VolumePurchasingProgram")] = mdm.VolumePurchasingProgram
+	}
+
 	if !cmd.CLI.Bool("insecure") {
 		if auth, ok := result[jsonFieldName(t, "EndUserAuthentication")]; ok {
 			endUserAuth := auth.(fleet.MDMEndUserAuthentication)
@@ -815,7 +820,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 	}
 
-	if teamMdm != nil {
+	if teamMdm != nil && cmd.AppConfig.License.IsPremium() {
 		mdmT := reflect.TypeOf(fleet.TeamMDM{})
 
 		result[jsonFieldName(mdmT, "EnableDiskEncryption")] = teamMdm.EnableDiskEncryption
