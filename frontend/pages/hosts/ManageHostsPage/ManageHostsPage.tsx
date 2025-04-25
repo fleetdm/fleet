@@ -62,7 +62,6 @@ import {
   BootstrapPackageStatus,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import { IScript } from "interfaces/script";
 
 import sortUtils from "utilities/sort";
 import {

@@ -409,7 +409,7 @@ const DataTable = ({
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: primarySelectAction?.onClick || noop,
+      onClick: primarySelectAction?.onClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
       iconSvg: primarySelectAction?.iconSvg,
