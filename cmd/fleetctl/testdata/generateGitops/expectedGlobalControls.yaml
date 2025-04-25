@@ -2,16 +2,14 @@ macos_settings:
 - labels_include_all:
   - Label A
   - Label B
-  path: ./lib/profiles/global_macos_mobileconfig_profile.mobileconfig
+  path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
 - labels_exclude_any:
   - Label C
-  path: ./lib/profiles/global_macos_json_profile.json
-scripts:
-- path: ./lib/scripts/Script A.sh
+  path: ./lib/profiles/global-macos-json-profile.json
 windows_settings:
 - labels_include_any:
   - Label D
-  path: ./lib/profiles/global_windows_profile.xml
+  path: ./lib/profiles/global-windows-profile.xml
 macos_updates:
   minimum_version: "15.1"
   deadline: "2024-12-31"
@@ -27,14 +25,7 @@ windows_updates:
 windows_enabled_and_configured: true
 windows_migration_enabled: true
 enable_disk_encryption: true
-# macos_setup: # Available in Fleet Premium
-#   bootstrap_package: https://example.org/bootstrap_package.pkg
-#   enable_end_user_authentication: true
-#   macos_setup_assistant: ../lib/dep-profile.json
-#   script: ../lib/macos-setup-script.sh
-#   software:
-#     - app_store_id: '1091189122'
-#     - package_path: ../lib/software/adobe-acrobat.software.yml
+macos_setup: needs-attention
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

@@ -2,6 +2,7 @@
   description: Label A description
   label_membership_type: dynamic
   query: SELECT * FROM osquery_info
+  platform: linux,macos
 - name: Label B
   description: Label B description
   label_membership_type: manual

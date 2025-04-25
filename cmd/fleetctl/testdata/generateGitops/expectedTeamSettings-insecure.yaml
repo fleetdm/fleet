@@ -8,14 +8,6 @@ integrations:
   google_calendar:
     enable_calendar_events: true
     webhook_url: https://some-team-google-calendar-webhook.com
-  jira:
-  - enable_failing_policies: false
-    project_key: some-team-jira-project-key
-    url: https://some-team-jira-url.com
-  zendesk:
-  - enable_failing_policies: false
-    group_id: 123456789
-    url: https://some-team-zendesk-url.com
 secrets:
 - secret: some-team-secret
 webhook_settings:

@@ -63,21 +63,13 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 			Name:            "Script B.ps1",
 			ScriptContentID: 2,
 		}}, nil
-	case "":
-		return []*fleet.Script{{
-			ID:              1,
-			TeamID:          nil,
-			Name:            "Script A.sh",
-			ScriptContentID: 1,
-		}}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
 	}
 }
 
 func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigProfilePayload, error) {
-	switch *teamID {
-	case 0:
+	if teamID == nil {
 		return []*fleet.MDMConfigProfilePayload{
 			{
 				ProfileUUID: "global-macos-mobileconfig-profile-uuid",
@@ -109,7 +101,8 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 				}},
 			},
 		}, nil
-	case 1:
+	}
+	if *teamID == 1 {
 		return []*fleet.MDMConfigProfilePayload{
 			{
 				ProfileUUID: "test-mobileconfig-profile-uuid",
@@ -118,9 +111,8 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 				Identifier:  "com.example.team-macos-mobileconfig-profile",
 			},
 		}, nil
-	default:
-		return nil, fmt.Errorf("unexpected team ID: %v", teamID)
 	}
+	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
@@ -327,11 +319,19 @@ func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 		Query:               "SELECT * FROM osquery_info",
 	}, {
 		Name:                "Label B",
-		Platform:            "windows",
 		Description:         "Label B description",
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
 		Hosts:               []string{"host1", "host2"},
 	}}, nil
+}
+
+func (MockClient) Me() (*fleet.User, error) {
+	return &fleet.User{
+		ID:         1,
+		Name:       "Test User",
+		Email:      "test@example.com",
+		GlobalRole: ptr.String("admin"),
+	}, nil
 }
 
 func TestGenerateGitops(t *testing.T) {
@@ -514,6 +514,7 @@ func TestGenerateControls(t *testing.T) {
 		Messages:     Messages{},
 		FilesToWrite: make(map[string]interface{}),
 		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
 	}
 
 	// Generate global controls.
@@ -527,7 +528,7 @@ func TestGenerateControls(t *testing.T) {
 		WindowsUpdates:       appConfig.MDM.WindowsUpdates,
 		MacOSSetup:           appConfig.MDM.MacOSSetup,
 	}
-	controlsRaw, err := cmd.generateControls(ptr.Uint(0), "", &mdmConfig)
+	controlsRaw, err := cmd.generateControls(nil, "", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	var controls map[string]interface{}
@@ -645,7 +646,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies("default.yml", ptr.Uint(0))
+	policiesRaw, err := cmd.generatePolicies("default.yml", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var policies []map[string]interface{}
@@ -699,7 +700,7 @@ func TestGenerateQueries(t *testing.T) {
 		AppConfig:    appConfig,
 	}
 
-	queriesRaw, err := cmd.generateQueries("default.yml", ptr.Uint(0))
+	queriesRaw, err := cmd.generateQueries("default.yml", nil)
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
 	var queries []map[string]interface{}

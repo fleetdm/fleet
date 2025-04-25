@@ -792,12 +792,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	t := reflect.TypeOf(spec.GitOpsControls{})
 	result := map[string]interface{}{}
 
-	scripts, err := cmd.generateScripts(teamId, teamName)
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating scripts: %s\n", err)
-		return nil, err
+	if teamId != nil {
+		scripts, err := cmd.generateScripts(teamId, teamName)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating scripts: %s\n", err)
+			return nil, err
+		}
+		result[jsonFieldName(t, "Scripts")] = scripts
 	}
-	result[jsonFieldName(t, "Scripts")] = scripts
 
 	profiles, err := cmd.generateProfiles(teamId, teamName)
 	if err != nil {
