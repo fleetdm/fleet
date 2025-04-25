@@ -193,6 +193,26 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return nil
 	}
 
+	// Validate directory is empty (or --force is set).
+	if cmd.CLI.String("dir") != "" {
+		dir := cmd.CLI.String("dir")
+		_, err := os.Stat(dir)
+		if err != nil && !os.IsNotExist(err) {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error checking directory: %s\n", err)
+			return ErrGeneric
+		}
+		// Check if the directory is empty.
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error reading directory: %s\n", err)
+			return ErrGeneric
+		}
+		if len(entries) > 0 && !cmd.CLI.Bool("force") {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Directory %s is not empty.  Use --force to overwrite.\n", dir)
+			return nil
+		}
+	}
+
 	fmt.Println("Generating GitOps configuration files...")
 
 	cmd.AppConfig, err = cmd.Client.GetAppConfig()
