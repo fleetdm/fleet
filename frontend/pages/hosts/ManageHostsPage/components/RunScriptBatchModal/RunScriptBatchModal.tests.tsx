@@ -5,7 +5,5 @@ import { render, screen } from "@testing-library/react";
 import RunScriptBatchModal from "./RunScriptBatchModal";
 
 describe("RunScriptBatchModal component", () => {
-  it("", () => {
-
-  });
+  it("", () => {});
 });

@@ -5,6 +5,12 @@ import { renderWithSetup } from "test/test-utils";
 
 import PaginatedList, { IPaginatedListHandle } from "./PaginatedList";
 
+// to test:
+// setDirtyOnClickRow?: boolean;
+// useCheckBoxes?: boolean;
+// /** Allow the parent to trigger the loading overlay */
+// ancestralUpdating?: boolean;
+
 describe("PaginatedList", () => {
   interface ITestItem {
     id: number;
