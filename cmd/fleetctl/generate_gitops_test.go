@@ -182,7 +182,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1":
+	case "available_for_install=1&team_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:   1,
@@ -199,9 +199,6 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					Name: "global-software.pkg",
 				},
 			},
-		}, nil
-	case "available_for_install=1&team_id=1":
-		return []fleet.SoftwareTitleListResult{
 			{
 				ID:   2,
 				Name: "Team Software",
@@ -299,9 +296,12 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 	}, nil
 }
 
-func (MockClient) GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error) {
+func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	switch ID {
 	case 1:
+		if *teamID != 1 {
+			return nil, fmt.Errorf("team ID mismatch")
+		}
 		return &fleet.SoftwareTitle{
 			ID: 1,
 			SoftwarePackage: &fleet.SoftwareInstaller{
@@ -310,9 +310,17 @@ func (MockClient) GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error) {
 				}, {
 					LabelName: "Label B",
 				}},
+				PreInstallQuery:   "SELECT * FROM pre_install_query",
+				InstallScript:     "foo",
+				PostInstallScript: "bar",
+				UninstallScript:   "baz",
+				SelfService:       true,
 			},
 		}, nil
 	case 2:
+		if *teamID != 1 {
+			return nil, fmt.Errorf("team ID mismatch")
+		}
 		return &fleet.SoftwareTitle{
 			ID: 2,
 			AppStoreApp: &fleet.VPPAppStoreApp{
@@ -619,6 +627,36 @@ func TestGenerateControls(t *testing.T) {
 	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
+	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-macos-mobileconfig-profile.mobileconfig"]; ok {
+		require.Equal(t, "<xml>global macos mobileconfig profile</xml>", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-macos-json-profile.json"]; ok {
+		require.Equal(t, `{"profile": "global macos json profile"}`, fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-windows-profile.xml"]; ok {
+		require.Equal(t, "<xml>global windows profile</xml>", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some_team/profiles/team-macos-mobileconfig-profile.mobileconfig"]; ok {
+		require.Equal(t, "<xml>test mobileconfig profile</xml>", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/some_team/scripts/Script B.ps1"]; ok {
+		require.Equal(t, "pop goes the weasel!", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
 	// Compare.
 	require.Equal(t, expectedControls, controls)
 }
@@ -638,7 +676,7 @@ func TestGenerateSoftware(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("default.yml", 0)
+	softwareRaw, err := cmd.generateSoftware("team.yml", 1)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 	var software map[string]interface{}
@@ -648,7 +686,7 @@ func TestGenerateSoftware(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalSoftware.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSoftware.yaml")
 	require.NoError(t, err)
 	var expectedSoftware map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedSoftware)
@@ -657,25 +695,23 @@ func TestGenerateSoftware(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
 
-	// Generate software for a team.
-	// Note that nested keys here may be strings,
-	// so we'll JSON marshal and unmarshal to a map for comparison.
-	softwareRaw, err = cmd.generateSoftware("team.yml", 1)
-	require.NoError(t, err)
-	require.NotNil(t, softwareRaw)
-	b, err = yaml.Marshal(softwareRaw)
-	fmt.Println("software raw:\n", string(b)) // Debugging line
-	err = yaml.Unmarshal(b, &software)
-	require.NoError(t, err)
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-preinstall"]; ok {
+		require.Equal(t, "foo", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
 
-	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSoftware.yaml")
-	require.NoError(t, err)
-	err = yaml.Unmarshal(b, &expectedSoftware)
-	require.NoError(t, err)
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-postinstall"]; ok {
+		require.Equal(t, "bar", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
 
-	// Compare.
-	require.Equal(t, expectedSoftware, software)
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-uninstall"]; ok {
+		require.Equal(t, "baz", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
 }
 
 func TestGeneratePolicies(t *testing.T) {

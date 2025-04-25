@@ -65,7 +65,7 @@ type generateGitopsClient interface {
 	GetProfileContents(profileID string) ([]byte, error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
-	GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error)
+	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
@@ -1112,13 +1112,53 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 			continue
 		}
 
-		// If we're on the premium tier, get the software metadata to check for labels.
-		if cmd.AppConfig.License.IsPremium() {
-			softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
-				return nil, err
+		softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamId)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
+			return nil, err
+		}
+
+		if softwareTitle.SoftwarePackage != nil {
+			if softwareTitle.SoftwarePackage.InstallScript != "" {
+				script := softwareTitle.SoftwarePackage.InstallScript
+				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-preinstall")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["install_script"] = map[string]interface{}{
+					"path": path,
+				}
+				cmd.FilesToWrite[fileName] = script
 			}
+
+			if softwareTitle.SoftwarePackage.PostInstallScript != "" {
+				script := softwareTitle.SoftwarePackage.PostInstallScript
+				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-postinstall")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["post_install_script"] = map[string]interface{}{
+					"path": path,
+				}
+				cmd.FilesToWrite[fileName] = script
+			}
+
+			if softwareTitle.SoftwarePackage.UninstallScript != "" {
+				script := softwareTitle.SoftwarePackage.UninstallScript
+				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-uninstall")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["uninstall_script"] = map[string]interface{}{
+					"path": path,
+				}
+				cmd.FilesToWrite[fileName] = script
+			}
+
+			if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
+				softwareSpec["pre_install_query"] = softwareTitle.SoftwarePackage.PreInstallQuery
+			}
+
+			if softwareTitle.SoftwarePackage.SelfService == true {
+				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
+			}
+		}
+
+		if cmd.AppConfig.License.IsPremium() {
 			var labels []fleet.SoftwareScopeLabel
 			var labelKey string
 			if softwareTitle.SoftwarePackage != nil {

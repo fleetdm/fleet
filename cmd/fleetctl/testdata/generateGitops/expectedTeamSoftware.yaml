@@ -1,3 +1,16 @@
+packages:
+  - hash_sha256: global-software-hash ___GITOPS_COMMENT_0___
+    install_script:
+      path: ../lib/scripts/global-software-preinstall
+    labels_include_any:
+    - Label A
+    - Label B
+    post_install_script:
+      path: ../lib/scripts/global-software-postinstall
+    pre_install_query: SELECT * FROM pre_install_query
+    self_service: true
+    uninstall_script:
+      path: ../lib/scripts/global-software-uninstall
 app_store_apps:
   - app_store_id: com.example.team-software
     labels_exclude_any:

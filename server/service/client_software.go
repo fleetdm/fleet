@@ -32,10 +32,14 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 }
 
 // GetSoftwareTitleByID retrieves a software title by ID.
-func (c *Client) GetSoftwareTitleByID(ID uint) (*fleet.SoftwareTitle, error) {
+func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	var query string
+	if teamID != nil {
+		query = fmt.Sprintf("team_id=%d", *teamID)
+	}
 	verb, path := "GET", "/api/latest/fleet/software/titles/"+fmt.Sprint(ID)
 	var responseBody getSoftwareTitleResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
 	}
