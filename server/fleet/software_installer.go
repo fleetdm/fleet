@@ -159,6 +159,8 @@ type SoftwarePackageResponse struct {
 	URL string `json:"url" db:"url"`
 	// HashSHA256 is the SHA256 hash of the software installer.
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
+	// ID of the Fleet Maintained App this package uses, if any
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.

@@ -2108,7 +2108,8 @@ SELECT
   team_id,
   title_id,
   url,
-  storage_id as hash_sha256
+  storage_id as hash_sha256,
+  fleet_maintained_app_id
 FROM
   software_installers
 WHERE global_or_team_id = ?
