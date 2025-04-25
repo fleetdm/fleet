@@ -206,19 +206,22 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if cmd.CLI.String("dir") != "" && !cmd.CLI.Bool("print") {
 		dir := cmd.CLI.String("dir")
 		_, err := os.Stat(dir)
-		if err != nil && !os.IsNotExist(err) {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error checking directory: %s\n", err)
-			return ErrGeneric
-		}
-		// Check if the directory is empty.
-		entries, err := os.ReadDir(dir)
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error reading directory: %s\n", err)
-			return ErrGeneric
-		}
-		if len(entries) > 0 && !cmd.CLI.Bool("force") {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Directory %s is not empty.  Use --force to overwrite.\n", dir)
-			return nil
+			if !os.IsNotExist(err) {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error checking directory: %s\n", err)
+				return ErrGeneric
+			}
+		} else {
+			// Check if the directory is empty.
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error reading directory: %s\n", err)
+				return ErrGeneric
+			}
+			if len(entries) > 0 && !cmd.CLI.Bool("force") {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Directory %s is not empty.  Use --force to overwrite.\n", dir)
+				return nil
+			}
 		}
 	}
 
@@ -787,10 +790,6 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		})
 	}
 	return teamSettings, nil
-}
-
-func (cmd *GenerateGitopsCommand) generateAgentOptions(filePath string, teamId uint) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
 }
 
 func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {

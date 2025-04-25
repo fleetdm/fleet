@@ -12,13 +12,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v2"
 )
 
-type MockClient struct{}
+type MockClient struct {
+	IsFree bool
+}
 
-func (MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
+func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 	b, err := os.ReadFile("./testdata/generateGitops/appConfig.json")
 	if err != nil {
 		return nil, err
@@ -26,6 +29,9 @@ func (MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
 	var appConfig fleet.EnrichedAppConfig
 	if err := json.Unmarshal(b, &appConfig); err != nil {
 		return nil, err
+	}
+	if c.IsFree == true {
+		appConfig.License.Tier = fleet.TierFree
 	}
 	return &appConfig, nil
 }
@@ -62,6 +68,13 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 			TeamID:          ptr.Uint(1),
 			Name:            "Script B.ps1",
 			ScriptContentID: 2,
+		}}, nil
+	case "team_id=0":
+		return []*fleet.Script{{
+			ID:              3,
+			TeamID:          ptr.Uint(0),
+			Name:            "Script Z.ps1",
+			ScriptContentID: 3,
 		}}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -112,14 +125,17 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 			},
 		}, nil
 	}
+	if *teamID == 0 {
+		return nil, nil
+	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
 }
 
 func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
-	if scriptID == 1 {
+	if scriptID == 2 {
 		return []byte("pop goes the weasel!"), nil
 	}
-	if scriptID == 2 {
+	if scriptID == 3 {
 		return []byte("#!/usr/bin/env pwsh\necho \"Hello from Script B!\""), nil
 	}
 	return nil, fmt.Errorf("script not found")
@@ -202,6 +218,8 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				HashSHA256: ptr.String("team-software-hash"),
 			},
 		}, nil
+	case "available_for_install=1&team_id=0":
+		return []fleet.SoftwareTitleListResult{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
 	}
@@ -338,16 +356,53 @@ func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
 	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
 	cliContext := cli.NewContext(&cli.App{
 		Name:      "test",
 		Usage:     "test",
 		Writer:    buf,
 		ErrWriter: buf,
-	}, nil, nil)
+	}, flagSet, nil)
 	err := action(cliContext)
 	require.NoError(t, err, buf.String())
 
 	fmt.Println(buf.String()) // Debugging line
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+}
+
+func TestGenerateGitopsFree(t *testing.T) {
+	fleetClient := &MockClient{}
+	fleetClient.IsFree = true
+	action := createGenerateGitopsAction(fleetClient)
+	buf := new(bytes.Buffer)
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+	flagSet.String("dir", tempDir, "")
+
+	cliContext := cli.NewContext(&cli.App{
+		Name:      "test",
+		Usage:     "test",
+		Writer:    buf,
+		ErrWriter: buf,
+	}, flagSet, nil)
+	err := action(cliContext)
+	require.NoError(t, err, buf.String())
+
+	fmt.Println(buf.String()) // Debugging line
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
 }
 
 func TestGenerateOrgSettings(t *testing.T) {
