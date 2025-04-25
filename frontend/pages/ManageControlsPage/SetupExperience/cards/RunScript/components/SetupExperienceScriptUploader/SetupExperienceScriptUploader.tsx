@@ -6,20 +6,19 @@ import mdmAPI from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 import FileUploader from "components/FileUploader";
 import { getErrorReason } from "interfaces/errors";
-import { config } from "process";
-import App from "components/App";
-import { AppContext } from "context/app";
 
 const baseClass = "setup-experience-script-uploader";
 
 interface ISetupExperienceScriptUploaderProps {
   currentTeamId: number;
+  hasManualAgentInstall: boolean;
   onUpload: () => void;
   className?: string;
 }
 
 const SetupExperienceScriptUploader = ({
   currentTeamId,
+  hasManualAgentInstall,
   onUpload,
   className,
 }: ISetupExperienceScriptUploaderProps) => {
@@ -67,8 +66,8 @@ const SetupExperienceScriptUploader = ({
       buttonMessage="Upload"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
-      disabled // TODO: check manual install disabled
-      buttonTooltip={manuallyInstallTooltipText}
+      disabled={hasManualAgentInstall}
+      buttonTooltip={hasManualAgentInstall && manuallyInstallTooltipText}
       gitopsCompatible
     />
   );

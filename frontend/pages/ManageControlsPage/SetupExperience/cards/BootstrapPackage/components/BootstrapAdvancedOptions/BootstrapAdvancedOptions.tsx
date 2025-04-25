@@ -1,32 +1,44 @@
+import React, { useContext, useState } from "react";
+
+import mdmAPI from "services/entities/mdm";
+import { NotificationContext } from "context/notification";
+
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
-import React, { useState } from "react";
 
 const baseClass = "bootstrap-advanced-options";
 
 interface IBootstrapAdvancedOptionsProps {
+  currentTeamId: number;
   enableInstallManually: boolean;
-  defaultInstallManually: boolean;
+  defaultManualInstall: boolean;
 }
 
 const BootstrapAdvancedOptions = ({
+  currentTeamId,
   enableInstallManually,
-  defaultInstallManually,
+  defaultManualInstall,
 }: IBootstrapAdvancedOptionsProps) => {
+  const { renderFlash } = useContext(NotificationContext);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [releaseDevice, setReleaseDevice] = useState(defaultInstallManually);
+  const [manualAgentInstall, setManualAgentInstall] = useState(
+    defaultManualInstall
+  );
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // try {
-    //   await mdmAPI.updateReleaseDeviceSetting(currentTeamId, releaseDevice);
-    //   renderFlash("success", "Successfully updated.");
-    // } catch {
-    //   renderFlash("error", "Something went wrong. Please try again.");
-    // }
+    try {
+      await mdmAPI.updateSetupExperienceSettings({
+        team_id: currentTeamId,
+        manual_agent_install: manualAgentInstall,
+      });
+      renderFlash("success", "Successfully updated.");
+    } catch {
+      renderFlash("error", "Something went wrong. Please try again.");
+    }
   };
 
   const tooltip = (
@@ -50,8 +62,8 @@ const BootstrapAdvancedOptions = ({
       {showAdvancedOptions && (
         <form onSubmit={onSubmit}>
           <Checkbox
-            value={releaseDevice}
-            onChange={() => setReleaseDevice(!releaseDevice)}
+            value={manualAgentInstall}
+            onChange={() => setManualAgentInstall(!manualAgentInstall)}
             disabled={!enableInstallManually}
           >
             <TooltipWrapper tipContent={tooltip}>

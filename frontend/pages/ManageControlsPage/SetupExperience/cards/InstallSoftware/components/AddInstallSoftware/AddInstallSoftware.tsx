@@ -10,18 +10,19 @@ import { ISoftwareTitle } from "interfaces/software";
 import LinkWithContext from "components/LinkWithContext";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { Tooltip } from "react-tooltip-5";
 
 const baseClass = "add-install-software";
 
 interface IAddInstallSoftwareProps {
   currentTeamId: number;
+  hasManualAgentInstall: boolean;
   softwareTitles: ISoftwareTitle[] | null;
   onAddSoftware: () => void;
 }
 
 const AddInstallSoftware = ({
   currentTeamId,
+  hasManualAgentInstall,
   softwareTitles,
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
@@ -108,7 +109,7 @@ const AddInstallSoftware = ({
             <TooltipWrapper
               className={`${baseClass}__manual-install-tooltip`}
               tipContent={manuallyInstallTooltipText}
-              disableTooltip={disableChildren && !hasNoSoftware} // TODO: manually install check
+              disableTooltip={disableChildren || !hasManualAgentInstall}
               position="top"
               showArrow
               underline={false}
@@ -116,7 +117,7 @@ const AddInstallSoftware = ({
               <Button
                 className={`${baseClass}__button`}
                 onClick={onAddSoftware}
-                disabled={hasNoSoftware || disableChildren}
+                disabled={disableChildren || hasManualAgentInstall}
               >
                 {buttonText}
               </Button>

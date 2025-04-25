@@ -4,8 +4,13 @@ import { AxiosResponse } from "axios";
 
 import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import { IApiError } from "interfaces/errors";
+import { IConfig } from "interfaces/config";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { NotificationContext } from "context/notification";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -19,6 +24,17 @@ import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 
 const baseClass = "bootstrap-package";
 
+export const getManualAgentInstallSetting = (
+  currentTeamId: number,
+  globalConfig?: IConfig,
+  teamConfig?: ITeamConfig
+) => {
+  if (currentTeamId === API_NO_TEAM_ID) {
+    return globalConfig?.mdm.macos_setup.manual_agent_install || false;
+  }
+  return teamConfig?.mdm?.macos_setup.manual_agent_install || false;
+};
+
 interface IBootstrapPackageProps {
   currentTeamId: number;
 }
@@ -29,6 +45,24 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     showDeleteBootstrapPackageModal,
     setShowDeleteBootstrapPackageModal,
   ] = useState(false);
+
+  const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config", currentTeamId], () => configAPI.loadAll(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: currentTeamId === API_NO_TEAM_ID,
+  });
+
+  const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: currentTeamId !== API_NO_TEAM_ID,
+    select: (res) => res.team,
+  });
 
   const {
     data: bootstrapMetadata,
@@ -65,6 +99,12 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     }
   };
 
+  const defaultManualInstallSetting = getManualAgentInstallSetting(
+    currentTeamId,
+    globalConfig,
+    teamConfig
+  );
+
   // we are relying on the API to tell us this resource does not exist to
   // determine if the user has uploaded a bootstrap package.
   const noPackageUploaded =
@@ -86,8 +126,9 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
         <div className={`${baseClass}__uploader-container`}>
           {bootstrapPackageView}
           <BootstrapAdvancedOptions
+            currentTeamId={currentTeamId}
             enableInstallManually={!noPackageUploaded}
-            defaultInstallManually={false}
+            defaultManualInstall={defaultManualInstallSetting}
           />
         </div>
         <div className={`${baseClass}__preview-container`}>
@@ -100,7 +141,11 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   return (
     <section className={baseClass}>
       <SectionHeader title="Bootstrap package" />
-      {isLoading ? <Spinner /> : renderBootstrapView()}
+      {isLoading || isLoadingGlobalConfig || isLoadingTeamConfig ? (
+        <Spinner />
+      ) : (
+        renderBootstrapView()
+      )}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}
