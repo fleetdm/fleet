@@ -701,7 +701,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies("default.yml", nil)
+	policiesRaw, err := cmd.generatePolicies(nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var policies []map[string]interface{}
@@ -723,7 +723,7 @@ func TestGeneratePolicies(t *testing.T) {
 	// Generate policies for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	policiesRaw, err = cmd.generatePolicies("team.yml", ptr.Uint(1))
+	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1))
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
@@ -755,7 +755,7 @@ func TestGenerateQueries(t *testing.T) {
 		AppConfig:    appConfig,
 	}
 
-	queriesRaw, err := cmd.generateQueries("default.yml", nil)
+	queriesRaw, err := cmd.generateQueries(nil)
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
 	var queries []map[string]interface{}
@@ -777,7 +777,7 @@ func TestGenerateQueries(t *testing.T) {
 	// Generate queries for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	queriesRaw, err = cmd.generateQueries("team.yml", ptr.Uint(1))
+	queriesRaw, err = cmd.generateQueries(ptr.Uint(1))
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
 	b, err = yaml.Marshal(queriesRaw)

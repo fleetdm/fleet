@@ -72,6 +72,7 @@ type generateGitopsClient interface {
 	Me() (*fleet.User, error)
 }
 
+// Given a struct type and a field name, return the JSON field name.
 func jsonFieldName(t reflect.Type, fieldName string) string {
 	field, ok := t.FieldByName(fieldName)
 	if !ok {
@@ -87,6 +88,7 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 	return name
 }
 
+// Given a dot-separated path, return the value at that key in a map.
 func getValueAtKey(data map[string]interface{}, path string) (interface{}, bool) {
 	// Split the path into parts.
 	parts := strings.Split(path, ".")
@@ -156,6 +158,7 @@ func generateGitopsCommand() *cli.Command {
 	}
 }
 
+// Create the action for the generate-gitops command, using a provided fleetClient.
 func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Context) error {
 	return func(c *cli.Context) error {
 		var err error
@@ -177,6 +180,7 @@ func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Cont
 	}
 }
 
+// Execute the actual command.
 func (cmd *GenerateGitopsCommand) Run() error {
 	// Either "key" or "dir" must be specified.
 	if cmd.CLI.String("key") == "" && cmd.CLI.String("dir") == "" {
@@ -385,7 +389,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(fileName, teamToProcess.ID)
+		policies, err := cmd.generatePolicies(teamToProcess.ID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -394,7 +398,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		if team == nil || team.ID != 0 {
 			// Generate queries (except for on No Team).
-			queries, err := cmd.generateQueries(fileName, teamToProcess.ID)
+			queries, err := cmd.generateQueries(teamToProcess.ID)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
 				return ErrGeneric
@@ -504,6 +508,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	return nil
 }
 
+// Add a comment to a file.  The comment is added as a token in the map, which
+// is replaced with the comment when the file is written.
 func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	token := fmt.Sprintf("___GITOPS_COMMENT_%d___", len(cmd.Comments))
 	cmd.Comments = append(cmd.Comments, Comment{
@@ -514,6 +520,8 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
+// Given a name, generate a filename by replacing spaces with dashes and
+// removing any non-alphanumeric characters.
 func generateFilename(name string) string {
 	fileName := strings.Map(func(r rune) rune {
 		switch {
@@ -532,6 +540,7 @@ func generateFilename(name string) string {
 
 var isJSON = regexp.MustCompile("^\\s*\\{")
 
+// Generate a filename for a profile based on its name and contents.
 func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileContentsString string) string {
 	fileName := generateFilename(profile.Name)
 	if profile.Platform == "darwin" {
@@ -970,7 +979,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId *uint) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint) ([]map[string]interface{}, error) {
 	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
@@ -1027,7 +1036,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(filePath string, teamId *uint
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateQueries(filePath string, teamId *uint) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]interface{}, error) {
 	queries, err := cmd.Client.GetQueries(teamId, nil)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting queries: %s\n", err)
