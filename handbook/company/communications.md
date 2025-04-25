@@ -784,7 +784,7 @@ Fleet benchmarks US-based team members based on the United States Dollar (USD). 
 
 ### Relocating
 
-When fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/digital-experience#contact-us) by following the directions listed in the relevant issue template ("Moving").
+When fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/digital-experience#update-personnel-details) by following the directions listed in the relevant issue template ("Moving").
 
 
 ## Team member onboarding
