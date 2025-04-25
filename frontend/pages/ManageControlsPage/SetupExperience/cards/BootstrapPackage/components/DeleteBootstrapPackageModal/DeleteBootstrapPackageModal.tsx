@@ -23,7 +23,7 @@ const DeleteBootstrapPackageModal = ({
     >
       <>
         <p>
-          Package won&apo;t be uninstalled from existing macOS hosts. Installs
+          Package won&apos;t be uninstalled from existing macOS hosts. Installs
           or uninstalls currently running on a host will still complete.
         </p>
         <p>

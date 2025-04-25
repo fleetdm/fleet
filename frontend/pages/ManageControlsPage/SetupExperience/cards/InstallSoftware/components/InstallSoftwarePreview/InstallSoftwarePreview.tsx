@@ -11,7 +11,7 @@ const InstallSoftwarePreview = () => {
     <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       <p>
-        After the <b>Remote Management</b> screen, the end user will see
+        During the <b>Remote Management</b> screen, the end user will see
         selected software being installed. They won&apos;t be able to continue
         until software is installed.
       </p>
