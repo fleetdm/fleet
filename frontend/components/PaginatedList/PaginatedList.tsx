@@ -66,7 +66,7 @@ interface IPaginatedListProps<TItem> {
   /** also requires an `isSelected` function be passed in for correct functionality */
   useCheckBoxes?: boolean;
   /** Allow the parent to trigger the loading overlay */
-  isUpdating?: boolean;
+  ancestralUpdating?: boolean;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
@@ -86,7 +86,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     disabled = false,
     heading,
     useCheckBoxes = true,
-    isUpdating = false,
+    ancestralUpdating = false,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
@@ -201,7 +201,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   });
   return (
     <div className={classes}>
-      {(isUpdating || isLoadingPage || isLoadingCount) && (
+      {(ancestralUpdating || isLoadingPage || isLoadingCount) && (
         <div className="loading-overlay">
           <Spinner />
         </div>

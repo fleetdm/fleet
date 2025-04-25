@@ -1,18 +1,11 @@
-import { createMockScript } from "__mocks__/scriptMock";
-import scriptAPI, {
-  IListScriptsQueryKey,
-  IScriptsResponse,
-} from "services/entities/scripts";
-import PaginatedList from "components/PaginatedList";
+import React, { useCallback } from "react";
+import { useQueryClient } from "react-query";
+
+import scriptAPI, { IScriptsResponse } from "services/entities/scripts";
+
 import { IScript } from "interfaces/script";
-import {
-  APP_CONTEXT_ALL_TEAMS_ID as APP_CONTEXT_NO_TEAM,
-  APP_CONTEXT_NO_TEAM_ID,
-} from "interfaces/team";
-import React, { useState, useCallback } from "react";
-import { useQuery, useQueryClient } from "react-query";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import ActionButton from "components/TableContainer/DataTable/ActionButton";
+
+import PaginatedList from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -39,14 +32,6 @@ const RunScriptBatchPaginatedList = ({
   scriptCount,
   setScriptForDetails,
 }: IRunScriptBatchPaginatedList) => {
-  // const fetchPage = useCallback((pageNumber: number) => {
-  // TODO - Scott's implementation on PoliciesPaginatedList uses UseQuery underlying query client,
-  // but seems like simplest and most Fleet-idiomatic approach would be to pass current scripts as
-  // a prop, and have the child just set the page number to trigger updates
-
-  // return Promise.resolve([createMockScript()]);
-  // }, []);
-
   // Fetch a single page of scripts.
   const queryClient = useQueryClient();
 
@@ -57,11 +42,9 @@ const RunScriptBatchPaginatedList = ({
         [
           {
             scope: "scripts",
-            // TODO - check this covers No team correctly
             team_id: teamId,
             page: pageNumber,
             per_page: PAGE_SIZE,
-            // TODO - allow changing order direction
           },
         ],
         ({ queryKey }) => {
@@ -70,8 +53,6 @@ const RunScriptBatchPaginatedList = ({
       );
 
       return fetchPromise.then(({ scripts, meta }: IScriptsResponse) => {
-        // TODO - use `meta` to determine enable/disable of next/previous buttons? currently
-        // calculated within paginatedlist
         return scripts || [];
       });
     },
@@ -84,8 +65,6 @@ const RunScriptBatchPaginatedList = ({
       onChange: (script: IPaginatedListScript) => void
     ) => {
       _onRunScript(script);
-      // regardless of result of async trigger of batch script run, consider script "dirty" and
-      // display "run again"
       onChange({ hasRun: true, ...script });
       return script;
     },
@@ -93,9 +72,6 @@ const RunScriptBatchPaginatedList = ({
   );
 
   const onClickScriptRow = useCallback((script: IPaginatedListScript) => {
-    // TODO - open script preview modal, maintain current modal state, incorporate into
-    // `renderItemRow`
-    // TODO - make this modal able to run the script
     setScriptForDetails(script);
     return script;
   }, []);
@@ -106,10 +82,8 @@ const RunScriptBatchPaginatedList = ({
   ) => (
     <>
       <a>{script.name}</a>
-      {/* TODO - only show button on over */}
       <Button
         variant="text-icon"
-        // prevent filling in icon background on hover
         iconStroke={!script.hasRun}
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
@@ -131,21 +105,18 @@ const RunScriptBatchPaginatedList = ({
     </>
   );
 
-  // TODO - implement grayed overlay with Spinner when `isUpdating`
   return (
     <div className={`${baseClass}`}>
       <PaginatedList<IPaginatedListScript>
-        // TODO - heading prop, use for ordering by name?
         renderItemRow={renderScriptRow}
         count={scriptCount}
         fetchPage={fetchPage}
         onClickRow={onClickScriptRow}
-        // TODO - more elegant way?
         setDirtyOnClickRow={false}
         pageSize={PAGE_SIZE}
         disabled={isUpdating}
         useCheckBoxes={false}
-        isUpdating={isUpdating}
+        ancestralUpdating={isUpdating}
       />
     </div>
   );

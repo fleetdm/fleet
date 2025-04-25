@@ -667,7 +667,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   ranScriptBatch: (activity: IActivity) => {
-    // next iteration, can grab `batch_execution_id` from details
+    // next iteration, can grab `batch_execution_id` from details to use for summary api call
     const { script_name, host_count } = activity.details || {};
     return (
       <>

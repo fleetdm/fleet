@@ -15,7 +15,7 @@ import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptsResponse,
 } from "services/entities/scripts";
-import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import Spinner from "components/Spinner";
 import EmptyTable from "components/EmptyTable";
 import Button from "components/buttons/Button";
@@ -79,7 +79,7 @@ const RunScriptBatchModal = ({
         );
       } catch (error) {
         renderFlash("error", "Could not run script.");
-        // TODO next iteration - determine more specific error case with additional call to summary endpoint
+        // can determine more specific error case with additional call to upcoming summary endpoint
       } finally {
         setIsUpdating(false);
       }
@@ -157,7 +157,6 @@ const RunScriptBatchModal = ({
                 Run
               </Button>
               <Button
-                // className={`${baseClass}__button--modal-cancel`}
                 onClick={() => setScriptForDetails(undefined)}
                 variant="inverse"
               >

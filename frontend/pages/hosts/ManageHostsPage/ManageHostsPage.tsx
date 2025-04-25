@@ -1089,9 +1089,9 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
-  const onRunScriptBatchClick = (hostIds: number[]) => {
-    toggleRunScriptBatchModal();
+  const onClickRunScriptBatchAction = (hostIds: number[]) => {
     setSelectedHostIds(hostIds);
+    toggleRunScriptBatchModal();
   };
 
   const onDeleteHostsClick = (hostIds: number[]) => {
@@ -1545,7 +1545,7 @@ const ManageHostsPage = ({
     const secondarySelectActions: IActionButtonProps[] = [
       {
         name: "run-script",
-        onClick: onRunScriptBatchClick,
+        onClick: onClickRunScriptBatchAction,
         buttonText: "Run script",
         variant: "text-icon",
         iconSvg: "run",
