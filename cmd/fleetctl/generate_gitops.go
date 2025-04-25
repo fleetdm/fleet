@@ -55,7 +55,7 @@ type teamToProcess struct {
 	Team *fleet.Team
 }
 
-type client interface {
+type generateGitopsClient interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
 	GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error)
 	ListTeams(query string) ([]fleet.Team, error)
@@ -107,7 +107,7 @@ func getValueAtKey(data map[string]interface{}, path string) (interface{}, bool)
 }
 
 type GenerateGitopsCommand struct {
-	Client       client
+	Client       generateGitopsClient
 	CLI          *cli.Context
 	Messages     Messages
 	FilesToWrite map[string]interface{}
@@ -156,7 +156,7 @@ func generateGitopsCommand() *cli.Command {
 	}
 }
 
-func createGenerateGitopsAction(fleetClient client) func(*cli.Context) error {
+func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Context) error {
 	return func(c *cli.Context) error {
 		var err error
 		if fleetClient == nil {
@@ -1189,4 +1189,4 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 	return result, nil
 }
 
-var _ client = (*service.Client)(nil)
+var _ generateGitopsClient = (*service.Client)(nil)
