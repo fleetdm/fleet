@@ -321,14 +321,14 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
 ### Update personnel details
 
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
-1. Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
+1. Team member submits a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=x-teammate-relocation.md) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
     - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
 2. Digital Experience makes change to HRIS (Gusto or Plane) to reflect change. 
-    - Note: if making the change requires follow up steps, resolve those steps to action the change.
+    - Note: if making the change requires follow-up steps, resolve those steps to action the change.
 3. Once change is effected in HRIS, Digital Experience makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
 4. If required, Digital Experience makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
 5. If required, Digital Experience makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
-6. If required, Digital Experience also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
+6. If required, Digital Experience also makes changes to other core systems (e.g., creating a new email alias in Google Workspace, updating details in Carta, etc.).
 7. The change is now actioned, notify the team member and close the issue.
 
 > Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
