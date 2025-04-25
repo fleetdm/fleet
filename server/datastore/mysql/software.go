@@ -97,7 +97,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	error,
 ) {
 	stmt := `
-		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier
+		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.executable_sha256
 		FROM host_software_installed_paths t
 		WHERE t.host_id = ?
 	`
@@ -150,10 +150,15 @@ func hostSoftwareInstalledPathsDelta(
 			toDelete = append(toDelete, r.ID)
 			continue
 		}
-
+		var sha256 string
+		if r.ExecutableSHA256 == nil {
+			sha256 = ""
+		} else {
+			sha256 = *r.ExecutableSHA256
+		}
 		key := fmt.Sprintf(
-			"%s%s%s%s%s",
-			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			"%s%s%s%s%s%s%s",
+			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, sha256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 		)
 		iSPathLookup[key] = r
 
@@ -164,8 +169,8 @@ func hostSoftwareInstalledPathsDelta(
 	}
 
 	for key := range reported {
-		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 3)
-		installedPath, teamIdentifier, unqStr := parts[0], parts[1], parts[2]
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 4)
+		installedPath, teamIdentifier, cdHash, unqStr := parts[0], parts[1], parts[2], parts[3]
 
 		// Shouldn't be possible ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
@@ -180,11 +185,17 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
+		var executableSHA256 *string
+		if cdHash != "" {
+			executableSHA256 = ptr.String(cdHash)
+		}
+
 		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
-			HostID:         hostID,
-			SoftwareID:     s.ID,
-			InstalledPath:  installedPath,
-			TeamIdentifier: teamIdentifier,
+			HostID:           hostID,
+			SoftwareID:       s.ID,
+			InstalledPath:    installedPath,
+			TeamIdentifier:   teamIdentifier,
+			ExecutableSHA256: executableSHA256,
 		})
 	}
 
@@ -221,7 +232,7 @@ func insertHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier) VALUES %s"
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, executable_sha256) VALUES %s"
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
@@ -233,10 +244,10 @@ func insertHostSoftwareInstalledPaths(
 
 		var args []interface{}
 		for _, v := range batch {
-			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier)
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.ExecutableSHA256)
 		}
 
-		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?), ", len(batch)), ", ")
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?), ", len(batch)), ", ")
 		stmt := fmt.Sprintf(stmt, placeHolders)
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
@@ -3895,6 +3906,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
 				InstalledPath:  ip.InstalledPath,
 				TeamIdentifier: ip.TeamIdentifier,
+				HashSha256:     ip.ExecutableSHA256,
 			})
 		}
 
