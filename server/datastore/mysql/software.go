@@ -403,6 +403,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	return r, err
 }
 
+//nolint:unused
 func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, bundleIDsToSoftware map[string]fleet.Software) error {
 	if len(bundleIDsToSoftware) == 0 {
 		return nil
