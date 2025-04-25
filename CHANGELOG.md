@@ -1,3 +1,7 @@
+## Fleet 4.67.1 (Apr 25, 2025)
+
+- Removed updates of existing macOS software names on software ingestion to remediate a significant database performance regression introduced in 4.67.0.
+
 ## Fleet 4.67.0 (Apr 24, 2025)
 
 ### Security Engineers
