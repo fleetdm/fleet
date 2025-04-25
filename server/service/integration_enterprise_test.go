@@ -17142,6 +17142,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, team1.ID, *packages[0].TeamID)
 	require.False(t, hitInstallerURL)
 
+	// check that URL comes back on individual title fetch
+	stResp := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
+	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, "ruby", stResp.SoftwareTitle.Name)
+	require.Equal(t, rubyURL, stResp.SoftwareTitle.SoftwarePackage.URL)
+
 	// create a new team
 	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		Name:        t.Name() + "2",
