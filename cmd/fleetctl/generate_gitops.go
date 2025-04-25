@@ -245,7 +245,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			Name: "No team",
 		},
 	}
-	if cmd.CLI.String("team") == "global" {
+	if cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium() {
 		teamsToProcess = []teamToProcess{globalTeam}
 	} else if cmd.CLI.String("team") == "no-team" {
 		teamsToProcess = []teamToProcess{noTeam}
