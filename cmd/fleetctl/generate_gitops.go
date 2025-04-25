@@ -183,10 +183,15 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Either --dir or --key must be specified\n")
 		return nil
 	}
+	// But not both.
+	if cmd.CLI.String("key") != "" && cmd.CLI.String("dir") != "" {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Only one of --dir or --key may be specified\n")
+		return nil
+	}
 
 	var err error
 
-	// User must be global admin
+	// User must be global admin.
 	me, err := cmd.Client.Me()
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting user: %s\n", err)
@@ -224,33 +229,64 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		return err
 	}
 
-	// Get the list of teams.
-	teams, err := cmd.Client.ListTeams("")
-	if err != nil {
-		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting teams: %s\n", err)
-		return ErrGeneric
+	// Gather the list of teams to process, which may include some
+	// virtual teams (i.e. global and no-team).
+	var teamsToProcess []teamToProcess
+	globalTeam := teamToProcess{
+		ID: nil,
+		Team: &fleet.Team{
+			Name: "Global",
+		},
 	}
-	teamsToProcess := make([]teamToProcess, len(teams)+2)
-	for i, team := range teams {
-		teamsToProcess[i] = teamToProcess{
-			ID:   &team.ID,
-			Team: &team,
-		}
-	}
-	teamsToProcess[len(teams)] = teamToProcess{
+	noTeam := teamToProcess{
 		ID: ptr.Uint(0),
 		Team: &fleet.Team{
 			ID:   0,
 			Name: "No team",
 		},
 	}
-	teamsToProcess[len(teams)+1] = teamToProcess{
-		ID: nil,
-		Team: &fleet.Team{
-			Name: "Global",
-		},
+	if cmd.CLI.String("team") == "global" {
+		teamsToProcess = []teamToProcess{globalTeam}
+	} else if cmd.CLI.String("team") == "no-team" {
+		teamsToProcess = []teamToProcess{noTeam}
+	} else {
+		// Get the list of teams.
+		teams, err := cmd.Client.ListTeams("")
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting teams: %s\n", err)
+			return ErrGeneric
+		}
+		// If a specific team is requested, find it.
+		if cmd.CLI.String("team") != "" {
+			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
+			for _, team := range teams {
+				transformedTeamName := generateFilename(team.Name)
+				if transformedSelectedName == transformedTeamName {
+					teamsToProcess = []teamToProcess{{
+						ID:   &team.ID,
+						Team: &team,
+					}}
+				}
+			}
+			if len(teamsToProcess) == 0 {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Team %s not found\n", cmd.CLI.String("team"))
+				return nil
+			}
+		} else {
+			// Otherwise process all teams, including global and no-team.
+			teamsToProcess = make([]teamToProcess, len(teams)+2)
+			for i, team := range teams {
+				teamsToProcess[i] = teamToProcess{
+					ID:   &team.ID,
+					Team: &team,
+				}
+			}
+			teamsToProcess[len(teams)] = noTeam
+			teamsToProcess[len(teams)+1] = globalTeam
+		}
 	}
 
+	// Iterate over the teams and generate the config files.
 	for _, teamToProcess := range teamsToProcess {
 		var teamFileName string
 		var fileName string
@@ -270,8 +306,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		var mdmConfig fleet.TeamMDM
-		// Generate org settings.
 		if team == nil {
+			// Generate org settings, agent options and labels for the global config.
 			orgSettings, err := cmd.generateOrgSettings()
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
@@ -302,6 +338,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
 
 		} else if team.ID != 0 {
+			// Generate team settings and agent options for the team.
 			team, err := cmd.Client.GetTeam(team.ID)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting team %s: %s\n", team.Name, err)
@@ -363,22 +400,37 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 	}
 
+	// If we're just looking to print out a specific key, attempt to do that now.
 	if cmd.CLI.String("key") != "" {
+		var fileName string
+		// If a team is specified, get the file for that team.
+		switch cmd.CLI.String("team") {
+		case "global":
+			fileName = "default.yml"
+		case "":
+			fileName = "default.yml"
+		case "no-team":
+			fileName = "teams/no-team.yml"
+		default:
+			teamFileName := generateFilename(cmd.CLI.String("team"))
+			fileName = "teams/" + teamFileName + ".yml"
+		}
+
 		// Marshal and ummarshal the data to standardize the keys.
-		b, err := yaml.Marshal(cmd.FilesToWrite["default.yml"])
+		b, err := yaml.Marshal(cmd.FilesToWrite[fileName])
 		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling org settings: %s\n", err)
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling settings: %s\n", err)
 			return ErrGeneric
 		}
 		var data map[string]interface{}
 		if err := yaml.Unmarshal(b, &data); err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling org settings: %s\n", err)
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling settings: %s\n", err)
 			return ErrGeneric
 		}
 		value, ok := getValueAtKey(data, cmd.CLI.String("key"))
 		if !ok {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Key %s not found in org settings\n", cmd.CLI.String("key"))
-			return ErrGeneric
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Key %s not found in %s\n", cmd.CLI.String("key"), fileName)
+			return nil
 		}
 		b, err = yaml.Marshal(value)
 		if err != nil {
@@ -415,6 +467,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		} else {
 			b = []byte(fileToWrite.(string))
 		}
+
 		if cmd.CLI.Bool("print") {
 			fmt.Fprintf(cmd.CLI.App.Writer, "------------------------------------------------------------------\n%s\n------------------------------------------------------------------\n\n%+v\n\n", fullPath, string(b))
 		} else {
