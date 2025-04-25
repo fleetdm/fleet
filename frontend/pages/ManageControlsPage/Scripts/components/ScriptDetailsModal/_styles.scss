@@ -12,3 +12,9 @@
     overflow: scroll;
   }
 }
+
+// show script details without additional animation
+.modal__background:has(.run-script-batch-modal) {
+  transition: none;
+  animation: none;
+}

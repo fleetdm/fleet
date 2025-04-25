@@ -30,7 +30,6 @@ import hostCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
-import scriptsAPI from "services/entities/scripts";
 
 import {
   getOSVersions,
@@ -1095,36 +1094,6 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
-  const onRunScriptBatch = useCallback(
-    async (script: IScript) => {
-      setIsUpdating(true);
-      try {
-        await scriptsAPI.runScriptBatch({
-          host_ids: selectedHostIds,
-          script_id: script.id,
-        });
-        renderFlash(
-          "success",
-          `Script is running on ${selectedHostIds.length} hosts, or will run as each host comes online. See host details for individual results.`
-        );
-        setResetSelectedRows(true);
-        toggleRunScriptBatchModal();
-        setSelectedHostIds([]);
-      } catch (error) {
-        renderFlash("error", "Could not run script.");
-        // TODO next iteration - determine more specific error case with additional call to summary endpoint
-      } finally {
-        setIsUpdating(false);
-      }
-    },
-    [
-      renderFlash,
-      selectedHostIds,
-      setResetSelectedRows,
-      toggleRunScriptBatchModal,
-    ]
-  );
-
   const onDeleteHostsClick = (hostIds: number[]) => {
     toggleDeleteHostModal();
     setSelectedHostIds(hostIds);
@@ -1813,10 +1782,8 @@ const ManageHostsPage = ({
       {showDeleteHostModal && renderDeleteHostModal()}
       {showRunScriptBatchModal && (
         <RunScriptBatchModal
-          selectedHostsCount={selectedHostIds.length}
-          onRunScript={onRunScriptBatch}
+          selectedHostIds={selectedHostIds}
           onCancel={toggleRunScriptBatchModal}
-          isUpdating={isUpdating}
           teamId={currentTeamId}
         />
       )}

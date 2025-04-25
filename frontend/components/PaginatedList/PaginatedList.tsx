@@ -224,9 +224,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
               <li
                 className={`${baseClass}__row`}
                 key={item[idKey]}
-                // TODO - right now, this is using the row-level click to set dirtyItems. Since this
-                // feature calls for setting a script as "run" when it's "run" button is clicked,
-                // not when the row is clicked, this needs to be made more flexible
                 onClick={() => {
                   const clickedItem = onClickRow(item);
                   if (setDirtyOnClickRow)

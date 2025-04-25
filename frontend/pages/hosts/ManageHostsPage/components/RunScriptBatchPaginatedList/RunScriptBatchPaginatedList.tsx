@@ -18,7 +18,7 @@ import Icon from "components/Icon";
 
 const baseClass = "run-script-batch-paginated-list";
 
-interface IPaginatedListScript extends IScript {
+export interface IPaginatedListScript extends IScript {
   hasRun?: boolean;
 }
 
@@ -27,6 +27,7 @@ interface IRunScriptBatchPaginatedList {
   isUpdating: boolean;
   teamId?: number;
   scriptCount: number;
+  setScriptForDetails: (script: IPaginatedListScript) => void;
 }
 
 const PAGE_SIZE = 6;
@@ -36,6 +37,7 @@ const RunScriptBatchPaginatedList = ({
   isUpdating,
   teamId,
   scriptCount,
+  setScriptForDetails,
 }: IRunScriptBatchPaginatedList) => {
   // const fetchPage = useCallback((pageNumber: number) => {
   // TODO - Scott's implementation on PoliciesPaginatedList uses UseQuery underlying query client,
@@ -91,12 +93,10 @@ const RunScriptBatchPaginatedList = ({
   );
 
   const onClickScriptRow = useCallback((script: IPaginatedListScript) => {
-    // TODO - open script preview modal, maintain current modal state, incorporate into `renderItemRow`
-  }, []);
-
-  const toggleScriptPreview = useCallback((script: IPaginatedListScript) => {
-    // TODO - call for script details, render in preview modal
-    alert("script contents");
+    // TODO - open script preview modal, maintain current modal state, incorporate into
+    // `renderItemRow`
+    // TODO - make this modal able to run the script
+    setScriptForDetails(script);
     return script;
   }, []);
 
@@ -139,7 +139,7 @@ const RunScriptBatchPaginatedList = ({
         renderItemRow={renderScriptRow}
         count={scriptCount}
         fetchPage={fetchPage}
-        onClickRow={toggleScriptPreview}
+        onClickRow={onClickScriptRow}
         // TODO - more elegant way?
         setDirtyOnClickRow={false}
         pageSize={PAGE_SIZE}
