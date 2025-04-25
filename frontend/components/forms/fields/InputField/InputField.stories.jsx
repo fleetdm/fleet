@@ -40,6 +40,9 @@ export default {
       control: "radio",
       options: ["inside", "outside"],
     },
+    enableShowSecret: {
+      control: "boolean",
+    },
   },
 };
 
@@ -96,7 +99,7 @@ export const Textarea = Template.bind({});
 Textarea.args = {
   ...Basic.args,
   type: "textarea",
-  label: "Text Area",
+  label: "Text area",
   placeholder: "Enter multiple lines of text",
 };
 

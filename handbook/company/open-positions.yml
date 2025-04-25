@@ -61,32 +61,6 @@
       - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
       - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Customer Success Manager
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  responsibilities: |
-      - ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their success.
-      - 📣 Manage multiple customer deployments and escalations simultaneously.
-      - 🌡️ Work alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
-      - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
-      - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
-      - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
-      - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
-      - 💡 Excellent communication and collaboration skills, with the ability to partner with various teams and stakeholders to drive desired customer outcomes and key objectives.
-      - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
-  experience: |
-      - 💭 IT or device management background supporting solutions like Fleet, Intune, Jamf, Workspace One, etc.
-      - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
-      - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
-      - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-      - 🧑‍🔬 Experience working with Enterprise customers to coordinate resolution of complex technical issues and project manage intricate deployment initiatives.
-      - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing. 
-      - 🦉 2-3 years of work experience managing relationships with enterprise customers in the device management space. Experience with executing and tracking results tied to customer escalations, customer renewals, and customer expansion opportunities.
-      - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
-      - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
-
 
 - jobTitle: 🌦️ Customer Solutions Architect
   department: Customers
@@ -138,3 +112,27 @@
       - 🤝 Collaboration: You work best in a participatory, team-based environment.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
+
+
+- jobTitle: 🌐 Apprentice
+  department: 🌐 Digital Experience
+  hiringManagerName: Sam Pfluger
+  hiringManagerGithubUsername: sampfluger88
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/sampfluger88/
+  responsibilities: |
+      - 👥 Work to own day-to-day AR/AP responsibilities including sending invoices, tracking payments, following up with customers, and ensuring data accuracy.
+      - 🧑‍🔬 Perform processes as described in the [Digital Experience](https://fleetdm.com/handbook/digital-experience) and [Finance](https://fleetdm.com/handbook/finance) handbook pages.
+      - 📖 Maintain and update the structure and content of the company handbook.
+      - 🗣️ Act as secondary/backup point of contact for Fleet to aid in both internal and external initiatives.
+      - 🗓️ Comfort navigating Slack, Salesforce, GitHub, and Google Suite to stay in sync and get work done.
+      - 🧪 Help implement and drive change management for any new or modified processes and tools across the team and/or the organization.
+      - 📈 Collect and report data to help drive business decisions and KPIs.
+  experience: |
+       - 🏃‍♂️ Strong desire to build a technical and operational-based skill set.
+       - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
+       - 🫀 Experience dealing with sensitive personal information of team members and customers.
+       - 🛠️ Strong writing and oral communication, capable of understanding and translating technical concepts and personas.
+       - 🤝 Ability to work in a process-driven team-based environment.
+       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+       - ➕ Bonus: Customer service\support background.
+
