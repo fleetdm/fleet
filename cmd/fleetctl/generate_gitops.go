@@ -468,6 +468,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			b = []byte(fileToWrite.(string))
 		}
 
+		// If --print is set, print the file to stdout.
 		if cmd.CLI.Bool("print") {
 			fmt.Fprintf(cmd.CLI.App.Writer, "------------------------------------------------------------------\n%s\n------------------------------------------------------------------\n\n%+v\n\n", fullPath, string(b))
 		} else {
