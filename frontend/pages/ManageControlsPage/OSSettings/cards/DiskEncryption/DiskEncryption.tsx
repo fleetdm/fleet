@@ -150,11 +150,9 @@ const DiskEncryption = ({
     return (
       <>
         {AppleOrWindows} MDM must be turned on in{" "}
-        <a href="/settings/integrations/mdm">
-          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-          <b>Mobile Device Management (MDM)</b>
-        </a>{" "}
-        to enforce disk encryption via {DEMethod}.
+        <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+        <b>Mobile Device Management (MDM)</b>
+        {" "} to enforce disk encryption via {DEMethod}.
       </>
     );
   };
