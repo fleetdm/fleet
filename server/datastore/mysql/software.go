@@ -412,7 +412,7 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 		return nil
 	}
 
-	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
+	//updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
 
 	hostSoftwareStmt := `
 		INSERT IGNORE INTO host_software 
@@ -421,9 +421,9 @@ func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
 
 	for k, v := range bundleIDsToSoftware {
-		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software names")
-		}
+		//if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
+		//	return ctxerr.Wrap(ctx, err, "update software names")
+		//}
 
 		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host software")
