@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import { FLEET_WEBSITE_URL, TRANSPARENCY_LINK } from "utilities/constants";
 
 const baseClass = "calendar-event-preview-modal";
 
@@ -76,12 +77,32 @@ const CalendarEventPreviewModal = ({
                   : policy.description}
               </div>
               <br /> <br />
-              <strong>What we&apos;ll do</strong>
+              <strong>Maintenance required</strong>
               <br />
               <div className={`${baseClass}__preview-info__text__user-text`}>
-                {showGenericPreview
-                  ? "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
-                  : policy.resolution}
+                {showGenericPreview ? (
+                  <>
+                    <ul>
+                      <li>
+                        Click the{" "}
+                        <a href={`${FLEET_WEBSITE_URL}/better`}>Fleet</a> icon
+                        in your computer&apos;s menu and select <b>My device</b>
+                      </li>
+                      <li>
+                        Navigate to the <b>Policies</b> tab
+                      </li>
+                      <li>
+                        Follow instructions to resolve any policies marked{" "}
+                        {"No"}
+                      </li>
+                      <li>
+                        Click <b>Refetch</b>
+                      </li>
+                    </ul>
+                  </>
+                ) : (
+                  policy.resolution
+                )}
               </div>
             </div>
           </div>
