@@ -18,12 +18,12 @@ export interface IPaginatedListScript extends IScript {
 interface IRunScriptBatchPaginatedList {
   onRunScript: (script: IPaginatedListScript) => Promise<void>;
   isUpdating: boolean;
-  teamId?: number;
+  teamId: number;
   scriptCount: number;
   setScriptForDetails: (script: IPaginatedListScript) => void;
 }
 
-const PAGE_SIZE = 6;
+export const SCRIPT_BATCH_PAGE_SIZE = 6;
 
 const RunScriptBatchPaginatedList = ({
   onRunScript: _onRunScript,
@@ -44,7 +44,7 @@ const RunScriptBatchPaginatedList = ({
             scope: "scripts",
             team_id: teamId,
             page: pageNumber,
-            per_page: PAGE_SIZE,
+            per_page: SCRIPT_BATCH_PAGE_SIZE,
           },
         ],
         ({ queryKey }) => {
@@ -113,7 +113,7 @@ const RunScriptBatchPaginatedList = ({
         fetchPage={fetchPage}
         onClickRow={onClickScriptRow}
         setDirtyOnClickRow={false}
-        pageSize={PAGE_SIZE}
+        pageSize={SCRIPT_BATCH_PAGE_SIZE}
         disabled={isUpdating}
         useCheckBoxes={false}
         ancestralUpdating={isUpdating}

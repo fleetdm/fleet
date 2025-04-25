@@ -28,7 +28,7 @@ const baseClass = "run-script-batch-modal";
 interface IRunScriptBatchModal {
   selectedHostIds: number[];
   onCancel: () => void;
-  teamId?: number;
+  teamId: number;
 }
 
 const RunScriptBatchModal = ({
