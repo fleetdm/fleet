@@ -1706,7 +1706,6 @@ This activity contains the following fields:
 
 Generated when upcoming activity `installed_software` is canceled.
 
-
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
@@ -1717,10 +1716,10 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Marko's MacBook Pro",
-	"software_title": "Adobe Acrobat.app",
-	"software_title_id": 12334
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
 }
 ```
 
@@ -1738,16 +1737,16 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Marko's MacBook Pro",
-	"software_title": "Adobe Acrobat.app",
-	"software_title_id": 12334
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
 }
 ```
 
 ## canceled_install_app_store_app
 
-Generated when upcoming activity `installed_app_store_app` is canceled. 
+Generated when upcoming activity `installed_app_store_app` is canceled.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1759,12 +1758,13 @@ This activity contains the following fields:
 
 ```json
 {
-	"host_id": 123,
-	"host_display_name": "Anna's MacBook Pro",
-	"software_title": "Adobe Acrobat.app",
-	"software_title_id": 12334
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
 }
 ```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
