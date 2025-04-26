@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"fmt"
 	"strings"
 	"testing"
