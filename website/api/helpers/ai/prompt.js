@@ -12,9 +12,16 @@ module.exports = {
     baseModel: {
       type: 'string',
       description: 'The base model to use.',
-      moreInfoUrl: 'https://platform.openai.com/docs/models/o1',
+      example: 'gpt-4o',
+      // 'o4-mini-2025-04-16'
+      // 'o3-2025-04-16'
+      // 'o1-preview'
+      // 'o3-mini-2025-01-31'
+      // 'gpt-4o-2024-08-06'
+      // 'gpt-4o-mini-2024-07-18'
+      // 'gpt-4.1-2025-04-14'
+      moreInfoUrl: 'https://platform.openai.com/docs/models',
       defaultsTo: 'gpt-3.5-turbo',
-      isIn: ['gpt-3.5-turbo', 'gpt-4o', 'o1-preview', 'o3-mini-2025-01-31', 'gpt-4o-2024-08-06', 'gpt-4o-mini-2024-07-18'],
     },
     expectJson: { type: 'boolean', defaultsTo: false },
     systemPrompt: { type: 'string', example: 'Here is data about each computer, as JSON: ```[ … ]```' },
@@ -40,7 +47,7 @@ module.exports = {
   fn: async function ({prompt, baseModel, expectJson, systemPrompt}) {
 
     if (!sails.config.custom.openAiSecret) {
-      throw new Error('sails.config.custom.openAiSecret not set.');
+      throw new Error('sails.config.custom.openAiSecret not set.  (To play around, run `sails_custom__openAiSecret=\'…\' sails console`.  You can get your API secret at https://platform.openai.com/settings/organization/api-keys.)');
     }//•
 
     // TODO: Write a comprehensive test suite that prompts hundreds of times in parallel to see which combo
