@@ -1,0 +1,1 @@
+* Fixed software deduplication when migrating from < 4.67.0 for cases where exactly two software entries would be merged into one.
