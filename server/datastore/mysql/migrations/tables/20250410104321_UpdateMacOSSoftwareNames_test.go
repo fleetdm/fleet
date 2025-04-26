@@ -1,6 +1,7 @@
 package tables
 
 import (
+	"crypto/md5"
 	"fmt"
 	"strings"
 	"testing"
@@ -10,6 +11,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
+
+func computeRawChecksumIncludingName(sw fleet.Software) ([]byte, error) {
+	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
+	if err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
+}
 
 func TestUp_20250410104321(t *testing.T) {
 	db := applyUpToPrev(t)
@@ -24,13 +35,19 @@ func TestUp_20250410104321(t *testing.T) {
 		{Name: "MacApp2.app", Source: "apps", BundleIdentifier: "com.example.foo2", Version: "2"},
 		{Name: "Chrome Extension", Source: "chrome_extensions", Browser: "chrome", Version: "3"},
 		{Name: "Microsoft Teams.exe", Source: "programs", Version: "4"},
+		{Name: "Live Captions.app", Source: "apps", BundleIdentifier: "com.apple.accessibility.LiveTranscriptionAgent", Version: "1.0"},
+		{Name: "LiveTranscriptionAgent.app", Source: "apps", BundleIdentifier: "com.apple.accessibility.LiveTranscriptionAgent", Version: "1.0"},
+		{Name: "Postman Helper (Renderer).app", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper", Version: ""},
+		{Name: "Postman Helper.app", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper", Version: ""},
 	}
 
 	// add some software titles
 	dataStmt := `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES (?, ?, ?, ?)`
 
 	for i, s := range softwares {
-		if i > 0 && s.BundleIdentifier == "com.example.foo" {
+		if i > 0 && (s.BundleIdentifier == "com.example.foo" ||
+			s.BundleIdentifier == "com.apple.accessibility.LiveTranscriptionAgent" ||
+			s.BundleIdentifier == "com.postmanlabs.mac.helper") {
 			continue
 		}
 		var bid any = ptr.String(s.BundleIdentifier)
@@ -57,7 +74,17 @@ func TestUp_20250410104321(t *testing.T) {
 
 	var softwareIDs []uint
 	for i, s := range softwares {
-		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.Browser, "", fmt.Sprintf("foo%d", i), s.TitleID)
+		checksum, err := computeRawChecksumIncludingName(softwares[i])
+		require.NoError(t, err)
+
+		id := execNoErrLastID(
+			t,
+			db,
+			dataStmt,
+			s.Name, s.Version, s.Source, s.BundleIdentifier, "", "", "", s.Browser, "",
+			checksum,
+			s.TitleID,
+		)
 		softwareIDs = append(softwareIDs, uint(id)) //nolint:gosec // dismiss G115
 		softwares[i].ID = uint(id)                  //nolint:gosec // dismiss G115
 
