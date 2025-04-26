@@ -22,7 +22,19 @@ func Up_20250410104321(tx *sql.Tx) error {
 		return fmt.Errorf("updating software_titles.name: %w", err)
 	}
 
-	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids, bundle_identifier AS bundle_identifier
+	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids, MD5(
+			-- simulate new hash
+			CONCAT_WS(CHAR(0),
+				version,
+				source,
+				bundle_identifier,
+				` + "`release`" + `,
+				arch,
+				vendor,
+				browser,
+				extension_id
+			)
+		) AS new_checksum
 				FROM software
 				WHERE source = 'apps' AND bundle_identifier IS NOT NULL AND bundle_identifier != ''
 				GROUP BY
@@ -31,10 +43,10 @@ func Up_20250410104321(tx *sql.Tx) error {
 
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	selectedIDs := make(map[string]uint64)
-	idsToMergeByBundleID := make(map[string][]uint64)
+	idsToMergeByNewChecksum := make(map[string][]uint64)
 	var softwareGroups []struct {
-		IDs              string `db:"ids"`
-		BundleIdentifier string `db:"bundle_identifier"`
+		IDs         string `db:"ids"`
+		NewChecksum string `db:"new_checksum"`
 	}
 	if err := txx.Select(&softwareGroups, dupeIDsStmt); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
@@ -49,12 +61,12 @@ func Up_20250410104321(tx *sql.Tx) error {
 				return fmt.Errorf("building duplicate IDs list %q: %w", idStr, err)
 			}
 
-			if _, ok := selectedIDs[s.BundleIdentifier]; !ok {
-				selectedIDs[s.BundleIdentifier] = id
+			if _, ok := selectedIDs[s.NewChecksum]; !ok {
+				selectedIDs[s.NewChecksum] = id
 				continue
 			}
 
-			idsToMergeByBundleID[s.BundleIdentifier] = append(idsToMergeByBundleID[s.BundleIdentifier], id)
+			idsToMergeByNewChecksum[s.NewChecksum] = append(idsToMergeByNewChecksum[s.NewChecksum], id)
 		}
 	}
 
@@ -76,19 +88,19 @@ WHERE
 	updateHostSoftwareInstalledPathsStmt := `UPDATE host_software_installed_paths SET software_id = ? WHERE software_id IN (?)`
 
 	var allExcludedIDs []uint64
-	for bundleID, idsToMerge := range idsToMergeByBundleID {
+	for newChecksum, idsToMerge := range idsToMergeByNewChecksum {
 		allExcludedIDs = append(allExcludedIDs, idsToMerge...)
 		var hostIDRecordList []struct {
 			HostID uint `db:"host_id"`
 		}
-		selectedID, ok := selectedIDs[bundleID]
+		selectedID, ok := selectedIDs[newChecksum]
 		if !ok {
-			return fmt.Errorf("%s had excluded IDs but no selected ID", bundleID)
+			return fmt.Errorf("%v excluded IDs but no selected ID", idsToMerge)
 		}
 
 		stmt, args, err := sqlx.In(getRecordToUpdateStmt, idsToMerge, selectedID)
 		if err != nil {
-			return fmt.Errorf("sqlx.In for getting host software records to update for bundle_id %s: %w", bundleID, err)
+			return fmt.Errorf("sqlx.In for getting host software records to update for old software IDs %v: %w", idsToMerge, err)
 		}
 
 		if err := txx.Select(&hostIDRecordList, stmt, args...); err != nil {
@@ -97,24 +109,24 @@ WHERE
 				// ID, so no update needed
 				continue
 			}
-			return fmt.Errorf("getting host software record to update for bundle_id %s: %w", bundleID, err)
+			return fmt.Errorf("getting host software record to update for old software IDs %v: %w", idsToMerge, err)
 		}
 
 		for _, h := range hostIDRecordList {
 			_, err = tx.Exec(`INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, h.HostID, selectedID)
 			if err != nil {
-				return fmt.Errorf("updating host_software.software_id for bundle_id %s: %w", bundleID, err)
+				return fmt.Errorf("updating host_software.software_id for old software IDs %v: %w", idsToMerge, err)
 			}
 		}
 
 		// repoint host software installed paths to the software ID we're keeping
 		stmt, args, err = sqlx.In(updateHostSoftwareInstalledPathsStmt, selectedID, idsToMerge)
 		if err != nil {
-			return fmt.Errorf("sqlx.In for updating host software installed paths records for bundle_id %s: %w", bundleID, err)
+			return fmt.Errorf("sqlx.In for updating host software installed paths records for old software IDs %v: %w", idsToMerge, err)
 		}
 
 		if _, err := tx.Exec(stmt, args...); err != nil {
-			return fmt.Errorf("updating host software installed paths records for bundle_id %s: %w", bundleID, err)
+			return fmt.Errorf("updating host software installed paths records for old software IDs %v: %w", idsToMerge, err)
 		}
 	}
 
