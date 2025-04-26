@@ -25,7 +25,7 @@ func computeRawChecksumIncludingName(sw fleet.Software) ([]byte, error) {
 func TestUp_20250410104321(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	// 13 pieces of software, 10 of which are unique
+	// 13 pieces of software, 10 of which are unique, 11 of which are macOS apps
 	// Each piece of software is on a different host, other than MacApp Duplicate 3, which is on the same host
 	// as another of the MacApps (same bundle ID). This means we'll start with 13 host_software entries and
 	// expect one of those entries to go away.
@@ -44,7 +44,6 @@ func TestUp_20250410104321(t *testing.T) {
 		{Name: "Postman Helper (Renderer).app", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper", Version: ""},
 		{Name: "Postman Helper.app", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper", Version: ""},
 	}
-	// TODO add host software installed paths testing
 
 	// add some software titles
 	dataStmt := `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES (?, ?, ?, ?)`
@@ -106,6 +105,15 @@ func TestUp_20250410104321(t *testing.T) {
 			hostID = uint(i) //nolint:gosec // dismiss G115
 		}
 		execNoErr(t, db, "INSERT INTO host_software (host_id, software_id) VALUES (?, ?)", hostID, uint(id)) //nolint:gosec // dismiss G115
+
+		// insert installed paths for macOS apps to make sure all 11 get migrated over
+		if s.Source == "apps" {
+			execNoErr(t, db, "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)",
+				hostID,
+				uint(id), //nolint:gosec // dismiss G115
+				"/Applications/"+s.Name,
+			)
+		}
 	}
 
 	noBundleID1 := softwares[4]
@@ -168,6 +176,29 @@ func TestUp_20250410104321(t *testing.T) {
 	err = db.Get(&count, "SELECT COUNT(*) FROM host_software")
 	require.NoError(t, err)
 	require.Equal(t, 12, count)
+
+	// ensure no orphaned host software installed paths
+	err = db.Get(&count, `SELECT COUNT(*) FROM host_software_installed_paths WHERE software_id NOT IN (SELECT id FROM software)`)
+	require.NoError(t, err)
+	require.Zero(t, count)
+
+	err = db.Get(&count, `SELECT COUNT(*) FROM host_software_installed_paths WHERE software_id IN (SELECT id FROM software)`)
+	require.NoError(t, err)
+	require.Equal(t, 11, count)
+
+	// ensure we have the expected number of unique software IDs on host software installed paths (same as software count with source apps)
+	err = db.Get(&count, `SELECT COUNT(DISTINCT software_id) FROM host_software_installed_paths`)
+	require.NoError(t, err)
+	require.Equal(t, 6, count)
+
+	// ensure both copies of the same app are listed in installed paths for the host that has this case
+	var getSoftwarePaths []fleet.HostSoftwareInstalledPath
+	err = db.Select(&getSoftwarePaths, "SELECT host_id, software_id, installed_path FROM host_software_installed_paths WHERE host_id = 3 ORDER BY installed_path")
+	require.NoError(t, err)
+	require.Len(t, getSoftwarePaths, 2)
+	require.Equal(t, getSoftwarePaths[0].SoftwareID, getSoftwarePaths[1].SoftwareID)
+	require.Equal(t, getSoftwarePaths[0].InstalledPath, "/Applications/MacApp Duplicate 2.app")
+	require.Equal(t, getSoftwarePaths[1].InstalledPath, "/Applications/MacApp Duplicate 3.app")
 
 	err = db.Get(&count, `SELECT COUNT(*) FROM host_software WHERE software_id IN (?, ?)`, softwareIDs[1], softwareIDs[2])
 	require.NoError(t, err)

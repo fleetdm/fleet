@@ -1,1 +1,2 @@
 * Fixed software deduplication when migrating from < 4.67.0 for cases where exactly two software entries would be merged into one.
+* Included host software installed paths migration in the above database migration, instead of waiting for software ingestion to repopulate/clean up affected rows.

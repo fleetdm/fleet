@@ -31,7 +31,7 @@ func Up_20250410104321(tx *sql.Tx) error {
 
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	selectedIDs := make(map[string]uint64)
-	excludedIDs := make(map[string][]uint64)
+	idsToMergeByBundleID := make(map[string][]uint64)
 	var softwareGroups []struct {
 		IDs              string `db:"ids"`
 		BundleIdentifier string `db:"bundle_identifier"`
@@ -54,7 +54,7 @@ func Up_20250410104321(tx *sql.Tx) error {
 				continue
 			}
 
-			excludedIDs[s.BundleIdentifier] = append(excludedIDs[s.BundleIdentifier], id)
+			idsToMergeByBundleID[s.BundleIdentifier] = append(idsToMergeByBundleID[s.BundleIdentifier], id)
 		}
 	}
 
@@ -73,37 +73,48 @@ WHERE
 		WHERE
 			hs2.software_id = ?
 			AND hs2.host_id = hs1.host_id)`
+	updateHostSoftwareInstalledPathsStmt := `UPDATE host_software_installed_paths SET software_id = ? WHERE software_id IN (?)`
 
 	var allExcludedIDs []uint64
-	for bid, excluded := range excludedIDs {
-		allExcludedIDs = append(allExcludedIDs, excluded...)
-		var hs []struct {
+	for bundleID, idsToMerge := range idsToMergeByBundleID {
+		allExcludedIDs = append(allExcludedIDs, idsToMerge...)
+		var hostIDRecordList []struct {
 			HostID uint `db:"host_id"`
 		}
-		selectedID, ok := selectedIDs[bid]
+		selectedID, ok := selectedIDs[bundleID]
 		if !ok {
-			return fmt.Errorf("%s had excluded IDs but no selected ID", bid)
+			return fmt.Errorf("%s had excluded IDs but no selected ID", bundleID)
 		}
 
-		stmt, args, err := sqlx.In(getRecordToUpdateStmt, excluded, selectedID)
+		stmt, args, err := sqlx.In(getRecordToUpdateStmt, idsToMerge, selectedID)
 		if err != nil {
-			return fmt.Errorf("sqlx.In for getting host software records to update for bundle_id %s: %w", bid, err)
+			return fmt.Errorf("sqlx.In for getting host software records to update for bundle_id %s: %w", bundleID, err)
 		}
 
-		if err := txx.Select(&hs, stmt, args...); err != nil {
+		if err := txx.Select(&hostIDRecordList, stmt, args...); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// if there are no rows, this means the host is already pointed at the selected software
 				// ID, so no update needed
 				continue
 			}
-			return fmt.Errorf("getting host software record to update for bundle_id %s: %w", bid, err)
+			return fmt.Errorf("getting host software record to update for bundle_id %s: %w", bundleID, err)
 		}
 
-		for _, h := range hs {
+		for _, h := range hostIDRecordList {
 			_, err = tx.Exec(`INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, h.HostID, selectedID)
 			if err != nil {
-				return fmt.Errorf("updating host_software.software_id for bundle_id %s: %w", bid, err)
+				return fmt.Errorf("updating host_software.software_id for bundle_id %s: %w", bundleID, err)
 			}
+		}
+
+		// repoint host software installed paths to the software ID we're keeping
+		stmt, args, err = sqlx.In(updateHostSoftwareInstalledPathsStmt, selectedID, idsToMerge)
+		if err != nil {
+			return fmt.Errorf("sqlx.In for updating host software installed paths records for bundle_id %s: %w", bundleID, err)
+		}
+
+		if _, err := tx.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("updating host software installed paths records for bundle_id %s: %w", bundleID, err)
 		}
 	}
 
