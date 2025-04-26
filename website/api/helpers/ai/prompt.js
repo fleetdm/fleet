@@ -43,9 +43,15 @@ module.exports = {
       throw new Error('sails.config.custom.openAiSecret not set.');
     }//•
 
+    // TODO: Write a comprehensive test suite that prompts hundreds of times in parallel to see which combo
+    //       of JSON prompt suffix + base model works the best, through actual experimentation.  Then document
+    //       those results, have them included in a benchmark script whose usage is documented here in the code
+    //       for this .prompt() helper, and edit the prompt helper to automatically suggest using the correct
+    //       base model when using `expectJson: true` (and of course, change it to use the best JSON prompt suffix).
+    //      (^This would be a good starter task for a summer internship project)
     let JSON_PROMPT_SUFFIX = `
 
-Please do not add any text outside of the JSON report or wrap it in a code fence.  Never use newline characters within double quotes.`;
+Please do not add any text outside of the JSON or wrap it in a code fence.  Never use newline characters within double quotes.`;
 
     // The request data to send to openAI varies based on whether a system prompt was provided.
     let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {// [?] API: https://platform.openai.com/docs/api-reference/chat/create
