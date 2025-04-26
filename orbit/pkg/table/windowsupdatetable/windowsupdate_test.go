@@ -32,7 +32,7 @@ func (wus *WindowsUpdatesSearcherMock) QueryHistoryAll() ([]*windowsupdate.IUpda
 }
 
 func TestQueryUpdates(t *testing.T) {
-	t.Run("uses the right criteria is used", func(t *testing.T) {
+	t.Run("the right criteria is used", func(t *testing.T) {
 		searcher := &WindowsUpdatesSearcherMock{}
 		_, err := queryUpdates(searcher)
 		require.NoError(t, err)
