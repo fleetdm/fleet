@@ -27,12 +27,12 @@ const (
 	HistoryTable
 )
 
-type WindowsUpdatesSearcher interface {
+type windowsUpdatesSearcher interface {
 	QueryHistoryAll() ([]*windowsupdate.IUpdateHistoryEntry, error)
 	Search(criteria string) (*windowsupdate.ISearchResult, error)
 }
 
-type queryFuncType func(searcher WindowsUpdatesSearcher) (interface{}, error)
+type queryFuncType func(searcher windowsUpdatesSearcher) (interface{}, error)
 
 type Table struct {
 	logger    zerolog.Logger
@@ -62,7 +62,7 @@ func TablePlugin(mode tableMode, logger zerolog.Logger) *table.Plugin {
 	return table.NewPlugin(t.name, columns, t.generate)
 }
 
-func queryUpdates(searcher WindowsUpdatesSearcher) (interface{}, error) {
+func queryUpdates(searcher windowsUpdatesSearcher) (interface{}, error) {
 	searchResult, err := searcher.Search("Type='Software' AND IsInstalled=0")
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func queryUpdates(searcher WindowsUpdatesSearcher) (interface{}, error) {
 	return searchResult, nil
 }
 
-func queryHistory(searcher WindowsUpdatesSearcher) (interface{}, error) {
+func queryHistory(searcher windowsUpdatesSearcher) (interface{}, error) {
 	return searcher.QueryHistoryAll()
 }
 

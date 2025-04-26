@@ -16,24 +16,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type WindowsUpdatesSearcherMock struct {
+type windowsUpdatesSearcherMock struct {
 	searchCriteria string
 	SearchResult   *windowsupdate.ISearchResult
 	History        []*windowsupdate.IUpdateHistoryEntry
 }
 
-func (wus *WindowsUpdatesSearcherMock) Search(criteria string) (*windowsupdate.ISearchResult, error) {
+func (wus *windowsUpdatesSearcherMock) Search(criteria string) (*windowsupdate.ISearchResult, error) {
 	wus.searchCriteria = criteria
 	return wus.SearchResult, nil
 }
 
-func (wus *WindowsUpdatesSearcherMock) QueryHistoryAll() ([]*windowsupdate.IUpdateHistoryEntry, error) {
+func (wus *windowsUpdatesSearcherMock) QueryHistoryAll() ([]*windowsupdate.IUpdateHistoryEntry, error) {
 	return wus.History, nil
 }
 
 func TestQueryUpdates(t *testing.T) {
 	t.Run("the right criteria is used", func(t *testing.T) {
-		searcher := &WindowsUpdatesSearcherMock{}
+		searcher := &windowsUpdatesSearcherMock{}
 		_, err := queryUpdates(searcher)
 		require.NoError(t, err)
 
@@ -53,7 +53,7 @@ func TestQueryUpdates(t *testing.T) {
 		}
 
 		for _, tt := range testCases {
-			searcher := &WindowsUpdatesSearcherMock{
+			searcher := &windowsUpdatesSearcherMock{
 				SearchResult: &windowsupdate.ISearchResult{
 					Updates: tt.updates,
 				},
