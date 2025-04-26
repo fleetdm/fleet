@@ -25,6 +25,10 @@ func computeRawChecksumIncludingName(sw fleet.Software) ([]byte, error) {
 func TestUp_20250410104321(t *testing.T) {
 	db := applyUpToPrev(t)
 
+	// 13 pieces of software, 10 of which are unique
+	// Each piece of software is on a different host, other than MacApp Duplicate 3, which is on the same host
+	// as another of the MacApps (same bundle ID). This means we'll start with 13 host_software entries and
+	// expect one of those entries to go away.
 	softwares := []fleet.Software{
 		{Name: "MacApp.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
 		{Name: "MacApp Duplicate.app", Source: "apps", BundleIdentifier: "com.example.foo", Version: "1"},
@@ -40,14 +44,15 @@ func TestUp_20250410104321(t *testing.T) {
 		{Name: "Postman Helper (Renderer).app", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper", Version: ""},
 		{Name: "Postman Helper.app", Source: "apps", BundleIdentifier: "com.postmanlabs.mac.helper", Version: ""},
 	}
+	// TODO add host software installed paths testing
 
 	// add some software titles
 	dataStmt := `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES (?, ?, ?, ?)`
 
 	for i, s := range softwares {
-		if i > 0 && (s.BundleIdentifier == "com.example.foo" ||
-			s.BundleIdentifier == "com.apple.accessibility.LiveTranscriptionAgent" ||
-			s.BundleIdentifier == "com.postmanlabs.mac.helper") {
+		if (i > 0 && s.BundleIdentifier == "com.example.foo") ||
+			s.Name == "LiveTranscriptionAgent.app" ||
+			s.Name == "Postman Helper.app" {
 			continue
 		}
 		var bid any = ptr.String(s.BundleIdentifier)
@@ -55,8 +60,7 @@ func TestUp_20250410104321(t *testing.T) {
 			bid = nil
 		}
 		id := execNoErrLastID(t, db, dataStmt, s.Name, s.Source, s.Browser, bid)
-		if s.BundleIdentifier == "com.example.foo" {
-			// All the duplicates should map to the same title ID
+		if s.BundleIdentifier == "com.example.foo" { // All the initial duplicates should map to the same title ID
 			for i := range 4 {
 				softwares[i].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
 			}
@@ -64,6 +68,14 @@ func TestUp_20250410104321(t *testing.T) {
 		}
 
 		softwares[i].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
+
+		// More duplicate mapping to existing software title ID
+		if s.BundleIdentifier == "com.apple.accessibility.LiveTranscriptionAgent" {
+			softwares[10].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
+		}
+		if s.BundleIdentifier == "com.postmanlabs.mac.helper" {
+			softwares[10].TitleID = ptr.Uint(uint(id)) //nolint:gosec // dismiss G115
+		}
 	}
 
 	// add some software entries and host_software entries
@@ -117,12 +129,12 @@ func TestUp_20250410104321(t *testing.T) {
 	var gotSoftware []fleet.Software
 	err = db.Select(&gotSoftware, `SELECT id, name, checksum, name_source FROM software`)
 	require.NoError(t, err)
-	require.Len(t, gotSoftware, 6)
+	require.Len(t, gotSoftware, 8)
 
 	var gotSoftwareTitles []fleet.SoftwareTitle
 	err = db.Select(&gotSoftwareTitles, "SELECT id, name, source, browser, bundle_identifier FROM software_titles")
 	require.NoError(t, err)
-	require.Len(t, gotSoftwareTitles, 6)
+	require.Len(t, gotSoftwareTitles, 8)
 
 	for _, got := range gotSoftwareTitles {
 		switch got.ID {
@@ -151,11 +163,11 @@ func TestUp_20250410104321(t *testing.T) {
 	var count int
 	err = db.Get(&count, "SELECT COUNT(*) FROM software_cve")
 	require.NoError(t, err)
-	require.Equal(t, 6, count)
+	require.Equal(t, 8, count)
 
 	err = db.Get(&count, "SELECT COUNT(*) FROM host_software")
 	require.NoError(t, err)
-	require.Equal(t, 8, count)
+	require.Equal(t, 12, count)
 
 	err = db.Get(&count, `SELECT COUNT(*) FROM host_software WHERE software_id IN (?, ?)`, softwareIDs[1], softwareIDs[2])
 	require.NoError(t, err)

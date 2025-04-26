@@ -3,6 +3,8 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -13,7 +15,6 @@ func init() {
 	MigrationClient.AddMigration(Up_20250410104321, Down_20250410104321)
 }
 
-// TODO(JVE): add bundleid != null to all constraints
 func Up_20250410104321(tx *sql.Tx) error {
 	titleStmt := `UPDATE software_titles SET name = TRIM( TRAILING '.app' FROM name ) WHERE source = 'apps' AND bundle_identifier IS NOT NULL`
 	_, err := tx.Exec(titleStmt)
@@ -21,44 +22,40 @@ func Up_20250410104321(tx *sql.Tx) error {
 		return fmt.Errorf("updating software_titles.name: %w", err)
 	}
 
-	dupeIDsStmt := `SELECT
-					s1.id AS id, s1.bundle_identifier AS bundle_identifier FROM software s1
-					JOIN software s2 ON s1.bundle_identifier = s2.bundle_identifier
-						AND s1.version = s2.version
-						AND s1.title_id = s2.title_id
-						AND s1.source = s2.source
-						AND` + " s1.`release` = s2.`release` " +
-		`AND s1.arch = s2.arch
-						AND s1.vendor = s2.vendor
-						AND s1.browser = s2.browser
-						AND s1.extension_id = s2.extension_id
-				WHERE
-					s1.source = 'apps'
+	dupeIDsStmt := `SELECT GROUP_CONCAT(id) AS ids, bundle_identifier AS bundle_identifier
+				FROM software
+				WHERE source = 'apps' AND bundle_identifier IS NOT NULL AND bundle_identifier != ''
 				GROUP BY
-					id
-				HAVING
-					COUNT(*) > 1`
+					version, source, bundle_identifier,` + "`release`" + `, arch, vendor, browser, extension_id
+				HAVING COUNT(*) > 1`
 
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
-	selectedIDs := make(map[string]uint)
-	excludedIDs := make(map[string][]uint)
-	var softwareIDs []struct {
-		ID               uint   `db:"id"`
+	selectedIDs := make(map[string]uint64)
+	excludedIDs := make(map[string][]uint64)
+	var softwareGroups []struct {
+		IDs              string `db:"ids"`
 		BundleIdentifier string `db:"bundle_identifier"`
 	}
-	if err := txx.Select(&softwareIDs, dupeIDsStmt); err != nil {
+	if err := txx.Select(&softwareGroups, dupeIDsStmt); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("selecting duplicate software rows: %w", err)
 		}
 	}
 
-	for _, s := range softwareIDs {
-		if _, ok := selectedIDs[s.BundleIdentifier]; !ok {
-			selectedIDs[s.BundleIdentifier] = s.ID
-			continue
-		}
+	for _, s := range softwareGroups {
+		for _, idStr := range strings.Split(s.IDs, ",") {
+			id, err := strconv.ParseUint(idStr, 10, 64)
+			if err != nil {
+				return fmt.Errorf("building duplicate IDs list %q: %w", idStr, err)
+			}
 
-		excludedIDs[s.BundleIdentifier] = append(excludedIDs[s.BundleIdentifier], s.ID)
+			if _, ok := selectedIDs[s.BundleIdentifier]; !ok {
+				selectedIDs[s.BundleIdentifier] = id
+				continue
+			}
+
+			excludedIDs[s.BundleIdentifier] = append(excludedIDs[s.BundleIdentifier], id)
+		}
 	}
 
 	getRecordToUpdateStmt := `
@@ -77,7 +74,7 @@ WHERE
 			hs2.software_id = ?
 			AND hs2.host_id = hs1.host_id)`
 
-	var allExcludedIDs []uint
+	var allExcludedIDs []uint64
 	for bid, excluded := range excludedIDs {
 		allExcludedIDs = append(allExcludedIDs, excluded...)
 		var hs []struct {
@@ -117,7 +114,7 @@ WHERE
 		deleteSoftwareCVEStmt := `DELETE FROM software_cve WHERE software_id IN (?)`
 		deleteSoftwareCVEStmt, args, err := sqlx.In(deleteSoftwareCVEStmt, allExcludedIDs)
 		if err != nil {
-			return fmt.Errorf("sqlx.In for deleting excluded ids from software_cve: %w:", err)
+			return fmt.Errorf("sqlx.In for deleting excluded ids from software_cve: %w", err)
 		}
 		if _, err := tx.Exec(deleteSoftwareCVEStmt, args...); err != nil {
 			return fmt.Errorf("deleting excluded ids from software_cve: %w", err)
@@ -134,7 +131,7 @@ WHERE
 			return fmt.Errorf("deleting excluded ids from host_software: %w", err)
 		}
 
-		deleteSoftwareDupesStmt := `DELETE FROM software WHERE id IN (?)`
+		deleteSoftwareDupesStmt := `DELETE FROM software WHERE id IN (?) AND bundle_identifier IS NOT NULL AND bundle_identifier != ''`
 		deleteSoftwareDupesStmt, args, err = sqlx.In(deleteSoftwareDupesStmt, allExcludedIDs)
 		if err != nil {
 			return fmt.Errorf("sqlx.In for deleting duplicates from software: %w", err)
