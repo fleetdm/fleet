@@ -95,6 +95,7 @@ export default {
       critical,
       // automations-related fields
       calendar_events_enabled,
+      conditional_access_enabled,
       software_title_id,
       script_id,
       labels_include_any,
@@ -111,6 +112,7 @@ export default {
       platform,
       critical,
       calendar_events_enabled,
+      conditional_access_enabled,
       software_title_id,
       script_id,
       labels_include_any,
