@@ -616,6 +616,7 @@ SELECT
   si.uninstall_script_content_id,
   si.uploaded_at,
   si.self_service,
+  si.url,
   COALESCE(st.name, '') AS software_title
   %s
 FROM
