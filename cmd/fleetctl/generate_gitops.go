@@ -1073,10 +1073,7 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 }
 
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) (map[string]interface{}, error) {
-	query := "available_for_install=1"
-	if teamId != 0 {
-		query += fmt.Sprintf("&team_id=%d", teamId)
-	}
+	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamId)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
