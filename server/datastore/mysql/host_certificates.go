@@ -63,6 +63,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			return ctxerr.Wrap(ctx, err, "list host mdm managed certs for update")
 		}
 		for _, hostMDMManagedCert := range hostMDMManagedCerts {
+			// Note that we only care about proxied SCEP certificates because DigiCert are requested
+			// by Fleet and stored in the DB directly, so we need not fetch them via OSQuery
 			if hostMDMManagedCert.Type != fleet.CAConfigCustomSCEPProxy {
 				continue
 			}
