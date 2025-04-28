@@ -1747,7 +1747,7 @@ FROM
 	batch_script_executions bse
 LEFT JOIN
 	batch_script_execution_host_results bshr
-		ON bshr.batch_execution_id = bse.id
+		ON bshr.batch_execution_id = bse.execution_id
 LEFT JOIN
 	host_script_results hsr
 		ON bshr.host_execution_id = hsr.execution_id
