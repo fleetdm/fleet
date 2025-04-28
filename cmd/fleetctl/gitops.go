@@ -20,7 +20,6 @@ const (
 	reapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s -- this only happens once for new teams that have VPP apps\n"
 )
 
-type LabelUsage struct 
 type LabelUsage struct {
 	Name string
 	Type string
@@ -290,9 +289,9 @@ func gitopsCommand() *cli.Command {
 				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
 					for _, missingTeam := range missingVPPTeams {
 						if missingTeam == *config.TeamName {
+							missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
 								config:   config,
 								vppApps:  config.Software.AppStoreApps,
-								vppApps: config.Software.AppStoreApps,
 								filename: flFilename,
 							})
 							config.Software.AppStoreApps = nil
