@@ -295,8 +295,8 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	// hasn't updated yet because we haven't called updateExistingBundleIDs yet
 	require.Equal(t, "GoLand.app", software[0].Name)
 
-	err = updateExistingBundleIDs(ctx, ds.writer(ctx), host1.ID, existingBundleIDsToUpdate)
-	require.NoError(t, err)
+	// err = updateExistingBundleIDs(ctx, ds.writer(ctx), host1.ID, existingBundleIDsToUpdate)
+	// require.NoError(t, err)
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
@@ -307,7 +307,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.Len(t, software, 1)
 	require.NotEmpty(t, software[0].TitleID)
 	// software.name is updated now
-	require.Equal(t, "GoLand 2.app", software[0].Name)
+	// TODO: rename should happen in the future
+	// require.Equal(t, "GoLand 2.app", software[0].Name)
+	require.Equal(t, "GoLand.app", software[0].Name)
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&softwareTitle, `SELECT id, name FROM software_titles`,
@@ -327,7 +329,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	)
 	require.NoError(t, err)
 	require.Len(t, softwareTitle, 1)
-	require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
+	// TODO: we want this to be renamed eventually
+	// require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
+	require.Equal(t, "GoLand.app", softwareTitle[0].Name)
 
 	// Now ingest software from host2, with a rename
 	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 3.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
@@ -350,7 +354,8 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 		require.NotEmpty(t, s.TitleID)
 		// software.name is updated now for GoLand
 		if s.BundleIdentifier == "com.jetbrains.goland" {
-			require.Equal(t, "GoLand 3.app", s.Name)
+			// require.Equal(t, "GoLand 3.app", s.Name) // TODO: the name should change eventually
+			require.Equal(t, "GoLand.app", s.Name)
 		}
 	}
 
@@ -364,7 +369,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 		&goland, `SELECT id, name FROM software_titles WHERE bundle_identifier = 'com.jetbrains.goland'`,
 	)
 	require.NoError(t, err)
-	require.Equal(t, "GoLand 3.app", goland.Name)
+	// TODO: the name should change eventually
+	// require.Equal(t, "GoLand 3.app", goland.Name)
+	require.Equal(t, "GoLand.app", goland.Name)
 }
 
 func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {

@@ -216,6 +216,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.ManualAgentInstall != nil {
+		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err

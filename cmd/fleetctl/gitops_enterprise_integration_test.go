@@ -892,3 +892,141 @@ software:
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetup() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalConfig = `
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+
+		globalConfigOnly = `
+agent_options:
+controls:
+  macos_setup:
+    manual_agent_install: %t
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+
+		noTeamConfig = `name: No team
+controls:
+  macos_setup:
+    manual_agent_install: true
+policies:
+software:
+`
+
+		teamConfig = `
+controls:
+  macos_setup:
+    manual_agent_install: %t
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalConfig)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(noTeamConfig)
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamConfig, true, teamName))
+	require.NoError(t, err)
+	err = teamFile.Close()
+	require.NoError(t, err)
+	teamFileClear, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFileClear.WriteString(fmt.Sprintf(teamConfig, false, teamName))
+	require.NoError(t, err)
+	err = teamFileClear.Close()
+	require.NoError(t, err)
+
+	globalFileOnlySet, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileOnlySet.WriteString(fmt.Sprintf(globalConfigOnly, true))
+	require.NoError(t, err)
+	err = globalFileOnlySet.Close()
+	require.NoError(t, err)
+	globalFileOnlyClear, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileOnlyClear.WriteString(fmt.Sprintf(globalConfigOnly, false))
+	require.NoError(t, err)
+	err = globalFileOnlyClear.Close()
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// Apply configs
+	_ = runAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()})
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	assert.True(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+
+	// Apply global configs without no-team
+	_ = runAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlyClear.Name(), "-f", teamFileClear.Name()})
+	appConfig, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.False(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+	team, err = s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	assert.False(t, team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)
+
+	// Apply global configs only
+	_ = runAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFileOnlySet.Name()})
+	appConfig, err = s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+
+}
