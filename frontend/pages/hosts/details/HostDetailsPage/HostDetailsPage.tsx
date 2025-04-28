@@ -925,18 +925,6 @@ const HostDetailsPage = ({
             renderActionDropdown={renderActionDropdown}
             hostMdmDeviceStatus={hostMdmDeviceStatus}
           />
-          <HostSummaryCard
-            summaryData={summaryData}
-            bootstrapPackageData={bootstrapPackageData}
-            isPremiumTier={isPremiumTier}
-            toggleOSSettingsModal={toggleOSSettingsModal}
-            toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-            hostSettings={host?.mdm.profiles ?? []}
-            osSettings={host?.mdm.os_settings}
-            osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-              host.platform
-            )}
-          />
         </div>
         <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
@@ -957,6 +945,19 @@ const HostDetailsPage = ({
               })}
             </TabList>
             <TabPanel className={`${baseClass}__details-panel`}>
+              <HostSummaryCard
+                summaryData={summaryData}
+                bootstrapPackageData={bootstrapPackageData}
+                isPremiumTier={isPremiumTier}
+                toggleOSSettingsModal={toggleOSSettingsModal}
+                toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                hostSettings={host?.mdm.profiles ?? []}
+                osSettings={host?.mdm.os_settings}
+                osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+                  host.platform
+                )}
+                className={fullWidthCardClass}
+              />
               <AboutCard
                 className={
                   showUsersCard ? defaultCardClass : fullWidthCardClass
