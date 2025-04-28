@@ -105,7 +105,15 @@
     },
     "features": {
         "enable_host_users": true,
-        "enable_software_inventory": true
+        "enable_software_inventory": true,
+        "additional_queries": {
+            "time": "SELECT * FROM time",
+            "macs": "SELECT mac FROM interface_details"
+        },
+        "detail_query_overrides": {
+            "users": null,
+            "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+        }
     },
     "agent_options": {
         "config": {
