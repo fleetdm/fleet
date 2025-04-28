@@ -101,6 +101,9 @@ policies:
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
     platform: darwin
     critical: false
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 #### Separate file
@@ -663,6 +666,8 @@ The `integrations` section lets you configure your Google Calendar, Jira, and Ze
 In addition, you can configure your certificate authorities (CA) to help your end users connect to Wi-Fi. Learn more about certificate authorities in Fleet [here](https://fleetdm.com/guides/certificate-authorities).
 
 #### Example
+
+`default.yml`
 
 ```yaml
 org_settings:

@@ -240,6 +240,7 @@ type SoftwareTitleListResult struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 }
 
 type SoftwareTitleListOptions struct {

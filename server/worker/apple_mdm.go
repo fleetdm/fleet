@@ -111,14 +111,34 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
-	var awaitCmdUUIDs []string
+	var (
+		awaitCmdUUIDs []string
+		appCfg        *fleet.AppConfig
+		team          *fleet.Team
+		err           error
+	)
 
 	if isMacOS(args.Platform) {
-		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		var manualAgentInstall bool
+		if args.TeamID == nil {
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
+			}
+			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+		} else {
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
+			}
+			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 		}
-		awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
+
+		if !manualAgentInstall {
+			fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
+		}
 
 		bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
 		if err != nil {
@@ -131,9 +151,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
-		appCfg, err := a.Datastore.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting app config")
+		if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+			return err
 		}
 
 		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
@@ -143,9 +162,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if args.TeamID != nil {
-			team, err := a.Datastore.Team(ctx, *args.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
@@ -176,17 +194,15 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	if !isMacOS(args.Platform) || args.UseWorkerDeviceRelease {
 		var manualRelease bool
 		if args.TeamID == nil {
-			ac, err := a.Datastore.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
 			}
-			manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+			manualRelease = appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		} else {
-			tm, err := a.Datastore.Team(ctx, *args.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
-			manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+			manualRelease = team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		}
 
 		if !manualRelease {
@@ -202,6 +218,30 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	}
 
 	return nil
+}
+
+// getTeamConfig gets team config from DB if not provided.
+func (a *AppleMDM) getTeamConfig(ctx context.Context, team *fleet.Team, teamID uint) (*fleet.Team, error) {
+	if team == nil {
+		var err error
+		team, err = a.Datastore.Team(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
+		}
+	}
+	return team, nil
+}
+
+// getAppConfig gets app config from DB if not provided.
+func (a *AppleMDM) getAppConfig(ctx context.Context, appConfig *fleet.AppConfig) (*fleet.AppConfig, error) {
+	if appConfig == nil {
+		var err error
+		appConfig, err = a.Datastore.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+	}
+	return appConfig, nil
 }
 
 func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAccount, args appleMDMArgs) (string, error) {

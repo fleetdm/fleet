@@ -933,6 +933,9 @@ func newCleanupsAndAggregationSchedule(
 				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
 			},
 		),
+		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
+			return ds.RenewMDMManagedCertificates(ctx)
+		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {
