@@ -67,10 +67,6 @@ const ConditionalAccessModal = ({
   const renderConfigured = () => {
     return (
       <>
-        <p>
-          If enabled, single sign-on will be blocked for end users whose hosts
-          fail any policies. {learnMoreLink}
-        </p>
         <form onSubmit={handleSubmit} autoComplete="off">
           <span className="header">
             <Slider
@@ -80,25 +76,26 @@ const ConditionalAccessModal = ({
               activeText="Enabled"
               disabled={gitOpsModeEnabled || !isAdmin}
             />
-            <GitOpsModeTooltipWrapper
-              tipOffset={-8}
-              renderChildren={(disableChildren) => (
-                <Button
-                  type="submit"
-                  disabled={disableChildren || !isAdmin}
-                  className="button-wrap"
-                  isLoading={isUpdating}
-                >
-                  Save
-                </Button>
-              )}
-            />
             <CustomLink
               text="Preview end user experience"
               newTab
+              multiline={false}
               url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
             />
           </span>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren || !isAdmin}
+                className="button-wrap"
+                isLoading={isUpdating}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </>
     );
