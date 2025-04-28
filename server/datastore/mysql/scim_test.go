@@ -1563,7 +1563,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	for profUUID, vars := range varsPerProfile {
 		for _, v := range vars {
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id) 
+				_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
 					SELECT ?, id FROM fleet_variables WHERE name = ?`, profUUID, "FLEET_VAR_"+v)
 				return err
 			})
@@ -1614,11 +1614,11 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// helper function to force-set a host profile status
 	forceSetHostProfileStatus := func(hostUUID string, profile *fleet.MDMAppleConfigProfile, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles 
-				(profile_identifier, host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid) 
-			VALUES 
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+				(profile_identifier, host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES
 				(?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), ?)
-			ON DUPLICATE KEY UPDATE 
+			ON DUPLICATE KEY UPDATE
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
@@ -1649,14 +1649,6 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// change username of scim user 1
 	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com"})
 	require.NoError(t, err)
-
-	// ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-	// 	DumpTable(t, q, "fleet_variables")
-	// 	DumpTable(t, q, "mdm_configuration_profile_variables")
-	// 	DumpTable(t, q, "mdm_apple_configuration_profiles")
-	// 	DumpTable(t, q, "host_mdm_apple_profiles")
-	// 	return nil
-	// })
 
 	// this triggered a resend of profUsername and profAll on host1
 	assertHostProfileStatus(host1.UUID,
