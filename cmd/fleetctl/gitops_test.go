@@ -2770,7 +2770,7 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				return found, nil
 			}
 
-			_, err = runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_vpp.yml", "-f", "testdata/gitops/team_vpp_valid_app.yml"})
+			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 
 			if c.wantErr == "" {
 				require.NoError(t, err)
