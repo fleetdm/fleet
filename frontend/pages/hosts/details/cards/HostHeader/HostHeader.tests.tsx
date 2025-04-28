@@ -2,7 +2,6 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import HostHeader from "./HostHeader";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
-import { REFETCH_TOOLTIP_MESSAGES } from "./helpers";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
 

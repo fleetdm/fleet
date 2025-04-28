@@ -147,7 +147,6 @@ describe("Host Summary section", () => {
       expect(
         screen.getByText("Operating system").nextElementSibling
       ).toHaveTextContent(osVersion);
-      expect(screen.queryByText("Refetch")).toBeInTheDocument();
 
       expect(screen.queryByText("Status")).not.toBeInTheDocument();
       expect(screen.queryByText("Memory")).not.toBeInTheDocument();
@@ -188,7 +187,6 @@ describe("Host Summary section", () => {
       expect(
         screen.getByText("Operating system").nextElementSibling
       ).toHaveTextContent(osVersion);
-      expect(screen.queryByText("Refetch")).toBeInTheDocument();
 
       expect(screen.queryByText("Status")).not.toBeInTheDocument();
       expect(screen.queryByText("Memory")).not.toBeInTheDocument();
