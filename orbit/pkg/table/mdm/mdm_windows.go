@@ -231,7 +231,7 @@ func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	}
 
 	// grabbing input string length
-	lenPtr, _, err := proclstrlenW.Call(uintptr(unsafe.Pointer(ptr)))
+	lenPtr, _, err := proclstrlenW.Call(uintptr(ptr))
 	if err != windows.ERROR_SUCCESS {
 		return "", err
 	}
@@ -246,7 +246,7 @@ func localUTF16toString(ptr unsafe.Pointer) (string, error) {
 	buf := make([]uint16, strBytesLen)
 
 	// moving the data around
-	_, _, err = procRtlMoveMemory.Call((uintptr)(unsafe.Pointer(&buf[0])), (uintptr)(unsafe.Pointer(ptr)), uintptr(strBytesLen))
+	_, _, err = procRtlMoveMemory.Call((uintptr)(unsafe.Pointer(&buf[0])), uintptr(ptr), uintptr(strBytesLen))
 	if err != windows.ERROR_SUCCESS {
 		return "", err
 	}

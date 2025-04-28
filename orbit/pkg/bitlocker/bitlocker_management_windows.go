@@ -166,7 +166,7 @@ func (v *Volume) prepareVolume(volType DiscoveryVolumeType, encType ForceEncrypt
 // https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithnumericalpassword-win32-encryptablevolume
 func (v *Volume) protectWithNumericalPassword() (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
-	ole.VariantInit(&volumeKeyProtectorID)
+	_ = ole.VariantInit(&volumeKeyProtectorID)
 	var resultRaw *ole.VARIANT
 	var err error
 
@@ -178,7 +178,7 @@ func (v *Volume) protectWithNumericalPassword() (string, error) {
 	}
 
 	var recoveryKey ole.VARIANT
-	ole.VariantInit(&recoveryKey)
+	_ = ole.VariantInit(&recoveryKey)
 	resultRaw, err = oleutil.CallMethod(v.handle, "GetKeyProtectorNumericalPassword", volumeKeyProtectorID.ToString(), &recoveryKey)
 
 	if err != nil {
@@ -194,7 +194,7 @@ func (v *Volume) protectWithNumericalPassword() (string, error) {
 // https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithpassphrase-win32-encryptablevolume
 func (v *Volume) protectWithPassphrase(passphrase string) (string, error) {
 	var volumeKeyProtectorID ole.VARIANT
-	ole.VariantInit(&volumeKeyProtectorID)
+	_ = ole.VariantInit(&volumeKeyProtectorID)
 
 	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithPassphrase", nil, passphrase, &volumeKeyProtectorID)
 	if err != nil {
@@ -210,7 +210,7 @@ func (v *Volume) protectWithPassphrase(passphrase string) (string, error) {
 // https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpm-win32-encryptablevolume
 func (v *Volume) protectWithTPM(platformValidationProfile *[]uint8) error {
 	var volumeKeyProtectorID ole.VARIANT
-	ole.VariantInit(&volumeKeyProtectorID)
+	_ = ole.VariantInit(&volumeKeyProtectorID)
 	var resultRaw *ole.VARIANT
 	var err error
 
@@ -279,7 +279,7 @@ func (v *Volume) getProtectorsKeys() (map[string]string, error) {
 	recoveryKeys := make(map[string]string)
 	for _, k := range keys {
 		var recoveryKey ole.VARIANT
-		ole.VariantInit(&recoveryKey)
+		_ = ole.VariantInit(&recoveryKey)
 		recoveryKeyResultRaw, err := oleutil.CallMethod(v.handle, "GetKeyProtectorNumericalPassword", k, &recoveryKey)
 		if err != nil {
 			continue // No recovery key for this protector
@@ -349,7 +349,7 @@ func intToPercentage(num int32) string {
 func getKeyProtectors(item *ole.IDispatch) ([]string, error) {
 	kp := []string{}
 	var keyProtectorResults ole.VARIANT
-	ole.VariantInit(&keyProtectorResults)
+	_ = ole.VariantInit(&keyProtectorResults)
 
 	keyIDResultRaw, err := oleutil.CallMethod(item, "GetKeyProtectors", 3, &keyProtectorResults)
 	if err != nil {
