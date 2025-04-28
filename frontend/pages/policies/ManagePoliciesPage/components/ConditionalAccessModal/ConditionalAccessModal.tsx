@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 
 import {
   FLEET_WEBSITE_URL,
@@ -10,8 +10,10 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import { IPaginatedListHandle } from "components/PaginatedList";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "conditional-access-modal";
 
@@ -27,6 +29,7 @@ interface IConditionalAccessModal {
   enabled: boolean;
   isUpdating: boolean;
   gitOpsModeEnabled?: boolean;
+  teamId: number;
 }
 
 const ConditionalAccessModal = ({
@@ -36,12 +39,14 @@ const ConditionalAccessModal = ({
   enabled,
   isUpdating,
   gitOpsModeEnabled = false,
+  teamId,
 }: IConditionalAccessModal) => {
   const [formData, setFormData] = useState<IConditionalAccessFormData>({
     enabled,
     changedPolicies: [],
   });
 
+  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
   const isAdmin = isGlobalAdmin || isTeamAdmin;
 
@@ -50,10 +55,11 @@ const ConditionalAccessModal = ({
     setFormData({ ...formData, enabled: !formData.enabled });
   };
 
-  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-    // no validation needed, just a flag
-    onSubmit(formData);
+  const handleSubmit = () => {
+    if (paginatedListRef.current) {
+      const changedPolicies = paginatedListRef.current.getDirtyItems();
+      onSubmit({ ...formData, changedPolicies });
+    }
   };
 
   const learnMoreLink = (
@@ -67,7 +73,7 @@ const ConditionalAccessModal = ({
   const renderConfigured = () => {
     return (
       <>
-        <form onSubmit={handleSubmit} autoComplete="off">
+        <div className="form">
           <span className="header">
             <Slider
               value={formData.enabled}
@@ -83,20 +89,32 @@ const ConditionalAccessModal = ({
               url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
             />
           </span>
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={disableChildren || !isAdmin}
-                className="button-wrap"
-                isLoading={isUpdating}
-              >
-                Save
-              </Button>
-            )}
+          <PoliciesPaginatedList
+            ref={paginatedListRef}
+            isSelected="conditional_access_enabled"
+            onToggleItem={(item: IFormPolicy) => {
+              item.conditional_access_enabled = !item.conditional_access_enabled;
+              return item;
+            }}
+            footer={
+              <>
+                Single sign-on will be blocked for end users whose hosts fail
+                any of these policies.{" "}
+                <CustomLink
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
+                  text="Learn more"
+                  newTab
+                  disableKeyboardNavigation={!formData.enabled}
+                />
+              </>
+            }
+            isUpdating={isUpdating}
+            onSubmit={handleSubmit}
+            onCancel={onExit}
+            teamId={teamId}
+            disabled={!formData.enabled}
           />
-        </form>
+        </div>
       </>
     );
   };

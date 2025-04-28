@@ -780,7 +780,8 @@ const ManagePolicyPage = ({
         ) {
           const payload = {
             integrations: {
-              ...globalConfig?.integrations,
+              // TODO - don't need to include existing config right?
+              // ...globalConfig?.integrations,
               conditional_access_enabled: enableConditionalAccess,
             },
           };
@@ -1317,6 +1318,7 @@ const ManagePolicyPage = ({
             enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            teamId={currentTeamId ?? 0}
           />
         )}
       </div>
