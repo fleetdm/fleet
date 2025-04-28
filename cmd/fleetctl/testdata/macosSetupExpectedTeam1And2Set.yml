@@ -21,6 +21,7 @@ spec:
         bootstrap_package: %s
         enable_end_user_authentication: false
         macos_setup_assistant: %s
+        manual_agent_install: null
         enable_release_device_manually: false
         script: null
         software: null
@@ -64,6 +65,7 @@ spec:
       macos_setup:
         bootstrap_package: %s
         macos_setup_assistant: %s
+        manual_agent_install: null
         enable_release_device_manually: false
         script: null
         software: null

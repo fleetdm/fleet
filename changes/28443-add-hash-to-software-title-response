@@ -1,0 +1,1 @@
+- Added `hash_sha256` field to the response for the `GET /software/titles` API.

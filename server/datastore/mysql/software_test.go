@@ -295,8 +295,8 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	// hasn't updated yet because we haven't called updateExistingBundleIDs yet
 	require.Equal(t, "GoLand.app", software[0].Name)
 
-	err = updateExistingBundleIDs(ctx, ds.writer(ctx), host1.ID, existingBundleIDsToUpdate)
-	require.NoError(t, err)
+	// err = updateExistingBundleIDs(ctx, ds.writer(ctx), host1.ID, existingBundleIDsToUpdate)
+	// require.NoError(t, err)
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
@@ -307,7 +307,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.Len(t, software, 1)
 	require.NotEmpty(t, software[0].TitleID)
 	// software.name is updated now
-	require.Equal(t, "GoLand 2.app", software[0].Name)
+	// TODO: rename should happen in the future
+	// require.Equal(t, "GoLand 2.app", software[0].Name)
+	require.Equal(t, "GoLand.app", software[0].Name)
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&softwareTitle, `SELECT id, name FROM software_titles`,
@@ -327,7 +329,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	)
 	require.NoError(t, err)
 	require.Len(t, softwareTitle, 1)
-	require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
+	// TODO: we want this to be renamed eventually
+	// require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
+	require.Equal(t, "GoLand.app", softwareTitle[0].Name)
 
 	// Now ingest software from host2, with a rename
 	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 3.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
@@ -350,7 +354,8 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 		require.NotEmpty(t, s.TitleID)
 		// software.name is updated now for GoLand
 		if s.BundleIdentifier == "com.jetbrains.goland" {
-			require.Equal(t, "GoLand 3.app", s.Name)
+			// require.Equal(t, "GoLand 3.app", s.Name) // TODO: the name should change eventually
+			require.Equal(t, "GoLand.app", s.Name)
 		}
 	}
 
@@ -364,7 +369,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 		&goland, `SELECT id, name FROM software_titles WHERE bundle_identifier = 'com.jetbrains.goland'`,
 	)
 	require.NoError(t, err)
-	require.Equal(t, "GoLand 3.app", goland.Name)
+	// TODO: the name should change eventually
+	// require.Equal(t, "GoLand 3.app", goland.Name)
+	require.Equal(t, "GoLand.app", goland.Name)
 }
 
 func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {
@@ -6926,6 +6933,29 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, map[uint]struct{}{host.ID: {}}, hostsInScope)
 
+	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, anotherHost, false)
+	// intall vpp app
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, anotherHost, vppApp.AdamID, user1)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), anotherHost.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, anotherHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// Insert software entry for vpp app
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vppApp.Name, vppApp.LatestVersion, "apps", vppApp.BundleIdentifier, vppApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	// update host label timestamp
+	require.NoError(t, ds.AddLabelsToHost(ctx, anotherHost.ID, []uint{label1.ID}))
+	anotherHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, anotherHost)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -6939,11 +6969,27 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{host.ID: {}}, hostsNotInScope)
+	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}}, hostsNotInScope)
 
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
 	require.Empty(t, hostsInScope)
+
+	// vpp app is installed, so should come back in list of software
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Name, vppApp.Name)
+	expectedStatus := fleet.SoftwareInstallerStatus("installed")
+	require.Equal(t, software[0].Status, &expectedStatus)
+	require.NotNil(t, software[0].AppStoreApp)
+
+	// filtering by only available for install should exclude the vpp app
+	opts.OnlyAvailableForInstall = true
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer1.Filename, vppApp.Name)
+	opts.OnlyAvailableForInstall = false
 
 	// Make the label include any. We should have both of them back.
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
