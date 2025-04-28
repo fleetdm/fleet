@@ -6629,6 +6629,14 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+
+	// Queue scripts again, now in upcoming activities queue
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
