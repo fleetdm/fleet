@@ -13,8 +13,7 @@ $exeFilePath = "${env:PUBLIC}\$exeFilename"
 # Task properties. The task will be started by the logged in user
 $action = New-ScheduledTaskAction -Execute "$exeFilePath"
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-$userName = Get-CimInstance -ClassName Win32_ComputerSystem |
-        Select-Object -expand UserName
+$userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Invoke-CimMethod -MethodName getowner).User
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
 
 # Create a task object with the properties defined above
