@@ -26,32 +26,36 @@ func Up_20250428092622(tx *sql.Tx) error {
 	}
 
 	// Configuration profiles can be up to 16MB in size (MEDIUMBLOB column type),
-	// but are typically only a few KB. To be safe, we use a cursor to load them
-	// efficiently (the exact behavior of sql.Rows depends on the driver, either
-	// one row at a time or filling a small memory buffer, either way it is
-	// memory-efficient).
-	const profilesStmt = `SELECT profile_uuid, mobileconfig FROM mdm_apple_configuration_profiles`
-	rows, err := tx.Query(profilesStmt)
-	if err != nil {
-		return fmt.Errorf("failed to query mdm_apple_configuration_profiles: %w", err)
+	// but are typically only a few KB. To be safe, load them in small-ish
+	// batches of 100 which will generally be < 1MB (worse case is ~1.6GB). We
+	// cannot use a cursor approach (sql.Rows) as we can't do anything else with
+	// the connection until the cursor is closed and we need to insert the
+	// mappings.
+	const batchSize = 100
+	const profilesStmt = `SELECT profile_uuid, mobileconfig FROM mdm_apple_configuration_profiles WHERE profile_uuid > ? ORDER BY profile_uuid LIMIT ?`
+	var lastProfileUUID string
+	var existingProfiles []struct {
+		ProfileUUID  string `db:"profile_uuid"`
+		MobileConfig string `db:"mobileconfig"`
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var profileUUID, mobileConfig string
-		if err := rows.Scan(&profileUUID, &mobileConfig); err != nil {
-			return fmt.Errorf("failed to scan mdm_apple_configuration_profiles row: %w", err)
+	for {
+		if err := txx.Select(&existingProfiles, profilesStmt, lastProfileUUID, batchSize); err != nil {
+			return fmt.Errorf("failed to load existing profiles: %w", err)
 		}
-		vars := findFleetVariables(mobileConfig)
-		if len(vars) > 0 {
-			if err := saveConfigProfileVars(tx, profileUUID, vars, varDefs); err != nil {
-				return fmt.Errorf("failed to save fleet variables for profile %s: %w", profileUUID, err)
+
+		for _, profile := range existingProfiles {
+			vars := findFleetVariables(profile.MobileConfig)
+			if len(vars) > 0 {
+				if err := saveConfigProfileVars(tx, profile.ProfileUUID, vars, varDefs); err != nil {
+					return fmt.Errorf("failed to save fleet variables for profile %s: %w", profile.ProfileUUID, err)
+				}
 			}
+			lastProfileUUID = profile.ProfileUUID
 		}
-	}
 
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to iterate over mdm_apple_configuration_profiles: %w", err)
+		if len(existingProfiles) < batchSize {
+			break
+		}
 	}
 
 	return nil
@@ -107,7 +111,9 @@ func findFleetVariables(contents string) map[string]interface{} {
 	}
 	result := make(map[string]interface{}, len(resultSlice))
 	for _, v := range resultSlice {
-		result[v] = struct{}{}
+		// re-add the "FLEET_VAR_" prefix as it is needed to map with the entries in
+		// fleet_variables table.
+		result["FLEET_VAR_"+v] = struct{}{}
 	}
 	return result
 }
