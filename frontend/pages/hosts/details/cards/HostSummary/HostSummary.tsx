@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
@@ -39,6 +39,7 @@ import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -205,6 +206,9 @@ const HostSummary = ({
   osSettings,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
+  const hostDisplayName = useRef<HTMLHeadingElement>(null);
+  const isTruncated = useCheckTruncatedElement(hostDisplayName);
+
   const {
     status,
     platform,
@@ -616,11 +620,23 @@ const HostSummary = ({
       <div className="header title">
         <div className="title__inner">
           <div className="display-name-container">
-            <h1 className="display-name">
-              {deviceUser
-                ? "My device"
-                : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
-            </h1>
+            <TooltipWrapper
+              disableTooltip={!isTruncated}
+              tipContent={
+                deviceUser
+                  ? "My device"
+                  : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE
+              }
+              underline={false}
+              position="top"
+              showArrow
+            >
+              <h1 className="display-name" ref={hostDisplayName}>
+                {deviceUser
+                  ? "My device"
+                  : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
+              </h1>
+            </TooltipWrapper>
 
             {renderDeviceStatusTag()}
 
