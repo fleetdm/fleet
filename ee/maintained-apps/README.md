@@ -73,8 +73,8 @@ Fleet tests every change to supported Fleet-maintained apps (e.g. new version, u
 
 For new apps:
 
-1. When a pull request is opened in `inputs/`, the [#g-software Engineering Manager (EM)](TODO) is automatically added as reviewer.
-2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to Design Review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
+1. When a pull request is opened in `inputs/`, the [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
+2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
 3. Then, the EM merges the PR. This automatically opens a PR to `outputs/`
 4. Next, follow steps under "For changes to supported apps." 
 
@@ -82,7 +82,7 @@ For changes to supported apps:
 
 1. A pull request (PR) is automatically opened in `outputs/` and a Product Designer is automatically added as reviwer.
 2. The Product Designer is responsible for testing the app:
-- If the app is a new app, add an icon for the app to the PR. TODO: What spot in the repo?
-- [Run Fleet locally](TODO link to spot in docs for this) to test the app: Does the icon look right? Does the app install? Can you open the app once it's installed?
+- If the app is a new app, add an icon for the app to the PR. App icons are located [here in the repository](https://github.com/fleetdm/fleet/tree/main/frontend/pages/SoftwarePage/components/icons).
+- [Run Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md#clone-and-build) and test the app: Does the icon look right? Does the app install? Can you open the app once it's installed?
 3. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
 4. If the test is successful, the PD approves and merges the PR.
