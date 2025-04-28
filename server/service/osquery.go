@@ -2322,7 +2322,7 @@ func addQueryIDToLogResult(ctx context.Context, logResult json.RawMessage, query
 		return nil, ctxerr.Wrap(ctx, err, "unable to unmarshal query result to insert query id")
 	}
 
-	query["query_id"] = json.RawMessage(strconv.Itoa(int(queryID)))
+	query["query_id"] = json.RawMessage(strconv.FormatUint(uint64(queryID), 10))
 	newResult, err := json.Marshal(query)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unable to marshal query result with query id")
