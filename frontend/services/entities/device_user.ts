@@ -90,13 +90,12 @@ export default {
     return sendRequest("POST", path);
   },
 
-  // Is BE using device/{deviceToken} endpoint?
-  // installSelfServiceSoftwareResults: (deviceToken: string, uuid: string) => {
-  //   const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;
-  //   const path = DEVICE_SOFTWARE_INSTALL_RESULTS(deviceToken, uuid);
+  getSoftwareInstallResult: (deviceToken: string, uuid: string) => {
+    const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = DEVICE_SOFTWARE_INSTALL_RESULTS(deviceToken, uuid);
 
-  //   return sendRequest("GET", path);
-  // },
+    return sendRequest("GET", path);
+  },
 
   getDeviceCertificates: ({
     token,

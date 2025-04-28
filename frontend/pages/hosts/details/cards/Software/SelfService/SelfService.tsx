@@ -141,6 +141,9 @@ const SoftwareSelfService = ({
       setIsPolling(true);
       refetchSelfServiceSoftware(); // Updates UI to show pending installs
       refetchForPendingInstalls(); // Starts polling for pending installs
+    } else {
+      // Already polling and clicked on a second software to install
+      refetchSelfServiceSoftware(); // This will update second software's status and action available in UI
     }
   }, [isPolling, refetchSelfServiceSoftware, refetchForPendingInstalls]);
 

@@ -635,6 +635,7 @@ const DeviceUserPage = ({
               install_uuid: selectedSelfServiceUuid,
             }}
             onCancel={() => setSelectedSelfServiceUuid(undefined)}
+            deviceAuthToken={deviceAuthToken}
           />
         )}
         {selectedSoftwareDetails && !!host && (

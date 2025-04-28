@@ -129,7 +129,6 @@ const InstallerStatus = ({
                 } else {
                   onShowInstallerDetails("");
                 }
-                console.log("opened");
               }}
             >
               {displayConfig.displayText}

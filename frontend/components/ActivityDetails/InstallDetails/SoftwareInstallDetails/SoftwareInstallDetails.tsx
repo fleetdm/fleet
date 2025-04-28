@@ -12,6 +12,7 @@ import {
   ISoftwareInstallResults,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import deviceUserAPI from "services/entities/device_user";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -31,7 +32,9 @@ const baseClass = "software-install-details";
 export type IPackageInstallDetails = Pick<
   IActivityDetails,
   "install_uuid" | "host_display_name"
->;
+> & {
+  deviceAuthToken?: string;
+};
 
 const StatusMessage = ({
   result: {
@@ -51,6 +54,8 @@ const StatusMessage = ({
     "the host"
   );
 
+  // TODO: Potential implementation HumanTimeDiffWithDateTip for consistency
+  // Design currently looks weird since displayTimeStamp might split to multiple lines
   const timeStamp = updated_at || created_at;
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
@@ -93,6 +98,7 @@ const Output = ({
 export const SoftwareInstallDetails = ({
   host_display_name = "",
   install_uuid = "",
+  deviceAuthToken,
 }: IPackageInstallDetails) => {
   const { data: result, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
@@ -101,7 +107,9 @@ export const SoftwareInstallDetails = ({
   >(
     ["softwareInstallResults", install_uuid],
     () => {
-      return softwareAPI.getSoftwareInstallResult(install_uuid);
+      return deviceAuthToken
+        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, install_uuid)
+        : softwareAPI.getSoftwareInstallResult(install_uuid);
     },
     {
       refetchOnWindowFocus: false,
@@ -152,9 +160,11 @@ export const SoftwareInstallDetails = ({
 export const SoftwareInstallDetailsModal = ({
   details,
   onCancel,
+  deviceAuthToken,
 }: {
   details: IPackageInstallDetails;
   onCancel: () => void;
+  deviceAuthToken?: string;
 }) => {
   return (
     <Modal
