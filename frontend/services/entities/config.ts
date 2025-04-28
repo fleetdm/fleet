@@ -10,7 +10,10 @@ export default {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 
-    return sendRequest("GET", path);
+    return sendRequest("GET", path).then((r) => ({
+      ...r,
+      license: { ...r.license, managed_cloud: true },
+    }));
   },
   loadCertificate: () => {
     const { CONFIG } = endpoints;

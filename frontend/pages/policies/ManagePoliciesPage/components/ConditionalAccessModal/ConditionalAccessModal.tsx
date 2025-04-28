@@ -1,6 +1,9 @@
 import React, { useContext, useState } from "react";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  FLEET_WEBSITE_URL,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
@@ -69,26 +72,33 @@ const ConditionalAccessModal = ({
           fail any policies. {learnMoreLink}
         </p>
         <form onSubmit={handleSubmit} autoComplete="off">
-          <Slider
-            value={formData.enabled}
-            onChange={onChangeEnabled}
-            inactiveText="Disabled"
-            activeText="Enabled"
-            disabled={gitOpsModeEnabled || !isAdmin}
-          />
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={disableChildren || !isAdmin}
-                className="button-wrap"
-                isLoading={isUpdating}
-              >
-                Save
-              </Button>
-            )}
-          />
+          <span className="header">
+            <Slider
+              value={formData.enabled}
+              onChange={onChangeEnabled}
+              inactiveText="Disabled"
+              activeText="Enabled"
+              disabled={gitOpsModeEnabled || !isAdmin}
+            />
+            <GitOpsModeTooltipWrapper
+              tipOffset={-8}
+              renderChildren={(disableChildren) => (
+                <Button
+                  type="submit"
+                  disabled={disableChildren || !isAdmin}
+                  className="button-wrap"
+                  isLoading={isUpdating}
+                >
+                  Save
+                </Button>
+              )}
+            />
+            <CustomLink
+              text="Preview end user experience"
+              newTab
+              url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
+            />
+          </span>
         </form>
       </>
     );
