@@ -798,6 +798,8 @@ type ListMDMAppleEnrollmentProfilesFunc func(ctx context.Context) ([]*fleet.MDMA
 
 type GetMDMAppleCommandResultsFunc func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error)
 
+type GetVPPCommandResultsFunc func(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error)
+
 type ListMDMAppleCommandsFunc func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error)
 
 type NewMDMAppleInstallerFunc func(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*fleet.MDMAppleInstaller, error)
@@ -1251,6 +1253,8 @@ type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*f
 type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string, caName string) (*fleet.HostMDMCertificateProfile, error)
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
+
+type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
@@ -2487,6 +2491,9 @@ type DataStore struct {
 	GetMDMAppleCommandResultsFunc        GetMDMAppleCommandResultsFunc
 	GetMDMAppleCommandResultsFuncInvoked bool
 
+	GetVPPCommandResultsFunc        GetVPPCommandResultsFunc
+	GetVPPCommandResultsFuncInvoked bool
+
 	ListMDMAppleCommandsFunc        ListMDMAppleCommandsFunc
 	ListMDMAppleCommandsFuncInvoked bool
 
@@ -3167,6 +3174,9 @@ type DataStore struct {
 
 	CleanUpMDMManagedCertificatesFunc        CleanUpMDMManagedCertificatesFunc
 	CleanUpMDMManagedCertificatesFuncInvoked bool
+
+	RenewMDMManagedCertificatesFunc        RenewMDMManagedCertificatesFunc
+	RenewMDMManagedCertificatesFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
@@ -5992,6 +6002,13 @@ func (s *DataStore) GetMDMAppleCommandResults(ctx context.Context, commandUUID s
 	return s.GetMDMAppleCommandResultsFunc(ctx, commandUUID)
 }
 
+func (s *DataStore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	s.mu.Lock()
+	s.GetVPPCommandResultsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPCommandResultsFunc(ctx, commandUUID, hostUUID)
+}
+
 func (s *DataStore) ListMDMAppleCommands(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
 	s.mu.Lock()
 	s.ListMDMAppleCommandsFuncInvoked = true
@@ -7579,6 +7596,13 @@ func (s *DataStore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 	s.CleanUpMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanUpMDMManagedCertificatesFunc(ctx)
+}
+
+func (s *DataStore) RenewMDMManagedCertificates(ctx context.Context) error {
+	s.mu.Lock()
+	s.RenewMDMManagedCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.RenewMDMManagedCertificatesFunc(ctx)
 }
 
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
