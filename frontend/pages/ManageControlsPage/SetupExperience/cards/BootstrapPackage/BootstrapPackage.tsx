@@ -42,27 +42,48 @@ interface IBootstrapPackageProps {
 const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [
+    selectedManualAgentInstall,
+    setSelectedManualAgentInstall,
+  ] = useState<boolean>(false);
+  const [
     showDeleteBootstrapPackageModal,
     setShowDeleteBootstrapPackageModal,
   ] = useState(false);
 
-  const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
-    IConfig,
-    Error
-  >(["config", currentTeamId], () => configAPI.loadAll(), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId === API_NO_TEAM_ID,
-  });
+  const {
+    isLoading: isLoadingGlobalConfig,
+    refetch: refetchGlobalConfig,
+  } = useQuery<IConfig, Error>(
+    ["config", currentTeamId],
+    () => configAPI.loadAll(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: currentTeamId === API_NO_TEAM_ID,
+      onSuccess: (data) => {
+        setSelectedManualAgentInstall(
+          getManualAgentInstallSetting(currentTeamId, data)
+        );
+      },
+    }
+  );
 
-  const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
-    ILoadTeamResponse,
-    Error,
-    ITeamConfig
-  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
-  });
+  const {
+    isLoading: isLoadingTeamConfig,
+    refetch: refetchTeamConfig,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team", currentTeamId],
+    () => teamsAPI.load(currentTeamId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: currentTeamId !== API_NO_TEAM_ID,
+      select: (res) => res.team,
+      onSuccess: (data) => {
+        setSelectedManualAgentInstall(
+          getManualAgentInstallSetting(currentTeamId, undefined, data)
+        );
+      },
+    }
+  );
 
   const {
     data: bootstrapMetadata,
@@ -90,20 +111,23 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   const onDelete = async () => {
     try {
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
+      await mdmAPI.updateSetupExperienceSettings({
+        team_id: currentTeamId,
+        manual_agent_install: false,
+      });
       renderFlash("success", "Successfully deleted!");
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
       setShowDeleteBootstrapPackageModal(false);
       refretchBootstrapMetadata();
+      if (currentTeamId !== API_NO_TEAM_ID) {
+        refetchTeamConfig();
+      } else {
+        refetchGlobalConfig();
+      }
     }
   };
-
-  const defaultManualInstallSetting = getManualAgentInstallSetting(
-    currentTeamId,
-    globalConfig,
-    teamConfig
-  );
 
   // we are relying on the API to tell us this resource does not exist to
   // determine if the user has uploaded a bootstrap package.
@@ -128,7 +152,10 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
           <BootstrapAdvancedOptions
             currentTeamId={currentTeamId}
             enableInstallManually={!noPackageUploaded}
-            defaultManualInstall={defaultManualInstallSetting}
+            selectManualAgentInstall={selectedManualAgentInstall}
+            onChange={(manualAgentInstall) => {
+              setSelectedManualAgentInstall(manualAgentInstall);
+            }}
           />
         </div>
         <div className={`${baseClass}__preview-container`}>

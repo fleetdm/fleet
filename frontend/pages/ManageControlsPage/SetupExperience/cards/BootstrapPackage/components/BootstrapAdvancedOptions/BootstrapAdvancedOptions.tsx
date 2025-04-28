@@ -13,27 +13,25 @@ const baseClass = "bootstrap-advanced-options";
 interface IBootstrapAdvancedOptionsProps {
   currentTeamId: number;
   enableInstallManually: boolean;
-  defaultManualInstall: boolean;
+  selectManualAgentInstall: boolean;
+  onChange: (value: boolean) => void;
 }
 
 const BootstrapAdvancedOptions = ({
   currentTeamId,
   enableInstallManually,
-  defaultManualInstall,
+  selectManualAgentInstall,
+  onChange,
 }: IBootstrapAdvancedOptionsProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [manualAgentInstall, setManualAgentInstall] = useState(
-    defaultManualInstall
-  );
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     try {
       await mdmAPI.updateSetupExperienceSettings({
         team_id: currentTeamId,
-        manual_agent_install: manualAgentInstall,
+        manual_agent_install: selectManualAgentInstall,
       });
       renderFlash("success", "Successfully updated.");
     } catch {
@@ -62,8 +60,8 @@ const BootstrapAdvancedOptions = ({
       {showAdvancedOptions && (
         <form onSubmit={onSubmit}>
           <Checkbox
-            value={manualAgentInstall}
-            onChange={() => setManualAgentInstall(!manualAgentInstall)}
+            value={selectManualAgentInstall}
+            onChange={onChange}
             disabled={!enableInstallManually}
           >
             <TooltipWrapper tipContent={tooltip}>
