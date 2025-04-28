@@ -1678,7 +1678,7 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		batchExecID = uuid.New().String()
-		res, err := tx.ExecContext(
+		_, err := tx.ExecContext(
 			ctx,
 			"INSERT INTO batch_script_executions (execution_id, script_id) VALUES (?, ?)",
 			batchExecID,
@@ -1688,12 +1688,10 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
 		}
 
-		batchID, _ := res.LastInsertId()
-
 		args := make([]map[string]any, 0, len(executions))
 		for _, execHost := range executions {
 			args = append(args, map[string]any{
-				"batch_id":          batchID,
+				"batch_id":          batchExecID,
 				"host_id":           execHost.HostID,
 				"host_execution_id": execHost.ExecutionID,
 				"error":             execHost.Error,

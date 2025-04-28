@@ -101,7 +101,7 @@ INSERT INTO `app_config_json` VALUES (1,'{\"mdm\": {\"ios_updates\": {\"deadline
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `batch_script_execution_host_results` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `batch_execution_id` int unsigned NOT NULL,
+  `batch_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `host_id` int unsigned NOT NULL,
   `host_execution_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `error` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -109,7 +109,7 @@ CREATE TABLE `batch_script_execution_host_results` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_batch_script_execution_host_result_execution_id` (`batch_execution_id`),
-  CONSTRAINT `batch_script_batch_id` FOREIGN KEY (`batch_execution_id`) REFERENCES `batch_script_executions` (`id`) ON DELETE CASCADE
+  CONSTRAINT `batch_script_batch_id` FOREIGN KEY (`batch_execution_id`) REFERENCES `batch_script_executions` (`execution_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
