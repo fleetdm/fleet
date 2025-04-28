@@ -1,7 +1,7 @@
 ---
 name: 🍽️ Dogfood
 about: "Specify a dogfood issue."
-title: 'Dogfood: _____________'
+title: 'Dogfood: ____'
 labels: ':help-dogfooding'
 assignees: ''
 
