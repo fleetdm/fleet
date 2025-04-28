@@ -190,3 +190,9 @@ If an IT admin deletes a host in the UI/API, and we have a non-deleted entry in 
 
 - Also known as: IdP integration, User account sync
 - See [MDM-end-user-authentication.md](./MDM-end-user-authentication.md)
+
+### macOS setup experience: bootstrap package
+
+Before downloading the bootstrap package using `GET /api/latest/fleet/mdm/bootstrap`, the Apple device will make one or more `HEAD` requests to that URL. Fleet server does not support the `HEAD` request and will return `405 Method Not Allowed`.
+
+- [Example script to wrap fleetd with a bootstrap package](https://gist.github.com/getvictor/b23150b4bc269c499068d00b436d4d2b). This wrapper is useful for `manual_agent_install` macOS setup experience.
