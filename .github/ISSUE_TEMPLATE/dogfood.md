@@ -1,5 +1,5 @@
 ---
-name: 🍽️ Dogfood issue
+name: 🍽️ Dogfood
 about: "Specify a dogfood issue."
 title: 'Dogfood: _____________'
 labels: ':help-dogfooding'
