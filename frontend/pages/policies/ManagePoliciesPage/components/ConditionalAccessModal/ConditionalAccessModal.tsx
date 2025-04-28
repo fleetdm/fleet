@@ -8,11 +8,13 @@ import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import { AppContext } from "context/app";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "conditional-access-modal";
 
 export interface IConditionalAccessFormData {
   enabled: boolean;
+  changedPolicies: IFormPolicy[];
 }
 
 interface IConditionalAccessModal {
@@ -34,6 +36,7 @@ const ConditionalAccessModal = ({
 }: IConditionalAccessModal) => {
   const [formData, setFormData] = useState<IConditionalAccessFormData>({
     enabled,
+    changedPolicies: [],
   });
 
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
