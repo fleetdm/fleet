@@ -3,23 +3,36 @@ package swiftdialog
 import (
 	"image"
 	"io"
-	"net/http"
+	"time"
 
 	// Packages below are not used explicitly, but are imported for initialization side-effects, which allows
 	// image.Decode to understand gif, jpeg, and png formatted images
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
 const (
+	// DefaultIconSize is the default size of the icon to be used in the dialog. It is used when the
+	// image has a square or narrow aspect ratio.
 	DefaultIconSize = uint(80)
-	WideIconSize    = uint(200)
-	WideAspectRatio = 1.8 // 9:5 aspect ratio
+	// wideIconSize is the size of the icon to be used in the dialog when the image has a wide aspect ratio.
+	wideIconSize = uint(200)
+	// wideAspectRatio is the aspect ratio used to determine if an image is wide. It is used to determine if the
+	wideAspectRatio = 1.8 // 9:5 aspect ratio
 )
 
+// GetIconSize returns the size of the icon to be used in the dialog. If the image has a wide aspect ratio, it returns
+// WideIconSize, otherwise it returns DefaultIconSize.
+// It fetches the image from the given URL and decodes it to get the dimensions.
+// The URL is expected to be a valid image URL.
+// The function returns an error if the image cannot be fetched or decoded.
+//
+// NOTE: The caller is responsible for ensuring the URL is trusted (e.g., set by an admin user or a default value).
 func GetIconSize(url string) (uint, error) {
-	resp, err := http.Get(url)
+	resp, err := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)).Get(url) //nolint:gosec
 	if err != nil {
 		return 0, err
 	}
@@ -35,8 +48,8 @@ func decodeIconSize(b io.Reader) (uint, error) {
 		return 0, err
 	}
 	// if image has wide aspect ratio, use wideIconSize
-	if float64(ic.Width) >= float64(ic.Height)*WideAspectRatio {
-		return WideIconSize, nil
+	if float64(ic.Width) >= float64(ic.Height)*wideAspectRatio {
+		return wideIconSize, nil
 	}
 
 	return DefaultIconSize, nil
