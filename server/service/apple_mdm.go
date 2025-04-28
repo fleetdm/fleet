@@ -2286,6 +2286,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if dryRun {
 		return nil
 	}
+	// NOTE: this service is called from a deprecated endpoint, it does not
+	// validate if the profiles use Fleet variables, so we don't support storing
+	// the profiles to variables relationship either. We should add a check if
+	// any variable is used in any of the profiles and return an error if so to
+	// avoid storing invalid data that could cause issues.
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
 	}
@@ -4887,12 +4892,12 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 	return re.ReplaceAllLiteralString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
 }
 
-func findFleetVariables(contents string) map[string]interface{} {
+func findFleetVariables(contents string) map[string]struct{} {
 	resultSlice := findFleetVariablesKeepDuplicates(contents)
 	if len(resultSlice) == 0 {
 		return nil
 	}
-	result := make(map[string]interface{}, len(resultSlice))
+	result := make(map[string]struct{}, len(resultSlice))
 	for _, v := range resultSlice {
 		result[v] = struct{}{}
 	}

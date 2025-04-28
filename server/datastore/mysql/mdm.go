@@ -123,16 +123,16 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 }
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates,
-	err error,
-) {
+	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables map[string]map[string]struct{},
+) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+		// for now, only apple profiles support variables
+		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariables); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 

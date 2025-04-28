@@ -36,7 +36,7 @@ import (
 // addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
 var addHostMDMCommandsBatchSize = 10000
 
-func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
@@ -106,6 +106,9 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
+		}
+		if err := batchSetProfileVariableAssociationsDB(ctx, tx, map[string]map[string]struct{}{profUUID: usesFleetVars}, "darwin"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
 		}
 
 		return nil
@@ -568,16 +571,16 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	}{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
 	SELECT
-		hmmc.host_uuid, 
-		hmmc.profile_uuid, 
-		hmmc.not_valid_after, 
+		hmmc.host_uuid,
+		hmmc.profile_uuid,
+		hmmc.not_valid_after,
 		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
-	FROM 
+	FROM
 		host_mdm_managed_certificates hmmc
-	INNER JOIN 
-		host_mdm_apple_profiles hmap 
+	INNER JOIN
+		host_mdm_apple_profiles hmap
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-	WHERE 
+	WHERE
 		hmmc.type = ? AND hmap.status IS NOT NULL
 	HAVING
 		validity_period IS NOT NULL AND
@@ -1828,6 +1831,8 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 	return &nanoEnroll, nil
 }
 
+// NOTE: this is only called from a deprecated endpoint that does not support
+// Fleet variables in profiles.
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
@@ -1841,6 +1846,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAppleConfigProfile,
+	profilesVariables map[string]map[string]struct{},
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -1878,6 +1884,7 @@ ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
 `
+	// TODO(mna): saved used variables
 
 	// use a profile team id of 0 if no-team
 	var profTeamID uint
@@ -1962,6 +1969,8 @@ ON DUPLICATE KEY UPDATE
 			}
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
+		// TODO(mna): if insertOnDuplicateDidInsertOrUpdate, then this profile's vars need
+		// to be inserted/updated too.
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
 	}
 
@@ -3357,6 +3366,10 @@ WHERE
 	return &res, nil
 }
 
+// NOTE: this method is only used internally to upsert Fleet-controlled
+// profiles (called in service.ensureFleetProfiles with the Fleet configuration
+// profiles). Those are known not to use any Fleet variables. This method must
+// not be used for any profile that uses Fleet variables.
 func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
 	if len(payload) == 0 {
 		return nil
