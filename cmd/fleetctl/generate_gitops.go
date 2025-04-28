@@ -501,7 +501,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if len(cmd.Messages.Notes) > 0 {
 		fmt.Fprintf(cmd.CLI.App.Writer, "Other Notes:\n")
 		for _, note := range cmd.Messages.Notes {
-			fmt.Fprintf(cmd.CLI.App.Writer, " * %s: %s\n", note.Filename, note.Note)
+			fmt.Fprintf(cmd.CLI.App.Writer, " -%s: %s\n", note.Filename, note.Note)
 		}
 	}
 
@@ -1088,6 +1088,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	result := make(map[string]interface{})
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
+	fmaAppNames := make([]string, 0)
 	for _, sw := range software {
 		versions := make([]string, len(sw.Versions))
 		for j, version := range sw.Versions {
@@ -1156,6 +1157,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 			if softwareTitle.SoftwarePackage.SelfService == true {
 				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
 			}
+
+			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
+				fmaAppNames = append(fmaAppNames, sw.Name)
+			}
 		}
 
 		if cmd.AppConfig.License.IsPremium() {
@@ -1201,6 +1206,14 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	if len(appStoreApps) > 0 {
 		result["app_store_apps"] = appStoreApps
 	}
+	if len(fmaAppNames) > 0 {
+		result["fleet_maintained_apps"] = cmd.AddComment(filePath, "Fleet Maintained Apps are not supported by GitOps.")
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+			Filename: filePath,
+			Note:     "**Warning**: GitOps does not currently support Fleet Maintained Apps.  In order to continue, you will need to remove the `fleet_maintained_apps` key, but the following software installers would be deleted by GitOps: " + strings.Join(fmaAppNames, ", ") + ".",
+		})
+	}
+
 	return result, nil
 }
 

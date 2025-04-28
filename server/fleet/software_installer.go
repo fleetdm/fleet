@@ -137,7 +137,7 @@ type SoftwareInstaller struct {
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetMaintainedAppID *uint `json:"-" db:"fleet_maintained_app_id"`
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`

@@ -95,8 +95,9 @@ type SoftwarePackage struct {
 }
 
 type Software struct {
-	Packages     []SoftwarePackage           `json:"packages"`
-	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedApp       `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -967,6 +968,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
+	}
+	if software.FleetMaintainedApps != nil {
+		return multierror.Append(multiError, fmt.Errorf("Fleet maintained apps are not currently supported in GitOps"))
 	}
 	for _, item := range software.AppStoreApps {
 		item := item

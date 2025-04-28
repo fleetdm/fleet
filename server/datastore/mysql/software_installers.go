@@ -605,6 +605,7 @@ SELECT
   si.team_id,
   si.title_id,
   si.storage_id,
+  si.fleet_maintained_app_id,
   si.package_ids,
   si.filename,
   si.extension,
