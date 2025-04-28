@@ -1,4 +1,5 @@
 .paginated-list {
+  gap: $pad-medium;
   &__header {
     padding: $pad-medium $pad-large;
     font-size: $x-small;
@@ -101,5 +102,9 @@
     &--disabled {
       @include disabled;
     }
+  }
+
+  .pagination {
+    margin-top: 0;
   }
 }

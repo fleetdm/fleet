@@ -185,7 +185,7 @@ const PolicyRunScriptModal = ({
                   </span>
                 ) : null;
               }}
-              footer={
+              helpText={
                 <>
                   If{" "}
                   <TooltipWrapper tipContent={compatibleTipContent}>

@@ -71,7 +71,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -97,7 +97,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={2}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -123,7 +123,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={2}
-        footer={<div>Hello World!</div>}
+        helpText={<div>Hello World!</div>}
         isUpdating={false}
       />
     );
@@ -148,7 +148,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={onSubmit}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -188,7 +188,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={onCancel}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );
@@ -224,7 +224,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
         disableSave={disableSave}
       />
@@ -283,7 +283,7 @@ describe("PoliciesPaginatedList - component", () => {
         onCancel={jest.fn()}
         onSubmit={jest.fn()}
         teamId={APP_CONTEXT_ALL_TEAMS_ID}
-        footer={null}
+        helpText={null}
         isUpdating={false}
       />
     );

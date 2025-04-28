@@ -44,7 +44,7 @@ interface IPoliciesPaginatedListProps {
   disabled?: boolean;
   disableSave?: (changedItems: IFormPolicy[]) => boolean | string;
   teamId: number;
-  footer: ReactElement | undefined | null;
+  helpText: ReactElement | undefined | null;
 }
 
 const baseClass = "policies-paginated-list";
@@ -60,7 +60,7 @@ function PoliciesPaginatedList(
     disabled = false,
     disableSave,
     teamId,
-    footer,
+    helpText,
   }: IPoliciesPaginatedListProps,
   ref: Ref<IPaginatedListHandle<IFormPolicy>>
 ) {
@@ -209,9 +209,9 @@ function PoliciesPaginatedList(
           onUpdate={onUpdate}
           disabled={disabled || gitOpsModeEnabled}
           heading={<span className={`${baseClass}__header`}>Policies</span>}
+          helpText={helpText}
         />
       </div>
-      {footer && <p className="form-field__help-text">{footer}</p>}
       <div className="modal-cta-wrap">
         <GitOpsModeTooltipWrapper
           position="right"

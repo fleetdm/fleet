@@ -96,7 +96,7 @@ const ConditionalAccessModal = ({
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;
             }}
-            footer={
+            helpText={
               <>
                 Single sign-on will be blocked for end users whose hosts fail
                 any of these policies.{" "}
