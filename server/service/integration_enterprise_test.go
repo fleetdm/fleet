@@ -16834,6 +16834,16 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
 
+	// installer should be out of scope since the label is "exclude any"
+	scoped, err := s.ds.IsSoftwareInstallerLabelScoped(ctx, installerID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// host should be excluded from the software installer
+	hostsNotInScope, err := s.ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, installerID)
+	require.NoError(t, err)
+	require.Contains(t, hostsNotInScope, host.ID)
+
 	// uninstall the software
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", host.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)

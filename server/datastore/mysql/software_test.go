@@ -5992,7 +5992,7 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	softwareAlreadyInstalled := fleet.Software{Name: "file1", Version: "1.0.1", Source: "apps", BundleIdentifier: "bi1"}
 	// Host has software installed, but not by Fleet, that matches the software installer available
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		titleIDUint := uint(titleID)
+		titleIDUint := titleID
 		softwareAlreadyInstalled.TitleID = &titleIDUint
 		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id) VALUES (?, ?, ?, ?, ?)`,
 			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID)
