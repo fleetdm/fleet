@@ -3426,7 +3426,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 		payload = append(payload, parsed)
 	}
 
-	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, payload); err != nil {
+	if err := svc.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "refetch certs: update host certificates")
 	}
 
@@ -4175,7 +4175,7 @@ func preprocessProfileContents(
 			addedTargets = make(map[string]*cmdTarget, 1)
 		}
 		// We store the timestamp when the challenge was retrieved to know if it has expired.
-		var managedCertificatePayloads []*fleet.MDMBulkUpsertManagedCertificatePayload
+		var managedCertificatePayloads []*fleet.MDMManagedCertificate
 		// We need to update the profiles of each host with the new command UUID
 		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
 		for _, hostUUID := range target.hostUUIDs {
@@ -4244,7 +4244,7 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					payload := &fleet.MDMBulkUpsertManagedCertificatePayload{
+					payload := &fleet.MDMManagedCertificate{
 						HostUUID:             hostUUID,
 						ProfileUUID:          profUUID,
 						ChallengeRetrievedAt: ptr.Time(time.Now()),
@@ -4294,7 +4294,7 @@ func preprocessProfileContents(
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
 					}
-					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
+					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
 						HostUUID:    hostUUID,
 						ProfileUUID: profUUID,
 						Type:        fleet.CAConfigCustomSCEPProxy,
@@ -4418,7 +4418,7 @@ func preprocessProfileContents(
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
 					}
-					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
+					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
 						HostUUID:       hostUUID,
 						ProfileUUID:    profUUID,
 						NotValidBefore: &cert.NotValidBefore,

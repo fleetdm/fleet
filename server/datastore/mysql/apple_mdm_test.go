@@ -7234,7 +7234,7 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
 	notValidBefore := time.Now().UTC().Round(time.Microsecond)
 	notValidAfter := time.Now().Add(24 * time.Hour).UTC().Round(time.Microsecond)
-	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          initialCP.ProfileUUID,
@@ -7346,7 +7346,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	notValidBefore := time.Now().UTC().Round(time.Microsecond)
 	notValidAfter := time.Now().Add(29 * 24 * time.Hour).UTC().Round(time.Microsecond)
 	serial := "3ABADCAFEF684D6348F5EC95AEFF468F237A9D7E"
-	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          initialCP.ProfileUUID,
@@ -7387,7 +7387,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// 29 left which should trigger the first renewal scenario(window > 30 days, renew when < 30
 		// days left)
 		notValidBefore := time.Now().Add(-31 * 24 * time.Hour).UTC().Round(time.Microsecond)
-		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 			{
 				HostUUID:             host.UUID,
 				ProfileUUID:          initialCP.ProfileUUID,
@@ -7446,7 +7446,7 @@ func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 		// renewal scenario(window < 30 days, renew when there is half that time left)
 		notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
 		notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
-		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 			{
 				HostUUID:             host.UUID,
 				ProfileUUID:          initialCP.ProfileUUID,

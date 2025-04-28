@@ -76,7 +76,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 		generateTestHostCertificateRecord(t, 1, &expected2),
 	}
 
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, payload))
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
 
 	// verify that we saved the records correctly
 	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
@@ -98,7 +98,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs2[1].SubjectCommonName)
 
 	// simulate removal of a certificate
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, []*fleet.HostCertificateRecord{payload[1]}))
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}))
 	certs3, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, certs3, 1)

@@ -975,7 +975,7 @@ type MDMAppleSoftwareUpdateAsset struct {
 	Build          string `json:"Build"`
 }
 
-type MDMBulkUpsertManagedCertificatePayload struct {
+type MDMManagedCertificate struct {
 	ProfileUUID          string
 	HostUUID             string
 	ChallengeRetrievedAt *time.Time

@@ -578,12 +578,12 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		host_mdm_apple_profiles hmap 
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
 	WHERE 
-		hmmc.type = ? AND hmap.status IS NOT NULL
+		hmmc.type IN (?, ?) AND hmap.status IS NOT NULL
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`, fleet.CAConfigDigiCert)
+	LIMIT 1000`, fleet.CAConfigDigiCert, fleet.CAConfigCustomSCEPProxy)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 	}
@@ -814,7 +814,6 @@ WHERE
 		query,
 		commandUUID,
 	)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
@@ -5993,7 +5992,7 @@ LIMIT 1`
 	return &settings, nil
 }
 
-func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -6025,7 +6024,7 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 		return err
 	}
 
-	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
+	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
 		return valuePart, args
@@ -6042,6 +6041,16 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	return nil
+}
+
+func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
+	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
+	FROM host_mdm_managed_certificates
+	WHERE host_uuid = ?
+	`, hostUUID)
+	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that

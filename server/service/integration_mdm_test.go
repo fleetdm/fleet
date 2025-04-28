@@ -13354,7 +13354,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Checksum:          []byte("checksum"),
 	}})
 	require.NoError(t, err)
-	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 		{
 			HostUUID:    host.UUID,
 			ProfileUUID: profileUUID,
@@ -13506,7 +13506,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 
 	// Expired challenge
-	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
@@ -13523,7 +13523,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	assert.Contains(t, string(errBody), "challenge password")
 
 	// Non-expired challenge
-	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
