@@ -65,7 +65,6 @@ module.exports = {
       'mna',
       'edwardsb',
       'eashaw',
-      'drew-d-drawers',
       'lucasmrod',
       'ksatter',
       'hollidayn',
