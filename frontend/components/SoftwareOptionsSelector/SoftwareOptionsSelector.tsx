@@ -66,9 +66,6 @@ const SoftwareOptionsSelector = ({
     return <>Automatically install only on hosts missing this software.</>;
   };
 
-  // Ability to set categories when adding software is in a future ticket #28061
-  const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
-
   return (
     <div className="form-field">
       <div className="form-field__label">Options</div>
