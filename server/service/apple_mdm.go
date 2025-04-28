@@ -546,7 +546,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
 		}
-		if k == "$"+FleetVarSCEPRenewalID {
+		if k == FleetVarSCEPRenewalID {
 			customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
 		}
 		if !ok {
@@ -675,7 +675,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 						scepURL + " in SCEP payload."}
 				}
 			}
-			if !strings.Contains(payload.PayloadContent.CommonName, "$"+FleetVarSCEPRenewalID) {
+			if !fleetVarSCEPRenewalIDRegexp.MatchString(payload.PayloadContent.CommonName) {
 				return &fleet.BadRequestError{Message: "Variable $" + FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
 			}
 		}
@@ -4108,7 +4108,7 @@ func preprocessProfileContents(
 
 			case fleetVar == FleetVarHostEndUserEmailIDP || fleetVar == FleetVarHostHardwareSerial ||
 				fleetVar == FleetVarHostEndUserIDPUsername || fleetVar == FleetVarHostEndUserIDPUsernameLocalPart ||
-				fleetVar == FleetVarHostEndUserIDPGroups:
+				fleetVar == FleetVarHostEndUserIDPGroups || fleetVar == FleetVarSCEPRenewalID:
 				// No extra validation needed for these variables
 
 			case strings.HasPrefix(fleetVar, FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, FleetVarDigiCertDataPrefix):
@@ -4130,7 +4130,7 @@ func preprocessProfileContents(
 					break
 				}
 
-			case fleetVar == FleetVarSCEPRenewalID || strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
+			case strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, FleetVarCustomSCEPProxyURLPrefix):
 				var caName string
 				if strings.HasPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix) {
 					caName = strings.TrimPrefix(fleetVar, FleetVarCustomSCEPChallengePrefix)
@@ -4250,6 +4250,7 @@ func preprocessProfileContents(
 						ChallengeRetrievedAt: ptr.Time(time.Now()),
 						Type:                 fleet.CAConfigNDES,
 						CAName:               "NDES",
+						InstallRequestedAt:   ptr.Time(time.Now()),
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
@@ -4295,10 +4296,11 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-						HostUUID:    hostUUID,
-						ProfileUUID: profUUID,
-						Type:        fleet.CAConfigCustomSCEPProxy,
-						CAName:      caName,
+						HostUUID:           hostUUID,
+						ProfileUUID:        profUUID,
+						Type:               fleet.CAConfigCustomSCEPProxy,
+						CAName:             caName,
+						InstallRequestedAt: ptr.Time(time.Now()),
 					})
 
 				case fleetVar == FleetVarHostEndUserEmailIDP:
@@ -4419,13 +4421,14 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-						HostUUID:       hostUUID,
-						ProfileUUID:    profUUID,
-						NotValidBefore: &cert.NotValidBefore,
-						NotValidAfter:  &cert.NotValidAfter,
-						Type:           fleet.CAConfigDigiCert,
-						CAName:         caName,
-						Serial:         &cert.SerialNumber,
+						HostUUID:           hostUUID,
+						ProfileUUID:        profUUID,
+						NotValidBefore:     &cert.NotValidBefore,
+						NotValidAfter:      &cert.NotValidAfter,
+						Type:               fleet.CAConfigDigiCert,
+						CAName:             caName,
+						Serial:             &cert.SerialNumber,
+						InstallRequestedAt: ptr.Time(time.Now()),
 					})
 
 				default:
@@ -4816,7 +4819,7 @@ func (cs *customSCEPVarsFound) CAs() []string {
 func (cs *customSCEPVarsFound) ErrorMessage() string {
 	// TODO This doesn't quite match the figma
 	if !cs.renewalIdFound {
-		return "Missing $FLEET_VAR_RENEWAL_ID in the profile"
+		return "Missing $FLEET_VAR_SCEP_RENEWAL_ID in the profile"
 	}
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {
@@ -4862,7 +4865,7 @@ func (cs *customSCEPVarsFound) SetRenewalIDFound() (*customSCEPVarsFound, bool) 
 	}
 	renewalIdAlreadyPresent := cs.renewalIdFound
 	cs.renewalIdFound = true
-	return cs, renewalIdAlreadyPresent
+	return cs, !renewalIdAlreadyPresent
 }
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,

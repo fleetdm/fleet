@@ -555,7 +555,8 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
-	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(hmap.status=null) and which
+	// Fetch all MDM Managed digicert or Custom SCEP certificates that aren't already queued for
+	// resend(hmap.status=null) and have not been requested for install in the last 7 days and which
 	// * Have a validity period > 30 days and are expiring in the next 30 days
 	// * Have a validity period <= 30 days and are within half the validity period of expiration
 	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
@@ -578,7 +579,8 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		host_mdm_apple_profiles hmap 
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
 	WHERE 
-		hmmc.type IN (?, ?) AND hmap.status IS NOT NULL
+		hmmc.type IN (?, ?) AND hmap.status IS NOT NULL AND
+		(hmmc.install_requested_at IS NULL OR hmmc.install_requested_at < DATE_SUB(NOW(), INTERVAL 7 DAY))
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
@@ -6007,7 +6009,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	          not_valid_after,
 			  type,
 			  ca_name,
-			  serial
+			  serial,
+			  install_requested_at
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -6016,7 +6019,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 			  not_valid_after = VALUES(not_valid_after),
 			  type = VALUES(type),
 			  ca_name = VALUES(ca_name),
-			  serial = VALUES(serial)`,
+			  serial = VALUES(serial),
+			  install_requested_at = VALUES(install_requested_at)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -6025,8 +6029,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial, p.InstallRequestedAt}
 		return valuePart, args
 	}
 

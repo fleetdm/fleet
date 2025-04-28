@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -73,8 +74,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 					hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, &fleet.MDMManagedCertificate{
 						HostUUID:       hostMDMManagedCert.HostUUID,
 						ProfileUUID:    hostMDMManagedCert.ProfileUUID,
+						CAName:         hostMDMManagedCert.CAName,
 						Type:           hostMDMManagedCert.Type,
-						Serial:         &certToInsert.Serial,
+						Serial:         ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
 						NotValidBefore: &certToInsert.NotValidBefore,
 						NotValidAfter:  &certToInsert.NotValidAfter,
 					})
