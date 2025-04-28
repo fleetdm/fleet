@@ -25,7 +25,7 @@ func Up_20250422095806(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	CREATE TABLE IF NOT EXISTS fleet_variables (
 		id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		name        VARCHAR(255) NOT NULL DEFAULT '',
+		name        VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 		is_prefix   TINYINT(1) NOT NULL DEFAULT 0,
 		created_at  DATETIME(6) NOT NULL DEFAULT NOW(6),
 
