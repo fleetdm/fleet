@@ -492,7 +492,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 	fmt.Fprintf(cmd.CLI.App.Writer, "Config generation complete!\n")
 	if len(cmd.Messages.SecretWarnings) > 0 {
-		fmt.Fprintf(cmd.CLI.App.Writer, "Warning: secrets were not written in the following places, and will need to be replaced:\n")
+		fmt.Fprintf(cmd.CLI.App.Writer, "Warning: sensitive information was redacted in the following places, and will need to be replaced:\n")
 		for _, secretWarning := range cmd.Messages.SecretWarnings {
 			fmt.Fprintf(cmd.CLI.App.Writer, " * %s: %s\n", secretWarning.Filename, secretWarning.Key)
 		}
