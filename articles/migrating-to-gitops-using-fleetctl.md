@@ -24,7 +24,7 @@ The `--force` option may come in handy if you've already initialized a Git repo 
 
 ## Handling sensitive information
 
-It is generally not recommended to store sensitive information such as Fleet enrollment secrets directly in a version control framework like Git, even if using a private repository on a provider like Gitlab or Github. By default, the `generate-gitops` command will leave comments in place of sensitive items, and display a list of filenames and keys that will need to be updated manually before the files are ready to be used with GitOps. A typical strategy for dealing with these items is to store their contents in environment variables or "secrets" on a version control provider, and then refer to the variable within your GitOps file, for example:
+It is generally not recommended to store sensitive information such as Fleet enrollment secrets directly in a version control framework like Git, even when using a private repository on a provider like Gitlab or Github. By default, the `generate-gitops` command will leave comments in place of sensitive items, and display a list of filenames and keys that will need to be updated manually before the files are ready to be used with GitOps. A typical strategy for dealing with these items is to store their contents in environment variables or "secrets" on a version control provider, and then refer to the variable within your GitOps file, for example:
 
 ```yaml
 - secrets:
