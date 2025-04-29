@@ -384,7 +384,7 @@ const OtherWorkflowsModal = ({
               onSubmit={onUpdateOtherWorkflows}
               onCancel={onExit}
               teamId={teamId}
-              disabled={!isPolicyAutomationsEnabled}
+              disableList={!isPolicyAutomationsEnabled}
             />
           ) : (
             <>

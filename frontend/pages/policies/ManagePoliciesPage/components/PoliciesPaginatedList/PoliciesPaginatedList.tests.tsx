@@ -17,12 +17,37 @@ const waitForLoadingToFinish = async (container: HTMLElement) => {
 };
 
 const globalPolicies = [
+  createMockPolicy({
+    team_id: null,
+    name: "Inherited policy 1",
+    platform: "darwin",
+  }),
+  createMockPolicy({
+    id: 2,
+    team_id: null,
+    name: "Inherited policy 2",
+    platform: "darwin",
+  }),
+  createMockPolicy({
+    id: 3,
+    team_id: null,
+    name: "Inherited policy 3",
+    platform: "darwin",
+  }),
+];
+
+const teamPolicies = [
+  createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
+  createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+];
+
+const globalPoliciesNoMac = [
   createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
   createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
   createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
 ];
 
-const teamPolicies = [
+const teamPoliciesNoMac = [
   createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
   createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
 ];
@@ -155,6 +180,7 @@ describe("PoliciesPaginatedList - component", () => {
     await waitForLoadingToFinish(container);
 
     const checkboxes = screen.getAllByRole("checkbox");
+    console.log("\n\nCHECKBOXES: ", checkboxes, "\n\n");
     await userEvent.click(checkboxes[0]);
     await userEvent.click(checkboxes[2]);
     await userEvent.click(screen.getByRole("button", { name: /Save/i }));
@@ -164,6 +190,7 @@ describe("PoliciesPaginatedList - component", () => {
       // that may change over time, so rather than full equality we'll just check
       // that it sends the objects with the right IDs.
       const changedItems = onSubmit.mock.calls[0][0];
+      console.log("\n\nCHANGED ITEMS: ", changedItems, "\n\n");
       expect(changedItems[0].id).toEqual(globalPolicies[0].id);
       expect(changedItems[0].name).toEqual(
         `${globalPolicies[0].name} (changed)`

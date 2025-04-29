@@ -308,7 +308,7 @@ const CalendarEventsModal = ({
           onSubmit={onUpdateCalendarEvents}
           onCancel={onExit}
           teamId={teamId}
-          disabled={!formData.enabled}
+          disableList={!formData.enabled}
         />
       </div>
     </div>

@@ -14,6 +14,8 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import { get } from "lodash";
+import { IPolicyStats } from "interfaces/policy";
 
 const baseClass = "conditional-access-modal";
 
@@ -60,6 +62,15 @@ const ConditionalAccessModal = ({
       const changedPolicies = paginatedListRef.current.getDirtyItems();
       onSubmit({ ...formData, changedPolicies });
     }
+  };
+
+  const getPolicyDisabled = (
+    policy: IPolicyStats
+  ): [boolean, React.ReactNode] => {
+    if (!policy.platform.includes("darwin")) {
+      return [true, "Policy does not target macOS"];
+    }
+    return [false, null];
   };
 
   const learnMoreLink = (
@@ -112,7 +123,8 @@ const ConditionalAccessModal = ({
             onSubmit={handleSubmit}
             onCancel={onExit}
             teamId={teamId}
-            disabled={!formData.enabled}
+            disableList={!formData.enabled}
+            getPolicyDisabled={getPolicyDisabled}
           />
         </div>
       </>

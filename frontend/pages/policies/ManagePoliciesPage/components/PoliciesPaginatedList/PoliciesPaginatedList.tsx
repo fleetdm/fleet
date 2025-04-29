@@ -11,7 +11,7 @@ import { ReactElement } from "react-markdown/lib/react-markdown";
 import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { useQueryClient } from "react-query";
-import { IPolicy } from "interfaces/policy";
+import { IPolicy, IPolicyStats } from "interfaces/policy";
 import teamPoliciesAPI from "services/entities/team_policies";
 import globalPoliciesAPI from "services/entities/global_policies";
 
@@ -40,10 +40,15 @@ interface IPoliciesPaginatedListProps {
     onChange: (item: IFormPolicy) => void
   ) => ReactElement | false | null | undefined;
   onToggleItem: (item: IFormPolicy) => IFormPolicy;
+  /** A function defining the conditions under which to disable a policy. Can optionally return the
+   * content of tooltip to display over the checkbox when disabled. */
+  getPolicyDisabled?: (
+    policy: IPolicyStats
+  ) => [boolean, React.ReactNode | null];
   onCancel: () => void;
   onSubmit: (formData: IFormPolicy[]) => void;
   isUpdating: boolean;
-  disabled?: boolean;
+  disableList?: boolean;
   disableSave?: (changedItems: IFormPolicy[]) => boolean | string;
   teamId: number;
   helpText: ReactElement | undefined | null;
@@ -56,10 +61,11 @@ function PoliciesPaginatedList(
     isSelected,
     renderItemRow,
     onToggleItem,
+    getPolicyDisabled,
     onCancel,
     onSubmit,
     isUpdating,
-    disabled = false,
+    disableList = false,
     disableSave,
     teamId,
     helpText,
@@ -154,9 +160,9 @@ function PoliciesPaginatedList(
       return fetchPromise.then((policiesResponse) => {
         // Marshall the response into IFormPolicy objects.
         return (policiesResponse.policies || []).map((policy) => {
-          const disabledTooltip = policy.platform.includes("darwin")
-            ? null
-            : "Policy does not target macOS";
+          const [disabled, disabledTooltip] = getPolicyDisabled
+            ? getPolicyDisabled(policy)
+            : [false, undefined];
           return {
             ...policy,
             installSoftwareEnabled: !!policy.install_software,
@@ -164,7 +170,7 @@ function PoliciesPaginatedList(
             runScriptEnabled: !!policy.run_script,
             scriptIdToRun: policy.run_script?.id,
             scriptNameToRun: policy.run_script?.name,
-            disabled: !!disabledTooltip,
+            disabled,
             disabledCheckboxTooltipContent: disabledTooltip,
           };
         }) as IFormPolicy[];
@@ -219,7 +225,7 @@ function PoliciesPaginatedList(
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
-          disableList={disabled || gitOpsModeEnabled}
+          disableList={disableList || gitOpsModeEnabled}
           heading={<span className={`${baseClass}__header`}>Policies</span>}
           helpText={helpText}
         />
