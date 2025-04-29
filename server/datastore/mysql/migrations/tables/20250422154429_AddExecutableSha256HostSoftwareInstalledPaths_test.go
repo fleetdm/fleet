@@ -28,7 +28,7 @@ func TestUp_20250422154429(t *testing.T) {
 		ExecutableSha256 *string `db:"executable_sha256"`
 	}
 
-	// team_identifer is left empty for old rows
+	// executable_sha256 is left empty for old rows
 	err = sqlx.Select(db, &hostSoftwareInstalledPaths, `
 		SELECT 
 			host_id,
