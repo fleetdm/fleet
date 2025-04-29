@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useEffect,
   useRef,
+  useState,
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -64,6 +65,10 @@ const SoftwareSelfService = ({
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
+  const [selfServiceData, setSelfServiceData] = useState<
+    IGetDeviceSoftwareResponse | undefined
+  >(undefined);
+
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -96,6 +101,9 @@ const SoftwareSelfService = ({
     enabled: isSoftwareEnabled,
     keepPreviousData: true,
     staleTime: 7000,
+    onSuccess: (response) => {
+      setSelfServiceData(response);
+    },
   });
 
   // Poll for pending installs
@@ -126,7 +134,7 @@ const SoftwareSelfService = ({
           // If the set changed, update and continue polling
           if (!setsAreEqual) {
             pendingSoftwareSetRef.current = newPendingSet;
-            refetchSelfServiceSoftware();
+            setSelfServiceData(response);
           }
 
           // Continue polling
@@ -143,7 +151,7 @@ const SoftwareSelfService = ({
             clearTimeout(pollingTimeoutIdRef.current);
             pollingTimeoutIdRef.current = null;
           }
-          refetchSelfServiceSoftware();
+          setSelfServiceData(response);
         }
       },
       onError: () => {
@@ -169,11 +177,10 @@ const SoftwareSelfService = ({
         if (pollingTimeoutIdRef.current) {
           clearTimeout(pollingTimeoutIdRef.current);
         }
-        refetchSelfServiceSoftware(); // Updates UI to show pending installs
         refetchForPendingInstalls(); // Starts polling for pending installs
       }
     },
-    [refetchSelfServiceSoftware, refetchForPendingInstalls]
+    [refetchForPendingInstalls]
   );
 
   // Cleanup on unmount
@@ -199,9 +206,8 @@ const SoftwareSelfService = ({
   }, [data, startPollingForPendingInstalls]);
 
   const onInstall = useCallback(() => {
-    refetchSelfServiceSoftware();
     refetchForPendingInstalls();
-  }, [refetchSelfServiceSoftware, refetchForPendingInstalls]);
+  }, [refetchForPendingInstalls]);
 
   const onSearchQueryChange = (value: string) => {
     router.push(
