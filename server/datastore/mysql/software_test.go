@@ -1563,7 +1563,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1574,7 +1574,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
@@ -2978,17 +2978,18 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		getKey := func(s fleet.Software, change uint) string {
 			var key string
 
-			if s.ID == 3 {
+			switch s.ID {
+			case 3:
 				key = fmt.Sprintf(
 					"%s%d%s%s%s%s%s%s",
 					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, hash1, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
-			} else if s.ID == 5 {
+			case 5:
 				key = fmt.Sprintf(
 					"%s%d%s%s%s%s%s%s",
 					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, hash2, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 				)
-			} else {
+			default:
 				key = fmt.Sprintf(
 					"%s%d%s%s%s%s%s%s",
 					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
@@ -3591,7 +3592,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		swPaths[key] = struct{}{}
 		installPaths = append(installPaths, path)
 	}
