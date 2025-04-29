@@ -10672,7 +10672,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getDeviceInstallResult := getSoftwareInstallResultsResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceInstallResult)
 	require.NoError(t, err)
-	require.Equal(t, getDeviceInstallResult.Results.SoftwareTitle, "ruby")
+	require.Equal(t, "ruby", getDeviceInstallResult.Results.SoftwareTitle)
+	require.Equal(t, host.ID, getDeviceInstallResult.Results.HostID)
+	require.Equal(t, fleet.SoftwareInstallPending, getDeviceInstallResult.Results.Status)
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/nope/results", nil, http.StatusNotFound)
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+otherToken+"/software/install/"+getDeviceSw.Software[2].SoftwarePackage.LastInstall.InstallUUID+"/results", nil, http.StatusNotFound)
 
