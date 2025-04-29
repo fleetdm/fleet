@@ -3960,25 +3960,6 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Resend host's configuration profile
-
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The host's ID. |
-| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
-
-##### Default response
-
-`Status: 202`
-
 ### Get host's software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
