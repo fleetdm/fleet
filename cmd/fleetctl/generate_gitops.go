@@ -498,10 +498,18 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		fmt.Fprintf(cmd.CLI.App.Writer, "\n")
 	}
+
+	if cmd.CLI.String("team") == "global" || cmd.CLI.String("team") == "" {
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+			Filename: "default.yml",
+			Note:     "Yara rules are not supported by the migration tool at this time. If you have existing Yara rules, please ensure they are added to the new default.yml file.",
+		})
+	}
+
 	if len(cmd.Messages.Notes) > 0 {
 		fmt.Fprintf(cmd.CLI.App.Writer, "Other Notes:\n")
 		for _, note := range cmd.Messages.Notes {
-			fmt.Fprintf(cmd.CLI.App.Writer, " -%s: %s\n", note.Filename, note.Note)
+			fmt.Fprintf(cmd.CLI.App.Writer, " * %s: %s\n", note.Filename, note.Note)
 		}
 	}
 
