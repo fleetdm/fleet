@@ -85,13 +85,7 @@ const SoftwareSelfService = ({
   }, [deviceToken, queryParams.page, queryParams.query]);
 
   // Fetch self-service software (regular API call)
-  const {
-    data,
-    isLoading,
-    isError,
-    isFetching,
-    refetch: refetchSelfServiceSoftware,
-  } = useQuery<
+  const { isLoading, isError, isFetching } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
     IGetDeviceSoftwareResponse,
@@ -196,14 +190,14 @@ const SoftwareSelfService = ({
 
   // On initial load or data change, check for pending installs
   useEffect(() => {
-    const pendingSoftware = data?.software.filter(
+    const pendingSoftware = selfServiceData?.software.filter(
       (software) => software.status === "pending_install"
     );
     const pendingIds = pendingSoftware?.map((s) => String(s.id)) ?? [];
     if (pendingIds.length > 0) {
       startPollingForPendingInstalls(pendingIds);
     }
-  }, [data, startPollingForPendingInstalls]);
+  }, [selfServiceData, startPollingForPendingInstalls]);
 
   const onInstall = useCallback(() => {
     refetchForPendingInstalls();
@@ -234,23 +228,23 @@ const SoftwareSelfService = ({
         page: queryParams.page - 1,
       })
     );
-  }, [pathname, queryParams.page, router]);
+  }, [pathname, queryParams.page, queryParams.query, router]);
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
   // available results)?
   const isEmpty =
-    !data?.software.length &&
-    !data?.meta.has_previous_results &&
+    !selfServiceData?.software.length &&
+    !selfServiceData?.meta.has_previous_results &&
     queryParams.query === "";
   const isEmptySearch =
-    !data?.software.length &&
-    !data?.meta.has_previous_results &&
+    !selfServiceData?.software.length &&
+    !selfServiceData?.meta.has_previous_results &&
     queryParams.query !== "";
 
   const renderSelfServiceCard = () => {
     const renderHeader = () => {
-      const itemCount = data?.count || 0;
+      const itemCount = selfServiceData?.count || 0;
 
       return (
         <div className={`${baseClass}__header`}>
@@ -279,7 +273,7 @@ const SoftwareSelfService = ({
       return <DataError />;
     }
 
-    if (isEmpty || !data) {
+    if (isEmpty || !selfServiceData) {
       return (
         <>
           {renderHeader()}
@@ -323,7 +317,7 @@ const SoftwareSelfService = ({
       <>
         {renderHeader()}
         <div className={`${baseClass}__items`}>
-          {data.software.map((s) => {
+          {selfServiceData.software.map((s) => {
             let uuid =
               s.software_package?.last_install?.install_uuid ??
               s.app_store_app?.last_install?.command_uuid;
@@ -343,11 +337,11 @@ const SoftwareSelfService = ({
           })}
         </div>
         <Pagination
-          disableNext={data.meta.has_next_results === false}
-          disablePrev={data.meta.has_previous_results === false}
+          disableNext={selfServiceData.meta.has_next_results === false}
+          disablePrev={selfServiceData.meta.has_previous_results === false}
           hidePagination={
-            data.meta.has_next_results === false &&
-            data.meta.has_previous_results === false
+            selfServiceData.meta.has_next_results === false &&
+            selfServiceData.meta.has_previous_results === false
           }
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
