@@ -3379,7 +3379,7 @@ software:
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
 				require.ErrorContains(t, err, "mdm.apple_bm_default_team has been deprecated")
 				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
-				assert.Empty(t, appCfgee/server/service/mdm_test.go.MDM.DeprecatedAppleBMDefaultTeam)
+				assert.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 				assert.NotContains(t, out, "[!] gitops succeeded")
 			},
 		},
