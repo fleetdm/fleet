@@ -389,7 +389,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate policies.
-		policies, err := cmd.generatePolicies(teamToProcess.ID)
+		policies, err := cmd.generatePolicies(teamToProcess.ID, teamFileName)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
 			return ErrGeneric
@@ -541,8 +541,8 @@ func generateFilename(name string) string {
 			return -1
 		}
 	}, name)
-	// Strip any leading/trailing underscores using regex.
-	fileName = strings.Trim(fileName, "_")
+	// Strip any leading/trailing dashes using regex.
+	fileName = strings.Trim(fileName, "-")
 	return fileName
 }
 
@@ -987,7 +987,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string) ([]map[string]interface{}, error) {
 	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
@@ -1014,6 +1014,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint) ([]map[string]i
 				policySpec["install_software"] = map[string]interface{}{
 					"hash_sha256": software.Hash + " " + software.Comment,
 				}
+			} else {
+				policySpec["install_software"] = map[string]interface{}{
+					"hash_sha256": cmd.AddComment(filePath, "TODO: Add your hash_sha256 here"),
+				}
+				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+					Filename: filePath,
+					Note:     fmt.Sprintf("Warning: policy %s software installer has no hash_sha256.  This is required for GitOps to work.  Please add it manually.", policy.Name),
+				})
 			}
 		}
 		// Handle script automation.
@@ -1111,13 +1119,13 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 					Filename: filePath,
 					Note:     fmt.Sprintf("Warning: software %s has no hash_sha256.  This is required for GitOps to work.  Please add it manually.", sw.Name),
 				})
-				softwareSpec["hash_sha256"] = " # TODO: Add your hash_sha256 here"
-				continue
-			}
-			softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
-			cmd.SoftwareList[sw.ID] = Software{
-				Hash:    *sw.HashSHA256,
-				Comment: comment,
+				softwareSpec["hash_sha256"] = cmd.AddComment(filePath, "TODO: Add your hash_sha256 here")
+			} else {
+				softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
+				cmd.SoftwareList[sw.ID] = Software{
+					Hash:    *sw.HashSHA256,
+					Comment: comment,
+				}
 			}
 		} else if sw.AppStoreApp != nil {
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID

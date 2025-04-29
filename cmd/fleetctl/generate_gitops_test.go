@@ -737,7 +737,7 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil)
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	var policies []map[string]interface{}
@@ -759,7 +759,7 @@ func TestGeneratePolicies(t *testing.T) {
 	// Generate policies for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1))
+	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
