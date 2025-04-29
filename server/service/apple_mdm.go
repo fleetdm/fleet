@@ -1848,11 +1848,8 @@ func (r mdmAppleAccountEnrollAuthenticateResponse) Error() error { return r.Err 
 
 func (r mdmAppleAccountEnrollAuthenticateResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate",
-		`Bearer method="apple-oauth2" `+
-			` authorization-url="`+os.Getenv("OKTA_URL")+`/v1/authorize" `+
-			`token-url="`+os.Getenv("FLEET_SERVER_URL")+`/api/mdm/apple/enroll/token" `+
-			`redirect-url="apple-remotemanagement-user-login:/api/mdm/apple/enroll/redirection" `+
-			`client-id="`+os.Getenv("OKTA_CLIENT_ID")+`" scope="openid"`,
+		`Bearer method="apple-as-web" `+
+			`url="`+os.Getenv("FLEET_SERVER_URL")+`/mdm/sso"`,
 	)
 	w.WriteHeader(http.StatusUnauthorized)
 	return
@@ -3069,7 +3066,7 @@ type callbackMDMAppleSSOResponse struct {
 
 func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
-	w.WriteHeader(http.StatusSeeOther)
+	w.WriteHeader(http.StatusPermanentRedirect)
 }
 
 // Error will always be nil because errors are handled by sending a query
