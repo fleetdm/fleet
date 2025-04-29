@@ -930,7 +930,7 @@ SELECT
 FROM homebrew_packages
 WHERE type = 'cask'
 AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%%%') AND file.path LIKE '%%.app%%' LIMIT 1);
-`),
+`), // TODO: add sorting by element in above line
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
 }
