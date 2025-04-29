@@ -4825,7 +4825,7 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
 		}
 		if route.deviceAuthenticated {
-			path += tkn
+			path = fmt.Sprintf(path, tkn)
 		}
 
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())

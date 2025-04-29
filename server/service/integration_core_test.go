@@ -9152,7 +9152,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		EncryptionKey: []byte("testkey"),
 	}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.Contains(t, errMsg, fleet.ErrWindowsMDMNotConfigured.Error())
 }
 
 func (s *integrationTestSuite) TestListVulnerabilities() {
@@ -9717,7 +9717,7 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
 		}
 		if route.deviceAuthenticated {
-			path += tkn
+			path = fmt.Sprintf(path, tkn)
 		}
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
