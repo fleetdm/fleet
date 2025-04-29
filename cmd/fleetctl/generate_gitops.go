@@ -853,7 +853,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 
 		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication == true || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || teamMdm.MacOSSetup.Software.Valid == true {
-			result[jsonFieldName(mdmT, "MacOSSetup")] = "needs-attention"
+			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
 			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 				Filename: teamName,
 				Note:     "The macos_setup configuration is not supported by this tool yet.  Please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup to configure it.",
@@ -1106,6 +1106,14 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
 			}
 			comment := cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, strings.Join(versions, ", ")))
+			if sw.HashSHA256 == nil {
+				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+					Filename: filePath,
+					Note:     fmt.Sprintf("Warning: software %s has no hash_sha256.  This is required for GitOps to work.  Please add it manually.", sw.Name),
+				})
+				softwareSpec["hash_sha256"] = " # TODO: Add your hash_sha256 here"
+				continue
+			}
 			softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
 			cmd.SoftwareList[sw.ID] = Software{
 				Hash:    *sw.HashSHA256,
