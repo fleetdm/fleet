@@ -1,0 +1,1 @@
+* Added a temporary index during macOS software names migration to speed up host software installed paths cleanup introduced in 4.67(.2).
