@@ -658,8 +658,10 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	var foundCAs []string
 	challengePrefix := "FLEET_VAR_" + FleetVarCustomSCEPChallengePrefix
 	urlPrefix := "FLEET_VAR_" + FleetVarCustomSCEPProxyURLPrefix
+	scepPayloadsFound := 0
 	for _, payload := range scepProf.PayloadContent {
 		if payload.PayloadType == "com.apple.security.scep" {
+			scepPayloadsFound++
 			for _, ca := range customSCEPVars.CAs() {
 				// Check for exact match on challenge and URL
 				if payload.PayloadContent.Challenge == "$"+challengePrefix+ca || payload.PayloadContent.Challenge == "${"+challengePrefix+ca+"}" {
@@ -687,6 +689,9 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 					challengePrefix+ca, urlPrefix+ca)}
 			}
 		}
+	}
+	if scepPayloadsFound > 1 {
+		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
 	}
 	return nil
 }
@@ -4795,7 +4800,10 @@ func (cs *customSCEPVarsFound) Ok() bool {
 			return false
 		}
 	}
-	return cs.renewalIdFound
+	if !cs.renewalIdFound {
+		return false
+	}
+	return true
 }
 
 func (cs *customSCEPVarsFound) Found() bool {
@@ -4860,9 +4868,8 @@ func (cs *customSCEPVarsFound) SetRenewalIDFound() (*customSCEPVarsFound, bool) 
 	if cs == nil {
 		cs = &customSCEPVarsFound{}
 	}
-	renewalIdAlreadyPresent := cs.renewalIdFound
 	cs.renewalIdFound = true
-	return cs, !renewalIdAlreadyPresent
+	return cs, true
 }
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,

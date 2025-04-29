@@ -4785,6 +4785,12 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
 		},
 		{
+			name: "Custom SCEP 2 valid profiles should error",
+			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
+			errMsg: "Add only one SCEP payload when using variables for certificate authority",
+		},
+		{
 			name:    "Custom SCEP and DigiCert profiles happy path",
 			profile: customSCEPDigiCertValidationMobileconfig,
 			errMsg:  "",

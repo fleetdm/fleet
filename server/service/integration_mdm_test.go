@@ -14447,8 +14447,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	assert.Contains(t, errMsg, "_scepName is not supported")
 
 	// /////////////////////////////////////////
-	// Happy path
-	// First, add custom SCEP config
+	// Add custom SCEP config
 	ca0 := getCustomSCEPIntegration(scepServerURL, "scepName")
 	ca1 := getCustomSCEPIntegration(scepServerURL, "scepName2")
 	t.Logf("scepName2 challenge:%s", ca1.Challenge)
@@ -14468,7 +14467,16 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
 	}
 
-	// Then, upload the profile using the SCEP config
+	// //////////////////////////////////////////////
+	// Upload a profile with two valid SCEP payloads.
+	resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "CustomSCEP2", Contents: customSCEPMobileconfig2},
+	}}, http.StatusBadRequest)
+	errMsg = extractServerErrorText(resp.Body)
+	assert.Contains(t, errMsg, "Add only one SCEP payload when using variables for certificate authority")
+
+	// /////////////////////////////////////////
+	// Happy path: upload the profile containing a single valid SCEP config
 	profileContents := customSCEPForTest("N0", "I0", "scepName")
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N0", Contents: profileContents},
@@ -14558,58 +14566,6 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	assert.Equal(t, "scepName", prof.CAName)
 	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
 	assert.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
-
-	// //////////////////////////////////////////////
-	// Upload a profile with two SCEP payloads
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-		{Name: "N0", Contents: profileContents}, // keep existing profile
-		{Name: "CustomSCEP2", Contents: customSCEPMobileconfig2},
-	}}, http.StatusNoContent)
-	s.awaitTriggerProfileSchedule(t)
-	getHostResp = getDeviceHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	found = false
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	var profileUUID2 string
-	for _, prof := range *getHostResp.Host.MDM.Profiles {
-		if prof.Name == "CustomSCEP2" {
-			found = true
-			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
-			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
-			assert.Empty(t, prof.Detail)
-			profileUUID2 = prof.ProfileUUID
-			break
-		}
-	}
-	assert.True(t, found)
-
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	require.NotNil(t, cmd, "Expecting SCEP profile")
-	fullCmd = micromdm.CommandPayload{}
-	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-	require.NotNil(t, fullCmd.Command)
-	require.NotNil(t, fullCmd.Command.InstallProfile)
-	rawProfile = fullCmd.Command.InstallProfile.Payload
-	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(rawProfile)
-		require.NoError(t, err)
-		require.NoError(t, p7.Verify())
-		rawProfile = p7.Content
-	}
-
-	scepProfile = SCEPProfileContent{}
-	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
-	t.Logf("raw profile: %s", string(rawProfile))
-	require.Len(t, scepProfile.PayloadContent, 2)
-	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
-	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[1].PayloadType)
-	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
-	assert.Equal(t, ca1.Challenge, scepProfile.PayloadContent[1].PayloadContent.Challenge)
-	identifier = url.PathEscape(host.UUID + "," + profileUUID2 + "," + "scepName")
-	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
-	identifier = url.PathEscape(host.UUID + "," + profileUUID2 + "," + "scepName2")
-	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[1].PayloadContent.URL)
 
 	// ////////////////////////////////////////////
 	// Remove the CAs and try to re-send the profile
