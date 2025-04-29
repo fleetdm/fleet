@@ -3,7 +3,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { pick, findIndex } from "lodash";
+import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 
