@@ -226,7 +226,7 @@ function PoliciesPaginatedList(
       </div>
       <div className="modal-cta-wrap">
         <GitOpsModeTooltipWrapper
-          position="right"
+          position="top"
           tipOffset={8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
