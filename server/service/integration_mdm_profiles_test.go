@@ -5787,8 +5787,17 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		globalProfiles[0],
 		mobileconfigForTest("N2", "$FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
-		http.StatusNoContent)
+	// via the deprecated endpoint, this fails because variables are not supported
+	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "profile variables are not supported by this deprecated endpoint")
+
+	// via the new endpoint, this works
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: globalProfilesPlusOne[0]},
+		{Name: "N2", Contents: globalProfilesPlusOne[1]},
+	}}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
@@ -5826,8 +5835,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	assert.Len(t, profiles, 3)
 
 	// Add a profile again
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
-		http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: globalProfilesPlusOne[0]},
+		{Name: "N2", Contents: globalProfilesPlusOne[1]},
+	}}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
@@ -5876,8 +5887,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	assert.Empty(t, removes)
 
 	// Add a profile again
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
-		http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: globalProfilesPlusOne[0]},
+		{Name: "N2", Contents: globalProfilesPlusOne[1]},
+	}}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	// Delete a profile before it is sent to both devices
