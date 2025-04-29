@@ -3,17 +3,17 @@ import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
-interface DeletePackageModalProps {
+interface DeleteBootstrapPackageModalProps {
   onCancel: () => void;
   onDelete: () => void;
 }
 
-const baseClass = "delete-package-modal";
+const baseClass = "delete-bootstrap-package-modal";
 
-const DeletePackageModal = ({
+const DeleteBootstrapPackageModal = ({
   onCancel,
   onDelete,
-}: DeletePackageModalProps) => {
+}: DeleteBootstrapPackageModalProps) => {
   return (
     <Modal
       className={baseClass}
@@ -22,10 +22,14 @@ const DeletePackageModal = ({
       onEnter={() => onDelete()}
     >
       <>
-        <p>Delete the bootstrap package to upload a new one.</p>
         <p>
-          If you need to remove the package from macOS hosts already enrolled,
-          use your configuration management tool (ex. Munki, Chef, or Puppet).
+          Package won&apos;t be uninstalled from existing macOS hosts. Installs
+          or uninstalls currently running on a host will still complete.
+        </p>
+        <p>
+          Option to install Fleet&apos;s agent (fleetd) manually will be
+          disabled, so agent will be installed automatically during automatic
+          enollment of macOS hosts.
         </p>
         <div className="modal-cta-wrap">
           <Button type="button" onClick={() => onDelete()} variant="alert">
@@ -40,4 +44,4 @@ const DeletePackageModal = ({
   );
 };
 
-export default DeletePackageModal;
+export default DeleteBootstrapPackageModal;

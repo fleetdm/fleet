@@ -2,7 +2,7 @@ import React from "react";
 
 import Card from "components/Card";
 
-import InstallSoftwarePreviewImg from "../../../../../../../../assets/images/install-software-preview.png";
+import SetupExperienceRunScriptPreview from "../../../../../../../../assets/images/run-script-preview.png";
 
 const baseClass = "setup-experience-script-preview";
 
@@ -20,7 +20,7 @@ const SetupExperienceScriptPreview = () => {
       </p>
       <img
         className={`${baseClass}__preview-img`}
-        src={InstallSoftwarePreviewImg}
+        src={SetupExperienceRunScriptPreview}
         alt="End user experience during the macOS setup assistant with the uploaded
         script being run"
       />

@@ -11,12 +11,14 @@ const baseClass = "setup-experience-script-uploader";
 
 interface ISetupExperienceScriptUploaderProps {
   currentTeamId: number;
+  hasManualAgentInstall: boolean;
   onUpload: () => void;
   className?: string;
 }
 
 const SetupExperienceScriptUploader = ({
   currentTeamId,
+  hasManualAgentInstall,
   onUpload,
   className,
 }: ISetupExperienceScriptUploaderProps) => {
@@ -47,6 +49,14 @@ const SetupExperienceScriptUploader = ({
     setShowLoading(false);
   };
 
+  const manuallyInstallTooltipText = (
+    <>
+      Disabled because you manually install Fleet&apos;s agent (
+      <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap
+      package to install software during the setup experience.
+    </>
+  );
+
   return (
     <FileUploader
       className={classNames}
@@ -56,6 +66,8 @@ const SetupExperienceScriptUploader = ({
       buttonMessage="Upload"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
+      disabled={hasManualAgentInstall}
+      buttonTooltip={hasManualAgentInstall && manuallyInstallTooltipText}
       gitopsCompatible
     />
   );
