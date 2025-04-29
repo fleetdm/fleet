@@ -1,1 +1,1 @@
-- Fixed an issue where selections made on the Queries page were cleared a few seconds after page load.
+- Fixed an issue with the gitops command caused when trying to interpolate variables inside the 'description'/'remediation' sections.
