@@ -1696,6 +1696,15 @@ func (svc *Service) softwareBatchUpload(
 			case ok:
 				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
+				if foundInstaller.Extension == "exe" {
+					if p.InstallScript == "" {
+						return errors.New("Couldn't edit. Install script is required for .exe packages.")
+					}
+
+					if p.UninstallScript == "" {
+						return errors.New("Couldn't edit. Uninstall script is required for .exe packages.")
+					}
+				}
 				installer.Extension = foundInstaller.Extension
 				installer.Filename = foundInstaller.Filename
 				installer.Version = foundInstaller.Version
