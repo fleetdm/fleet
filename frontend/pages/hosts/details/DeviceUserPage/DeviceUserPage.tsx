@@ -26,6 +26,12 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import { isAppleDevice } from "interfaces/platform";
+import {
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -36,8 +42,10 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
 
-import { normalizeEmptyValues } from "utilities/helpers";
+import { getNextLocationPath, normalizeEmptyValues } from "utilities/helpers";
+import { convertParamsToSnakeCase } from "utilities/url";
 import PATHS from "router/paths";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -73,6 +81,7 @@ import {
   generateChromeProfilesValues,
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
+import { getHostSoftwareFilterFromQueryParams } from "../cards/Software/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
 
 const baseClass = "device-user";
@@ -104,6 +113,7 @@ interface IDeviceUserPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      per_page?: string;
     };
     search?: string;
   };
@@ -142,6 +152,9 @@ const DeviceUserPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
 
   // certificates states
   const [
@@ -328,6 +341,69 @@ const DeviceUserPage = ({
   const toggleOSSettingsModal = useCallback(() => {
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
+
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
+
+  /**  Compares vuln filters to current vuln query params */
+  const determineVulnFilterChange = useCallback(
+    (vulnFilters: ISoftwareVulnFiltersParams) => {
+      const queryParams = parseHostSoftwareQueryParams(location.query);
+      const changedEntry = Object.entries(vulnFilters).find(([key, val]) => {
+        switch (key) {
+          case "vulnerable":
+          case "exploit": {
+            // Normalize values: undefined → false, then compare
+            const current = queryParams[key] ?? false;
+            const incoming = val ?? false;
+            return incoming !== current;
+          }
+          case "minCvssScore":
+            return val !== queryParams.min_cvss_score;
+          case "maxCvssScore":
+            return val !== queryParams.max_cvss_score;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [location.query]
+  );
+
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+    const queryParams = location.query;
+
+    const newQueryParams = {
+      query: queryParams.query,
+      orderDirection: queryParams.order_direction,
+      orderKey: queryParams.order_key,
+      perPage: queryParams.per_page,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams(
+        getHostSoftwareFilterFromQueryParams(queryParams)
+      ),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
+    // We want to determine which query param has changed in order to
+    // reset the page index to 0 if any other param has changed.
+    const changedParam = determineVulnFilterChange(vulnFilters);
+
+    // Update the route only if a change is detected
+    if (changedParam) {
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          routeTemplate: "",
+          queryParams: convertParamsToSnakeCase(newQueryParams),
+        })
+      );
+    }
+
+    toggleSoftwareFiltersModal();
+  };
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -551,6 +627,7 @@ const DeviceUserPage = ({
                       hostTeamId={host.team_id || 0}
                       isSoftwareEnabled={isSoftwareEnabled}
                       onShowSoftwareDetails={setSelectedSoftwareDetails}
+                      toggleSoftwareFiltersModal={toggleSoftwareFiltersModal}
                     />
                   </TabPanel>
                 )}
@@ -628,6 +705,14 @@ const DeviceUserPage = ({
           <CertificateDetailsModal
             certificate={selectedCertificate}
             onExit={() => setSelectedCertificate(null)}
+          />
+        )}
+        {showSoftwareFiltersModal && (
+          <SoftwareFiltersModal
+            onExit={toggleSoftwareFiltersModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(location.query)}
+            isPremiumTier={isPremiumTier || false}
           />
         )}
       </div>
