@@ -10,6 +10,8 @@ The `generate-gitops` command is a migration tool that takes your existing Fleet
 
 ## Basic usage
 
+> First ensure that [you have fleetctl installed])https://fleetdm.com/guides/fleetctl) and have logged in via `fleetctl login`.
+
 To generate a new set of GitOps files reflecting your current configuration, open a terminal and run:
 
 `fleetctl generate-gitops --dir /path/to/your/desired/gitops/folder`
