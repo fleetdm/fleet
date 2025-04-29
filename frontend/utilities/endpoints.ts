@@ -136,11 +136,15 @@ export default {
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (
+    token: string,
+    ref?: string,
+    deviceinfo?: string
+  ) => {
     const query = new URLSearchParams({ token });
-    if (ref) {
-      query.append("enrollment_reference", ref);
-    }
+    ref && query.append("enrollment_reference", ref);
+    deviceinfo && query.append("deviceinfo", deviceinfo);
+
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
