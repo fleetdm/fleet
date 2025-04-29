@@ -62,6 +62,8 @@ After following steps above, you should be able to see latest requests from your
 
 To verify that user information is added to a host, go to the host that has IdP username assigned, and verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
 
+> Currently, the IdP username is supported only on macOS hosts. It is added during automatic enrollment (DEP) if [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-setup) is enabled.
+
 ### Troubleshooting
 
 If you find that information from IdP (e.g full name or groups) is missing on the host, and host has IdP username assigned to it, follow steps below to resolve.
