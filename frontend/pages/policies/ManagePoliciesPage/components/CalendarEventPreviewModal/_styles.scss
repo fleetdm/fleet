@@ -61,7 +61,12 @@
     align-self: stretch;
 
     &__text__user-text {
-        white-space: pre-wrap;
+      a {
+        color: $core-fleet-black;
+        font-weight: normal;
+        text-decoration: underline;
+      }
+      white-space: pre-wrap;
     }
   }
 

@@ -85,15 +85,22 @@ const CalendarEventPreviewModal = ({
                     <ul>
                       <li>
                         Click the{" "}
-                        <a href={`${FLEET_WEBSITE_URL}/better`}>Fleet</a> icon
-                        in your computer&apos;s menu and select <b>My device</b>
+                        <a
+                          href={`${FLEET_WEBSITE_URL}/better`}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Fleet
+                        </a>{" "}
+                        icon in your computer&apos;s menu and select{" "}
+                        <b>My device</b>
                       </li>
                       <li>
                         Navigate to the <b>Policies</b> tab
                       </li>
                       <li>
                         Follow instructions to resolve any policies marked{" "}
-                        {"No"}
+                        {`"No"`}
                       </li>
                       <li>
                         Click <b>Refetch</b>
@@ -124,7 +131,7 @@ const CalendarEventPreviewModal = ({
           ) : (
             <>
               <strong>Why it matters</strong> and{" "}
-              <strong>What we&apos;ll do</strong> are populated by the
+              <strong>Maintenance required</strong> are populated by the
               policy&apos;s <strong>Description</strong> and{" "}
               <strong>Resolution</strong> respectively.
             </>
