@@ -114,6 +114,8 @@ interface ITableContainerProps<T = any> {
   disableTableHeader?: boolean;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
+  /** Set to `true` to not display the footer section of the table */
+  hideFooter?: boolean;
   /** handler called when the  `clear selection` button is called */
   onClearSelection?: () => void;
 }
@@ -161,6 +163,7 @@ const TableContainer = <T,>({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
+  hideFooter,
   onQueryChange,
   customControl,
   customFiltersButton,
@@ -301,8 +304,8 @@ const TableContainer = <T,>({
             renderChildren={(disableChildren) => (
               <Button
                 disabled={disableActionButton || disableChildren}
-                onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "brand"}
+                onClick={actionButton.onClick}
+                variant={actionButton.variant || "default"}
                 className={`${baseClass}__table-action-button`}
               >
                 <>
@@ -317,8 +320,8 @@ const TableContainer = <T,>({
       return (
         <Button
           disabled={disableActionButton}
-          onClick={actionButton.onActionButtonClick}
-          variant={actionButton.variant || "brand"}
+          onClick={actionButton.onClick}
+          variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
         >
           <>
@@ -558,6 +561,7 @@ const TableContainer = <T,>({
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
                 persistSelectedRows={persistSelectedRows}
+                hideFooter={hideFooter}
               />
             </div>
           </>

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import isDataURI from "validator/lib/isDataURI";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
@@ -120,27 +121,20 @@ const Info = ({
               gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
             }`}
           >
-            <InputField
-              label="Organization name"
-              onChange={onInputChange}
-              name="orgName"
-              value={orgName}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.org_name}
-            />
-            <InputField
-              label="Organization support URL"
-              onChange={onInputChange}
-              name="orgSupportURL"
-              value={orgSupportURL}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.org_support_url}
-            />
+            <p className={`${baseClass}__section-description`}>
+              This logo is displayed in the top navigation, setup experience
+              window, and MDM migration dialog. Please use recommended sizes.
+              Please use{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/organization-logo-size"
+                text="recommended sizes"
+                newTab
+                multiline
+              />
+            </p>
             <div className={`${cardClass}__logo-field-set`}>
               <InputField
-                label="Organization avatar URL (for dark backgrounds)"
+                label="Logo URL for dark background"
                 onChange={onInputChange}
                 name="orgLogoURL"
                 value={orgLogoURL}
@@ -162,7 +156,7 @@ const Info = ({
             </div>
             <div className={`${cardClass}__logo-field-set`}>
               <InputField
-                label="Organization avatar URL (for light backgrounds)"
+                label="Logo URL for light background"
                 onChange={onInputChange}
                 name="orgLogoURLLightBackground"
                 value={orgLogoURLLightBackground}
@@ -182,13 +176,30 @@ const Info = ({
                 />
               </div>
             </div>
+            <InputField
+              label="Organization name"
+              onChange={onInputChange}
+              name="orgName"
+              value={orgName}
+              parseTarget
+              onBlur={validateForm}
+              error={formErrors.org_name}
+            />
+            <InputField
+              label="Organization support URL"
+              onChange={onInputChange}
+              name="orgSupportURL"
+              value={orgSupportURL}
+              parseTarget
+              onBlur={validateForm}
+              error={formErrors.org_support_url}
+            />
           </div>
           <GitOpsModeTooltipWrapper
             tipOffset={-8}
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                variant="brand"
                 disabled={Object.keys(formErrors).length > 0 || disableChildren}
                 className="button-wrap"
                 isLoading={isUpdatingSettings}

@@ -20,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -264,7 +264,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 2. Connect the device to WIFI.
 3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
 4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
-> If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
+> If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
 
 ### Ship approved equipment
@@ -274,7 +274,7 @@ Once the Digital Experience department approves inventory to be shipped from Fle
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
 4. Change the "host" info to reflect the new user.
-  - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT to troubleshoot the device.
+  - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
@@ -321,14 +321,14 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
 ### Update personnel details
 
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
-1. Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
+1. Team member submits a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=x-teammate-relocation.md) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
     - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
 2. Digital Experience makes change to HRIS (Gusto or Plane) to reflect change. 
-    - Note: if making the change requires follow up steps, resolve those steps to action the change.
+    - Note: if making the change requires follow-up steps, resolve those steps to action the change.
 3. Once change is effected in HRIS, Digital Experience makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
 4. If required, Digital Experience makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
 5. If required, Digital Experience makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
-6. If required, Digital Experience also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
+6. If required, Digital Experience also makes changes to other core systems (e.g., creating a new email alias in Google Workspace, updating details in Carta, etc.).
 7. The change is now actioned, notify the team member and close the issue.
 
 > Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
@@ -499,7 +499,7 @@ Every Friday, we collect hours worked for all hourly employees at Fleet, includi
 
 ### Convert a Fleetie to a consultant
 
-If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the Digital Experience team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify them of the change.
+If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the Digital Experience team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Request%3A+_______________________) to notify them of the change.
 Once notified, Digital Experience takes the following steps:
 1. Confirm the following details with the Fleetie:
     - Date of change
@@ -846,6 +846,17 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
   6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
   7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
   8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+
+
+### Connect with active community members
+
+Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
+ 1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
+ 2. Copy the LinkedIn URLs.
+ 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+
+ ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
+
 
 
 ### Schedule travel for the CEO

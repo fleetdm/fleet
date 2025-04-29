@@ -30,6 +30,7 @@ import hostCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
+
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,
@@ -113,6 +114,7 @@ import DeleteHostModal from "../components/DeleteHostModal";
 import DeleteLabelModal from "./components/DeleteLabelModal";
 import LabelFilterSelect from "./components/LabelFilterSelect";
 import HostsFilterBlock from "./components/HostsFilterBlock";
+import RunScriptBatchModal from "./components/RunScriptBatchModal";
 
 interface IManageHostsProps {
   route: RouteProps;
@@ -161,6 +163,7 @@ const ManageHostsPage = ({
 
   const {
     currentTeamId,
+    isAllTeamsSelected,
     currentTeamName,
     isAnyTeamSelected,
     isRouteOk,
@@ -213,6 +216,8 @@ const ManageHostsPage = ({
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
+  const [showRunScriptBatchModal, setShowRunScriptBatchModal] = useState(false);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
@@ -223,9 +228,7 @@ const ManageHostsPage = ({
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
-  const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
-  const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   // ========= queryParams
   const policyId = queryParams?.policy_id;
@@ -295,6 +298,8 @@ const ManageHostsPage = ({
   const canAddNewLabels =
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
     false;
+  const canRunScriptBatch =
+    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
@@ -528,6 +533,10 @@ const ManageHostsPage = ({
   const toggleAddHostsModal = () => {
     setShowAddHostsModal(!showAddHostsModal);
   };
+
+  const toggleRunScriptBatchModal = useCallback(() => {
+    setShowRunScriptBatchModal(!showRunScriptBatchModal);
+  }, [showRunScriptBatchModal]);
 
   const toggleEditColumnsModal = () => {
     setShowEditColumnsModal(!showEditColumnsModal);
@@ -960,7 +969,7 @@ const ManageHostsPage = ({
       newSecrets.push({ secret: enrollSecretString });
     }
 
-    setIsUpdatingSecret(true);
+    setIsUpdating(true);
 
     try {
       if (isAnyTeamSelected) {
@@ -997,7 +1006,7 @@ const ManageHostsPage = ({
         } enroll secret. Please try again.`
       );
     } finally {
-      setIsUpdatingSecret(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1013,7 +1022,7 @@ const ManageHostsPage = ({
       (s) => s.secret !== selectedSecret?.secret
     );
 
-    setIsUpdatingSecret(true);
+    setIsUpdating(true);
 
     try {
       if (isAnyTeamSelected) {
@@ -1041,7 +1050,7 @@ const ManageHostsPage = ({
       console.error(error);
       renderFlash("error", "Could not delete enroll secret. Please try again.");
     } finally {
-      setIsUpdatingSecret(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1050,7 +1059,7 @@ const ManageHostsPage = ({
       console.error("Label isn't available. This should not happen.");
       return false;
     }
-    setIsUpdatingLabel(true);
+    setIsUpdating(true);
 
     const { MANAGE_HOSTS } = PATHS;
     try {
@@ -1070,13 +1079,18 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash("error", getDeleteLabelErrorMessages(error));
     } finally {
-      setIsUpdatingLabel(false);
+      setIsUpdating(false);
     }
   };
 
   const onTransferToTeamClick = (hostIds: number[]) => {
     toggleTransferHostModal();
     setSelectedHostIds(hostIds);
+  };
+
+  const onClickRunScriptBatchAction = (hostIds: number[]) => {
+    setSelectedHostIds(hostIds);
+    toggleRunScriptBatchModal();
   };
 
   const onDeleteHostsClick = (hostIds: number[]) => {
@@ -1086,7 +1100,7 @@ const ManageHostsPage = ({
 
   // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
-    setIsUpdatingHosts(true);
+    setIsUpdating(true);
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
 
@@ -1135,13 +1149,13 @@ const ManageHostsPage = ({
     } catch (error) {
       renderFlash("error", "Could not transfer hosts. Please try again.");
     } finally {
-      setIsUpdatingHosts(false);
+      setIsUpdating(false);
     }
   };
 
   // Bulk delete is hidden for defined unsupportedFilters
   const onDeleteHostSubmit = async () => {
-    setIsUpdatingHosts(true);
+    setIsUpdating(true);
 
     try {
       await (isAllMatchingHostsSelected
@@ -1190,7 +1204,7 @@ const ManageHostsPage = ({
         }. Please try again.`
       );
     } finally {
-      setIsUpdatingHosts(false);
+      setIsUpdating(false);
     }
   };
 
@@ -1226,7 +1240,7 @@ const ManageHostsPage = ({
       onSaveSecret={onSaveSecret}
       toggleSecretEditorModal={toggleSecretEditorModal}
       selectedSecret={selectedSecret}
-      isUpdatingSecret={isUpdatingSecret}
+      isUpdatingSecret={isUpdating}
     />
   );
 
@@ -1236,7 +1250,7 @@ const ManageHostsPage = ({
       selectedTeam={teamIdForApi || 0}
       teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
-      isUpdatingSecret={isUpdatingSecret}
+      isUpdatingSecret={isUpdating}
     />
   );
 
@@ -1256,7 +1270,7 @@ const ManageHostsPage = ({
     <DeleteLabelModal
       onSubmit={onDeleteLabel}
       onCancel={toggleDeleteLabelModal}
-      isUpdatingLabel={isUpdatingLabel}
+      isUpdatingLabel={isUpdating}
     />
   );
 
@@ -1287,7 +1301,7 @@ const ManageHostsPage = ({
         teams={teams}
         onSubmit={onTransferHostSubmit}
         onCancel={toggleTransferHostModal}
-        isUpdating={isUpdatingHosts}
+        isUpdating={isUpdating}
         multipleHosts={selectedHostIds.length > 1}
       />
     );
@@ -1300,7 +1314,7 @@ const ManageHostsPage = ({
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
       hostsCount={hostsCount}
-      isUpdating={isUpdatingHosts}
+      isUpdating={isUpdating}
     />
   );
 
@@ -1491,7 +1505,7 @@ const ManageHostsPage = ({
           emptyHosts.info =
             "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
-            <Button variant="brand" onClick={toggleAddHostsModal} type="button">
+            <Button onClick={toggleAddHostsModal} type="button">
               Add hosts
             </Button>
           );
@@ -1512,10 +1526,36 @@ const ManageHostsPage = ({
       );
     }
 
+    let disableRunScriptBatchTooltipContent: React.ReactNode;
+    if (config?.server_settings?.scripts_disabled) {
+      disableRunScriptBatchTooltipContent = (
+        <>
+          Running scripts is disabled in <br />
+          organization settings.
+        </>
+      );
+    } else if (isAllTeamsSelected && isPremiumTier) {
+      disableRunScriptBatchTooltipContent = "Select a team to run a script";
+    } else if (isAllMatchingHostsSelected) {
+      disableRunScriptBatchTooltipContent =
+        "Select specific hosts to run a script";
+    }
+
     const secondarySelectActions: IActionButtonProps[] = [
       {
+        name: "run-script",
+        onClick: onClickRunScriptBatchAction,
+        buttonText: "Run script",
+        variant: "text-icon",
+        iconSvg: "run",
+        iconStroke: true,
+        hideButton: !canRunScriptBatch,
+        isDisabled: !!disableRunScriptBatchTooltipContent,
+        tooltipContent: disableRunScriptBatchTooltipContent,
+      },
+      {
         name: "transfer",
-        onActionButtonClick: onTransferToTeamClick,
+        onClick: onTransferToTeamClick,
         buttonText: "Transfer",
         variant: "text-icon",
         iconSvg: "transfer",
@@ -1587,14 +1627,14 @@ const ManageHostsPage = ({
           buttonText: "Edit columns",
           iconSvg: "columns",
           variant: "text-icon",
-          onActionButtonClick: toggleEditColumnsModal,
+          onClick: toggleEditColumnsModal,
         }}
         primarySelectAction={{
           name: "delete host",
           buttonText: "Delete",
           iconSvg: "trash",
           variant: "text-icon",
-          onActionButtonClick: onDeleteHostsClick,
+          onClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
@@ -1672,7 +1712,6 @@ const ManageHostsPage = ({
                 <Button
                   onClick={toggleAddHostsModal}
                   className={`${baseClass}__add-hosts`}
-                  variant="brand"
                 >
                   <span>Add hosts</span>
                 </Button>
@@ -1740,6 +1779,13 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
+      {showRunScriptBatchModal && currentTeamId && (
+        <RunScriptBatchModal
+          selectedHostIds={selectedHostIds}
+          onCancel={toggleRunScriptBatchModal}
+          teamId={currentTeamId}
+        />
+      )}
     </>
   );
 };

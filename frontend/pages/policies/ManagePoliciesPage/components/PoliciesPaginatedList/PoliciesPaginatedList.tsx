@@ -203,7 +203,7 @@ function PoliciesPaginatedList(
           fetchPage={fetchPage}
           fetchCount={fetchCount}
           isSelected={isSelected}
-          onToggleItem={onToggleItem}
+          onClickRow={onToggleItem}
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
@@ -226,7 +226,6 @@ function PoliciesPaginatedList(
             >
               <Button
                 type="submit"
-                variant="brand"
                 onClick={onClickSave}
                 className="save-loading"
                 isLoading={isUpdating}

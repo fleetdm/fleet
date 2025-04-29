@@ -181,36 +181,6 @@ const Calendars = (): JSX.Element => {
     }
   };
 
-  const renderOauthLabel = () => {
-    const onCopyOauthScopes = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(OAUTH_SCOPES)
-        .then(() => setCopyMessage(() => "Copied!"))
-        .catch(() => setCopyMessage(() => "Copy failed"));
-
-      // Clear message after 1 second
-      setTimeout(() => setCopyMessage(() => ""), 1000);
-
-      return false;
-    };
-
-    return (
-      <span className={`${baseClass}__oauth-scopes-copy-icon-wrapper`}>
-        <Button
-          variant="unstyled"
-          className={`${baseClass}__oauth-scopes-copy-icon`}
-          onClick={onCopyOauthScopes}
-        >
-          <Icon name="copy" />
-        </Button>
-        {copyMessage && (
-          <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
-        )}
-      </span>
-    );
-  };
-
   const renderForm = () => {
     return (
       <>
@@ -343,7 +313,6 @@ const Calendars = (): JSX.Element => {
                       renderChildren={(dC) => (
                         <Button
                           type="submit"
-                          variant="brand"
                           disabled={Object.keys(formErrors).length > 0 || dC}
                           className="save-loading"
                           isLoading={isUpdatingSettings}
@@ -389,7 +358,8 @@ const Calendars = (): JSX.Element => {
                   readOnly
                   inputWrapperClass={`${baseClass}__oauth-scopes`}
                   name="oauth-scopes"
-                  label={renderOauthLabel()}
+                  enableCopy
+                  copyButtonPosition="inside"
                   type="textarea"
                   value={OAUTH_SCOPES}
                 />

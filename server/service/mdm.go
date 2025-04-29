@@ -22,8 +22,10 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -671,6 +673,10 @@ func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		return svc.getDeviceSoftwareMDMCommandResults(ctx, commandUUID)
+	}
+
 	// first, authorize that the user has the right to list hosts
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
@@ -753,6 +759,25 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 			res.Hostname = hostsByUUID[res.HostUUID].Hostname
 		}
 	}
+	return results, nil
+}
+
+func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	host, ok := hostctx.FromContext(ctx) // includes UUID and hostname so we have what we need to filter results
+	if !ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+
+	// zero-length result (command exists but no responses) is different from not-found (no command, command isn't an install, or wrong host)
+	results, err := svc.ds.GetVPPCommandResults(ctx, commandUUID, host.UUID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, res := range results {
+		res.Hostname = host.Hostname
+	}
+
 	return results, nil
 }
 
@@ -1635,9 +1660,12 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
-	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating labels")
+	var labelMap map[string]fleet.ConfigurationProfileLabel
+	if !dryRun {
+		labelMap, err = svc.batchValidateProfileLabels(ctx, labels)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validating labels")
+		}
 	}
 
 	// We will not validate the profiles containing secret variables during dry run.

@@ -50,7 +50,8 @@ type updateSoftwareInstallerRequest struct {
 }
 
 type uploadSoftwareInstallerResponse struct {
-	Err error `json:"error,omitempty"`
+	SoftwarePackage *fleet.SoftwareInstaller `json:"software_package,omitempty"`
+	Err             error                    `json:"error,omitempty"`
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
@@ -359,18 +360,20 @@ func uploadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		AutomaticInstall:  req.AutomaticInstall,
 	}
 
-	if err := svc.UploadSoftwareInstaller(ctx, payload); err != nil {
+	installer, err := svc.UploadSoftwareInstaller(ctx, payload)
+	if err != nil {
 		return uploadSoftwareInstallerResponse{Err: err}, nil
 	}
-	return &uploadSoftwareInstallerResponse{}, nil
+
+	return &uploadSoftwareInstallerResponse{SoftwarePackage: installer}, nil
 }
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return nil, fleet.ErrMissingLicense
 }
 
 type deleteSoftwareInstallerRequest struct {
@@ -594,12 +597,37 @@ type getSoftwareInstallResultsRequest struct {
 	InstallUUID string `url:"install_uuid"`
 }
 
+type getDeviceSoftwareInstallResultsRequest struct {
+	Token       string `url:"token"`
+	InstallUUID string `url:"install_uuid"`
+}
+
+func (r *getDeviceSoftwareInstallResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
 type getSoftwareInstallResultsResponse struct {
 	Err     error                              `json:"error,omitempty"`
 	Results *fleet.HostSoftwareInstallerResult `json:"results,omitempty"`
 }
 
 func (r getSoftwareInstallResultsResponse) Error() error { return r.Err }
+
+func getDeviceSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareInstallResultsRequest)
+	results, err := svc.GetSoftwareInstallResults(ctx, req.InstallUUID)
+	if err != nil {
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	return &getSoftwareInstallResultsResponse{Results: results}, nil
+}
 
 func getSoftwareInstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareInstallResultsRequest)

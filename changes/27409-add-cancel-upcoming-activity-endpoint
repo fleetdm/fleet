@@ -1,1 +1,0 @@
-* Added the `DELETE /api/latest/fleet/hosts/:id/activities/upcoming/:activity_id` endpoint to cancel an upcoming activity for a host.

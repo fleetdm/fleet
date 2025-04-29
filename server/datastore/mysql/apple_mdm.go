@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -520,9 +521,11 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 		hmap.profile_uuid,
 		hmap.status,
 		hmmc.challenge_retrieved_at,
+		hmmc.not_valid_before,
 		hmmc.not_valid_after,
 		hmmc.type,
-		hmmc.ca_name
+		hmmc.ca_name,
+		hmmc.serial
 	FROM
 		host_mdm_apple_profiles hmap
 	JOIN host_mdm_managed_certificates hmmc
@@ -548,6 +551,65 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "clean up mdm certificate profiles")
 	}
 	return nil
+}
+
+// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
+	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(hmap.status=null) and which
+	// * Have a validity period > 30 days and are expiring in the next 30 days
+	// * Have a validity period <= 30 days and are within half the validity period of expiration
+	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
+	// we don't actually need them for the update logic.
+	hostCertsToRenew := []struct {
+		HostUUID       string    `db:"host_uuid"`
+		ProfileUUID    string    `db:"profile_uuid"`
+		NotValidAfter  time.Time `db:"not_valid_after"`
+		ValidityPeriod int       `db:"validity_period"`
+	}{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT
+		hmmc.host_uuid, 
+		hmmc.profile_uuid, 
+		hmmc.not_valid_after, 
+		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
+	FROM 
+		host_mdm_managed_certificates hmmc
+	INNER JOIN 
+		host_mdm_apple_profiles hmap 
+		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
+	WHERE 
+		hmmc.type = ? AND hmap.status IS NOT NULL
+	HAVING
+		validity_period IS NOT NULL AND
+		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
+		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
+	LIMIT 1000`, fleet.CAConfigDigiCert)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+	}
+	if len(hostCertsToRenew) == 0 {
+		level.Debug(ds.logger).Log("msg", "No digicert certificates to renew")
+		return nil
+	}
+
+	// This will trigger a resend next time profiles are checked
+	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE `
+	hostProfileClause := ``
+	values := []interface{}{}
+	for _, hostCertToRenew := range hostCertsToRenew {
+		hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
+		values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+	}
+
+	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert certificates", "len(hostCertsToRenew)", len(hostCertsToRenew))
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, updateQuery+strings.TrimSuffix(hostProfileClause, " OR "), values...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
+		}
+		return nil
+	})
+	return err
 }
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
@@ -665,6 +727,65 @@ func (ds *Datastore) GetMDMAppleCommandRequestType(ctx context.Context, commandU
 	return rt, err
 }
 
+func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*fleet.MDMCommandResult, error) {
+	var results []*fleet.MDMCommandResult
+	err := sqlx.SelectContext(
+		ctx,
+		ds.reader(ctx),
+		&results,
+		`
+SELECT
+    ncr.id as host_uuid,
+    ncr.command_uuid,
+    ncr.status,
+    ncr.result,
+    ncr.updated_at,
+    nc.request_type,
+    nc.command as payload
+FROM
+    nano_command_results ncr
+INNER JOIN
+    nano_commands nc
+ON
+    ncr.command_uuid = nc.command_uuid AND ncr.id = ? AND ncr.command_uuid = ?
+LEFT JOIN host_vpp_software_installs hvsi ON ncr.command_uuid = hvsi.command_uuid
+LEFT JOIN upcoming_activities ua ON ncr.command_uuid = ua.execution_id AND ua.activity_type = 'software_install'
+WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
+`,
+		hostUUID,
+		commandUUID,
+	)
+
+	if err == sql.ErrNoRows || len(results) == 0 {
+		var validCommandExists bool
+		err = sqlx.GetContext(
+			ctx,
+			ds.reader(ctx),
+			&validCommandExists,
+			`SELECT COUNT(*) > 0 command_exists
+					FROM hosts h
+					LEFT JOIN host_vpp_software_installs hvsi ON h.id = hvsi.host_id AND hvsi.command_uuid = ?
+					LEFT JOIN upcoming_activities ua ON h.id = ua.host_id AND ua.execution_id = ?
+					WHERE h.uuid = ? AND (hvsi.id IS NOT NULL OR ua.id IS NOT NULL)`,
+			commandUUID,
+			commandUUID,
+			hostUUID,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get vpp command existence")
+		}
+		if validCommandExists {
+			return nil, nil // no results, but command did reference a VPP install
+		}
+		return nil, notFound("HostMDMCommand").WithName(commandUUID)
+	}
+
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp command results")
+	}
+	return results, nil
+}
+
 func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 	query := `
 SELECT
@@ -693,6 +814,7 @@ WHERE
 		query,
 		commandUUID,
 	)
+
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
@@ -885,8 +1007,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 func mdmHostEnrollFields(mdmHost *fleet.Host) (refetchRequested bool, lastEnrolledAt time.Time) {
 	supportsOsquery := mdmHost.SupportsOsquery()
-	// 2000-01-01 00:00:00 is what Fleet considers the zero/"Never" time.
-	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", "2000-01-01 00:00:00")
+	lastEnrolledAt, err := time.Parse("2006-01-02 15:04:05", server.NeverTimestamp)
 	if err != nil {
 		panic(err)
 	}
@@ -988,7 +1109,7 @@ func insertMDMAppleHostDB(
 		mdmHost.HardwareModel,
 		mdmHost.Platform,
 		lastEnrolledAt,
-		"2000-01-01 00:00:00",
+		server.NeverTimestamp,
 		mdmHost.UUID,
 		refetchRequested,
 	)
@@ -1064,8 +1185,8 @@ func createHostFromMDMDB(
 				us.hardware_serial,
 				COALESCE(GROUP_CONCAT(DISTINCT us.hardware_model), ''),
 				us.platform,
-				'2000-01-01 00:00:00' AS last_enrolled_at,
-				'2000-01-01 00:00:00' AS detail_updated_at,
+				'`+server.NeverTimestamp+`' AS last_enrolled_at,
+				'`+server.NeverTimestamp+`' AS detail_updated_at,
 				NULL AS osquery_host_id,
 				IF(us.platform = 'ios' OR us.platform = 'ipados', 0, 1) AS refetch_requested,
 				CASE
@@ -2776,8 +2897,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError}
+		args := []any{
+			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError,
+		}
 		return valuePart, args
 	}
 
@@ -4218,8 +4341,8 @@ WHERE h.uuid = ?
 }
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint,
-	incomingDeclarations []*fleet.MDMAppleDeclaration) (updatedDB bool, err error) {
-
+	incomingDeclarations []*fleet.MDMAppleDeclaration,
+) (updatedDB bool, err error) {
 	// First, build a list of names (which are usually filenames) for the incoming declarations.
 	// We will keep the existing ones if there's a match and no change.
 	// At the same time, index the incoming declarations keyed by name for ease of processing.
@@ -4264,7 +4387,8 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 }
 
 func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx sqlx.ExtContext,
-	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint) (updatedDB bool, err error) {
+	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint,
+) (updatedDB bool, err error) {
 	var incomingLabels []fleet.ConfigurationProfileLabel
 	var declWithoutLabels []string
 	if len(incomingDeclarationsMap) > 0 {
@@ -4331,7 +4455,8 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 }
 
 func (ds *Datastore) insertOrUpdateDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingDeclarations []*fleet.MDMAppleDeclaration,
-	teamID uint) (updatedDB bool, err error) {
+	teamID uint,
+) (updatedDB bool, err error) {
 	const insertStmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -4375,7 +4500,8 @@ ON DUPLICATE KEY UPDATE
 
 // deleteObsoleteDeclarations deletes all declarations that are not in the keepNames list.
 func (ds *Datastore) deleteObsoleteDeclarations(ctx context.Context, tx sqlx.ExtContext, keepNames []string, teamID uint) (updatedDB bool,
-	err error) {
+	err error,
+) {
 	const fmtDeleteStmt = `
 DELETE FROM
   mdm_apple_declarations
@@ -4404,7 +4530,8 @@ WHERE
 }
 
 func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingNames []string,
-	teamID uint) ([]*fleet.MDMAppleDeclaration, error) {
+	teamID uint,
+) ([]*fleet.MDMAppleDeclaration, error) {
 	const loadExistingDecls = `
 SELECT
   name,
@@ -5877,16 +6004,20 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
               host_uuid,
               profile_uuid,
               challenge_retrieved_at,
+			  not_valid_before,
 	          not_valid_after,
 			  type,
-			  ca_name
+			  ca_name,
+			  serial
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
               challenge_retrieved_at = VALUES(challenge_retrieved_at),
+			  not_valid_before = VALUES(not_valid_before),
 			  not_valid_after = VALUES(not_valid_after),
 			  type = VALUES(type),
-			  ca_name = VALUES(ca_name)`,
+			  ca_name = VALUES(ca_name),
+			  serial = VALUES(serial)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -5895,8 +6026,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidAfter, p.Type, p.CAName}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
 		return valuePart, args
 	}
 

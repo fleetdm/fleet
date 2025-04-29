@@ -98,7 +98,6 @@ const SelectSoftwareModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 disabled={disableChildren}
-                variant="brand"
                 onClick={onSaveSelectedSoftware}
                 isLoading={isSaving}
               >

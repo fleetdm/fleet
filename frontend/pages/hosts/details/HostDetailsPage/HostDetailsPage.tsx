@@ -49,7 +49,7 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
@@ -112,6 +112,7 @@ import {
   generateOtherEmailsValues,
   generateUsernameValues,
 } from "../cards/User/helpers";
+import HostHeader from "../cards/HostHeader";
 
 const baseClass = "host-details";
 
@@ -792,6 +793,20 @@ const HostDetailsPage = ({
     );
   };
 
+  const onSuccessCancelActivity = (activity: IHostUpcomingActivity) => {
+    if (!host) return;
+
+    // only for windows and linux hosts we want to refetch host details
+    // after cancelling ran script activity. This is because lock and wipe
+    // activites are run as scripts on windows and linux hosts.
+    if (
+      activity.type === ActivityType.RanScript &&
+      (host.platform === "windows" || isLinuxLike(host.platform))
+    ) {
+      refetchHostDetails();
+    }
+  };
+
   if (
     !host ||
     isLoadingHost ||
@@ -902,22 +917,15 @@ const HostDetailsPage = ({
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
           />
         </div>
-        <HostSummaryCard
-          summaryData={summaryData}
-          bootstrapPackageData={bootstrapPackageData}
-          isPremiumTier={isPremiumTier}
-          toggleOSSettingsModal={toggleOSSettingsModal}
-          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostSettings={host?.mdm.profiles ?? []}
-          showRefetchSpinner={showRefetchSpinner}
-          onRefetchHost={onRefetchHost}
-          renderActionDropdown={renderActionDropdown}
-          osSettings={host?.mdm.os_settings}
-          osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-            host.platform
-          )}
-          hostMdmDeviceStatus={hostMdmDeviceStatus}
-        />
+        <div className={`${baseClass}__header-summary`}>
+          <HostHeader
+            summaryData={summaryData}
+            showRefetchSpinner={showRefetchSpinner}
+            onRefetchHost={onRefetchHost}
+            renderActionDropdown={renderActionDropdown}
+            hostMdmDeviceStatus={hostMdmDeviceStatus}
+          />
+        </div>
         <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
@@ -937,6 +945,19 @@ const HostDetailsPage = ({
               })}
             </TabList>
             <TabPanel className={`${baseClass}__details-panel`}>
+              <HostSummaryCard
+                summaryData={summaryData}
+                bootstrapPackageData={bootstrapPackageData}
+                isPremiumTier={isPremiumTier}
+                toggleOSSettingsModal={toggleOSSettingsModal}
+                toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                hostSettings={host?.mdm.profiles ?? []}
+                osSettings={host?.mdm.os_settings}
+                osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+                  host.platform
+                )}
+                className={fullWidthCardClass}
+              />
               <AboutCard
                 className={
                   showUsersCard ? defaultCardClass : fullWidthCardClass
@@ -952,7 +973,7 @@ const HostDetailsPage = ({
                   endUsers={host.end_users ?? []}
                   enableAddEndUser={
                     isDarwinHost &&
-                    generateUsernameValues(host.end_users ?? []).length !== 0
+                    generateUsernameValues(host.end_users ?? []).length === 0
                   }
                   onAddEndUser={() => setShowAddEndUserModal(true)}
                 />
@@ -1221,16 +1242,7 @@ const HostDetailsPage = ({
             hostId={host.id}
             activity={selectedCancelActivity}
             onCancelActivity={() => refetchUpcomingActivities()}
-            onSuccessCancel={(activity) => {
-              // only for windows and linux hosts we want to refetch host details
-              if (
-                (activity.type === ActivityType.RanScript &&
-                  host.platform === "windows") ||
-                host.platform === "linux"
-              ) {
-                refetchHostDetails();
-              }
-            }}
+            onSuccessCancel={onSuccessCancelActivity}
             onExit={() => setSelectedCancelActivity(null)}
           />
         )}

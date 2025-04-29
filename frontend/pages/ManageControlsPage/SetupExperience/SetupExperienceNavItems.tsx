@@ -6,7 +6,7 @@ import EndUserAuthentication from "./cards/EndUserAuthentication/EndUserAuthenti
 import BootstrapPackage from "./cards/BootstrapPackage";
 import SetupAssistant from "./cards/SetupAssistant";
 import InstallSoftware from "./cards/InstallSoftware";
-import SetupExperienceScript from "./cards/SetupExperienceScript";
+import RunScript from "./cards/RunScript";
 
 interface ISetupExperienceCardProps {
   currentTeamId?: number;
@@ -23,28 +23,28 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<
     Card: EndUserAuthentication,
   },
   {
-    title: "2. Setup assistant",
-    urlSection: "setup-assistant",
-    path: PATHS.CONTROLS_SETUP_ASSITANT,
-    Card: SetupAssistant,
-  },
-  {
-    title: "3. Bootstrap package",
+    title: "2. Bootstrap package",
     urlSection: "bootstrap-package",
     path: PATHS.CONTROLS_BOOTSTRAP_PACKAGE,
     Card: BootstrapPackage,
   },
   {
-    title: "4. Install software",
+    title: "3. Install software",
     urlSection: "install-software",
     path: PATHS.CONTROLS_INSTALL_SOFTWARE,
     Card: InstallSoftware,
   },
   {
-    title: "5. Run script",
+    title: "4. Run script",
     urlSection: "run-script",
     path: PATHS.CONTROLS_RUN_SCRIPT,
-    Card: SetupExperienceScript,
+    Card: RunScript,
+  },
+  {
+    title: "5. Setup assistant",
+    urlSection: "setup-assistant",
+    path: PATHS.CONTROLS_SETUP_ASSITANT,
+    Card: SetupAssistant,
   },
 ];
 

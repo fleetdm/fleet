@@ -159,10 +159,8 @@ const RunScriptModal = ({
             />
           )}
         </div>
-        <div className={`modal-cta-wrap`}>
-          <Button onClick={onClose} variant="brand">
-            Done
-          </Button>
+        <div className="modal-cta-wrap">
+          <Button onClick={onClose}>Done</Button>
         </div>
       </>
     </Modal>

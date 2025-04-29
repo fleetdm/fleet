@@ -1215,7 +1215,6 @@ const ManagePolicyPage = ({
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
                   <Button
-                    variant="brand"
                     className={`${baseClass}__select-policy-button`}
                     onClick={onAddPolicyClick}
                   >
@@ -1266,7 +1265,6 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
-            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showCalendarEventsModal && (

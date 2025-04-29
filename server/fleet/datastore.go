@@ -1139,6 +1139,10 @@ type Datastore interface {
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
+	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
+	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
+	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
+
 	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
@@ -1909,6 +1913,10 @@ type Datastore interface {
 	// in the setup experience flow (which runs during macOS Setup Assistant).
 	GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
 
+	// GetTeamsWithInstallerByHash gets a map of teamIDs (0 for No team) to software installers
+	// metadata by the installer's hash.
+	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//
@@ -1988,6 +1996,9 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+	RenewMDMManagedCertificates(ctx context.Context) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables

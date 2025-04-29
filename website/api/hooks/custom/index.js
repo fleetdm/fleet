@@ -70,10 +70,10 @@ will be disabled and/or hidden in the UI.
       // This will determine whether or not to enable various billing features.
       sails.config.custom.enableBillingFeatures = !isMissingStripeConfig;
 
-      // After "sails-hook-organics" finishes initializing, configure Stripe
-      // and Sendgrid packs with any available credentials.
+      // After "sails-hook-organics" finishes initializing…
       sails.after('hook:organics:loaded', ()=>{
 
+        // Configure Stripe and Sendgrid packs with any available credentials.
         sails.helpers.stripe.configure({
           secret: sails.config.custom.stripeSecret
         });
@@ -108,7 +108,32 @@ will be disabled and/or hidden in the UI.
               sails.log.warn('When trying to send a request to Algolia to refresh the Fleet website search index, an error occurred: '+err);
             }
           });//_∏_
-        }
+        }//ﬁ
+
+        // Expose `ƒ`, for convenience.
+        global.ƒ = {};
+        global.ƒ[require('util').inspect.custom] = (unusedDepth, unusedInspectOptions, unusedInspect)=>{// https://nodejs.org/api/util.html#utilinspectcustom
+          return `[ƒ (derived from sails.helpers)]`;
+        };//ƒ
+        for (let keyName of Object.keys(sails.helpers)) {
+          if (['mailgun'].includes(keyName)) {
+            continue;
+          }//•
+          if (_.isFunction(sails.helpers[keyName])) {
+            if (global.ƒ.hasOwnProperty(keyName)) {
+              sails.log.warn(`Overwriting ƒ.${keyName}…`);
+            }
+            global.ƒ[keyName] = sails.helpers[keyName];
+          } else {
+            for (let helperMethodName of Object.keys(sails.helpers[keyName])) {
+              if (global.ƒ.hasOwnProperty(helperMethodName)) {
+                sails.log.warn(`Overwriting ƒ.${helperMethodName}…`);
+              }
+              global.ƒ[helperMethodName] = sails.helpers[keyName][helperMethodName];
+            }//∞
+          }
+        }//∞
+
       });//_∏_
 
       // ... Any other app-specific setup code that needs to run on lift,
@@ -322,8 +347,6 @@ will be disabled and/or hidden in the UI.
                       loginUrl : 'https://fleetdm.my.salesforce.com'
                     });
                     await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
-                    let today = new Date();
-                    let nowOn = today.toISOString().replace('Z', '+0000');
                     let websiteVisitReason;
                     if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
                       let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
@@ -339,7 +362,7 @@ will be disabled and/or hidden in the UI.
                         Contact__c: recordIds.salesforceContactId,// eslint-disable-line camelcase
                         Account__c: recordIds.salesforceAccountId,// eslint-disable-line camelcase
                         Page_URL__c: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
-                        Visited_on__c: nowOn,// eslint-disable-line camelcase
+                        Event_type__c: 'Website page view',// eslint-disable-line camelcase
                         Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
                       });
                     }).intercept((err)=>{

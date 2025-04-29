@@ -13,7 +13,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
 
@@ -71,6 +71,8 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
    - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
    - Engage engineering to gain insight into technical costs and feasibility.
 
+> When significant input from engineering is necessary, notify the EM so that they can create a timebox issue and decide if planned work can be deprioritized.
+
 Additionally:
 
 - To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
@@ -78,6 +80,7 @@ Additionally:
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 
 - Each [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) stops drafting once they reach engineering capacity for the upcoming engineering sprint. This way, we avoid creating a backlog which causes us to spend time updating soon-to-be stale designs. It's up to the product group's Product Designer to stop drafting and shift their focus to the following tasks:
+  - Wireframing for air guitars. This way, we can see further ahead and make better design and engineering decisions.
   - Dogfooding: pick up any issues in the "New requests" or "Ready" column on the 🍽️ Dogfood board
   - Run back through the test plan for unestimated user stories and make sure they're as good as we think they are
   - Go through the Fleet UI and look for bad/inconsistent text

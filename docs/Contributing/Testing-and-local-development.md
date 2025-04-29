@@ -342,7 +342,7 @@ Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testin
 
 ### Configuration
 
-Configure SSO on the Organization Settings page with the following:
+Configure SSO on the **Integration settings** page with the following:
 
 ```
 Identity Provider Name: SimpleSAML
@@ -849,6 +849,8 @@ The `pkg` file needs to be a signed "distribution package", you can find a dummy
 The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 
 ### Puppet module
+
+> The Puppet module is deprecated as of Fleet 4.66. It is maintained for backwards compatibility.
 
 Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
 
