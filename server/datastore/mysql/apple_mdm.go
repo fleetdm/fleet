@@ -556,7 +556,7 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	// Fetch all MDM Managed digicert or Custom SCEP certificates that aren't already queued for
-	// resend(hmap.status=null) and have not been requested for install in the last 7 days and which
+	// resend(hmap.status=null) and which
 	// * Have a validity period > 30 days and are expiring in the next 30 days
 	// * Have a validity period <= 30 days and are within half the validity period of expiration
 	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
@@ -579,8 +579,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		host_mdm_apple_profiles hmap 
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
 	WHERE 
-		hmmc.type IN (?, ?) AND hmap.status IS NOT NULL AND
-		(hmmc.install_requested_at IS NULL OR hmmc.install_requested_at < DATE_SUB(NOW(), INTERVAL 7 DAY))
+		hmmc.type IN (?, ?) AND hmap.status IS NOT NULL
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
@@ -603,7 +602,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
 	}
 
-	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert certificates", "len(hostCertsToRenew)", len(hostCertsToRenew))
+	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert/SCEP certificates", "len(hostCertsToRenew)", len(hostCertsToRenew))
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, updateQuery+strings.TrimSuffix(hostProfileClause, " OR "), values...)
 		if err != nil {
@@ -6009,8 +6008,7 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	          not_valid_after,
 			  type,
 			  ca_name,
-			  serial,
-			  install_requested_at
+			  serial
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -6019,8 +6017,7 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 			  not_valid_after = VALUES(not_valid_after),
 			  type = VALUES(type),
 			  ca_name = VALUES(ca_name),
-			  serial = VALUES(serial),
-			  install_requested_at = VALUES(install_requested_at)`,
+			  serial = VALUES(serial)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -6029,8 +6026,8 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial, p.InstallRequestedAt}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
 		return valuePart, args
 	}
 

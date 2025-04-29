@@ -4255,7 +4255,6 @@ func preprocessProfileContents(
 						ChallengeRetrievedAt: ptr.Time(time.Now()),
 						Type:                 fleet.CAConfigNDES,
 						CAName:               "NDES",
-						InstallRequestedAt:   ptr.Time(time.Now()),
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
 
@@ -4301,11 +4300,10 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-						HostUUID:           hostUUID,
-						ProfileUUID:        profUUID,
-						Type:               fleet.CAConfigCustomSCEPProxy,
-						CAName:             caName,
-						InstallRequestedAt: ptr.Time(time.Now()),
+						HostUUID:    hostUUID,
+						ProfileUUID: profUUID,
+						Type:        fleet.CAConfigCustomSCEPProxy,
+						CAName:      caName,
 					})
 
 				case fleetVar == FleetVarHostEndUserEmailIDP:
@@ -4426,14 +4424,13 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
-						HostUUID:           hostUUID,
-						ProfileUUID:        profUUID,
-						NotValidBefore:     &cert.NotValidBefore,
-						NotValidAfter:      &cert.NotValidAfter,
-						Type:               fleet.CAConfigDigiCert,
-						CAName:             caName,
-						Serial:             &cert.SerialNumber,
-						InstallRequestedAt: ptr.Time(time.Now()),
+						HostUUID:       hostUUID,
+						ProfileUUID:    profUUID,
+						NotValidBefore: &cert.NotValidBefore,
+						NotValidAfter:  &cert.NotValidAfter,
+						Type:           fleet.CAConfigDigiCert,
+						CAName:         caName,
+						Serial:         &cert.SerialNumber,
 					})
 
 				default:
