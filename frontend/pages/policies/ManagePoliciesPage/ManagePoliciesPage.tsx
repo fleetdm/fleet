@@ -780,8 +780,6 @@ const ManagePolicyPage = ({
         ) {
           const payload = {
             integrations: {
-              // TODO - don't need to include existing config right?
-              // ...globalConfig?.integrations,
               conditional_access_enabled: enableConditionalAccess,
             },
           };

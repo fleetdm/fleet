@@ -95,7 +95,6 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const {
           row: {
-            // original: { response: status, conditional_access_enabled },
             original: { status },
           },
         } = cellProps;

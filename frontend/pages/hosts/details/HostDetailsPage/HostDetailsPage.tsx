@@ -113,7 +113,6 @@ import {
   generateUsernameValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader";
-import { JACOB_FAKE_POLICIES } from "__mocks__/policyMock";
 
 const baseClass = "host-details";
 
@@ -1099,8 +1098,7 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <PoliciesCard
-                // policies={host?.policies || []}
-                policies={JACOB_FAKE_POLICIES}
+                policies={host?.policies || []}
                 isLoading={isLoadingHost}
                 togglePolicyDetailsModal={togglePolicyDetailsModal}
                 hostPlatform={host.platform}

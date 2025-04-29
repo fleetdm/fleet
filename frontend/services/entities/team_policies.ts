@@ -8,7 +8,6 @@ import {
   IPolicyFormData,
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
-  IPolicy,
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
