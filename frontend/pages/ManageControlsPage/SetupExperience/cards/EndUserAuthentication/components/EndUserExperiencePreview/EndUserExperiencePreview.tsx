@@ -3,7 +3,6 @@ import classnames from "classnames";
 
 import EndUserAuthEndUserPreview from "../../../../../../../../assets/videos/end-user-auth-preview.mp4";
 
-console.log(EndUserAuthEndUserPreview);
 
 const baseClass = "end-user-experience-preview";
 
