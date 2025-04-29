@@ -2232,6 +2232,13 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
 
+		// check if the profile has any fleet variable, not supported by this deprecated endpoint
+		if vars := findFleetVariablesKeepDuplicates(expanded); len(vars) > 0 {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(
+					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch"))
+		}
+
 		// Store original unexpanded profile
 		mdmProf.Mobileconfig = prof
 		mdmProf.SecretsUpdatedAt = secretsUpdatedAt
@@ -2284,11 +2291,6 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	if dryRun {
 		return nil
 	}
-	// NOTE: this service is called from a deprecated endpoint, it does not
-	// validate if the profiles use Fleet variables, so we don't support storing
-	// the profiles to variables relationship either. We should add a check if
-	// any variable is used in any of the profiles and return an error if so to
-	// avoid storing invalid data that could cause issues.
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
 	}

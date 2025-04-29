@@ -1834,6 +1834,37 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			</plist>`, mobileconfig.FleetFileVaultPayloadType))},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 		},
+		{
+			"uses a Fleet Variable",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Username</key>
+						<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			`profile variables are not supported by this deprecated endpoint`,
+		},
 	}
 	for name := range fleetmdm.FleetReservedProfileNames() {
 		testCases = append(testCases,
