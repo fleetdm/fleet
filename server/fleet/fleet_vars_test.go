@@ -33,15 +33,27 @@ This is $OTHER_VAR, $ $$ $* ${} in a sentence with${ALSO_OTHER_VAR}in the middle
 We want to remember BREAD and alsoSHORTCAKEare important.
 `
 
-	mapping := map[string]string{
+	envVars := map[string]string{
 		"BANANA":     "BREAD",
 		"STRAWBERRY": "SHORTCAKE",
 	}
 
-	mapper := func(s string) (string, bool) {
+	expectedPositions := [][]int{
+		{9, 19},
+		{23, 25},
+		{26, 28},
+		{51, 68},
+		{103, 123},
+		{132, 158},
+	}
+
+	mapper := func(s string, startPos, endPos int) (string, bool) {
+		require.Contains(t, expectedPositions, []int{startPos, endPos}, script[startPos:endPos])
+
 		if strings.HasPrefix(s, ServerSecretPrefix) {
-			return mapping[strings.TrimPrefix(s, ServerSecretPrefix)], true
+			return envVars[strings.TrimPrefix(s, ServerSecretPrefix)], true
 		}
+
 		return "", false
 	}
 
