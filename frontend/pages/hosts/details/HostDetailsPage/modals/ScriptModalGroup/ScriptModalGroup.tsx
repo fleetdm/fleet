@@ -11,7 +11,7 @@ import scriptsAPI, {
   IHostScriptsResponse,
 } from "services/entities/scripts";
 
-import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import RunScriptModal from "../RunScriptModal";

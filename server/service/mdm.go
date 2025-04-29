@@ -419,7 +419,7 @@ func (svc *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	if !appCfg.MDM.WindowsEnabledAndConfigured {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
-		return fleet.ErrMDMNotConfigured
+		return fleet.ErrWindowsMDMNotConfigured
 	}
 
 	return nil
@@ -1718,6 +1718,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
+	// TODO(mna): must collect variables and save them as part of variables used by the profile
 	err = validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err

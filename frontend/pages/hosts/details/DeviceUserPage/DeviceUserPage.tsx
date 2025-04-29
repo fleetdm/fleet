@@ -73,6 +73,7 @@ import {
   generateChromeProfilesValues,
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
+import HostHeader from "../cards/HostHeader/HostHeader";
 
 const baseClass = "device-user";
 
@@ -443,16 +444,11 @@ const DeviceUserPage = ({
               diskIsEncrypted={host.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             />
-            <HostSummaryCard
+            <HostHeader
               summaryData={summaryData}
-              bootstrapPackageData={bootstrapPackageData}
-              isPremiumTier={isPremiumTier}
-              toggleOSSettingsModal={toggleOSSettingsModal}
-              hostSettings={host?.mdm.profiles ?? []}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionDropdown={renderActionButtons}
-              osSettings={host?.mdm.os_settings}
               deviceUser
             />
             <TabNav className={`${baseClass}__tab-nav`}>
@@ -461,14 +457,14 @@ const DeviceUserPage = ({
                 onSelect={(i) => router.push(tabPaths[i])}
               >
                 <TabList>
-                  <Tab>
-                    <TabText>Details</TabText>
-                  </Tab>
                   {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                     <Tab>
                       <TabText>Self-service</TabText>
                     </Tab>
                   )}
+                  <Tab>
+                    <TabText>Details</TabText>
+                  </Tab>
                   {isSoftwareEnabled && (
                     <Tab>
                       <TabText>Software</TabText>
@@ -482,7 +478,28 @@ const DeviceUserPage = ({
                     </Tab>
                   )}
                 </TabList>
+                {isPremiumTier && isSoftwareEnabled && hasSelfService && (
+                  <TabPanel>
+                    <SelfService
+                      contactUrl={orgContactURL}
+                      deviceToken={deviceAuthToken}
+                      isSoftwareEnabled
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      router={router}
+                    />
+                  </TabPanel>
+                )}
                 <TabPanel className={`${baseClass}__details-panel`}>
+                  <HostSummaryCard
+                    className={fullWidthCardClass}
+                    summaryData={summaryData}
+                    bootstrapPackageData={bootstrapPackageData}
+                    isPremiumTier={isPremiumTier}
+                    toggleOSSettingsModal={toggleOSSettingsModal}
+                    hostSettings={host?.mdm.profiles ?? []}
+                    osSettings={host?.mdm.os_settings}
+                  />
                   <AboutCard
                     className={
                       showUsersCard ? defaultCardClass : fullWidthCardClass
@@ -520,18 +537,6 @@ const DeviceUserPage = ({
                     />
                   )}
                 </TabPanel>
-                {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                  <TabPanel>
-                    <SelfService
-                      contactUrl={orgContactURL}
-                      deviceToken={deviceAuthToken}
-                      isSoftwareEnabled
-                      pathname={location.pathname}
-                      queryParams={parseHostSoftwareQueryParams(location.query)}
-                      router={router}
-                    />
-                  </TabPanel>
-                )}
                 {isSoftwareEnabled && (
                   <TabPanel>
                     <SoftwareCard
