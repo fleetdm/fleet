@@ -371,7 +371,8 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 }
 
 func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fleet.Datastore, svc fleet.Service,
-	opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	opts ...*TestServerOpts,
+) (map[string]fleet.User, *httptest.Server) {
 	var cfg config.FleetConfig
 	if len(opts) > 0 && opts[0].FleetConfig != nil {
 		cfg = *opts[0].FleetConfig
@@ -799,6 +800,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"PATCH", "/api/latest/fleet/mdm/apple/setup", false, true},
 		{"PATCH", "/api/latest/fleet/setup_experience", false, true},
 		{"POST", "/api/fleet/orbit/setup_experience/status", false, true},
+	}
+}
+
+func windowsMDMConfigurationRequiredEndpoints() []string {
+	return []string{
+		"/api/fleet/orbit/disk_encryption_key",
 	}
 }
 
