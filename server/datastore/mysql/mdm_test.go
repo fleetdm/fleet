@@ -6373,6 +6373,13 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 	})
 }
 
+// This test was added to check for this bug report:
+// https://github.com/fleetdm/fleet/issues/16273 I believe it turned out there
+// was no transaction issue (see
+// https://github.com/fleetdm/fleet/pull/16449#discussion_r1471486335), so we
+// could eventually remove the testBatchSetMDMAppleProfilesErr and similar
+// fields from the datastore that add a lot of noise in batch-set apple
+// profiles.
 func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 

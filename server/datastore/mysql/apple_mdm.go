@@ -1835,7 +1835,7 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 // Fleet variables in profiles.
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
+		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles, nil)
 		return err
 	})
 }
@@ -1846,7 +1846,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAppleConfigProfile,
-	profilesVariables map[string]map[string]struct{},
+	profilesVariablesByIdentifier map[string]map[string]struct{},
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -1884,7 +1884,6 @@ ON DUPLICATE KEY UPDATE
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
 `
-	// TODO(mna): saved used variables
 
 	// use a profile team id of 0 if no-team
 	var profTeamID uint
@@ -1960,7 +1959,11 @@ ON DUPLICATE KEY UPDATE
 		updatedDB = rows > 0
 	}
 
-	// insert the new profiles and the ones that have changed
+	// insert the new profiles and the ones that have changed, and track those
+	// that did insert or update, as we will need to update their variables (if
+	// the profile did not change, its variables cannot have changed since the
+	// contents is the same as it was already).
+	var profileIdentsInsertedOrUpdated []string
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name,
 			p.Mobileconfig, p.SecretsUpdatedAt); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
@@ -1969,9 +1972,36 @@ ON DUPLICATE KEY UPDATE
 			}
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
-		// TODO(mna): if insertOnDuplicateDidInsertOrUpdate, then this profile's vars need
-		// to be inserted/updated too.
-		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
+		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
+		updatedDB = updatedDB || didInsertOrUpdate
+
+		if didInsertOrUpdate {
+			profileIdentsInsertedOrUpdated = append(profileIdentsInsertedOrUpdated, p.Identifier)
+		}
+	}
+
+	if len(profileIdentsInsertedOrUpdated) > 0 {
+		var insertedUpdatedProfs []*fleet.MDMAppleConfigProfile
+		// load the profiles that match the inserted/updated profiles by identifier
+		// to grab their uuids
+		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, profileIdentsInsertedOrUpdated)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build query to load inserted/updated profiles")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &insertedUpdatedProfs, stmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
+		}
+
+		// collect the profiles+variables that need to be upserted, keyed by
+		// profile UUID as needed by the batch-set profile variables function.
+		profilesVarsToUpsert := make(map[string]map[string]struct{}, len(insertedUpdatedProfs))
+		for _, p := range insertedUpdatedProfs {
+			profilesVarsToUpsert[p.ProfileUUID] = profilesVariablesByIdentifier[p.Identifier]
+		}
+
+		if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin"); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "inserting apple profile variable associations")
+		}
 	}
 
 	// build a list of labels so the associations can be batch-set all at once

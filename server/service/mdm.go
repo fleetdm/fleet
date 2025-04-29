@@ -1719,7 +1719,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	// TODO(mna): must collect variables and save them as part of variables used by the profile
-	profilesVariables, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifier, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
@@ -1743,7 +1743,7 @@ func (svc *Service) BatchSetMDMProfiles(
 
 	var profUpdates fleet.MDMProfilesUpdates
 	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID,
-		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, profilesVariables); err != nil {
+		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, profilesVariablesByIdentifier); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
