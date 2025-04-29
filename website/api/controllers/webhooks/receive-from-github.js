@@ -97,7 +97,7 @@ module.exports = {
       'sgress454',
       'BCTBB',
       'kc9wwh',
-      'JordanMontgomery'
+      'JordanMontgomery',
       'bettapizza',
     ];
 
