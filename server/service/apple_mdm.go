@@ -4800,10 +4800,7 @@ func (cs *customSCEPVarsFound) Ok() bool {
 			return false
 		}
 	}
-	if !cs.renewalIdFound {
-		return false
-	}
-	return true
+	return cs.renewalIdFound
 }
 
 func (cs *customSCEPVarsFound) Found() bool {
