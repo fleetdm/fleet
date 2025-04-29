@@ -85,7 +85,7 @@ Departmental page structure:
     - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/digital-experience#team](https://fleetdm.com/handbook/digital-experience#team) for example.
 
   - `## Contact us`
-    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`)."
+    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`)."
       - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://app.zenhub.com/workspaces/{DEPARTMENTAL-KANBAN-BOARD-LINK}/board?sprints=none)` for this department, including pending tasks and the status of new requests."
 

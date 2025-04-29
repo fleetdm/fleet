@@ -74,6 +74,7 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
+    manual_agent_install: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
