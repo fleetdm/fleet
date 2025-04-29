@@ -5268,6 +5268,8 @@ Deletes the label specified by ID.
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings status](#get-os-settings-status)
+- [Resend custom OS setting (configuration profile)](resend-custom-os-setting-configuration-profile)
+- [Batch-resend custom OS setting (configuration profile)](batch-resend-custom-os-setting-configuration-profile)
 
 
 ### Add custom OS setting (configuration profile)
@@ -5547,17 +5549,40 @@ solely on the response status code returned by this endpoint.
 
 `Status: 200`
 
-### Resend custom OS setting (configuration profile) to hosts by filter
+### Resend custom OS setting (configuration profile)
+
+Resends a configuration profile for the specified host.
+
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+
+##### Default response
+
+`Status: 202`
+
+
+### Batch-resend custom OS setting (configuration profile)
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/configuration_profiles/batch/resend`
+`POST /api/v1/fleet/configuration_profiles/resend/batch`
 
 #### Parameters
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
+| filters | object | body | **Required**. Currently, only the `profile_status=failed` filter is supported.|
 
 #### Example
 
@@ -5568,6 +5593,9 @@ _Available in Fleet Premium_
 ```json
 {
   "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
+  "filters": {
+    "profile_status": "failed"
+  }
 }
 ```
 
