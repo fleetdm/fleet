@@ -17270,5 +17270,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	softwareToInstall[1].SHA256 = exeHash
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
-	require.Contains(t, errMsg, ".exe packages require both install_script and uninstall_script")
+	require.Contains(t, errMsg, "Couldn't edit. Install script is required for .exe packages.")
+
+	// add the install script, but without uninstall script we should still fail
+	softwareToInstall[1].InstallScript = "echo install"
+	softwareToInstall[1].UninstallScript = ""
+	softwareToInstall[1].URL = ""
+	softwareToInstall[1].SHA256 = exeHash
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
 }
