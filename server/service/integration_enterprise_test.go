@@ -17250,4 +17250,25 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
+
+	softwareToInstall[1].InstallScript = "echo install"
+	softwareToInstall[1].UninstallScript = "echo uninstall"
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	var exeHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &exeHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[1].TitleID)
+	})
+	require.NotEmpty(t, exeHash)
+
+	// remove the URL and scripts, and add the hash. we should get an error because scripts are required.
+	softwareToInstall[1].InstallScript = ""
+	softwareToInstall[1].UninstallScript = ""
+	softwareToInstall[1].URL = ""
+	softwareToInstall[1].SHA256 = exeHash
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, ".exe packages require both install_script and uninstall_script")
 }
