@@ -1,9 +1,9 @@
 import React, {
   useCallback,
-  useState,
   useContext,
   useMemo,
   useEffect,
+  useRef,
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -31,6 +31,7 @@ import Pagination from "components/Pagination";
 
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import SelfServiceItem from "./SelfServiceItem";
+import { InstallOrCommandUuid } from "./SelfServiceItem/SelfServiceItem";
 
 const baseClass = "software-self-service";
 
@@ -49,7 +50,7 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallerDetails: (installUuid: string) => void;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
 const SoftwareSelfService = ({
@@ -63,11 +64,8 @@ const SoftwareSelfService = ({
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [isPolling, setIsPolling] = useState(false); // Track polling state
-  const [
-    pollingTimeoutId,
-    setPollingTimeoutId,
-  ] = useState<NodeJS.Timeout | null>(null);
+  const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
+  const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   const queryKey = useMemo<IDeviceSoftwareQueryKey[]>(() => {
     return [
@@ -105,29 +103,51 @@ const SoftwareSelfService = ({
     IGetDeviceSoftwareResponse,
     AxiosError
   >(
-    ["pending_installs", queryKey[0]], // Include a unique key AND spread the original query key
-    () => deviceApi.getDeviceSoftware(queryKey[0]), // Access the query key correctly
+    ["pending_installs", queryKey[0]],
+    () => deviceApi.getDeviceSoftware(queryKey[0]),
     {
       enabled: false,
       onSuccess: (response) => {
-        const hasPendingInstalls = response.software.some(
-          (software) => software.status === "pending_install"
+        // Get the set of pending software IDs
+        const newPendingSet = new Set(
+          response.software
+            .filter((software) => software.status === "pending_install")
+            .map((software) => String(software.id))
         );
 
-        if (hasPendingInstalls) {
-          // Continue polling if pending installs exist
-          const timeoutId = setTimeout(() => {
+        // Compare new set with the previous set
+        const setsAreEqual =
+          newPendingSet.size === pendingSoftwareSetRef.current.size &&
+          [...newPendingSet].every((id) =>
+            pendingSoftwareSetRef.current.has(id)
+          );
+
+        if (newPendingSet.size > 0) {
+          // If the set changed, update and continue polling
+          if (!setsAreEqual) {
+            pendingSoftwareSetRef.current = newPendingSet;
+            refetchSelfServiceSoftware();
+          }
+
+          // Continue polling
+          if (pollingTimeoutIdRef.current) {
+            clearTimeout(pollingTimeoutIdRef.current);
+          }
+          pollingTimeoutIdRef.current = setTimeout(() => {
             refetchForPendingInstalls();
-          }, 5000); // Poll every 5 seconds
-          setPollingTimeoutId(timeoutId);
+          }, 5000);
         } else {
-          // Stop polling and refresh full data
-          setIsPolling(false);
+          // No pending installs, stop polling and refresh data
+          pendingSoftwareSetRef.current = new Set();
+          if (pollingTimeoutIdRef.current) {
+            clearTimeout(pollingTimeoutIdRef.current);
+            pollingTimeoutIdRef.current = null;
+          }
           refetchSelfServiceSoftware();
         }
       },
       onError: () => {
-        setIsPolling(false);
+        pendingSoftwareSetRef.current = new Set();
         renderFlash(
           "error",
           "We're having trouble checking pending installs. Please refresh the page."
@@ -136,37 +156,52 @@ const SoftwareSelfService = ({
     }
   );
 
-  const startPollingForPendingInstalls = useCallback(() => {
-    if (!isPolling) {
-      setIsPolling(true);
-      refetchSelfServiceSoftware(); // Updates UI to show pending installs
-      refetchForPendingInstalls(); // Starts polling for pending installs
-    } else {
-      // Already polling and clicked on a second software to install
-      refetchSelfServiceSoftware(); // This will update second software's status and action available in UI
-    }
-  }, [isPolling, refetchSelfServiceSoftware, refetchForPendingInstalls]);
+  const startPollingForPendingInstalls = useCallback(
+    (pendingIds: string[]) => {
+      const newSet = new Set(pendingIds);
+      const setsAreEqual =
+        newSet.size === pendingSoftwareSetRef.current.size &&
+        [...newSet].every((id) => pendingSoftwareSetRef.current.has(id));
+      if (!setsAreEqual) {
+        pendingSoftwareSetRef.current = newSet;
 
-  const stopPolling = () => {
-    setIsPolling(false);
-    if (pollingTimeoutId) {
-      clearTimeout(pollingTimeoutId);
-      setPollingTimeoutId(null);
-    }
-  };
+        // Clear any existing timeout to avoid overlap
+        if (pollingTimeoutIdRef.current) {
+          clearTimeout(pollingTimeoutIdRef.current);
+        }
+        refetchSelfServiceSoftware(); // Updates UI to show pending installs
+        refetchForPendingInstalls(); // Starts polling for pending installs
+      }
+    },
+    [refetchSelfServiceSoftware, refetchForPendingInstalls]
+  );
 
-  // Check if initially has pending installs, then start polling
+  // Cleanup on unmount
   useEffect(() => {
-    if (
-      data?.software.some((software) => software.status === "pending_install")
-    ) {
-      startPollingForPendingInstalls();
+    return () => {
+      pendingSoftwareSetRef.current = new Set();
+      if (pollingTimeoutIdRef.current) {
+        clearTimeout(pollingTimeoutIdRef.current);
+        pollingTimeoutIdRef.current = null;
+      }
+    };
+  }, []);
+
+  // On initial load or data change, check for pending installs
+  useEffect(() => {
+    const pendingSoftware = data?.software.filter(
+      (software) => software.status === "pending_install"
+    );
+    const pendingIds = pendingSoftware?.map((s) => String(s.id)) ?? [];
+    if (pendingIds.length > 0) {
+      startPollingForPendingInstalls(pendingIds);
     }
   }, [data, startPollingForPendingInstalls]);
 
-  useEffect(() => {
-    return () => stopPolling(); // Cleanup polling on unmount
-  }, []);
+  const onInstall = useCallback(() => {
+    refetchSelfServiceSoftware();
+    refetchForPendingInstalls();
+  }, [refetchSelfServiceSoftware, refetchForPendingInstalls]);
 
   const onSearchQueryChange = (value: string) => {
     router.push(
@@ -295,7 +330,7 @@ const SoftwareSelfService = ({
                 key={key}
                 deviceToken={deviceToken}
                 software={s}
-                onInstall={startPollingForPendingInstalls}
+                onInstall={onInstall}
                 onShowInstallerDetails={onShowInstallerDetails}
               />
             );

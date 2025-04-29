@@ -87,9 +87,19 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   );
 };
 
+interface CommandUuid {
+  command_uuid: string;
+}
+
+interface InstallUuid {
+  install_uuid: string;
+}
+
+export type InstallOrCommandUuid = CommandUuid | InstallUuid;
+
 type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
-  onShowInstallerDetails: (installId: string) => void;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 };
 
 const InstallerStatus = ({
@@ -123,11 +133,15 @@ const InstallerStatus = ({
               variant="text-icon"
               onClick={() => {
                 if ("command_uuid" in last_install) {
-                  onShowInstallerDetails(last_install.command_uuid);
+                  onShowInstallerDetails({
+                    command_uuid: last_install.command_uuid,
+                  });
                 } else if ("install_uuid" in last_install) {
-                  onShowInstallerDetails(last_install.install_uuid);
+                  onShowInstallerDetails({
+                    install_uuid: last_install.install_uuid,
+                  });
                 } else {
-                  onShowInstallerDetails("");
+                  onShowInstallerDetails(undefined);
                 }
               }}
             >
@@ -159,7 +173,7 @@ interface IInstallerStatusActionProps {
   deviceToken: string;
   software: IHostSoftware;
   onInstall: () => void;
-  onShowInstallerDetails: (installId: string) => void;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
 const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
@@ -254,7 +268,7 @@ interface ISelfServiceItemProps {
   deviceToken: string;
   software: IDeviceSoftware;
   onInstall: () => void;
-  onShowInstallerDetails: (installId: string) => void;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
 const SelfServiceItem = ({

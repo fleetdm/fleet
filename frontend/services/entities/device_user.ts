@@ -90,9 +90,18 @@ export default {
     return sendRequest("POST", path);
   },
 
+  /** Gets more info on FMA/custom package install for device user */
   getSoftwareInstallResult: (deviceToken: string, uuid: string) => {
     const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;
     const path = DEVICE_SOFTWARE_INSTALL_RESULTS(deviceToken, uuid);
+
+    return sendRequest("GET", path);
+  },
+
+  /** Gets more info on VPP install for device user */
+  getVppCommandResult: (deviceToken: string, uuid: string) => {
+    const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;
+    const path = DEVICE_VPP_COMMAND_RESULTS(deviceToken, uuid);
 
     return sendRequest("GET", path);
   },

@@ -75,6 +75,8 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
+import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceItem/SelfServiceItem";
+import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
 
@@ -132,7 +134,7 @@ const DeviceUserPage = ({
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
   const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
-    string | undefined
+    InstallOrCommandUuid | undefined
   >(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
@@ -334,8 +336,8 @@ const DeviceUserPage = ({
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const onShowInstallerDetails = useCallback(
-    (install_uuid: string) => {
-      setSelectedSelfServiceUuid(install_uuid);
+    (uuid?: InstallOrCommandUuid) => {
+      setSelectedSelfServiceUuid(uuid);
     },
     [setSelectedSelfServiceUuid]
   );
@@ -628,16 +630,30 @@ const DeviceUserPage = ({
             }}
           />
         )}
-        {selectedSelfServiceUuid && !!host && (
-          <SoftwareInstallDetailsModal
-            details={{
-              host_display_name: host.display_name,
-              install_uuid: selectedSelfServiceUuid,
-            }}
-            onCancel={() => setSelectedSelfServiceUuid(undefined)}
-            deviceAuthToken={deviceAuthToken}
-          />
-        )}
+        {selectedSelfServiceUuid &&
+          "install_uuid" in selectedSelfServiceUuid &&
+          !!host && (
+            <SoftwareInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                install_uuid: selectedSelfServiceUuid.install_uuid,
+              }}
+              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              deviceAuthToken={deviceAuthToken}
+            />
+          )}
+        {selectedSelfServiceUuid &&
+          "command_uuid" in selectedSelfServiceUuid &&
+          !!host && (
+            <AppInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                command_uuid: selectedSelfServiceUuid.command_uuid,
+              }}
+              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              deviceAuthToken={deviceAuthToken}
+            />
+          )}
         {selectedSoftwareDetails && !!host && (
           <SoftwareDetailsModal
             hostDisplayName={host.display_name}
