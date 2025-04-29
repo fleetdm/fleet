@@ -138,7 +138,7 @@
       <p class="mt-3">A member of our team will get back to you soon.<br>Usually within one business day (or less!)</p>
     </div>
     <div purpose="quote-and-logos">
-      <div purpose="quote" v-if="!primaryBuyingSituation || primaryBuyingSituation === 'mdm'">
+      <div purpose="quote" v-if="!primaryBuyingSituation || ['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation)">
         <div purpose="logo" class="mb-4"><img height="32" alt="Stripe logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
         <p purpose="quote-text">
           We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
@@ -153,7 +153,7 @@
           </div>
         </div>
       </div>
-      <div purpose="quote" v-else-if="primaryBuyingSituation === 'vm'">
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'security-vm'">
         <div purpose="logo" class="mb-4"><img height="32" alt="Rivian logo" src="/images/logo-rivian-dark-120x32@2x.png"></div>
         <p purpose="quote-text">
           The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
@@ -168,7 +168,7 @@
           </div>
         </div>
       </div>
-      <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-it'">
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'it-misc'">
         <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
         <p purpose="quote-text">
           Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
@@ -183,7 +183,7 @@
           </div>
         </div>
       </div>
-      <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-security'">
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'security-misc'">
         <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
         <p purpose="quote-text">
           Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
