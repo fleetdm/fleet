@@ -1574,6 +1574,9 @@ func batchSetProfileVariableAssociationsDB(
 	profVars := make([]profVarTuple, 0, len(profileVariablesByUUID))
 	for profUUID, vars := range profileVariablesByUUID {
 		for v := range vars {
+			// variables received here do not have the FLEET_VAR_ prefix, but variables
+			// in the fleet_variables table do.
+			v = "FLEET_VAR_" + v
 			for _, def := range varDefs {
 				if !def.IsPrefix && def.Name == v {
 					profVars = append(profVars, profVarTuple{profUUID, def.ID})
