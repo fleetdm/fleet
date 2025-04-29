@@ -115,7 +115,7 @@
           <p purpose="job-title">Cybersecurity Security Engineer, Vulnerability Management</p>
         </div>
       </div>
-      <% if(typeof primaryBuyingSituation === 'undefined' || ['security-misc', 'security-vm'].includes(primaryBuyingSituation)) { %>
+      <% if(typeof primaryBuyingSituation === 'undefined' || !['it-misc', 'it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation)) { %>
         <div purpose="feature-slides">
           <div purpose="feature-switch" class="d-flex flex-md-row flex-column justify-content-md-center justify-content-start">
             <div purpose="feature-option" :class="[visibleFeature === 'mitigate-cves-automatically' ? 'active' : '']"  @click="clickSwitchFeature('mitigate-cves-automatically')">
