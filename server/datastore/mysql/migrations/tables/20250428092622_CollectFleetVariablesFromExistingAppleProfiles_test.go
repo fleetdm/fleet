@@ -96,7 +96,7 @@ func runWithNProfiles(t *testing.T, n int) {
 	err := db.Select(&defs, `SELECT id, name, is_prefix FROM fleet_variables`)
 	require.NoError(t, err)
 
-	nano := uint64(time.Now().UnixNano())
+	nano := uint64(time.Now().UnixNano()) // nolint:gosec
 	t.Logf("random seed: %d", nano)
 	randSeed := rand.New(rand.NewSource(nano))
 	expectedProfs := createProfilesWithRandomVars(t, db, randSeed, n, defs)
