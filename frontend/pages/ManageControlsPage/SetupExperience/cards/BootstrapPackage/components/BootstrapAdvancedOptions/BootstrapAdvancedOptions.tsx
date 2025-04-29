@@ -7,6 +7,7 @@ import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "bootstrap-advanced-options";
 
@@ -59,18 +60,30 @@ const BootstrapAdvancedOptions = ({
       />
       {showAdvancedOptions && (
         <form onSubmit={onSubmit}>
-          <Checkbox
-            value={selectManualAgentInstall}
-            onChange={onChange}
-            disabled={!enableInstallManually}
-          >
-            <TooltipWrapper tipContent={tooltip}>
-              Install Fleet&apos;s agent (fleetd) manually
-            </TooltipWrapper>
-          </Checkbox>
-          <Button disabled={!enableInstallManually} type="submit">
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(gitopsDisable) => (
+              <div className={`${baseClass}__advanced-options-controls`}>
+                <Checkbox
+                  value={selectManualAgentInstall}
+                  onChange={onChange}
+                  disabled={gitopsDisable || !enableInstallManually}
+                >
+                  <TooltipWrapper
+                    tipContent={tooltip}
+                    disableTooltip={gitopsDisable}
+                  >
+                    Install Fleet&apos;s agent (fleetd) manually
+                  </TooltipWrapper>
+                </Checkbox>
+                <Button
+                  disabled={gitopsDisable || !enableInstallManually}
+                  type="submit"
+                >
+                  Save
+                </Button>
+              </div>
+            )}
+          />
         </form>
       )}
     </div>
