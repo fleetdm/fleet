@@ -18,7 +18,7 @@
 %><!DOCTYPE html>
 <html>
   <head>
-    <title>Fleet | <%= primaryBuyingSituation %> <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %></title>
+    <title>Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %></title>
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
