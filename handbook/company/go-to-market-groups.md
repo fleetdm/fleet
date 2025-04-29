@@ -16,8 +16,8 @@ When communicating with future or current customers, hand offs [between departme
 
 | GTM group                            | Goal _(value for customers and/or community)_ |
 |:-------------------------------------|:------------------------------------|
-| [🦄<br>Unicorns](https://fleetdm.com/handbook/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
-| [🌐<br>Buy<br>online](https://fleetdm.com/handbook/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+| [🦄<br>Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
+| [🌐<br>Buy<br>online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
 
 
 ### 🦄 Unicorns
