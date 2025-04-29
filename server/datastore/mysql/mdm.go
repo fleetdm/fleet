@@ -1567,156 +1567,51 @@ func batchSetProfileVariableAssociationsDB(
 	// map the variables to their IDs (this looks terrible with the nested fors
 	// but those are all very small "n" - single-digit vars by profile and same
 	// in varDefs, so this is more efficient than building lookup maps).
-	profVarIDsByUUID := make(map[string][]uint, len(profileVariablesByUUID))
+	type profVarTuple struct {
+		ProfileUUID string
+		VarID       uint
+	}
+	profVars := make([]profVarTuple, 0, len(profileVariablesByUUID))
 	for profUUID, vars := range profileVariablesByUUID {
 		for v := range vars {
 			for _, def := range varDefs {
 				if !def.IsPrefix && def.Name == v {
-					profVarIDsByUUID[profUUID] = append(profVarIDsByUUID[profUUID], def.ID)
+					profVars = append(profVars, profVarTuple{profUUID, def.ID})
 					break
 				}
 				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
-					profVarIDsByUUID[profUUID] = append(profVarIDsByUUID[profUUID], def.ID)
+					profVars = append(profVars, profVarTuple{profUUID, def.ID})
 					break
 				}
 			}
 		}
 	}
 
-	panic("unimplemented")
-	// // delete any profile+label tuple that is NOT in the list of provided tuples
-	// // but are associated with the provided profiles (so we don't delete
-	// // unrelated profile+label tuples)
-	// deleteStmt := `
-	//   DELETE FROM mdm_configuration_profile_labels
-	//   WHERE (%s_profile_uuid, label_id) NOT IN (%s) AND
-	//   %s_profile_uuid IN (?)
-	// `
-	//
-	// // used when only profileUUIDsWithoutLabels is provided, there are no
-	// // labels to keep, delete all labels for profiles in this list.
-	// deleteNoLabelStmt := `
-	//   DELETE FROM mdm_configuration_profile_labels
-	//   WHERE %s_profile_uuid IN (?)
-	// `
-	//
-	// upsertStmt := `
-	//   INSERT INTO mdm_configuration_profile_labels
-	//              (%s_profile_uuid, label_id, label_name, exclude, require_all)
-	//          VALUES
-	//              %s
-	//          ON DUPLICATE KEY UPDATE
-	//              label_id = VALUES(label_id),
-	//              exclude = VALUES(exclude),
-	// 		  require_all = VALUES(require_all)
-	// `
-	//
-	// selectStmt := `
-	// 	SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
-	// 	WHERE (%s_profile_uuid, label_name) IN (%s)
-	// `
-	//
-	// if len(profileLabels) == 0 {
-	// 	deleteNoLabelStmt = fmt.Sprintf(deleteNoLabelStmt, platformPrefix)
-	// 	deleteNoLabelStmt, args, err := sqlx.In(deleteNoLabelStmt, profileUUIDsWithoutLabels)
-	// 	if err != nil {
-	// 		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for profiles without labels")
-	// 	}
-	//
-	// 	var result sql.Result
-	// 	if result, err = tx.ExecContext(ctx, deleteNoLabelStmt, args...); err != nil {
-	// 		return false, ctxerr.Wrap(ctx, err, "deleting labels for profiles without labels")
-	// 	}
-	// 	if result != nil {
-	// 		rows, _ := result.RowsAffected()
-	// 		updatedDB = rows > 0
-	// 	}
-	// 	return updatedDB, nil
-	// }
-	//
-	// var (
-	// 	insertBuilder         strings.Builder
-	// 	selectOrDeleteBuilder strings.Builder
-	// 	selectParams          []any
-	// 	insertParams          []any
-	// 	deleteParams          []any
-	//
-	// 	setProfileUUIDs = make(map[string]struct{})
-	// )
-	//
-	// labelsToInsert := make(map[string]*fleet.ConfigurationProfileLabel, len(profileLabels))
-	// for i, pl := range profileLabels {
-	// 	labelsToInsert[fmt.Sprintf("%s\n%s", pl.ProfileUUID, pl.LabelName)] = &profileLabels[i]
-	// 	if i > 0 {
-	// 		insertBuilder.WriteString(",")
-	// 		selectOrDeleteBuilder.WriteString(",")
-	// 	}
-	// 	insertBuilder.WriteString("(?, ?, ?, ?, ?)")
-	// 	selectOrDeleteBuilder.WriteString("(?, ?)")
-	// 	selectParams = append(selectParams, pl.ProfileUUID, pl.LabelName)
-	// 	insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude, pl.RequireAll)
-	// 	deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
-	//
-	// 	setProfileUUIDs[pl.ProfileUUID] = struct{}{}
-	// }
-	//
-	// // Determine if we need to update the database
-	// var existingProfileLabels []fleet.ConfigurationProfileLabel
-	// err = sqlx.SelectContext(ctx, tx, &existingProfileLabels,
-	// 	fmt.Sprintf(selectStmt, platformPrefix, platformPrefix, selectOrDeleteBuilder.String()), selectParams...)
-	// if err != nil {
-	// 	return false, ctxerr.Wrap(ctx, err, "selecting existing profile labels")
-	// }
-	//
-	// updateNeeded := false
-	// if len(existingProfileLabels) == len(labelsToInsert) {
-	// 	for _, existing := range existingProfileLabels {
-	// 		toInsert, ok := labelsToInsert[fmt.Sprintf("%s\n%s", existing.ProfileUUID, existing.LabelName)]
-	// 		// The fleet.ConfigurationProfileLabel struct has no pointers, so we can use standard cmp.Equal
-	// 		if !ok || !cmp.Equal(existing, *toInsert) {
-	// 			updateNeeded = true
-	// 			break
-	// 		}
-	// 	}
-	// } else {
-	// 	updateNeeded = true
-	// }
-	//
-	// if updateNeeded {
-	// 	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, platformPrefix, insertBuilder.String()), insertParams...)
-	// 	if err != nil {
-	// 		if isChildForeignKeyError(err) {
-	// 			// one of the provided labels doesn't exist
-	// 			return false, foreignKey("mdm_configuration_profile_labels", fmt.Sprintf("(profile, label)=(%v)", insertParams))
-	// 		}
-	//
-	// 		return false, ctxerr.Wrap(ctx, err, "setting label associations for profile")
-	// 	}
-	// 	updatedDB = true
-	// }
-	//
-	// deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, selectOrDeleteBuilder.String(), platformPrefix)
-	//
-	// profUUIDs := make([]string, 0, len(setProfileUUIDs)+len(profileUUIDsWithoutLabels))
-	// for k := range setProfileUUIDs {
-	// 	profUUIDs = append(profUUIDs, k)
-	// }
-	// profUUIDs = append(profUUIDs, profileUUIDsWithoutLabels...)
-	// deleteArgs := deleteParams
-	// deleteArgs = append(deleteArgs, profUUIDs)
-	//
-	// deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
-	// if err != nil {
-	// 	return false, ctxerr.Wrap(ctx, err, "sqlx.In delete labels for profiles")
-	// }
-	// var result sql.Result
-	// if result, err = tx.ExecContext(ctx, deleteStmt, args...); err != nil {
-	// 	return false, ctxerr.Wrap(ctx, err, "deleting labels for profiles")
-	// }
-	// if result != nil {
-	// 	rows, _ := result.RowsAffected()
-	// 	updatedDB = updatedDB || rows > 0
-	// }
-	//
-	// return updatedDB, nil
+	const batchSize = 1000 // number of parameters is this times number of placeholders
+	generateValueArgs := func(p profVarTuple) (string, []any) {
+		valuePart := "(?, ?),"
+		args := []any{p.ProfileUUID, p.VarID}
+		return valuePart, args
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+			INSERT INTO mdm_configuration_profile_variables (
+				%s_profile_uuid,
+				fleet_variable_id
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				fleet_variable_id = VALUES(fleet_variable_id)
+		`, platformPrefix, strings.TrimSuffix(valuePart, ","))
+
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	err = batchProcessDB(profVars, batchSize, generateValueArgs, executeUpsertBatch)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting profile variables")
+	}
+	return nil
 }
