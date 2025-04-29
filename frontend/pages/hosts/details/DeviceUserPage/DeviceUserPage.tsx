@@ -76,7 +76,7 @@ import {
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceItem/SelfServiceItem";
-import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
+import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
 
