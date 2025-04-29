@@ -859,7 +859,8 @@ SELECT
   'apps' AS source,
   '' AS vendor,
   last_opened_time AS last_opened_at,
-  path AS installed_path
+  path AS installed_path,
+  element
 FROM apps
 UNION
 SELECT
@@ -871,7 +872,8 @@ SELECT
   'chrome_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
-  path AS installed_path
+  path AS installed_path,
+  '' AS element
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
 SELECT
@@ -883,7 +885,8 @@ SELECT
   'firefox_addons' AS source,
   '' AS vendor,
   0 AS last_opened_at,
-  path AS installed_path
+  path AS installed_path,
+  '' AS element
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
 UNION
 SELECT
@@ -895,7 +898,8 @@ SELECT
   'safari_extensions' AS source,
   '' AS vendor,
   0 AS last_opened_at,
-  path AS installed_path
+  path AS installed_path,
+  '' AS element
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
 UNION
 SELECT
@@ -907,7 +911,8 @@ SELECT
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
-  path AS installed_path
+  path AS installed_path,
+  '' AS element
 FROM homebrew_packages
 WHERE type = 'formula'
 UNION
@@ -920,7 +925,8 @@ SELECT
   'homebrew_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
-  path AS installed_path
+  path AS installed_path,
+  '' AS element
 FROM homebrew_packages
 WHERE type = 'cask'
 AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%%%') AND file.path LIKE '%%.app%%' LIMIT 1);
@@ -1599,6 +1605,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["extension_id"],
 			row["browser"],
 			row["last_opened_at"],
+			row["element"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
