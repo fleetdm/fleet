@@ -4292,8 +4292,7 @@ func (ds *Datastore) GetCategoriesForSoftwareTitles(ctx context.Context, softwar
 	stmt := `
 SELECT
 	st.id AS title_id,
-	sc.name AS software_category_name,
-	si.id AS installer_id
+	sc.name AS software_category_name
 FROM
 	software_installers si
 	JOIN software_titles st ON st.id = si.title_id
@@ -4306,11 +4305,10 @@ UNION
 
 SELECT
 	st.id AS title_id,
-	sc.name AS software_category_name,
-	vat.id AS installer_id
+	sc.name AS software_category_name
 FROM
 	vpp_apps va
-	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
+	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 	JOIN software_titles st ON st.id = va.title_id
 	JOIN vpp_app_team_software_categories vatsc ON vatsc.vpp_app_team_id = vat.id
 	JOIN software_categories sc ON vatsc.software_category_id = sc.id
@@ -4329,7 +4327,6 @@ WHERE
 	}
 	var categories []struct {
 		TitleID      uint   `db:"title_id"`
-		InstallerID  uint   `db:"installer_id"`
 		CategoryName string `db:"software_category_name"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {

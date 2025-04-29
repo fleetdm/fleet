@@ -444,16 +444,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.UninstallScript = &uninstallScript
 	}
 
-	fieldsShouldSideEffect := map[string]bool{
-		"SelfService":       false,
-		"Categories":        false,
-		"InstallerFile":     true,
-		"InstallScript":     true,
-		"UninstallScript":   true,
-		"PostInstallScript": true,
-		"PreInstallQuery":   true,
-		"Package":           true,
-		"Labels":            true,
+	fieldsShouldSideEffect := map[string]struct{}{
+		"InstallerFile":     {},
+		"InstallScript":     {},
+		"UninstallScript":   {},
+		"PostInstallScript": {},
+		"PreInstallQuery":   {},
+		"Package":           {},
+		"Labels":            {},
 	}
 	var shouldDoSideEffects bool
 	// persist changes starting here, now that we've done all the validation/diffing we can
@@ -521,10 +519,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 
-			for field, shouldSideEffect := range fieldsShouldSideEffect {
-				isDirty := dirty[field]
-				if isDirty && shouldSideEffect {
+			for field := range dirty {
+				if _, ok := fieldsShouldSideEffect[field]; ok {
 					shouldDoSideEffects = true
+					break
 				}
 			}
 
