@@ -287,7 +287,7 @@ const Integrations = (): JSX.Element => {
             name: "add integration",
             buttonText: "Add integration",
             variant: "default",
-            onActionButtonClick: toggleAddIntegrationModal,
+            onClick: toggleAddIntegrationModal,
             hideButton: !tableData?.length,
           }}
           resultsTitle="integrations"

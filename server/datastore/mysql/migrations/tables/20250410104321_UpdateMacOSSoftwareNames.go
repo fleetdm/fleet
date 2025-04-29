@@ -88,6 +88,11 @@ WHERE
 	updateHostSoftwareInstalledPathsStmt := `UPDATE host_software_installed_paths SET software_id = ? WHERE software_id IN (?)`
 
 	var allExcludedIDs []uint64
+	_, err = tx.Exec(`ALTER TABLE host_software_installed_paths ADD INDEX software_id (software_id)`)
+	if err != nil {
+		return fmt.Errorf("adding temporary index to host_software_installed_paths: %w", err)
+	}
+
 	for newChecksum, idsToMerge := range idsToMergeByNewChecksum {
 		allExcludedIDs = append(allExcludedIDs, idsToMerge...)
 		var hostIDRecordList []struct {
@@ -128,6 +133,11 @@ WHERE
 		if _, err := tx.Exec(stmt, args...); err != nil {
 			return fmt.Errorf("updating host software installed paths records for old software IDs %v: %w", idsToMerge, err)
 		}
+	}
+
+	_, err = tx.Exec(`ALTER TABLE host_software_installed_paths DROP INDEX software_id`)
+	if err != nil {
+		return fmt.Errorf("removing temporary index from host_software_installed_paths: %w", err)
 	}
 
 	// at this point, every host that needs one has a pointer to the selected ID, so we can delete
