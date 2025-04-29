@@ -36,6 +36,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | **Action**                                                                                                                                 | Observer | Observer+* | Maintainer | Admin | GitOps* |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | :------: | :--------: | :--------: | :---: | :-----: |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| Cancel [hosts' upcoming activity](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                |          |            | ✅        | ✅    |         |
 | Manage [activity automations](https://fleetdm.com/docs/using-fleet/audit-logs)                                 |               |                |                 | ✅         | ✅          |
 | View all hosts                                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
 | View a host by identifier                                                                                                                  | ✅       | ✅         | ✅         | ✅    | ✅      |
@@ -44,6 +45,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
+| Add user information from IdP to hosts\*                                                                                                   |          |            | ✅          | ✅    |        |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
 | Add, edit, and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
@@ -129,6 +131,8 @@ Users with access to multiple teams can be assigned different roles for each tea
 | View a host by identifier                                                                                                        | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
+| View hosts' [past](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-past-activity) and [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
+| Cancel hosts' [upcoming](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity) activity                                                |            |              | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅         | ✅          |
 | Create and edit self-authored labels                                                                                                           |          |            |          |     | ✅      |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |

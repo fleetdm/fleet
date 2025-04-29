@@ -342,7 +342,7 @@ Fleet's `docker-compose` file includes a SAML identity provider (IdP) for testin
 
 ### Configuration
 
-Configure SSO on the Organization Settings page with the following:
+Configure SSO on the **Integration settings** page with the following:
 
 ```
 Identity Provider Name: SimpleSAML

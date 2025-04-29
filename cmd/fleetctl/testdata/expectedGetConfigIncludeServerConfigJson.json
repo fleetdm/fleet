@@ -86,7 +86,8 @@
         "macos_setup_assistant": null,
         "enable_release_device_manually": false,
         "script": null,
-        "software": null
+        "software": null,
+        "manual_agent_install": null
       },
       "windows_settings": {
         "custom_settings": null

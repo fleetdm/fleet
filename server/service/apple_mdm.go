@@ -4565,11 +4565,13 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for DigiCert password")
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMBulkUpsertManagedCertificatePayload{
-						HostUUID:      hostUUID,
-						ProfileUUID:   profUUID,
-						NotValidAfter: &cert.NotValidAfter,
-						Type:          fleet.CAConfigDigiCert,
-						CAName:        caName,
+						HostUUID:       hostUUID,
+						ProfileUUID:    profUUID,
+						NotValidBefore: &cert.NotValidBefore,
+						NotValidAfter:  &cert.NotValidAfter,
+						Type:           fleet.CAConfigDigiCert,
+						CAName:         caName,
+						Serial:         &cert.SerialNumber,
 					})
 
 				default:

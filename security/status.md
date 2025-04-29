@@ -88,6 +88,16 @@ Following is the vulnerability report of Fleet components.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10T07:36:31.1157-03:00
 
+### CVE-2019-10202
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java
+- **Products:**
+  - `fleetctl`
+  - `pkg:maven/org.codehaus.jackson/jackson-mapper-asl`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-15T10:31:31.924953-03:00
+
 ### CVE-2023-32698
 - **Author:** @getvictor
 - **Status:** `not_affected`
@@ -97,6 +107,26 @@ Following is the vulnerability report of Fleet components.
   - `pkg:golang/github.com/goreleaser/nfpm/v2`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-04-09T10:26:02.350338-03:00
+
+### CVE-2023-45853
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use zlib C library
+- **Products:**
+  - `fleetctl`
+  - `pkg:deb/debian/zlib1g`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-15T10:17:19.625099-03:00
+
+### CVE-2023-6879
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use libaom3
+- **Products:**
+  - `fleetctl`
+  - `pkg:deb/debian/libaom3`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-15T10:28:21.796437-03:00
 
 ### CVE-2024-7254
 - **Author:** @lucasmrod

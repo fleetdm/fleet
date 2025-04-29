@@ -410,9 +410,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             name: isGlobalAdmin ? "add user" : "create user",
             buttonText: isGlobalAdmin ? "Add users" : "Create user",
             variant: "default",
-            onActionButtonClick: isGlobalAdmin
-              ? toggleAddUserModal
-              : toggleCreateUserModal,
+            onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}

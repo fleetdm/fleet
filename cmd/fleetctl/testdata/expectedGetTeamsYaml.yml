@@ -34,6 +34,7 @@ spec:
         enable_end_user_authentication: false
         enable_release_device_manually: false
         macos_setup_assistant:
+        manual_agent_install:
         script:
         software:
     scripts: null
@@ -87,6 +88,7 @@ spec:
         enable_end_user_authentication: false
         enable_release_device_manually: false
         macos_setup_assistant:
+        manual_agent_install:
         script:
         software:
     scripts: null

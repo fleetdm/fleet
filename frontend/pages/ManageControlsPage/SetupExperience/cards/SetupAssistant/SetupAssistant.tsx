@@ -20,6 +20,7 @@ import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUpl
 import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
 import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
 import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "setup-assistant";
 
@@ -90,12 +91,12 @@ const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   const enrollmentProfileNotFound = enrollmentProfileError?.status === 404;
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="Setup assistant" />
       {isLoading ? (
         <Spinner />
       ) : (
-        <div className={`${baseClass}__content`}>
+        <SetupExperienceContentContainer>
           <div className={`${baseClass}__upload-container`}>
             <p className={`${baseClass}__section-description`}>
               Add an automatic enrollment profile to customize the macOS Setup
@@ -126,7 +127,7 @@ const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
           <div className={`${baseClass}__preview-container`}>
             <SetupAssistantPreview />
           </div>
-        </div>
+        </SetupExperienceContentContainer>
       )}
       {showDeleteProfileModal && (
         <DeleteAutoEnrollmentProfile
@@ -135,7 +136,7 @@ const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
           onCancel={() => setShowDeleteProfileModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 };
 

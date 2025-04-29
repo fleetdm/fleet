@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1319,6 +1320,10 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 }
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
+	}
+
 	// Basic auth check
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
@@ -1358,6 +1363,24 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
+	}
+
+	res.EnhanceOutputDetails()
+	return res, nil
+}
+
+func (svc *Service) getDeviceSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+	}
+
+	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get software install result")
+	} else if res.HostID != host.ID { // hosts can't see other hosts' executions
+		return nil, ctxerr.Wrap(ctx, common_mysql.NotFound("HostSoftwareInstallerResult"), "get host software installer results")
 	}
 
 	res.EnhanceOutputDetails()

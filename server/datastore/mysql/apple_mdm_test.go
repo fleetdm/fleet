@@ -90,7 +90,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMGetABMTokenOrgNamesAssociatedWithTeam", testMDMGetABMTokenOrgNamesAssociatedWithTeam},
 		{"HostMDMCommands", testHostMDMCommands},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
-		{"MDMManagedCertificates", testMDMManagedCertificates},
+		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
+		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
@@ -608,7 +609,6 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, gotProfs, 1)
 	assert.Equal(t, &fleet.MDMDeliveryVerifying, gotProfs[0].Status)
-
 }
 
 func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
@@ -2676,7 +2676,8 @@ func testDeleteMDMAppleProfilesForHost(t *testing.T, ds *Datastore) {
 }
 
 func createDiskEncryptionRecord(ctx context.Context, ds *Datastore, t *testing.T, host *fleet.Host, key string, decryptable bool,
-	threshold time.Time) {
+	threshold time.Time,
+) {
 	err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, key, "", nil)
 	require.NoError(t, err)
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, threshold)
@@ -7190,7 +7191,7 @@ func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
-func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
+func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	initialCP := storeDummyConfigProfileForTest(t, ds)
 	host, err := ds.NewHost(ctx, &fleet.Host{
@@ -7231,12 +7232,14 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Nil(t, profile)
 
 	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	notValidBefore := time.Now().UTC().Round(time.Microsecond)
 	notValidAfter := time.Now().Add(24 * time.Hour).UTC().Round(time.Microsecond)
 	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          initialCP.ProfileUUID,
 			ChallengeRetrievedAt: &challengeRetrievedAt,
+			NotValidBefore:       &notValidBefore,
 			NotValidAfter:        &notValidAfter,
 			Type:                 fleet.CAConfigCustomSCEPProxy,
 			CAName:               "test-ca",
@@ -7252,9 +7255,19 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
 	require.NotNil(t, profile.ChallengeRetrievedAt)
 	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+	assert.Equal(t, &notValidBefore, profile.NotValidBefore)
 	assert.Equal(t, &notValidAfter, profile.NotValidAfter)
 	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, profile.Type)
+	assert.Nil(t, profile.Serial)
 	assert.Equal(t, "test-ca", profile.CAName)
+
+	// Renew should do nothing for SCEP
+	err = ds.RenewMDMManagedCertificates(ctx)
+	require.NoError(t, err)
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	require.NoError(t, err)
+	require.NotNil(t, profile.Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *profile.Status)
 
 	// Cleanup should do nothing
 	err = ds.CleanUpMDMManagedCertificates(ctx)
@@ -7262,6 +7275,232 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
+
+	badProfileUUID := uuid.NewString()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_mdm_managed_certificates (host_uuid, profile_uuid) VALUES (?, ?)
+		`, host.UUID, badProfileUUID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	var uid string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+			badProfileUUID)
+	})
+	require.Equal(t, badProfileUUID, uid)
+
+	// Cleanup should delete the above orphaned record
+	err = ds.CleanUpMDMManagedCertificates(ctx)
+	require.NoError(t, err)
+	err = ExecAdhocSQLWithError(ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM host_mdm_managed_certificates WHERE profile_uuid = ?`,
+			badProfileUUID)
+	})
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	initialCP := storeDummyConfigProfileForTest(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+	})
+	require.NoError(t, err)
+
+	// Host and profile are not linked
+	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	require.NoError(t, err)
+	assert.Nil(t, profile)
+
+	err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:       initialCP.ProfileUUID,
+			ProfileIdentifier: initialCP.Identifier,
+			ProfileName:       initialCP.Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryVerified,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "command-uuid",
+			Checksum:          []byte("checksum"),
+		},
+	},
+	)
+	require.NoError(t, err)
+
+	// Host and profile do not have certificate metadata
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	require.NoError(t, err)
+	assert.Nil(t, profile)
+
+	notValidBefore := time.Now().UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(29 * 24 * time.Hour).UTC().Round(time.Microsecond)
+	serial := "3ABADCAFEF684D6348F5EC95AEFF468F237A9D7E"
+	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+		{
+			HostUUID:             host.UUID,
+			ProfileUUID:          initialCP.ProfileUUID,
+			ChallengeRetrievedAt: nil,
+			NotValidBefore:       &notValidBefore,
+			NotValidAfter:        &notValidAfter,
+			Type:                 fleet.CAConfigDigiCert,
+			CAName:               "test-ca",
+			Serial:               &serial,
+		},
+	})
+	require.NoError(t, err)
+
+	// Check that the managed certificate was inserted correctly
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, host.UUID, profile.HostUUID)
+	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+	assert.Nil(t, profile.ChallengeRetrievedAt)
+	assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+	assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigDigiCert, profile.Type)
+	require.NotNil(t, profile.Serial)
+	assert.Equal(t, serial, *profile.Serial)
+	assert.Equal(t, "test-ca", profile.CAName)
+
+	// Renew should not do anything yet so the MDM delivery status should stay "verified"
+	err = ds.RenewMDMManagedCertificates(ctx)
+	require.NoError(t, err)
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	require.NoError(t, err)
+	require.NotNil(t, profile.Status)
+	assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+	t.Run("Renew scenario 1 - validity window > 30 days", func(t *testing.T) {
+		// Set not_valid_before to 31 days in the past the validity window becomes 60 days, of which there are
+		// 29 left which should trigger the first renewal scenario(window > 30 days, renew when < 30
+		// days left)
+		notValidBefore := time.Now().Add(-31 * 24 * time.Hour).UTC().Round(time.Microsecond)
+		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+			{
+				HostUUID:             host.UUID,
+				ProfileUUID:          initialCP.ProfileUUID,
+				ChallengeRetrievedAt: nil,
+				NotValidBefore:       &notValidBefore,
+				NotValidAfter:        &notValidAfter,
+				Type:                 fleet.CAConfigDigiCert,
+				CAName:               "test-ca",
+				Serial:               &serial,
+			},
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+			UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+		`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+
+		// Verify the policy is not currently marked for resend and that the upsert executed correctly
+		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		require.NoError(t, err)
+		require.NotNil(t, profile.Status)
+		assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+		assert.Equal(t, host.UUID, profile.HostUUID)
+		assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+		assert.Nil(t, profile.ChallengeRetrievedAt)
+		assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+		assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+		assert.Equal(t, fleet.CAConfigDigiCert, profile.Type)
+		require.NotNil(t, profile.Serial)
+		assert.Equal(t, serial, *profile.Serial)
+		assert.Equal(t, "test-ca", profile.CAName)
+
+		// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
+		err = ds.RenewMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		require.NoError(t, err)
+		require.Nil(t, profile.Status)
+
+		// Cleanup should do nothing
+		err = ds.CleanUpMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+	})
+
+	t.Run("Renew scenario 2 - validity window < 30 days", func(t *testing.T) {
+		// Set not_valid_before to 15 days in the past and not_valid_after to 14 days in the future so the
+		// validity window becomes 29 days, of which there are 14 left which should trigger the second
+		// renewal scenario(window < 30 days, renew when there is half that time left)
+		notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
+		notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
+		err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
+			{
+				HostUUID:             host.UUID,
+				ProfileUUID:          initialCP.ProfileUUID,
+				ChallengeRetrievedAt: nil,
+				NotValidBefore:       &notValidBefore,
+				NotValidAfter:        &notValidAfter,
+				Type:                 fleet.CAConfigDigiCert,
+				CAName:               "test-ca",
+				Serial:               &serial,
+			},
+		})
+		require.NoError(t, err)
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+		UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
+	`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		require.NoError(t, err)
+
+		// Verify the policy is not currently marked for resend and that the upsert executed correctly
+		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		require.NoError(t, err)
+		require.NotNil(t, profile.Status)
+		assert.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+
+		assert.Equal(t, host.UUID, profile.HostUUID)
+		assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+		assert.Nil(t, profile.ChallengeRetrievedAt)
+		assert.Equal(t, &notValidBefore, profile.NotValidBefore)
+		assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+		assert.Equal(t, fleet.CAConfigDigiCert, profile.Type)
+		require.NotNil(t, profile.Serial)
+		assert.Equal(t, serial, *profile.Serial)
+		assert.Equal(t, "test-ca", profile.CAName)
+
+		// Renew should set the MDM delivery status to "null" so the profile gets resent and the certificate renewed
+		err = ds.RenewMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		require.NoError(t, err)
+		require.Nil(t, profile.Status)
+
+		// Cleanup should do nothing
+		err = ds.CleanUpMDMManagedCertificates(ctx)
+		require.NoError(t, err)
+		profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+	})
 
 	badProfileUUID := uuid.NewString()
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
