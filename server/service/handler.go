@@ -1211,6 +1211,7 @@ func registerMDM(
 func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/mdm/sso" {
+			// TODO: redirects for non-SSO config web url?
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -1225,6 +1226,9 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				next.ServeHTTP(w, r)
 				return
 			}
+
+			// TODO: skip os version check if deviceinfo query param is present? or find another way
+			// to avoid polling the DB and Apple endpoint twice for each enrollment.
 
 			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(r.Context(), parsed)
 			if err != nil {
@@ -1242,6 +1246,31 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)
 				}
 				return
+			}
+
+			// if we get here, the minimum os version is satisfied, so we continue with SSO flow
+			q := r.URL.Query()
+			if v, ok := q["deviceinfo"]; !ok || len(v) == 0 {
+				// If the deviceinfo query param is empty, we add the deviceinfo to the URL and
+				// redirect.
+				//
+				// Note: We'll apply this redirect only if query params are empty because want to
+				// redirect to the same URL with added query params after parsing the x-apple-aspen-deviceinfo
+				// header. Whenever we see a request with any query params already present, we'll
+				// skip this step and just continue to the next handler.
+				newURL := *r.URL
+				q.Set("deviceinfo", di)
+				newURL.RawQuery = q.Encode()
+				level.Info(logger).Log("msg", "handling mdm sso: redirect with deviceinfo", "host_uuid", parsed.UDID, "serial", parsed.Serial)
+				http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
+				return
+			} else {
+				if v != nil && len(v) > 0 && v[0] != di {
+					// something is wrong, the device info in the query params does not match
+					// the one in the header, so we just log the error and continue to next
+					level.Error(logger).Log("msg", "device info in query params does not match header", "header", di, "query", v[0])
+				}
+				level.Info(logger).Log("msg", "handling mdm sso: proceed to next", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 			}
 		}
 
