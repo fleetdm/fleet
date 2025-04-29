@@ -33,6 +33,7 @@ import ActionsDropdown from "components/ActionsDropdown";
 import { generateActionDropdownOptions } from "pages/hosts/details/HostDetailsPage/modals/RunScriptModal/ScriptsTableConfig";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
+import { IPaginatedListScript } from "pages/hosts/ManageHostsPage/components/RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
 
 const baseClass = "script-details-modal";
 
@@ -42,10 +43,8 @@ type PartialOrFullHostScript =
 
 interface IScriptDetailsModalProps {
   onCancel: () => void;
-  onDelete: () => void;
-  /** Help text on manage scripts page's modal but not on host detail's page modal */
+  onDelete?: () => void;
   runScriptHelpText?: boolean;
-  /** Host actions dropdown on host details page's modal but not on manage scripts page's modal */
   showHostScriptActions?: boolean;
   setRunScriptRequested?: (value: boolean) => void;
   hostId?: number | null;
@@ -53,13 +52,15 @@ interface IScriptDetailsModalProps {
   refetchHostScripts?: <TPageData>(
     options?: (RefetchOptions & RefetchQueryFilters<TPageData>) | undefined
   ) => Promise<QueryObserverResult<IHostScriptsResponse, IApiError>>;
-  selectedScriptDetails?: PartialOrFullHostScript;
+  selectedScriptDetails?: PartialOrFullHostScript | IPaginatedListScript;
   selectedScriptContent?: string;
   isLoadingScriptContent?: boolean;
   isScriptContentError?: Error | null;
   isHidden?: boolean;
   onClickRunDetails?: (scriptExecutionId: string) => void;
   teamIdForApi?: number;
+  suppressSecondaryActions?: boolean;
+  customPrimaryButtons?: React.ReactNode;
 }
 
 const ScriptDetailsModal = ({
@@ -78,6 +79,8 @@ const ScriptDetailsModal = ({
   isHidden = false,
   onClickRunDetails,
   teamIdForApi,
+  suppressSecondaryActions = false,
+  customPrimaryButtons,
 }: IScriptDetailsModalProps) => {
   // For scrollable modal
   const [isTopScrolling, setIsTopScrolling] = useState(false);
@@ -93,20 +96,30 @@ const ScriptDetailsModal = ({
   const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
+  // handle multiple possibilities for `selectedScriptDetails`
+  let scriptId: number | null = null;
+  if (selectedScriptDetails) {
+    if ("script_id" in selectedScriptDetails) {
+      scriptId = selectedScriptDetails.script_id;
+    } else if ("id" in selectedScriptDetails) {
+      scriptId = selectedScriptDetails.id;
+    }
+  }
+
   const {
     data: scriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
   } = useQuery<any, Error>(
-    ["scriptContent", selectedScriptDetails?.script_id],
+    ["scriptContent", scriptId],
     () =>
-      selectedScriptDetails?.script_id
+      scriptId
         ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          scriptAPI.downloadScript(selectedScriptDetails.script_id!)
+          scriptAPI.downloadScript(scriptId)
         : Promise.resolve(null),
     {
       refetchOnWindowFocus: false,
-      enabled: !selectedScriptContent && !!selectedScriptDetails?.script_id,
+      enabled: !selectedScriptContent && !!scriptId,
     }
   );
 
@@ -166,7 +179,7 @@ const ScriptDetailsModal = ({
               );
               refetchHostScripts();
 
-              onCancel(); // Running a script returns to run script modal
+              onCancel(); // Running a script returns to previous state
             } catch (e) {
               renderFlash("error", getErrorReason(e));
               setRunScriptRequested(false);
@@ -199,54 +212,58 @@ const ScriptDetailsModal = ({
       <ModalFooter
         isTopScrolling={isTopScrolling}
         secondaryButtons={
-          <>
-            <Button
-              className={`${baseClass}__action-button`}
-              variant="icon"
-              onClick={() => onClickDownload()}
-            >
-              <Icon name="download" />
-            </Button>
-            <GitOpsModeTooltipWrapper
-              position="bottom"
-              renderChildren={(disableChildren) => (
-                <Button
-                  disabled={disableChildren}
-                  className={`${baseClass}__action-button`}
-                  variant="icon"
-                  onClick={onDelete}
-                >
-                  <Icon name="trash" color="ui-fleet-black-75" />
-                </Button>
-              )}
-            />
-          </>
+          suppressSecondaryActions ? undefined : (
+            <>
+              <Button
+                className={`${baseClass}__action-button`}
+                variant="icon"
+                onClick={() => onClickDownload()}
+              >
+                <Icon name="download" />
+              </Button>
+              <GitOpsModeTooltipWrapper
+                position="bottom"
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    className={`${baseClass}__action-button`}
+                    variant="icon"
+                    onClick={onDelete}
+                  >
+                    <Icon name="trash" color="ui-fleet-black-75" />
+                  </Button>
+                )}
+              />
+            </>
+          )
         }
         primaryButtons={
-          <>
-            {showHostScriptActions && selectedScriptDetails && (
-              <div className={`${baseClass}__manage-automations-wrapper`}>
-                <ActionsDropdown
-                  className={`${baseClass}__manage-automations-dropdown`}
-                  onChange={(value) =>
-                    onSelectMoreActions(
-                      value,
+          customPrimaryButtons || (
+            <>
+              {showHostScriptActions && selectedScriptDetails && (
+                <div className={`${baseClass}__manage-automations-wrapper`}>
+                  <ActionsDropdown
+                    className={`${baseClass}__manage-automations-dropdown`}
+                    onChange={(value) =>
+                      onSelectMoreActions(
+                        value,
+                        selectedScriptDetails as IHostScript
+                      )
+                    }
+                    placeholder="More actions"
+                    isSearchable={false}
+                    options={generateActionDropdownOptions(
+                      currentUser,
+                      hostTeamId || null,
                       selectedScriptDetails as IHostScript
-                    )
-                  }
-                  placeholder="More actions"
-                  isSearchable={false}
-                  options={generateActionDropdownOptions(
-                    currentUser,
-                    hostTeamId || null,
-                    selectedScriptDetails as IHostScript
-                  )}
-                  menuPlacement="top"
-                />
-              </div>
-            )}
-            <Button onClick={onCancel}>Done</Button>
-          </>
+                    )}
+                    menuPlacement="top"
+                  />
+                </div>
+              )}
+              <Button onClick={onCancel}>Done</Button>
+            </>
+          )
         }
       />
     );
@@ -266,7 +283,7 @@ const ScriptDetailsModal = ({
         className={`${baseClass}__script-content  modal-scrollable-content`}
         ref={topDivRef}
       >
-        <Textarea label="Script content" variant="code">
+        <Textarea label="Script content:" variant="code">
           {scriptContent}
         </Textarea>
         {runScriptHelpText && (
