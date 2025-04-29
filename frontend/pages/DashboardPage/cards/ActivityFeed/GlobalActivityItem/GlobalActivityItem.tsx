@@ -666,6 +666,17 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranScriptBatch: (activity: IActivity) => {
+    // next iteration, can grab `batch_execution_id` from details to use for summary api call
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count}{" "}
+        hosts.
+      </>
+    );
+  },
   addedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -1309,6 +1320,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
+    }
+    case ActivityType.RanScriptBatch: {
+      return TAGGED_TEMPLATES.ranScriptBatch(activity);
     }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);

@@ -20,7 +20,6 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/ios/declaration-profiles/passcode-settings.json
-      - path: ../lib/ios/declaration-profiles/software-update-settings.json
   scripts:
 policies:
 queries:
