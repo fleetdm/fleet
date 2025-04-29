@@ -415,8 +415,23 @@ const DeviceUserPage = ({
       tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
     }
 
-    const findSelectedTab = (pathname: string) =>
-      findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
+    const findSelectedTab = (pathname: string) => {
+      const cleanPath = pathname.split("?")[0];
+      // Filter tabPaths that are prefix of cleanPath
+      const matchingIndices = tabPaths
+        .map((tabPath, idx) => ({ tabPath, idx }))
+        .filter(({ tabPath }) => cleanPath.startsWith(tabPath));
+
+      if (matchingIndices.length === 0) {
+        return -1;
+      }
+
+      // Return the index of the longest matching prefix
+      return matchingIndices.reduce((best, current) =>
+        current.tabPath.length > best.tabPath.length ? current : best
+      ).idx;
+    };
+
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
       router.push(tabPaths[0]);
     }
