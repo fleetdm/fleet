@@ -69,8 +69,7 @@
       min-width: 0;
       /* This is crucial for proper shrinking */
     }
-
-    &:hover {
+    &:not(.paginated-list__row--disabled):hover {
       background: $ui-off-white;
       cursor: pointer;
 

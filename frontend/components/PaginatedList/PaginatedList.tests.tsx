@@ -440,7 +440,7 @@ describe("PaginatedList", () => {
         onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
-        disabled
+        disableList
       />
     );
     await waitForLoadingToFinish(container);

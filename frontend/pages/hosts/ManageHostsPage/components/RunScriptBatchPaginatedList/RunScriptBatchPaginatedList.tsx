@@ -114,7 +114,7 @@ const RunScriptBatchPaginatedList = ({
         onClickRow={onClickScriptRow}
         setDirtyOnClickRow={false}
         pageSize={SCRIPT_BATCH_PAGE_SIZE}
-        disabled={isUpdating}
+        disableList={isUpdating}
         useCheckBoxes={false}
         ancestralUpdating={isUpdating}
       />

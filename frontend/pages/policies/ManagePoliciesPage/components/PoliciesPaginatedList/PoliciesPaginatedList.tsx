@@ -29,6 +29,8 @@ export interface IFormPolicy extends IPolicy {
   runScriptEnabled: boolean;
   scriptIdToRun?: number;
   scriptNameToRun?: string;
+  disabled?: boolean;
+  disabledCheckboxTooltipContent?: React.ReactNode;
 }
 
 interface IPoliciesPaginatedListProps {
@@ -109,57 +111,67 @@ function PoliciesPaginatedList(
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
 
-  const fetchPage = useCallback((pageNumber: number) => {
-    let fetchPromise;
+  const fetchPage = useCallback(
+    (pageNumber: number) => {
+      let fetchPromise;
 
-    if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
-      fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            scope: "globalPolicies",
-            page: pageNumber,
-            perPage: DEFAULT_PAGE_SIZE,
-            query: "",
-            orderDirection: "asc" as const,
-            orderKey: DEFAULT_SORT_COLUMN,
-          },
-        ],
-        ({ queryKey }) => {
-          return globalPoliciesAPI.loadAllNew(queryKey[0]);
-        }
-      );
-    } else {
-      fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            scope: "teamPolicies",
-            page: pageNumber,
-            perPage: DEFAULT_PAGE_SIZE,
-            query: "",
-            orderDirection: "asc" as const,
-            orderKey: DEFAULT_SORT_COLUMN,
-            teamId,
-            mergeInherited: false,
-          },
-        ],
-        ({ queryKey }) => {
-          return teamPoliciesAPI.loadAllNew(queryKey[0]);
-        }
-      );
-    }
+      if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
+        fetchPromise = queryClient.fetchQuery(
+          [
+            {
+              scope: "globalPolicies",
+              page: pageNumber,
+              perPage: DEFAULT_PAGE_SIZE,
+              query: "",
+              orderDirection: "asc" as const,
+              orderKey: DEFAULT_SORT_COLUMN,
+            },
+          ],
+          ({ queryKey }) => {
+            return globalPoliciesAPI.loadAllNew(queryKey[0]);
+          }
+        );
+      } else {
+        fetchPromise = queryClient.fetchQuery(
+          [
+            {
+              scope: "teamPolicies",
+              page: pageNumber,
+              perPage: DEFAULT_PAGE_SIZE,
+              query: "",
+              orderDirection: "asc" as const,
+              orderKey: DEFAULT_SORT_COLUMN,
+              teamId,
+              mergeInherited: false,
+            },
+          ],
+          ({ queryKey }) => {
+            return teamPoliciesAPI.loadAllNew(queryKey[0]);
+          }
+        );
+      }
 
-    return fetchPromise.then((policiesResponse) => {
-      // Marshall the response into IFormPolicy objects.
-      return (policiesResponse.policies || []).map((policy) => ({
-        ...policy,
-        installSoftwareEnabled: !!policy.install_software,
-        swIdToInstall: policy.install_software?.software_title_id,
-        runScriptEnabled: !!policy.run_script,
-        scriptIdToRun: policy.run_script?.id,
-        scriptNameToRun: policy.run_script?.name,
-      })) as IFormPolicy[];
-    });
-  }, []);
+      return fetchPromise.then((policiesResponse) => {
+        // Marshall the response into IFormPolicy objects.
+        return (policiesResponse.policies || []).map((policy) => {
+          const disabledTooltip = policy.platform.includes("darwin")
+            ? null
+            : "Policy does not target macOS";
+          return {
+            ...policy,
+            installSoftwareEnabled: !!policy.install_software,
+            swIdToInstall: policy.install_software?.software_title_id,
+            runScriptEnabled: !!policy.run_script,
+            scriptIdToRun: policy.run_script?.id,
+            scriptNameToRun: policy.run_script?.name,
+            disabled: !!disabledTooltip,
+            disabledCheckboxTooltipContent: disabledTooltip,
+          };
+        }) as IFormPolicy[];
+      });
+    },
+    [queryClient, teamId]
+  );
 
   const fetchCount = useCallback(() => {
     let fetchPromise;
@@ -207,7 +219,7 @@ function PoliciesPaginatedList(
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
-          disabled={disabled || gitOpsModeEnabled}
+          disableList={disabled || gitOpsModeEnabled}
           heading={<span className={`${baseClass}__header`}>Policies</span>}
           helpText={helpText}
         />

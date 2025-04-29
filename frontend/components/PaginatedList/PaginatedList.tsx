@@ -62,7 +62,7 @@ interface IPaginatedListProps<TItem> {
   /** A function to call when the list of dirty items changes. */
   onUpdate?: (changedItems: TItem[]) => void;
   /** Whether the list should be disabled. */
-  disabled?: boolean;
+  disableList?: boolean;
   /** also requires an `isSelected` function be passed in for correct functionality */
   useCheckBoxes?: boolean;
   /** Allow the parent to trigger the loading overlay */
@@ -85,7 +85,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     setDirtyOnClickRow = true,
     onUpdate,
     isSelected,
-    disabled = false,
+    disableList = false,
     heading,
     useCheckBoxes = true,
     ancestralUpdating = false,
@@ -200,7 +200,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
 
   // Render the list.
   const classes = classnames(baseClass, "form", {
-    "form-fields--disabled": disabled,
+    "form-fields--disabled": disableList,
   });
   return (
     <div className={classes}>
@@ -221,12 +221,17 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           // us to render an item correctly even after we've navigated away
           // from its page and then back again.
           const item = dirtyItems[_item[idKey]] ?? _item;
+
+          const rowClasses = classnames(`${baseClass}__row`, {
+            [`${baseClass}__row--disabled`]: item.disabled,
+          });
           return (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
             <li
-              className={`${baseClass}__row`}
+              className={rowClasses}
               key={item[idKey]}
               onClick={() => {
+                if (item.disabled) return;
                 const clickedItem = onClickRow(item);
                 if (setDirtyOnClickRow)
                   setDirtyItems({
@@ -237,7 +242,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
             >
               {useCheckBoxes && isSelected && (
                 <Checkbox
-                  disabled={disabled}
+                  disabled={disableList || item.disabled}
+                  iconTooltipContent={item.disabledCheckboxTooltipContent}
                   value={
                     typeof isSelected === "function"
                       ? isSelected(item)
