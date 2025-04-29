@@ -23,6 +23,27 @@ const (
 	// RefetchCriticalQueriesUntil field when migrating a device from a
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
+	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
+	// Currently, we assume the variables are fully unique and not substrings of each other.
+	//
+	// NOTE: if you add new variables, make sure you create a DB migration to insert them
+	// in the fleet_variables table. At some point we should refactor those constants/regexp
+	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
+	// (not doing it now because of time constraints to finish the story for the release).
+	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial              = "HOST_HARDWARE_SERIAL"
+	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
+	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
+	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+
+	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
 )
 
 type AppleMDM struct {
