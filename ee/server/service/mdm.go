@@ -262,7 +262,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 	if !ac.MDM.EnabledAndConfigured {
-		return &fleet.MDMNotConfiguredError{}
+		return fleet.ErrMDMNotConfigured
 	}
 
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
@@ -712,7 +712,8 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
-	eulaToken string, err error) {
+	eulaToken string, err error,
+) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")

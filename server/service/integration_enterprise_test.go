@@ -4816,16 +4816,21 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
+	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
+		if slices.Contains(windowsOnly, path) {
+			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		}
 		if route.deviceAuthenticated {
-			path = fmt.Sprintf(route.path, tkn)
+			path = fmt.Sprintf(path, tkn)
 		}
 
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error())
+		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -10672,7 +10677,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getDeviceInstallResult := getSoftwareInstallResultsResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceInstallResult)
 	require.NoError(t, err)
-	require.Equal(t, getDeviceInstallResult.Results.SoftwareTitle, "ruby")
+	require.Equal(t, "ruby", getDeviceInstallResult.Results.SoftwareTitle)
+	require.Equal(t, host.ID, getDeviceInstallResult.Results.HostID)
+	require.Equal(t, fleet.SoftwareInstallPending, getDeviceInstallResult.Results.Status)
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software/install/nope/results", nil, http.StatusNotFound)
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+otherToken+"/software/install/"+getDeviceSw.Software[2].SoftwarePackage.LastInstall.InstallUUID+"/results", nil, http.StatusNotFound)
 
