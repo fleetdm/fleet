@@ -120,7 +120,6 @@ const Policies = ({
           data={generatePolicyDataSet(policies)}
           isLoading={isLoading}
           defaultSortHeader="status"
-          defaultSortDirection="asc"
           resultsTitle="policies"
           emptyComponent={() => <></>}
           showMarkAllPages={false}

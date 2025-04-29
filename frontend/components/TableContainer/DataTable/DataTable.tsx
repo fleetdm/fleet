@@ -224,6 +224,11 @@ const DataTable = ({
           ) => {
             return sort.hasLength(a.values[id], b.values[id]);
           },
+          hostPolicyStatus: (
+            a: { values: Record<string, unknown[]> },
+            b: { values: Record<string, unknown[]> },
+            id: string
+          ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
         }),
         []
       ),

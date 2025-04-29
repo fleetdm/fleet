@@ -10,6 +10,9 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
+interface IEnhancedHostPolicy extends IHostPolicy {
+  status: PolicyStatus | null;
+}
 interface IHeaderProps {
   column: {
     title: string;
@@ -17,19 +20,13 @@ interface IHeaderProps {
   };
 }
 
-type PolicyStatus = "pass" | "fail";
-
-interface IStatusCellValue {
-  displayName: string;
-  statusName: IndicatorStatus;
-  value: PolicyStatus;
-}
+export type PolicyStatus = "pass" | "fail" | "actionRequired"; // action required indicates a failed policy with conditional access enabled
 interface ICellProps {
   cell: {
     value: string;
   };
   row: {
-    original: IHostPolicy;
+    original: IEnhancedHostPolicy;
   };
 }
 
@@ -42,19 +39,28 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
-const getIndicatorParams = (
-  status: PolicyStatus,
-  conditionalAccessEnabled: boolean
-): [IndicatorStatus, string] => {
-  if (status === "pass") {
-    return ["success", "Pass"];
-  } else if (status === "fail") {
-    if (conditionalAccessEnabled) {
-      return ["actionRequired", "Action required"];
-    }
-    return ["failure", "Fail"];
+
+const getPolicyStatus = (policy: IHostPolicy): PolicyStatus | null => {
+  if (policy.response === "pass") {
+    return "pass";
   }
-  throw new Error(`Unknown status: ${status}`);
+  if (policy.response === "fail") {
+    if (policy.conditional_access_enabled) {
+      return "actionRequired";
+    }
+    return "fail";
+  }
+  // can occur when response === ""
+  return null;
+};
+
+const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
+  PolicyStatus,
+  [IndicatorStatus, string]
+> = {
+  pass: ["success", "Pass"],
+  fail: ["failure", "Fail"],
+  actionRequired: ["actionRequired", "Action required"],
 };
 
 // NOTE: cellProps come from react-table
@@ -84,21 +90,22 @@ const generatePolicyTableHeaders = (
         />
       ),
       disableSortBy: false,
-      sortType: "caseInsensitive",
+      sortType: "hostPolicyStatus",
       accessor: "status",
       Cell: (cellProps) => {
         const {
           row: {
-            original: { response: status, conditional_access_enabled },
+            // original: { response: status, conditional_access_enabled },
+            original: { status },
           },
         } = cellProps;
-        if (status === "") {
+        if (status === null) {
           return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
         }
-        const [indicatorStatus, displayText] = getIndicatorParams(
-          status as PolicyStatus,
-          conditional_access_enabled
-        );
+        const [
+          indicatorStatus,
+          displayText,
+        ] = POLICY_STATUS_TO_INDICATOR_PARAMS[status];
         return (
           <StatusIndicatorWithIcon
             value={displayText}
@@ -135,8 +142,13 @@ const generatePolicyTableHeaders = (
   ];
 };
 
-const generatePolicyDataSet = (policies: IHostPolicy[]): IHostPolicy[] => {
-  return policies;
+const generatePolicyDataSet = (
+  policies: IHostPolicy[]
+): IEnhancedHostPolicy[] => {
+  return policies.map((policy) => ({
+    ...policy,
+    status: getPolicyStatus(policy),
+  }));
 };
 
 export { generatePolicyTableHeaders, generatePolicyDataSet };
