@@ -17075,16 +17075,26 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	var hitInstallerURL bool
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitInstallerURL = true
-		if r.URL.Path != "/ruby.deb" && r.URL.Path != "/updated/ruby.deb" {
+		switch r.URL.Path {
+		case "/ruby.deb", "/updated/ruby.deb":
+			file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
+		case "/app.exe":
+			file, err := os.Open(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", "hello-world-installer.exe"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/vnd.microsoft.portable-executable")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
+
+		default:
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
-		require.NoError(t, err)
-		defer file.Close()
-		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
-		_, err = io.Copy(w, file)
-		require.NoError(t, err)
 	})
 
 	srv := httptest.NewServer(handler)
@@ -17230,4 +17240,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
 	require.True(t, hitInstallerURL)
+
+	// add exe to payloads
+	exeURL := srv.URL + "/app.exe"
+	softwareToInstall = append(softwareToInstall, &fleet.SoftwareInstallerPayload{
+		URL: exeURL,
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
 }
