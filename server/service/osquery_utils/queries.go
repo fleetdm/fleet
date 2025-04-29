@@ -1605,7 +1605,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["extension_id"],
 			row["browser"],
 			row["last_opened_at"],
-			row["element"],
 		)
 		if err != nil {
 			level.Debug(logger).Log(
