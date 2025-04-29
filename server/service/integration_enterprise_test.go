@@ -13532,6 +13532,40 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 		AutomaticInstall: true,
 	}
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Fleet can't create a policy to detect existing installations for .exe packages. Please add the software, add a custom policy, and enable the install software policy automation.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "some installer script",
+		UninstallScript: "some uninstall script",
+		Filename:        "hello-world-installer.exe",
+		TeamID:          &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
+	})
+	require.NotZero(t, titleID)
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		InstallScript: ptr.String(""),
+		TitleID:       titleID,
+		TeamID:        &team.ID,
+	}, http.StatusBadRequest, "Couldn't edit. Install script is required for .exe packages.")
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		Filename:        "hello-world-installer.exe",
+		UninstallScript: ptr.String(""),
+		TitleID:         titleID,
+		TeamID:          &team.ID,
+	}, http.StatusBadRequest, "Couldn't edit. Uninstall script is required for .exe packages.")
+
+	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+		Filename:          "hello-world-installer.exe",
+		PostInstallScript: ptr.String("foo bar baz"),
+		TitleID:           titleID,
+		TeamID:            &team.ID,
+	}, http.StatusOK, "")
 }
 
 // 1. host reports software
