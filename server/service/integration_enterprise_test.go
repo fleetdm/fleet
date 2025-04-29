@@ -17075,16 +17075,26 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	var hitInstallerURL bool
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hitInstallerURL = true
-		if r.URL.Path != "/ruby.deb" && r.URL.Path != "/updated/ruby.deb" {
+		switch r.URL.Path {
+		case "/ruby.deb", "/updated/ruby.deb":
+			file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
+		case "/app.exe":
+			file, err := os.Open(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", "hello-world-installer.exe"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/vnd.microsoft.portable-executable")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
+
+		default:
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
-		require.NoError(t, err)
-		defer file.Close()
-		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
-		_, err = io.Copy(w, file)
-		require.NoError(t, err)
 	})
 
 	srv := httptest.NewServer(handler)
@@ -17230,4 +17240,44 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
 	require.True(t, hitInstallerURL)
+
+	// add exe to payloads
+	exeURL := srv.URL + "/app.exe"
+	softwareToInstall = append(softwareToInstall, &fleet.SoftwareInstallerPayload{
+		URL: exeURL,
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't add. Install script is required for .exe packages.")
+
+	softwareToInstall[1].InstallScript = "echo install"
+	softwareToInstall[1].UninstallScript = "echo uninstall"
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 2)
+
+	var exeHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &exeHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[1].TitleID)
+	})
+	require.NotEmpty(t, exeHash)
+
+	// remove the URL and scripts, and add the hash. we should get an error because scripts are required.
+	softwareToInstall[1].InstallScript = ""
+	softwareToInstall[1].UninstallScript = ""
+	softwareToInstall[1].URL = ""
+	softwareToInstall[1].SHA256 = exeHash
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't edit. Install script is required for .exe packages.")
+
+	// add the install script, but without uninstall script we should still fail
+	softwareToInstall[1].InstallScript = "echo install"
+	softwareToInstall[1].UninstallScript = ""
+	softwareToInstall[1].URL = ""
+	softwareToInstall[1].SHA256 = exeHash
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
 }
