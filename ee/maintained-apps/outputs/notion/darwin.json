@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.9.1",
+      "version": "4.10.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-4.9.1-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-4.10.0-arm64.dmg",
       "install_script_ref": "11cbfa59",
       "uninstall_script_ref": "21cd1000",
-      "sha256": "7e61fe7f644a12be7e355676e8f78a5c525dcb1e70dadd4bb0f952ef6bcff3a7"
+      "sha256": "1d0fc8647ccd674c18c84093273b211d7b58b849e36d1692b37fdba0ec7a2fad"
     }
   ],
   "refs": {
