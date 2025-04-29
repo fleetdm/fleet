@@ -42,6 +42,20 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
+const getIndicatorParams = (
+  status: PolicyStatus,
+  conditionalAccessEnabled: boolean
+): [IndicatorStatus, string] => {
+  if (status === "pass") {
+    return ["success", "Pass"];
+  } else if (status === "fail") {
+    if (conditionalAccessEnabled) {
+      return ["actionRequired", "Action required"];
+    }
+    return ["failure", "Fail"];
+  }
+  throw new Error(`Unknown status: ${status}`);
+};
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -49,19 +63,6 @@ const generatePolicyTableHeaders = (
   togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void,
   currentTeamId?: number
 ): IDataColumn[] => {
-  const STATUS_CELL_VALUES: Record<PolicyStatus, IStatusCellValue> = {
-    pass: {
-      displayName: "Yes",
-      statusName: "success",
-      value: "pass",
-    },
-    fail: {
-      displayName: "No",
-      statusName: "error",
-      value: "fail",
-    },
-  };
-
   return [
     {
       title: "Name",
@@ -84,18 +85,24 @@ const generatePolicyTableHeaders = (
       ),
       disableSortBy: false,
       sortType: "caseInsensitive",
-      accessor: "response",
+      accessor: "status",
       Cell: (cellProps) => {
-        if (cellProps.row.original.response === "") {
+        const {
+          row: {
+            original: { response: status, conditional_access_enabled },
+          },
+        } = cellProps;
+        if (status === "") {
           return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
         }
-
-        const responseValue =
-          STATUS_CELL_VALUES[cellProps.row.original.response];
+        const [indicatorStatus, displayText] = getIndicatorParams(
+          status as PolicyStatus,
+          conditional_access_enabled
+        );
         return (
           <StatusIndicatorWithIcon
-            value={responseValue.displayName}
-            status={responseValue.statusName}
+            value={displayText}
+            status={indicatorStatus}
           />
         );
       },
