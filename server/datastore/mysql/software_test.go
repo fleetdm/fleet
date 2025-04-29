@@ -6143,15 +6143,15 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 
 	// self-service flag
 	selfServiceOpts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 10}, IncludeAvailableForInstall: true, SelfServiceOnly: true, IsMDMEnrolled: true}
+	// softwareAlreadyInstalled should not be returned because it is not self service
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, selfServiceOpts)
 	require.NoError(t, err)
 	require.Len(t, software, 0)
 
+	// selfServiceinstaller is self service however, excluded by label so should not be returned
 	software, _, err = ds.ListHostSoftware(ctx, thirdHost, selfServiceOpts)
 	require.NoError(t, err)
-	require.Len(t, software, 1)
-	require.Equal(t, software[0].InstalledVersions[0].Version, selfServiceinstaller.Version)
-	require.Nil(t, software[0].SoftwarePackage)
+	require.Len(t, software, 0)
 
 	selfServiceOpts.OnlyAvailableForInstall = true
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, selfServiceOpts)
@@ -7102,6 +7102,31 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
+	thirdHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, thirdHost, false)
+	// have a pre-installed vpp app
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vppApp.Name, "0.1.10", "apps", vppApp.BundleIdentifier, vppApp.TitleID, hex.EncodeToString([]byte("vpp1v0.1.10")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	softwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, thirdHost.ID, softwareID)
+	require.NoError(t, err)
+	// update host label timestamp
+	require.NoError(t, ds.AddLabelsToHost(ctx, thirdHost.ID, []uint{label1.ID}))
+	thirdHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, thirdHost)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -7115,7 +7140,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}}, hostsNotInScope)
+	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}, thirdHost.ID: {}}, hostsNotInScope)
 
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
@@ -7131,9 +7156,22 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	// but should not be available for install because of the ExcludeAny label
 	require.Nil(t, software[0].AppStoreApp)
 
+	// vpp app is installed, so should come back in list of software
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Name, vppApp.Name)
+	// nil because it was pre-installed on host
+	require.Nil(t, software[0].Status)
+	// but should not be available for install because of the ExcludeAny label
+	require.Nil(t, software[0].AppStoreApp)
+
 	// filtering by only available for install should exclude the vpp app
 	opts.OnlyAvailableForInstall = true
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer1.Filename, vppApp.Name)
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer1.Filename, vppApp.Name)
 	opts.OnlyAvailableForInstall = false

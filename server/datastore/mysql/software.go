@@ -2475,6 +2475,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
         )
         SELECT
 			software_installers.id AS installer_id,
+			software_installers.self_service AS package_self_service,
 			software_titles.id AS id,
 			lsia.*
 		FROM
@@ -2591,9 +2592,6 @@ func filterSoftwareInstallersByLabel(
 	for _, st := range bySoftwareTitleID {
 		if st.InstallerID != nil {
 			softwareInstallersIDsToCheck = append(softwareInstallersIDsToCheck, *st.InstallerID)
-		}
-		if st.VPPAppAdamID != nil {
-			filteredbySoftwareTitleID[st.ID] = st
 		}
 	}
 
@@ -2852,8 +2850,8 @@ func filterVppAppsByLabel(
 		for _, validAppApp := range validVppApps {
 			if _, ok := byVppAppID[validAppApp.AdamId]; ok {
 				filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
-			} else {
-				additionalVppApps[validAppApp.AdamId] = hostVPPInstalledTitles[validAppApp.TitleId]
+			} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleId]; ok {
+				additionalVppApps[validAppApp.AdamId] = svpp
 			}
 		}
 	}
@@ -3551,12 +3549,36 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// We ignored the VPP apps that were installed on the host while filtering in filterSoftwareInstallersByLabel
+	// so we need to add them back in if they are allowed by filterVppAppsByLabel
+	for _, value := range additionalFiltered {
+		if st, ok := bySoftwareTitleID[value.ID]; ok {
+			filteredBySoftwareTitleID[value.ID] = st
+		}
+	}
+
 	if opts.OnlyAvailableForInstall {
 		bySoftwareTitleID = filteredBySoftwareTitleID
 		byVPPAdamID = filteredByVPPAdamID
 	}
-	// since these host installed vpp apps already show up in bySoftwareTitleID,
+	// self service impacts inventory, when a software title is excluded because of a filter,
+	// it should be excluded from the inventory as well, because we cannot "reinstall" it on the self service page
+	if opts.SelfServiceOnly {
+		for _, software := range bySoftwareTitleID {
+			if software.PackageSelfService != nil && *software.PackageSelfService {
+				if filteredBySoftwareTitleID[software.ID] == nil {
+					// remove the software title from bySoftwareTitleID
+					delete(bySoftwareTitleID, software.ID)
+				}
+			}
+		}
+	}
+
+	// since these host installed vpp apps are already added in bySoftwareTitleID,
 	// we need to avoid adding them to byVPPAdamID
+	// but we need to store them in filteredByVPPAdamID so they are able to be
+	// promoted when returning the software title
 	for key, value := range additionalFiltered {
 		if _, ok := filteredByVPPAdamID[key]; !ok {
 			filteredByVPPAdamID[key] = value
