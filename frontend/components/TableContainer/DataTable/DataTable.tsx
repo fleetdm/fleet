@@ -390,29 +390,10 @@ const DataTable = ({
   const renderActionButton = (
     actionButtonProps: IActionButtonProps
   ): JSX.Element => {
-    const {
-      name,
-      onActionButtonClick,
-      buttonText,
-      targetIds,
-      variant,
-      hideButton,
-      iconSvg,
-      iconPosition,
-    } = actionButtonProps;
+    const key = kebabCase(actionButtonProps.name);
     return (
-      <div className={`${baseClass}__${kebabCase(name)}`}>
-        <ActionButton
-          key={kebabCase(name)}
-          name={name}
-          buttonText={buttonText}
-          onActionButtonClick={onActionButtonClick || noop}
-          targetIds={targetIds}
-          variant={variant}
-          hideButton={hideButton}
-          iconSvg={iconSvg}
-          iconPosition={iconPosition}
-        />
+      <div className={`${baseClass}__${key}`}>
+        <ActionButton {...{ key, ...actionButtonProps }} />
       </div>
     );
   };
@@ -428,7 +409,7 @@ const DataTable = ({
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
+      onClick: primarySelectAction?.onClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
       iconSvg: primarySelectAction?.iconSvg,
