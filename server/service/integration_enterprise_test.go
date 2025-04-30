@@ -6646,7 +6646,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -16365,6 +16364,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 			InstallScriptRef:   "foobaz",
 			UninstallScriptRef: "foobaz",
 			SHA256:             spoofedSHA,
+			DefaultCategories:  []string{"Productivity"},
 		})
 
 		manifest := ma.FMAManifestFile{
@@ -16453,6 +16453,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		InstallerURL:    dbAppRecord.InstallerURL,
 		InstallScript:   dbAppRecord.InstallScript,
 		UninstallScript: dbAppRecord.UninstallScript,
+		Categories:      []string{"Productivity"},
 	}
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallerURL)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
@@ -16626,6 +16627,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+	titleResponse := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, []string{"Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -16658,7 +16663,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 
-	titleResponse := getSoftwareTitleResponse{}
+	titleResponse = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
 	require.Len(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, 2)
