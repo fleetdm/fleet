@@ -2104,7 +2104,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				logFn("[!] software installer without title id: team_id=%d, url=%s\n", *teamID, softwareInstaller.URL)
 				continue
 			}
-			if softwareInstaller.URL == "" {
+			if softwareInstaller.URL == "" && softwareInstaller.HashSHA256 == "" {
 				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
 				logFn("[!] software installer without url: team_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue

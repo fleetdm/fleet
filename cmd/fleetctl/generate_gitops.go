@@ -497,9 +497,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 	fmt.Fprintf(cmd.CLI.App.Writer, "Config generation complete!\n")
 	if len(cmd.Messages.SecretWarnings) > 0 {
-		fmt.Fprintf(cmd.CLI.App.Writer, "Warning: sensitive information was redacted in the following places, and will need to be replaced:\n")
+		fmt.Fprintf(cmd.CLI.App.Writer, "Sensitive information was redacted in the following places, and will need to be replaced:\n")
 		for _, secretWarning := range cmd.Messages.SecretWarnings {
-			fmt.Fprintf(cmd.CLI.App.Writer, " * %s: %s\n", secretWarning.Filename, secretWarning.Key)
+			fmt.Fprintf(cmd.CLI.App.Writer, " • %s: %s\n", secretWarning.Filename, secretWarning.Key)
 		}
 		fmt.Fprintf(cmd.CLI.App.Writer, "\n")
 	}
@@ -507,14 +507,14 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if cmd.CLI.String("team") == "global" || cmd.CLI.String("team") == "" {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 			Filename: "default.yml",
-			Note:     "Yara rules are not supported by the migration tool at this time. If you have existing Yara rules, please ensure they are added to the new default.yml file.",
+			Note:     "Warning: YARA rules are not supported by the migration tool at this time. If you have existing YARA rules, please ensure they are added to the new default.yml file.",
 		})
 	}
 
 	if len(cmd.Messages.Notes) > 0 {
-		fmt.Fprintf(cmd.CLI.App.Writer, "Other Notes:\n")
+		fmt.Fprintf(cmd.CLI.App.Writer, "Other notes:\n")
 		for _, note := range cmd.Messages.Notes {
-			fmt.Fprintf(cmd.CLI.App.Writer, " * %s: %s\n", note.Filename, note.Note)
+			fmt.Fprintf(cmd.CLI.App.Writer, " • %s: %s\n", note.Filename, note.Note)
 		}
 	}
 
@@ -609,7 +609,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		orgSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: "default.yml",
-			Key:      "org_settings:secrets",
+			Key:      "org_settings.secrets",
 		})
 	}
 
@@ -638,7 +638,7 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 			result[jsonFieldName(t, "Metadata")] = cmd.AddComment("default.yml", "TODO: Add your SSO metadata here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
-				Key:      "org_settings:sso_settings:metadata",
+				Key:      "org_settings.sso_settings.metadata",
 			})
 
 		}
@@ -646,7 +646,7 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 			result[jsonFieldName(t, "MetadataURL")] = cmd.AddComment("default.yml", "TODO: Add your SSO metadata URL here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
-				Key:      "org_settings:sso_settings:metadata_url",
+				Key:      "org_settings.sso_settings.metadata_url",
 			})
 		}
 	}
@@ -693,7 +693,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 						Filename: "default.yml",
-						Key:      "integrations:google_calendar:api_key_json:private_key",
+						Key:      "integrations.google_calendar.api_key_json.private_key",
 					})
 				}
 			}
@@ -703,7 +703,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations:jira:api_token",
+					Key:      "integrations.jira.api_token",
 				})
 			}
 		}
@@ -712,7 +712,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations:zendesk:api_token",
+					Key:      "integrations.zendesk.api_token",
 				})
 			}
 		}
@@ -721,7 +721,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations:digicert:api_token",
+					Key:      "integrations.digicert.api_token",
 				})
 			}
 		}
@@ -729,7 +729,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
-				Key:      "integrations:ndes_scep_proxy:password",
+				Key:      "integrations.ndes_scep_proxy.password",
 			})
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
@@ -737,7 +737,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				intg.(map[string]interface{})["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations:custom_scep_proxy:challenge",
+					Key:      "integrations.custom_scep_proxy.challenge",
 				})
 			}
 		}
@@ -765,14 +765,14 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 				endUserAuth.Metadata = cmd.AddComment("default.yml", "TODO: Add your MDM end user auth metadata here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "mdm:end_user_authentication:metadata",
+					Key:      "mdm.end_user_authentication.metadata",
 				})
 			}
 			if endUserAuth.MetadataURL != "" {
 				endUserAuth.MetadataURL = cmd.AddComment("default.yml", "TODO: Add your MDM end user auth metadata URL here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "mdm:end_user_authentication:metadata_url",
+					Key:      "mdm.end_user_authentication.metadata_url",
 				})
 			}
 			result[jsonFieldName(t, "EndUserAuthentication")] = endUserAuth
@@ -809,7 +809,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enrollment secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
-			Key:      "team_settings:secrets",
+			Key:      "team_settings.secrets",
 		})
 	}
 	return teamSettings, nil
@@ -1241,14 +1241,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	if len(appStoreApps) > 0 {
 		result["app_store_apps"] = appStoreApps
 	}
-	if len(fmaAppNames) > 0 {
-		result["fleet_maintained_apps"] = cmd.AddComment(filePath, "Fleet Maintained Apps are not supported by GitOps.")
-		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-			Filename: filePath,
-			Note:     "**Warning**: GitOps does not currently support Fleet Maintained Apps.  In order to continue, you will need to remove the `fleet_maintained_apps` key, but the following software installers would be deleted by GitOps: " + strings.Join(fmaAppNames, ", ") + ".",
-		})
-	}
-
+	// TODO -- add FMA apps to the result. Currently they will be output using hashes.
 	return result, nil
 }
 
