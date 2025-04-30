@@ -359,7 +359,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
-			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
+			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
 
 			mdmConfig = team.Config.MDM
 		}
