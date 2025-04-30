@@ -251,6 +251,12 @@ INSERT INTO software_installers (
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 		}
 
+		if payload.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, installerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
+			}
+		}
+
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
 			if payload.AutomaticInstallQuery != "" {
