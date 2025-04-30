@@ -6574,6 +6574,81 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "script execution error: signal: killed", scriptResultResp.Output)
 }
 
+func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Team 1",
+	})
+	require.NoError(t, err)
+
+	host1 := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3Team1 := createOrbitEnrolledHost(t, "linux", "host3team1", s.ds)
+	err = s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{host3Team1.ID})
+	require.NoError(t, err)
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo bonjour",
+	})
+	require.NoError(t, err)
+
+	var batchRes batchScriptRunResponse
+	// Team mismatch
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID, host3Team1.ID},
+	}, http.StatusBadRequest, &batchRes)
+	require.Empty(t, batchRes.BatchExecutionID)
+
+	// Bad script ID
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: 999999,
+		HostIDs:  []uint{host1.ID},
+	}, http.StatusNotFound, &batchRes)
+	require.Empty(t, batchRes.BatchExecutionID)
+
+	// verify that no script was queued for orbit
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// Good request
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s"}`, batchRes.BatchExecutionID, script.Name),
+		0,
+	)
+
+	// verify that script was queued for orbit
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host1.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host2.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+
+	// Queue scripts again, now in upcoming activities queue
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
+		ScriptID: script.ID,
+		HostIDs:  []uint{host1.ID, host2.ID},
+	}, http.StatusOK, &batchRes)
+	require.NotEmpty(t, batchRes.BatchExecutionID)
+
+}
+
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	t := s.T()
 
