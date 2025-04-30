@@ -6,6 +6,7 @@ package platform
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -195,7 +196,15 @@ func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	var processes []*gopsutil_process.Process
 
 	for _, foundProcessID := range foundProcessIDs {
-		process, err := gopsutil_process.NewProcess(int32(foundProcessID))
+		// This should never happen because Windows reuses PIDs and it should never approach overflow
+		// however there is a disconnect between the API in gopsutil which expects an int32 and the
+		// Windows PID which is a uint32 and which Microsoft documentation places no firm limit on,
+		// so we must ultimately check for overflow before casting the PID below
+		if foundProcessID > math.MaxInt32 {
+			log.Warn().Msgf("found process ID in GetProcessesByName is too big: %d, skipping", foundProcessID)
+			continue
+		}
+		process, err := gopsutil_process.NewProcess(int32(foundProcessID)) // nolint:gosec
 		if err != nil {
 			continue
 		}

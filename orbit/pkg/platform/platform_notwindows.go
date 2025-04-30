@@ -119,4 +119,3 @@ func killProcessByName(name string) error {
 
 	return nil
 }
-
