@@ -558,18 +558,27 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
-	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(hmap.status=null) and which
-	// * Have a validity period > 30 days and are expiring in the next 30 days
-	// * Have a validity period <= 30 days and are within half the validity period of expiration
-	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
-	// we don't actually need them for the update logic.
-	hostCertsToRenew := []struct {
-		HostUUID       string    `db:"host_uuid"`
-		ProfileUUID    string    `db:"profile_uuid"`
-		NotValidAfter  time.Time `db:"not_valid_after"`
-		ValidityPeriod int       `db:"validity_period"`
-	}{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	// This will trigger a resend next time profiles are checked
+	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
+	hostProfileClause := ``
+	values := []interface{}{fleet.MDMOperationTypeInstall}
+
+	totalHostCertsToRenew := 0
+	hostCertTypesToRenew := []fleet.CAConfigAssetType{fleet.CAConfigDigiCert, fleet.CAConfigCustomSCEPProxy}
+	for _, hostCertType := range hostCertTypesToRenew {
+		hostCertsToRenew := []struct {
+			HostUUID       string    `db:"host_uuid"`
+			ProfileUUID    string    `db:"profile_uuid"`
+			NotValidAfter  time.Time `db:"not_valid_after"`
+			ValidityPeriod int       `db:"validity_period"`
+		}{}
+		// Fetch all MDM Managed certificates of the given type that aren't already queued for
+		// resend(hmap.status=null) and which
+		// * Have a validity period > 30 days and are expiring in the next 30 days
+		// * Have a validity period <= 30 days and are within half the validity period of expiration
+		// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
+		// we don't actually need them for the update logic.
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
 	SELECT
 		hmmc.host_uuid,
 		hmmc.profile_uuid,
@@ -581,32 +590,35 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		host_mdm_apple_profiles hmap
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
 	WHERE
-		hmmc.type = ? AND hmap.status IS NOT NULL
+		hmmc.type = ? AND hmap.status IS NOT NULL AND hmap.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`, fleet.CAConfigDigiCert)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+	LIMIT 1000`, hostCertType, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+		}
+		if len(hostCertsToRenew) == 0 {
+			level.Debug(ds.logger).Log("msg", "No "+hostCertType+" certificates to renew")
+			continue
+		}
+		totalHostCertsToRenew += len(hostCertsToRenew)
+
+		for _, hostCertToRenew := range hostCertsToRenew {
+			hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
+			values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+		}
 	}
-	if len(hostCertsToRenew) == 0 {
-		level.Debug(ds.logger).Log("msg", "No digicert certificates to renew")
+	if totalHostCertsToRenew == 0 {
 		return nil
 	}
 
-	// This will trigger a resend next time profiles are checked
-	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE `
-	hostProfileClause := ``
-	values := []interface{}{}
-	for _, hostCertToRenew := range hostCertsToRenew {
-		hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
-		values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
-	}
+	hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
 
-	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert certificates", "len(hostCertsToRenew)", len(hostCertsToRenew))
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, updateQuery+strings.TrimSuffix(hostProfileClause, " OR "), values...)
+	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert/SCEP certificates", "len(hostCertsToRenew)", totalHostCertsToRenew)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
 		}
@@ -817,7 +829,6 @@ WHERE
 		query,
 		commandUUID,
 	)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get command results")
 	}
@@ -6036,7 +6047,7 @@ LIMIT 1`
 	return &settings, nil
 }
 
-func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -6068,7 +6079,7 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 		return err
 	}
 
-	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
+	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
 		return valuePart, args
@@ -6085,6 +6096,16 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	return nil
+}
+
+func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
+	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
+	FROM host_mdm_managed_certificates
+	WHERE host_uuid = ?
+	`, hostUUID)
+	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
