@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
 )
 
@@ -66,8 +67,16 @@ func (w *webhookLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 		})
 	}
 
+	level.Debug(w.logger).Log(
+		"msg", "sending webhook request",
+		"url", w.url,
+	)
+
 	if err := w.sendWebhookJson(ctx, detailLogs); err != nil {
-		return ctxerr.Wrap(ctx, err, "writing webhook logs")
+		level.Error(w.logger).Log(
+			"msg", fmt.Sprintf("failed to send automation webhook to %s", server.MaskSecretURLParams(w.url)),
+			"err", server.MaskURLError(err).Error(),
+		)
 	}
 
 	return nil
