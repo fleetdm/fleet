@@ -278,7 +278,7 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	}
 
 	err := svc.VerifyMDMWindowsConfigured(ctx)
-	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.ErrorIs(t, err, fleet.ErrWindowsMDMNotConfigured)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())

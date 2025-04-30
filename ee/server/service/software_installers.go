@@ -66,7 +66,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.PostInstallScript = file.Dos2UnixNewlines(payload.PostInstallScript)
 	payload.UninstallScript = file.Dos2UnixNewlines(payload.UninstallScript)
 
-	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload); err != nil {
+	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, true); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
 	}
 
@@ -331,7 +331,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			Filename:      payload.Filename,
 		}
 
-		newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForNewInstallerFile)
+		newInstallerExtension, err := svc.addMetadataToSoftwarePayload(ctx, payloadForNewInstallerFile, false)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 		}
@@ -1402,7 +1402,7 @@ func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoft
 	return nil
 }
 
-func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (extension string, err error) {
+func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload, failOnBlankScript bool) (extension string, err error) {
 	if payload == nil {
 		return "", ctxerr.New(ctx, "payload is required")
 	}
@@ -1448,7 +1448,9 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if payload.InstallScript == "" {
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
-	if payload.InstallScript == "" {
+
+	// Software edits validate non-empty scripts later, so set failOnBlankScript to false
+	if payload.InstallScript == "" && failOnBlankScript {
 		return "", &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
@@ -1457,7 +1459,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	if payload.UninstallScript == "" {
 		payload.UninstallScript = file.GetUninstallScript(meta.Extension)
 	}
-	if payload.UninstallScript == "" {
+	if payload.UninstallScript == "" && failOnBlankScript {
 		return "", &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
@@ -1719,6 +1721,15 @@ func (svc *Service) softwareBatchUpload(
 			case ok:
 				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
+				if foundInstaller.Extension == "exe" {
+					if p.InstallScript == "" {
+						return errors.New("Couldn't edit. Install script is required for .exe packages.")
+					}
+
+					if p.UninstallScript == "" {
+						return errors.New("Couldn't edit. Uninstall script is required for .exe packages.")
+					}
+				}
 				installer.Extension = foundInstaller.Extension
 				installer.Filename = foundInstaller.Filename
 				installer.Version = foundInstaller.Version
@@ -1791,7 +1802,7 @@ func (svc *Service) softwareBatchUpload(
 
 			var ext string
 			if installer.InstallerFile != nil {
-				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer)
+				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					_ = installer.InstallerFile.Close() // closing the temp file here since it will not be available after the goroutine completes
 					return err

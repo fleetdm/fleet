@@ -16,6 +16,8 @@ import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import Spinner from "components/Spinner";
 
 import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell";
 
@@ -36,7 +38,7 @@ const STATUS_CONFIG: Record<
   },
   pending_install: {
     iconName: "pending-outline",
-    displayText: "Pending",
+    displayText: "Installing...",
     tooltip: () => "Fleet is installing software.",
   },
   failed_install: {
@@ -75,7 +77,7 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
       </div>
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
-          {name || installerPackage?.name}
+          <TooltipTruncatedText value={name || installerPackage?.name} />
         </div>
         <div className={`${baseClass}__item-version`}>
           {installerPackage?.version || vppApp?.version || ""}
@@ -85,15 +87,26 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   );
 };
 
-// TODO: update if/when we support self-service app store apps
+interface CommandUuid {
+  command_uuid: string;
+}
+
+interface InstallUuid {
+  install_uuid: string;
+}
+
+export type InstallOrCommandUuid = CommandUuid | InstallUuid;
+
 type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 };
 
 const InstallerStatus = ({
   id,
   status,
   last_install,
+  onShowInstallerDetails,
 }: IInstallerStatusProps) => {
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
@@ -108,9 +121,35 @@ const InstallerStatus = ({
         data-tip
         data-for={`install-tooltip__${id}`}
       >
-        <Icon name={displayConfig.iconName} />
+        {displayConfig.iconName === "pending-outline" ? (
+          <Spinner size="x-small" includeContainer={false} centered={false} />
+        ) : (
+          <Icon name={displayConfig.iconName} />
+        )}
         <span data-testid={`${baseClass}__status--test`}>
-          {displayConfig.displayText}
+          {last_install && displayConfig.displayText === "Failed" ? (
+            <Button
+              className={`${baseClass}__item-status-button`}
+              variant="text-icon"
+              onClick={() => {
+                if ("command_uuid" in last_install) {
+                  onShowInstallerDetails({
+                    command_uuid: last_install.command_uuid,
+                  });
+                } else if ("install_uuid" in last_install) {
+                  onShowInstallerDetails({
+                    install_uuid: last_install.install_uuid,
+                  });
+                } else {
+                  onShowInstallerDetails(undefined);
+                }
+              }}
+            >
+              {displayConfig.displayText}
+            </Button>
+          ) : (
+            displayConfig.displayText
+          )}
         </span>
       </div>
       <ReactTooltip
@@ -134,6 +173,7 @@ interface IInstallerStatusActionProps {
   deviceToken: string;
   software: IHostSoftware;
   onInstall: () => void;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
 const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
@@ -153,6 +193,7 @@ const InstallerStatusAction = ({
   deviceToken,
   software: { id, status, software_package, app_store_app },
   onInstall,
+  onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -197,7 +238,12 @@ const InstallerStatusAction = ({
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-status`}>
-        <InstallerStatus id={id} status={status} last_install={lastInstall} />
+        <InstallerStatus
+          id={id}
+          status={status}
+          last_install={lastInstall}
+          onShowInstallerDetails={onShowInstallerDetails}
+        />
       </div>
       <div className={`${baseClass}__item-action`}>
         {!!installButtonText && (
@@ -222,12 +268,14 @@ interface ISelfServiceItemProps {
   deviceToken: string;
   software: IDeviceSoftware;
   onInstall: () => void;
+  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
 const SelfServiceItem = ({
   deviceToken,
   software,
   onInstall,
+  onShowInstallerDetails,
 }: ISelfServiceItemProps) => {
   return (
     <Card
@@ -241,6 +289,7 @@ const SelfServiceItem = ({
           deviceToken={deviceToken}
           software={software}
           onInstall={onInstall}
+          onShowInstallerDetails={onShowInstallerDetails}
         />
       </div>
     </Card>

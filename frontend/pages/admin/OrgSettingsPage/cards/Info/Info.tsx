@@ -11,6 +11,7 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { IAppConfigFormProps, IFormField } from "../constants";
 
@@ -142,8 +143,13 @@ const Info = ({
                 onBlur={validateForm}
                 error={formErrors.org_logo_url}
                 inputWrapperClass={`${cardClass}__logo-field`}
-                tooltip="Logo is displayed in the top bar and other areas of Fleet that
-                have dark backgrounds."
+                tooltip={
+                  <>
+                    Logo is displayed in the top bar and other
+                    <br />
+                    areas of Fleet that have dark backgrounds.
+                  </>
+                }
               />
               <div
                 className={`${cardClass}__icon-preview ${cardClass}__dark-background`}
@@ -186,7 +192,20 @@ const Info = ({
               error={formErrors.org_name}
             />
             <InputField
-              label="Organization support URL"
+              label={
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      URL is used in &quot;Reach out to IT&quot; links shown to
+                      the end
+                      <br />
+                      user (e.g. self-service and during MDM migration).
+                    </>
+                  }
+                >
+                  Organization support URL
+                </TooltipWrapper>
+              }
               onChange={onInputChange}
               name="orgSupportURL"
               value={orgSupportURL}
