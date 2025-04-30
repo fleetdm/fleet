@@ -5,8 +5,8 @@ import { COLORS } from "styles/var/colors";
 const baseClass = "modal-footer";
 
 interface IModalFooterProps {
-  primaryButtons: JSX.Element;
-  secondaryButtons?: JSX.Element;
+  primaryButtons: React.ReactNode;
+  secondaryButtons?: React.ReactNode;
   className?: string;
   /** Renders a line above action buttons to indicate scrollability */
   isTopScrolling?: boolean;

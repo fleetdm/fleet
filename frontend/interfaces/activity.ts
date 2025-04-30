@@ -81,6 +81,7 @@ export enum ActivityType {
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
+  RanScriptBatch = "ran_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -170,6 +171,7 @@ export type IHostUpcomingActivity = Omit<
 export interface IActivityDetails {
   app_store_id?: number;
   bootstrap_package_name?: string;
+  batch_exection_id?: string;
   command_uuid?: string;
   deadline_days?: number;
   deadline?: string;
@@ -180,6 +182,7 @@ export interface IActivityDetails {
   host_display_names?: string[];
   host_id?: number;
   host_ids?: number[];
+  host_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;

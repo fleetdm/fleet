@@ -3905,15 +3905,18 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 }
 
 func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
-	_, err := ds.writer(ctx).ExecContext(
-		ctx,
-		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
-		hostID, scimUserID,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
-	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+			hostID, scimUserID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+		}
+		// resend profiles that depend on the user now associated with that host
+		return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
+	})
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {

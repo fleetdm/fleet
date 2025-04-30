@@ -1,0 +1,1 @@
+* Removed updates of existing macOS software names on software ingestion to remediate a significant database performance regression introduced in 4.67.0.

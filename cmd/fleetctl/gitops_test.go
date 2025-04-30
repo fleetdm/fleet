@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -2785,6 +2786,60 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 	}
 }
 
+// TestGitOpsTeamVPPAndApp tests the flow where a new team is created with VPP apps.
+// GitOps must first create the team, then assign VPP token to it, and only then add VPP apps.
+func TestGitOpsTeamVPPAndApp(t *testing.T) {
+	startAndServeVPPServer(t)
+	ds, _, _ := setupFullGitOpsPremiumServer(t)
+	renewDate := time.Now().Add(24 * time.Hour)
+	token, err := test.CreateVPPTokenEncoded(renewDate, "fleet", "ca")
+	require.NoError(t, err)
+
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+
+	// The following mocks are key to this test.
+	vppToken := &fleet.VPPTokenDB{
+		ID:        1,
+		OrgName:   "Fleet",
+		Location:  "Earth",
+		RenewDate: renewDate,
+		Token:     string(token),
+		Teams:     nil,
+	}
+	tokensByTeams := make(map[uint]*fleet.VPPTokenDB)
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		for _, teamID := range teams {
+			tokensByTeams[teamID] = vppToken
+		}
+		return vppToken, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{vppToken}, nil
+	}
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+		if teamID == nil {
+			return vppToken, nil
+		}
+		token, ok := tokensByTeams[*teamID]
+		if !ok {
+			return nil, sql.ErrNoRows
+		}
+		return token, nil
+	}
+
+	buf, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_vpp.yml", "-f", "testdata/gitops/team_vpp_valid_app.yml"})
+	require.NoError(t, err)
+	assert.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	assert.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	assert.True(t, ds.SetTeamVPPAppsFuncInvoked)
+	assert.Contains(t, buf.String(), fmt.Sprintf(reapplyingTeamForVPPAppsMsg, teamName))
+}
+
 func TestGitOpsCustomSettings(t *testing.T) {
 	cases := []struct {
 		file    string
@@ -3184,6 +3239,17 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			return result, nil
 		}
 		return nil, nil
+	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		summary := make([]*fleet.TeamSummary, 0, len(savedTeams))
+		for _, team := range savedTeams {
+			summary = append(summary, &fleet.TeamSummary{
+				ID:          (*team).ID,
+				Name:        (*team).Name,
+				Description: (*team).Description,
+			})
+		}
+		return summary, nil
 	}
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil

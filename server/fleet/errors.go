@@ -15,11 +15,12 @@ import (
 )
 
 var (
-	ErrNoContext             = errors.New("context key not set")
-	ErrPasswordResetRequired = &passwordResetRequiredError{}
-	ErrMissingLicense        = &licenseError{}
-	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
-	ErrNotConfigured         = &NotConfiguredError{}
+	ErrNoContext               = errors.New("context key not set")
+	ErrPasswordResetRequired   = &passwordResetRequiredError{}
+	ErrMissingLicense          = &licenseError{}
+	ErrMDMNotConfigured        = &MDMNotConfiguredError{}
+	ErrWindowsMDMNotConfigured = &WindowsMDMNotConfiguredError{}
+	ErrNotConfigured           = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
 	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
@@ -361,6 +362,20 @@ func (e *MDMNotConfiguredError) StatusCode() int {
 
 func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
+}
+
+// WindowsMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
+// without having Windows MDM correctly configured.
+type WindowsMDMNotConfiguredError struct{}
+
+// Status implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *WindowsMDMNotConfiguredError) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+func (e *WindowsMDMNotConfiguredError) Error() string {
+	return WindowsMDMNotConfiguredMessage
 }
 
 // NotConfiguredError is a generic "not configured" error that can be used

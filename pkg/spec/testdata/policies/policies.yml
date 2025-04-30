@@ -6,7 +6,10 @@
 - name: Passing policy
   platform: linux,windows,darwin,chrome
   description: This policy should always pass.
-  resolution: There is no resolution for this policy.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
   query: SELECT 1;
 - name: No root logins (macOS, Linux)
   platform: linux,darwin
