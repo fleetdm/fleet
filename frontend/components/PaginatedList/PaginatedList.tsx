@@ -66,7 +66,7 @@ interface IPaginatedListProps<TItem> {
   /** A function to call when the list of dirty items changes. */
   onUpdate?: (changedItems: TItem[]) => void;
   /** Whether the list should be disabled. */
-  disable?: boolean;
+  disabled?: boolean;
   /** also requires an `isSelected` function be passed in for correct functionality */
   useCheckBoxes?: boolean;
   /** Allow the parent to trigger the loading overlay */
@@ -91,7 +91,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     isSelected,
     isItemDisabled,
     getItemTooltipContent,
-    disable = false,
+    disabled = false,
     heading,
     useCheckBoxes = true,
     ancestralUpdating = false,
@@ -206,7 +206,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
 
   // Render the list.
   const classes = classnames(baseClass, "form", {
-    "form-fields--disabled": disable,
+    "form-fields--disabled": disabled,
   });
   return (
     <div className={classes}>
@@ -248,7 +248,9 @@ function PaginatedListInner<TItem extends Record<string, any>>(
             >
               {useCheckBoxes && isSelected && (
                 <Checkbox
-                  disabled={disable || (isItemDisabled && isItemDisabled(item))}
+                  disabled={
+                    disabled || (isItemDisabled && isItemDisabled(item))
+                  }
                   iconTooltipContent={
                     getItemTooltipContent && getItemTooltipContent(item)
                   }

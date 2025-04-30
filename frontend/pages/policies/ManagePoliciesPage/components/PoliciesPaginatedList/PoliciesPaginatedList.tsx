@@ -219,7 +219,7 @@ function PoliciesPaginatedList(
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
-          disable={disableList || gitOpsModeEnabled}
+          disabled={disableList || gitOpsModeEnabled}
           heading={<span className={`${baseClass}__header`}>Policies</span>}
           helpText={helpText}
         />
