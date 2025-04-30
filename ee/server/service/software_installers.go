@@ -1816,8 +1816,8 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// custom scripts only for exe installers
 			if installer.Extension != "exe" {
-				// add default scripts if no scripts provided
 				if installer.InstallScript == "" {
 					installer.InstallScript = file.GetInstallScript(installer.Extension)
 				}
