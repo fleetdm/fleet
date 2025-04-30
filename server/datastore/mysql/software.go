@@ -961,20 +961,14 @@ func updateModifiedHostSoftwareDB(
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
 		curSw, ok := currentMap[key]
-		// software must exist in current map for us to update it
-		if !ok {
-			continue
-		}
-		// if both the current and new software have no last opened at,
-		// then update the existing software only if we've marked it
-		// as having a name change.
-		if newSw.LastOpenedAt == nil && curSw.LastOpenedAt == nil {
-			if _, ok := existingBundleIDsToUpdate[newSw.BundleIdentifier]; ok {
-				keysToUpdate = append(keysToUpdate, key)
+		if !ok || newSw.LastOpenedAt == nil {
+			// software must also exist in current map, and new software must have a
+			// last opened at timestamp (otherwise we don't overwrite the old one)
+			if _, ok := existingBundleIDsToUpdate[newSw.BundleIdentifier]; !ok {
+				continue
 			}
-			continue
 		}
-		// otherwise update if the new software has been opened more recently.
+
 		if curSw.LastOpenedAt == nil || newSw.LastOpenedAt.Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
 			keysToUpdate = append(keysToUpdate, key)
 		}
