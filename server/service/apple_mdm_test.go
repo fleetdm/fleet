@@ -4890,7 +4890,7 @@ func customSCEPForValidation(challenge, url, name, payloadType string) string {
 }
 
 func customSCEPForValidationWithoutRenewalID(challenge, url, name, payloadType string) string {
-	configProfile := strings.Replace(customSCEPValidationMobileconfig, "$FLEET_VAR_SCEP_RENEWAL_ID", "", -1)
+	configProfile := strings.ReplaceAll(customSCEPValidationMobileconfig, "$FLEET_VAR_SCEP_RENEWAL_ID", "")
 	return fmt.Sprintf(configProfile, challenge, url, name, payloadType)
 }
 
