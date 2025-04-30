@@ -12,8 +12,6 @@ import (
 	"github.com/go-kit/log"
 )
 
-var defaultTimeout = 15 * time.Second
-
 type webhookLogWriter struct {
 	url    string
 	logger log.Logger
