@@ -669,8 +669,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Variables $%s and $%s can only be included in the 'com.apple.security.scep' payload under Challenge and URL, respectively.",
-					challengePrefix+ca, urlPrefix+ca)}
+				return &fleet.BadRequestError{Message: "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."}
 			}
 		}
 	}
@@ -4780,6 +4779,9 @@ func (cs *customSCEPVarsFound) Ok() bool {
 	if len(cs.challengeCA) != len(cs.urlCA) {
 		return false
 	}
+	if len(cs.challengeCA) == 0 {
+		return false
+	}
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {
 			return false
@@ -4806,7 +4808,10 @@ func (cs *customSCEPVarsFound) CAs() []string {
 func (cs *customSCEPVarsFound) ErrorMessage() string {
 	// TODO This doesn't quite match the figma
 	if !cs.renewalIdFound {
-		return "Missing $FLEET_VAR_SCEP_RENEWAL_ID in the profile"
+		return "Variable \"${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" must be in the SCEP certificate's common name (CN)."
+	}
+	if len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
+		return "Variable ${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" can't be used if variables for SCEP URL and Challenge are not specified."
 	}
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {
