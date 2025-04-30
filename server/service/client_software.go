@@ -32,6 +32,8 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 }
 
 // GetSoftwareTitleByID retrieves a software title by ID.
+//
+//nolint:gocritic // ignore captLocal
 func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	var query string
 	if teamID != nil {

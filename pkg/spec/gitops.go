@@ -970,7 +970,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	if software.FleetMaintainedApps != nil {
-		return multierror.Append(multiError, fmt.Errorf("Fleet maintained apps are not currently supported in GitOps"))
+		return multierror.Append(multiError, errors.New("Fleet maintained apps are not currently supported in GitOps"))
 	}
 	for _, item := range software.AppStoreApps {
 		item := item

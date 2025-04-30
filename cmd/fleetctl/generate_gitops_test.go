@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -138,7 +139,7 @@ func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
 	if scriptID == 3 {
 		return []byte("#!/usr/bin/env pwsh\necho \"Hello from Script B!\""), nil
 	}
-	return nil, fmt.Errorf("script not found")
+	return nil, errors.New("script not found")
 }
 
 func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
@@ -152,7 +153,7 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 	case "test-mobileconfig-profile-uuid":
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
 	}
-	return nil, fmt.Errorf("profile not found")
+	return nil, errors.New("profile not found")
 }
 
 func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
@@ -177,7 +178,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("team not found")
+	return nil, errors.New("team not found")
 }
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
@@ -296,12 +297,12 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 	}, nil
 }
 
+//nolint:gocritic // ignore captLocal
 func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
-	//nolint:gocritic // ignore captLocal
 	switch ID {
 	case 1:
 		if *teamID != 1 {
-			return nil, fmt.Errorf("team ID mismatch")
+			return nil, errors.New("team ID mismatch")
 		}
 		return &fleet.SoftwareTitle{
 			ID: 1,
@@ -320,7 +321,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}, nil
 	case 2:
 		if *teamID != 1 {
-			return nil, fmt.Errorf("team ID mismatch")
+			return nil, errors.New("team ID mismatch")
 		}
 		return &fleet.SoftwareTitle{
 			ID: 2,
@@ -333,7 +334,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 		}, nil
 	default:
-		return nil, fmt.Errorf("software title not found")
+		return nil, errors.New("software title not found")
 	}
 }
 

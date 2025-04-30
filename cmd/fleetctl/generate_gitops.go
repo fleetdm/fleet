@@ -140,7 +140,7 @@ func generateGitopsCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:  "team",
-				Usage: "The team to output configuration for (defaults to all).",
+				Usage: "(Premium only) The team to output configuration for.  Omit to export all configuration.  Use 'global' to export global settings, or 'no-team' to export settings for No Team.",
 			},
 			&cli.StringFlag{
 				Name:  "dir",
@@ -369,7 +369,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		if teamToProcess.ID != nil || !cmd.AppConfig.License.IsPremium() {
 			controls, err := cmd.generateControls(teamToProcess.ID, teamFileName, &mdmConfig)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for team %s: %s\n", team.Name, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for %s: %s\n", teamFileName, err)
 				return ErrGeneric
 			}
 			cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
@@ -379,7 +379,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		if team != nil {
 			software, err := cmd.generateSoftware(fileName, team.ID)
 			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for team %s: %s\n", team.Name, err)
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for %s: %s\n", teamFileName, err)
 				return ErrGeneric
 			}
 			if software == nil {
@@ -551,7 +551,7 @@ func generateFilename(name string) string {
 	return fileName
 }
 
-var isJSON = regexp.MustCompile("^\\s*\\{")
+var isJSON = regexp.MustCompile(`^\s*\{`)
 
 // Generate a filename for a profile based on its name and contents.
 func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileContentsString string) string {
@@ -729,7 +729,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
-				Key:      "integrations:nds_scep_proxy:password",
+				Key:      "integrations:ndes_scep_proxy:password",
 			})
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
@@ -737,7 +737,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				intg.(map[string]interface{})["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations:custom_scep_proxy:api_token",
+					Key:      "integrations:custom_scep_proxy:challenge",
 				})
 			}
 		}
@@ -749,8 +749,9 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
 	t := reflect.TypeOf(fleet.MDM{})
 	result := map[string]interface{}{
-		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
-		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
+		jsonFieldName(t, "AppleServerURL"):              mdm.AppleServerURL,
+		jsonFieldName(t, "EndUserAuthentication"):       mdm.EndUserAuthentication,
+		jsonFieldName(t, "WindowsEnabledAndConfigured"): mdm.WindowsEnabledAndConfigured,
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
@@ -1081,6 +1082,9 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 			jsonFieldName(t, "Interval"):           query.Interval,
 			jsonFieldName(t, "ObserverCanRun"):     query.ObserverCanRun,
 			jsonFieldName(t, "AutomationsEnabled"): query.AutomationsEnabled,
+			jsonFieldName(t, "MinOsqueryVersion"):  query.MinOsqueryVersion,
+			jsonFieldName(t, "Logging"):            query.Logging,
+			jsonFieldName(t, "DiscardData"):        query.DiscardData,
 		}
 
 		// Parse any labels.
@@ -1153,7 +1157,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 		if softwareTitle.SoftwarePackage != nil {
 			if softwareTitle.SoftwarePackage.InstallScript != "" {
 				script := softwareTitle.SoftwarePackage.InstallScript
-				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-preinstall")
+				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-install")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["install_script"] = map[string]interface{}{
 					"path": path,
