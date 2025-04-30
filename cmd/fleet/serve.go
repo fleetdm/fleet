@@ -343,12 +343,7 @@ the way that the Fleet server works.
 					MaxAge:               config.Filesystem.MaxAge,
 					MaxBackups:           config.Filesystem.MaxBackups,
 				},
-				Webhook: logging.WebhookConfig{
-					BasicAuthUser: config.Webhook.BasicAuthUser,
-					BasicAuthPass: config.Webhook.BasicAuthPass,
-					BearerToken:   config.Webhook.BearerToken,
-					Timeout:       time.Second * time.Duration(config.Webhook.Timeout),
-				},
+				Webhook: logging.WebhookConfig{},
 				Firehose: logging.FirehoseConfig{
 					Region:           config.Firehose.Region,
 					EndpointURL:      config.Firehose.EndpointURL,

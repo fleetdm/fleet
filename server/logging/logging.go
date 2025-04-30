@@ -22,11 +22,6 @@ type FilesystemConfig struct {
 
 type WebhookConfig struct {
 	URL string
-
-	BasicAuthUser string
-	BasicAuthPass string
-	BearerToken   string
-	Timeout       time.Duration
 }
 
 type FirehoseConfig struct {
@@ -112,7 +107,11 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		}
 		return fleet.JSONLogger(writer), nil
 	case "webhook":
-
+		writer, err := NewWebhookLogWriter(config.Webhook.URL, logger)
+		if err != nil {
+			return nil, fmt.Errorf("create webhook %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
 	case "firehose":
 		writer, err := NewFirehoseLogWriter(
 			config.Firehose.Region,
