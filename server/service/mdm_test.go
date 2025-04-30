@@ -1293,7 +1293,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, profVars map[string]map[string]struct{},
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -2054,7 +2054,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	profileLabels := map[string]*ProfileLabels{}
 
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates, err error) {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profVars map[string]map[string]struct{}) (updates fleet.MDMProfilesUpdates, err error) {
 		for _, profile := range macProfiles {
 			profileLabels[profile.Name] = &ProfileLabels{}
 			if len(profile.LabelsIncludeAll) > 0 {

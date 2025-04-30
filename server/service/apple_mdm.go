@@ -393,9 +393,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	// TODO(mna): must collect fleet variables and save them as part of the variables
-	// used by this profile
-	err = validateConfigProfileFleetVariables(appConfig, expanded)
+	profileVars, err := validateConfigProfileFleetVariables(appConfig, expanded)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -433,7 +431,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		// TODO what happens if mode is not set?s
 	}
 
-	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, profileVars)
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -473,10 +471,10 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) error {
+func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string) (map[string]struct{}, error) {
 	fleetVars := findFleetVariablesKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
-		return nil
+		return nil, nil
 	}
 	var (
 		digiCertVars   *digiCertVarsFound
@@ -532,7 +530,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				break
 			}
 			if !found {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
+				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
 		}
 		if k == fleet.FleetVarSCEPRenewalID {
@@ -543,30 +541,30 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		}
 		if !ok {
 			// We limit CA variables to once per profile
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
+			return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
 		}
 	}
 	if digiCertVars.Found() {
 		if !digiCertVars.Ok() {
-			return &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
+			return nil, &fleet.BadRequestError{Message: digiCertVars.ErrorMessage()}
 		}
 		err := additionalDigiCertValidation(contents, digiCertVars)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if customSCEPVars.Found() {
 		if !customSCEPVars.Ok() {
-			return &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
+			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
 		}
 		err := additionalCustomSCEPValidation(contents, customSCEPVars)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if ndesVars.Found() {
 		if !ndesVars.Ok() {
-			return &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
+			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
 		}
 		// TODO:
 		// err := additionalNDESValidation(contents, ndesVars)
@@ -574,7 +572,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		// 	return err
 		// }
 	}
-	return nil
+	return dedupeFleetVariables(fleetVars), nil
 }
 
 // additionalDigiCertValidation checks that Password/ContentType fields march DigiCert Fleet variables exactly,
@@ -2291,6 +2289,13 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
+		}
+
+		// check if the profile has any fleet variable, not supported by this deprecated endpoint
+		if vars := findFleetVariablesKeepDuplicates(expanded); len(vars) > 0 {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(
+					fmt.Sprintf("profiles[%d]", i), "profile variables are not supported by this deprecated endpoint, use POST /api/latest/fleet/mdm/profiles/batch"))
 		}
 
 		// Store original unexpanded profile
@@ -5024,13 +5029,17 @@ func replaceExactFleetPrefixVariableInXML(prefix string, suffix string, contents
 	return re.ReplaceAllLiteralString(contents, fmt.Sprintf(`>%s<`, buf.String())), nil
 }
 
-func findFleetVariables(contents string) map[string]interface{} {
+func findFleetVariables(contents string) map[string]struct{} {
 	resultSlice := findFleetVariablesKeepDuplicates(contents)
 	if len(resultSlice) == 0 {
 		return nil
 	}
-	result := make(map[string]interface{}, len(resultSlice))
-	for _, v := range resultSlice {
+	return dedupeFleetVariables(resultSlice)
+}
+
+func dedupeFleetVariables(varsWithDupes []string) map[string]struct{} {
+	result := make(map[string]struct{}, len(varsWithDupes))
+	for _, v := range varsWithDupes {
 		result[v] = struct{}{}
 	}
 	return result
