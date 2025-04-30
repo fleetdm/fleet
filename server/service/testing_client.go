@@ -637,11 +637,13 @@ func (ts *withServer) updateSoftwareInstaller(
 	w := multipart.NewWriter(&b)
 
 	// add the software field
-	fw, err := w.CreateFormFile("software", payload.Filename)
-	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
-	require.NoError(t, err)
-	require.NotZero(t, n)
+	if payload.Filename != "" {
+		fw, err := w.CreateFormFile("software", payload.Filename)
+		require.NoError(t, err)
+		n, err := io.Copy(fw, payload.InstallerFile)
+		require.NoError(t, err)
+		require.NotZero(t, n)
+	}
 
 	// add the team_id field
 	var tmID uint
