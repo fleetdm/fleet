@@ -479,6 +479,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 	var (
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
+		ndesVars       *ndesVarsFound
 	)
 	for _, k := range fleetVars {
 		ok := true
@@ -521,6 +522,10 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 						break
 					}
 				}
+			case k == fleet.FleetVarNDESSCEPProxyURL:
+				ndesVars, ok = ndesVars.SetURL()
+			case k == fleet.FleetVarNDESSCEPChallenge:
+				ndesVars, ok = ndesVars.SetChallenge()
 			}
 			if !found {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
@@ -528,6 +533,9 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		}
 		if k == fleet.FleetVarSCEPRenewalID {
 			customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
+			if ok {
+				ndesVars, ok = ndesVars.SetRenewalID()
+			}
 		}
 		if !ok {
 			// We limit CA variables to once per profile
@@ -543,7 +551,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	if customSCEPVars.Found() {
+	if customSCEPVars.Found() && ndesVars.NotFoundOrRenewalOnly() {
 		if !customSCEPVars.Ok() {
 			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
 		}
@@ -551,6 +559,16 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		if err != nil {
 			return nil, err
 		}
+	}
+	if ndesVars.Found() {
+		if !ndesVars.Ok() {
+			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
+		}
+		// TODO:
+		// err := additionalNDESValidation(contents, ndesVars)
+		// if err != nil {
+		// 	return err
+		// }
 	}
 	return dedupeFleetVariables(fleetVars), nil
 }
@@ -4756,6 +4774,63 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	return true, nil
 }
 
+type ndesVarsFound struct {
+	urlFound       bool
+	challengeFound bool
+	renewalIdFound bool
+}
+
+// Ok makes sure that Challenge, URL, and renewal ID are present.
+func (n *ndesVarsFound) Ok() bool {
+	if n == nil {
+		return true
+	}
+	return n.urlFound && n.challengeFound && n.renewalIdFound
+}
+
+func (n *ndesVarsFound) Found() bool {
+	return n != nil
+}
+
+func (n *ndesVarsFound) NotFoundOrRenewalOnly() bool {
+	return n == nil || (!n.urlFound && !n.challengeFound && n.renewalIdFound)
+}
+
+func (n *ndesVarsFound) ErrorMessage() string {
+	if n.renewalIdFound && !n.urlFound && !n.challengeFound {
+		return "Variable ${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" can't be used if variables for SCEP URL and Challenge are not specified."
+	}
+	return fmt.Sprintf("SCEP profile for NDES requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.",
+		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarSCEPRenewalID)
+}
+
+func (n *ndesVarsFound) SetURL() (*ndesVarsFound, bool) {
+	if n == nil {
+		n = &ndesVarsFound{}
+	}
+	alreadyPresent := n.urlFound
+	n.urlFound = true
+	return n, !alreadyPresent
+}
+
+func (n *ndesVarsFound) SetChallenge() (*ndesVarsFound, bool) {
+	if n == nil {
+		n = &ndesVarsFound{}
+	}
+	alreadyPresent := n.challengeFound
+	n.challengeFound = true
+	return n, !alreadyPresent
+}
+
+func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
+	if n == nil {
+		n = &ndesVarsFound{}
+	}
+	alreadyPresent := n.renewalIdFound
+	n.renewalIdFound = true
+	return n, !alreadyPresent
+}
+
 func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget,
 ) (bool, error) {
@@ -4859,8 +4934,9 @@ func (cs *customSCEPVarsFound) SetRenewalIDFound() (*customSCEPVarsFound, bool) 
 	if cs == nil {
 		cs = &customSCEPVarsFound{}
 	}
+	alreadyPresent := cs.renewalIdFound
 	cs.renewalIdFound = true
-	return cs, true
+	return cs, !alreadyPresent
 }
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
