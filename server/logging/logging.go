@@ -3,7 +3,6 @@ package logging
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
