@@ -4818,7 +4818,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
 			errMsg: "",
-			vars:   []string{"CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName"},
+			vars:   []string{"CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name: "Custom SCEP 2 profiles with swapped variables",
@@ -4836,7 +4836,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "Custom SCEP and DigiCert profiles happy path",
 			profile: customSCEPDigiCertValidationMobileconfig,
 			errMsg:  "",
-			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName"},
+			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name:    "Custom profile with IdP variables and unknown variable",
