@@ -24,7 +24,7 @@ parasails.registerPage('pricing', {
       }
       window.location.hash = '';
     } else if(this.primaryBuyingSituation){
-      if(['eo-security', 'vm'].includes(this.primaryBuyingSituation)){
+      if(['security-misc', 'security-vm'].includes(this.primaryBuyingSituation)){
         this.pricingMode = 'Security';
       } else {
         this.pricingMode = 'IT';

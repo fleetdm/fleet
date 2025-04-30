@@ -11,6 +11,11 @@ import LinkWithContext from "components/LinkWithContext";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+import {
+  getInstallSoftwareDuringSetupCount,
+  hasNoSoftwareUploaded,
+} from "./helpers";
+
 const baseClass = "add-install-software";
 
 interface IAddInstallSoftwareProps {
@@ -26,10 +31,13 @@ const AddInstallSoftware = ({
   softwareTitles,
   onAddSoftware,
 }: IAddInstallSoftwareProps) => {
-  const hasNoSoftware = !softwareTitles || softwareTitles.length === 0;
+  const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
+  const installSoftwareDuringSetupCount = getInstallSoftwareDuringSetupCount(
+    softwareTitles
+  );
 
   const getAddedText = () => {
-    if (hasNoSoftware) {
+    if (noSoftwareUploaded) {
       return (
         <>
           No software available to add. Please{" "}
@@ -45,17 +53,11 @@ const AddInstallSoftware = ({
       );
     }
 
-    const installDuringSetupCount = softwareTitles.filter(
-      (software) =>
-        software.software_package?.install_during_setup ||
-        software.app_store_app?.install_during_setup
-    ).length;
-
-    return installDuringSetupCount === 0 ? (
+    return installSoftwareDuringSetupCount === 0 ? (
       "No software added."
     ) : (
       <>
-        {installDuringSetupCount} software will be{" "}
+        {installSoftwareDuringSetupCount} software will be{" "}
         <TooltipWrapper tipContent="Software order will vary.">
           installed during setup
         </TooltipWrapper>
@@ -65,17 +67,11 @@ const AddInstallSoftware = ({
   };
 
   const getButtonText = () => {
-    if (hasNoSoftware) {
+    if (noSoftwareUploaded) {
       return "Add software";
     }
 
-    const installDuringSetupCount = softwareTitles.filter(
-      (software) =>
-        software.software_package?.install_during_setup ||
-        software.app_store_app?.install_during_setup
-    ).length;
-
-    return installDuringSetupCount === 0
+    return installSoftwareDuringSetupCount === 0
       ? "Add software"
       : "Show selected software";
   };
@@ -117,7 +113,9 @@ const AddInstallSoftware = ({
               <Button
                 className={`${baseClass}__button`}
                 onClick={onAddSoftware}
-                disabled={disableChildren || hasManualAgentInstall}
+                disabled={
+                  disableChildren || hasManualAgentInstall || noSoftwareUploaded
+                }
               >
                 {buttonText}
               </Button>
