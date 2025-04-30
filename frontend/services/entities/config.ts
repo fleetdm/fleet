@@ -10,7 +10,22 @@ export default {
     const { CONFIG } = endpoints;
     const path = `${CONFIG}`;
 
-    return sendRequest("GET", path);
+    // TODO - restore real return!
+    return sendRequest("GET", path).then((response) => {
+      return {
+        ...response,
+        conditional_access: {
+          // microsoft_entra_tenant_id: "",
+          microsoft_entra_tenant_id: "abc",
+          // microsoft_entra_connection_configured: false,
+          microsoft_entra_connection_configured: true,
+        },
+        license: {
+          ...response.license,
+          managed_cloud: true,
+        },
+      };
+    });
   },
   loadCertificate: () => {
     const { CONFIG } = endpoints;
