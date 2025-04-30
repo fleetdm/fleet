@@ -399,6 +399,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	} else {
 		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
+	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
+		if !license.IsPremium() {
+			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
 
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
@@ -1332,7 +1338,7 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
@@ -1350,7 +1356,7 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
@@ -1377,7 +1383,7 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 	fleetVars := findFleetVariables(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_user_principal_names",
@@ -1487,6 +1493,9 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())

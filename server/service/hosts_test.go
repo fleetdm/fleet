@@ -1512,7 +1512,11 @@ func TestHostEncryptionKey(t *testing.T) {
 				_, err := svc.HostEncryptionKey(ctx, 1)
 				if c.shouldFail {
 					require.Error(t, err)
-					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
+					if c.macMDMEnabled && !c.winMDMEnabled && c.hostPlatform == "windows" {
+						require.ErrorContains(t, err, fleet.ErrWindowsMDMNotConfigured.Error())
+					} else {
+						require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
+					}
 				} else {
 					require.NoError(t, err)
 				}

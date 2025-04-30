@@ -43,6 +43,7 @@ spec:
       bootstrap_package: null
       enable_end_user_authentication: false
       macos_setup_assistant: null
+      manual_agent_install: null
       enable_release_device_manually: false
       script: null
       software: null
