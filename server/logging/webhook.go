@@ -28,19 +28,16 @@ func NewWebhookLogWriter(webhookURL string, logger log.Logger) (*webhookLogWrite
 	}, nil
 }
 
-type webhookDetails struct {
-	Timestamp time.Time       `json:"timestamp"`
-	Details   json.RawMessage `json:"details"`
+type webhookPayload struct {
+	Timestamp time.Time         `json:"timestamp"`
+	Details   []json.RawMessage `json:"details"`
 }
 
 func (w *webhookLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
-	detailLogs := make([]webhookDetails, 0, len(logs))
 
-	for _, log := range logs {
-		detailLogs = append(detailLogs, webhookDetails{
-			Timestamp: time.Now(),
-			Details:   log,
-		})
+	payload := webhookPayload{
+		Timestamp: time.Now(),
+		Details:   logs,
 	}
 
 	level.Debug(w.logger).Log(
@@ -48,7 +45,7 @@ func (w *webhookLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 		"url", server.MaskSecretURLParams(w.url),
 	)
 
-	if err := server.PostJSONWithTimeout(ctx, w.url, detailLogs); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, w.url, payload); err != nil {
 		level.Error(w.logger).Log(
 			"msg", fmt.Sprintf("failed to send automation webhook to %s", server.MaskSecretURLParams(w.url)),
 			"err", server.MaskURLError(err).Error(),
