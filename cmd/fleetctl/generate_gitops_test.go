@@ -583,6 +583,7 @@ func TestGenerateControls(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
