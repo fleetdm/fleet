@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -16,7 +17,7 @@ func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts
 	return listHostCertsDB(ctx, ds.reader(ctx), hostID, opts)
 }
 
-func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
 	incomingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(certs))
 	for _, cert := range certs {
 		if cert.HostID != hostID {
@@ -42,8 +43,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 		existingBySHA1[strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))] = ec
 	}
 
+	// Check if any of the certs to insert are managed by Fleet, if so update the associated host_mdm_managed_certificates rows
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
-	// toUpdate := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
 		if _, ok := existingBySHA1[sha1]; ok {
 			// TODO: should we always update existing records? skipping updates reduces db load but
@@ -51,6 +52,35 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
 		} else {
 			toInsert = append(toInsert, incoming)
+		}
+	}
+
+	hostMDMManagedCertsToUpdate := make([]*fleet.MDMManagedCertificate, 0, len(toInsert))
+	if len(toInsert) > 0 {
+		hostMDMManagedCerts, err := ds.ListHostMDMManagedCertificates(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host mdm managed certs for update")
+		}
+		for _, hostMDMManagedCert := range hostMDMManagedCerts {
+			// Note that we only care about proxied SCEP certificates because DigiCert are requested
+			// by Fleet and stored in the DB directly, so we need not fetch them via OSQuery
+			if hostMDMManagedCert.Type != fleet.CAConfigCustomSCEPProxy {
+				continue
+			}
+			for _, certToInsert := range toInsert {
+				if strings.Contains(certToInsert.SubjectCommonName, "fleet-"+hostMDMManagedCert.ProfileUUID) {
+					hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, &fleet.MDMManagedCertificate{
+						HostUUID:       hostMDMManagedCert.HostUUID,
+						ProfileUUID:    hostMDMManagedCert.ProfileUUID,
+						CAName:         hostMDMManagedCert.CAName,
+						Type:           hostMDMManagedCert.Type,
+						Serial:         ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
+						NotValidBefore: &certToInsert.NotValidBefore,
+						NotValidAfter:  &certToInsert.NotValidAfter,
+					})
+					break
+				}
+			}
 		}
 	}
 
@@ -67,6 +97,9 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ce
 		}
 		if err := softDeleteHostCertsDB(ctx, tx, hostID, toDelete); err != nil {
 			return ctxerr.Wrap(ctx, err, "soft delete host certs")
+		}
+		if err := updateHostMDMManagedCertDetailsDB(ctx, tx, hostMDMManagedCertsToUpdate); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
 		}
 		return nil
 	})
@@ -188,5 +221,27 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 		return ctxerr.Wrap(ctx, err, "soft deleting host certificates")
 	}
 
+	return nil
+}
+
+func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
+	if len(certs) == 0 {
+		return nil
+	}
+
+	for _, certToUpdate := range certs {
+		stmt := `UPDATE host_mdm_managed_certificates SET serial=?, not_valid_before=?, not_valid_after=? WHERE host_uuid = ? AND profile_uuid = ? AND ca_name=?`
+		args := []interface{}{
+			certToUpdate.Serial,
+			certToUpdate.NotValidBefore,
+			certToUpdate.NotValidAfter,
+			certToUpdate.HostUUID,
+			certToUpdate.ProfileUUID,
+			certToUpdate.CAName,
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating host mdm managed certificates")
+		}
+	}
 	return nil
 }

@@ -7141,7 +7141,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.True(t, added)
 
 	// Add a host certificate
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, []*fleet.HostCertificateRecord{{
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
 		HostID:     host.ID,
 		CommonName: "foo",
 		SHA1Sum:    sha1.New().Sum([]byte("foo")),
