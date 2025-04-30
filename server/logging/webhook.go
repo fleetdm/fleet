@@ -69,7 +69,7 @@ func (w *webhookLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 
 	level.Debug(w.logger).Log(
 		"msg", "sending webhook request",
-		"url", w.url,
+		"url", server.MaskSecretURLParams(w.url),
 	)
 
 	if err := w.sendWebhookJson(ctx, detailLogs); err != nil {
