@@ -4806,9 +4806,8 @@ func (cs *customSCEPVarsFound) CAs() []string {
 }
 
 func (cs *customSCEPVarsFound) ErrorMessage() string {
-	// TODO This doesn't quite match the figma
-	if !cs.renewalIdFound {
-		return "Variable \"${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" must be in the SCEP certificate's common name (CN)."
+	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
+		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
 	}
 	if len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
 		return "Variable ${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" can't be used if variables for SCEP URL and Challenge are not specified."

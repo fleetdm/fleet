@@ -232,8 +232,6 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 	}
 
 	for _, certToUpdate := range certs {
-		// TODO possibly change this to a batch upsert. Existing upsert not really compatible with
-		// retry tx
 		stmt := `UPDATE host_mdm_managed_certificates SET serial=?, not_valid_before=?, not_valid_after=? WHERE host_uuid = ? AND profile_uuid = ? AND ca_name=?`
 		args := []interface{}{
 			certToUpdate.Serial,
