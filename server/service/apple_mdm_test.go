@@ -4755,6 +4755,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName is already present in configuration profile",
 		},
 		{
+			name: "Custom SCEP renewal ID shows up in the wrong place",
+			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"$FLEET_VAR_SCEP_RENEWAL_ID",
+				"com.apple.security.scep"),
+			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must only be in the SCEP certificate's common name(CN).",
+		},
+		{
 			name: "Custom SCEP profile is not scep",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"Name", "com.apple.security.SCEP"),

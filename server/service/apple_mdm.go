@@ -677,6 +677,10 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	if scepPayloadsFound > 1 {
 		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
 	}
+	scepRenewalIdMatches := fleetVarSCEPRenewalIDRegexp.FindAllString(contents, -1)
+	if len(scepRenewalIdMatches) > scepPayloadsFound {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must only be in the SCEP certificate's common name(CN)."}
+	}
 	return nil
 }
 

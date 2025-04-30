@@ -236,6 +236,23 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.Len(t, certs3, 1)
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].CommonName)
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].SubjectCommonName)
+
+	// Check that the managed certificate details were not updated
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, host.UUID, profile.HostUUID)
+	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
+	require.NotNil(t, profile.ChallengeRetrievedAt)
+	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, profile.Type)
+	require.NotNil(t, profile.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", expected1.SerialNumber.Text(16)), *profile.Serial)
+	require.NotNil(t, profile.NotValidBefore)
+	assert.Equal(t, expected1.NotBefore, *profile.NotValidBefore)
+	require.NotNil(t, profile.NotValidAfter)
+	assert.Equal(t, expected1.NotAfter, *profile.NotValidAfter)
+	assert.Equal(t, "test-ca", profile.CAName)
 }
 
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {
