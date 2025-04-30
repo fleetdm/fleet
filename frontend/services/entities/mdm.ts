@@ -1,4 +1,6 @@
 import {
+  IBootstrapPackageAggregate,
+  IBootstrapPackageMetadata,
   IHostMdmProfile,
   IMdmCommandResult,
   IMdmProfile,
@@ -92,6 +94,9 @@ export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
   software_titles: ISoftwareTitle[] | null;
 };
 
+export type IGetBootstrapPackageMetadataResponse = IBootstrapPackageMetadata;
+export type IGetBootstrapPackageSummaryResponse = IBootstrapPackageAggregate;
+
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
@@ -184,7 +189,9 @@ const mdmService = {
     return sendRequest("POST", MDM_APPLE_SSO, {});
   },
 
-  getBootstrapPackageMetadata: (teamId: number) => {
+  getBootstrapPackageMetadata: (
+    teamId: number
+  ): Promise<IGetBootstrapPackageMetadataResponse> => {
     const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
 
     return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
@@ -208,7 +215,9 @@ const mdmService = {
     return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
   },
 
-  getBootstrapPackageAggregate: (teamId?: number) => {
+  getBootstrapPackageAggregate: (
+    teamId?: number
+  ): Promise<IGetBootstrapPackageSummaryResponse> => {
     let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
 
     if (teamId) {
