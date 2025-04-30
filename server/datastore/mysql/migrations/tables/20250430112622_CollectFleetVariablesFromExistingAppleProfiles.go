@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250428092622, Down_20250428092622)
+	MigrationClient.AddMigration(Up_20250430112622, Down_20250430112622)
 }
 
-func Up_20250428092622(tx *sql.Tx) error {
+func Up_20250430112622(tx *sql.Tx) error {
 	// For now, we only collect used fleet variables from existing Apple
 	// configuration profiles, as those are the only ones that rely on the
 	// variables lookup table for the time being.
@@ -143,6 +143,6 @@ func findFleetVariablesKeepDuplicates(contents string) []string {
 	return result
 }
 
-func Down_20250428092622(tx *sql.Tx) error {
+func Down_20250430112622(tx *sql.Tx) error {
 	return nil
 }

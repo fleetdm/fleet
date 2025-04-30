@@ -10,7 +10,7 @@ import (
 	"golang.org/x/exp/rand"
 )
 
-func TestUp_20250428092622_NoProfile(t *testing.T) {
+func TestUp_20250430112622_NoProfile(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Apply current migration.
@@ -24,7 +24,7 @@ type profileVarTuple struct {
 	VarID       uint   `db:"fleet_variable_id"`
 }
 
-func TestUp_20250428092622_SingleProfileWithVar(t *testing.T) {
+func TestUp_20250430112622_SingleProfileWithVar(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	prof1 := insertAppleConfigProfile(t, db, "N1", "I1", "FLEET_VAR_HOST_END_USER_IDP_USERNAME")
@@ -42,11 +42,11 @@ func TestUp_20250428092622_SingleProfileWithVar(t *testing.T) {
 	require.Equal(t, profileVarTuple{prof1, varID}, profs[0])
 }
 
-func TestUp_20250428092622_MultipleProfilesWithVar(t *testing.T) {
+func TestUp_20250430112622_MultipleProfilesWithVar(t *testing.T) {
 	runWithNProfiles(t, 10)
 }
 
-func TestUp_20250428092622_ProfilesWithoutVariable(t *testing.T) {
+func TestUp_20250430112622_ProfilesWithoutVariable(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertAppleConfigProfile(t, db, "N1", "I1")
@@ -62,7 +62,7 @@ func TestUp_20250428092622_ProfilesWithoutVariable(t *testing.T) {
 	require.Len(t, profs, 0)
 }
 
-func TestUp_20250428092622_ProfilesUnknownVariable(t *testing.T) {
+func TestUp_20250430112622_ProfilesUnknownVariable(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	insertAppleConfigProfile(t, db, "N1", "I1", "FLEET_VAR_NO_SUCH_VARIABLE")
@@ -77,15 +77,15 @@ func TestUp_20250428092622_ProfilesUnknownVariable(t *testing.T) {
 	require.Len(t, profs, 0)
 }
 
-func TestUp_20250428092622_ExactBatch(t *testing.T) {
+func TestUp_20250430112622_ExactBatch(t *testing.T) {
 	runWithNProfiles(t, 100)
 }
 
-func TestUp_20250428092622_OverBatch(t *testing.T) {
+func TestUp_20250430112622_OverBatch(t *testing.T) {
 	runWithNProfiles(t, 101)
 }
 
-func TestUp_20250428092622_LoadTest(t *testing.T) {
+func TestUp_20250430112622_LoadTest(t *testing.T) {
 	runWithNProfiles(t, 1011)
 }
 
