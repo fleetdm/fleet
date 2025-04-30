@@ -45,8 +45,6 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 	// Check if any of the certs to insert are managed by Fleet, if so update the associated host_mdm_managed_certificates rows
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
-
-	// toUpdate := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
 		if _, ok := existingBySHA1[sha1]; ok {
 			// TODO: should we always update existing records? skipping updates reduces db load but
