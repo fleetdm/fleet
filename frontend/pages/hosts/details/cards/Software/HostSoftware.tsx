@@ -15,6 +15,8 @@ import { IHostSoftware, ISoftware } from "interfaces/software";
 import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase } from "utilities/url";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -23,8 +25,14 @@ import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
 
-import { getSoftwareVulnFiltersFromQueryParams } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import {
+  buildSoftwareFilterQueryParams,
+  buildSoftwareVulnFiltersQueryParams,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
@@ -55,7 +63,6 @@ interface IHostSoftwareProps {
   hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
   hostMDMEnrolled?: boolean;
-  toggleSoftwareFiltersModal: () => void;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -115,7 +122,6 @@ const HostSoftware = ({
   isSoftwareEnabled = false,
   isMyDevicePage = false,
   hostMDMEnrolled,
-  toggleSoftwareFiltersModal,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
@@ -123,6 +129,7 @@ const HostSoftware = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const isUnsupported =
@@ -133,6 +140,9 @@ const HostSoftware = ({
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
     number | null
   >(null);
+  const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
+    false
+  );
 
   const {
     data: hostSoftwareRes,
@@ -242,6 +252,64 @@ const HostSoftware = ({
     [id, renderFlash, refetchSoftware]
   );
 
+  const toggleSoftwareFiltersModal = useCallback(() => {
+    setShowSoftwareFiltersModal(!showSoftwareFiltersModal);
+  }, [setShowSoftwareFiltersModal, showSoftwareFiltersModal]);
+
+  /**  Compares vuln filters to current vuln query params */
+  const determineVulnFilterChange = useCallback(
+    (vulnFilters: ISoftwareVulnFiltersParams) => {
+      const changedEntry = Object.entries(vulnFilters).find(([key, val]) => {
+        switch (key) {
+          case "vulnerable":
+          case "exploit": {
+            // Normalize values: undefined → false, then compare
+            const current = queryParams[key] ?? false;
+            const incoming = val ?? false;
+            return incoming !== current;
+          }
+          case "minCvssScore":
+            return val !== queryParams.min_cvss_score;
+          case "maxCvssScore":
+            return val !== queryParams.max_cvss_score;
+          default:
+            return false;
+        }
+      });
+      return changedEntry?.[0] ?? "";
+    },
+    [queryParams]
+  );
+
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
+    const newQueryParams = {
+      query: queryParams.query,
+      orderDirection: queryParams.order_direction,
+      orderKey: queryParams.order_key,
+      perPage: queryParams.per_page,
+      page: 0, // resets page index
+      ...buildSoftwareFilterQueryParams(softwareFilter),
+      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+    };
+
+    // We want to determine which query param has changed in order to
+    // reset the page index to 0 if any other param has changed.
+    const changedParam = determineVulnFilterChange(vulnFilters);
+
+    // Update the route only if a change is detected
+    if (changedParam) {
+      router.replace(
+        getNextLocationPath({
+          pathPrefix: location.pathname,
+          routeTemplate: "",
+          queryParams: convertParamsToSnakeCase(newQueryParams),
+        })
+      );
+    }
+
+    toggleSoftwareFiltersModal();
+  };
+
   const onSelectAction = useCallback(
     (software: IHostSoftware, action: string) => {
       switch (action) {
@@ -332,27 +400,33 @@ const HostSoftware = ({
             onShowSoftwareDetails={onShowSoftwareDetails}
           />
         )}
+        {showSoftwareFiltersModal && (
+          <SoftwareFiltersModal
+            onExit={toggleSoftwareFiltersModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
+            isPremiumTier={isPremiumTier || false}
+          />
+        )}
       </>
     );
   };
 
   return (
-    <>
-      <Card
-        className={baseClass}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
-        <CardHeader
-          header="Software"
-          subheader={
-            isMyDevicePage ? "Software installed on your device." : undefined
-          }
-        />
-        {renderHostSoftware()}
-      </Card>
-    </>
+    <Card
+      className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
+    >
+      <CardHeader
+        header="Software"
+        subheader={
+          isMyDevicePage ? "Software installed on your device." : undefined
+        }
+      />
+      {renderHostSoftware()}
+    </Card>
   );
 };
 
