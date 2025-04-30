@@ -3692,17 +3692,17 @@ Updates the email for the `custom` data source in the human-device mapping. This
 {
 	"host_id": 1,
 	"device_mapping": [
-		{
-		"email": "user@example.com",
-		"source": "mdm_idp_accounts"
+	  {
+  		"email": "user@example.com",
+  		"source": "mdm_idp_accounts"
 		},
 		{
-		"email": "user@example.com",
-		"source": "google_chrome_profiles"
+  		"email": "user@example.com",
+  		"source": "google_chrome_profiles"
 		},
 		{
-		"email": "user@example.com",
-		"source": "custom"
+  		"email": "user@example.com",
+  		"source": "custom"
 		}
 	]
 }
