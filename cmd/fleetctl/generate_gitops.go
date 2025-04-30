@@ -834,10 +834,14 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	}
 	if profiles != nil {
 		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "MacOSSettings")] = profiles["apple_profiles"]
+			result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+				"custom_settings": profiles["apple_profiles"],
+			}
 		}
 		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-			result[jsonFieldName(t, "WindowsSettings")] = profiles["windows_profiles"]
+			result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+				"custom_settings": profiles["windows_profiles"],
+			}
 		}
 	}
 
