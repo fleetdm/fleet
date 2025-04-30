@@ -369,7 +369,7 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, certs []*HostCertificateRecord) error
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
@@ -1725,6 +1725,13 @@ type Datastore interface {
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
 
+	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
+	// execution ID.
+	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+
+	// BatchExecuteSummary returns the summary of a batch script execution
+	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
+
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
@@ -1996,7 +2003,7 @@ type Datastore interface {
 	// Certificate management
 
 	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
-	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMBulkUpsertManagedCertificatePayload) error
+	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMManagedCertificate) error
 
 	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
 	// nil is returned if the profile is not found.
@@ -2007,6 +2014,9 @@ type Datastore interface {
 
 	// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 	RenewMDMManagedCertificates(ctx context.Context) error
+
+	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
+	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables

@@ -630,14 +630,8 @@ func (ts *withServer) updateSoftwareInstaller(
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
+	// add the software field
 	if payload.Filename != "" {
-		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-		require.NoError(t, err)
-		defer tfr.Close()
-
-		payload.InstallerFile = tfr
-
-		// add the software field
 		fw, err := w.CreateFormFile("software", payload.Filename)
 		require.NoError(t, err)
 		n, err := io.Copy(fw, payload.InstallerFile)

@@ -4,27 +4,27 @@ import { screen } from "@testing-library/react";
 import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 import {
-  defaultSetupExperienceScriptHandler,
-  errorNoSetupExperienceScript,
+  createSetupExperienceScriptHandler,
+  errorNoSetupExperienceScriptHandler,
 } from "test/handlers/setup-experience-handlers";
 
-import SetupExperienceScript from "./SetupExperienceScript";
+import RunScript from "./RunScript";
 
-describe("SetupExperienceScript", () => {
+describe("RunScript", () => {
   it("should render the script uploader when no script has been uploaded", async () => {
-    mockServer.use(errorNoSetupExperienceScript);
+    mockServer.use(errorNoSetupExperienceScriptHandler);
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<SetupExperienceScript currentTeamId={1} />);
+    render(<RunScript currentTeamId={1} />);
 
     expect(await screen.findByRole("button", { name: "Upload" })).toBeVisible();
   });
 
   it("should render the uploaded script uploader when a script has been uploaded", async () => {
-    mockServer.use(defaultSetupExperienceScriptHandler);
+    mockServer.use(createSetupExperienceScriptHandler());
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<SetupExperienceScript currentTeamId={1} />);
+    render(<RunScript currentTeamId={1} />);
 
     expect(
       await screen.findByText("Script will run during setup:")
