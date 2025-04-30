@@ -986,6 +986,25 @@ type MDMManagedCertificate struct {
 	Serial               *string           `db:"serial"`
 }
 
+func (m MDMManagedCertificate) Equal(other MDMManagedCertificate) bool {
+	challengeEqual := m.ChallengeRetrievedAt == nil && other.ChallengeRetrievedAt == nil ||
+		m.ChallengeRetrievedAt != nil && other.ChallengeRetrievedAt != nil && m.ChallengeRetrievedAt.Equal(*other.ChallengeRetrievedAt)
+	validBeforeEqual := m.NotValidBefore == nil && other.NotValidBefore == nil ||
+		m.NotValidBefore != nil && other.NotValidBefore != nil && m.NotValidBefore.Equal(*other.NotValidBefore)
+	validAfterEqual := m.NotValidAfter == nil && other.NotValidAfter == nil ||
+		m.NotValidAfter != nil && other.NotValidAfter != nil && m.NotValidAfter.Equal(*other.NotValidAfter)
+	serialEqual := m.Serial == nil && other.Serial == nil ||
+		m.Serial != nil && other.Serial != nil && *m.Serial == *other.Serial
+	return m.ProfileUUID == other.ProfileUUID &&
+		m.HostUUID == other.HostUUID &&
+		challengeEqual &&
+		validBeforeEqual &&
+		validAfterEqual &&
+		m.Type == other.Type &&
+		m.CAName == other.CAName &&
+		serialEqual
+}
+
 // MDMAppleEnrolledDeviceInfo represents the information of a device enrolled
 // in Apple MDM. Used by the MDM flow to re-create an iDevice that has been
 // deleted from the hosts table but is still MDM-enrolled.

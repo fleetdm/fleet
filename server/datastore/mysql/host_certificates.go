@@ -43,7 +43,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		existingBySHA1[strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))] = ec
 	}
 
-	// Check if any of the certs to insert are managed by Fleet, if so update the associated host_mdm_managed_certificates rows
+	// Check if any of the certs to insert are managed by Fleet; if so, update the associated host_mdm_managed_certificates rows
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
 		if _, ok := existingBySHA1[sha1]; ok {
@@ -63,21 +63,27 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 		for _, hostMDMManagedCert := range hostMDMManagedCerts {
 			// Note that we only care about proxied SCEP certificates because DigiCert are requested
-			// by Fleet and stored in the DB directly, so we need not fetch them via OSQuery
-			if hostMDMManagedCert.Type != fleet.CAConfigCustomSCEPProxy {
+			// by Fleet and stored in the DB directly, so we need not fetch them via osquery/MDM
+			if hostMDMManagedCert.Type != fleet.CAConfigCustomSCEPProxy && hostMDMManagedCert.Type != fleet.CAConfigNDES {
 				continue
 			}
 			for _, certToInsert := range toInsert {
 				if strings.Contains(certToInsert.SubjectCommonName, "fleet-"+hostMDMManagedCert.ProfileUUID) {
-					hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, &fleet.MDMManagedCertificate{
-						HostUUID:       hostMDMManagedCert.HostUUID,
-						ProfileUUID:    hostMDMManagedCert.ProfileUUID,
-						CAName:         hostMDMManagedCert.CAName,
-						Type:           hostMDMManagedCert.Type,
-						Serial:         ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
-						NotValidBefore: &certToInsert.NotValidBefore,
-						NotValidAfter:  &certToInsert.NotValidAfter,
-					})
+					managedCertToUpdate := &fleet.MDMManagedCertificate{
+						ProfileUUID:          hostMDMManagedCert.ProfileUUID,
+						HostUUID:             hostMDMManagedCert.HostUUID,
+						ChallengeRetrievedAt: hostMDMManagedCert.ChallengeRetrievedAt,
+						NotValidBefore:       &certToInsert.NotValidBefore,
+						NotValidAfter:        &certToInsert.NotValidAfter,
+						Type:                 hostMDMManagedCert.Type,
+						CAName:               hostMDMManagedCert.CAName,
+						Serial:               ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
+					}
+					// To reduce DB load, we only write to datastore if the managed cert is different
+					if !hostMDMManagedCert.Equal(*managedCertToUpdate) {
+						hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, managedCertToUpdate)
+					}
+					// We found a matching cert from host certs; move on to the next managed cert
 					break
 				}
 			}
