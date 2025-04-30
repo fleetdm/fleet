@@ -3,6 +3,7 @@ package logging
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
@@ -17,6 +18,15 @@ type FilesystemConfig struct {
 	MaxSize              int
 	MaxAge               int
 	MaxBackups           int
+}
+
+type WebhookConfig struct {
+	URL string
+
+	BasicAuthUser string
+	BasicAuthPass string
+	BearerToken   string
+	Timeout       time.Duration
 }
 
 type FirehoseConfig struct {
@@ -70,6 +80,7 @@ type Config struct {
 	Plugin string
 
 	Filesystem FilesystemConfig
+	Webhook    WebhookConfig
 	Firehose   FirehoseConfig
 	Kinesis    KinesisConfig
 	Lambda     LambdaConfig
@@ -100,6 +111,8 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 			return nil, fmt.Errorf("create filesystem %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
+	case "webhook":
+
 	case "firehose":
 		writer, err := NewFirehoseLogWriter(
 			config.Firehose.Region,

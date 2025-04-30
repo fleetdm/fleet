@@ -509,6 +509,15 @@ type FilesystemConfig struct {
 	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
+type WebhookConfig struct {
+	StatusURL     string `json:"status_webhook_url" yaml:"status_webhook_url"`
+	ResultURL     string `json:"result_webhook_url" yaml:"result_webhook_url"`
+	BasicAuthUser string `json:"basic_auth_user" yaml:"basic_auth_user"`
+	BasicAuthPass string `json:"basic_auth_pass" yaml:"basic_auth_pass"`
+	BearerToken   string `json:"bearer_token" yaml:"bearer_token"`
+	Timeout       int    `json:"timeout" yaml:"timeout"`
+}
+
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
 	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
@@ -601,6 +610,7 @@ type FleetConfig struct {
 	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
+	Webhook          WebhookConfig
 	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
@@ -1591,6 +1601,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxSize:              man.getConfigInt("filesystem.max_size"),
 			MaxAge:               man.getConfigInt("filesystem.max_age"),
 			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
+		},
+		Webhook: WebhookConfig{
+			StatusURL:     man.getConfigString("webhook.status_webhook_url"),
+			ResultURL:     man.getConfigString("webhook.result_webhook_url"),
+			BasicAuthUser: man.getConfigString("webhook.basic_auth_user"),
+			BasicAuthPass: man.getConfigString("webhook.basic_auth_pass"),
+			BearerToken:   man.getConfigString("webhook.bearer_token"),
+			Timeout:       man.getConfigString("webhook.timeout"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
