@@ -29,8 +29,6 @@ export interface IFormPolicy extends IPolicy {
   runScriptEnabled: boolean;
   scriptIdToRun?: number;
   scriptNameToRun?: string;
-  disabled?: boolean;
-  disabledCheckboxTooltipContent?: React.ReactNode;
 }
 
 interface IPoliciesPaginatedListProps {
@@ -40,11 +38,9 @@ interface IPoliciesPaginatedListProps {
     onChange: (item: IFormPolicy) => void
   ) => ReactElement | false | null | undefined;
   onToggleItem: (item: IFormPolicy) => IFormPolicy;
-  /** A function defining the conditions under which to disable a policy. Can optionally return the
-   * content of tooltip to display over the checkbox when disabled. */
-  getPolicyDisabled?: (
-    policy: IPolicyStats
-  ) => [boolean, React.ReactNode | null];
+  /** A function defining the conditions under which to disable a policy. */
+  getPolicyDisabled?: (policy: IFormPolicy) => boolean;
+  getPolicyTooltipContent?: (policy: IFormPolicy) => React.ReactNode;
   onCancel: () => void;
   onSubmit: (formData: IFormPolicy[]) => void;
   isUpdating: boolean;
@@ -62,6 +58,7 @@ function PoliciesPaginatedList(
     renderItemRow,
     onToggleItem,
     getPolicyDisabled,
+    getPolicyTooltipContent,
     onCancel,
     onSubmit,
     isUpdating,
@@ -160,9 +157,6 @@ function PoliciesPaginatedList(
       return fetchPromise.then((policiesResponse) => {
         // Marshall the response into IFormPolicy objects.
         return (policiesResponse.policies || []).map((policy) => {
-          const [disabled, disabledTooltip] = getPolicyDisabled
-            ? getPolicyDisabled(policy)
-            : [false, undefined];
           return {
             ...policy,
             installSoftwareEnabled: !!policy.install_software,
@@ -170,8 +164,6 @@ function PoliciesPaginatedList(
             runScriptEnabled: !!policy.run_script,
             scriptIdToRun: policy.run_script?.id,
             scriptNameToRun: policy.run_script?.name,
-            disabled,
-            disabledCheckboxTooltipContent: disabledTooltip,
           };
         }) as IFormPolicy[];
       });
@@ -221,11 +213,13 @@ function PoliciesPaginatedList(
           fetchPage={fetchPage}
           fetchCount={fetchCount}
           isSelected={isSelected}
+          isItemDisabled={getPolicyDisabled}
+          getItemTooltipContent={getPolicyTooltipContent}
           onClickRow={onToggleItem}
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
-          disableList={disableList || gitOpsModeEnabled}
+          disable={disableList || gitOpsModeEnabled}
           heading={<span className={`${baseClass}__header`}>Policies</span>}
           helpText={helpText}
         />

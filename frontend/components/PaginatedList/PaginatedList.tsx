@@ -40,7 +40,11 @@ interface IPaginatedListProps<TItem> {
    If string, a key in an item whose truthiness will be checked.
    if function, a function that given an item, returns a boolean.
    *required in conjunction with `useCheckBoxes` */
-  isSelected?: string | ((item: TItem) => boolean);
+  isSelected?: string | ((item: TItem) => boolean); // TODO - rename as `isItemSelected
+  /** How to determine whether an item is disabled */
+  isItemDisabled?: (item: TItem) => boolean;
+  /** How to determine the tooltip to show on hover over the item's checkbox */
+  getItemTooltipContent?: (item: TItem) => React.ReactNode;
   /** Custom function to render the label for an item. */
   renderItemLabel?: (item: TItem) => ReactElement | null;
   /** Custom function to render extra markup (besides the label) in an item row. */
@@ -62,7 +66,7 @@ interface IPaginatedListProps<TItem> {
   /** A function to call when the list of dirty items changes. */
   onUpdate?: (changedItems: TItem[]) => void;
   /** Whether the list should be disabled. */
-  disableList?: boolean;
+  disable?: boolean;
   /** also requires an `isSelected` function be passed in for correct functionality */
   useCheckBoxes?: boolean;
   /** Allow the parent to trigger the loading overlay */
@@ -85,7 +89,9 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     setDirtyOnClickRow = true,
     onUpdate,
     isSelected,
-    disableList = false,
+    isItemDisabled,
+    getItemTooltipContent,
+    disable = false,
     heading,
     useCheckBoxes = true,
     ancestralUpdating = false,
@@ -200,7 +206,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
 
   // Render the list.
   const classes = classnames(baseClass, "form", {
-    "form-fields--disabled": disableList,
+    "form-fields--disabled": disable,
   });
   return (
     <div className={classes}>
@@ -242,8 +248,10 @@ function PaginatedListInner<TItem extends Record<string, any>>(
             >
               {useCheckBoxes && isSelected && (
                 <Checkbox
-                  disabled={disableList || item.disabled}
-                  iconTooltipContent={item.disabledCheckboxTooltipContent}
+                  disabled={disable || (isItemDisabled && isItemDisabled(item))}
+                  iconTooltipContent={
+                    getItemTooltipContent && getItemTooltipContent(item)
+                  }
                   value={
                     typeof isSelected === "function"
                       ? isSelected(item)

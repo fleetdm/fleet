@@ -180,7 +180,6 @@ describe("PoliciesPaginatedList - component", () => {
     await waitForLoadingToFinish(container);
 
     const checkboxes = screen.getAllByRole("checkbox");
-    console.log("\n\nCHECKBOXES: ", checkboxes, "\n\n");
     await userEvent.click(checkboxes[0]);
     await userEvent.click(checkboxes[2]);
     await userEvent.click(screen.getByRole("button", { name: /Save/i }));
@@ -190,7 +189,6 @@ describe("PoliciesPaginatedList - component", () => {
       // that may change over time, so rather than full equality we'll just check
       // that it sends the objects with the right IDs.
       const changedItems = onSubmit.mock.calls[0][0];
-      console.log("\n\nCHANGED ITEMS: ", changedItems, "\n\n");
       expect(changedItems[0].id).toEqual(globalPolicies[0].id);
       expect(changedItems[0].name).toEqual(
         `${globalPolicies[0].name} (changed)`

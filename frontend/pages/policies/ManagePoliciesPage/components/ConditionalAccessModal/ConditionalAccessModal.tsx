@@ -64,14 +64,11 @@ const ConditionalAccessModal = ({
     }
   };
 
-  const getPolicyDisabled = (
-    policy: IPolicyStats
-  ): [boolean, React.ReactNode] => {
-    if (!policy.platform.includes("darwin")) {
-      return [true, "Policy does not target macOS"];
-    }
-    return [false, null];
-  };
+  const getPolicyDisabled = (policy: IFormPolicy) =>
+    !policy.platform.includes("darwin");
+
+  const getPolicyTooltipContent = (policy: IFormPolicy) =>
+    !policy.platform.includes("darwin") ? "Policy does not target macOS" : null;
 
   const learnMoreLink = (
     <CustomLink
@@ -103,6 +100,8 @@ const ConditionalAccessModal = ({
           <PoliciesPaginatedList
             ref={paginatedListRef}
             isSelected="conditional_access_enabled"
+            getPolicyDisabled={getPolicyDisabled}
+            getPolicyTooltipContent={getPolicyTooltipContent}
             onToggleItem={(item: IFormPolicy) => {
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;
@@ -124,7 +123,6 @@ const ConditionalAccessModal = ({
             onCancel={onExit}
             teamId={teamId}
             disableList={!formData.enabled}
-            getPolicyDisabled={getPolicyDisabled}
           />
         </div>
       </>
