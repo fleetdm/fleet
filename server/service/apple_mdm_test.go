@@ -629,7 +629,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -741,7 +741,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 	r := bytes.NewReader(mcBytes)
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
 		require.Equal(t, "Foo", cp.Name)
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
@@ -1833,6 +1833,37 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			</dict>
 			</plist>`, mobileconfig.FleetFileVaultPayloadType))},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
+		},
+		{
+			"uses a Fleet Variable",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Username</key>
+						<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			`profile variables are not supported by this deprecated endpoint`,
 		},
 	}
 	for name := range fleetmdm.FleetReservedProfileNames() {
@@ -4643,6 +4674,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		name    string
 		profile string
 		errMsg  string
+		vars    []string
 	}{
 		{
 			name: "DigiCert badCA",
@@ -4704,6 +4736,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
 				"com.apple.security.pkcs12"),
 			errMsg: "",
+			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName"},
 		},
 		{
 			name: "DigiCert 2 profiles with swapped variables",
@@ -4716,6 +4749,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation2("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}",
 				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName2"),
 			errMsg: "",
+			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "DIGICERT_PASSWORD_caName2", "DIGICERT_DATA_caName2"},
 		},
 		{
 			name: "Custom SCEP badCA",
@@ -4784,6 +4818,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
 			errMsg: "",
+			vars:   []string{"CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name: "Custom SCEP 2 profiles with swapped variables",
@@ -4801,6 +4836,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "Custom SCEP and DigiCert profiles happy path",
 			profile: customSCEPDigiCertValidationMobileconfig,
 			errMsg:  "",
+			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name:    "Custom profile with IdP variables and unknown variable",
@@ -4811,15 +4847,22 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "Custom profile with IdP variables happy path",
 			profile: customProfileForValidation("value"),
 			errMsg:  "",
+			vars:    []string{"HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_USERNAME_LOCAL_PART", "HOST_END_USER_IDP_GROUPS"},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateConfigProfileFleetVariables(appConfig, tc.profile)
+			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
+				assert.Empty(t, vars)
 			} else {
 				assert.NoError(t, err)
+				gotVars := make([]string, 0, len(vars))
+				for v := range vars {
+					gotVars = append(gotVars, v)
+				}
+				assert.ElementsMatch(t, tc.vars, gotVars)
 			}
 		})
 	}
