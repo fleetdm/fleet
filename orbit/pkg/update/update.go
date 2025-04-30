@@ -477,7 +477,7 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		case err == nil:
 			// OK
 		case errors.Is(err, os.ErrNotExist):
-			if err := extractTarGz(localTarget.Path); err != nil {
+			if err := ExtractTarGz(localTarget.Path, ""); err != nil {
 				return nil, fmt.Errorf("extract %q: %w", localTarget.Path, err)
 			}
 			s, err = os.Stat(localTarget.ExecPath)
@@ -629,7 +629,7 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 	}
 
 	if strings.HasSuffix(tmpPath, ".tar.gz") {
-		if err := extractTarGz(tmpPath); err != nil {
+		if err := ExtractTarGz(tmpPath, ""); err != nil {
 			return fmt.Errorf("extract %q: %w", tmpPath, err)
 		}
 		tmpDirPath := filepath.Join(filepath.Dir(tmpPath), localTarget.Info.ExtractedExecSubPath[0])
@@ -661,7 +661,9 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 }
 
 // extractTagGz extracts the contents of the provided tar.gz file.
-func extractTarGz(path string) error {
+// path is the path to the .tar.gz file
+// destPath is optionally the directory to extract the file to (blank -> the same dir as where the .tar.gz file is)
+func ExtractTarGz(path string, destDir string) error {
 	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
 	if err != nil {
 		return fmt.Errorf("open %q: %w", path, err)
@@ -673,6 +675,10 @@ func extractTarGz(path string) error {
 		return fmt.Errorf("gzip reader %q: %w", path, err)
 	}
 	defer gzipReader.Close()
+
+	if destDir == "" {
+		destDir = filepath.Dir(path)
+	}
 
 	tarReader := tar.NewReader(gzipReader)
 	for {
@@ -691,7 +697,7 @@ func extractTarGz(path string) error {
 			return fmt.Errorf("invalid path in tar.gz: %q", header.Name)
 		}
 
-		targetPath := filepath.Join(filepath.Dir(path), header.Name)
+		targetPath := filepath.Join(destDir, header.Name)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
