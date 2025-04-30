@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "8.10.72",
+      "version": "8.10.74",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';"
       },
-      "installer_url": "https://downloads.1password.com/mac/1Password-8.10.72-aarch64.zip",
+      "installer_url": "https://downloads.1password.com/mac/1Password-8.10.74-aarch64.zip",
       "install_script_ref": "d88f3fc1",
       "uninstall_script_ref": "f3d9471c",
-      "sha256": "cb890ae2d2fd363bd44ff0baabb5b1697ffb2ce0abdf1911253061ab0da38ed4"
+      "sha256": "96323a92e9162e1f3aec197479802c9bfe9fec9e4c34d8a6c2e7f6f1a6f9f6d2"
     }
   ],
   "refs": {
