@@ -57,7 +57,10 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
 	}
 	defer response.Body.Close()
-	c.parseResponse(verb, path, response, nil)
+	err = c.parseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
 	if response.StatusCode != http.StatusNoContent {
 		b, err := io.ReadAll(response.Body)
 		if err != nil {

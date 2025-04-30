@@ -252,11 +252,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			Name: "No team",
 		},
 	}
-	if cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium() {
+	switch {
+	case cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
-	} else if cmd.CLI.String("team") == "no-team" {
+	case cmd.CLI.String("team") == "no-team":
 		teamsToProcess = []teamToProcess{noTeam}
-	} else {
+	default:
 		// Get the list of teams.
 		teams, err := cmd.Client.ListTeams("")
 		if err != nil {
@@ -480,7 +481,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.Writer, "------------------------------------------------------------------\n%s\n------------------------------------------------------------------\n\n%+v\n\n", fullPath, string(b))
 		} else {
 			// Ensure the dir exists
-			os.MkdirAll(pathUtils.Dir(fullPath), 0o755)
+			err = os.MkdirAll(pathUtils.Dir(fullPath), 0o755)
+			if err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error creating dir %s: %s\n\n", fullPath, err)
+				return ErrGeneric
+			}
 			// Write the file to the output directory.
 			err = os.WriteFile(fullPath, b, 0o644)
 			if err != nil {
@@ -553,12 +558,12 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 	fileName := generateFilename(profile.Name)
 	if profile.Platform == "darwin" {
 		if isJSON.MatchString(profileContentsString) {
-			fileName = fileName + ".json"
+			fileName += ".json"
 		} else {
-			fileName = fileName + ".mobileconfig"
+			fileName += ".mobileconfig"
 		}
 	} else {
-		fileName = fileName + ".xml"
+		fileName += ".xml"
 	}
 	return fileName
 }
@@ -1108,7 +1113,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 			versions[j] = version.Version
 		}
 		softwareSpec := make(map[string]interface{})
-		if sw.SoftwarePackage != nil {
+		switch {
+		case sw.SoftwarePackage != nil:
 			pkgName := ""
 			if sw.SoftwarePackage.Name != "" {
 				pkgName = fmt.Sprintf(" (%s)", sw.SoftwarePackage.Name)
@@ -1127,9 +1133,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 					Comment: comment,
 				}
 			}
-		} else if sw.AppStoreApp != nil {
+		case sw.AppStoreApp != nil:
 			softwareSpec["app_store_id"] = sw.AppStoreApp.AppStoreID
-		} else {
+		default:
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
 			continue
 		}

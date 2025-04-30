@@ -297,6 +297,7 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 }
 
 func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	//nolint:gocritic // ignore captLocal
 	switch ID {
 	case 1:
 		if *teamID != 1 {
