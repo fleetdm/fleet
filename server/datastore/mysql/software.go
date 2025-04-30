@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -387,7 +388,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 
-			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, existingBundleIDsToUpdate, ds.minLastOpenedAtDiff); err != nil {
+			if err = updateModifiedHostSoftwareDB(ctx, tx, hostID, current, incoming, existingBundleIDsToUpdate, ds.minLastOpenedAtDiff, ds.logger); err != nil {
 				return err
 			}
 
@@ -956,18 +957,34 @@ func updateModifiedHostSoftwareDB(
 	incomingMap map[string]fleet.Software,
 	existingBundleIDsToUpdate map[string]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
+	logger log.Logger,
 ) error {
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
 		curSw, ok := currentMap[key]
-		if !ok || newSw.LastOpenedAt == nil {
-			// software must also exist in current map, and new software must have a
-			// last opened at timestamp (otherwise we don't overwrite the old one)
-			if _, ok := existingBundleIDsToUpdate[newSw.BundleIdentifier]; !ok {
-				continue
-			}
+		// software must exist in current map for us to update it.
+		if !ok {
+			continue
 		}
-
+		// if the new software has no last opened timestamp, we only
+		// update if the current software has no last opened timestamp
+		// and is marked as having a name change.
+		if newSw.LastOpenedAt == nil {
+			if _, ok := existingBundleIDsToUpdate[newSw.BundleIdentifier]; ok && curSw.LastOpenedAt == nil {
+				keysToUpdate = append(keysToUpdate, key)
+			}
+			// Log cases where the new software has no last opened timestamp, the current software does,
+			// and the software is marked as having a name change.
+			if ok && curSw.LastOpenedAt != nil {
+				level.Warn(logger).Log(
+					"msg", "updateModifiedHostSoftwareDB: last opened at is nil for new software, but not for current software",
+					"new_software", newSw.Name, "current_software", curSw.Name,
+					"bundle_identifier", newSw.BundleIdentifier,
+				)
+			}
+			continue
+		}
+		// update if the new software has been opened more recently.
 		if curSw.LastOpenedAt == nil || newSw.LastOpenedAt.Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
 			keysToUpdate = append(keysToUpdate, key)
 		}
