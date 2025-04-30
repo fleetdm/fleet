@@ -15,9 +15,7 @@ import Modal from "components/Modal";
 import Icon from "components/Icon";
 import { IPaginatedListHandle } from "components/PaginatedList";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
-// import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
-// import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
-import CalendarPreview from "../../../../../../assets/images/calendar-graphic-2.png";
+import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
