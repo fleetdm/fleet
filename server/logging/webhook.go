@@ -12,12 +12,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
 )
 
-var defaultTimeout = 30 * time.Second
+var defaultTimeout = 15 * time.Second
 
 type webhookLogWriter struct {
 	url           string
@@ -72,12 +71,15 @@ func (w *webhookLogWriter) Write(ctx context.Context, logs []json.RawMessage) er
 		"url", server.MaskSecretURLParams(w.url),
 	)
 
-	if err := w.sendWebhookJson(ctx, detailLogs); err != nil {
-		level.Error(w.logger).Log(
-			"msg", fmt.Sprintf("failed to send automation webhook to %s", server.MaskSecretURLParams(w.url)),
-			"err", server.MaskURLError(err).Error(),
-		)
-	}
+	// Submit logs in a goroutine so it doesn't hold up the request
+	go func(lg []webhookDetails) {
+		if err := w.sendWebhookJson(ctx, detailLogs); err != nil {
+			level.Error(w.logger).Log(
+				"msg", fmt.Sprintf("failed to send automation webhook to %s", server.MaskSecretURLParams(w.url)),
+				"err", server.MaskURLError(err).Error(),
+			)
+		}
+	}(detailLogs)
 
 	return nil
 }
