@@ -1727,13 +1727,13 @@ func (svc *Service) softwareBatchUpload(
 			case ok:
 				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
-				if foundInstaller.Extension == "exe" {
+				if foundInstaller.Extension == "exe" || foundInstaller.Extension == "tar.gz" {
 					if p.InstallScript == "" {
-						return errors.New("Couldn't edit. Install script is required for .exe packages.")
+						return errors.New(fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", foundInstaller.Extension))
 					}
 
 					if p.UninstallScript == "" {
-						return errors.New("Couldn't edit. Uninstall script is required for .exe packages.")
+						return errors.New(fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", foundInstaller.Extension))
 					}
 				}
 				installer.Extension = foundInstaller.Extension
