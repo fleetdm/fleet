@@ -442,8 +442,10 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
 	b, err := yaml.Marshal(orgSettingsRaw)
+	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings.yaml")
@@ -481,8 +483,10 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
 	b, err := yaml.Marshal(orgSettingsRaw)
+	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings-insecure.yaml")
@@ -518,8 +522,10 @@ func TestGenerateTeamSettings(t *testing.T) {
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
 	b, err := yaml.Marshal(TeamSettingsRaw)
+	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
+	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSettings.yaml")
@@ -557,8 +563,10 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
 	b, err := yaml.Marshal(TeamSettingsRaw)
+	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
+	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSettings-insecure.yaml")
@@ -602,6 +610,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NotNil(t, controlsRaw)
 	var controls map[string]interface{}
 	b, err := yaml.Marshal(controlsRaw)
+	require.NoError(t, err)
 	fmt.Println("Controls raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &controls)
 	require.NoError(t, err)
@@ -623,6 +632,7 @@ func TestGenerateControls(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
 	b, err = yaml.Marshal(controlsRaw)
+	require.NoError(t, err)
 	fmt.Println("Controls raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &controls)
 	require.NoError(t, err)
@@ -671,6 +681,7 @@ func TestGenerateSoftware(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
@@ -687,6 +698,7 @@ func TestGenerateSoftware(t *testing.T) {
 	require.NotNil(t, softwareRaw)
 	var software map[string]interface{}
 	b, err := yaml.Marshal(softwareRaw)
+	require.NoError(t, err)
 	fmt.Println("software raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &software)
 	require.NoError(t, err)
@@ -724,6 +736,7 @@ func TestGeneratePolicies(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
@@ -748,6 +761,7 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NotNil(t, policiesRaw)
 	var policies []map[string]interface{}
 	b, err := yaml.Marshal(policiesRaw)
+	require.NoError(t, err)
 	fmt.Println("policies raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &policies)
 	require.NoError(t, err)
@@ -769,6 +783,7 @@ func TestGeneratePolicies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
+	require.NoError(t, err)
 	fmt.Println("policies raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &policies)
 	require.NoError(t, err)
@@ -787,6 +802,7 @@ func TestGenerateQueries(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
@@ -802,6 +818,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NotNil(t, queriesRaw)
 	var queries []map[string]interface{}
 	b, err := yaml.Marshal(queriesRaw)
+	require.NoError(t, err)
 	fmt.Println("queries raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &queries)
 	require.NoError(t, err)
@@ -823,6 +840,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
 	b, err = yaml.Marshal(queriesRaw)
+	require.NoError(t, err)
 	fmt.Println("queries raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &queries)
 	require.NoError(t, err)
@@ -841,6 +859,7 @@ func TestGenerateLabels(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
 	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
@@ -856,6 +875,7 @@ func TestGenerateLabels(t *testing.T) {
 	require.NotNil(t, labelsRaw)
 	var labels []map[string]interface{}
 	b, err := yaml.Marshal(labelsRaw)
+	require.NoError(t, err)
 	fmt.Println("labels raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &labels)
 	require.NoError(t, err)

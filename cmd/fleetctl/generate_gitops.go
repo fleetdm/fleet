@@ -862,7 +862,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
 		}
 
-		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication == true || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || teamMdm.MacOSSetup.Software.Valid == true {
+		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || teamMdm.MacOSSetup.Software.Valid {
 			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
 			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 				Filename: teamName,
@@ -930,7 +930,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 			fileName = fmt.Sprintf("lib/%s/%s", teamName, fileName)
 		}
 
-		cmd.FilesToWrite[fileName] = string(profileContentsString)
+		cmd.FilesToWrite[fileName] = profileContentsString
 		var path string
 		if teamId == nil {
 			path = fmt.Sprintf("./%s", fileName)
@@ -1189,7 +1189,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 				softwareSpec["pre_install_query"] = softwareTitle.SoftwarePackage.PreInstallQuery
 			}
 
-			if softwareTitle.SoftwarePackage.SelfService == true {
+			if softwareTitle.SoftwarePackage.SelfService {
 				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
 			}
 
