@@ -563,7 +563,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	if ndesVars.Found() {
+	if ndesVars.Found() && (!customSCEPVars.Found() || !customSCEPVars.Ok()) {
 		if !ndesVars.Ok() {
 			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
 		}
@@ -665,6 +665,14 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	for _, payload := range scepProf.PayloadContent {
 		if payload.PayloadType == "com.apple.security.scep" {
 			scepPayloadsFound++
+		}
+	}
+	if scepPayloadsFound > 1 {
+		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
+	}
+
+	for _, payload := range scepProf.PayloadContent {
+		if payload.PayloadType == "com.apple.security.scep" {
 			for _, ca := range customSCEPVars.CAs() {
 				// Check for exact match on challenge and URL
 				if payload.PayloadContent.Challenge == "$"+challengePrefix+ca || payload.PayloadContent.Challenge == "${"+challengePrefix+ca+"}" {
@@ -681,7 +689,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 				}
 			}
 			if !fleetVarSCEPRenewalIDRegexp.MatchString(payload.PayloadContent.CommonName) {
-				return &fleet.BadRequestError{Message: "Variable $" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
+				return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
 			}
 		}
 	}
@@ -692,12 +700,9 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			}
 		}
 	}
-	if scepPayloadsFound > 1 {
-		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
-	}
 	scepRenewalIdMatches := fleetVarSCEPRenewalIDRegexp.FindAllString(contents, -1)
 	if len(scepRenewalIdMatches) > scepPayloadsFound {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must only be in the SCEP certificate's common name(CN)."}
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must only be in the SCEP certificate's common name (CN)."}
 	}
 	return nil
 }

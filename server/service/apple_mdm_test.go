@@ -4790,10 +4790,10 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		},
 		{
 			name: "Custom SCEP renewal ID shows up in the wrong place",
-			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must only be in the SCEP certificate's common name(CN).",
+			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's common name (CN).",
 		},
 		{
 			name: "Custom SCEP profile is not scep",
@@ -4824,12 +4824,12 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "Custom SCEP 2 profiles with swapped variables",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
-			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+			errMsg: "Add only one SCEP payload when using variables for certificate authority",
 		},
 		{
 			name: "Custom SCEP 2 valid profiles should error",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
-				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
+				"challenge", "http://example2.com"),
 			errMsg: "Add only one SCEP payload when using variables for certificate authority",
 		},
 		{
@@ -4887,6 +4887,11 @@ var customSCEPValidationMobileconfig string
 
 func customSCEPForValidation(challenge, url, name, payloadType string) string {
 	return fmt.Sprintf(customSCEPValidationMobileconfig, challenge, url, name, payloadType)
+}
+
+func customSCEPForValidationWithoutRenewalID(challenge, url, name, payloadType string) string {
+	configProfile := strings.Replace(customSCEPValidationMobileconfig, "$FLEET_VAR_SCEP_RENEWAL_ID", "", -1)
+	return fmt.Sprintf(configProfile, challenge, url, name, payloadType)
 }
 
 //go:embed testdata/profiles/custom-scep-validation2.mobileconfig
