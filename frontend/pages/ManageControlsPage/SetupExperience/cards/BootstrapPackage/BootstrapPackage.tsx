@@ -2,12 +2,12 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
-import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { ISoftwareTitle } from "interfaces/software";
 import mdmAPI, {
+  IGetBootstrapPackageMetadataResponse,
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
@@ -125,11 +125,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     isLoading: isloadingBootstrapMetadata,
     error: errorBootstrapMetadata,
     refetch: refretchBootstrapMetadata,
-  } = useQuery<
-    IBootstrapPackageMetadata,
-    AxiosResponse<IApiError>,
-    IBootstrapPackageMetadata
-  >(
+  } = useQuery<IGetBootstrapPackageMetadataResponse, AxiosResponse<IApiError>>(
     ["bootstrap-metadata", currentTeamId],
     () => mdmAPI.getBootstrapPackageMetadata(currentTeamId),
     {
