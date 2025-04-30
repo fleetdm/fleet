@@ -17,8 +17,7 @@ func Up_20250430103833(tx *sql.Tx) error {
 	INSERT INTO fleet_variables (
 		name, is_prefix, created_at
 	) VALUES
-		('FLEET_VAR_SCEP_RENEWAL_ID', 1, :created_at)
-	ON DUPLICATE KEY UPDATE is_prefix = VALUES(is_prefix), created_at = VALUES(created_at)
+		('FLEET_VAR_SCEP_RENEWAL_ID', 0, :created_at)
 	`
 	// use a constant time so that the generated schema is deterministic
 	createdAt := time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC)
