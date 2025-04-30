@@ -1,12 +1,13 @@
 import React, { useContext } from "react";
 
+import { TRANSPARENCY_LINK } from "utilities/constants";
+
 import { AppContext } from "context/app";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
-import { FLEET_WEBSITE_URL, TRANSPARENCY_LINK } from "utilities/constants";
 
 const baseClass = "calendar-event-preview-modal";
 
@@ -86,7 +87,7 @@ const CalendarEventPreviewModal = ({
                       <li>
                         Click the{" "}
                         <a
-                          href={`${FLEET_WEBSITE_URL}/better`}
+                          href={TRANSPARENCY_LINK}
                           rel="noreferrer"
                           target="_blank"
                         >

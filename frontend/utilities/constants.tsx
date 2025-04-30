@@ -62,7 +62,7 @@ export const GITHUB_NEW_ISSUE_LINK =
 
 /** website links */
 export const FLEET_WEBSITE_URL = "https://fleetdm.com";
-export const TRANSPARENCY_LINK = `${FLEET_WEBSITE_URL}/transparency`;
+export const TRANSPARENCY_LINK = `${FLEET_WEBSITE_URL}/better`;
 export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
