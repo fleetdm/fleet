@@ -274,12 +274,14 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 				Platform:           "darwin",
 				Interval:           3600,
 				ObserverCanRun:     true,
-				AutomationsEnabled: false,
+				AutomationsEnabled: true,
 				LabelsIncludeAny: []fleet.LabelIdent{{
 					LabelName: "Label A",
 				}, {
 					LabelName: "Label B",
 				}},
+				MinOsqueryVersion: "1.2.3",
+				Logging:           "stdout",
 			},
 		}, nil
 	}
@@ -293,6 +295,8 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 			Interval:           1800,
 			ObserverCanRun:     false,
 			AutomationsEnabled: true,
+			MinOsqueryVersion:  "4.5.6",
+			Logging:            "stderr",
 		},
 	}, nil
 }
@@ -697,7 +701,7 @@ func TestGenerateSoftware(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
 
-	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-preinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-install"]; ok {
 		require.Equal(t, "foo", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")

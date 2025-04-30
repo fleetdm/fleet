@@ -52,6 +52,7 @@ integrations:
     group_id: 123456789
     url: https://some-zendesk-url.com
 mdm:
+  windows_enabled_and_configured: true
   apple_business_manager:
   - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
     ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"

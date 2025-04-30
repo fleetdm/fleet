@@ -1,15 +1,17 @@
 macos_settings:
-- labels_include_all:
-  - Label A
-  - Label B
-  path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
-- labels_exclude_any:
-  - Label C
-  path: ./lib/profiles/global-macos-json-profile.json
+  custom_settings:
+  - labels_include_all:
+    - Label A
+    - Label B
+    path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+  - labels_exclude_any:
+    - Label C
+    path: ./lib/profiles/global-macos-json-profile.json
 windows_settings:
-- labels_include_any:
-  - Label D
-  path: ./lib/profiles/global-windows-profile.xml
+  custom_settings:
+  - labels_include_any:
+    - Label D
+    path: ./lib/profiles/global-windows-profile.xml
 macos_updates:
   minimum_version: "15.1"
   deadline: "2024-12-31"
@@ -25,7 +27,7 @@ windows_updates:
 windows_enabled_and_configured: true
 windows_migration_enabled: true
 enable_disk_encryption: true
-macos_setup: needs-attention
+macos_setup: "TODO: update with your macos_setup configuration"
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

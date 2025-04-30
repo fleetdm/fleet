@@ -1,4 +1,7 @@
 - automations_enabled: true
+  logging: stderr
+  min_osquery_version: 4.5.6
+  discard_data: false
   description: This is a team query
   interval: 1800
   name: Team Query

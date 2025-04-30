@@ -1,7 +1,7 @@
 packages:
   - hash_sha256: global-software-hash ___GITOPS_COMMENT_0___
     install_script:
-      path: ../lib/scripts/global-software-preinstall
+      path: ../lib/scripts/global-software-install
     labels_include_any:
     - Label A
     - Label B
