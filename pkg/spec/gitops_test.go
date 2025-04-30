@@ -929,7 +929,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must include either a package path, an app store app ID or a hash")
+	assert.ErrorContains(t, err, "must include either a package path, an app store app ID or a hash_sha256")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
