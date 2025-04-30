@@ -522,16 +522,17 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 						break
 					}
 				}
-			case k == fleet.FleetVarNDESSCEPProxyURL:
-				ndesVars, ok = ndesVars.SetURL()
-			case k == fleet.FleetVarNDESSCEPChallenge:
-				ndesVars, ok = ndesVars.SetChallenge()
 			}
 			if !found {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
 		}
-		if k == fleet.FleetVarSCEPRenewalID {
+		switch k {
+		case fleet.FleetVarNDESSCEPProxyURL:
+			ndesVars, ok = ndesVars.SetURL()
+		case fleet.FleetVarNDESSCEPChallenge:
+			ndesVars, ok = ndesVars.SetChallenge()
+		case fleet.FleetVarSCEPRenewalID:
 			customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
 			if ok {
 				ndesVars, ok = ndesVars.SetRenewalID()
@@ -551,7 +552,9 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	if customSCEPVars.Found() && ndesVars.NotFoundOrRenewalOnly() {
+	// TODO: Both Custom SCEP and NDES share RenewalID -- clean up this validation for corner cases such as: both SCEP and NDES variables present in
+	//  one profile
+	if customSCEPVars.Found() && (!ndesVars.Found() || ndesVars.RenewalOnly()) {
 		if !customSCEPVars.Ok() {
 			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
 		}
@@ -4792,8 +4795,9 @@ func (n *ndesVarsFound) Found() bool {
 	return n != nil
 }
 
-func (n *ndesVarsFound) NotFoundOrRenewalOnly() bool {
-	return n == nil || (!n.urlFound && !n.challengeFound && n.renewalIdFound)
+func (n *ndesVarsFound) RenewalOnly() bool {
+	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
+
 }
 
 func (n *ndesVarsFound) ErrorMessage() string {
