@@ -372,8 +372,10 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	// Close MDM management mutex if neeeded - this is a hack to enable multiple MDM management calls
 	handle, err := windows.OpenMutex(windows.MUTEX_ALL_ACCESS, false, windows.StringToUTF16Ptr(mdmMutexName))
 	if err == nil {
-		windows.CloseHandle(handle) // closing handle just opened due to OpenMutex()
-
+		// closing handle just opened due to OpenMutex()
+		if err := windows.CloseHandle(handle); err != nil {
+			return "", err
+		}
 		// then closing previously used handle
 		if err := closeManagementMutex(); err != nil {
 			return "", err
@@ -422,8 +424,10 @@ func executeMDMcommand(inputCMD string) (string, error) {
 // closeManagementMutex walks the system handles to find and close the MDM management mutexes on
 // current process. This is a hack found after reverse engineering mdmlocalmanagement.dll.
 func closeManagementMutex() error {
-	const bufsize = 2048                     // buffer allocation for native windows syscalls
-	currentProcessPID := uint32(os.Getpid()) // current process PID
+	const bufsize = 2048 // buffer allocation for native windows syscalls
+	// Disabling uint32->int conversion error from gosec below because under the covers os.Getpid() is converting a uint32
+	// returned by kernel32 to an int, so this is safe
+	currentProcessPID := uint32(os.Getpid()) // nolint:gosec
 
 	var handleOccurences uint32
 
@@ -435,7 +439,8 @@ func closeManagementMutex() error {
 		return ntdll.NtQuerySystemInformation(
 			ntdll.SystemHandleInformation,
 			&bufQuerySystemSyscall[0],
-			uint32(len(bufQuerySystemSyscall)),
+			// This will never return enough data to cause an overflow so int->uint32 conversion warning disabled
+			uint32(len(bufQuerySystemSyscall)), // nolint:gosec
 			&rlen,
 		)
 	}, &bufQuerySystemSyscall, &rlen); st.IsError() {
@@ -485,7 +490,7 @@ func closeManagementMutex() error {
 			oni := (*ntdll.ObjectNameInformationT)(unsafe.Pointer(&handleObjectNameBuf[0]))
 
 			if strings.Contains(oni.Name.String(), mdmMutexName) {
-				windows.CloseHandle(windows.Handle(systemHandleEntry.HandleValue))
+				_ = windows.CloseHandle(windows.Handle(systemHandleEntry.HandleValue))
 				handleOccurences++
 			}
 		}

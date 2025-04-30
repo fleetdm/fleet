@@ -190,22 +190,6 @@ func (v *Volume) protectWithNumericalPassword() (string, error) {
 	return recoveryKey.ToString(), nil
 }
 
-// protectWithPassphrase adds a passphrase key protector
-// https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithpassphrase-win32-encryptablevolume
-func (v *Volume) protectWithPassphrase(passphrase string) (string, error) {
-	var volumeKeyProtectorID ole.VARIANT
-	_ = ole.VariantInit(&volumeKeyProtectorID)
-
-	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithPassphrase", nil, passphrase, &volumeKeyProtectorID)
-	if err != nil {
-		return "", fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, err)
-	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
-		return "", fmt.Errorf("protectWithPassphrase(%s): %w", v.letter, encryptErrHandler(val))
-	}
-
-	return volumeKeyProtectorID.ToString(), nil
-}
-
 // protectWithTPM adds the TPM key protector
 // https://docs.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpm-win32-encryptablevolume
 func (v *Volume) protectWithTPM(platformValidationProfile *[]uint8) error {
@@ -389,7 +373,9 @@ func getLogicalVolumes() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load kernel32.dll: %w", err)
 	}
-	defer syscall.FreeLibrary(kernel32)
+	defer func() {
+		_ = syscall.FreeLibrary(kernel32)
+	}()
 
 	getLogicalDrivesHandle, err := syscall.GetProcAddress(kernel32, "GetLogicalDrives")
 	if err != nil {
