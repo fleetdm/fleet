@@ -961,8 +961,7 @@ func updateModifiedHostSoftwareDB(
 	var keysToUpdate []string
 	for key, newSw := range incomingMap {
 		curSw, ok := currentMap[key]
-		// software must exist in current map for us to update it,
-		// unless it is marked as having a name change.
+		// software must exist in current map for us to update it.
 		if !ok {
 			continue
 		}
