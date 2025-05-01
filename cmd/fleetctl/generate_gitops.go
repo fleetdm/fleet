@@ -749,9 +749,8 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
 	t := reflect.TypeOf(fleet.MDM{})
 	result := map[string]interface{}{
-		jsonFieldName(t, "AppleServerURL"):              mdm.AppleServerURL,
-		jsonFieldName(t, "EndUserAuthentication"):       mdm.EndUserAuthentication,
-		jsonFieldName(t, "WindowsEnabledAndConfigured"): cmd.AppConfig.MDM.WindowsEnabledAndConfigured,
+		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
+		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
@@ -858,7 +857,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		if teamId == nil {
 			mdmT := reflect.TypeOf(fleet.MDM{})
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
-			result[jsonFieldName(mdmT, "WindowsEnabledAndConfigured")] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
 		}
 
