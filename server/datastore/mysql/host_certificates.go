@@ -43,7 +43,6 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		existingBySHA1[strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))] = ec
 	}
 
-	// Check if any of the certs to insert are managed by Fleet; if so, update the associated host_mdm_managed_certificates rows
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
 		if _, ok := existingBySHA1[sha1]; ok {
@@ -55,6 +54,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
+	// Check if any of the certs to insert are managed by Fleet; if so, update the associated host_mdm_managed_certificates rows
 	hostMDMManagedCertsToUpdate := make([]*fleet.MDMManagedCertificate, 0, len(toInsert))
 	if len(toInsert) > 0 {
 		hostMDMManagedCerts, err := ds.ListHostMDMManagedCertificates(ctx, hostUUID)
@@ -80,6 +80,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 						Serial:               ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
 					}
 					// To reduce DB load, we only write to datastore if the managed cert is different
+					// However, they should never be the same because we check the certificate SHA1 above and only insert new certs
 					if !hostMDMManagedCert.Equal(*managedCertToUpdate) {
 						hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, managedCertToUpdate)
 					}

@@ -526,16 +526,17 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			if !found {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
-		}
-		switch k {
-		case fleet.FleetVarNDESSCEPProxyURL:
-			ndesVars, ok = ndesVars.SetURL()
-		case fleet.FleetVarNDESSCEPChallenge:
-			ndesVars, ok = ndesVars.SetChallenge()
-		case fleet.FleetVarSCEPRenewalID:
-			customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
-			if ok {
-				ndesVars, ok = ndesVars.SetRenewalID()
+		} else {
+			switch k {
+			case fleet.FleetVarNDESSCEPProxyURL:
+				ndesVars, ok = ndesVars.SetURL()
+			case fleet.FleetVarNDESSCEPChallenge:
+				ndesVars, ok = ndesVars.SetChallenge()
+			case fleet.FleetVarSCEPRenewalID:
+				customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
+				if ok {
+					ndesVars, ok = ndesVars.SetRenewalID()
+				}
 			}
 		}
 		if !ok {
@@ -701,6 +702,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 		}
 	}
 	scepRenewalIdMatches := fleetVarSCEPRenewalIDRegexp.FindAllString(contents, -1)
+	// This check detects if the Fleet variables are used outside of the SCEP profile.
+	// TODO: Check if scepPayloadsFound is 0 and remove this check.
 	if len(scepRenewalIdMatches) > scepPayloadsFound {
 		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must only be in the SCEP certificate's common name (CN)."}
 	}

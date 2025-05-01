@@ -590,12 +590,12 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		host_mdm_apple_profiles hmap
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
 	WHERE
-		hmmc.type = ? AND hmap.status = ? AND hmap.operation_type = ?
+		hmmc.type = ? AND hmap.status IS NOT NULL AND hmap.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`, hostCertType, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
+	LIMIT 1000`, hostCertType, fleet.MDMOperationTypeInstall)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
 		}
