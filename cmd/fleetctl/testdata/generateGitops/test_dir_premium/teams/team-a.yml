@@ -33,6 +33,7 @@ controls:
     minimum_version: "95.1"
   scripts:
   - path: ../lib/team-a/scripts/Script B.ps1
+  windows_enabled_and_configured: true
   windows_updates:
     deadline_days: 95
     grace_period_days: 92

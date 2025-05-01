@@ -53,10 +53,24 @@ func (MockClient) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 }
 
 func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
+	b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
+	if err != nil {
+		return nil, err
+	}
+	var config fleet.TeamConfig
+	if err := json.Unmarshal(b, &config); err != nil {
+		return nil, err
+	}
 	teams := []fleet.Team{
 		{
-			ID:   1,
-			Name: "Team A",
+			ID:     1,
+			Name:   "Team A",
+			Config: config,
+			Secrets: []*fleet.EnrollSecret{
+				{
+					Secret: "some-team-secret",
+				},
+			},
 		},
 	}
 	return teams, nil

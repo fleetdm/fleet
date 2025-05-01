@@ -99,7 +99,6 @@ org_settings:
       - "\U0001F4BB\U0001F423 Workstations (canary)"
       - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       - "\U0001F4F1\U0001F510 Personal mobile devices"
-    windows_enabled_and_configured: true
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: http://some-org-logo-url.com

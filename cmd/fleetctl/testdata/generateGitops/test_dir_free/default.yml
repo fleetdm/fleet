@@ -102,7 +102,6 @@ org_settings:
       issuer_uri: https://some-mdm-issuer-uri.com
       metadata: # TODO: Add your MDM end user auth metadata here
       metadata_url: # TODO: Add your MDM end user auth metadata URL here
-    windows_enabled_and_configured: true
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: http://some-org-logo-url.com

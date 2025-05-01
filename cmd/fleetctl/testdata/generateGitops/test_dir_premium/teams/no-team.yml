@@ -11,6 +11,7 @@ controls:
     minimum_version:
   scripts:
   - path: ../lib/no-team/scripts/Script Z.ps1
+  windows_enabled_and_configured: true
   windows_updates:
     deadline_days:
     grace_period_days:

@@ -347,11 +347,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		} else if team.ID != 0 {
 			// Generate team settings and agent options for the team.
-			team, err := cmd.Client.GetTeam(team.ID)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting team %s: %s\n", team.Name, err)
-				return ErrGeneric
-			}
 			teamSettings, err := cmd.generateTeamSettings(fileName, team)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
@@ -858,6 +853,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			mdmT := reflect.TypeOf(fleet.MDM{})
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
+		}
+		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
+			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
 		}
 
 		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || teamMdm.MacOSSetup.Software.Valid {
