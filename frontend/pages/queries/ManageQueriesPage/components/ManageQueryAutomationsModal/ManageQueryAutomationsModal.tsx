@@ -2,6 +2,9 @@ import React, { useState, useEffect, useContext } from "react";
 
 import { AppContext } from "context/app";
 
+import { ISchedulableQuery } from "interfaces/schedulable_query";
+import { LogDestination } from "interfaces/config";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
@@ -9,8 +12,6 @@ import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-
-import { ISchedulableQuery } from "interfaces/schedulable_query";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { CONTACT_FLEET_LINK } from "utilities/constants";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -23,7 +24,7 @@ interface IManageQueryAutomationsModalProps {
   togglePreviewDataModal: () => void;
   availableQueries?: ISchedulableQuery[];
   automatedQueryIds: number[];
-  logDestination: string;
+  logDestination: LogDestination;
   webhookDestination?: string;
 }
 
@@ -69,6 +70,7 @@ const ManageQueryAutomationsModal = ({
   togglePreviewDataModal,
   availableQueries,
   logDestination,
+  webhookDestination,
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   // const [errors, setErrors] = useState<{ [key: string]: string }>({});

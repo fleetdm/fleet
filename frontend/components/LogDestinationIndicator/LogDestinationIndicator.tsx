@@ -2,9 +2,10 @@ import React from "react";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { LogDestination } from "interfaces/config";
 
 interface ILogDestinationIndicatorProps {
-  logDestination: string;
+  logDestination: LogDestination;
   webhookDestination?: string;
   excludeTooltip?: boolean;
 }
@@ -103,10 +104,11 @@ const LogDestinationIndicator = ({
             standard output(stdout) on the Fleet server.
           </>
         );
-      case: "webhook":
+      case "webhook":
         return (
           <>
-            Each time a query runs, the data is sent via webhook to {webhookDestination}
+            Each time a query runs, the data is sent via webhook to:{" "}
+            {webhookDestination}.
           </>
         );
       case "":
