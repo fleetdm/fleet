@@ -42,6 +42,15 @@ const CertificateDetailsModal = ({
     signing_algorithm,
   } = certificate;
 
+  let serialDecimal = "";
+  if (serial) {
+    // Convert the serial number to decimal
+    const serialParsed = BigInt(`0x${serial}`);
+    if (serialParsed <= BigInt("0x8000000000000000")) {
+      serialDecimal = serialParsed.toString(10);
+    }
+  }
+
   const showSubjectSection = Boolean(
     subjectCountry ||
       subjectOrganization ||
@@ -184,8 +193,15 @@ const CertificateDetailsModal = ({
                 )}
                 {serial && (
                   <DataSet
-                    title="Serial number"
+                    title="Serial number (hex)"
                     value={serial}
+                    orientation="horizontal"
+                  />
+                )}
+                {serialDecimal && (
+                  <DataSet
+                    title="Serial number (decimal)"
+                    value={serialDecimal}
                     orientation="horizontal"
                   />
                 )}
