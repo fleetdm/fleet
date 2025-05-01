@@ -40,7 +40,11 @@ interface IPaginatedListProps<TItem> {
    If string, a key in an item whose truthiness will be checked.
    if function, a function that given an item, returns a boolean.
    *required in conjunction with `useCheckBoxes` */
-  isSelected?: string | ((item: TItem) => boolean);
+  isSelected?: string | ((item: TItem) => boolean); // TODO - rename as `isItemSelected
+  /** How to determine whether an item is disabled */
+  isItemDisabled?: (item: TItem) => boolean;
+  /** How to determine the tooltip to show on hover over the item's checkbox */
+  getItemTooltipContent?: (item: TItem) => React.ReactNode;
   /** Custom function to render the label for an item. */
   renderItemLabel?: (item: TItem) => ReactElement | null;
   /** Custom function to render extra markup (besides the label) in an item row. */
@@ -67,6 +71,8 @@ interface IPaginatedListProps<TItem> {
   useCheckBoxes?: boolean;
   /** Allow the parent to trigger the loading overlay */
   ancestralUpdating?: boolean;
+  /** Help text to display below the list and above the pagination controls */
+  helpText?: React.ReactNode;
 }
 
 function PaginatedListInner<TItem extends Record<string, any>>(
@@ -83,10 +89,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     setDirtyOnClickRow = true,
     onUpdate,
     isSelected,
+    isItemDisabled,
+    getItemTooltipContent,
     disabled = false,
     heading,
     useCheckBoxes = true,
     ancestralUpdating = false,
+    helpText,
   }: IPaginatedListProps<TItem>,
   ref: Ref<IPaginatedListHandle<TItem>>
 ) {
@@ -206,71 +215,80 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           <Spinner />
         </div>
       )}
-      <div>
-        <ul className={`${baseClass}__list`}>
-          {heading && (
-            <li className={`${baseClass}__row ${baseClass}__header`}>
-              {heading}
+      <ul className={`${baseClass}__list`}>
+        {heading && (
+          <li className={`${baseClass}__row ${baseClass}__header`}>
+            {heading}
+          </li>
+        )}
+        {items.map((_item) => {
+          // If an item has been marked as changed, use the changed version
+          // of the item rather than the one from the page fetch.  This allows
+          // us to render an item correctly even after we've navigated away
+          // from its page and then back again.
+          const item = dirtyItems[_item[idKey]] ?? _item;
+
+          const itemDisabled = isItemDisabled && isItemDisabled(item);
+
+          const rowClasses = classnames(`${baseClass}__row`, {
+            [`${baseClass}__row--disabled`]: itemDisabled,
+          });
+          return (
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+            <li
+              className={rowClasses}
+              key={item[idKey]}
+              onClick={() => {
+                if (itemDisabled) return;
+                const clickedItem = onClickRow(item);
+                if (setDirtyOnClickRow)
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [item[idKey]]: clickedItem,
+                  });
+              }}
+            >
+              {useCheckBoxes && isSelected && (
+                <Checkbox
+                  disabled={disabled || itemDisabled}
+                  iconTooltipContent={
+                    getItemTooltipContent && getItemTooltipContent(item)
+                  }
+                  value={
+                    typeof isSelected === "function"
+                      ? isSelected(item)
+                      : item[isSelected]
+                  }
+                  name={`item_${item[idKey]}_checkbox`}
+                >
+                  {renderItemLabel ? (
+                    renderItemLabel(item)
+                  ) : (
+                    <TooltipTruncatedText value={<>{item[labelKey]}</>} />
+                  )}
+                </Checkbox>
+              )}
+              {renderItemRow &&
+                // If a custom row renderer was supplied, call it with the item value
+                // as well as the callback the parent can use to indicate changes to an item.
+                renderItemRow(item, (changedItem) => {
+                  setDirtyItems({
+                    ...dirtyItems,
+                    [changedItem[idKey]]: changedItem,
+                  });
+                })}
             </li>
-          )}
-          {items.map((_item) => {
-            // If an item has been marked as changed, use the changed version
-            // of the item rather than the one from the page fetch.  This allows
-            // us to render an item correctly even after we've navigated away
-            // from its page and then back again.
-            const item = dirtyItems[_item[idKey]] ?? _item;
-            return (
-              // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-              <li
-                className={`${baseClass}__row`}
-                key={item[idKey]}
-                onClick={() => {
-                  const clickedItem = onClickRow(item);
-                  if (setDirtyOnClickRow)
-                    setDirtyItems({
-                      ...dirtyItems,
-                      [item[idKey]]: clickedItem,
-                    });
-                }}
-              >
-                {useCheckBoxes && isSelected && (
-                  <Checkbox
-                    disabled={disabled}
-                    value={
-                      typeof isSelected === "function"
-                        ? isSelected(item)
-                        : item[isSelected]
-                    }
-                    name={`item_${item[idKey]}_checkbox`}
-                  >
-                    {renderItemLabel ? (
-                      renderItemLabel(item)
-                    ) : (
-                      <TooltipTruncatedText value={<>{item[labelKey]}</>} />
-                    )}
-                  </Checkbox>
-                )}
-                {renderItemRow &&
-                  // If a custom row renderer was supplied, call it with the item value
-                  // as well as the callback the parent can use to indicate changes to an item.
-                  renderItemRow(item, (changedItem) => {
-                    setDirtyItems({
-                      ...dirtyItems,
-                      [changedItem[idKey]]: changedItem,
-                    });
-                  })}
-              </li>
-            );
-          })}
-        </ul>
-        <Pagination
-          disablePrev={currentPage === 0}
-          disableNext={disableNext}
-          onNextPage={() => setCurrentPage(currentPage + 1)}
-          onPrevPage={() => setCurrentPage(currentPage - 1)}
-          hidePagination={currentPage === 0 && disableNext}
-        />
-      </div>
+          );
+        })}
+      </ul>
+      {helpText && <p className="form-field__help-text">{helpText}</p>}
+      <Pagination
+        disablePrev={currentPage === 0}
+        disableNext={disableNext}
+        onNextPage={() => setCurrentPage(currentPage + 1)}
+        onPrevPage={() => setCurrentPage(currentPage - 1)}
+        hidePagination={currentPage === 0 && disableNext}
+      />
     </div>
   );
 }
