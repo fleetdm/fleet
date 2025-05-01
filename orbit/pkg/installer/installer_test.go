@@ -251,11 +251,6 @@ func TestInstallerRun(t *testing.T) {
 
 	var removeAllFnCalled bool
 	var removedDir string
-	r.removeAllFn = func(s string) error {
-		removedDir = s
-		removeAllFnCalled = true
-		return nil
-	}
 
 	resetRunner := func() {
 		execCalled = false
@@ -265,6 +260,11 @@ func TestInstallerRun(t *testing.T) {
 		execExitCode = 0
 		execErr = nil
 		r.execCmdFn = execCmdDefaultFn
+		r.removeAllFn = func(s string) error {
+			removedDir = s
+			removeAllFnCalled = true
+			return nil
+		}
 
 		tmpDirFnCalled = false
 		tmpDir = ""
@@ -331,7 +331,8 @@ func TestInstallerRun(t *testing.T) {
 		r.removeAllFn = func(s string) error {
 			removedDir = s
 			removeAllFnCalled = true
-			return os.RemoveAll(s)
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted")))
+			return nil
 		}
 
 		// will fail because we're trying to extract a file that doesn't exist (not mocking extract fn)
@@ -364,10 +365,19 @@ func TestInstallerRun(t *testing.T) {
 			return nil
 		}
 
+		scriptExtension := ".sh"
+		if runtime.GOOS == "windows" {
+			scriptExtension = ".ps1"
+		}
+
 		r.removeAllFn = func(s string) error {
 			removedDir = s
 			removeAllFnCalled = true
-			return os.RemoveAll(s)
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted", "install-script"+scriptExtension)))
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted", "post-install-script"+scriptExtension)))
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted")))
+
+			return nil
 		}
 
 		err := r.run(context.Background(), &config)
@@ -379,10 +389,6 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, tmpDirFnCalled)
 
 		require.True(t, execCalled)
-		scriptExtension := ".sh"
-		if runtime.GOOS == "windows" {
-			scriptExtension = ".ps1"
-		}
 		require.Contains(t, executedScripts, filepath.Join(tmpDir, "extracted", "install-script"+scriptExtension))
 		require.Contains(t, executedScripts, filepath.Join(tmpDir, "extracted", "post-install-script"+scriptExtension))
 		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, "extracted"))
@@ -401,6 +407,7 @@ func TestInstallerRun(t *testing.T) {
 
 		require.True(t, getInstallerDetailsFnCalled)
 		require.Equal(t, installDetails.ExecutionID, installIdRequested)
+		require.True(t, removeAllFnCalled)
 	})
 
 	t.Run("precondition negative", func(t *testing.T) {
