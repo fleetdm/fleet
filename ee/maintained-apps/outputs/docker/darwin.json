@@ -8,7 +8,10 @@
       "installer_url": "https://desktop.docker.com/mac/main/arm64/190950/Docker.dmg",
       "install_script_ref": "1f1280eb",
       "uninstall_script_ref": "7dde2dc3",
-      "sha256": "a209b418fcd2f5d6759fcb2b03693486f0ffb450328aa1f05e7d7123bf11fb64"
+      "sha256": "a209b418fcd2f5d6759fcb2b03693486f0ffb450328aa1f05e7d7123bf11fb64",
+      "default_categories": [
+        "Developer tools"
+      ]
     }
   ],
   "refs": {
