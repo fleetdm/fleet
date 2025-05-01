@@ -62,7 +62,7 @@
                         <array>
                             <array>
                                 <string>CN</string>
-                                <string>WIFI ${FLEET_VAR_SCEP_RENEWAL_ID}</string>
+                                <string>WIFI</string>
                             </array>
                         </array>
                         <array>

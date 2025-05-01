@@ -479,6 +479,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 	var (
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
+		ndesVars       *ndesVarsFound
 	)
 	for _, k := range fleetVars {
 		ok := true
@@ -525,9 +526,18 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			if !found {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in configuration profiles.", k)}
 			}
-		}
-		if k == fleet.FleetVarSCEPRenewalID {
-			customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
+		} else {
+			switch k {
+			case fleet.FleetVarNDESSCEPProxyURL:
+				ndesVars, ok = ndesVars.SetURL()
+			case fleet.FleetVarNDESSCEPChallenge:
+				ndesVars, ok = ndesVars.SetChallenge()
+			case fleet.FleetVarSCEPRenewalID:
+				customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
+				if ok {
+					ndesVars, ok = ndesVars.SetRenewalID()
+				}
+			}
 		}
 		if !ok {
 			// We limit CA variables to once per profile
@@ -543,7 +553,9 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	if customSCEPVars.Found() {
+	// TODO: Both Custom SCEP and NDES share RenewalID -- clean up this validation for corner cases such as: both SCEP and NDES variables present in
+	//  one profile
+	if customSCEPVars.Found() && (!ndesVars.Found() || ndesVars.RenewalOnly()) {
 		if !customSCEPVars.Ok() {
 			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
 		}
@@ -551,6 +563,16 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 		if err != nil {
 			return nil, err
 		}
+	}
+	if ndesVars.Found() && (!customSCEPVars.Found() || !customSCEPVars.Ok()) {
+		if !ndesVars.Ok() {
+			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
+		}
+		// TODO:
+		// err := additionalNDESValidation(contents, ndesVars)
+		// if err != nil {
+		// 	return err
+		// }
 	}
 	return dedupeFleetVariables(fleetVars), nil
 }
@@ -644,6 +666,14 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	for _, payload := range scepProf.PayloadContent {
 		if payload.PayloadType == "com.apple.security.scep" {
 			scepPayloadsFound++
+		}
+	}
+	if scepPayloadsFound > 1 {
+		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
+	}
+
+	for _, payload := range scepProf.PayloadContent {
+		if payload.PayloadType == "com.apple.security.scep" {
 			for _, ca := range customSCEPVars.CAs() {
 				// Check for exact match on challenge and URL
 				if payload.PayloadContent.Challenge == "$"+challengePrefix+ca || payload.PayloadContent.Challenge == "${"+challengePrefix+ca+"}" {
@@ -660,7 +690,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 				}
 			}
 			if !fleetVarSCEPRenewalIDRegexp.MatchString(payload.PayloadContent.CommonName) {
-				return &fleet.BadRequestError{Message: "Variable $" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
+				return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
 			}
 		}
 	}
@@ -671,12 +701,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			}
 		}
 	}
-	if scepPayloadsFound > 1 {
-		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
-	}
 	scepRenewalIdMatches := fleetVarSCEPRenewalIDRegexp.FindAllString(contents, -1)
+	// This check detects if the Fleet variables are used outside of the SCEP profile.
+	// TODO: Check if scepPayloadsFound is 0 and remove this check.
 	if len(scepRenewalIdMatches) > scepPayloadsFound {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must only be in the SCEP certificate's common name(CN)."}
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must only be in the SCEP certificate's common name (CN)."}
 	}
 	return nil
 }
@@ -4756,6 +4785,64 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	return true, nil
 }
 
+type ndesVarsFound struct {
+	urlFound       bool
+	challengeFound bool
+	renewalIdFound bool
+}
+
+// Ok makes sure that Challenge, URL, and renewal ID are present.
+func (n *ndesVarsFound) Ok() bool {
+	if n == nil {
+		return true
+	}
+	return n.urlFound && n.challengeFound && n.renewalIdFound
+}
+
+func (n *ndesVarsFound) Found() bool {
+	return n != nil
+}
+
+func (n *ndesVarsFound) RenewalOnly() bool {
+	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
+
+}
+
+func (n *ndesVarsFound) ErrorMessage() string {
+	if n.renewalIdFound && !n.urlFound && !n.challengeFound {
+		return "Variable ${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" can't be used if variables for SCEP URL and Challenge are not specified."
+	}
+	return fmt.Sprintf("SCEP profile for NDES requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.",
+		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarSCEPRenewalID)
+}
+
+func (n *ndesVarsFound) SetURL() (*ndesVarsFound, bool) {
+	if n == nil {
+		n = &ndesVarsFound{}
+	}
+	alreadyPresent := n.urlFound
+	n.urlFound = true
+	return n, !alreadyPresent
+}
+
+func (n *ndesVarsFound) SetChallenge() (*ndesVarsFound, bool) {
+	if n == nil {
+		n = &ndesVarsFound{}
+	}
+	alreadyPresent := n.challengeFound
+	n.challengeFound = true
+	return n, !alreadyPresent
+}
+
+func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
+	if n == nil {
+		n = &ndesVarsFound{}
+	}
+	alreadyPresent := n.renewalIdFound
+	n.renewalIdFound = true
+	return n, !alreadyPresent
+}
+
 func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget,
 ) (bool, error) {
@@ -4859,8 +4946,9 @@ func (cs *customSCEPVarsFound) SetRenewalIDFound() (*customSCEPVarsFound, bool) 
 	if cs == nil {
 		cs = &customSCEPVarsFound{}
 	}
+	alreadyPresent := cs.renewalIdFound
 	cs.renewalIdFound = true
-	return cs, true
+	return cs, !alreadyPresent
 }
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
