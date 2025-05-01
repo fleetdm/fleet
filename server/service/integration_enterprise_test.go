@@ -6646,7 +6646,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		HostIDs:  []uint{host1.ID, host2.ID},
 	}, http.StatusOK, &batchRes)
 	require.NotEmpty(t, batchRes.BatchExecutionID)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -17181,11 +17180,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NoError(t, err)
 
 	// create an HTTP server to host the software installer
-	var hitInstallerURL bool
+	var hitDebURL, hitExeURL, hitPkgURL bool
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hitInstallerURL = true
 		switch r.URL.Path {
 		case "/ruby.deb", "/updated/ruby.deb":
+			hitDebURL = true
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
 			require.NoError(t, err)
 			defer file.Close()
@@ -17193,6 +17192,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 			_, err = io.Copy(w, file)
 			require.NoError(t, err)
 		case "/app.exe":
+			hitExeURL = true
 			file, err := os.Open(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", "hello-world-installer.exe"))
 			require.NoError(t, err)
 			defer file.Close()
@@ -17200,6 +17200,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 			_, err = io.Copy(w, file)
 			require.NoError(t, err)
 		case "/app.pkg":
+			hitPkgURL = true
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
 			require.NoError(t, err)
 			defer file.Close()
@@ -17242,8 +17243,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team1.ID, *packages[0].TeamID)
-	require.True(t, hitInstallerURL)
-	hitInstallerURL = false
+	require.True(t, hitDebURL)
+	hitDebURL = false
 
 	var installerHash string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -17262,7 +17263,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team1.ID, *packages[0].TeamID)
-	require.False(t, hitInstallerURL)
+	require.False(t, hitDebURL)
 
 	// since we provided the SHA and we'd already added the installer, we should not hit the
 	// download endpoint
@@ -17273,7 +17274,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team1.ID, *packages[0].TeamID)
-	require.False(t, hitInstallerURL)
+	require.False(t, hitDebURL)
 
 	// check that URL comes back on individual title fetch
 	stResp := getSoftwareTitleResponse{}
@@ -17307,6 +17308,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 
 	s.setTokenForTest(t, team2Admin.Email, test.GoodPassword)
 
+	// make sure to not break other tests
+	defer func() { s.token = s.getTestAdminToken() }()
+
 	// Remove the URL; since the user doesn't have access to team 1 and only the hash is provided,
 	// this should fail
 	softwareToInstall[0].URL = ""
@@ -17319,8 +17323,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name, "dry_run", "true")
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Empty(t, packages)
-	require.True(t, hitInstallerURL)
-	hitInstallerURL = false
+	require.True(t, hitDebURL)
+	hitDebURL = false
 
 	// same for real run
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
@@ -17330,8 +17334,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, rubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
-	require.True(t, hitInstallerURL)
-	hitInstallerURL = false
+	require.True(t, hitDebURL)
+	hitDebURL = false
 
 	// Send payload with just the SHA; should succeed and not hit the download endpoint because we
 	// downloaded it just above
@@ -17343,7 +17347,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Empty(t, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
-	require.False(t, hitInstallerURL)
+	require.False(t, hitDebURL)
 
 	// Update the URL, should re-download
 	updatedRubyURL := srv.URL + "/updated/ruby.deb"
@@ -17355,7 +17359,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, updatedRubyURL, packages[0].URL)
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, team2.ID, *packages[0].TeamID)
-	require.True(t, hitInstallerURL)
+	require.True(t, hitDebURL)
+	hitDebURL = false
 
 	// add exe to payloads
 	exeURL := srv.URL + "/app.exe"
@@ -17372,6 +17377,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Len(t, packages, 2)
+	require.True(t, hitExeURL)
+	hitExeURL = false
 
 	var exeHash string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -17387,6 +17394,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Install script is required for .exe packages.")
+	require.False(t, hitExeURL)
 
 	// add the install script, but without uninstall script we should still fail
 	softwareToInstall[1].InstallScript = "echo install"
@@ -17396,11 +17404,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
+	require.False(t, hitExeURL)
 
 	// add both scripts to get a success
 	softwareToInstall[1].InstallScript = "echo install 2"
 	softwareToInstall[1].UninstallScript = "echo uninstall 2"
-	softwareToInstall[1].SHA256 = exeHash
 
 	// add the pkg installer with some custom scripts
 	pkgURL := srv.URL + "/app.pkg"
@@ -17421,6 +17429,34 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
 	require.Equal(t, softwareToInstall[2].InstallScript, stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, softwareToInstall[2].UninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+	require.False(t, hitDebURL)
+	require.False(t, hitExeURL)
+	require.True(t, hitPkgURL)
+	hitPkgURL = false
+
+	// attempt to add the exe to team 1 without scripts. Even though the admin has access to
+	// both teams, it should fail because scripts are required for exes.
+	// Check without either script first.
+	s.token = s.getTestAdminToken()
+	softwareToInstall[1].InstallScript = ""
+	softwareToInstall[1].UninstallScript = ""
+	softwareToInstall[1].URL = ""
+	softwareToInstall[1].SHA256 = exeHash
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall[:2]}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't edit. Install script is required for .exe packages.")
+	require.False(t, hitExeURL)
+
+	// Now add just an install script, should still fail.
+	softwareToInstall[1].InstallScript = "echo foo"
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall[:2]}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
+	require.False(t, hitExeURL)
+
+	// add the scripts back to not break subsequent calls
+	softwareToInstall[1].InstallScript = "echo install 2"
+	softwareToInstall[1].UninstallScript = "echo uninstall 2"
 
 	expectedUninstallScript := `#!/bin/sh
 
