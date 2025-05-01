@@ -1735,6 +1735,16 @@ func (svc *Service) softwareBatchUpload(
 						continue
 					}
 
+					if i.Extension == "exe" {
+						if p.InstallScript == "" {
+							return errors.New("Couldn't edit. Install script is required for .exe packages.")
+						}
+
+						if p.UninstallScript == "" {
+							return errors.New("Couldn't edit. Uninstall script is required for .exe packages.")
+						}
+					}
+
 					installer.Extension = i.Extension
 					installer.Filename = i.Filename
 					installer.Version = i.Version
