@@ -43,6 +43,20 @@ SELECT
 SELECT email FROM users
 ```
 
+## conditional_access_microsoft_device_id
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'entra_id_details'
+```
+
+- Query:
+```sql
+SELECT device_id FROM entra_id_details;
+```
+
 ## disk_encryption_darwin
 
 - Platforms: darwin

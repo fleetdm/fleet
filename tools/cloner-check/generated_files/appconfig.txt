@@ -121,6 +121,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CustomSCEPProxyIntegration	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CustomSCEPProxyIntegration	URL	string
 github.com/fleetdm/fleet/v4/server/fleet/CustomSCEPProxyIntegration	Challenge	string
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	ConditionalAccessEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleServerURL	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	DeprecatedAppleBMDefaultTeam	string
