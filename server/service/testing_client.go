@@ -631,7 +631,7 @@ func (ts *withServer) updateSoftwareInstaller(
 	w := multipart.NewWriter(&b)
 
 	// add the software field
-	if payload.Filename != "" {
+	if payload.Filename != "" && payload.InstallerFile != nil {
 		fw, err := w.CreateFormFile("software", payload.Filename)
 		require.NoError(t, err)
 		n, err := io.Copy(fw, payload.InstallerFile)
