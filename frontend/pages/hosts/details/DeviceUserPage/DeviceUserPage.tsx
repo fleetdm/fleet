@@ -64,7 +64,7 @@ import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import SelfService from "../cards/Software/SelfServiceNew";
+import SelfService from "../cards/Software/SelfService";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -75,7 +75,7 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceItem/SelfServiceItem";
+import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";

@@ -10,7 +10,7 @@
  */
 
 import classnames from "classnames";
-import React, { useState } from "react";
+import React from "react";
 import Select, {
   components,
   DropdownIndicatorProps,
@@ -111,8 +111,6 @@ const DropdownWrapper = ({
     [`${baseClass}__table-filter`]: variant === "table-filter",
     [`${wrapperClassname}`]: !!wrapperClassname,
   });
-
-  const [isKeyboardNavigating, setIsKeyboardNavigating] = useState(false);
 
   const handleChange = (newValue: SingleValue<CustomOptionType>) => {
     onChange(newValue);
@@ -287,10 +285,9 @@ const DropdownWrapper = ({
         cursor: "pointer",
         boxShadow: "none",
         borderRadius: "4px",
-        borderColor:
-          state.isFocused && isKeyboardNavigating
-            ? COLORS["core-fleet-blue"]
-            : COLORS["ui-fleet-black-10"],
+        borderColor: state.isFocused
+          ? COLORS["core-fleet-blue"]
+          : COLORS["ui-fleet-black-10"],
         "&:hover": {
           boxShadow: "none",
           borderColor: COLORS["core-vibrant-blue-over"],
@@ -307,10 +304,9 @@ const DropdownWrapper = ({
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
         "&.react-select__control--is-focused": {
-          borderColor:
-            state.isFocused && isKeyboardNavigating
-              ? COLORS["core-vibrant-blue-down"]
-              : COLORS["ui-fleet-black-10"],
+          borderColor: state.isFocused
+            ? COLORS["core-vibrant-blue-down"]
+            : COLORS["ui-fleet-black-10"],
           ".dropdown-wrapper__indicator path": {
             stroke: COLORS["core-vibrant-blue-down"],
           },
@@ -511,8 +507,6 @@ const DropdownWrapper = ({
           IndicatorSeparator: () => null,
           ValueContainer,
         }}
-        onFocus={() => setIsKeyboardNavigating(true)}
-        onBlur={() => setIsKeyboardNavigating(false)}
         value={getCurrentValue()}
         onChange={handleChange}
         isDisabled={isDisabled}

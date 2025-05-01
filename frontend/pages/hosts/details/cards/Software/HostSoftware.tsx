@@ -25,7 +25,7 @@ import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 
 import {
   buildSoftwareFilterQueryParams,

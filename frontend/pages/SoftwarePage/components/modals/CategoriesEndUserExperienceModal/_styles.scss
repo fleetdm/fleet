@@ -1,0 +1,29 @@
+.categories-end-user-experience-modal {
+  .modal__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__preview {
+    display: flex;
+    padding: 40px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+    align-self: stretch;
+    border-radius: 16px;
+    border: 1px solid $ui-fleet-black-10;
+    background: $core-white;
+  }
+
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to new gap styling
+  }
+}
+
+// Pop up preview immediately.
+.modal__background:has(.calendar-event-preview-modal) {
+  transition: none;
+  animation: none;
+}

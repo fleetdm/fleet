@@ -1,27 +1,39 @@
-import React, { useCallback, useContext, useEffect, useRef } from "react";
-import ReactTooltip from "react-tooltip";
+import React, { useRef, useEffect, useCallback, useContext } from "react";
+import { CellProps, Column } from "react-table";
 
 import {
   IAppLastInstall,
-  IDeviceSoftware,
   IHostSoftware,
   ISoftwareLastInstall,
   SoftwareInstallStatus,
 } from "interfaces/software";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+
 import deviceApi from "services/entities/device_user";
-import { dateAgo } from "utilities/date_format";
 import { NotificationContext } from "context/notification";
 
-import Card from "components/Card";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { dateAgo } from "utilities/date_format";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Spinner from "components/Spinner";
+import Icon from "components/Icon";
+import Button from "components/buttons/Button";
+import TooltipWrapper from "components/TooltipWrapper";
 
-import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell";
+import { IStatusDisplayConfig } from "../InstallStatusCell/InstallStatusCell";
 
-const baseClass = "self-service-item";
+type ISoftwareTableConfig = Column<IHostSoftware>;
+type ITableHeaderProps = IHeaderProps<IHostSoftware>;
+type ITableStringCellProps = IStringCellProps<IHostSoftware>;
+type IInstalledVersionsCellProps = CellProps<
+  IHostSoftware,
+  IHostSoftware["installed_versions"]
+>;
+type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
+
+const baseClass = "self-service-table";
 
 const STATUS_CONFIG: Record<
   Exclude<
@@ -33,7 +45,7 @@ const STATUS_CONFIG: Record<
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) =>
+    tooltip: ({ lastInstalledAt = "" }) =>
       `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
   pending_install: {
@@ -52,39 +64,6 @@ const STATUS_CONFIG: Record<
       </>
     ),
   },
-};
-
-interface IInstallerInfoProps {
-  software: IDeviceSoftware;
-}
-
-const InstallerInfo = ({ software }: IInstallerInfoProps) => {
-  const {
-    name,
-    source,
-    software_package: installerPackage,
-    app_store_app: vppApp,
-  } = software;
-  return (
-    <div className={`${baseClass}__item-topline`}>
-      <div className={`${baseClass}__item-icon`}>
-        <SoftwareIcon
-          url={vppApp?.icon_url}
-          name={name}
-          source={source}
-          size="large"
-        />
-      </div>
-      <div className={`${baseClass}__item-name-version`}>
-        <div className={`${baseClass}__item-name`}>
-          <TooltipTruncatedText value={name || installerPackage?.name} />
-        </div>
-        <div className={`${baseClass}__item-version`}>
-          {installerPackage?.version || vppApp?.version || ""}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 interface CommandUuid {
@@ -110,17 +89,20 @@ const InstallerStatus = ({
 }: IInstallerStatusProps) => {
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
-    // API should ensure this never happens, but just in case
-    return null;
+    // This is shown mid-install
+    return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
   }
 
   return (
-    <div className={`${baseClass}__status-content`}>
-      <div
-        className={`${baseClass}__status-with-tooltip`}
-        data-tip
-        data-for={`install-tooltip__${id}`}
-      >
+    <TooltipWrapper
+      tipContent={displayConfig.tooltip({
+        lastInstalledAt: last_install?.installed_at,
+      })}
+      showArrow
+      underline={false}
+      position="top"
+    >
+      <div className={`${baseClass}__status-content`}>
         {displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />
         ) : (
@@ -152,20 +134,7 @@ const InstallerStatus = ({
           )}
         </span>
       </div>
-      <ReactTooltip
-        className={`${baseClass}__status-tooltip`}
-        effect="solid"
-        backgroundColor="#3e4771"
-        id={`install-tooltip__${id}`}
-        data-html
-      >
-        <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip({
-            lastInstalledAt: last_install?.installed_at,
-          })}
-        </span>
-      </ReactTooltip>
-    </div>
+    </TooltipWrapper>
   );
 };
 
@@ -189,6 +158,19 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
   }
 };
 
+const getInstallButtonIcon = (status: SoftwareInstallStatus | null) => {
+  switch (status) {
+    case null:
+      return "install";
+    case "failed_install":
+      return "refresh";
+    case "installed":
+      return "refresh";
+    default:
+      return undefined;
+  }
+};
+
 const InstallerStatusAction = ({
   deviceToken,
   software: { id, status, software_package, app_store_app },
@@ -207,6 +189,7 @@ const InstallerStatusAction = ({
   >(undefined);
 
   const installButtonText = getInstallButtonText(status);
+  const installButtonIcon = getInstallButtonIcon(status);
 
   // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
@@ -237,16 +220,8 @@ const InstallerStatusAction = ({
 
   return (
     <div className={`${baseClass}__item-status-action`}>
-      <div className={`${baseClass}__item-status`}>
-        <InstallerStatus
-          id={id}
-          status={status}
-          last_install={lastInstall}
-          onShowInstallerDetails={onShowInstallerDetails}
-        />
-      </div>
       <div className={`${baseClass}__item-action`}>
-        {!!installButtonText && (
+        {installButtonText ? (
           <Button
             variant="text-icon"
             type="button"
@@ -254,46 +229,104 @@ const InstallerStatusAction = ({
             onClick={onClick}
             disabled={localStatus === "pending_install"}
           >
-            <span data-testid={`${baseClass}__item-action-button--test`}>
+            {installButtonIcon && (
+              <Icon
+                name={installButtonIcon}
+                color="core-fleet-blue"
+                size="small"
+              />
+            )}
+            <span data-testid={`${baseClass}__action-button--test`}>
               {installButtonText}
             </span>
           </Button>
+        ) : (
+          DEFAULT_EMPTY_CELL_VALUE
         )}
       </div>
     </div>
   );
 };
 
-interface ISelfServiceItemProps {
+export const generateSoftwareTableData = (
+  software: IHostSoftware[]
+): IHostSoftware[] => {
+  return software;
+};
+
+interface ISelfServiceTableHeaders {
   deviceToken: string;
-  software: IDeviceSoftware;
   onInstall: () => void;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
-const SelfServiceItem = ({
+// NOTE: cellProps come from react-table
+// more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
+export const generateSoftwareTableHeaders = ({
   deviceToken,
-  software,
   onInstall,
   onShowInstallerDetails,
-}: ISelfServiceItemProps) => {
-  return (
-    <Card
-      borderRadiusSize="large"
-      paddingSize="medium"
-      className={`${baseClass}__item`}
-    >
-      <div className={`${baseClass}__item-content`}>
-        <InstallerInfo software={software} />
-        <InstallerStatusAction
-          deviceToken={deviceToken}
-          software={software}
-          onInstall={onInstall}
+}: ISelfServiceTableHeaders): ISoftwareTableConfig[] => {
+  const tableHeaders: ISoftwareTableConfig[] = [
+    {
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
+      ),
+      accessor: "name",
+      disableSortBy: false,
+      disableGlobalFilter: false,
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { name, source } = cellProps.row.original;
+        return (
+          <SoftwareNameCell
+            name={name}
+            source={source}
+            myDevicePage
+            isSelfService
+          />
+        );
+      },
+      sortType: "caseInsensitive",
+    },
+    {
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Status"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      disableGlobalFilter: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <InstallerStatus
+          id={cellProps.row.original.id}
+          status={cellProps.row.original.status}
+          last_install={
+            cellProps.row.original.software_package?.last_install || null
+          }
           onShowInstallerDetails={onShowInstallerDetails}
         />
-      </div>
-    </Card>
-  );
+      ),
+    },
+    {
+      Header: "Actions",
+      accessor: (originalRow) => originalRow.status,
+      disableSortBy: true,
+      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        return (
+          <InstallerStatusAction
+            deviceToken={deviceToken}
+            software={cellProps.row.original}
+            onInstall={onInstall}
+            onShowInstallerDetails={onShowInstallerDetails}
+          />
+        );
+      },
+    },
+  ];
+
+  return tableHeaders;
 };
 
-export default SelfServiceItem;
+export default { generateSoftwareTableHeaders, generateSoftwareTableData };

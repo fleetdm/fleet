@@ -1,48 +1,52 @@
 .software-self-service {
-  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
   .empty-table__container {
     margin: 64px 0;
   }
 
-  &__header {
+  &__header-filters {
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
+    gap: $pad-medium;
     align-items: center;
     margin: 0 0 24px 0;
   }
 
-  &__items-count {
-    font-size: $x-small;
-    font-weight: $bold;
-  }
-
-  &__items {
-    display: grid;
+  &__table {
+    display: flex;
+    flex-direction: row;
     gap: $pad-large;
 
-    // Default show 4 cards per row
-    grid-template-columns: repeat(4, 1fr);
-
-    @media (max-width: ($break-lg - 1px)) {
-      // For screens under 1400px, show 3 cards per row
-      grid-template-columns: repeat(3, minmax(250px, 1fr));
+    > *:nth-child(2) {
+      flex-grow: 1;
     }
 
-    @media (max-width: ($break-md - 1px)) {
-      // For screens under 990px, show 2 cards per row
-      grid-template-columns: repeat(2, minmax(250px, 1fr));
+    .data-table-block .data-table__wrapper {
+      margin-top: 0;
     }
 
-    @media (max-width: ($break-mobile-lg - 1px)) {
-      // For very small screens, show only one card per row
-      grid-template-columns: repeat(1, minmax(250px, 1fr));
+    .self-service-table__status-content,
+    .table-container .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
     }
   }
 
-  &__pagination {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
+  .categories-menu {
+    display: none;
+  }
+
+  @media (min-width: $break-sm) {
+    .categories-menu {
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+    }
+
+    &__categories-dropdown {
+      display: none;
+    }
   }
 }
