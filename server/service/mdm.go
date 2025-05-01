@@ -1718,8 +1718,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	// TODO(mna): must collect variables and save them as part of variables used by the profile
-	err = validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifier, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
@@ -1742,7 +1741,8 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
-	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice); err != nil {
+	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID,
+		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, profilesVariablesByIdentifier); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
@@ -1804,28 +1804,30 @@ func (svc *Service) BatchSetMDMProfiles(
 
 func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
-) error {
+) (map[string]map[string]struct{}, error) {
 	var err error
 
+	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		err = validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
+		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
+			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
+		profileVarsByProfIdentifier[p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
 		err = validateWindowsProfileFleetVariables(string(p.SyncML))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
+			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
 	}
 	for _, p := range appleDecls {
 		err = validateDeclarationFleetVariables(string(p.RawJSON))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
 		}
 	}
-	return nil
+	return profileVarsByProfIdentifier, nil
 }
 
 func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,

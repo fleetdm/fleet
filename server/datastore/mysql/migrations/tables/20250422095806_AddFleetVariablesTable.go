@@ -98,8 +98,6 @@ func Up_20250422095806(tx *sql.Tx) error {
 		return fmt.Errorf("failed to insert into fleet_variables: %s", err)
 	}
 
-	// TODO(mna): scan existing profile contents to insert the relationships.
-
 	return nil
 }
 

@@ -1,12 +1,16 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
+import { AxiosError, AxiosResponse } from "axios";
 
-import { IBootstrapPackageMetadata } from "interfaces/mdm";
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-import mdmAPI from "services/entities/mdm";
+import { ISoftwareTitle } from "interfaces/software";
+import mdmAPI, {
+  IGetBootstrapPackageMetadataResponse,
+  IGetSetupExperienceScriptResponse,
+  IGetSetupExperienceSoftwareResponse,
+} from "services/entities/mdm";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { NotificationContext } from "context/notification";
@@ -19,10 +23,15 @@ import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
 import UploadedPackageView from "./components/UploadedPackageView";
 import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
-import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
 
 const baseClass = "bootstrap-package";
+
+// This is so large because we want to get all the software titles that are
+// available for install so we can correctly display the selected count.
+const PER_PAGE_SIZE = 3000;
 
 export const getManualAgentInstallSetting = (
   currentTeamId: number,
@@ -49,6 +58,32 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     showDeleteBootstrapPackageModal,
     setShowDeleteBootstrapPackageModal,
   ] = useState(false);
+
+  const { data: softwareTitles, isLoading: isLoadingSoftware } = useQuery<
+    IGetSetupExperienceSoftwareResponse,
+    AxiosError,
+    ISoftwareTitle[] | null
+  >(
+    ["install-software", currentTeamId],
+    () =>
+      mdmAPI.getSetupExperienceSoftware({
+        team_id: currentTeamId,
+        per_page: PER_PAGE_SIZE,
+      }),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (res) => res.software_titles,
+    }
+  );
+
+  const { data: script, isLoading: isLoadingScript } = useQuery<
+    IGetSetupExperienceScriptResponse,
+    AxiosError
+  >(
+    ["setup-experience-script", currentTeamId],
+    () => mdmAPI.getSetupExperienceScript(currentTeamId),
+    { ...DEFAULT_USE_QUERY_OPTIONS }
+  );
 
   const {
     isLoading: isLoadingGlobalConfig,
@@ -87,19 +122,14 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
 
   const {
     data: bootstrapMetadata,
-    isLoading,
-    error,
+    isLoading: isloadingBootstrapMetadata,
+    error: errorBootstrapMetadata,
     refetch: refretchBootstrapMetadata,
-  } = useQuery<
-    IBootstrapPackageMetadata,
-    AxiosResponse<IApiError>,
-    IBootstrapPackageMetadata
-  >(
+  } = useQuery<IGetBootstrapPackageMetadataResponse, AxiosResponse<IApiError>>(
     ["bootstrap-metadata", currentTeamId],
     () => mdmAPI.getBootstrapPackageMetadata(currentTeamId),
     {
-      retry: false,
-      refetchOnWindowFocus: false,
+      ...DEFAULT_USE_QUERY_OPTIONS,
       cacheTime: 0,
     }
   );
@@ -132,7 +162,11 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   // we are relying on the API to tell us this resource does not exist to
   // determine if the user has uploaded a bootstrap package.
   const noPackageUploaded =
-    (error && error.status === 404) || !bootstrapMetadata;
+    (errorBootstrapMetadata && errorBootstrapMetadata.status === 404) ||
+    !bootstrapMetadata;
+  const hasSetupExperienceInstallSoftware =
+    getInstallSoftwareDuringSetupCount(softwareTitles) !== 0;
+  const hasSetupExperienceScript = !!script;
 
   const renderBootstrapView = () => {
     const bootstrapPackageView = noPackageUploaded ? (
@@ -151,7 +185,11 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
           {bootstrapPackageView}
           <BootstrapAdvancedOptions
             currentTeamId={currentTeamId}
-            enableInstallManually={!noPackageUploaded}
+            disableInstallManually={
+              noPackageUploaded ||
+              hasSetupExperienceInstallSoftware ||
+              hasSetupExperienceScript
+            }
             selectManualAgentInstall={selectedManualAgentInstall}
             onChange={(manualAgentInstall) => {
               setSelectedManualAgentInstall(manualAgentInstall);
@@ -165,14 +203,17 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     );
   };
 
+  const isLoading =
+    isloadingBootstrapMetadata ||
+    isLoadingGlobalConfig ||
+    isLoadingTeamConfig ||
+    isLoadingScript ||
+    isLoadingSoftware;
+
   return (
     <section className={baseClass}>
       <SectionHeader title="Bootstrap package" />
-      {isLoading || isLoadingGlobalConfig || isLoadingTeamConfig ? (
-        <Spinner />
-      ) : (
-        renderBootstrapView()
-      )}
+      {isLoading ? <Spinner /> : renderBootstrapView()}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}
