@@ -149,7 +149,7 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	expanded := fleet.MaybeExpand(document, func(s string) (string, bool) {
+	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
 			return "", false
 		}

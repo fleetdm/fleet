@@ -31,7 +31,7 @@ NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.14.1
+    OSQUERY_VERSION=5.16.0
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -60,7 +60,7 @@ for system in $SYSTEMS; do
     else
         osqueryd_path="$TUF_PATH/tmp/$osqueryd"
     fi
-    curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
+    curl https://updates.fleetdm.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
     major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
     min=$(echo "$OSQUERY_VERSION" | cut -d "." -f 2)
@@ -154,7 +154,7 @@ for system in $SYSTEMS; do
 
     # Add Nudge application on macos (if enabled).
     if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        curl https://tuf.fleetctl.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
+        curl https://updates.fleetdm.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target nudge.app.tar.gz \
@@ -166,7 +166,7 @@ for system in $SYSTEMS; do
 
     # Add swiftDialog on macos (if enabled).
     if [[ $system == "macos" && -n "$SWIFT_DIALOG" ]]; then
-        curl https://tuf.fleetctl.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
+        curl https://updates.fleetdm.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
 
         ./build/fleetctl updates add \
             --path $TUF_PATH \

@@ -1,0 +1,1 @@
+Fixed `fleetctl gitops` issue where creating a new team containing VPP apps caused an error.

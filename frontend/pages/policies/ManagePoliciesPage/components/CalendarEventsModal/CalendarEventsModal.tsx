@@ -292,7 +292,7 @@ const CalendarEventsModal = ({
               </Button>
             );
           }}
-          footer={
+          helpText={
             <>
               A calendar event will be created for end users if one of their
               hosts fail any of these policies.{" "}
@@ -308,7 +308,7 @@ const CalendarEventsModal = ({
           onSubmit={onUpdateCalendarEvents}
           onCancel={onExit}
           teamId={teamId}
-          disabled={!formData.enabled}
+          disableList={!formData.enabled}
         />
       </div>
     </div>

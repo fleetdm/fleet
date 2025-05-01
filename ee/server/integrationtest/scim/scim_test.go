@@ -182,18 +182,18 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 	})
 }
 
-func testUsersBasicCRUD(t *testing.T, s *Suite) {
-	// Test creating a user
+// createTestUser creates a test user with the given username and returns the user ID and response
+func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string]interface{}) {
 	createUserPayload := map[string]interface{}{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-		"userName": "testuser@example.com",
+		"userName": userName,
 		"name": map[string]interface{}{
 			"givenName":  "Test",
 			"familyName": "User",
 		},
 		"emails": []map[string]interface{}{
 			{
-				"value":   "testuser@example.com",
+				"value":   userName,
 				"type":    "work",
 				"primary": true,
 			},
@@ -205,18 +205,26 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
 
 	// Verify the created user
-	assert.Equal(t, "testuser@example.com", createResp["userName"])
+	assert.Equal(t, userName, createResp["userName"])
 	assert.Equal(t, true, createResp["active"])
 
-	// Extract the user ID for subsequent operations
+	// Extract the user ID
 	userID := createResp["id"].(string)
 	assert.NotEmpty(t, userID)
+
+	return userID, createResp
+}
+
+func testUsersBasicCRUD(t *testing.T, s *Suite) {
+	// Test creating a user
+	userName := "testuser@example.com"
+	userID, _ := createTestUser(t, s, userName)
 
 	// Test getting a user by ID
 	var getResp map[string]interface{}
 	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, userID, getResp["id"])
-	assert.Equal(t, "testuser@example.com", getResp["userName"])
+	assert.Equal(t, userName, getResp["userName"])
 	assert.Equal(t, true, getResp["active"])
 
 	// Test getting a user with a bad ID
@@ -262,7 +270,7 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 		user, ok := caseInsensitiveResources[0].(map[string]interface{})
 		assert.True(t, ok, "User should be an object")
 		assert.Equal(t, userID, user["id"], "Should be the same user despite case differences in userName filter")
-		assert.Equal(t, "testuser@example.com", user["userName"], "Original userName should be preserved")
+		assert.Equal(t, userName, user["userName"], "Original userName should be preserved")
 	}
 
 	// Test filtering users by non-existent userName
@@ -276,14 +284,14 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	// Test updating a user
 	updateUserPayload := map[string]interface{}{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-		"userName": "testuser@example.com",
+		"userName": userName,
 		"name": map[string]interface{}{
 			"givenName":  "Updated",
 			"familyName": "User",
 		},
 		"emails": []map[string]interface{}{
 			{
-				"value":   "testuser@example.com",
+				"value":   userName,
 				"type":    "work",
 				"primary": true,
 			},
@@ -293,7 +301,7 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 
 	var updateResp map[string]interface{}
 	s.DoJSON(t, "PUT", scimPath("/Users/"+userID), updateUserPayload, http.StatusOK, &updateResp)
-	assert.Equal(t, "testuser@example.com", updateResp["userName"])
+	assert.Equal(t, userName, updateResp["userName"])
 
 	// Verify the name was updated
 	name, ok := updateResp["name"].(map[string]interface{})
@@ -373,46 +381,43 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	assert.Contains(t, deleteAgainResp["detail"], "not found")
 }
 
-func testGroupsBasicCRUD(t *testing.T, s *Suite) {
-	// First, create a user to add as a member of the group
-	createUserPayload := map[string]interface{}{
-		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-		"userName": "groupmember@example.com",
-		"name": map[string]interface{}{
-			"givenName":  "Group",
-			"familyName": "Member",
-		},
-		"emails": []map[string]interface{}{
-			{
-				"value":   "groupmember@example.com",
-				"type":    "work",
-				"primary": true,
-			},
-		},
-		"active": true,
+// createTestGroup creates a test group with the given display name and members and returns the group ID and response
+func createTestGroup(t *testing.T, s *Suite, displayName string, memberIDs []string) (string, map[string]interface{}) {
+	members := make([]map[string]interface{}, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		members = append(members, map[string]interface{}{
+			"value": id,
+		})
 	}
 
-	var createUserResp map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createUserResp)
-	userID := createUserResp["id"].(string)
-	assert.NotEmpty(t, userID)
-
-	// Test creating a group
 	createGroupPayload := map[string]interface{}{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
-		"displayName": "Test Group",
-		"members": []map[string]interface{}{
-			{
-				"value": userID,
-			},
-		},
+		"displayName": displayName,
+	}
+
+	if len(members) > 0 {
+		createGroupPayload["members"] = members
 	}
 
 	var createResp map[string]interface{}
 	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
 
 	// Verify the created group
-	assert.Equal(t, "Test Group", createResp["displayName"])
+	assert.Equal(t, displayName, createResp["displayName"])
+
+	// Extract the group ID
+	groupID := createResp["id"].(string)
+	assert.NotEmpty(t, groupID)
+
+	return groupID, createResp
+}
+
+func testGroupsBasicCRUD(t *testing.T, s *Suite) {
+	// First, create a user to add as a member of the group
+	userID, _ := createTestUser(t, s, "groupmember@example.com")
+
+	// Test creating a group
+	groupID, createResp := createTestGroup(t, s, "Test Group", []string{userID})
 
 	// Verify members
 	members, ok := createResp["members"].([]interface{})
@@ -422,10 +427,6 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	assert.Equal(t, userID, member["value"])
 	assert.Equal(t, "User", member["type"])
 	assert.Equal(t, "Users/"+userID, member["$ref"])
-
-	// Extract the group ID for subsequent operations
-	groupID := createResp["id"].(string)
-	assert.NotEmpty(t, groupID)
 
 	// Test getting a group by ID
 	var getResp map[string]interface{}
@@ -1163,26 +1164,7 @@ func testUsersPagination(t *testing.T, s *Suite) {
 
 	for i := 1; i <= 10; i++ {
 		userName := fmt.Sprintf("pagination-user-%d@example.com", i)
-		createUserPayload := map[string]interface{}{
-			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-			"userName": userName,
-			"name": map[string]interface{}{
-				"givenName":  fmt.Sprintf("User%d", i),
-				"familyName": "Pagination",
-			},
-			"emails": []map[string]interface{}{
-				{
-					"value":   userName,
-					"type":    "work",
-					"primary": true,
-				},
-			},
-			"active": true,
-		}
-
-		var createResp map[string]interface{}
-		s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
-		userID := createResp["id"].(string)
+		userID, _ := createTestUser(t, s, userName)
 		userIDs = append(userIDs, userID)
 	}
 
@@ -1318,54 +1300,19 @@ func testUsersPagination(t *testing.T, s *Suite) {
 
 func testGroupsPagination(t *testing.T, s *Suite) {
 	// First, create a user to be added as a member of some groups
-	createUserPayload := map[string]interface{}{
-		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-		"userName": "group-pagination-member@example.com",
-		"name": map[string]interface{}{
-			"givenName":  "Group",
-			"familyName": "PaginationMember",
-		},
-		"emails": []map[string]interface{}{
-			{
-				"value":   "group-pagination-member@example.com",
-				"type":    "work",
-				"primary": true,
-			},
-		},
-		"active": true,
-	}
-
-	var createUserResp map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createUserResp)
-	userID := createUserResp["id"].(string)
-	assert.NotEmpty(t, userID)
+	userID, _ := createTestUser(t, s, "group-pagination-member@example.com")
 
 	// Create multiple groups for pagination testing
 	groupIDs := make([]string, 0, 10)
 
 	for i := 1; i <= 10; i++ {
 		// Add the user as a member to even-numbered groups
-		var members []map[string]interface{}
+		var memberIDs []string
 		if i%2 == 0 {
-			members = []map[string]interface{}{
-				{
-					"value": userID,
-				},
-			}
+			memberIDs = []string{userID}
 		}
 
-		createGroupPayload := map[string]interface{}{
-			"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
-			"displayName": fmt.Sprintf("Pagination Group %d", i),
-		}
-
-		if len(members) > 0 {
-			createGroupPayload["members"] = members
-		}
-
-		var createResp map[string]interface{}
-		s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
-		groupID := createResp["id"].(string)
+		groupID, _ := createTestGroup(t, s, fmt.Sprintf("Pagination Group %d", i), memberIDs)
 		groupIDs = append(groupIDs, groupID)
 	}
 
@@ -1538,69 +1485,16 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	userIDs := make([]string, 0, 3)
 	for i := 1; i <= 3; i++ {
 		userName := fmt.Sprintf("user-group-test-%d@example.com", i)
-		createUserPayload := map[string]interface{}{
-			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
-			"userName": userName,
-			"name": map[string]interface{}{
-				"givenName":  fmt.Sprintf("User%d", i),
-				"familyName": "GroupTest",
-			},
-			"emails": []map[string]interface{}{
-				{
-					"value":   userName,
-					"type":    "work",
-					"primary": true,
-				},
-			},
-			"active": true,
-		}
-
-		var createResp map[string]interface{}
-		s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
-		userID := createResp["id"].(string)
+		userID, _ := createTestUser(t, s, userName)
 		userIDs = append(userIDs, userID)
 	}
 
 	// Create two groups with different membership patterns
 	// Group 1: Contains users 1 and 2
-	group1Members := []map[string]interface{}{
-		{
-			"value": userIDs[0],
-		},
-		{
-			"value": userIDs[1],
-		},
-	}
-
-	createGroup1Payload := map[string]interface{}{
-		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
-		"displayName": "Test Group 1",
-		"members":     group1Members,
-	}
-
-	var createGroup1Resp map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Groups"), createGroup1Payload, http.StatusCreated, &createGroup1Resp)
-	group1ID := createGroup1Resp["id"].(string)
+	group1ID, _ := createTestGroup(t, s, "Test Group 1", []string{userIDs[0], userIDs[1]})
 
 	// Group 2: Contains users 2 and 3
-	group2Members := []map[string]interface{}{
-		{
-			"value": userIDs[1],
-		},
-		{
-			"value": userIDs[2],
-		},
-	}
-
-	createGroup2Payload := map[string]interface{}{
-		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
-		"displayName": "Test Group 2",
-		"members":     group2Members,
-	}
-
-	var createGroup2Resp map[string]interface{}
-	s.DoJSON(t, "POST", scimPath("/Groups"), createGroup2Payload, http.StatusCreated, &createGroup2Resp)
-	group2ID := createGroup2Resp["id"].(string)
+	group2ID, _ := createTestGroup(t, s, "Test Group 2", []string{userIDs[1], userIDs[2]})
 
 	// Test 1: Verify that User 1 is in Group 1 only
 	var user1Resp map[string]interface{}

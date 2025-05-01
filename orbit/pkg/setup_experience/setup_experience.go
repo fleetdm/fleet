@@ -245,6 +245,13 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 		return errors.New("creating swiftDialog instance: %w")
 	}
 	s.sd = swiftDialog
+
+	iconSize, err := swiftdialog.GetIconSize(orgLogo)
+	if err != nil {
+		log.Error().Err(err).Msg("setup experience: getting icon size")
+		iconSize = swiftdialog.DefaultIconSize
+	}
+
 	go func() {
 		initOpts := &swiftdialog.SwiftDialogOptions{
 			Title:            "none",
@@ -267,7 +274,7 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			log.Error().Err(err).Msg("setting initial setup experience progress")
 		}
 
-		if err := s.sd.SetIconSize(80); err != nil {
+		if err := s.sd.SetIconSize(iconSize); err != nil {
 			log.Error().Err(err).Msg("setting initial setup experience icon size")
 		}
 

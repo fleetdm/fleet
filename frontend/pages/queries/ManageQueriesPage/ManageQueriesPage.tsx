@@ -125,10 +125,6 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
-  const [
-    tableQueryDataForApi,
-    setTableQueryDataForApi,
-  ] = useState<ITableQueryData>();
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)

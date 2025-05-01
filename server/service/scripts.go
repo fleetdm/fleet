@@ -1057,6 +1057,72 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bulk script execution
+////////////////////////////////////////////////////////////////////////////////
+
+type batchScriptRunRequest struct {
+	ScriptID uint   `json:"script_id"`
+	HostIDs  []uint `json:"host_ids"`
+}
+
+type batchScriptRunResponse struct {
+	BatchExecutionID string `json:"batch_execution_id"`
+	Err              error  `json:"error,omitempty"`
+}
+
+func (r batchScriptRunResponse) Error() error { return r.Err }
+
+func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptRunRequest)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs)
+	if err != nil {
+		return batchScriptRunResponse{Err: err}, nil
+	}
+	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
+}
+
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+	// First check if scripts are disabled globally. If so, no need for further processing.
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return "", err
+	}
+
+	if cfg.ServerSettings.ScriptsDisabled {
+		svc.authz.SkipAuthorization(ctx)
+		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
+	}
+
+	// Use the authorize script by ID to handle authz
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
+	if err != nil {
+		return "", err
+	}
+
+	var userId *uint
+	ctxUser := authz.UserFromContext(ctx)
+	if ctxUser != nil {
+		userId = &ctxUser.ID
+	}
+
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
+	if err != nil {
+		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
+	}
+
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+		ScriptName:       script.Name,
+		BatchExeuctionID: batchID,
+		HostCount:        uint(len(hostIDs)),
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
+	}
+
+	return batchID, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Lock host
 ////////////////////////////////////////////////////////////////////////////////
 

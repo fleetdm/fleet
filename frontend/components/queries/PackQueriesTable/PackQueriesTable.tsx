@@ -95,14 +95,14 @@ const PackQueriesTable = ({
             buttonText: "Add query",
             iconSvg: "plus",
             variant: "text-icon",
-            onActionButtonClick: onAddPackQuery,
+            onClick: onAddPackQuery,
           }}
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
             iconSvg: "close",
             variant: "text-icon",
-            onActionButtonClick: onRemovePackQueries,
+            onClick: onRemovePackQueries,
           }}
           searchable
           disablePagination

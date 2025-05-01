@@ -114,7 +114,7 @@ const ActivityItem = ({
   });
 
   const onShowActivityDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // added this stopPropagation to as there is some weirdness around the event
+    // added this stopPropagation as there is some weirdness around the event
     // bubbling up and calling the Modals onEnter handler.
     e.stopPropagation();
     onShowDetails({ type: activity.type, details: activity.details });
