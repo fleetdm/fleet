@@ -1739,6 +1739,7 @@ func (svc *Service) softwareBatchUpload(
 					installer.BundleIdentifier = *foundInstaller.BundleIdentifier
 				}
 				installer.Title = foundInstaller.Title
+				installer.PackageIDs = foundInstaller.PackageIDs
 			case !ok && len(teamIDs) > 0:
 				// Installer exists, but for another team. We should copy it over to this team
 				// (if we have access to the other team).
@@ -1760,6 +1761,16 @@ func (svc *Service) softwareBatchUpload(
 						continue
 					}
 
+					if i.Extension == "exe" {
+						if p.InstallScript == "" {
+							return errors.New("Couldn't edit. Install script is required for .exe packages.")
+						}
+
+						if p.UninstallScript == "" {
+							return errors.New("Couldn't edit. Uninstall script is required for .exe packages.")
+						}
+					}
+
 					installer.Extension = i.Extension
 					installer.Filename = i.Filename
 					installer.Version = i.Version
@@ -1770,6 +1781,7 @@ func (svc *Service) softwareBatchUpload(
 					}
 					installer.Title = i.Title
 					installer.StorageID = p.SHA256
+					installer.PackageIDs = i.PackageIDs
 					break
 				}
 			}
@@ -1811,6 +1823,17 @@ func (svc *Service) softwareBatchUpload(
 				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
 					// this isn't the specified installer, so return an error
 					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
+				}
+			}
+
+			// custom scripts only for exe installers
+			if installer.Extension != "exe" {
+				if installer.InstallScript == "" {
+					installer.InstallScript = file.GetInstallScript(installer.Extension)
+				}
+
+				if installer.UninstallScript == "" {
+					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
 				}
 			}
 

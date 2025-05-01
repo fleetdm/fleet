@@ -163,7 +163,8 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	// filevault profile is a fleet-controlled profile that doesn't use any variable
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 

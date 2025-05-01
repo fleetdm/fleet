@@ -1543,13 +1543,13 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
 
 	// create profiles that use the IdP variables, and one that doesn't
-	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0))
+	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
 	require.NoError(t, err)
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0))
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0), nil)
 	require.NoError(t, err)
-	profAll, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0))
+	profAll, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", 0), nil)
 	require.NoError(t, err)
-	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("d", "d", 0))
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("d", "d", 0), nil)
 	require.NoError(t, err)
 
 	t.Logf("profUsername=%s, profGroup=%s, profAll=%s, profNone=%s", profUsername.ProfileUUID, profGroup.ProfileUUID, profAll.ProfileUUID, profNone.ProfileUUID)
