@@ -2046,7 +2046,7 @@ func packageExtensionToPlatform(ext string) string {
 		requiredPlatform = "windows"
 	case ".pkg", ".dmg", ".zip":
 		requiredPlatform = "darwin"
-	case ".deb", ".rpm":
+	case ".deb", ".rpm", ".gz", ".tgz":
 		requiredPlatform = "linux"
 	default:
 		return ""
