@@ -1,12 +1,15 @@
 package update
 
 import (
+	"sync/atomic"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
 type SwiftDialogDownloader struct {
-	UpdateRunner *Runner
+	UpdateRunner                            *Runner
+	triggeredSetupExperienceImmediateUpdate atomic.Bool
 }
 
 type SwiftDialogDownloaderOptions struct {
@@ -34,13 +37,7 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	// TODO: we probably want to ensure that swiftDialog is always installed if we're going to be
-	// using it offline.
-	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile && !cfg.Notifications.RunSetupExperience {
-		log.Debug().Msg("skipping swiftDialog update")
-		return nil
-	}
-
+	// For #25928 we are going to always install swiftDialog as a target
 	updaterHasTarget := s.UpdateRunner.HasRunnerOptTarget("swiftDialog")
 	runnerHasLocalHash := s.UpdateRunner.HasLocalHash("swiftDialog")
 	if !updaterHasTarget || !runnerHasLocalHash {
@@ -56,14 +53,14 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 			s.UpdateRunner.updater.RemoveTargetInfo("swiftDialog")
 			return err
 		}
+	}
 
-		if cfg.Notifications.RunSetupExperience {
-			// Then update immediately, since we need to get swiftDialog quickly to show the setup
-			// experience
-			_, err := s.UpdateRunner.UpdateAction()
-			if err != nil {
-				return err
-			}
+	// If we're running setup experience and we have the hashes we need to make sure we trigger
+	// an immediate update to get SwiftDialog installed and usable.
+	if cfg.Notifications.RunSetupExperience && s.triggeredSetupExperienceImmediateUpdate.CompareAndSwap(false, true) {
+		_, err := s.UpdateRunner.UpdateAction()
+		if err != nil {
+			return err
 		}
 	}
 
