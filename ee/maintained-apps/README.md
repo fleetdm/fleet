@@ -78,4 +78,4 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 - If the app is a new app, add an icon for the app to the PR. App icons are located [here in the repository](https://github.com/fleetdm/fleet/tree/main/frontend/pages/SoftwarePage/components/icons).
 - [Run Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md#clone-and-build) and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
 5. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
-6. If the test is successful, the PD approves and merges the PR. For new apps, the PD opens a user story to test the new icon and assigns the EM. The EM brings this story onto the #g-software board.
+6. If the test is successful, the PD approves and merges the PR. For new apps, the PD opens a user story to test the new icon, adds it to the #g-software board (`:release` and `#g-software` labels), and assigns the EM.
