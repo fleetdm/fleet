@@ -8,10 +8,7 @@
       "installer_url": "https://desktop.figma.com/mac-arm/Figma-125.3.6.zip",
       "install_script_ref": "51e6e0ba",
       "uninstall_script_ref": "d5a2e180",
-      "sha256": "2609701885880c8b94261cd35a40d37baa726207baa05edf89737e4d8bb5bc69",
-      "default_categories": [
-        "Productivity"
-      ]
+      "sha256": "2609701885880c8b94261cd35a40d37baa726207baa05edf89737e4d8bb5bc69"
     }
   ],
   "refs": {

@@ -8,10 +8,7 @@
       "installer_url": "https://downloads.slack-edge.com/desktop-releases/mac/arm64/4.43.52/Slack-4.43.52-macOS.dmg",
       "install_script_ref": "4cf5a99d",
       "uninstall_script_ref": "b388e22b",
-      "sha256": "d3135059e13c1799de16e8647cee8d498c7e7cb47f1b7322822c6d4b6c8f0010",
-      "default_categories": [
-        "Communication"
-      ]
+      "sha256": "d3135059e13c1799de16e8647cee8d498c7e7cb47f1b7322822c6d4b6c8f0010"
     }
   ],
   "refs": {

@@ -8,10 +8,7 @@
       "installer_url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/177.101/Brave-Browser-arm64.dmg",
       "install_script_ref": "8236d102",
       "uninstall_script_ref": "e860eed9",
-      "sha256": "6ee662df9a133910a68c71c36b56ec4c932575200318c615f7c3de1d561f8703",
-      "default_categories": [
-        "Browsers"
-      ]
+      "sha256": "6ee662df9a133910a68c71c36b56ec4c932575200318c615f7c3de1d561f8703"
     }
   ],
   "refs": {

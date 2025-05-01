@@ -8,10 +8,7 @@
       "installer_url": "https://github.com/brave/brave-browser/releases/download/v1.77.101/BraveBrowserStandaloneSilentSetup.exe",
       "install_script_ref": "9a0c2b15",
       "uninstall_script_ref": "30c77f69",
-      "sha256": "68c80e04d2c3397d484c2328b7b93de4f1c02ebe512268ffd9526cb81366f220",
-      "default_categories": [
-        "Browsers"
-      ]
+      "sha256": "68c80e04d2c3397d484c2328b7b93de4f1c02ebe512268ffd9526cb81366f220"
     }
   ],
   "refs": {

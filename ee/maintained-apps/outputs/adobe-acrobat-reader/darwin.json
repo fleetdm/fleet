@@ -8,10 +8,7 @@
       "installer_url": "https://ardownload2.adobe.com/pub/adobe/reader/mac/AcrobatDC/2500120467/AcroRdrDC_2500120467_MUI.dmg",
       "install_script_ref": "9a641d0a",
       "uninstall_script_ref": "6949c08e",
-      "sha256": "780491cb985d853e150402530e36ccfb3d85e42919e78aee97792638998d12af",
-      "default_categories": [
-        "Productivity"
-      ]
+      "sha256": "780491cb985d853e150402530e36ccfb3d85e42919e78aee97792638998d12af"
     }
   ],
   "refs": {

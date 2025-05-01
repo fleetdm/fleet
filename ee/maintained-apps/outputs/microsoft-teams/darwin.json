@@ -8,10 +8,7 @@
       "installer_url": "https://statics.teams.cdn.office.net/production-osx/25079.2107.3576.1611/MicrosoftTeams.pkg",
       "install_script_ref": "68cd6c20",
       "uninstall_script_ref": "f8bcea83",
-      "sha256": "e580d4691c89ba178edd7b494f2fac981e121fac912c4cb592bf9454c15904ae",
-      "default_categories": [
-        "Communication"
-      ]
+      "sha256": "e580d4691c89ba178edd7b494f2fac981e121fac912c4cb592bf9454c15904ae"
     }
   ],
   "refs": {

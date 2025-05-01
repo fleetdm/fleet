@@ -8,10 +8,7 @@
       "installer_url": "https://web.whatsapp.com/desktop/mac_native/release/?version=2.25.12.73\u0026extension=zip\u0026configuration=Release\u0026branch=relbranch",
       "install_script_ref": "855416a1",
       "uninstall_script_ref": "1601899d",
-      "sha256": "6e7b57f10a6eda859fe43821db840e32be61980dd701d8ed1319e18739fc6aa5",
-      "default_categories": [
-        "Communication"
-      ]
+      "sha256": "6e7b57f10a6eda859fe43821db840e32be61980dd701d8ed1319e18739fc6aa5"
     }
   ],
   "refs": {

@@ -8,10 +8,7 @@
       "installer_url": "https://dl.teamviewer.com/download/version_15x/update/15.65.4/TeamViewer.pkg",
       "install_script_ref": "023a9594",
       "uninstall_script_ref": "00380452",
-      "sha256": "f84dcc62d2728c1b7bbd2f7deca69ebabd800b8f568491430f114300a7792cc1",
-      "default_categories": [
-        "Communication"
-      ]
+      "sha256": "f84dcc62d2728c1b7bbd2f7deca69ebabd800b8f568491430f114300a7792cc1"
     }
   ],
   "refs": {

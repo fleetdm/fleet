@@ -8,10 +8,7 @@
       "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/17baf841131aa23349f217ca7c570c76ee87b957/VSCodeSetup-x64-1.99.3.exe",
       "install_script_ref": "49122823",
       "uninstall_script_ref": "e09509e2",
-      "sha256": "63c953399ba60de2bdadf767ec49daa6a7bd19bf57f61b0274b57291bdab685c",
-      "default_categories": [
-        "Developer tools"
-      ]
+      "sha256": "63c953399ba60de2bdadf767ec49daa6a7bd19bf57f61b0274b57291bdab685c"
     }
   ],
   "refs": {
