@@ -82,32 +82,30 @@ const CalendarEventPreviewModal = ({
               <br />
               <div className={`${baseClass}__preview-info__text__user-text`}>
                 {showGenericPreview ? (
-                  <>
-                    <ul>
-                      <li>
-                        Click the{" "}
-                        <a
-                          href={TRANSPARENCY_LINK}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Fleet
-                        </a>{" "}
-                        icon in your computer&apos;s menu and select{" "}
-                        <b>My device</b>
-                      </li>
-                      <li>
-                        Navigate to the <b>Policies</b> tab
-                      </li>
-                      <li>
-                        Follow instructions to resolve any policies marked{" "}
-                        {`"No"`}
-                      </li>
-                      <li>
-                        Click <b>Refetch</b>
-                      </li>
-                    </ul>
-                  </>
+                  <ul>
+                    <li>
+                      Click the{" "}
+                      <a
+                        href={TRANSPARENCY_LINK}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Fleet
+                      </a>{" "}
+                      icon in your computer&apos;s menu and select{" "}
+                      <b>My device</b>
+                    </li>
+                    <li>
+                      Navigate to the <b>Policies</b> tab
+                    </li>
+                    <li>
+                      Follow instructions to resolve any policies marked{" "}
+                      {`"No"`}
+                    </li>
+                    <li>
+                      Click <b>Refetch</b>
+                    </li>
+                  </ul>
                 ) : (
                   policy.resolution
                 )}
