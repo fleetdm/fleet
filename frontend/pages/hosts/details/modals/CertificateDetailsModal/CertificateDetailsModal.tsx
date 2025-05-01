@@ -44,9 +44,10 @@ const CertificateDetailsModal = ({
 
   let serialDecimal = "";
   if (serial) {
-    // Convert the serial number to decimal
+    // Convert the serial number to decimal and display it if it is less than 2^63 to
+    // match keychain and openSSL display behavior
     const serialParsed = BigInt(`0x${serial}`);
-    if (serialParsed <= BigInt("0x8000000000000000")) {
+    if (serialParsed < BigInt("0x8000000000000000")) {
       serialDecimal = serialParsed.toString(10);
     }
   }
