@@ -372,7 +372,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		// Generate software.
 		if team != nil {
-			software, err := cmd.generateSoftware(fileName, team.ID)
+			software, err := cmd.generateSoftware(fileName, team.ID, teamFileName)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for %s: %s\n", teamFileName, err)
 				return ErrGeneric
@@ -1097,7 +1097,7 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint, teamFilename string) (map[string]interface{}, error) {
 	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamId)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
@@ -1152,7 +1152,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 		if softwareTitle.SoftwarePackage != nil {
 			if softwareTitle.SoftwarePackage.InstallScript != "" {
 				script := softwareTitle.SoftwarePackage.InstallScript
-				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-install")
+				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, generateFilename(sw.Name)+"-install")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["install_script"] = map[string]interface{}{
 					"path": path,
@@ -1162,7 +1162,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 
 			if softwareTitle.SoftwarePackage.PostInstallScript != "" {
 				script := softwareTitle.SoftwarePackage.PostInstallScript
-				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-postinstall")
+				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, generateFilename(sw.Name)+"-postinstall")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["post_install_script"] = map[string]interface{}{
 					"path": path,
@@ -1172,7 +1172,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 
 			if softwareTitle.SoftwarePackage.UninstallScript != "" {
 				script := softwareTitle.SoftwarePackage.UninstallScript
-				fileName := fmt.Sprintf("lib/scripts/%s", generateFilename(sw.Name)+"-uninstall")
+				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, generateFilename(sw.Name)+"-uninstall")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["uninstall_script"] = map[string]interface{}{
 					"path": path,
@@ -1181,7 +1181,15 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 			}
 
 			if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
-				softwareSpec["pre_install_query"] = softwareTitle.SoftwarePackage.PreInstallQuery
+				query := softwareTitle.SoftwarePackage.PreInstallQuery
+				fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, generateFilename(sw.Name)+"-preinstallquery.yml")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["pre_install_query"] = map[string]interface{}{
+					"path": path,
+				}
+				cmd.FilesToWrite[fileName] = []map[string]interface{}{{
+					"query": query,
+				}}
 			}
 
 			if softwareTitle.SoftwarePackage.SelfService {

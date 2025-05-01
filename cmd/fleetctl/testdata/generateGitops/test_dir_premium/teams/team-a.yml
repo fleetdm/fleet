@@ -72,7 +72,8 @@ software:
     - Label B
     post_install_script:
       path: ../lib/scripts/my-software-package-postinstall
-    pre_install_query: SELECT * FROM pre_install_query
+    pre_install_query: 
+      path: ../lib/queries/my-software-package-preinstallquery.yml
     self_service: true
     uninstall_script:
       path: ../lib/scripts/my-software-package-uninstall
@@ -88,7 +89,7 @@ team_settings:
       enable_calendar_events: true
       webhook_url: https://some-team-google-calendar-webhook.com
   secrets:
-  - secret: # TODO: Add your enrollment secrets here
+  - secret: # TODO: Add your enroll secrets here
   webhook_settings:
     failing_policies_webhook:
       destination_url: https://some-team-failing_policies-webhook.com

@@ -108,7 +108,7 @@ org_settings:
     org_logo_url_light_background: http://some-org-logo-url-light-background.com
     org_name: Fleet
   secrets:
-  - secret: # TODO: Add your enrollment secrets here
+  - secret: # TODO: Add your enroll secrets here
   server_settings:
     ai_features_disabled: false
     debug_host_ids:
