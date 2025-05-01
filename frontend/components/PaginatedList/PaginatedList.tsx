@@ -228,8 +228,10 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           // from its page and then back again.
           const item = dirtyItems[_item[idKey]] ?? _item;
 
+          const itemDisabled = isItemDisabled && isItemDisabled(item);
+
           const rowClasses = classnames(`${baseClass}__row`, {
-            [`${baseClass}__row--disabled`]: item.disabled,
+            [`${baseClass}__row--disabled`]: itemDisabled,
           });
           return (
             // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
@@ -237,7 +239,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
               className={rowClasses}
               key={item[idKey]}
               onClick={() => {
-                if (item.disabled) return;
+                if (itemDisabled) return;
                 const clickedItem = onClickRow(item);
                 if (setDirtyOnClickRow)
                   setDirtyItems({
@@ -248,9 +250,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
             >
               {useCheckBoxes && isSelected && (
                 <Checkbox
-                  disabled={
-                    disabled || (isItemDisabled && isItemDisabled(item))
-                  }
+                  disabled={disabled || itemDisabled}
                   iconTooltipContent={
                     getItemTooltipContent && getItemTooltipContent(item)
                   }
