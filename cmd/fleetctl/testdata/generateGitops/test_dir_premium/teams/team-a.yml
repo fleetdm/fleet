@@ -66,17 +66,17 @@ software:
   packages:
   - hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 1.0.0, 2.0.0
     install_script:
-      path: ../lib/scripts/my-software-package-install
+      path: ../lib/team-a/scripts/my-software-package-install
     labels_include_any:
     - Label A
     - Label B
     post_install_script:
-      path: ../lib/scripts/my-software-package-postinstall
-    pre_install_query: 
-      path: ../lib/queries/my-software-package-preinstallquery.yml
+      path: ../lib/team-a/scripts/my-software-package-postinstall
+    pre_install_query:
+      path: ../lib/team-a/queries/my-software-package-preinstallquery.yml
     self_service: true
     uninstall_script:
-      path: ../lib/scripts/my-software-package-uninstall
+      path: ../lib/team-a/scripts/my-software-package-uninstall
 team_settings:
   features:
     enable_host_users: true
