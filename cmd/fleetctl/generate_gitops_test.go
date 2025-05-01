@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -187,7 +188,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:   1,
-				Name: "Global Software",
+				Name: "My Software Package",
 				Versions: []fleet.SoftwareVersion{{
 					ID:      1,
 					Version: "1.0.0",
@@ -195,14 +196,14 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					ID:      2,
 					Version: "2.0.0",
 				}},
-				HashSHA256: ptr.String("global-software-hash"),
+				HashSHA256: ptr.String("software-package-hash"),
 				SoftwarePackage: &fleet.SoftwarePackageOrApp{
-					Name: "global-software.pkg",
+					Name: "my-software.pkg",
 				},
 			},
 			{
 				ID:   2,
-				Name: "Team Software",
+				Name: "My App Store App",
 				Versions: []fleet.SoftwareVersion{{
 					ID:      3,
 					Version: "5.6.7",
@@ -213,7 +214,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
 					AppStoreID: "com.example.team-software",
 				},
-				HashSHA256: ptr.String("team-software-hash"),
+				HashSHA256: ptr.String("app-store-app-hash"),
 			},
 		}, nil
 	case "available_for_install=1&team_id=0":
@@ -366,6 +367,33 @@ func (MockClient) Me() (*fleet.User, error) {
 	}, nil
 }
 
+func compareDirs(t *testing.T, sourceDir, targetDir string) {
+	filepath.WalkDir(sourceDir, func(srcPath string, d os.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(sourceDir, srcPath)
+		require.NoError(t, err, "Error getting relative path: %v", err)
+
+		tgtPath := filepath.Join(targetDir, relPath)
+
+		targetInfo, err := os.Stat(tgtPath)
+		require.NoError(t, err, "Error getting target file info: %v", err)
+		require.False(t, targetInfo.IsDir(), "Expected file but found directory: %s", tgtPath)
+
+		srcData, err := os.ReadFile(srcPath)
+		require.NoError(t, err, "Error reading source file: %v", err)
+
+		tgtData, err := os.ReadFile(tgtPath)
+		require.NoError(t, err, "Error reading target file: %v", err)
+
+		require.Equal(t, string(srcData), string(tgtData), "File contents do not match for %s", relPath)
+
+		return nil
+	})
+}
+
 func TestGenerateGitops(t *testing.T) {
 	fleetClient := &MockClient{}
 	action := createGenerateGitopsAction(fleetClient)
@@ -383,7 +411,7 @@ func TestGenerateGitops(t *testing.T) {
 	err := action(cliContext)
 	require.NoError(t, err, buf.String())
 
-	fmt.Println(buf.String()) // Debugging line
+	compareDirs(t, "./testdata/generateGitops/test_dir_premium", tempDir)
 
 	t.Cleanup(func() {
 		if err := os.RemoveAll(tempDir); err != nil {
@@ -410,7 +438,7 @@ func TestGenerateGitopsFree(t *testing.T) {
 	err := action(cliContext)
 	require.NoError(t, err, buf.String())
 
-	fmt.Println(buf.String()) // Debugging line
+	compareDirs(t, "./testdata/generateGitops/test_dir_free", tempDir)
 
 	t.Cleanup(func() {
 		if err := os.RemoveAll(tempDir); err != nil {
@@ -714,19 +742,19 @@ func TestGenerateSoftware(t *testing.T) {
 	// Compare.
 	require.Equal(t, expectedSoftware, software)
 
-	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-install"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/my-software-package-install"]; ok {
 		require.Equal(t, "foo", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-postinstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/my-software-package-postinstall"]; ok {
 		require.Equal(t, "bar", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
 
-	if fileContents, ok := cmd.FilesToWrite["lib/scripts/global-software-uninstall"]; ok {
+	if fileContents, ok := cmd.FilesToWrite["lib/scripts/my-software-package-uninstall"]; ok {
 		require.Equal(t, "baz", fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
@@ -748,8 +776,8 @@ func TestGeneratePolicies(t *testing.T) {
 		AppConfig:    appConfig,
 		SoftwareList: map[uint]Software{
 			1: {
-				Hash:    "global-software-hash",
-				Comment: "__GLOBAL_SOFTWARE_COMMENT_TOKEN__",
+				Hash:    "team-software-hash",
+				Comment: "__TEAM_SOFTWARE_COMMENT_TOKEN__",
 			},
 		},
 		ScriptList: map[uint]string{

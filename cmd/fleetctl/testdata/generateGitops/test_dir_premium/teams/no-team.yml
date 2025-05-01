@@ -1,0 +1,26 @@
+controls:
+  enable_disk_encryption: false
+  ios_updates:
+    deadline:
+    minimum_version:
+  ipados_updates:
+    deadline:
+    minimum_version:
+  macos_updates:
+    deadline:
+    minimum_version:
+  scripts:
+  - path: ../lib/no-team/scripts/Script Z.ps1
+  windows_updates:
+    deadline_days:
+    grace_period_days:
+name: No team
+policies:
+- calendar_events_enabled: false
+  critical: false
+  description: This is a team policy
+  name: Team Policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 1
+  resolution: Do a team thing
+software:
