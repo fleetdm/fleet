@@ -1214,7 +1214,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	//     (having big queries can cause performance issues or be denylisted).
 	"macos_codesign": {
 		Query: `
-		SELECT a.path, c.*
+		SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 	`,
