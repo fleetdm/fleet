@@ -8,7 +8,8 @@
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "04facd6e",
-      "sha256": "no_check"
+      "sha256": "no_check",
+      "default_categories": ["Browsers"]
     }
   ],
   "refs": {
