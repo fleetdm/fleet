@@ -502,7 +502,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if cmd.CLI.String("team") == "global" || cmd.CLI.String("team") == "" {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 			Filename: "default.yml",
-			Note:     "Warning: YARA rules are not supported by the migration tool at this time. If you have existing YARA rules, please ensure they are added to the new default.yml file.",
+			Note:     "Warning: YARA rules are not supported by this tool yet. If you have existing YARA rules, add them to the new default.yml file.",
 		})
 	}
 
@@ -601,7 +601,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		}
 		orgSettings["secrets"] = secrets
 	} else {
-		orgSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment("default.yml", "TODO: Add your enrollment secrets here")}}
+		orgSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment("default.yml", "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: "default.yml",
 			Key:      "org_settings.secrets",
@@ -800,7 +800,7 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		}
 		teamSettings["secrets"] = secrets
 	} else {
-		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enrollment secrets here")}}
+		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
 			Key:      "team_settings.secrets",
@@ -862,7 +862,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
 			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 				Filename: teamName,
-				Note:     "The macos_setup configuration is not supported by this tool yet.  Please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup to configure it.",
+				Note:     "The macos_setup configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
 			})
 		}
 	}
@@ -1026,7 +1026,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 				}
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
-					Note:     fmt.Sprintf("Warning: policy %s software installer has no hash_sha256.  This is required for GitOps to work.  Please add it manually.", policy.Name),
+					Note:     fmt.Sprintf("Warning: policy %s software (install_software) has no hash_sha256.  This is required for GitOps to work.  Please add the hash_sha256 manually.", policy.Name),
 				})
 			}
 		}
