@@ -1991,12 +1991,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 	t.Run("with profiles", func(t *testing.T) {
 		p1, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("p1", "p1.identifier", "p1.uuid"), nil)
 		require.NoError(t, err)
-		_, err = s.ds.NewMDMAppleConfigProfile(ctx, *p1)
+		_, err = s.ds.NewMDMAppleConfigProfile(ctx, *p1, nil)
 		require.NoError(t, err)
 
 		p2, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("p2", "p2.identifier", "p2.uuid"), &testTeam.ID)
 		require.NoError(t, err)
-		_, err = s.ds.NewMDMAppleConfigProfile(ctx, *p2)
+		_, err = s.ds.NewMDMAppleConfigProfile(ctx, *p2, nil)
 		require.NoError(t, err)
 
 		var resp listMDMAppleConfigProfilesResponse
@@ -2015,7 +2015,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 
 		p3, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("p3", "p3.identifier", "p3.uuid"), &testTeam.ID)
 		require.NoError(t, err)
-		_, err = s.ds.NewMDMAppleConfigProfile(ctx, *p3)
+		_, err = s.ds.NewMDMAppleConfigProfile(ctx, *p3, nil)
 		require.NoError(t, err)
 
 		resp = listMDMAppleConfigProfilesResponse{}
@@ -3475,13 +3475,13 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		if i%2 == 0 {
 			prof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest(name, name+".identifier", name+".uuid"), nil)
 			require.NoError(t, err)
-			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *prof)
+			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *prof, nil)
 			require.NoError(t, err)
 
 			tprof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("t"+name, "t"+name+".identifier", "t"+name+".uuid"), nil)
 			require.NoError(t, err)
 			tprof.TeamID = &tm1.ID
-			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
+			_, err = s.ds.NewMDMAppleConfigProfile(ctx, *tprof, nil)
 			require.NoError(t, err)
 		} else {
 			_, err = s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, SyncML: []byte(`<Replace></Replace>`)})
@@ -3507,7 +3507,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 		{LabelID: lblBar.ID, LabelName: lblBar.Name},
 	}
-	tm2ProfF, err := s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
+	tm2ProfF, err := s.ds.NewMDMAppleConfigProfile(ctx, *tprof, nil)
 	require.NoError(t, err)
 	// checksum is not returned by New..., so compute it manually
 	checkSum := md5.Sum(tm2ProfF.Mobileconfig) // nolint:gosec // used only for test
@@ -5787,8 +5787,17 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		globalProfiles[0],
 		mobileconfigForTest("N2", "$FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
-		http.StatusNoContent)
+	// via the deprecated endpoint, this fails because variables are not supported
+	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
+		http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "profile variables are not supported by this deprecated endpoint")
+
+	// via the new endpoint, this works
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: globalProfilesPlusOne[0]},
+		{Name: "N2", Contents: globalProfilesPlusOne[1]},
+	}}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
@@ -5826,8 +5835,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	assert.Len(t, profiles, 3)
 
 	// Add a profile again
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
-		http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: globalProfilesPlusOne[0]},
+		{Name: "N2", Contents: globalProfilesPlusOne[1]},
+	}}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
@@ -5876,8 +5887,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	assert.Empty(t, removes)
 
 	// Add a profile again
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfilesPlusOne},
-		http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: globalProfilesPlusOne[0]},
+		{Name: "N2", Contents: globalProfilesPlusOne[1]},
+	}}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	// Delete a profile before it is sent to both devices

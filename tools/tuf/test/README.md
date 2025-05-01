@@ -20,7 +20,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
-SYSTEMS="macos windows linux linux-arm64" \
+SYSTEMS="macos windows linux linux-arm64 windows-arm64" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
 DEB_FLEET_URL=https://host.docker.internal:8080 \
@@ -35,6 +35,7 @@ GENERATE_DEB_ARM64=1 \
 GENERATE_RPM=1 \
 GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
+GENERATE_MSI_ARM64=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
@@ -118,7 +119,7 @@ make osqueryd-app-tar-gz version=5.5.1 out-path=.
 # Push the osqueryd target as a new version
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.5.1
 ```
-NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://tuf.fleetctl.com/).
+NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://updates.fleetdm.com/).
 
 E.g. to add a new version of `desktop` for macOS:
 ```sh

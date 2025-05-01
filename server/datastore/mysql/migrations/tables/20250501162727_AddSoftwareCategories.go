@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250424162727, Down_20250424162727)
+	MigrationClient.AddMigration(Up_20250501162727, Down_20250501162727)
 }
 
-func Up_20250424162727(tx *sql.Tx) error {
+func Up_20250501162727(tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS software_categories  (
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		name VARCHAR(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -52,6 +52,6 @@ func Up_20250424162727(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250424162727(tx *sql.Tx) error {
+func Down_20250501162727(tx *sql.Tx) error {
 	return nil
 }
