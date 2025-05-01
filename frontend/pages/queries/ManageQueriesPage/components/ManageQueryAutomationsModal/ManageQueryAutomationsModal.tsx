@@ -24,6 +24,7 @@ interface IManageQueryAutomationsModalProps {
   availableQueries?: ISchedulableQuery[];
   automatedQueryIds: number[];
   logDestination: string;
+  webhookDestination?: string;
 }
 
 interface ICheckedQuery {
@@ -121,7 +122,7 @@ const ManageQueryAutomationsModal = ({
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
           Query automations let you send data to your log destination on a
-          schedule. Data is sent according to a query’s frequency.
+          schedule. Data is sent according to a query&apos;s frequency.
         </div>
         {availableQueries?.length ? (
           <div className={`${baseClass}__select form-field`}>
@@ -139,8 +140,6 @@ const ManageQueryAutomationsModal = ({
                         name={name}
                         onChange={() => {
                           updateQueryItems(id);
-                          // !isChecked &&
-                          //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
                         disabled={gitOpsModeEnabled}
                       >
@@ -164,7 +163,10 @@ const ManageQueryAutomationsModal = ({
         <div className={`${baseClass}__log-destination form-field`}>
           <div className="form-field__label">Log destination:</div>
           <div className={`${baseClass}__selection`}>
-            <LogDestinationIndicator logDestination={logDestination} />
+            <LogDestinationIndicator
+              logDestination={logDestination}
+              webhookDestination={webhookDestination}
+            />
           </div>
           <div className={`${baseClass}__configure form-field__help-text`}>
             Users with the admin role can&nbsp;

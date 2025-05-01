@@ -376,6 +376,7 @@ const ManageQueriesPage = ({
             availableQueries={queriesAvailableToAutomate}
             automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
+            webhookDestination={???}
           />
         )}
         {showPreviewDataModal && (

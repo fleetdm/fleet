@@ -5,6 +5,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ILogDestinationIndicatorProps {
   logDestination: string;
+  webhookDestination?: string;
   excludeTooltip?: boolean;
 }
 
@@ -17,6 +18,7 @@ const generateClassTag = (rawValue: string): string => {
 
 const LogDestinationIndicator = ({
   logDestination,
+  webhookDestination,
   excludeTooltip = false,
 }: ILogDestinationIndicatorProps) => {
   const classTag = generateClassTag(logDestination);
@@ -41,6 +43,8 @@ const LogDestinationIndicator = ({
         return "Apache Kafka";
       case "stdout":
         return "Standard output (stdout)";
+      case "webhook":
+        return "Webhook";
       case "":
         return "Not configured";
       default:
@@ -97,6 +101,12 @@ const LogDestinationIndicator = ({
           <>
             Each time a query runs, the data is sent to <br />
             standard output(stdout) on the Fleet server.
+          </>
+        );
+      case: "webhook":
+        return (
+          <>
+            Each time a query runs, the data is sent via webhook to {webhookDestination}
           </>
         );
       case "":
