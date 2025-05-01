@@ -975,15 +975,15 @@ type MDMAppleSoftwareUpdateAsset struct {
 	Build          string `json:"Build"`
 }
 
-type MDMBulkUpsertManagedCertificatePayload struct {
-	ProfileUUID          string
-	HostUUID             string
-	ChallengeRetrievedAt *time.Time
-	NotValidBefore       *time.Time
-	NotValidAfter        *time.Time
-	Type                 CAConfigAssetType
-	CAName               string
-	Serial               *string
+type MDMManagedCertificate struct {
+	ProfileUUID          string            `db:"profile_uuid"`
+	HostUUID             string            `db:"host_uuid"`
+	ChallengeRetrievedAt *time.Time        `db:"challenge_retrieved_at"`
+	NotValidBefore       *time.Time        `db:"not_valid_before"`
+	NotValidAfter        *time.Time        `db:"not_valid_after"`
+	Type                 CAConfigAssetType `db:"type"`
+	CAName               string            `db:"ca_name"`
+	Serial               *string           `db:"serial"`
 }
 
 // MDMAppleEnrolledDeviceInfo represents the information of a device enrolled

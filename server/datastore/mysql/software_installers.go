@@ -2329,7 +2329,8 @@ SELECT
 	si.platform AS platform,
 	st.source AS source,
 	st.bundle_identifier AS bundle_identifier,
-	st.name AS title
+	st.name AS title,
+	si.package_ids AS package_ids
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -2358,6 +2359,9 @@ WHERE
 		}
 		if _, ok := set[tmID]; ok {
 			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
+		}
+		if installer.PackageIDList != "" {
+			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
 		}
 		set[tmID] = installer
 	}

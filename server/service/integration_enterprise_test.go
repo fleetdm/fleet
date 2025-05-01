@@ -17199,6 +17199,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 			w.Header().Set("Content-Type", "application/vnd.microsoft.portable-executable")
 			_, err = io.Copy(w, file)
 			require.NoError(t, err)
+		case "/app.pkg":
+			file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/x-newton-compatible-pkg")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -17389,4 +17396,70 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
 	require.Contains(t, errMsg, "Couldn't edit. Uninstall script is required for .exe packages.")
+
+	// add both scripts to get a success
+	softwareToInstall[1].InstallScript = "echo install 2"
+	softwareToInstall[1].UninstallScript = "echo uninstall 2"
+	softwareToInstall[1].SHA256 = exeHash
+
+	// add the pkg installer with some custom scripts
+	pkgURL := srv.URL + "/app.pkg"
+	softwareToInstall = append(softwareToInstall, &fleet.SoftwareInstallerPayload{
+		URL:             pkgURL,
+		InstallScript:   "some install script",
+		UninstallScript: "some uninstall script",
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 3)
+	pkgTitleID := packages[2].TitleID
+	require.NotNil(t, pkgTitleID)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
+	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, "DummyApp.app", stResp.SoftwareTitle.Name)
+	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
+	require.Equal(t, softwareToInstall[2].InstallScript, stResp.SoftwareTitle.SoftwarePackage.InstallScript)
+	require.Equal(t, softwareToInstall[2].UninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+
+	expectedUninstallScript := `#!/bin/sh
+
+# Fleet extracts and saves package IDs.
+pkg_ids=(
+  "com.example.dummy"
+)
+
+# For each package id, get all .app folders associated with the package and remove them.
+for pkg_id in "${pkg_ids[@]}"
+do
+  # Get volume and location of the package.
+  volume=$(pkgutil --pkg-info "$pkg_id" | grep -i "volume" | awk '{if (NF>1) print $NF}')
+  location=$(pkgutil --pkg-info "$pkg_id" | grep -i "location" | awk '{if (NF>1) print $NF}')
+  # Check if this package id corresponds to a valid/installed package
+  if [[ ! -z "$volume" ]]; then
+    # Remove individual directories that end with ".app" belonging to the package.
+    # Only process directories that end with ".app" to prevent Fleet from removing top level directories.
+    pkgutil --only-dirs --files "$pkg_id" | grep "\.app$" | sed -e 's@^@'"$volume""$location"'/@' | tr '\n' '\0' | xargs -n 1 -0 rm -rf
+    # Remove receipts
+    pkgutil --forget "$pkg_id"
+  else
+    echo "WARNING: volume is empty for package ID $pkg_id"
+  fi
+done
+`
+
+	// remove the custom scripts from the .pkg. We should get back the auto-generated ones.
+	softwareToInstall[2].InstallScript = ""
+	softwareToInstall[2].UninstallScript = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 3)
+	pkgTitleID = packages[2].TitleID
+	require.NotNil(t, pkgTitleID)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
+	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, "DummyApp.app", stResp.SoftwareTitle.Name)
+	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
+	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
+	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
 }

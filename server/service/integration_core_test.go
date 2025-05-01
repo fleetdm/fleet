@@ -13174,7 +13174,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			NotValidAfter:  notValidAfterTimes[i],
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, certs))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}

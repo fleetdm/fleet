@@ -39,6 +39,7 @@ const (
 	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
 	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
 
 	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
