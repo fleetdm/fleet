@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250422154429, Down_20250422154429)
+	MigrationClient.AddMigration(Up_20250501140157, Down_20250501140157)
 }
 
-func Up_20250422154429(tx *sql.Tx) error {
+func Up_20250501140157(tx *sql.Tx) error {
 	// Using char over varchar because sha256 is always a fixed length of 64 characters
 	_, err := tx.Exec(`
 ALTER TABLE host_software_installed_paths
@@ -22,6 +22,6 @@ ADD COLUMN executable_sha256 CHAR(64) COLLATE utf8mb4_unicode_ci NULL
 	return nil
 }
 
-func Down_20250422154429(tx *sql.Tx) error {
+func Down_20250501140157(tx *sql.Tx) error {
 	return nil
 }

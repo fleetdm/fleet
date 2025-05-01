@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250422154429(t *testing.T) {
+func TestUp_20250501140157(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create an existing host_mdm_actions row
