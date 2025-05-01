@@ -168,12 +168,12 @@ func hostSoftwareInstalledPathsDelta(
 		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 3)
 		installedPath, teamIdentifier, unqStr := parts[0], parts[1], parts[2]
 
-		// Shouldn't be possible ... everything 'reported' should be in the the software table
+		// Shouldn't be a common occurance ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
 		s, ok := sUnqStrLook[unqStr]
 		if !ok {
-			err = fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
-			return
+			// this condition is only expected occur for electron helper apps on macOS where multiple helper apps share the same bundle identifier
+			continue
 		}
 
 		if _, ok := iSPathLookup[key]; ok {
