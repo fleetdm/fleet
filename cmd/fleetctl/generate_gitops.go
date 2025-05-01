@@ -751,7 +751,7 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	result := map[string]interface{}{
 		jsonFieldName(t, "AppleServerURL"):              mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"):       mdm.EndUserAuthentication,
-		jsonFieldName(t, "WindowsEnabledAndConfigured"): mdm.WindowsEnabledAndConfigured,
+		jsonFieldName(t, "WindowsEnabledAndConfigured"): cmd.AppConfig.MDM.WindowsEnabledAndConfigured,
 	}
 	if cmd.AppConfig.License.IsPremium() {
 		result[jsonFieldName(t, "AppleBusinessManager")] = mdm.AppleBusinessManager
