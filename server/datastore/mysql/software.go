@@ -2918,7 +2918,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                     hvsi2.removed = 0 AND
 					hvsi2.canceled = 0 AND
                     (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
-			LEFT JOIN
+			INNER JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
@@ -3154,9 +3154,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if s.VPPAppAdamID != nil {
 			// If a VPP app is already installed on the host, we don't need to double count it
 			// until we merge the two fetch queries later on in this method
-			// we have to manually remove any VPP apps that are also being returned by the host_software table
+			// until then if the host_software record is not a software installer, we delete it and keep the vpp app
 			if _, exists := hostInstalledSoftwareTitleSet[s.ID]; exists {
-				continue
+				installedTitle := bySoftwareTitleID[s.ID]
+				if installedTitle.InstallerID == nil {
+					// not a software installer, so
+					s.LastOpenedAt = installedTitle.LastOpenedAt
+					delete(bySoftwareTitleID, s.ID)
+				} else {
+					continue
+				}
 			}
 			byVPPAdamID[*s.VPPAppAdamID] = s
 		}
