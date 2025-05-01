@@ -61,6 +61,10 @@
     align-self: stretch;
 
     &__text__user-text {
+      ul {
+        padding-left: 20px;
+        margin-top: $pad-xxsmall;
+      }
       a {
         color: $core-fleet-black;
         font-weight: normal;
