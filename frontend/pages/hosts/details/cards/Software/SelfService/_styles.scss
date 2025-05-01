@@ -32,6 +32,10 @@
       align-items: center;
       gap: $pad-small;
     }
+
+    .self-service-table__item-status-button {
+      height: auto;
+    }
   }
 
   .categories-menu {

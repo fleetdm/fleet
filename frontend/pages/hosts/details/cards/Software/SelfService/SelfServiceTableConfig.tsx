@@ -76,13 +76,12 @@ interface InstallUuid {
 
 export type InstallOrCommandUuid = CommandUuid | InstallUuid;
 
-type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
+type IInstallerStatusProps = Pick<IHostSoftware, "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 };
 
 const InstallerStatus = ({
-  id,
   status,
   last_install,
   onShowInstallerDetails,
@@ -142,7 +141,6 @@ interface IInstallerStatusActionProps {
   deviceToken: string;
   software: IHostSoftware;
   onInstall: () => void;
-  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 }
 
 const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
@@ -175,7 +173,6 @@ const InstallerStatusAction = ({
   deviceToken,
   software: { id, status, software_package, app_store_app },
   onInstall,
-  onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -300,7 +297,6 @@ export const generateSoftwareTableHeaders = ({
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
         <InstallerStatus
-          id={cellProps.row.original.id}
           status={cellProps.row.original.status}
           last_install={
             cellProps.row.original.software_package?.last_install || null
@@ -319,7 +315,6 @@ export const generateSoftwareTableHeaders = ({
             deviceToken={deviceToken}
             software={cellProps.row.original}
             onInstall={onInstall}
-            onShowInstallerDetails={onShowInstallerDetails}
           />
         );
       },
