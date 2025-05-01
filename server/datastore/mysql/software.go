@@ -151,9 +151,7 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 		var sha256 string
-		if r.ExecutableSHA256 == nil {
-			sha256 = ""
-		} else {
+		if r.ExecutableSHA256 != nil {
 			sha256 = *r.ExecutableSHA256
 		}
 		key := fmt.Sprintf(

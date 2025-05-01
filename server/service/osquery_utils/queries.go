@@ -1214,7 +1214,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	//     (having big queries can cause performance issues or be denylisted).
 	"macos_codesign": {
 		Query: `
-		SELECT a.path, c.team_identifier, c.cdhash_sha256
+		SELECT a.path, c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 	`,
@@ -1229,9 +1229,14 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 
 			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
 			for _, codesignResult := range codesignResults {
+				var cdhashSha256 string
+				if hash, ok := codesignResult["cdhash_sha256"]; ok {
+					cdhashSha256 = hash
+				}
+
 				codesignInformation[codesignResult["path"]] = codesignResultRow{
 					teamIdentifier: codesignResult["team_identifier"],
-					cdhashSHA256:   codesignResult["cdhash_sha256"],
+					cdhashSHA256:   cdhashSha256,
 				}
 			}
 			if len(codesignInformation) == 0 {
