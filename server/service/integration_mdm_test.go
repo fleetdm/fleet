@@ -14473,7 +14473,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		{Name: "CustomSCEP2", Contents: customSCEPMobileconfig2},
 	}}, http.StatusBadRequest)
 	errMsg = extractServerErrorText(resp.Body)
-	assert.Contains(t, errMsg, "Add only one SCEP payload when using variables for certificate authority")
+	assert.Contains(t, errMsg, fleet.MultipleSCEPPayloadsErrMsg)
 
 	// /////////////////////////////////////////
 	// Happy path: upload the profile containing a single valid SCEP config

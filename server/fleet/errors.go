@@ -645,6 +645,9 @@ const (
 
 	// Config
 	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
+
+	// NDES/SCEP validation
+	MultipleSCEPPayloadsErrMsg = "Add only one SCEP payload."
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

@@ -533,7 +533,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			case fleet.FleetVarNDESSCEPChallenge:
 				ndesVars, ok = ndesVars.SetChallenge()
 			case fleet.FleetVarSCEPRenewalID:
-				customSCEPVars, ok = customSCEPVars.SetRenewalIDFound()
+				customSCEPVars, ok = customSCEPVars.SetRenewalID()
 				if ok {
 					ndesVars, ok = ndesVars.SetRenewalID()
 				}
@@ -553,9 +553,15 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	// TODO: Both Custom SCEP and NDES share RenewalID -- clean up this validation for corner cases such as: both SCEP and NDES variables present in
-	//  one profile
-	if customSCEPVars.Found() && (!ndesVars.Found() || ndesVars.RenewalOnly()) {
+	// Since both custom SCEP and NDES share the renewal ID Fleet variable, we need to figure out which one to validate.
+	if customSCEPVars.Found() && ndesVars.Found() {
+		if ndesVars.RenewalOnly() {
+			ndesVars = nil
+		} else if customSCEPVars.RenewalOnly() {
+			customSCEPVars = nil
+		}
+	}
+	if customSCEPVars.Found() {
 		if !customSCEPVars.Ok() {
 			return nil, &fleet.BadRequestError{Message: customSCEPVars.ErrorMessage()}
 		}
@@ -564,7 +570,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			return nil, err
 		}
 	}
-	if ndesVars.Found() && (!customSCEPVars.Found() || !customSCEPVars.Ok()) {
+	if ndesVars.Found() {
 		if !ndesVars.Ok() {
 			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
 		}
@@ -669,7 +675,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 		}
 	}
 	if scepPayloadsFound > 1 {
-		return &fleet.BadRequestError{Message: "Add only one SCEP payload when using variables for certificate authority"}
+		return &fleet.BadRequestError{Message: fleet.MultipleSCEPPayloadsErrMsg}
 	}
 
 	for _, payload := range scepProf.PayloadContent {
@@ -4886,6 +4892,10 @@ func (cs *customSCEPVarsFound) Found() bool {
 	return cs != nil
 }
 
+func (cs *customSCEPVarsFound) RenewalOnly() bool {
+	return cs != nil && len(cs.urlCA) == 0 && len(cs.challengeCA) == 0 && cs.renewalIdFound
+}
+
 func (cs *customSCEPVarsFound) CAs() []string {
 	if cs == nil {
 		return nil
@@ -4942,7 +4952,7 @@ func (cs *customSCEPVarsFound) SetChallenge(value string) (*customSCEPVarsFound,
 	return cs, !alreadyPresent
 }
 
-func (cs *customSCEPVarsFound) SetRenewalIDFound() (*customSCEPVarsFound, bool) {
+func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 	if cs == nil {
 		cs = &customSCEPVarsFound{}
 	}
