@@ -800,8 +800,8 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadChallenge) > maxValueCharsInError {
 			payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" +
-			fleet.FleetVarSCEPRenewalID + " must exactly match SCEP payload's 'Challenge' field. Got: " + payloadChallenge}
+		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
+			fleet.FleetVarNDESSCEPChallenge + "\" must exactly match SCEP payload's 'Challenge' field. Got: " + payloadChallenge}
 	}
 	ndesURL := "FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
 	if scepPayloadContent.URL != "$"+ndesURL && scepPayloadContent.URL != "${"+ndesURL+"}" {
@@ -809,8 +809,8 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadURL) > maxValueCharsInError {
 			payloadURL = payloadURL[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPProxyURL + " must exactly match SCEP payload's 'URL' field. Got: " + payloadURL}
+		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
+			fleet.FleetVarNDESSCEPProxyURL + "\" must exactly match SCEP payload's 'URL' field. Got: " + payloadURL}
 	}
 	return nil
 }
@@ -4863,7 +4863,7 @@ func (n *ndesVarsFound) RenewalOnly() bool {
 
 func (n *ndesVarsFound) ErrorMessage() string {
 	if n.renewalIdFound && !n.urlFound && !n.challengeFound {
-		return "Variable ${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" can't be used if variables for SCEP URL and Challenge are not specified."
+		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
 	}
 	return fleet.NDESSCEPVariablesMissingErrMsg
 }
@@ -4954,11 +4954,11 @@ func (cs *customSCEPVarsFound) CAs() []string {
 }
 
 func (cs *customSCEPVarsFound) ErrorMessage() string {
+	if cs.renewalIdFound && len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
+		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
+	}
 	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
 		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
-	}
-	if len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
-		return "Variable ${FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + "}\" can't be used if variables for SCEP URL and Challenge are not specified."
 	}
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {

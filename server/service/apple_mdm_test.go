@@ -4897,13 +4897,19 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "NDES challenge is not a fleet variable",
 			profile: customSCEPForValidation("x$FLEET_VAR_NDES_SCEP_CHALLENGE", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must exactly match SCEP payload's 'Challenge' field. Got: x$FLEET_VAR_NDES_SCEP_CHALLENGE",
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE\" must exactly match SCEP payload's 'Challenge' field. Got: x$FLEET_VAR_NDES_SCEP_CHALLENGE",
 		},
 		{
 			name: "NDES url is not a fleet variable",
 			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_NDES_SCEP_PROXY_URL must exactly match SCEP payload's 'URL' field. Got: x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must exactly match SCEP payload's 'URL' field. Got: x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+		},
+		{
+			name: "SCEP renewal ID without other variables",
+			profile: customSCEPForValidation("challenge", "url",
+				"Name", "com.apple.security.scep"),
+			errMsg: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg,
 		},
 		{
 			name: "NDES happy path",
