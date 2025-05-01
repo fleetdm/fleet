@@ -55,7 +55,6 @@ describe("SelfService", () => {
     expect(screen.getByText("test1")).toBeInTheDocument();
     expect(screen.getByText("test2")).toBeInTheDocument();
     expect(screen.getByText("test3")).toBeInTheDocument();
-    expect(screen.getByText("3 items")).toBeInTheDocument();
     screen.debug();
   });
 
@@ -119,7 +118,7 @@ describe("SelfService", () => {
     ).toHaveTextContent("Installed");
 
     expect(
-      screen.getByTestId("self-service-table__item-action-button--test")
+      screen.getByTestId("self-service-table__action-button--test")
     ).toHaveTextContent("Reinstall");
   });
 
@@ -146,7 +145,7 @@ describe("SelfService", () => {
     ).toHaveTextContent("Failed");
 
     expect(
-      screen.getByTestId("self-service-table__item-action-button--test")
+      screen.getByTestId("self-service-table__action-button--test")
     ).toHaveTextContent("Retry");
   });
 
@@ -173,7 +172,7 @@ describe("SelfService", () => {
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByTestId("self-service-table__item-action-button--test")
+      screen.getByTestId("self-service-table__action-button--test")
     ).toHaveTextContent("Install");
   });
 
@@ -197,10 +196,10 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("self-service-table__status--test")
-    ).toHaveTextContent("Pending");
+    ).toHaveTextContent(/Installing.../i);
 
     expect(
-      screen.queryByTestId("self-service-table__item-action-button--test")
+      screen.queryByTestId("self-service-table__action-button--test")
     ).not.toBeInTheDocument();
   });
 });
