@@ -374,7 +374,7 @@ func executeMDMcommand(inputCMD string) (string, error) {
 	if err == nil {
 		// closing handle just opened due to OpenMutex()
 		if err := windows.CloseHandle(handle); err != nil {
-			return "", err
+			log.Warn().Msgf("error from CloseHandle() on handle returned from OpenMutex() for MDM mutex: (%s)", err)
 		}
 		// then closing previously used handle
 		if err := closeManagementMutex(); err != nil {
