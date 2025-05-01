@@ -1,1 +1,3 @@
+ hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
+pre_install_query:
   path: ../queries/pre-install-query-google-chrome.yml
