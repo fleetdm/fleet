@@ -1110,7 +1110,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 	result := make(map[string]interface{})
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
-	fmaAppNames := make([]string, 0)
 	for _, sw := range software {
 		versions := make([]string, len(sw.Versions))
 		for j, version := range sw.Versions {
@@ -1187,10 +1186,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint)
 
 			if softwareTitle.SoftwarePackage.SelfService {
 				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
-			}
-
-			if softwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-				fmaAppNames = append(fmaAppNames, sw.Name)
 			}
 		}
 

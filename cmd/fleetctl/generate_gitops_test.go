@@ -382,7 +382,7 @@ func (MockClient) Me() (*fleet.User, error) {
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {
-	filepath.WalkDir(sourceDir, func(srcPath string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(sourceDir, func(srcPath string, d os.DirEntry, walkErr error) error {
 		if d.IsDir() {
 			return nil
 		}
@@ -406,6 +406,9 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 
 		return nil
 	})
+	if err != nil {
+		t.Fatalf("Error walking source directory: %v", err)
+	}
 }
 
 func TestGenerateGitops(t *testing.T) {
