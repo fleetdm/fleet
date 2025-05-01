@@ -123,10 +123,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
 };
 
-type IInstallStatusCellProps = Pick<
-  IHostSoftware,
-  "status" | "software_package" | "app_store_app"
->;
+type IInstallStatusCellProps = Pick<IHostSoftware, "status"> &
+  Partial<Pick<IHostSoftware, "software_package" | "app_store_app">>;
 
 const InstallStatusCell = ({
   status,

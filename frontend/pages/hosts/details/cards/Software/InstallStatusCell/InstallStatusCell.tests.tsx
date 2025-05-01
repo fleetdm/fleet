@@ -1,9 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
-import userEvent from "@testing-library/user-event";
 import {
-  createMockHostSoftware,
   createMockHostAppStoreApp,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
@@ -16,25 +14,12 @@ jest.mock("lodash", () => ({
   uniqueId: jest.fn(() => "test-tooltip-id"),
 }));
 
-const baseProps = {
-  id: 1,
-  name: "Test Software",
-  version: "1.0.0",
-  source: "test",
-  bundle_identifier: "com.test.software",
-  hosts_count: 1,
-  status: null,
-  software_package: null,
-  app_store_app: null,
-};
-
 const testSoftwarePackage = createMockHostSoftwarePackage();
 
 describe("InstallStatusCell - component", () => {
   it("renders 'Installed' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         status="installed"
         software_package={testSoftwarePackage}
       />
@@ -49,7 +34,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Installing (pending)' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         status="pending_install"
         software_package={testSoftwarePackage}
       />
@@ -66,7 +50,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Uninstalling (pending)' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         status="pending_uninstall"
         software_package={testSoftwarePackage}
       />
@@ -83,7 +66,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Install (failed)' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         status="failed_install"
         software_package={testSoftwarePackage}
       />
@@ -100,7 +82,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Uninstall (failed)' status with tooltip", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         status="failed_uninstall"
         software_package={testSoftwarePackage}
       />
@@ -116,11 +97,7 @@ describe("InstallStatusCell - component", () => {
 
   it("renders 'Available for install' for package", async () => {
     const { user } = renderWithSetup(
-      <InstallStatusCell
-        {...baseProps}
-        software_package={testSoftwarePackage}
-        status={null}
-      />
+      <InstallStatusCell software_package={testSoftwarePackage} status={null} />
     );
 
     expect(screen.getByText("Available for install")).toBeInTheDocument();
@@ -132,7 +109,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Available for install' for App Store app", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         software_package={{ ...testSoftwarePackage, self_service: false }}
         status={null}
       />
@@ -147,7 +123,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Self-service' for package with self_service true", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         software_package={{
           ...testSoftwarePackage,
           name: "SelfService Software",
@@ -166,7 +141,6 @@ describe("InstallStatusCell - component", () => {
   it("renders 'Self-service' for App Store app with self_service true", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
-        {...baseProps}
         app_store_app={createMockHostAppStoreApp({ self_service: true })}
         status={null}
       />
@@ -179,7 +153,7 @@ describe("InstallStatusCell - component", () => {
   });
 
   it("renders placeholder for missing status and packages", () => {
-    render(<InstallStatusCell {...baseProps} />);
+    render(<InstallStatusCell status={null} />);
 
     expect(screen.getByText("---")).toBeInTheDocument();
   });
