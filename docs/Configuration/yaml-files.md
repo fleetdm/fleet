@@ -467,24 +467,34 @@ Currently, one app for each of an App Store app's supported platforms are added.
 
 #### Example
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any: # Available in Fleet Premium
+      labels_include_any:
         - Engineering
         - Customer Support
   app_store_apps:
     - app_store_id: '1091189122'
-      labels_include_any: # Available in Fleet Premium
+      labels_include_any:
         - Product
         - Marketing
+      categories:
+        - Communication
 ```
 
 Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+##### Supported software categories
+
+Use `categories` to group self-service software on your end users' **Fleet Desktop > My device** page. Here are the supported categories:
+- `Browsers`: group under **🌎 Browsers**
+- `Communication`: group under **👬 Communication**
+- `Developer tools`: group under **🧰 Developer tools**
+- `Productivity`: group under **🖥️ Productivity**
 
 ### packages
 
@@ -495,6 +505,7 @@ Use `labels_include_any` to target hosts that have any label or `labels_exclude_
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `categories` is an array of categories. See [supported categories](#supported-software-categories).
 
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
@@ -510,6 +521,8 @@ uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
+categories:
+  - Browsers
 self_service: true
 ```
 
@@ -520,6 +533,7 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `categories` is an array of categories. See [supported categories](#supported-software-categories).
 
 ## org_settings and team_settings
 
