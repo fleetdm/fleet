@@ -175,9 +175,9 @@ func getSearcher(locale string) (*windowsupdate.IUpdateSearcher, string, int, er
 	}
 	if strconv.FormatUint(uint64(getLocale), 10) != locale && isDefaultLocale == 0 {
 		return nil, locale, isDefaultLocale, fmt.Errorf("set locale(%s) doesn't match returned locale(%d) sqlite will filter: %w", locale, getLocale, err)
-	} else {
-		locale = strconv.FormatUint(uint64(getLocale), 10)
 	}
+
+	locale = strconv.FormatUint(uint64(getLocale), 10)
 
 	searcher, err := session.CreateUpdateSearcher()
 	if err != nil {
