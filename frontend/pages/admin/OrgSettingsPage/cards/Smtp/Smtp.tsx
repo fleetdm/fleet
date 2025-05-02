@@ -224,7 +224,7 @@ const Smtp = ({
   const renderSesEnabled = () => {
     const sesBaseClass = `${baseClass}__ses-enabled`;
     return (
-      <Card paddingSize="xxlarge" className={`${sesBaseClass}__ses-enabled`}>
+      <Card paddingSize="xxlarge" className={sesBaseClass}>
         <div className={`${sesBaseClass}__content`}>
           <p className={`${sesBaseClass}__title`}>Email already configured</p>
           <p>
