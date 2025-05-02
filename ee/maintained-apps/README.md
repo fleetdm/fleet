@@ -75,7 +75,12 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
 3. Then, the EM builds the app's `outputs/` on the same PR. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
 4. The Product Designer is responsible for testing the app:
-- If the app is a new app, add an icon for the app to the PR. App icons are located [here in the repository](https://github.com/fleetdm/fleet/tree/main/frontend/pages/SoftwarePage/components/icons).
-- [Run Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md#clone-and-build) and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+- If the app is a new app, add an icon for the app to the PR. App icons are located [here in the repository](https://github.com/fleetdm/fleet/tree/main/frontend/pages/SoftwarePage/components/icons). Run the [Docker publish GitHub action]() to add the tag to [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags).
+- Run the following `fleetctl preview` command and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+
+```
+fleetctl preview --tag=<Docker-tag> --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+```
+
 5. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
 6. If the test is successful, the PD approves and merges the PR. For new apps, the PD opens a user story to test the new icon, adds it to the #g-software board (`:release` and `#g-software` labels), and assigns the EM.
