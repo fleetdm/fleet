@@ -1150,9 +1150,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 		}
 
 		if softwareTitle.SoftwarePackage != nil {
+			filenamePrefix := generateFilename(sw.Name) + "-" + sw.SoftwarePackage.Platform
 			if softwareTitle.SoftwarePackage.InstallScript != "" {
 				script := softwareTitle.SoftwarePackage.InstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, generateFilename(sw.Name)+"-install")
+				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["install_script"] = map[string]interface{}{
 					"path": path,
@@ -1162,7 +1163,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 
 			if softwareTitle.SoftwarePackage.PostInstallScript != "" {
 				script := softwareTitle.SoftwarePackage.PostInstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, generateFilename(sw.Name)+"-postinstall")
+				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["post_install_script"] = map[string]interface{}{
 					"path": path,
@@ -1172,7 +1173,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 
 			if softwareTitle.SoftwarePackage.UninstallScript != "" {
 				script := softwareTitle.SoftwarePackage.UninstallScript
-				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, generateFilename(sw.Name)+"-uninstall")
+				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["uninstall_script"] = map[string]interface{}{
 					"path": path,
@@ -1182,7 +1183,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 
 			if softwareTitle.SoftwarePackage.PreInstallQuery != "" {
 				query := softwareTitle.SoftwarePackage.PreInstallQuery
-				fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, generateFilename(sw.Name)+"-preinstallquery.yml")
+				fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 				path := fmt.Sprintf("../%s", fileName)
 				softwareSpec["pre_install_query"] = map[string]interface{}{
 					"path": path,
