@@ -1,15 +1,16 @@
 package update
 
 import (
-	"sync/atomic"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
 type SwiftDialogDownloader struct {
-	UpdateRunner                            *Runner
-	triggeredSetupExperienceImmediateUpdate atomic.Bool
+	UpdateRunner                   *Runner
+	triggeredSetupExperienceUpdate bool
+	runMu                          sync.Mutex
 }
 
 type SwiftDialogDownloaderOptions struct {
@@ -37,6 +38,12 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	if !s.runMu.TryLock() {
+		log.Debug().Msg("SwiftDialogDownloader: a previous instance is currently running, returning early")
+		return nil
+	}
+	defer s.runMu.Unlock()
+
 	// For #25928 we are going to always install swiftDialog as a target
 	updaterHasTarget := s.UpdateRunner.HasRunnerOptTarget("swiftDialog")
 	runnerHasLocalHash := s.UpdateRunner.HasLocalHash("swiftDialog")
@@ -57,7 +64,9 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 
 	// If we're running setup experience and we have the hashes we need to make sure we trigger
 	// an immediate update to get SwiftDialog installed and usable.
-	if cfg.Notifications.RunSetupExperience && s.triggeredSetupExperienceImmediateUpdate.CompareAndSwap(false, true) {
+	if cfg.Notifications.RunSetupExperience && !s.triggeredSetupExperienceUpdate {
+		s.triggeredSetupExperienceUpdate = true
+		log.Debug().Msg("SwiftDialogDownloader: triggering update to install swiftDialog immediately during setup experience")
 		_, err := s.UpdateRunner.UpdateAction()
 		if err != nil {
 			return err
