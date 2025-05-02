@@ -5536,7 +5536,7 @@ _Available in Fleet Premium_
 
 ##### Default response
 
-`Status: 200`
+`Status: 202`
 
 
 ### Update disk encryption enforcement
