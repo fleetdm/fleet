@@ -9,6 +9,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -1521,6 +1523,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
+		if payload.Slug != nil && *payload.Slug != "" {
+			err := svc.softwareInstallerPayloadFromSlug(ctx, payload, teamID)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting fleet maintained software installer payload from slug")
+			}
+		}
+
 		if payload.URL == "" && payload.SHA256 == "" {
 			return "", fleet.NewInvalidArgumentError(
 				"software",
@@ -1581,6 +1590,31 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	)
 
 	return requestUUID, nil
+}
+
+func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
+	slug := payload.Slug
+	if slug == nil || *slug == "" {
+		return nil
+	}
+
+	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
+	if err != nil {
+		return err
+	}
+	_, err = maintained_apps.Hydrate(ctx, app)
+	if err != nil {
+		return err
+	}
+
+	payload.URL = app.InstallerURL
+	payload.SHA256 = app.SHA256
+	payload.InstallScript = app.InstallScript
+	payload.UninstallScript = app.UninstallScript
+	payload.FleetMaintained = true
+	payload.MaintainedApp = app
+
+	return nil
 }
 
 const (
@@ -1812,8 +1846,37 @@ func (svc *Service) softwareBatchUpload(
 				installer.Filename = filename
 			}
 
+			if p.Slug != nil && *p.Slug != "" {
+				// Fleet maintained software hydration
+				// This code should be extracted for common use from here and AddFleetMaintainedApp in maintained_apps.go
+				// It's the same code and would be nice to get some reuse
+				appName := p.MaintainedApp.UniqueIdentifier
+				if p.MaintainedApp.Platform == "darwin" || appName == "" {
+					appName = p.MaintainedApp.Name
+				}
+				if installer.Filename == "" {
+					parsedURL, err := url.Parse(installer.URL)
+					if err != nil {
+						return fmt.Errorf("Error with maintained app, parsing URL: %v\n", err)
+					}
+					installer.Filename = path.Base(parsedURL.Path)
+				}
+				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
+				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
+				installer.Title = appName
+				installer.Version = p.MaintainedApp.Version
+				installer.Platform = p.MaintainedApp.Platform
+				installer.Source = p.MaintainedApp.Source()
+				installer.Extension = extension
+				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
+				installer.StorageID = p.MaintainedApp.SHA256
+				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
+				installer.AutomaticInstall = p.AutomaticInstall != nil && *p.AutomaticInstall
+				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
+			}
+
 			var ext string
-			if installer.InstallerFile != nil {
+			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					_ = installer.InstallerFile.Close() // closing the temp file here since it will not be available after the goroutine completes

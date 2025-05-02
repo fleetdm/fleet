@@ -94,8 +94,9 @@ type SoftwarePackage struct {
 }
 
 type Software struct {
-	Packages     []SoftwarePackage           `json:"packages"`
-	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	Packages            []SoftwarePackage               `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp     `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.FleetMaintainedAppsSpec `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -115,8 +116,9 @@ type GitOps struct {
 }
 
 type GitOpsSoftware struct {
-	Packages     []*fleet.SoftwarePackageSpec
-	AppStoreApps []*fleet.TeamSpecAppStoreApp
+	Packages            []*fleet.SoftwarePackageSpec
+	AppStoreApps        []*fleet.TeamSpecAppStoreApp
+	FleetMaintainedApps []*fleet.FleetMaintainedAppsSpec
 }
 
 type Logf func(format string, a ...interface{})
@@ -980,6 +982,20 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
+	}
+	for _, item := range software.FleetMaintainedApps {
+		item := item
+		if item.Slug == "" {
+			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
+			continue
+		}
+
+		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, item.Slug))
+			continue
+		}
+
+		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &item)
 	}
 	for _, item := range software.Packages {
 		var softwarePackageSpec fleet.SoftwarePackageSpec

@@ -721,6 +721,16 @@ func (c *Client) ApplyGroup(
 			}
 		}
 
+		tmFleetMaintainedApps := extractTmSpecsFleetMaintainedApps(specs.Teams)
+		for tmName, apps := range tmFleetMaintainedApps {
+			installDuringSetupKeys := tmSoftwareMacOSSetup[tmName]
+			softwarePayloads, err := buildSoftwarePackagesPayload(apps, installDuringSetupKeys)
+			if err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+			}
+			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+		}
+
 		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
 		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
 		tmSoftwareAppsByAppID := make(map[string]map[string]fleet.TeamSpecAppStoreApp, len(tmSoftwareApps))
@@ -1075,6 +1085,11 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 		}
+
+		if si.Slug != nil {
+			softwarePayloads[i].Slug = si.Slug
+			softwarePayloads[i].AutomaticInstall = si.AutomaticInstall
+		}
 	}
 
 	return softwarePayloads, nil
@@ -1407,6 +1422,50 @@ func extractTmSpecsSoftwarePackages(tmSpecs []json.RawMessage) map[string][]flee
 	return m
 }
 
+func extractTmSpecsFleetMaintainedApps(tmSpecs []json.RawMessage) map[string][]fleet.SoftwarePackageSpec {
+	var m map[string][]fleet.SoftwarePackageSpec
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name     string          `json:"name"`
+			Software json.RawMessage `json:"software"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name != "" && len(spec.Software) > 0 {
+			if m == nil {
+				m = make(map[string][]fleet.SoftwarePackageSpec)
+			}
+			var software fleet.SoftwareSpec
+			var packages []fleet.SoftwarePackageSpec
+			if err := json.Unmarshal(spec.Software, &software); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if !software.FleetMaintainedApps.Valid {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				packages = []fleet.SoftwarePackageSpec{}
+			} else {
+				for _, app := range software.FleetMaintainedApps.Value {
+					packages = append(packages, fleet.SoftwarePackageSpec{
+						Slug:             &app.Slug,
+						AutomaticInstall: app.AutomaticInstall,
+						SelfService:      app.SelfService,
+						LabelsIncludeAny: app.LabelsIncludeAny,
+						LabelsExcludeAny: app.LabelsExcludeAny,
+					})
+				}
+			}
+			m[spec.Name] = packages
+		}
+	}
+
+	return m
+}
+
 func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecAppStoreApp {
 	var m map[string][]fleet.TeamSpecAppStoreApp
 	for _, tm := range tmSpecs {
@@ -1728,6 +1787,7 @@ func (c *Client) DoGitOps(
 		team["software"] = map[string]any{}
 		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
 		team["software"].(map[string]any)["packages"] = config.Software.Packages
+		team["software"].(map[string]any)["fleet_maintained_apps"] = config.Software.FleetMaintainedApps
 		team["secrets"] = config.TeamSettings["secrets"]
 
 		// Ensure webhooks settings exists
@@ -1977,6 +2037,17 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				// can be referenced by macos_setup.software
 				packagesByPath[software.ReferencedYamlPath] = *software
 			}
+		}
+	}
+	for _, software := range config.Software.FleetMaintainedApps {
+		if software != nil {
+			packages = append(packages, fleet.SoftwarePackageSpec{
+				Slug:             &software.Slug,
+				AutomaticInstall: software.AutomaticInstall,
+				SelfService:      software.SelfService,
+				LabelsIncludeAny: software.LabelsIncludeAny,
+				LabelsExcludeAny: software.LabelsExcludeAny,
+			})
 		}
 	}
 

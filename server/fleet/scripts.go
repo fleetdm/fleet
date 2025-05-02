@@ -411,6 +411,10 @@ type SoftwareInstallerPayload struct {
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
 	SHA256          string `json:"sha256"`
+	// This is to support FMAs
+	Slug             *string        `json:"slug"`
+	AutomaticInstall *bool          `json:"automatic_install"`
+	MaintainedApp    *MaintainedApp `json:"-"`
 }
 
 type HostLockWipeStatus struct {
