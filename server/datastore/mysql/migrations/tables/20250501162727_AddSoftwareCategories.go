@@ -25,7 +25,8 @@ func Up_20250501162727(tx *sql.Tx) error {
 			software_installer_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
 			FOREIGN KEY (software_installer_id) REFERENCES software_installers (id) ON DELETE CASCADE,
-			FOREIGN KEY (software_category_id) REFERENCES software_categories (id) ON DELETE CASCADE
+			FOREIGN KEY (software_category_id) REFERENCES software_categories (id) ON DELETE CASCADE,
+			UNIQUE INDEX idx_unique_software_installer_id_software_category_id (software_installer_id,software_category_id)
 			)`)
 	if err != nil {
 		return fmt.Errorf("failed to create software_installer_software_categories table: %w", err)
@@ -37,7 +38,8 @@ func Up_20250501162727(tx *sql.Tx) error {
 			vpp_app_team_id INT UNSIGNED NOT NULL,
 			created_at DATETIME(6) NULL DEFAULT NOW(6),
 			FOREIGN KEY (vpp_app_team_id) REFERENCES vpp_apps_teams (id) ON DELETE CASCADE,
-			FOREIGN KEY (software_category_id) REFERENCES software_categories (id) ON DELETE CASCADE
+			FOREIGN KEY (software_category_id) REFERENCES software_categories (id) ON DELETE CASCADE,
+			UNIQUE INDEX idx_unique_vpp_app_team_id_software_category_id (vpp_app_team_id,software_category_id)
 			)`)
 	if err != nil {
 		return fmt.Errorf("failed to create vpp_app_team_software_categories table: %w", err)
