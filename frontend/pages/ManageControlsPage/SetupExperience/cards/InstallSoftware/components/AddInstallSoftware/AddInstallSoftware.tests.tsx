@@ -16,6 +16,7 @@ describe("AddInstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={null}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
       />
     );
 
@@ -29,6 +30,7 @@ describe("AddInstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
       />
     );
 
@@ -56,6 +58,7 @@ describe("AddInstallSoftware", () => {
           createMockSoftwareTitle(),
         ]}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
       />
     );
 

@@ -566,7 +566,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           actionButton={{
             name: "add user",
             buttonText: "Add user",
-            onActionButtonClick: toggleAddUserModal,
+            onClick: toggleAddUserModal,
           }}
           onQueryChange={onTableQueryChange}
           resultsTitle="users"

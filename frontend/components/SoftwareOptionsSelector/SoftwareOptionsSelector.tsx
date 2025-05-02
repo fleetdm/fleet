@@ -26,6 +26,8 @@ interface ISoftwareOptionsSelector {
   isCustomPackage?: boolean;
   /** Exe packages do not have ability to select automatic install */
   isExePackage?: boolean;
+  /** Tarball packages do not have ability to select automatic install */
+  isTarballPackage?: boolean;
   /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
   disableOptions?: boolean;
@@ -39,6 +41,7 @@ const SoftwareOptionsSelector = ({
   className,
   isCustomPackage,
   isExePackage,
+  isTarballPackage,
   isEditingSoftware,
   disableOptions = false,
 }: ISoftwareOptionsSelector) => {
@@ -47,19 +50,21 @@ const SoftwareOptionsSelector = ({
   const isPlatformIosOrIpados = platform === "ios" || platform === "ipados";
   const isSelfServiceDisabled = disableOptions || isPlatformIosOrIpados;
   const isAutomaticInstallDisabled =
-    disableOptions || isPlatformIosOrIpados || isExePackage;
+    disableOptions || isPlatformIosOrIpados || isExePackage || isTarballPackage;
 
-  /** Tooltip only shows when enabled or for exe package */
+  /** Tooltip only shows when enabled or for exe/tar.gz packages */
   const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled || isExePackage;
+    !isAutomaticInstallDisabled || isExePackage || isTarballPackage;
   const getAutomaticInstallTooltip = (): JSX.Element => {
-    if (isExePackage) {
+    if (isExePackage || isTarballPackage) {
       return (
         <>
-          Fleet can&apos;t create a policy to detect existing installations for
-          .exe packages. To automatically install an .exe, add a custom policy
-          and enable the install software automation on the <b>Policies</b>{" "}
-          page.
+          Fleet can&apos;t create a policy to detect existing installations for{" "}
+          {isExePackage ? ".exe packages" : ".tar.gz archives"}. To
+          automatically install{" "}
+          {isExePackage ? ".exe packages" : ".tar.gz archives"}, add a custom
+          policy and enable the install software automation on the{" "}
+          <b>Policies</b> page.
         </>
       );
     }
@@ -80,7 +85,7 @@ const SoftwareOptionsSelector = ({
         value={formData.selfService}
         onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
-        tooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+        labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
         disabled={isSelfServiceDisabled}
       >
         Self-service
@@ -90,7 +95,7 @@ const SoftwareOptionsSelector = ({
           value={formData.automaticInstall}
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
-          tooltipContent={
+          labelTooltipContent={
             showAutomaticInstallTooltip && getAutomaticInstallTooltip()
           }
           disabled={isAutomaticInstallDisabled}

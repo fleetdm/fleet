@@ -172,10 +172,18 @@ const HostsFilterBlock = ({
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
               <>
-                <Button onClick={onClickEditLabel} variant="small-icon">
+                <Button
+                  className={`${baseClass}__action-btn`}
+                  onClick={onClickEditLabel}
+                  variant="icon"
+                >
                   <Icon name="pencil" size="small" />
                 </Button>
-                <Button onClick={onClickDeleteLabel} variant="small-icon">
+                <Button
+                  className={`${baseClass}__action-btn`}
+                  onClick={onClickDeleteLabel}
+                  variant="icon"
+                >
                   <Icon name="trash" size="small" />
                 </Button>
               </>

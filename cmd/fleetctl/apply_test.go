@@ -170,7 +170,7 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -1300,7 +1300,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -2591,6 +2591,46 @@ spec:
 				}
 			})
 		}
+	})
+
+	t.Run("bootstrap package with manual agent install", func(t *testing.T) {
+		pkgName := "signed.pkg"
+		srv, pkgLen := serveMDMBootstrapPackage(t, filepath.Join("../../server/service/testdata/bootstrap-packages", pkgName), pkgName)
+		ds := setupServer(t, true)
+		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
+			require.Equal(t, len(bp.Bytes), pkgLen)
+			return nil
+		}
+		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+			return nil, &notFoundError{}
+		}
+
+		mockStore.Lock()
+		assert.Equal(t, "", mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+		mockStore.Unlock()
+
+		spec := `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    macos_setup:
+      bootstrap_package: %s
+      manual_agent_install: true
+`
+
+		// create the app config yaml with server url for bootstrap package
+		tmpFilename := writeTmpYml(t, fmt.Sprintf(spec, srv.URL))
+
+		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", tmpFilename}))
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+		assert.True(t, ds.GetMDMAppleBootstrapPackageMetaFuncInvoked)
+		assert.True(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
+		assert.True(t, ds.SaveAppConfigFuncInvoked)
+		mockStore.Lock()
+		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
+		assert.True(t, mockStore.appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
+		mockStore.Unlock()
 	})
 
 	t.Run("replace bootstrap package", func(t *testing.T) {

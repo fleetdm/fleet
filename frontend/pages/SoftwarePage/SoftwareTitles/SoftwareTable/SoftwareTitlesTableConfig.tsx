@@ -162,7 +162,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        const vulnDetectionNotSupported =
+          isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
+          cellProps.row.original.source === "tgz_packages";
+
+        if (vulnDetectionNotSupported) {
           return <TextCell value="Not supported" grey />;
         }
         const vulnerabilities = getVulnerabilities(
@@ -190,6 +194,11 @@ const generateTableHeaders = (
       id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: IViewAllHostsLinkProps) => {
+        const hostCountNotSupported =
+          cellProps.row.original.source === "tgz_packages";
+
+        if (hostCountNotSupported) return null;
+
         return (
           <ViewAllHostsLink
             queryParams={{

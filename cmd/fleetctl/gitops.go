@@ -9,12 +9,16 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
 )
 
-const filenameMaxLength = 255
+const (
+	filenameMaxLength           = 255
+	reapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s -- this only happens once for new teams that have VPP apps\n"
+)
 
 type LabelUsage struct {
 	Name string
@@ -95,8 +99,14 @@ func gitopsCommand() *cli.Command {
 			var originalVPPConfig []any
 			var teamNames []string
 			var teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
-			var abmTeams, vppTeams []string
-			var hasMissingABMTeam, hasMissingVPPTeam, usesLegacyABMConfig bool
+			var abmTeams, vppTeams, missingVPPTeams []string
+			var hasMissingABMTeam, usesLegacyABMConfig bool
+			type missingVPPTeamWithApps struct {
+				config   *spec.GitOps
+				vppApps  []*fleet.TeamSpecAppStoreApp
+				filename string
+			}
+			var missingVPPTeamsWithApps []missingVPPTeamWithApps
 
 			// we keep track of team software installers and scripts for correct policy application
 			teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
@@ -232,7 +242,7 @@ func gitopsCommand() *cli.Command {
 						return err
 					}
 
-					vppTeams, hasMissingVPPTeam, err = checkVPPTeamAssignments(config, fleetClient)
+					vppTeams, missingVPPTeams, err = checkVPPTeamAssignments(config, fleetClient)
 					if err != nil {
 						return err
 					}
@@ -257,7 +267,7 @@ func gitopsCommand() *cli.Command {
 						}
 					}
 
-					if hasMissingVPPTeam {
+					if len(missingVPPTeams) > 0 {
 						if mdm, ok := config.OrgSettings["mdm"]; ok {
 							if mdmMap, ok := mdm.(map[string]any); ok {
 								if vpp, ok := mdmMap["volume_purchasing_program"]; ok {
@@ -270,6 +280,21 @@ func gitopsCommand() *cli.Command {
 								// the global config, and then apply it after teams are processed
 								mdmMap["volume_purchasing_program"] = nil
 							}
+						}
+					}
+				}
+
+				// We cannot apply a VPP app to a new team until that team gets a VPP token.
+				// So, we create the team, then apply the VPP token, then apply VPP apps.
+				if !isGlobalConfig && len(missingVPPTeams) > 0 && len(config.Software.AppStoreApps) > 0 {
+					for _, missingTeam := range missingVPPTeams {
+						if missingTeam == *config.TeamName {
+							missingVPPTeamsWithApps = append(missingVPPTeamsWithApps, missingVPPTeamWithApps{
+								config:   config,
+								vppApps:  config.Software.AppStoreApps,
+								filename: flFilename,
+							})
+							config.Software.AppStoreApps = nil
 						}
 					}
 				}
@@ -307,11 +332,23 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 			}
-			if len(vppTeams) > 0 && hasMissingVPPTeam {
+			if len(missingVPPTeams) > 0 {
 				if err = applyVPPTokenAssignmentIfNeeded(c, teamNames, vppTeams, originalVPPConfig, flDryRun, fleetClient); err != nil {
 					return err
 				}
 			}
+			// Now that VPP tokens have been assigned, we can apply VPP apps to the new team.
+			// For simplicity, we simply re-apply the entire config. This only happens once when the team is created.
+			for _, teamWithApps := range missingVPPTeamsWithApps {
+				_, _ = fmt.Fprintf(c.App.Writer, reapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
+				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
+				_, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
+					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+				if err != nil {
+					return err
+				}
+			}
+
 			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
 				teams, err := fleetClient.ListTeams("")
 				if err != nil {
@@ -337,6 +374,19 @@ func gitopsCommand() *cli.Command {
 							}
 						}
 					}
+				}
+			}
+
+			// we only want to reset the no-team config if the global config was loaded.
+			// NOTE: noTeamPresent is refering to the "No Team" team. It does not
+			// mean that other teams are not present.
+			if globalConfigLoaded && !noTeamPresent {
+				defaultNoTeamConfig := new(spec.GitOps)
+				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
+				_, err = fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
+					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
+				if err != nil {
+					return err
 				}
 			}
 
@@ -607,13 +657,13 @@ func applyABMTokenAssignmentIfNeeded(
 }
 
 func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
-	vppTeams []string, missingTeam bool, err error,
+	vppTeams []string, missingTeams []string, err error,
 ) {
 	if mdm, ok := config.OrgSettings["mdm"]; ok {
 		if mdmMap, ok := mdm.(map[string]any); ok {
 			teams, err := fleetClient.ListTeams("")
 			if err != nil {
-				return nil, false, err
+				return nil, nil, err
 			}
 			teamNames := map[string]struct{}{}
 			for _, tm := range teams {
@@ -631,7 +681,7 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 										normalizedTeam := norm.NFC.String(teamStr)
 										vppTeams = append(vppTeams, normalizedTeam)
 										if _, ok := teamNames[normalizedTeam]; !ok {
-											missingTeam = true
+											missingTeams = append(missingTeams, normalizedTeam)
 										}
 									}
 								}
@@ -643,7 +693,7 @@ func checkVPPTeamAssignments(config *spec.GitOps, fleetClient *service.Client) (
 		}
 	}
 
-	return vppTeams, missingTeam, nil
+	return vppTeams, missingTeams, nil
 }
 
 func applyVPPTokenAssignmentIfNeeded(

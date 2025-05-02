@@ -163,7 +163,8 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	// filevault profile is a fleet-controlled profile that doesn't use any variable
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 
@@ -216,6 +217,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.ManualAgentInstall != nil {
+		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -255,7 +263,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 	if !ac.MDM.EnabledAndConfigured {
-		return &fleet.MDMNotConfiguredError{}
+		return fleet.ErrMDMNotConfigured
 	}
 
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
@@ -705,7 +713,8 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
-	eulaToken string, err error) {
+	eulaToken string, err error,
+) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")

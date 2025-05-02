@@ -65,11 +65,11 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw
-/docs/Contributing                              @fleetdm/go @fleetdm/frontend
-/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
-/docs/Contributing/Audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
+/docs                                           @noahtalerman
+/docs/Contributing                              @lukeheath # « Contributing guidelines
+/docs/REST\ API/rest-api.md                     @noahtalerman # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @noahtalerman # « Advanced / contributors-only API reference documentation
+/docs/Contributing/Audit-logs.md                @noahtalerman # « Advanced / contributors-only audit log documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                    @edwardsb
 
@@ -127,5 +127,9 @@ go.mod @fleetdm/go
 ##############################################################################################
 /.github/workflows/ @lukeheath @georgekarrv @sharon-fdm @mostlikelee
 
+##############################################################################################
+# 🌐 Fleet-maintained apps
+##############################################################################################
+/ee/maintained-apps/outputs/apps.json @eashaw
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

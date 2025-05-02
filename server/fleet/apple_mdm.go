@@ -292,9 +292,11 @@ type HostMDMCertificateProfile struct {
 	ProfileUUID          string             `db:"profile_uuid"`
 	Status               *MDMDeliveryStatus `db:"status"`
 	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+	NotValidBefore       *time.Time         `db:"not_valid_before"`
 	NotValidAfter        *time.Time         `db:"not_valid_after"`
 	Type                 CAConfigAssetType  `db:"type"`
 	CAName               string             `db:"ca_name"`
+	Serial               *string            `db:"serial"`
 }
 
 type HostMDMProfileDetail string
@@ -460,6 +462,7 @@ type MDMAppleSetupPayload struct {
 	TeamID                      *uint `json:"team_id"`
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
+	ManualAgentInstall          *bool `json:"manual_agent_install"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -972,13 +975,34 @@ type MDMAppleSoftwareUpdateAsset struct {
 	Build          string `json:"Build"`
 }
 
-type MDMBulkUpsertManagedCertificatePayload struct {
-	ProfileUUID          string
-	HostUUID             string
-	ChallengeRetrievedAt *time.Time
-	NotValidAfter        *time.Time
-	Type                 CAConfigAssetType
-	CAName               string
+type MDMManagedCertificate struct {
+	ProfileUUID          string            `db:"profile_uuid"`
+	HostUUID             string            `db:"host_uuid"`
+	ChallengeRetrievedAt *time.Time        `db:"challenge_retrieved_at"`
+	NotValidBefore       *time.Time        `db:"not_valid_before"`
+	NotValidAfter        *time.Time        `db:"not_valid_after"`
+	Type                 CAConfigAssetType `db:"type"`
+	CAName               string            `db:"ca_name"`
+	Serial               *string           `db:"serial"`
+}
+
+func (m MDMManagedCertificate) Equal(other MDMManagedCertificate) bool {
+	challengeEqual := m.ChallengeRetrievedAt == nil && other.ChallengeRetrievedAt == nil ||
+		m.ChallengeRetrievedAt != nil && other.ChallengeRetrievedAt != nil && m.ChallengeRetrievedAt.Equal(*other.ChallengeRetrievedAt)
+	validBeforeEqual := m.NotValidBefore == nil && other.NotValidBefore == nil ||
+		m.NotValidBefore != nil && other.NotValidBefore != nil && m.NotValidBefore.Equal(*other.NotValidBefore)
+	validAfterEqual := m.NotValidAfter == nil && other.NotValidAfter == nil ||
+		m.NotValidAfter != nil && other.NotValidAfter != nil && m.NotValidAfter.Equal(*other.NotValidAfter)
+	serialEqual := m.Serial == nil && other.Serial == nil ||
+		m.Serial != nil && other.Serial != nil && *m.Serial == *other.Serial
+	return m.ProfileUUID == other.ProfileUUID &&
+		m.HostUUID == other.HostUUID &&
+		challengeEqual &&
+		validBeforeEqual &&
+		validAfterEqual &&
+		m.Type == other.Type &&
+		m.CAName == other.CAName &&
+		serialEqual
 }
 
 // MDMAppleEnrolledDeviceInfo represents the information of a device enrolled
