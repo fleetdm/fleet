@@ -71,7 +71,7 @@ interface IPackageFormProps {
   gitopsCompatible?: boolean;
 }
 
-const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm,.tar.gz,.tgz";
+const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
 
 const PackageForm = ({
   labels,
