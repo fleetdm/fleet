@@ -3,5 +3,6 @@
   "unique_identifier": "com.adobe.Reader",
   "token": "adobe-acrobat-reader",
   "installer_format": "dmg",
-  "slug": "adobe-acrobat-reader/darwin"
+  "slug": "adobe-acrobat-reader/darwin",
+  "default_categories": ["Productivity"]
 }

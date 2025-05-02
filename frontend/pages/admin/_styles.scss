@@ -30,7 +30,7 @@
 
   .side-nav__card-container {
     // all side navs in the admin section we want to limit the max width
-    > * {
+    > *:not(.loading-spinner) {
       width: 100%;
       max-width: $settings-form-max-width;
     }

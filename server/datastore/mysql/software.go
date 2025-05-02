@@ -4267,3 +4267,93 @@ WHERE hvsi.host_id = ? AND st.id IN (?)
 	}
 	return nil
 }
+
+func (ds *Datastore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
+	stmt := `INSERT INTO software_categories (name) VALUES (?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, name)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new software category")
+	}
+
+	r, _ := res.LastInsertId()
+	id := uint(r) //nolint:gosec // dismiss G115
+	return &fleet.SoftwareCategory{Name: name, ID: id}, nil
+}
+
+func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error) {
+	if len(names) == 0 {
+		return []uint{}, nil
+	}
+
+	stmt := `SELECT id FROM software_categories WHERE name IN (?)`
+	stmt, args, err := sqlx.In(stmt, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category ids")
+	}
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, args...); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, err, "get software category ids")
+		}
+	}
+
+	return ids, nil
+}
+
+func (ds *Datastore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, teamID *uint) (map[uint][]string, error) {
+	if len(softwareTitleIDs) == 0 {
+		return map[uint][]string{}, nil
+	}
+
+	stmt := `
+SELECT
+	st.id AS title_id,
+	sc.name AS software_category_name
+FROM
+	software_installers si
+	JOIN software_titles st ON st.id = si.title_id
+	JOIN software_installer_software_categories sisc ON sisc.software_installer_id = si.id
+	JOIN software_categories sc ON sc.id = sisc.software_category_id
+WHERE
+	st.id IN (?) AND si.global_or_team_id = ?
+
+UNION
+
+SELECT
+	st.id AS title_id,
+	sc.name AS software_category_name
+FROM
+	vpp_apps va
+	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+	JOIN software_titles st ON st.id = va.title_id
+	JOIN vpp_app_team_software_categories vatsc ON vatsc.vpp_app_team_id = vat.id
+	JOIN software_categories sc ON vatsc.software_category_id = sc.id
+WHERE
+	st.id IN (?) AND vat.global_or_team_id = ?;
+`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	stmt, args, err := sqlx.In(stmt, softwareTitleIDs, tmID, softwareTitleIDs, tmID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get categories for software installers")
+	}
+	var categories []struct {
+		TitleID      uint   `db:"title_id"`
+		CategoryName string `db:"software_category_name"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for software installers")
+	}
+
+	ret := make(map[uint][]string, len(categories))
+	for _, c := range categories {
+		ret[c.TitleID] = append(ret[c.TitleID], c.CategoryName)
+	}
+
+	return ret, nil
+}

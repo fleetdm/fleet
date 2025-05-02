@@ -681,7 +681,7 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 	return nil
 }
 
-// extractTagGz extracts the contents of the provided tar.gz file.
+// extractTarGz extracts the contents of the provided tar.gz file.
 func extractTarGz(path string) error {
 	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
 	if err != nil {
@@ -689,9 +689,17 @@ func extractTarGz(path string) error {
 	}
 	defer tarGzFile.Close()
 
+	if err = ExtractOpenTarGzFile(tarGzFile, filepath.Dir(path)); err != nil {
+		return fmt.Errorf("extract %q: %w", path, err)
+	}
+
+	return nil
+}
+
+func ExtractOpenTarGzFile(tarGzFile *os.File, destDir string) error {
 	gzipReader, err := gzip.NewReader(tarGzFile)
 	if err != nil {
-		return fmt.Errorf("gzip reader %q: %w", path, err)
+		return fmt.Errorf("gzip reader: %w", err)
 	}
 	defer gzipReader.Close()
 
@@ -704,7 +712,7 @@ func extractTarGz(path string) error {
 		case errors.Is(err, io.EOF):
 			return nil
 		default:
-			return fmt.Errorf("tar reader %q: %w", path, err)
+			return fmt.Errorf("tar reader: %w", err)
 		}
 
 		// Prevent zip-slip attack.
@@ -712,7 +720,7 @@ func extractTarGz(path string) error {
 			return fmt.Errorf("invalid path in tar.gz: %q", header.Name)
 		}
 
-		targetPath := filepath.Join(filepath.Dir(path), header.Name)
+		targetPath := filepath.Join(destDir, header.Name)
 
 		switch header.Typeflag {
 		case tar.TypeDir:

@@ -123,7 +123,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
 };
 
-type IInstallStatusCellProps = IHostSoftware;
+type IInstallStatusCellProps = Pick<IHostSoftware, "status"> &
+  Partial<Pick<IHostSoftware, "software_package" | "app_store_app">>;
 
 const InstallStatusCell = ({
   status,
@@ -138,8 +139,7 @@ const InstallStatusCell = ({
 
   if (status !== null) {
     displayStatus = status;
-  } else if (software_package?.self_service) {
-    // currently only software packages can be self-service
+  } else if (software_package?.self_service || app_store_app?.self_service) {
     displayStatus = "selfService";
   } else if (hasPackage || hasAppStoreApp) {
     displayStatus = "avaiableForInstall";
