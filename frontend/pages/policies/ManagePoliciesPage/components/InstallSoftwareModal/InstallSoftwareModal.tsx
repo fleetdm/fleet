@@ -29,6 +29,7 @@ import {
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -64,15 +65,17 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
   let versionString = "";
 
   if (vppOption) {
-    platformString = "macOS (App Store) • ";
+    platformString = "macOS (App Store)";
     versionString = title.app_store_app?.version || "";
   } else {
     if (title.platform && title.extension) {
       platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
         title.extension
-      }) • `;
+      })`;
     }
-    versionString = title.software_package?.version || "";
+    versionString = title.software_package?.version
+      ? ` • ${title.software_package?.version}`
+      : "";
   }
 
   return `${platformString}${versionString}`;
@@ -115,7 +118,11 @@ const InstallSoftwareModal = ({
     {
       select: (data): IEnhancedSoftwareTitle[] =>
         data.software_titles.map((title) => {
-          const extension = title.software_package?.name.split(".").pop();
+          const extension =
+            (title.software_package &&
+              getExtensionFromFileName(title.software_package?.name)) ||
+            undefined;
+
           return {
             ...title,
             platform: formatSoftwarePlatform(title.source),
