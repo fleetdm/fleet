@@ -155,7 +155,7 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      title: "Yes",
+      title: "Pass",
       Header: (cellProps) => (
         <HeaderCell
           value={<PassingColumnHeader isPassing />}
@@ -199,7 +199,7 @@ const generateTableHeaders = (
       },
     },
     {
-      title: "No",
+      title: "Fail",
       Header: (cellProps) => (
         <HeaderCell
           value={<PassingColumnHeader isPassing={false} />}

@@ -74,6 +74,7 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
+    manual_agent_install: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -179,32 +180,7 @@ export interface IConfig {
   };
   webhook_settings: IWebhookSettings;
   integrations: IGlobalIntegrations;
-  logging: {
-    debug: boolean;
-    json: boolean;
-    result: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
-    };
-    status: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
-    };
-    audit?: {
-      plugin: string;
-      config: any;
-    };
-  };
+  logging: ILoggingConfig;
   email?: {
     backend: string;
     config: {
@@ -227,6 +203,46 @@ export type IAutomationsConfig = Pick<
   IConfig,
   "webhook_settings" | "integrations"
 >;
+
+export type LogDestination =
+  | "filesystem"
+  | "firehose"
+  | "kinesis"
+  | "lambda"
+  | "pubsub"
+  | "kafta"
+  | "stdout"
+  | "webhook"
+  | "";
+
+export interface ILoggingConfig {
+  debug: boolean;
+  json: boolean;
+  result: {
+    plugin: LogDestination;
+    config: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
+      status_url?: string;
+      result_url?: string;
+    };
+  };
+  status: {
+    plugin: string;
+    config: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
+    };
+  };
+  audit?: {
+    plugin: string;
+    config: any;
+  };
+}
 
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 

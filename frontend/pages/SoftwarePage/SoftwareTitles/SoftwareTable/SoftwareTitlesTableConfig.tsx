@@ -17,8 +17,8 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import VersionCell from "../../components/VersionCell";
-import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import VersionCell from "../../components/tables/VersionCell";
+import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -72,6 +72,7 @@ const getSoftwareNameCellData = (
   let isSelfService = false;
   let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
+  let automaticInstallPoliciesCount = 0;
   if (software_package) {
     hasPackage = true;
     isSelfService = software_package.self_service;
@@ -80,6 +81,8 @@ const getSoftwareNameCellData = (
       software_package.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
+    automaticInstallPoliciesCount =
+      software_package.automatic_install_policies?.length || 0;
   } else if (app_store_app) {
     hasPackage = true;
     isSelfService = app_store_app.self_service;
@@ -89,6 +92,8 @@ const getSoftwareNameCellData = (
       app_store_app.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
+    automaticInstallPoliciesCount =
+      app_store_app.automatic_install_policies?.length || 0;
   }
 
   const isAllTeams = teamId === undefined;
@@ -101,6 +106,7 @@ const getSoftwareNameCellData = (
     isSelfService,
     installType,
     iconUrl,
+    automaticInstallPoliciesCount,
   };
 };
 
@@ -131,6 +137,9 @@ const generateTableHeaders = (
             isSelfService={nameCellData.isSelfService}
             installType={nameCellData.installType}
             iconUrl={nameCellData.iconUrl ?? undefined}
+            automaticInstallPoliciesCount={
+              nameCellData.automaticInstallPoliciesCount
+            }
           />
         );
       },
@@ -162,7 +171,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        const vulnDetectionNotSupported =
+          isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
+          cellProps.row.original.source === "tgz_packages";
+
+        if (vulnDetectionNotSupported) {
           return <TextCell value="Not supported" grey />;
         }
         const vulnerabilities = getVulnerabilities(
@@ -190,6 +203,11 @@ const generateTableHeaders = (
       id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: IViewAllHostsLinkProps) => {
+        const hostCountNotSupported =
+          cellProps.row.original.source === "tgz_packages";
+
+        if (hostCountNotSupported) return null;
+
         return (
           <ViewAllHostsLink
             queryParams={{

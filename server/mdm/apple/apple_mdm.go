@@ -802,14 +802,14 @@ func (d *DEPService) processDeviceResponse(
 				// the proper cooldowns are applied
 				level.Error(logger).Log(
 					"msg", "assign profile",
-					"devices", len(assignSerials),
+					"devices", len(serials),
 					"err", err,
 				)
 			}
 
 			logs := []interface{}{
 				"msg", "profile assigned",
-				"devices", len(assignSerials),
+				"devices", len(serials),
 			}
 			logs = append(logs, logCountsForResults(apiResp.Devices)...)
 			level.Info(logger).Log(logs...)

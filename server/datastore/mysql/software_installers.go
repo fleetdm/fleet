@@ -251,6 +251,12 @@ INSERT INTO software_installers (
 			return ctxerr.Wrap(ctx, err, "upsert software installer labels")
 		}
 
+		if payload.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, installerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
+			}
+		}
+
 		if payload.AutomaticInstall {
 			var installerMetadata automatic_policy.InstallerMetadata
 			if payload.AutomaticInstallQuery != "" {
@@ -284,6 +290,43 @@ INSERT INTO software_installers (
 	}
 
 	return installerID, titleID, nil
+}
+
+func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, categoryIDs []uint, swType softwareType) error {
+	// remove existing categories
+	delArgs := []interface{}{installerID}
+	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_software_categories WHERE %[1]s_id = ?`, swType)
+	if len(categoryIDs) > 0 {
+		inStmt, args, err := sqlx.In(` AND software_category_id NOT IN (?)`, categoryIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete existing software categories query")
+		}
+		delArgs = append(delArgs, args...)
+		delStmt += inStmt
+	}
+	_, err := tx.ExecContext(ctx, delStmt, delArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete existing software categories")
+	}
+
+	if len(categoryIDs) > 0 {
+
+		stmt := `INSERT IGNORE INTO %[1]s_software_categories (%[1]s_id, software_category_id) VALUES %s`
+		var placeholders string
+		var insertArgs []any
+		for _, lid := range categoryIDs {
+			placeholders += "(?, ?),"
+			insertArgs = append(insertArgs, installerID, lid)
+		}
+		placeholders = strings.TrimSuffix(placeholders, ",")
+
+		_, err = tx.ExecContext(ctx, fmt.Sprintf(stmt, swType, placeholders), insertArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert software software categories")
+		}
+	}
+
+	return nil
 }
 
 func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, policyData automatic_policy.PolicyData, teamID *uint, softwareInstallerID *uint, vppAppsTeamsID *uint) error {
@@ -472,7 +515,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		postInstallScriptID = &sid
 	}
 
-	touchUploaded := ""
+	var touchUploaded string
 	if payload.InstallerFile != nil {
 		touchUploaded = ", uploaded_at = NOW()"
 	}
@@ -516,6 +559,12 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		if payload.ValidatedLabels != nil {
 			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, payload.InstallerID, *payload.ValidatedLabels, softwareTypeInstaller); err != nil {
 				return ctxerr.Wrap(ctx, err, "upsert software installer labels")
+			}
+		}
+
+		if payload.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, payload.InstallerID, payload.CategoryIDs, softwareTypeInstaller); err != nil {
+				return ctxerr.Wrap(ctx, err, "upsert software installer categories")
 			}
 		}
 
@@ -617,6 +666,7 @@ SELECT
   si.uninstall_script_content_id,
   si.uploaded_at,
   si.self_service,
+  si.url,
   COALESCE(st.name, '') AS software_title
   %s
 FROM
@@ -662,6 +712,15 @@ WHERE
 	}
 	dest.LabelsExcludeAny = exclAny
 	dest.LabelsIncludeAny = inclAny
+
+	categoryMap, err := ds.GetCategoriesForSoftwareTitles(ctx, []uint{titleID}, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting categories for software installer metadata")
+	}
+
+	if categories, ok := categoryMap[titleID]; ok {
+		dest.Categories = categories
+	}
 
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
@@ -2331,7 +2390,8 @@ SELECT
 	si.platform AS platform,
 	st.source AS source,
 	st.bundle_identifier AS bundle_identifier,
-	st.name AS title
+	st.name AS title,
+	si.package_ids AS package_ids
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -2360,6 +2420,9 @@ WHERE
 		}
 		if _, ok := set[tmID]; ok {
 			return nil, ctxerr.New(ctx, fmt.Sprintf("cannot have multiple installers with the same hash %q on one team", sha256))
+		}
+		if installer.PackageIDList != "" {
+			installer.PackageIDs = strings.Split(installer.PackageIDList, ",")
 		}
 		set[tmID] = installer
 	}

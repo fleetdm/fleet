@@ -7,7 +7,7 @@
       <%primaryBuyingSituation%>
     </div>
     <div purpose="community-cards" class="d-flex justify-content-center flex-sm-row flex-column">
-      <a href="https://macadmins.org" target="_blank" class="<%= primaryBuyingSituation === 'mdm' || !primaryBuyingSituation ? 'd-flex' : 'd-none' %>" no-icon>
+      <a href="https://macadmins.org" target="_blank" class="<%= !primaryBuyingSituation || ['it-misc', 'it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation)  ? 'd-flex' : 'd-none' %>" no-icon>
         <div purpose="support-card" class="card d-flex justify-content-center" >
           <div class="d-flex flex-row align-items-center">
             <img alt="Macadmins logo" src="/images/logo-macadmins-48x48@2x.png">
@@ -16,14 +16,14 @@
           <p>Chat about next-gen MDM, packaging, Apple, Windows, desktop Linux, apps, scripting. (And all things IT.)</p>
         </div>
       </a>
-      <a href="https://chat.osquery.io/c/fleet" target="_blank" class="<%= primaryBuyingSituation === 'mdm' || primaryBuyingSituation === 'eo-it' ? 'd-none' : 'd-flex'%>" no-icon>
+      <a href="https://chat.osquery.io/c/fleet" target="_blank" class="<%= ['it-misc', 'it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'd-none' : 'd-flex'%>" no-icon>
         <div purpose="support-card" class="card d-flex justify-content-center">
           <div class="d-flex flex-row align-items-center">
             <img alt="Osquery logo" src="/images/logo-osquery-48x48@2x.png">
             <h3>osquery // #fleet</h3>
           </div>
-          <p><%= primaryBuyingSituation === 'eo-security' ? 'Chat about securing servers, laptops, and more.' :
-                primaryBuyingSituation === 'vm' ? 'Chat about the future of security engineering, vulnerability management, OT/ICS, cybersecurity, and more.' :
+          <p><%= primaryBuyingSituation === 'security-misc' ? 'Chat about securing servers, laptops, and more.' :
+                primaryBuyingSituation === 'security-vm' ? 'Chat about the future of security engineering, vulnerability management, OT/ICS, cybersecurity, and more.' :
                 'Chat about posture, detection, vulns, reporting.  (And all things cybersecurity.)'
               %>
           </p>

@@ -90,9 +90,10 @@
 
 - jobTitle: 🎐 Solutions Consultant
   department: Sales
-  hiringManagerName: Mike Mcneil
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/mikermcneil/
-  hiringManagerGithubUsername: mikermcneil
+  hiringManagerName: Allen Houchins
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+  hiringManagerGithubUsername: allenhouchins
+  onTargetEarnings: '$135,000 - $175,000'
   responsibilities: |
       - ⏫ Work hand-in-hand with the Sales team by participating in calls with potential customers to show them a demonstration of Fleet in action.
       - 📖 You’ll provide commentary, detailed technical explanations, examples from your experience, and answer customer questions based on your experience managing Apple, Windows, and Linux devices with MDM and other tools (osquery).

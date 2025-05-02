@@ -30,9 +30,9 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
 import EmptyTable from "components/EmptyTable";

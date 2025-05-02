@@ -17,13 +17,14 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
 
-import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
+import FileProgressModal from "components/FileProgressModal";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import PackageForm from "pages/SoftwarePage/components/PackageForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import SoftwareVppForm from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
+import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import SoftwareVppForm from "pages/SoftwarePage/components/forms/SoftwareVppForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import {
   generateSelectedLabels,
   getCustomTarget,
@@ -67,6 +68,11 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal,
   ] = useState(false);
   const [
+    showPreviewEndUserExperienceModal,
+    setShowPreviewEndUserExperienceModal,
+  ] = useState(false);
+
+  const [
     pendingPackageUpdates,
     setPendingPackageUpdates,
   ] = useState<IEditPackageFormData>({
@@ -77,6 +83,7 @@ const EditSoftwareModal = ({
     targetType: "",
     customTarget: "",
     labelTargets: {},
+    categories: [],
   });
   const [
     pendingVppUpdates,
@@ -87,6 +94,7 @@ const EditSoftwareModal = ({
     targetType: "",
     customTarget: "",
     labelTargets: {},
+    categories: [],
   });
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -105,11 +113,13 @@ const EditSoftwareModal = ({
       classnames(baseClass, {
         [`${baseClass}--hidden`]:
           showConfirmSaveChangesModal ||
+          showPreviewEndUserExperienceModal ||
           (!!pendingPackageUpdates.software && isUpdatingSoftware),
       })
     );
   }, [
     showConfirmSaveChangesModal,
+    showPreviewEndUserExperienceModal,
     pendingPackageUpdates.software,
     isUpdatingSoftware,
   ]);
@@ -137,6 +147,10 @@ const EditSoftwareModal = ({
 
   const toggleConfirmSaveChangesModal = () => {
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
+  };
+
+  const togglePreviewEndUserExperienceModal = () => {
+    setShowPreviewEndUserExperienceModal(!showPreviewEndUserExperienceModal);
   };
 
   // Edit package API call
@@ -276,12 +290,14 @@ const EditSoftwareModal = ({
           isEditingSoftware
           onCancel={onExit}
           onSubmit={onClickSavePackage}
+          onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
           defaultSoftware={software}
           defaultInstallScript={softwarePackage.install_script}
           defaultPreInstallQuery={softwarePackage.pre_install_query}
           defaultPostInstallScript={softwarePackage.post_install_script}
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
+          defaultCategories={softwarePackage.categories}
           gitopsCompatible
         />
       );
@@ -294,6 +310,7 @@ const EditSoftwareModal = ({
         onSubmit={onClickSaveVpp}
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
+        onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
       />
     );
   };
@@ -314,6 +331,11 @@ const EditSoftwareModal = ({
           softwareInstallerName={software?.name}
           installerType={installerType}
           onSaveChanges={onClickConfirmChanges}
+        />
+      )}
+      {showPreviewEndUserExperienceModal && (
+        <CategoriesEndUserExperienceModal
+          onCancel={togglePreviewEndUserExperienceModal}
         />
       )}
       {!!pendingPackageUpdates.software && isUpdatingSoftware && (

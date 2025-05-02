@@ -47,6 +47,7 @@ type updateSoftwareInstallerRequest struct {
 	SelfService       *bool
 	LabelsIncludeAny  []string
 	LabelsExcludeAny  []string
+	Categories        []string
 }
 
 type uploadSoftwareInstallerResponse struct {
@@ -138,9 +139,9 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.SelfService = &parsed
 	}
 
-	// decode labels
-	var inclAny, exclAny []string
-	var existsInclAny, existsExclAny bool
+	// decode labels and categories
+	var inclAny, exclAny, categories []string
+	var existsInclAny, existsExclAny, existsCategories bool
 
 	inclAny, existsInclAny = r.MultipartForm.Value[string(fleet.LabelsIncludeAny)]
 	switch {
@@ -162,6 +163,16 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 		decoded.LabelsExcludeAny = exclAny
 	}
 
+	categories, existsCategories = r.MultipartForm.Value["categories"]
+	switch {
+	case !existsCategories:
+		decoded.Categories = nil
+	case len(categories) == 1 && categories[0] == "":
+		decoded.Categories = []string{}
+	default:
+		decoded.Categories = categories
+	}
+
 	return &decoded, nil
 }
 
@@ -178,6 +189,7 @@ func updateSoftwareInstallerEndpoint(ctx context.Context, request interface{}, s
 		SelfService:       req.SelfService,
 		LabelsIncludeAny:  req.LabelsIncludeAny,
 		LabelsExcludeAny:  req.LabelsExcludeAny,
+		Categories:        req.Categories,
 	}
 	if req.File != nil {
 		ff, err := req.File.Open()

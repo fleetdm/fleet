@@ -1400,6 +1400,10 @@ type FilesystemConfig struct {
 	config.FilesystemConfig
 }
 
+type WebhookConfig struct {
+	config.WebhookConfig
+}
+
 type PubSubConfig struct {
 	config.PubSubConfig
 }

@@ -145,7 +145,11 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
-	Source           string               `json:"-" db:"source"`
+	// Source is the osquery source for this software.
+	Source string `json:"-" db:"source"`
+	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
+	// "Browsers", etc.
+	Categories []string `json:"categories"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -384,18 +388,22 @@ type UploadSoftwareInstallerPayload struct {
 	ValidatedLabels       *LabelIdentsWithScope
 	AutomaticInstall      bool
 	AutomaticInstallQuery string
+	Categories            []string
+	CategoryIDs           []uint
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint    `db:"installer_id"`
-	TeamID           *uint   `db:"team_id"`
-	Filename         string  `db:"filename"`
-	Extension        string  `db:"extension"`
-	Version          string  `db:"version"`
-	Platform         string  `db:"platform"`
-	Source           string  `db:"source"`
-	BundleIdentifier *string `db:"bundle_identifier"`
-	Title            string  `db:"title"`
+	InstallerID      uint     `db:"installer_id"`
+	TeamID           *uint    `db:"team_id"`
+	Filename         string   `db:"filename"`
+	Extension        string   `db:"extension"`
+	Version          string   `db:"version"`
+	Platform         string   `db:"platform"`
+	Source           string   `db:"source"`
+	BundleIdentifier *string  `db:"bundle_identifier"`
+	Title            string   `db:"title"`
+	PackageIDList    string   `db:"package_ids"`
+	PackageIDs       []string ``
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -425,6 +433,8 @@ type UpdateSoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
+	Categories      []string
+	CategoryIDs     []uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -448,15 +458,17 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 			return "apps", nil
 		}
 		return "pkg_packages", nil
+	case "tar.gz":
+		return "tgz_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 
-func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
+func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm":
+	case "deb", "rpm", "tar.gz":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil
@@ -520,7 +532,8 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	InstallDuringSetup *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	Categories         []string `json:"categories,omitempty"`
 }
 
 type SoftwarePackageSpec struct {

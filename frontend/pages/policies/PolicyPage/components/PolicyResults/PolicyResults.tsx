@@ -144,11 +144,11 @@ const PolicyResults = ({
         {" "}
         (Yes:{" "}
         <TooltipWrapper tipContent={`${yesCt} host${yesCt !== 1 ? "s" : ""}`}>
-          {Math.ceil((yesCt / uiHostCounts.successful) * 100)}%
+          {Math.round((yesCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         , No:{" "}
         <TooltipWrapper tipContent={`${noCt} host${noCt !== 1 ? "s" : ""}`}>
-          {Math.floor((noCt / uiHostCounts.successful) * 100)}%
+          {Math.round((noCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         )
       </span>

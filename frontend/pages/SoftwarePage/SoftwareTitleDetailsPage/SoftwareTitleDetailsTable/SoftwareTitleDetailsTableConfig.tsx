@@ -12,7 +12,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
-import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 interface ISoftwareTitleDetailsTableConfigProps {
   router: InjectedRouter;
