@@ -486,19 +486,14 @@ const Advanced = ({
               )}
             />
           </div>
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                className="save-loading button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
-          />
+          <Button
+            type="submit"
+            disabled={Object.keys(formErrors).length > 0}
+            className="save-loading button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
         </form>
       </div>
     </div>

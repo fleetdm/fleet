@@ -8,7 +8,8 @@
       "installer_url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/394fa611-6cff-485f-8c99-b43fcece1f7a/MicrosoftEdge-135.0.3179.98.dmg",
       "install_script_ref": "bdc4bed3",
       "uninstall_script_ref": "2ec79299",
-      "sha256": "51a6442e7e6defee3b1118a6c1a9e4f28f516c7f66f7c1e86372863fa121a5dc"
+      "sha256": "51a6442e7e6defee3b1118a6c1a9e4f28f516c7f66f7c1e86372863fa121a5dc",
+      "default_categories": ["Browsers"]
     }
   ],
   "refs": {

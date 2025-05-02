@@ -16364,6 +16364,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 			InstallScriptRef:   "foobaz",
 			UninstallScriptRef: "foobaz",
 			SHA256:             spoofedSHA,
+			DefaultCategories:  []string{"Productivity"},
 		})
 
 		manifest := ma.FMAManifestFile{
@@ -16452,6 +16453,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		InstallerURL:    dbAppRecord.InstallerURL,
 		InstallScript:   dbAppRecord.InstallScript,
 		UninstallScript: dbAppRecord.UninstallScript,
+		Categories:      []string{"Productivity"},
 	}
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallerURL)
 	require.NotEmpty(t, getMAResp.FleetMaintainedApp.InstallScript)
@@ -16625,6 +16627,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
+	titleResponse := getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
+	require.Equal(t, []string{"Productivity"}, titleResponse.SoftwareTitle.SoftwarePackage.Categories)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
@@ -16639,6 +16645,30 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
 	require.Equal(t, req.PostInstallScript, string(postinstall))
+
+	// Add some categories and validate them
+	cat1, err := s.ds.NewSoftwareCategory(ctx, "test_category_1")
+	require.NoError(t, err)
+
+	cat2, err := s.ds.NewSoftwareCategory(ctx, "test_category_2")
+	require.NoError(t, err)
+
+	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:       title.ID,
+		InstallerID:   i.InstallerID,
+		InstallScript: ptr.String(mapp.InstallScript),
+		Version:       title.SoftwarePackage.Version,
+		SelfService:   ptr.Bool(true),
+		Categories:    []string{cat1.Name, cat2.Name},
+	}
+	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+
+	titleResponse = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", title.ID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
+	require.Len(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, 2)
+	require.Contains(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, cat1.Name)
+	require.Contains(t, titleResponse.SoftwareTitle.SoftwarePackage.Categories, cat2.Name)
 
 	// ===========================================================================================
 	// Adding an automatically installed FMA

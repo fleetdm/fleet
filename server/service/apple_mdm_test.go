@@ -4799,13 +4799,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "Custom SCEP profile is not scep",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"Name", "com.apple.security.SCEP"),
-			errMsg: "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload.",
+			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
 		},
 		{
 			name: "Custom SCEP challenge is not a fleet variable",
 			profile: customSCEPForValidation("x$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload.",
+			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
 		},
 		{
 			name: "Custom SCEP url is not a fleet variable",
@@ -4824,17 +4824,17 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "Custom SCEP 2 profiles with swapped variables",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
-			errMsg: "Add only one SCEP payload when using variables for certificate authority",
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
 		},
 		{
 			name: "Custom SCEP 2 valid profiles should error",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"challenge", "http://example2.com"),
-			errMsg: "Add only one SCEP payload when using variables for certificate authority",
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
 		},
 		{
 			name:    "Custom SCEP and DigiCert profiles happy path",
-			profile: customSCEPDigiCertValidationMobileconfig,
+			profile: customSCEPDigiCertForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}"),
 			errMsg:  "",
 			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
@@ -4848,6 +4848,88 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customProfileForValidation("value"),
 			errMsg:  "",
 			vars:    []string{"HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_USERNAME_LOCAL_PART", "HOST_END_USER_IDP_GROUPS"},
+		},
+		{
+			name: "Custom SCEP and NDES 2 valid profiles should error",
+			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
+		},
+		{
+			name:    "NDES challenge missing",
+			profile: customSCEPForValidation("challenge", "$FLEET_VAR_NDES_SCEP_PROXY_URL", "Name", "com.apple.security.scep"),
+			errMsg:  fleet.NDESSCEPVariablesMissingErrMsg,
+		},
+		{
+			name: "NDES url missing",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "https://bozo.com", "Name",
+				"com.apple.security.scep"),
+			errMsg: fleet.NDESSCEPVariablesMissingErrMsg,
+		},
+		{
+			name: "NDES challenge shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"$FLEET_VAR_NDES_SCEP_CHALLENGE",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_NDES_SCEP_CHALLENGE is already present in configuration profile",
+		},
+		{
+			name: "NDES url shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_NDES_SCEP_PROXY_URL is already present in configuration profile",
+		},
+		{
+			name: "NDES renewal ID shows up in the wrong place",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"$FLEET_VAR_SCEP_RENEWAL_ID",
+				"com.apple.security.scep"),
+			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's common name (CN).",
+		},
+		{
+			name: "NDES profile is not scep",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"Name", "com.apple.security.SCEP"),
+			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
+		},
+		{
+			name: "NDES challenge is not a fleet variable",
+			profile: customSCEPForValidation("x$FLEET_VAR_NDES_SCEP_CHALLENGE", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE\" must exactly match SCEP payload's 'Challenge' field. Got: x$FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name: "NDES url is not a fleet variable",
+			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must exactly match SCEP payload's 'URL' field. Got: x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+		},
+		{
+			name: "SCEP renewal ID without other variables",
+			profile: customSCEPForValidation("challenge", "url",
+				"Name", "com.apple.security.scep"),
+			errMsg: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg,
+		},
+		{
+			name: "NDES happy path",
+			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "",
+			vars:   []string{"NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL", "SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "NDES 2 valid profiles should error",
+			profile: customSCEPForValidation2("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"challenge", "http://example2.com"),
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
+		},
+		{
+			name:    "NDES and DigiCert profiles happy path",
+			profile: customSCEPDigiCertForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}"),
+			errMsg:  "",
+			vars: []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
+				"SCEP_RENEWAL_ID"},
 		},
 	}
 	for _, tc := range cases {
@@ -4903,6 +4985,10 @@ func customSCEPForValidation2(challenge1, url1, challenge2, url2 string) string 
 
 //go:embed testdata/profiles/custom-scep-digicert-validation.mobileconfig
 var customSCEPDigiCertValidationMobileconfig string
+
+func customSCEPDigiCertForValidation(challenge, url string) string {
+	return fmt.Sprintf(customSCEPDigiCertValidationMobileconfig, challenge, url)
+}
 
 //go:embed testdata/profiles/custom-profile-validation.mobileconfig
 var customProfileValidationMobileconfig string
