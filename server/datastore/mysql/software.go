@@ -168,7 +168,7 @@ func hostSoftwareInstalledPathsDelta(
 		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 3)
 		installedPath, teamIdentifier, unqStr := parts[0], parts[1], parts[2]
 
-		// Shouldn't be a common occurance ... everything 'reported' should be in the the software table
+		// Shouldn't be a common occurence ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
 		s, ok := sUnqStrLook[unqStr]
 		if !ok {
