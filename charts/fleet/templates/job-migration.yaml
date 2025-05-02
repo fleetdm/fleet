@@ -164,7 +164,7 @@ spec:
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           runAsNonRoot: true
       {{- end }}
-      {{- if .Values.imagePullSecrets }}
+      {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8}}
       {{- end }}
