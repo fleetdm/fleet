@@ -368,6 +368,7 @@ export interface IHostSoftwarePackage {
   icon_url: string;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostAppStoreApp {
@@ -376,6 +377,7 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostSoftware {
@@ -387,7 +389,6 @@ export interface IHostSoftware {
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
-  categories?: SoftwareCategory[];
 }
 
 export type IDeviceSoftware = IHostSoftware;

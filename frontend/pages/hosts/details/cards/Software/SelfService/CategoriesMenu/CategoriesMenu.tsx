@@ -23,7 +23,9 @@ const CategoriesMenu = ({
   return (
     <div className={wrapperClasses}>
       {categories.map((cat: ICategory) => {
-        const isActive = cat.id === queryParams.category_id;
+        const isActive =
+          cat.id === queryParams.category_id ||
+          (cat.id === 0 && !queryParams.category_id);
 
         return (
           <LinkWithContext

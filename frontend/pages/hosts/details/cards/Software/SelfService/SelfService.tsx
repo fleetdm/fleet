@@ -221,6 +221,7 @@ const SoftwareSelfService = ({
     router.push(
       getPathWithQueryParams(pathname, {
         query: value,
+        category_id: queryParams.category_id,
         page: 0, // Always reset to page 0 when searching
       })
     );
@@ -232,6 +233,7 @@ const SoftwareSelfService = ({
     router.push(
       getPathWithQueryParams(pathname, {
         category_id: option?.value !== "undefined" ? option?.value : undefined,
+        query: queryParams.query,
         page: 0, // Always reset to page 0 when searching
       })
     );
@@ -241,19 +243,21 @@ const SoftwareSelfService = ({
     router.push(
       getPathWithQueryParams(pathname, {
         query: queryParams.query,
+        category_id: queryParams.category_id,
         page: queryParams.page + 1,
       })
     );
-  }, [pathname, queryParams.page, queryParams.query, router]);
+  }, [pathname, queryParams, router]);
 
   const onPrevPage = useCallback(() => {
     router.push(
       getPathWithQueryParams(pathname, {
         query: queryParams.query,
+        category_id: queryParams.category_id,
         page: queryParams.page - 1,
       })
     );
-  }, [pathname, queryParams.query, queryParams.page, router]);
+  }, [pathname, queryParams, router]);
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
@@ -367,7 +371,10 @@ const SoftwareSelfService = ({
           {renderCategoriesMenu()}
           <TableContainer
             columnConfigs={tableConfig}
-            data={filterSoftwareByCategory(selfServiceData?.software || [])}
+            data={filterSoftwareByCategory(
+              selfServiceData?.software || [],
+              queryParams.category_id
+            )}
             isLoading={isLoading}
             defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
             defaultSortDirection={

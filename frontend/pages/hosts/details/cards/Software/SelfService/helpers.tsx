@@ -38,7 +38,13 @@ export const filterSoftwareByCategory = (
   }
 
   // Otherwise, filter software items whose categories include the category value
-  return (software || []).filter((softwareItem) =>
-    softwareItem.categories?.includes(category.value as SoftwareCategory)
+  return (software || []).filter(
+    (softwareItem) =>
+      softwareItem.software_package?.categories?.includes(
+        category.value as SoftwareCategory
+      ) ||
+      softwareItem.app_store_app?.categories?.includes(
+        category.value as SoftwareCategory
+      )
   );
 };
