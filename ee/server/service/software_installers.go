@@ -305,6 +305,21 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.ValidatedLabels = validatedLabels
 
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(payload.Categories) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+		}
+	}
+
+	payload.CategoryIDs = catIDs
+	dirty["Categories"] = true
+
 	// activity team ID must be null if no team, not zero
 	var actTeamID *uint
 	if payload.TeamID != nil && *payload.TeamID != 0 {
@@ -429,6 +444,16 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		payload.UninstallScript = &uninstallScript
 	}
 
+	fieldsShouldSideEffect := map[string]struct{}{
+		"InstallerFile":     {},
+		"InstallScript":     {},
+		"UninstallScript":   {},
+		"PostInstallScript": {},
+		"PreInstallQuery":   {},
+		"Package":           {},
+		"Labels":            {},
+	}
+	var shouldDoSideEffects bool
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
 		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
@@ -494,11 +519,18 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				}
 			}
 
+			for field := range dirty {
+				if _, ok := fieldsShouldSideEffect[field]; ok {
+					shouldDoSideEffects = true
+					break
+				}
+			}
+
 			// if we're updating anything other than self-service, we cancel pending installs/uninstalls,
 			// and if we're updating the package we reset counts. This is run in its own transaction internally
 			// for consistency, but independent of the installer update query as the main update should stick
 			// even if side effects fail.
-			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, true, dirty["Package"]); err != nil {
+			if err := svc.ds.ProcessInstallerUpdateSideEffects(ctx, existingInstaller.InstallerID, shouldDoSideEffects, dirty["Package"]); err != nil {
 				return nil, err
 			}
 		}
